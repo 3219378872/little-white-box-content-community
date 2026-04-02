@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package user;
+option go_package = "xiaobaihe/user/pb";
+
+// 用户服务
+service UserService {
+  // 获取用户信息
+  rpc GetUser(GetUserReq) returns (GetUserResp);
+  // 批量获取用户信息
+  rpc BatchGetUsers(BatchGetUsersReq) returns (BatchGetUsersResp);
+  // 更新用户资料
+  rpc UpdateProfile(UpdateProfileReq) returns (UpdateProfileResp);
+  // 关注用户
+  rpc Follow(FollowReq) returns (FollowResp);
+  // 取消关注
+  rpc Unfollow(UnfollowReq) returns (UnfollowResp);
+  // 获取粉丝列表
+  rpc GetFollowers(GetFollowersReq) returns (GetFollowersResp);
+  // 获取关注列表
+  rpc GetFollowing(GetFollowingReq) returns (GetFollowingResp);
+  // 获取用户标签
+  rpc GetUserTags(GetUserTagsReq) returns (GetUserTagsResp);
+  // 注册
+  rpc Register(RegisterReq) returns (RegisterResp);
+  // 登录
+  rpc Login(LoginReq) returns (LoginResp);
+  // 发送验证码
+  rpc SendVerifyCode(SendVerifyCodeReq) returns (SendVerifyCodeResp);
+}
+
+// 用户信息
+message UserInfo {
+  int64  id              = 1;
+  string username        = 2;
+  string nickname        = 3;
+  string avatar_url      = 4;
+  string bio             = 5;
+  int32  level           = 6;
+  int64  follower_count  = 7;
+  int64  following_count = 8;
+  int64  post_count      = 9;
+  int64  like_count      = 10;
+  int64  created_at      = 11; // Unix 时间戳（毫秒）
+}
+
+// 获取用户信息请求
+message GetUserReq {
+  int64 user_id = 1;
+}
+
+// 获取用户信息响应
+message GetUserResp {
+  UserInfo user = 1;
+}
+
+// 批量获取用户信息请求
+message BatchGetUsersReq {
+  repeated int64 user_ids = 1;
+}
+
+// 批量获取用户信息响应
+message BatchGetUsersResp {
+  repeated UserInfo users = 1;
+}
+
+// 更新用户资料请求
+message UpdateProfileReq {
+  int64  user_id    = 1;
+  string nickname   = 2;
+  string avatar_url = 3;
+  string bio        = 4;
+}
+
+// 更新用户资料响应
+message UpdateProfileResp {}
+
+// 关注请求
+message FollowReq {
+  int64 user_id        = 1;
+  int64 target_user_id = 2;
+}
+
+// 关注响应
+message FollowResp {}
+
+// 取消关注请求
+message UnfollowReq {
+  int64 user_id        = 1;
+  int64 target_user_id = 2;
+}
+
+// 取消关注响应
+message UnfollowResp {}
+
+// 获取粉丝列表请求
+message GetFollowersReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取粉丝列表响应
+message GetFollowersResp {
+  repeated UserInfo users = 1;
+  int64             total = 2;
+}
+
+// 获取关注列表请求
+message GetFollowingReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取关注列表响应
+message GetFollowingResp {
+  repeated UserInfo users = 1;
+  int64             total = 2;
+}
+
+// 获取用户标签请求
+message GetUserTagsReq {
+  int64 user_id = 1;
+}
+
+// 获取用户标签响应
+message GetUserTagsResp {
+  repeated string tags = 1;
+}
+
+// 注册请求
+message RegisterReq {
+  string username    = 1;
+  string password    = 2;
+  string phone       = 3;
+  string verify_code = 4;
+}
+
+// 注册响应
+message RegisterResp {
+  int64  user_id = 1;
+  string token   = 2;
+}
+
+// 登录请求
+message LoginReq {
+  string username    = 1;
+  string password    = 2;
+  string phone       = 3;
+  string verify_code = 4;
+  int32  login_type  = 5; // 1: 密码登录 2: 验证码登录
+}
+
+// 登录响应
+message LoginResp {
+  int64    user_id = 1;
+  string   token   = 2;
+  UserInfo user    = 3;
+}
+
+// 发送验证码请求
+message SendVerifyCodeReq {
+  string phone = 1;
+  int32  type  = 2; // 1: 注册 2: 登录 3: 重置密码
+}
+
+// 发送验证码响应
+message SendVerifyCodeResp {}

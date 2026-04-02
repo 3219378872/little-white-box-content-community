@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package feed;
+option go_package = "xiaobaihe/feed/pb";
+
+// Feed 服务
+service FeedService {
+  // 获取关注动态
+  rpc GetFollowingFeed(GetFollowingFeedReq) returns (GetFollowingFeedResp);
+  // 获取用户动态
+  rpc GetUserFeed(GetUserFeedReq) returns (GetUserFeedResp);
+  // 推送动态
+  rpc PushFeed(PushFeedReq) returns (PushFeedResp);
+}
+
+// 获取关注动态请求（游标分页）
+message GetFollowingFeedReq {
+  int64 user_id   = 1;
+  int64 last_id   = 2; // 游标，用于分页
+  int32 page_size = 3;
+}
+
+// 获取关注动态响应
+message GetFollowingFeedResp {
+  repeated FeedItem items    = 1;
+  bool              has_more = 2;
+}
+
+// 获取用户动态请求
+message GetUserFeedReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取用户动态响应
+message GetUserFeedResp {
+  repeated FeedItem items = 1;
+  int64             total = 2;
+}
+
+// 动态项
+message FeedItem {
+  int64  id           = 1;
+  int32  type         = 2; // 1: 发帖 2: 评论 3: 点赞 4: 关注
+  int64  user_id      = 3;
+  string user_name    = 4;
+  string user_avatar  = 5;
+  int64  target_id    = 6;
+  string target_title = 7;
+  string content      = 8;
+  int64  created_at   = 9; // Unix 时间戳（毫秒）
+}
+
+// 推送动态请求
+message PushFeedReq {
+  int64  user_id   = 1;
+  int32  type      = 2;
+  int64  target_id = 3;
+  string content   = 4;
+}
+
+// 推送动态响应
+message PushFeedResp {}

@@ -1,0 +1,13 @@
+go 1.26.1
+
+use (
+	./app/gateway
+	./pkg/cachex
+	./pkg/errx
+	./pkg/interceptor
+	./pkg/jwtx
+	./pkg/middleware
+	./pkg/mqx
+	./pkg/result
+	./pkg/util
+)

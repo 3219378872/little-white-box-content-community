@@ -1,0 +1,206 @@
+syntax = "proto3";
+
+package content;
+option go_package = "xiaobaihe/content/pb";
+
+// 内容服务
+service ContentService {
+  // 创建帖子
+  rpc CreatePost(CreatePostReq) returns (CreatePostResp);
+  // 获取帖子详情
+  rpc GetPost(GetPostReq) returns (GetPostResp);
+  // 更新帖子
+  rpc UpdatePost(UpdatePostReq) returns (UpdatePostResp);
+  // 删除帖子
+  rpc DeletePost(DeletePostReq) returns (DeletePostResp);
+  // 获取帖子列表
+  rpc GetPostList(GetPostListReq) returns (GetPostListResp);
+  // 获取用户帖子列表
+  rpc GetUserPosts(GetUserPostsReq) returns (GetUserPostsResp);
+
+  // 创建评论
+  rpc CreateComment(CreateCommentReq) returns (CreateCommentResp);
+  // 删除评论
+  rpc DeleteComment(DeleteCommentReq) returns (DeleteCommentResp);
+  // 获取评论列表
+  rpc GetCommentList(GetCommentListReq) returns (GetCommentListResp);
+
+  // 获取标签列表
+  rpc GetTags(GetTagsReq) returns (GetTagsResp);
+  // 获取标签下的帖子
+  rpc GetPostsByTag(GetPostsByTagReq) returns (GetPostsByTagResp);
+}
+
+// 帖子信息
+message PostInfo {
+  int64           id             = 1;
+  int64           author_id      = 2;
+  string          title          = 3;
+  string          content        = 4;
+  repeated string images         = 5;
+  repeated string tags           = 6;
+  int32           status         = 7; // 0: 草稿 1: 已发布 2: 已删除
+  int64           view_count     = 8;
+  int64           like_count     = 9;
+  int64           comment_count  = 10;
+  int64           favorite_count = 11;
+  int64           created_at     = 12; // Unix 时间戳（毫秒）
+  int64           updated_at     = 13; // Unix 时间戳（毫秒）
+}
+
+// 评论信息（扁平结构，不含自引用）
+message CommentInfo {
+  int64  id            = 1;
+  int64  post_id       = 2;
+  int64  user_id       = 3;
+  int64  parent_id     = 4; // 0 表示一级评论
+  int64  reply_user_id = 5;
+  string content       = 6;
+  int32  status        = 7;
+  int64  like_count    = 8;
+  int64  created_at    = 9; // Unix 时间戳（毫秒）
+}
+
+// 创建帖子请求
+message CreatePostReq {
+  int64           author_id = 1;
+  string          title     = 2;
+  string          content   = 3;
+  repeated string images    = 4;
+  repeated string tags      = 5;
+  int32           status    = 6;
+}
+
+// 创建帖子响应
+message CreatePostResp {
+  int64 post_id = 1;
+}
+
+// 获取帖子详情请求
+message GetPostReq {
+  int64 post_id = 1;
+  int64 user_id = 2; // 当前用户ID，用于判断是否已点赞/收藏
+}
+
+// 获取帖子详情响应
+message GetPostResp {
+  PostInfo post         = 1;
+  bool     is_liked     = 2;
+  bool     is_favorited = 3;
+}
+
+// 更新帖子请求
+message UpdatePostReq {
+  int64           post_id   = 1;
+  int64           author_id = 2;
+  string          title     = 3;
+  string          content   = 4;
+  repeated string images    = 5;
+  repeated string tags      = 6;
+  int32           status    = 7;
+}
+
+// 更新帖子响应
+message UpdatePostResp {}
+
+// 删除帖子请求
+message DeletePostReq {
+  int64 post_id   = 1;
+  int64 author_id = 2;
+}
+
+// 删除帖子响应
+message DeletePostResp {}
+
+// 获取帖子列表请求
+message GetPostListReq {
+  int32 page      = 1;
+  int32 page_size = 2;
+  int32 sort_by   = 3; // 1: 最新 2: 热门 3: 推荐
+}
+
+// 获取帖子列表响应
+message GetPostListResp {
+  repeated PostInfo posts = 1;
+  int64             total = 2;
+}
+
+// 获取用户帖子列表请求
+message GetUserPostsReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取用户帖子列表响应
+message GetUserPostsResp {
+  repeated PostInfo posts = 1;
+  int64             total = 2;
+}
+
+// 创建评论请求
+message CreateCommentReq {
+  int64  post_id       = 1;
+  int64  user_id       = 2;
+  int64  parent_id     = 3;
+  int64  reply_user_id = 4;
+  string content       = 5;
+}
+
+// 创建评论响应
+message CreateCommentResp {
+  int64 comment_id = 1;
+}
+
+// 删除评论请求
+message DeleteCommentReq {
+  int64 comment_id = 1;
+  int64 user_id    = 2;
+}
+
+// 删除评论响应
+message DeleteCommentResp {}
+
+// 获取评论列表请求
+message GetCommentListReq {
+  int64 post_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+  int32 sort_by   = 4; // 1: 最新 2: 最热
+}
+
+// 获取评论列表响应
+message GetCommentListResp {
+  repeated CommentInfo comments = 1;
+  int64                total    = 2;
+}
+
+// 获取标签列表请求
+message GetTagsReq {
+  int32 limit = 1;
+}
+
+// 获取标签列表响应
+message GetTagsResp {
+  repeated TagInfo tags = 1;
+}
+
+// 标签信息
+message TagInfo {
+  int64  id         = 1;
+  string name       = 2;
+  int64  post_count = 3;
+}
+
+// 获取标签下的帖子请求
+message GetPostsByTagReq {
+  string tag_name  = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+// 获取标签下的帖子响应
+message GetPostsByTagResp {
+  repeated PostInfo posts = 1;
+  int64             total = 2;
+}

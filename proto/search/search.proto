@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package search;
+option go_package = "xiaobaihe/search/pb";
+
+// 搜索服务
+service SearchService {
+  // 搜索帖子
+  rpc SearchPosts(SearchPostsReq) returns (SearchPostsResp);
+  // 搜索用户
+  rpc SearchUsers(SearchUsersReq) returns (SearchUsersResp);
+  // 搜索标签
+  rpc SearchTags(SearchTagsReq) returns (SearchTagsResp);
+  // 综合搜索
+  rpc Search(SearchReq) returns (SearchResp);
+
+  // 索引帖子
+  rpc IndexPost(IndexPostReq) returns (IndexPostResp);
+  // 删除帖子索引
+  rpc DeletePostIndex(DeletePostIndexReq) returns (DeletePostIndexResp);
+
+  // 获取热门搜索
+  rpc GetHotSearches(GetHotSearchesReq) returns (GetHotSearchesResp);
+}
+
+// 搜索帖子请求
+message SearchPostsReq {
+  string          keyword   = 1;
+  int32           page      = 2;
+  int32           page_size = 3;
+  int32           sort_by   = 4; // 1: 相关度 2: 最新 3: 最热
+  repeated string tags      = 5;
+}
+
+// 搜索帖子响应
+message SearchPostsResp {
+  repeated PostSearchResult posts = 1;
+  int64                     total = 2;
+}
+
+// 帖子搜索结果
+message PostSearchResult {
+  int64  id                = 1;
+  string title             = 2;
+  string content_highlight = 3; // 高亮内容
+  string author_name       = 4;
+  int64  like_count        = 5;
+  int64  comment_count     = 6;
+  int64  created_at        = 7; // Unix 时间戳（毫秒）
+}
+
+// 搜索用户请求
+message SearchUsersReq {
+  string keyword   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+// 搜索用户响应
+message SearchUsersResp {
+  repeated UserSearchResult users = 1;
+  int64                     total = 2;
+}
+
+// 用户搜索结果
+message UserSearchResult {
+  int64  id             = 1;
+  string username       = 2;
+  string nickname       = 3;
+  string avatar_url     = 4;
+  string bio            = 5;
+  int64  follower_count = 6;
+}
+
+// 搜索标签请求
+message SearchTagsReq {
+  string keyword = 1;
+  int32  limit   = 2;
+}
+
+// 搜索标签响应
+message SearchTagsResp {
+  repeated TagSearchResult tags = 1;
+}
+
+// 标签搜索结果
+message TagSearchResult {
+  string name       = 1;
+  int64  post_count = 2;
+}
+
+// 综合搜索请求
+message SearchReq {
+  string keyword   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+// 综合搜索响应
+message SearchResp {
+  repeated PostSearchResult posts = 1;
+  repeated UserSearchResult users = 2;
+  repeated TagSearchResult  tags  = 3;
+}
+
+// 索引帖子请求
+message IndexPostReq {
+  int64           post_id     = 1;
+  string          title       = 2;
+  string          content     = 3;
+  repeated string tags        = 4;
+  int64           author_id   = 5;
+  string          author_name = 6;
+  int64           created_at  = 7; // Unix 时间戳（毫秒）
+}
+
+// 索引帖子响应
+message IndexPostResp {}
+
+// 删除帖子索引请求
+message DeletePostIndexReq {
+  int64 post_id = 1;
+}
+
+// 删除帖子索引响应
+message DeletePostIndexResp {}
+
+// 获取热门搜索请求
+message GetHotSearchesReq {
+  int32 limit = 1;
+}
+
+// 获取热门搜索响应
+message GetHotSearchesResp {
+  repeated string keywords = 1;
+}

@@ -1,0 +1,410 @@
+syntax = "v1"
+
+info (
+	title:   "小白盒内容社区 Gateway API"
+	desc:    "小白盒内容社区网关服务"
+	author:  "xbh"
+	version: "1.0.0"
+)
+
+// ============================================
+// 用户相关类型
+// ============================================
+type (
+	RegisterReq {
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		Phone      string `json:"phone,optional"`
+		VerifyCode string `json:"verifyCode,optional"`
+	}
+	RegisterResp {
+		UserId int64  `json:"userId"`
+		Token  string `json:"token"`
+	}
+)
+
+type (
+	LoginReq {
+		Username   string `json:"username,optional"`
+		Password   string `json:"password,optional"`
+		Phone      string `json:"phone,optional"`
+		VerifyCode string `json:"verifyCode,optional"`
+		LoginType  int32  `json:"loginType"` // 1:密码登录 2:验证码登录
+	}
+	LoginResp {
+		UserId int64  `json:"userId"`
+		Token  string `json:"token"`
+	}
+)
+
+type (
+	SendVerifyCodeReq {
+		Phone string `json:"phone"`
+		Type  int32  `json:"type"` // 1:注册 2:登录 3:重置密码
+	}
+	SendVerifyCodeResp  {}
+)
+
+type (
+	GetUserReq {
+		UserId int64 `path:"userId"`
+	}
+	GetUserResp {
+		Id             int64  `json:"id"`
+		Username       string `json:"username"`
+		Nickname       string `json:"nickname"`
+		AvatarUrl      string `json:"avatarUrl"`
+		Bio            string `json:"bio"`
+		Level          int32  `json:"level"`
+		FollowerCount  int64  `json:"followerCount"`
+		FollowingCount int64  `json:"followingCount"`
+		PostCount      int64  `json:"postCount"`
+	}
+)
+
+type (
+	UpdateProfileReq {
+		Nickname  string `json:"nickname,optional"`
+		AvatarUrl string `json:"avatarUrl,optional"`
+		Bio       string `json:"bio,optional"`
+	}
+	UpdateProfileResp  {}
+)
+
+// ============================================
+// 帖子相关类型
+// ============================================
+type (
+	CreatePostReq {
+		Title   string   `json:"title"`
+		Content string   `json:"content"`
+		Images  []string `json:"images,optional"`
+		Tags    []string `json:"tags,optional"`
+		Status  int32    `json:"status,optional"` // 0:草稿 1:发布
+	}
+	CreatePostResp {
+		PostId int64 `json:"postId"`
+	}
+)
+
+type (
+	GetPostReq {
+		PostId int64 `path:"postId"`
+	}
+	GetPostResp {
+		Id            int64    `json:"id"`
+		AuthorId      int64    `json:"authorId"`
+		AuthorName    string   `json:"authorName"`
+		AuthorAvatar  string   `json:"authorAvatar"`
+		Title         string   `json:"title"`
+		Content       string   `json:"content"`
+		Images        []string `json:"images"`
+		Tags          []string `json:"tags"`
+		ViewCount     int64    `json:"viewCount"`
+		LikeCount     int64    `json:"likeCount"`
+		CommentCount  int64    `json:"commentCount"`
+		FavoriteCount int64    `json:"favoriteCount"`
+		IsLiked       bool     `json:"isLiked"`
+		IsFavorited   bool     `json:"isFavorited"`
+		CreatedAt     int64    `json:"createdAt"`
+	}
+)
+
+type (
+	UpdatePostReq {
+		PostId  int64    `path:"postId"`
+		Title   string   `json:"title,optional"`
+		Content string   `json:"content,optional"`
+		Images  []string `json:"images,optional"`
+		Tags    []string `json:"tags,optional"`
+	}
+	UpdatePostResp  {}
+)
+
+type (
+	DeletePostReq {
+		PostId int64 `path:"postId"`
+	}
+	DeletePostResp  {}
+)
+
+type (
+	GetPostListReq {
+		Page     int32 `form:"page,default=1"`
+		PageSize int32 `form:"pageSize,default=20"`
+		SortBy   int32 `form:"sortBy,default=1"` // 1:最新 2:热门 3:推荐
+	}
+	PostItem {
+		Id           int64    `json:"id"`
+		AuthorId     int64    `json:"authorId"`
+		AuthorName   string   `json:"authorName"`
+		AuthorAvatar string   `json:"authorAvatar"`
+		Title        string   `json:"title"`
+		Content      string   `json:"content"`
+		Images       []string `json:"images"`
+		Tags         []string `json:"tags"`
+		ViewCount    int64    `json:"viewCount"`
+		LikeCount    int64    `json:"likeCount"`
+		CommentCount int64    `json:"commentCount"`
+		CreatedAt    int64    `json:"createdAt"`
+	}
+	GetPostListResp {
+		List     []PostItem `json:"list"`
+		Total    int64      `json:"total"`
+		Page     int32      `json:"page"`
+		PageSize int32      `json:"pageSize"`
+	}
+)
+
+// ============================================
+// 评论相关类型
+// ============================================
+type (
+	CreateCommentReq {
+		PostId      int64  `json:"postId"`
+		ParentId    int64  `json:"parentId,optional"`
+		ReplyUserId int64  `json:"replyUserId,optional"`
+		Content     string `json:"content"`
+	}
+	CreateCommentResp {
+		CommentId int64 `json:"commentId"`
+	}
+)
+
+type (
+	DeleteCommentReq {
+		CommentId int64 `path:"commentId"`
+	}
+	DeleteCommentResp  {}
+)
+
+type (
+	GetCommentListReq {
+		PostId   int64 `path:"postId"`
+		Page     int32 `form:"page,default=1"`
+		PageSize int32 `form:"pageSize,default=20"`
+		SortBy   int32 `form:"sortBy,default=1"` // 1:最新 2:最热
+	}
+	CommentItem {
+		Id          int64  `json:"id"`
+		UserId      int64  `json:"userId"`
+		UserName    string `json:"userName"`
+		UserAvatar  string `json:"userAvatar"`
+		ParentId    int64  `json:"parentId"`
+		ReplyUserId int64  `json:"replyUserId"`
+		Content     string `json:"content"`
+		LikeCount   int64  `json:"likeCount"`
+		CreatedAt   int64  `json:"createdAt"`
+	}
+	GetCommentListResp {
+		List     []CommentItem `json:"list"`
+		Total    int64         `json:"total"`
+		Page     int32         `json:"page"`
+		PageSize int32         `json:"pageSize"`
+	}
+)
+
+// ============================================
+// 互动相关类型
+// ============================================
+type (
+	LikeReq {
+		TargetId   int64 `json:"targetId"`
+		TargetType int32 `json:"targetType"` // 1:帖子 2:评论
+	}
+	LikeResp  {}
+)
+
+type (
+	UnlikeReq {
+		TargetId   int64 `json:"targetId"`
+		TargetType int32 `json:"targetType"`
+	}
+	UnlikeResp  {}
+)
+
+type (
+	FavoriteReq {
+		PostId int64 `json:"postId"`
+	}
+	FavoriteResp  {}
+)
+
+type (
+	UnfavoriteReq {
+		PostId int64 `json:"postId"`
+	}
+	UnfavoriteResp  {}
+)
+
+type (
+	FollowReq {
+		TargetUserId int64 `json:"targetUserId"`
+	}
+	FollowResp  {}
+)
+
+type (
+	UnfollowReq {
+		TargetUserId int64 `json:"targetUserId"`
+	}
+	UnfollowResp  {}
+)
+
+// ============================================
+// 媒体相关类型
+// ============================================
+type (
+	UploadImageReq {
+		File []byte `form:"file"`
+	}
+	UploadImageResp {
+		MediaId      int64  `json:"mediaId"`
+		Url          string `json:"url"`
+		ThumbnailUrl string `json:"thumbnailUrl"`
+	}
+)
+
+// ============================================
+// 健康检查
+// ============================================
+type (
+	HealthReq  {}
+	HealthResp {
+		Status string `json:"status"`
+	}
+)
+
+// ============================================
+// 路由定义
+// ============================================
+@server (
+	prefix: /api/v1
+)
+service gateway {
+	@doc "健康检查"
+	@handler Health
+	get /health (HealthReq) returns (HealthResp)
+}
+
+@server (
+	prefix: /api/v1
+	group:  login
+)
+service gateway {
+	@doc "用户注册"
+	@handler Register
+	post /auth/register (RegisterReq) returns (RegisterResp)
+
+	@doc "用户登录"
+	@handler Login
+	post /auth/login (LoginReq) returns (LoginResp)
+
+	@doc "发送验证码"
+	@handler SendVerifyCode
+	post /auth/verify-code (SendVerifyCodeReq) returns (SendVerifyCodeResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  user
+)
+service gateway {
+	@doc "获取用户信息"
+	@handler GetUser
+	get /user/:userId (GetUserReq) returns (GetUserResp)
+
+	@doc "更新用户资料"
+	@handler UpdateProfile
+	put /user/profile (UpdateProfileReq) returns (UpdateProfileResp)
+
+	@doc "关注用户"
+	@handler Follow
+	post /user/follow (FollowReq) returns (FollowResp)
+
+	@doc "取消关注"
+	@handler Unfollow
+	delete /user/follow (UnfollowReq) returns (UnfollowResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  posts
+)
+service gateway {
+	@doc "创建帖子"
+	@handler CreatePost
+	post /post (CreatePostReq) returns (CreatePostResp)
+
+	@doc "获取帖子详情"
+	@handler GetPost
+	get /post/:postId (GetPostReq) returns (GetPostResp)
+
+	@doc "更新帖子"
+	@handler UpdatePost
+	put /post/:postId (UpdatePostReq) returns (UpdatePostResp)
+
+	@doc "删除帖子"
+	@handler DeletePost
+	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
+
+	@doc "获取帖子列表"
+	@handler GetPostList
+	get /posts (GetPostListReq) returns (GetPostListResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  comment
+)
+service gateway {
+	@doc "创建评论"
+	@handler CreateComment
+	post /comment (CreateCommentReq) returns (CreateCommentResp)
+
+	@doc "删除评论"
+	@handler DeleteComment
+	delete /comment/:commentId (DeleteCommentReq) returns (DeleteCommentResp)
+
+	@doc "获取评论列表"
+	@handler GetCommentList
+	get /comments/:postId (GetCommentListReq) returns (GetCommentListResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  like_favorite
+)
+service gateway {
+	@doc "点赞"
+	@handler Like
+	post /like (LikeReq) returns (LikeResp)
+
+	@doc "取消点赞"
+	@handler Unlike
+	delete /like (UnlikeReq) returns (UnlikeResp)
+
+	@doc "收藏"
+	@handler Favorite
+	post /favorite (FavoriteReq) returns (FavoriteResp)
+
+	@doc "取消收藏"
+	@handler Unfavorite
+	delete /favorite (UnfavoriteReq) returns (UnfavoriteResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  image
+)
+service gateway {
+	@doc "上传图片"
+	@handler UploadImage
+	post /media/image (UploadImageReq) returns (UploadImageResp)
+}
+

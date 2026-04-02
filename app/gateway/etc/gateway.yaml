@@ -1,0 +1,6 @@
+Name: gateway
+Host: 0.0.0.0
+Port: 8888
+Auth:
+  AccessSecret: 15641d5861aw5861d546aw1456ddw47ad45aw1754z1d7wa161s68d1q68a
+  AccessExpire: 86400

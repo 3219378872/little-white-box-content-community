@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package message;
+option go_package = "xiaobaihe/message/pb";
+
+// 消息服务
+service MessageService {
+  // 发送私信
+  rpc SendMessage(SendMessageReq) returns (SendMessageResp);
+  // 获取会话列表
+  rpc GetConversations(GetConversationsReq) returns (GetConversationsResp);
+  // 获取聊天记录
+  rpc GetMessages(GetMessagesReq) returns (GetMessagesResp);
+  // 标记已读
+  rpc MarkRead(MarkReadReq) returns (MarkReadResp);
+  // 获取未读数
+  rpc GetUnreadCount(GetUnreadCountReq) returns (GetUnreadCountResp);
+
+  // 发送系统通知
+  rpc SendNotification(SendNotificationReq) returns (SendNotificationResp);
+  // 获取通知列表
+  rpc GetNotifications(GetNotificationsReq) returns (GetNotificationsResp);
+}
+
+// 消息信息
+message MessageInfo {
+  int64  id              = 1;
+  int64  conversation_id = 2;
+  int64  sender_id       = 3;
+  int64  receiver_id     = 4;
+  string content         = 5;
+  int32  msg_type        = 6; // 1: 文本 2: 图片 3: 视频
+  int32  status          = 7; // 0: 未读 1: 已读
+  int64  created_at      = 8; // Unix 时间戳（毫秒）
+}
+
+// 会话信息
+message ConversationInfo {
+  int64  id                  = 1;
+  int64  user_id             = 2;
+  int64  target_user_id      = 3;
+  string target_user_name    = 4;
+  string target_user_avatar  = 5;
+  string last_message        = 6;
+  int64  last_message_time   = 7; // Unix 时间戳（毫秒）
+  int32  unread_count        = 8;
+}
+
+// 通知信息
+message NotificationInfo {
+  int64  id        = 1;
+  int64  user_id   = 2;
+  int32  type      = 3; // 1: 点赞 2: 评论 3: 关注 4: 系统
+  string title     = 4;
+  string content   = 5;
+  int64  target_id = 6;
+  int32  status    = 7;
+  int64  created_at = 8; // Unix 时间戳（毫秒）
+}
+
+// 发送私信请求
+message SendMessageReq {
+  int64  sender_id   = 1;
+  int64  receiver_id = 2;
+  string content     = 3;
+  int32  msg_type    = 4;
+}
+
+// 发送私信响应
+message SendMessageResp {
+  int64 message_id = 1;
+}
+
+// 获取会话列表请求
+message GetConversationsReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取会话列表响应
+message GetConversationsResp {
+  repeated ConversationInfo conversations = 1;
+  int64                     total         = 2;
+}
+
+// 获取聊天记录请求（游标分页）
+message GetMessagesReq {
+  int64 conversation_id = 1;
+  int64 last_id         = 2; // 游标
+  int32 page_size       = 3;
+}
+
+// 获取聊天记录响应
+message GetMessagesResp {
+  repeated MessageInfo messages = 1;
+  bool                 has_more = 2;
+}
+
+// 标记已读请求
+message MarkReadReq {
+  int64 user_id         = 1;
+  int64 conversation_id = 2;
+}
+
+// 标记已读响应
+message MarkReadResp {}
+
+// 获取未读数请求
+message GetUnreadCountReq {
+  int64 user_id = 1;
+}
+
+// 获取未读数响应
+message GetUnreadCountResp {
+  int32 message_unread      = 1;
+  int32 notification_unread = 2;
+}
+
+// 发送系统通知请求
+message SendNotificationReq {
+  int64  user_id   = 1;
+  int32  type      = 2;
+  string title     = 3;
+  string content   = 4;
+  int64  target_id = 5;
+}
+
+// 发送系统通知响应
+message SendNotificationResp {
+  int64 notification_id = 1;
+}
+
+// 获取通知列表请求
+message GetNotificationsReq {
+  int64 user_id   = 1;
+  int32 type      = 2; // 0: 全部
+  int32 page      = 3;
+  int32 page_size = 4;
+}
+
+// 获取通知列表响应
+message GetNotificationsResp {
+  repeated NotificationInfo notifications = 1;
+  int64                     total         = 2;
+}

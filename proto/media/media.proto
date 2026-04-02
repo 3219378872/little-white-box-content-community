@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package media;
+option go_package = "xiaobaihe/media/pb";
+
+// 媒体服务
+service MediaService {
+  // 上传图片（client streaming，每包 ≤ 1MB）
+  rpc UploadImage(stream UploadImageReq) returns (UploadImageResp);
+  // 上传视频（client streaming，每包 ≤ 1MB）
+  rpc UploadVideo(stream UploadVideoReq) returns (UploadVideoResp);
+  // 获取媒体信息
+  rpc GetMedia(GetMediaReq) returns (GetMediaResp);
+  // 删除媒体
+  rpc DeleteMedia(DeleteMediaReq) returns (DeleteMediaResp);
+  // 批量获取媒体信息
+  rpc BatchGetMedia(BatchGetMediaReq) returns (BatchGetMediaResp);
+}
+
+// 上传元数据（streaming 首包）
+message UploadMeta {
+  int64  user_id    = 1;
+  string file_name  = 2;
+  int32  quality    = 3; // 图片压缩质量 1-100，视频忽略此字段
+  int32  max_width  = 4;
+  int32  max_height = 5;
+}
+
+// 上传图片请求（streaming）
+message UploadImageReq {
+  oneof data {
+    UploadMeta meta  = 1; // 首包：元数据
+    bytes      chunk = 2; // 后续包：分块数据
+  }
+}
+
+// 上传视频请求（streaming）
+message UploadVideoReq {
+  oneof data {
+    UploadMeta meta  = 1; // 首包：元数据
+    bytes      chunk = 2; // 后续包：分块数据
+  }
+}
+
+// 媒体信息
+message MediaInfo {
+  int64  id            = 1;
+  int64  user_id       = 2;
+  string file_name     = 3;
+  string file_type     = 4;
+  string url           = 5;
+  string thumbnail_url = 6;
+  int64  file_size     = 7;
+  int32  width         = 8;
+  int32  height        = 9;
+  int32  duration      = 10; // 视频时长（秒）
+  int32  status        = 11;
+  int64  created_at    = 12; // Unix 时间戳（毫秒）
+}
+
+// 上传图片响应
+message UploadImageResp {
+  MediaInfo media = 1;
+}
+
+// 上传视频响应
+message UploadVideoResp {
+  MediaInfo media = 1;
+}
+
+// 获取媒体信息请求
+message GetMediaReq {
+  int64 media_id = 1;
+}
+
+// 获取媒体信息响应
+message GetMediaResp {
+  MediaInfo media = 1;
+}
+
+// 删除媒体请求
+message DeleteMediaReq {
+  int64 media_id = 1;
+  int64 user_id  = 2;
+}
+
+// 删除媒体响应
+message DeleteMediaResp {}
+
+// 批量获取媒体信息请求
+message BatchGetMediaReq {
+  repeated int64 media_ids = 1;
+}
+
+// 批量获取媒体信息响应
+message BatchGetMediaResp {
+  repeated MediaInfo medias = 1;
+}

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package recommend;
+option go_package = "xiaobaihe/recommend/pb";
+
+// 推荐服务
+service RecommendService {
+  // 获取推荐帖子列表
+  rpc GetRecommendPosts(GetRecommendPostsReq) returns (GetRecommendPostsResp);
+  // 获取相似帖子
+  rpc GetSimilarPosts(GetSimilarPostsReq) returns (GetSimilarPostsResp);
+  // 获取推荐用户
+  rpc GetRecommendUsers(GetRecommendUsersReq) returns (GetRecommendUsersResp);
+
+  // 记录用户行为
+  rpc RecordBehavior(RecordBehaviorReq) returns (RecordBehaviorResp);
+
+  // 更新用户画像
+  rpc UpdateUserProfile(UpdateUserProfileReq) returns (UpdateUserProfileResp);
+}
+
+// 获取推荐帖子列表请求
+message GetRecommendPostsReq {
+  int64  user_id   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+  string scene     = 4; // home: 首页 discover: 发现
+}
+
+// 获取推荐帖子列表响应
+message GetRecommendPostsResp {
+  repeated RecommendPost posts = 1;
+  int64                  total = 2;
+}
+
+// 推荐帖子
+message RecommendPost {
+  int64  post_id = 1;
+  double score   = 2; // 推荐分数
+  string reason  = 3; // 推荐理由
+}
+
+// 获取相似帖子请求
+message GetSimilarPostsReq {
+  int64 post_id = 1;
+  int32 limit   = 2;
+}
+
+// 获取相似帖子响应
+message GetSimilarPostsResp {
+  repeated int64 post_ids = 1;
+}
+
+// 获取推荐用户请求
+message GetRecommendUsersReq {
+  int64 user_id = 1;
+  int32 limit   = 2;
+}
+
+// 获取推荐用户响应
+message GetRecommendUsersResp {
+  repeated RecommendUser users = 1;
+}
+
+// 推荐用户
+message RecommendUser {
+  int64  user_id = 1;
+  double score   = 2;
+  string reason  = 3;
+}
+
+// 记录用户行为请求
+message RecordBehaviorReq {
+  int64 user_id     = 1;
+  int64 target_id   = 2;
+  int32 target_type = 3; // 1: 帖子 2: 用户 3: 标签
+  int32 action_type = 4; // 1: 浏览 2: 点赞 3: 收藏 4: 评论 5: 分享
+  int64 duration    = 5; // 停留时长（毫秒）
+}
+
+// 记录用户行为响应
+message RecordBehaviorResp {}
+
+// 更新用户画像请求
+message UpdateUserProfileReq {
+  int64 user_id = 1;
+}
+
+// 更新用户画像响应
+message UpdateUserProfileResp {}
