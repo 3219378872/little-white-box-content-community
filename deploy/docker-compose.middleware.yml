@@ -7,7 +7,7 @@ services:
     container_name: xbh-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Xbh@MySQL2024!}
       MYSQL_DATABASE: xbh_user
       TZ: Asia/Shanghai
     ports:
@@ -33,9 +33,9 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-Xbh@Redis2024!}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-Xbh@Redis2024!}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,17 +44,35 @@ services:
 
   # etcd 服务注册/发现
   etcd:
-    image: bitnami/etcd:3.5
+    image: quay.io/coreos/etcd:v3.5.5
     container_name: xbh-etcd
     restart: unless-stopped
     environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_DATA_DIR=/etcd
+    command:
+      - etcd
+      - --name=default
+#      - --advertise-client-urls=http://etcd:2379
+      - --advertise-client-urls=http://127.0.0.1:2379
+#      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+#      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-advertise-peer-urls=http://127.0.0.1:2380
+#      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+#      - --initial-cluster=default=http://etcd:2380
+      - --initial-cluster=default=http://127.0.0.1:2380
+      - --initial-cluster-state=new
     ports:
       - "2379:2379"
       - "2380:2380"
     volumes:
-      - etcd_data:/bitnami/etcd
+      - etcd_data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://192.168.0.1:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - xbh-network
 
@@ -70,6 +88,11 @@ services:
     command: sh mqnamesrv
     volumes:
       - rocketmq_namesrv_logs:/home/rocketmq/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9876/clusters || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
     networks:
       - xbh-network
 
@@ -90,7 +113,8 @@ services:
       - rocketmq_broker_store:/home/rocketmq/store
       - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.1.0/conf/broker.conf
     depends_on:
-      - rocketmq-namesrv
+      rocketmq-namesrv:
+        condition: service_healthy
     networks:
       - xbh-network
 
@@ -104,7 +128,8 @@ services:
     environment:
       JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
     depends_on:
-      - rocketmq-namesrv
+      rocketmq-namesrv:
+        condition: service_healthy
     networks:
       - xbh-network
 
@@ -130,7 +155,7 @@ services:
     networks:
       - xbh-network
 
-  # Milvus 向量数据库
+  # Milvus 依赖的 etcd
   etcd-milvus:
     image: quay.io/coreos/etcd:v3.5.5
     container_name: xbh-milvus-etcd
@@ -144,20 +169,21 @@ services:
       - milvus_etcd:/etcd
     command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
       interval: 30s
       timeout: 20s
       retries: 3
     networks:
       - xbh-network
 
+  # Milvus 依赖的 MinIO（端口映射到 9100 避免与业务 MinIO 冲突）
   minio-milvus:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     container_name: xbh-milvus-minio
     restart: unless-stopped
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "9100:9000"
       - "9101:9001"
@@ -191,19 +217,21 @@ services:
       timeout: 20s
       retries: 3
     depends_on:
-      - etcd-milvus
-      - minio-milvus
+      etcd-milvus:
+        condition: service_healthy
+      minio-milvus:
+        condition: service_healthy
     networks:
       - xbh-network
 
-  # MinIO 对象存储
+  # MinIO 对象存储（业务使用）
   minio:
     image: minio/minio:latest
     container_name: xbh-minio
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: admin123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-Xbh@Minio2024!}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -228,11 +256,13 @@ services:
       STORE_DRIVER: redis
       STORE_HOST: redis
       STORE_PORT: 6379
+      STORE_PASSWORD: ${REDIS_PASSWORD:-Xbh@Redis2024!}
     ports:
       - "36789:36789"
       - "36790:36790"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - xbh-network
 
@@ -275,7 +305,7 @@ services:
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-Xbh@Grafana2024!}
     ports:
       - "3000:3000"
     volumes:

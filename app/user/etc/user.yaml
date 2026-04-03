@@ -1,0 +1,11 @@
+Name: user.rpc
+ListenOn: 0.0.0.0:9090
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: userRpc
+
+
+JwtConfig:
+  AccessSecret: 15641d5861aw5861d546aw1456ddw47ad45aw1754z1d7wa161s68d1q68a
+  AccessExpire: 86400
