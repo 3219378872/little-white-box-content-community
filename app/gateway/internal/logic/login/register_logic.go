@@ -5,7 +5,6 @@ package login
 
 import (
 	"context"
-
 	"gateway/internal/svc"
 	"gateway/internal/types"
 
@@ -28,7 +27,13 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 }
 
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
-	// todo: add your logic here and delete this line
+	register, err := l.svcCtx.UserService.Register(
+		l.ctx,
+		RegisterReqConvert(req),
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	return RegisterRespConvert(register), nil
 }

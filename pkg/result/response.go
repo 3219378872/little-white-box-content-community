@@ -10,8 +10,7 @@ type bizError interface {
 
 // extractCode 从 error 中提取业务错误码，提取失败返回 -1
 func extractCode(err error) int {
-	var be bizError
-	if errors.As(err, &be) {
+	if be, ok := errors.AsType[bizError](err); ok {
 		return be.BizCode()
 	}
 	return -1

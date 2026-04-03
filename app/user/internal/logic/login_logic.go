@@ -2,13 +2,12 @@ package logic
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	"jwtx"
-
+	"user/internal/model"
 	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -17,6 +16,9 @@ type LoginLogic struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
+
+const PasswordType = 1
+const PhoneType = 2
 
 func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic {
 	return &LoginLogic{
@@ -28,27 +30,35 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 
 // 登录
 func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
-	userId := 666
-	username := "张三"
+	var user *model.UserProfile
+	var err error
+	// 1.密码登录 2.验证码登录
+	if in.LoginType == PhoneType {
+		user, err = l.svcCtx.UserProfileModel.FindOneByPhone(l.ctx, sql.NullString{
+			String: in.Phone,
+			Valid:  true,
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		user, err = l.svcCtx.UserProfileModel.FindOneByUsername(l.ctx, in.Username)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 生成token
+	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
+	if err != nil {
+		logx.Errorf("token生成失败")
+	}
+
+	// 组装返回值
 	return &pb.LoginResp{
-		UserId: int64(userId),
-		Token: fmt.Sprintf("%v", jwtx.Claims{
-			UserId:           int64(userId),
-			Username:         username,
-			RegisteredClaims: jwt.RegisteredClaims{},
-		}),
-		User: &pb.UserInfo{
-			Id:             0,
-			Username:       username,
-			Nickname:       username + "666",
-			AvatarUrl:      "",
-			Bio:            "",
-			Level:          0,
-			FollowerCount:  0,
-			FollowingCount: 0,
-			PostCount:      0,
-			LikeCount:      0,
-			CreatedAt:      0,
-		},
+		UserId: user.Id,
+		Token:  token,
+		User:   UserProfileToUserInfo(user),
 	}, nil
+
 }

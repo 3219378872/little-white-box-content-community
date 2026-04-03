@@ -38,8 +38,7 @@ func NewWithCode(code int) error {
 
 // Is 判断错误是否为指定错误码
 func Is(err error, code int) bool {
-	var bizErr *BizError
-	if errors.As(err, &bizErr) {
+	if bizErr, ok := errors.AsType[*BizError](err); ok {
 		return bizErr.Code == code
 	}
 	return false
@@ -47,8 +46,7 @@ func Is(err error, code int) bool {
 
 // GetCode 获取错误码
 func GetCode(err error) int {
-	var bizErr *BizError
-	if errors.As(err, &bizErr) {
+	if bizErr, ok := errors.AsType[*BizError](err); ok {
 		return bizErr.Code
 	}
 	return UNKNOWN_ERROR

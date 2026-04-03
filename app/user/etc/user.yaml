@@ -9,3 +9,5 @@ Etcd:
 JwtConfig:
   AccessSecret: 15641d5861aw5861d546aw1456ddw47ad45aw1754z1d7wa161s68d1q68a
   AccessExpire: 86400
+
+DataSource: "root:Xbh@MySQL2024!@tcp(127.0.0.1:3306)/xbh_user?parseTime=true&loc=UTC"

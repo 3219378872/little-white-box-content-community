@@ -5,7 +5,7 @@ USE `xbh_user`;
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS `user_profile` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+    `id` BIGINT NOT NULL COMMENT '用户ID',
     `username` VARCHAR(50) NOT NULL COMMENT '用户名',
     `password` VARCHAR(100) NOT NULL COMMENT '密码(加密)',
     `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',

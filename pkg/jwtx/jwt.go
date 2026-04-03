@@ -39,7 +39,6 @@ func GenerateToken(userId int64, username string, config JwtConfig) (string, err
 			NotBefore: jwt.NewNumericDate(now),
 		},
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(config.AccessSecret))
 }
