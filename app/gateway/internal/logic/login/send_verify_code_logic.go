@@ -5,6 +5,8 @@ package login
 
 import (
 	"context"
+	"esx/pkg/validator"
+	"user/userservice"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,19 @@ func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Se
 }
 
 func (l *SendVerifyCodeLogic) SendVerifyCode(req *types.SendVerifyCodeReq) (resp *types.SendVerifyCodeResp, err error) {
-	// todo: add your logic here and delete this line
+	// 校验手机号是否合法
+	err = validator.ValidatePhone(req.Phone)
+	if err != nil {
+		return nil, err
+	}
 
+	_, err = l.svcCtx.UserService.SendVerifyCode(l.ctx, &userservice.SendVerifyCodeReq{
+		Phone: req.Phone,
+		Type:  req.Type,
+	})
+
+	if err != nil {
+		return nil, err
+	}
 	return
 }

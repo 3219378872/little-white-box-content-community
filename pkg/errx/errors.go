@@ -49,7 +49,7 @@ func GetCode(err error) int {
 	if bizErr, ok := errors.AsType[*BizError](err); ok {
 		return bizErr.Code
 	}
-	return UNKNOWN_ERROR
+	return UnknownError
 }
 
 // Wrap 包装错误
@@ -69,7 +69,7 @@ func WrapMsg(err error, message string) error {
 		return nil
 	}
 	return &BizError{
-		Code:    UNKNOWN_ERROR,
+		Code:    UnknownError,
 		Message: message + ": " + err.Error(),
 	}
 }

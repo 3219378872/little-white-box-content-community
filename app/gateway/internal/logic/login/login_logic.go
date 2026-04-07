@@ -5,6 +5,7 @@ package login
 
 import (
 	"context"
+	"esx/pkg/validator"
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"user/userservice"
@@ -28,6 +29,14 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 }
 
 func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err error) {
+	// 验证码登录时、校验手机号
+	if req.LoginType == 2 {
+		err = validator.ValidatePhone(req.Phone)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	loginReq := userservice.LoginReq{
 		Username:   req.Username,
 		Password:   req.Password,
