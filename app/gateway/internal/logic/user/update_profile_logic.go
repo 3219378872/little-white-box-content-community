@@ -5,6 +5,9 @@ package user
 
 import (
 	"context"
+	"errx"
+	"fmt"
+	"user/pb/xiaobaihe/user/pb"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -18,7 +21,7 @@ type UpdateProfileLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 更新用户资料
+// NewUpdateProfileLogic 更新用户资料
 func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateProfileLogic {
 	return &UpdateProfileLogic{
 		Logger: logx.WithContext(ctx),
@@ -28,7 +31,18 @@ func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 }
 
 func (l *UpdateProfileLogic) UpdateProfile(req *types.UpdateProfileReq) (resp *types.UpdateProfileResp, err error) {
-	// todo: add your logic here and delete this line
-
-	return
+	userId, ok := l.ctx.Value("userId").(int64)
+	if !ok {
+		return nil, fmt.Errorf("用户名解析失败: %w", errx.NewWithCode(errx.SystemError))
+	}
+	_, err = l.svcCtx.UserService.UpdateProfile(l.ctx, &pb.UpdateProfileReq{
+		UserId:    userId,
+		Nickname:  req.Nickname,
+		AvatarUrl: req.AvatarUrl,
+		Bio:       req.Bio,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &types.UpdateProfileResp{}, nil
 }

@@ -5,13 +5,13 @@ USE `xbh_content`;
 
 -- 帖子表
 CREATE TABLE IF NOT EXISTS `post` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '帖子ID',
+    `id` BIGINT NOT NULL COMMENT '帖子ID',
     `author_id` BIGINT NOT NULL COMMENT '作者ID',
     `title` VARCHAR(200) NOT NULL COMMENT '标题',
     `content` TEXT NOT NULL COMMENT '内容',
     `images` JSON DEFAULT NULL COMMENT '图片列表',
-    `video_url` VARCHAR(255) DEFAULT NULL COMMENT '视频URL',
-    `cover_url` VARCHAR(255) DEFAULT NULL COMMENT '封面URL',
+    `video_url` VARCHAR(255) DEFAULT NULL COMMENT '视频URL,未使用',
+    `cover_url` VARCHAR(255) DEFAULT NULL COMMENT '封面URL,未使用',
     `status` TINYINT DEFAULT 1 COMMENT '状态 0:草稿 1:已发布 2:已删除 3:审核中',
     `view_count` BIGINT DEFAULT 0 COMMENT '浏览数',
     `like_count` BIGINT DEFAULT 0 COMMENT '点赞数',
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `post` (
 
 -- 帖子标签关联表
 CREATE TABLE IF NOT EXISTS `post_tag` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL,
     `post_id` BIGINT NOT NULL COMMENT '帖子ID',
     `tag_name` VARCHAR(50) NOT NULL COMMENT '标签名',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `post_tag` (
 
 -- 标签表
 CREATE TABLE IF NOT EXISTS `tag` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL,
     `name` VARCHAR(50) NOT NULL COMMENT '标签名',
     `description` VARCHAR(200) DEFAULT NULL COMMENT '标签描述',
     `icon` VARCHAR(255) DEFAULT NULL COMMENT '标签图标',
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `tag` (
 
 -- 评论表
 CREATE TABLE IF NOT EXISTS `comment` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+    `id` BIGINT NOT NULL COMMENT '评论ID',
     `post_id` BIGINT NOT NULL COMMENT '帖子ID',
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `parent_id` BIGINT DEFAULT NULL COMMENT '父评论ID NULL:一级评论',
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `comment` (
 
 -- 帖子分类表
 CREATE TABLE IF NOT EXISTS `category` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `id` BIGINT NOT NULL,
     `name` VARCHAR(50) NOT NULL COMMENT '分类名',
     `description` VARCHAR(200) DEFAULT NULL COMMENT '分类描述',
     `icon` VARCHAR(255) DEFAULT NULL COMMENT '分类图标',

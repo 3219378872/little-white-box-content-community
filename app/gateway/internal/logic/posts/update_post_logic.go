@@ -5,6 +5,9 @@ package posts
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +31,22 @@ func NewUpdatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Update
 }
 
 func (l *UpdatePostLogic) UpdatePost(req *types.UpdatePostReq) (resp *types.UpdatePostResp, err error) {
-	// todo: add your logic here and delete this line
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	_, err = l.svcCtx.ContentService.UpdatePost(l.ctx, &contentservice.UpdatePostReq{
+		PostId:   req.PostId,
+		AuthorId: userId,
+		Title:    req.Title,
+		Content:  req.Content,
+		Images:   req.Images,
+		Tags:     req.Tags,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("更新帖子失败: %w", err)
+	}
+
+	return &types.UpdatePostResp{}, nil
 }

@@ -1,12 +1,12 @@
-Name: user.rpc
+Name: user
 ListenOn: 0.0.0.0:9090
 Etcd:
   Hosts:
   - 127.0.0.1:2379
-  Key: userRpc
+  Key: user
 Redis:
   Host: 127.0.0.1:6379
-  Pass: "Xbh@Redis2024!"
+  Pass: "${REDIS_PASS}"
   Type: node
   Key: user
 
@@ -14,4 +14,4 @@ JwtConfig:
   AccessSecret: ${JWT_SECRET_KEY}
   AccessExpire: 86400
 
-DataSource: "${DB_DSN}"
+DataSource: "${DB_USER}"

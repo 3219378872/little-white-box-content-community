@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"fmt"
 
 	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
@@ -25,7 +26,11 @@ func NewGetUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserLo
 
 // 获取用户信息
 func (l *GetUserLogic) GetUser(in *pb.GetUserReq) (*pb.GetUserResp, error) {
-	// todo: add your logic here and delete this line
-
-	return &pb.GetUserResp{}, nil
+	one, err := l.svcCtx.UserProfileModel.FindOne(l.ctx, in.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户信息异常:%v", err)
+	}
+	return &pb.GetUserResp{
+		User: UserProfileToUserInfo(one),
+	}, nil
 }

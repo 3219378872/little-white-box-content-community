@@ -5,6 +5,10 @@ package comment
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
+	"jwtx"
+
 	"gateway/internal/svc"
 	"gateway/internal/types"
 
@@ -27,7 +31,23 @@ func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 }
 
 func (l *CreateCommentLogic) CreateComment(req *types.CreateCommentReq) (resp *types.CreateCommentResp, err error) {
-	// todo: add your logic here and delete this line
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	result, err := l.svcCtx.ContentService.CreateComment(l.ctx, &contentservice.CreateCommentReq{
+		PostId:      req.PostId,
+		UserId:      userId,
+		ParentId:    req.ParentId,
+		ReplyUserId: req.ReplyUserId,
+		Content:     req.Content,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("创建评论失败: %w", err)
+	}
+
+	return &types.CreateCommentResp{
+		CommentId: result.CommentId,
+	}, nil
 }

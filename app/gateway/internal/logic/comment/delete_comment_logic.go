@@ -5,6 +5,9 @@ package comment
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +31,18 @@ func NewDeleteCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Del
 }
 
 func (l *DeleteCommentLogic) DeleteComment(req *types.DeleteCommentReq) (resp *types.DeleteCommentResp, err error) {
-	// todo: add your logic here and delete this line
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	_, err = l.svcCtx.ContentService.DeleteComment(l.ctx, &contentservice.DeleteCommentReq{
+		CommentId: req.CommentId,
+		UserId:    userId,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("删除评论失败: %w", err)
+	}
+
+	return &types.DeleteCommentResp{}, nil
 }

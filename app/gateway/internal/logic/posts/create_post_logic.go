@@ -5,6 +5,8 @@ package posts
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,24 @@ func NewCreatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 }
 
 func (l *CreatePostLogic) CreatePost(req *types.CreatePostReq) (resp *types.CreatePostResp, err error) {
-	// todo: add your logic here and delete this line
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	result, err := l.svcCtx.ContentService.CreatePost(l.ctx, &contentservice.CreatePostReq{
+		AuthorId: userId,
+		Title:    req.Title,
+		Content:  req.Content,
+		Images:   req.Images,
+		Tags:     req.Tags,
+		Status:   req.Status,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.CreatePostResp{
+		PostId: result.PostId,
+	}, nil
 }

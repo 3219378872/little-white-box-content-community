@@ -1,0 +1,12 @@
+Name: content
+ListenOn: 0.0.0.0:8088
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: content
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASS}"
+  Type: node
+  Key: content
+DataSource: "${DB_CONTENT}"

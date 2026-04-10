@@ -5,6 +5,8 @@ package comment
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,33 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 }
 
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp *types.GetCommentListResp, err error) {
-	// todo: add your logic here and delete this line
+	result, err := l.svcCtx.ContentService.GetCommentList(l.ctx, &contentservice.GetCommentListReq{
+		PostId:   req.PostId,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		SortBy:   req.SortBy,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取评论列表失败: %w", err)
+	}
 
-	return
+	list := make([]types.CommentItem, 0, len(result.Comments))
+	for _, c := range result.Comments {
+		list = append(list, types.CommentItem{
+			Id:          c.Id,
+			UserId:      c.UserId,
+			ParentId:    c.ParentId,
+			ReplyUserId: c.ReplyUserId,
+			Content:     c.Content,
+			LikeCount:   c.LikeCount,
+			CreatedAt:   c.CreatedAt,
+		})
+	}
+
+	return &types.GetCommentListResp{
+		List:     list,
+		Total:    result.Total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
 }

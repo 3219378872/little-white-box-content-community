@@ -5,6 +5,9 @@ package posts
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +31,18 @@ func NewDeletePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delete
 }
 
 func (l *DeletePostLogic) DeletePost(req *types.DeletePostReq) (resp *types.DeletePostResp, err error) {
-	// todo: add your logic here and delete this line
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	_, err = l.svcCtx.ContentService.DeletePost(l.ctx, &contentservice.DeletePostReq{
+		PostId:   req.PostId,
+		AuthorId: userId,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("删除帖子失败: %w", err)
+	}
+
+	return &types.DeletePostResp{}, nil
 }

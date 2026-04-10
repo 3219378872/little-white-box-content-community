@@ -12,6 +12,7 @@ import (
 
 type ServiceContext struct {
 	Config            config.Config
+	DB                sqlx.SqlConn
 	UserLoginLogModel model.UserLoginLogModel
 	UserProfileModel  model.UserProfileModel
 	RedisClient       *redis.Redis
@@ -40,6 +41,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	return &ServiceContext{
 		Config:            c,
+		DB:                conn,
 		UserLoginLogModel: model.NewUserLoginLogModel(conn),
 		UserProfileModel:  model.NewUserProfileModel(conn),
 		RedisClient:       newRedis,

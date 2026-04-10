@@ -4,6 +4,7 @@
 package svc
 
 import (
+	"esx/app/content/contentservice"
 	"gateway/internal/config"
 	"user/userservice"
 
@@ -11,16 +12,20 @@ import (
 )
 
 type ServiceContext struct {
-	Config      config.Config
-	UserService userservice.UserService
+	Config         config.Config
+	UserService    userservice.UserService
+	ContentService contentservice.ContentService
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	client := zrpc.MustNewClient(c.UserRpc)
-	service := userservice.NewUserService(client)
+	userClient := zrpc.MustNewClient(c.UserRpc)
+	userService := userservice.NewUserService(userClient)
+	contentClient := zrpc.MustNewClient(c.ContentRpc)
+	contentService := contentservice.NewContentService(contentClient)
 
 	return &ServiceContext{
-		Config:      c,
-		UserService: service,
+		Config:         c,
+		UserService:    userService,
+		ContentService: contentService,
 	}
 }

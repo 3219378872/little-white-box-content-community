@@ -5,6 +5,8 @@ package posts
 
 import (
 	"context"
+	"esx/app/content/contentservice"
+	"fmt"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,35 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 }
 
 func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.GetPostListResp, err error) {
-	// todo: add your logic here and delete this line
+	result, err := l.svcCtx.ContentService.GetPostList(l.ctx, &contentservice.GetPostListReq{
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		SortBy:   req.SortBy,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取帖子列表失败: %w", err)
+	}
 
-	return
+	list := make([]types.PostItem, 0, len(result.Posts))
+	for _, post := range result.Posts {
+		list = append(list, types.PostItem{
+			Id:           post.Id,
+			AuthorId:     post.AuthorId,
+			Title:        post.Title,
+			Content:      post.Content,
+			Images:       post.Images,
+			Tags:         post.Tags,
+			ViewCount:    post.ViewCount,
+			LikeCount:    post.LikeCount,
+			CommentCount: post.CommentCount,
+			CreatedAt:    post.CreatedAt,
+		})
+	}
+
+	return &types.GetPostListResp{
+		List:     list,
+		Total:    result.Total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
 }
