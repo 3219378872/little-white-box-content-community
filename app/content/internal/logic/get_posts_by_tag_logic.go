@@ -52,6 +52,10 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 		return nil, fmt.Errorf("批量查询帖子失败: %w", err)
 	}
 
+	if len(posts) == 0 {
+		return &pb.GetPostsByTagResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+	}
+
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
 	if err != nil {
 		l.Logger.Errorf("批量查询标签失败 err=%v", err)

@@ -40,6 +40,10 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 		return nil, fmt.Errorf("查询用户帖子失败: %w", err)
 	}
 
+	if len(posts) == 0 {
+		return &pb.GetUserPostsResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+	}
+
 	postIds := make([]int64, 0, len(posts))
 	for _, post := range posts {
 		postIds = append(postIds, post.Id)

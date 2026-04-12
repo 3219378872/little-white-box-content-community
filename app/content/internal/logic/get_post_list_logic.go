@@ -40,6 +40,10 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 		return nil, fmt.Errorf("查询帖子列表失败: %w", err)
 	}
 
+	if len(posts) == 0 {
+		return &pb.GetPostListResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+	}
+
 	postIds := make([]int64, 0, len(posts))
 	for _, post := range posts {
 		postIds = append(postIds, post.Id)

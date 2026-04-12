@@ -73,9 +73,9 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		return nil, fmt.Errorf("创建评论失败: %w", err)
 	}
 
-	// 原子递增评论数，避免并发更新丢失
+	// 原子递增评论数；计数服务不可用时降级——评论已落库，不因统计失败回滚
 	if err = l.svcCtx.PostModel.IncrCommentCount(l.ctx, in.PostId); err != nil {
-		return nil, fmt.Errorf("更新评论数失败: %w", err)
+		l.Logger.Errorf("更新评论数失败 postId=%d err=%v", in.PostId, err)
 	}
 
 	return &pb.CreateCommentResp{
