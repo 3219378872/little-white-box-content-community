@@ -52,14 +52,16 @@ func (m *customPostModel) FindPostById(ctx context.Context, id int64) (*Post, er
 	})
 	switch {
 	case err == nil:
-		// 处理images的Json格式 []
-		var images []string
-		err = json.Unmarshal([]byte(post.Images.String), &images)
-		if err != nil {
-			return nil, err
+		if post.Images.Valid {
+			// 处理images的Json格式 []
+			var images []string
+			err = json.Unmarshal([]byte(post.Images.String), &images)
+			if err != nil {
+				return nil, err
+			}
+			post.Images.String = strings.Join(images, ",")
 		}
-		post.Images.String = strings.Join(images, ",")
-		return &post, nil
+		return &post, err
 	case errors.Is(err, sqlx.ErrNotFound):
 		return nil, ErrNotFound
 	default:
