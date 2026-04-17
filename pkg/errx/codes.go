@@ -43,6 +43,9 @@ const (
 	FileTooLarge       = 4001
 	FileTypeNotAllowed = 4002
 	UploadFailed       = 4003
+	MediaNotFound      = 4004
+	MediaMetaMissing   = 4005
+	MediaProcessFailed = 4006
 
 	// 搜索相关错误码 5000-5999
 	SearchEmpty   = 5001
@@ -87,6 +90,9 @@ var codeMsg = map[int]string{
 	FileTooLarge:       "文件过大",
 	FileTypeNotAllowed: "文件类型不支持",
 	UploadFailed:       "上传失败",
+	MediaNotFound:      "媒体不存在或已删除",
+	MediaMetaMissing:   "上传元数据缺失",
+	MediaProcessFailed: "媒体处理失败",
 
 	SearchEmpty:   "搜索关键词为空",
 	SearchTimeout: "搜索超时",
