@@ -2,13 +2,12 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: content.proto
+// source: proto/content/content.proto
 
 package pb
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -26,6 +25,7 @@ const (
 	ContentService_DeletePost_FullMethodName     = "/content.ContentService/DeletePost"
 	ContentService_GetPostList_FullMethodName    = "/content.ContentService/GetPostList"
 	ContentService_GetUserPosts_FullMethodName   = "/content.ContentService/GetUserPosts"
+	ContentService_GetPostsByIds_FullMethodName  = "/content.ContentService/GetPostsByIds"
 	ContentService_CreateComment_FullMethodName  = "/content.ContentService/CreateComment"
 	ContentService_DeleteComment_FullMethodName  = "/content.ContentService/DeleteComment"
 	ContentService_GetCommentList_FullMethodName = "/content.ContentService/GetCommentList"
@@ -51,6 +51,8 @@ type ContentServiceClient interface {
 	GetPostList(ctx context.Context, in *GetPostListReq, opts ...grpc.CallOption) (*GetPostListResp, error)
 	// 获取用户帖子列表
 	GetUserPosts(ctx context.Context, in *GetUserPostsReq, opts ...grpc.CallOption) (*GetUserPostsResp, error)
+	// 按ID批量获取帖子
+	GetPostsByIds(ctx context.Context, in *GetPostsByIdsReq, opts ...grpc.CallOption) (*GetPostsByIdsResp, error)
 	// 创建评论
 	CreateComment(ctx context.Context, in *CreateCommentReq, opts ...grpc.CallOption) (*CreateCommentResp, error)
 	// 删除评论
@@ -131,6 +133,16 @@ func (c *contentServiceClient) GetUserPosts(ctx context.Context, in *GetUserPost
 	return out, nil
 }
 
+func (c *contentServiceClient) GetPostsByIds(ctx context.Context, in *GetPostsByIdsReq, opts ...grpc.CallOption) (*GetPostsByIdsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPostsByIdsResp)
+	err := c.cc.Invoke(ctx, ContentService_GetPostsByIds_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *contentServiceClient) CreateComment(ctx context.Context, in *CreateCommentReq, opts ...grpc.CallOption) (*CreateCommentResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateCommentResp)
@@ -199,6 +211,8 @@ type ContentServiceServer interface {
 	GetPostList(context.Context, *GetPostListReq) (*GetPostListResp, error)
 	// 获取用户帖子列表
 	GetUserPosts(context.Context, *GetUserPostsReq) (*GetUserPostsResp, error)
+	// 按ID批量获取帖子
+	GetPostsByIds(context.Context, *GetPostsByIdsReq) (*GetPostsByIdsResp, error)
 	// 创建评论
 	CreateComment(context.Context, *CreateCommentReq) (*CreateCommentResp, error)
 	// 删除评论
@@ -236,6 +250,9 @@ func (UnimplementedContentServiceServer) GetPostList(context.Context, *GetPostLi
 }
 func (UnimplementedContentServiceServer) GetUserPosts(context.Context, *GetUserPostsReq) (*GetUserPostsResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserPosts not implemented")
+}
+func (UnimplementedContentServiceServer) GetPostsByIds(context.Context, *GetPostsByIdsReq) (*GetPostsByIdsResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPostsByIds not implemented")
 }
 func (UnimplementedContentServiceServer) CreateComment(context.Context, *CreateCommentReq) (*CreateCommentResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateComment not implemented")
@@ -381,6 +398,24 @@ func _ContentService_GetUserPosts_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContentService_GetPostsByIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPostsByIdsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).GetPostsByIds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_GetPostsByIds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).GetPostsByIds(ctx, req.(*GetPostsByIdsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ContentService_CreateComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateCommentReq)
 	if err := dec(in); err != nil {
@@ -503,6 +538,10 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ContentService_GetUserPosts_Handler,
 		},
 		{
+			MethodName: "GetPostsByIds",
+			Handler:    _ContentService_GetPostsByIds_Handler,
+		},
+		{
 			MethodName: "CreateComment",
 			Handler:    _ContentService_CreateComment_Handler,
 		},
@@ -524,5 +563,5 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "content.proto",
+	Metadata: "proto/content/content.proto",
 }

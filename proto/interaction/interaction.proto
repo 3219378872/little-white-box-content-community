@@ -11,6 +11,8 @@ service InteractionService {
   rpc Unlike(UnlikeReq) returns (UnlikeResp);
   // 检查是否点赞
   rpc CheckLiked(CheckLikedReq) returns (CheckLikedResp);
+  // 批量检查是否点赞
+  rpc BatchCheckLiked(BatchCheckLikedReq) returns (BatchCheckLikedResp);
   // 获取点赞数
   rpc GetLikeCount(GetLikeCountReq) returns (GetLikeCountResp);
 
@@ -20,6 +22,8 @@ service InteractionService {
   rpc Unfavorite(UnfavoriteReq) returns (UnfavoriteResp);
   // 检查是否收藏
   rpc CheckFavorited(CheckFavoritedReq) returns (CheckFavoritedResp);
+  // 批量检查是否收藏
+  rpc BatchCheckFavorited(BatchCheckFavoritedReq) returns (BatchCheckFavoritedResp);
   // 获取收藏列表
   rpc GetFavoriteList(GetFavoriteListReq) returns (GetFavoriteListResp);
 
@@ -123,4 +127,29 @@ message GetCountsResp {
   int64 like_count     = 1;
   int64 comment_count  = 2;
   int64 favorite_count = 3;
+}
+
+// 批量检查是否点赞请求
+message BatchCheckLikedReq {
+  int64          user_id     = 1;
+  repeated int64 target_ids  = 2;
+  int32          target_type = 3; // 1: 帖子 2: 评论
+}
+
+// 批量检查是否点赞响应
+message BatchCheckLikedResp {
+  // target_id -> is_liked
+  map<int64, bool> results = 1;
+}
+
+// 批量检查是否收藏请求
+message BatchCheckFavoritedReq {
+  int64          user_id  = 1;
+  repeated int64 post_ids = 2;
+}
+
+// 批量检查是否收藏响应
+message BatchCheckFavoritedResp {
+  // post_id -> is_favorited
+  map<int64, bool> results = 1;
 }

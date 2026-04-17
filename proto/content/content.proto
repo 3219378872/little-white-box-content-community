@@ -17,6 +17,8 @@ service ContentService {
   rpc GetPostList(GetPostListReq) returns (GetPostListResp);
   // 获取用户帖子列表
   rpc GetUserPosts(GetUserPostsReq) returns (GetUserPostsResp);
+  // 按ID批量获取帖子
+  rpc GetPostsByIds(GetPostsByIdsReq) returns (GetPostsByIdsResp);
 
   // 创建评论
   rpc CreateComment(CreateCommentReq) returns (CreateCommentResp);
@@ -130,6 +132,7 @@ message GetUserPostsReq {
   int64 user_id   = 1;
   int32 page      = 2;
   int32 page_size = 3;
+  int32 sort_by   = 4; // 1: 最新 2: 热门
 }
 
 // 获取用户帖子列表响应
@@ -203,4 +206,14 @@ message GetPostsByTagReq {
 message GetPostsByTagResp {
   repeated PostInfo posts = 1;
   int64             total = 2;
+}
+
+// 按ID批量获取帖子请求
+message GetPostsByIdsReq {
+  repeated int64 post_ids = 1;
+}
+
+// 按ID批量获取帖子响应
+message GetPostsByIdsResp {
+  repeated PostInfo posts = 1;
 }
