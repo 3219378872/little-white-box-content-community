@@ -4,11 +4,17 @@
 package user
 
 import (
+	"context"
+	"encoding/json"
+	"jwtx"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"gateway/internal/logic/user"
 	"gateway/internal/svc"
 	"gateway/internal/types"
+
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
@@ -21,7 +27,10 @@ func GetUserFavoritesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := user.NewGetUserFavoritesLogic(r.Context(), svcCtx)
+		ctx := r.Context()
+		ctx = tryInjectUserId(ctx, r, svcCtx)
+
+		l := user.NewGetUserFavoritesLogic(ctx, svcCtx)
 		resp, err := l.GetUserFavorites(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
@@ -29,4 +38,26 @@ func GetUserFavoritesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.OkJsonCtx(r.Context(), w, resp)
 		}
 	}
+}
+
+// tryInjectUserId 尝试从 Bearer token 解析 userId 注入 context。
+// 无 token 或解析失败时静默返回原 context（可选认证）。
+func tryInjectUserId(ctx context.Context, r *http.Request, svcCtx *svc.ServiceContext) context.Context {
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		return ctx
+	}
+	parts := strings.SplitN(auth, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return ctx
+	}
+	cfg := jwtx.JwtConfig{
+		AccessSecret: svcCtx.Config.Auth.AccessSecret,
+		AccessExpire: svcCtx.Config.Auth.AccessExpire,
+	}
+	claims, err := jwtx.ParseToken(parts[1], cfg)
+	if err != nil || claims == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, "userId", json.Number(strconv.FormatInt(claims.UserId, 10)))
 }
