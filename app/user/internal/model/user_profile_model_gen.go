@@ -39,25 +39,26 @@ type (
 	}
 
 	UserProfile struct {
-		Id             int64          `db:"id"`              // 用户ID
-		Username       string         `db:"username"`        // 用户名
-		Password       string         `db:"password"`        // 密码(加密)
-		Phone          sql.NullString `db:"phone"`           // 手机号
-		Email          sql.NullString `db:"email"`           // 邮箱
-		Nickname       sql.NullString `db:"nickname"`        // 昵称
-		AvatarUrl      sql.NullString `db:"avatar_url"`      // 头像URL
-		Bio            sql.NullString `db:"bio"`             // 个人简介
-		Gender         int64          `db:"gender"`          // 性别 0:未知 1:男 2:女
-		Birthday       sql.NullTime   `db:"birthday"`        // 生日
-		Level          int64          `db:"level"`           // 等级
-		Exp            int64          `db:"exp"`             // 经验值
-		FollowerCount  int64          `db:"follower_count"`  // 粉丝数
-		FollowingCount int64          `db:"following_count"` // 关注数
-		PostCount      int64          `db:"post_count"`      // 帖子数
-		LikeCount      int64          `db:"like_count"`      // 获赞数
-		Status         int64          `db:"status"`          // 状态 0:禁用 1:正常
-		CreatedAt      time.Time      `db:"created_at"`      // 创建时间
-		UpdatedAt      time.Time      `db:"updated_at"`      // 更新时间
+		Id                  int64          `db:"id"`                   // 用户ID
+		Username            string         `db:"username"`             // 用户名
+		Password            string         `db:"password"`             // 密码(加密)
+		Phone               sql.NullString `db:"phone"`                // 手机号
+		Email               sql.NullString `db:"email"`                // 邮箱
+		Nickname            sql.NullString `db:"nickname"`             // 昵称
+		AvatarUrl           sql.NullString `db:"avatar_url"`           // 头像URL
+		Bio                 sql.NullString `db:"bio"`                  // 个人简介
+		Gender              int64          `db:"gender"`               // 性别 0:未知 1:男 2:女
+		Birthday            sql.NullTime   `db:"birthday"`             // 生日
+		Level               int64          `db:"level"`                // 等级
+		Exp                 int64          `db:"exp"`                  // 经验值
+		FollowerCount       int64          `db:"follower_count"`       // 粉丝数
+		FollowingCount      int64          `db:"following_count"`      // 关注数
+		PostCount           int64          `db:"post_count"`           // 帖子数
+		LikeCount           int64          `db:"like_count"`           // 获赞数
+		Status              int64          `db:"status"`               // 状态 0:禁用 1:正常
+		FavoritesVisibility int64          `db:"favorites_visibility"` // 收藏列表可见性 1:公开 2:仅自己
+		CreatedAt           time.Time      `db:"created_at"`           // 创建时间
+		UpdatedAt           time.Time      `db:"updated_at"`           // 更新时间
 	}
 )
 
@@ -117,14 +118,14 @@ func (m *defaultUserProfileModel) FindOneByUsername(ctx context.Context, usernam
 }
 
 func (m *defaultUserProfileModel) Insert(ctx context.Context, data *UserProfile) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, userProfileRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.Username, data.Password, data.Phone, data.Email, data.Nickname, data.AvatarUrl, data.Bio, data.Gender, data.Birthday, data.Level, data.Exp, data.FollowerCount, data.FollowingCount, data.PostCount, data.LikeCount, data.Status)
+	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, userProfileRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.Username, data.Password, data.Phone, data.Email, data.Nickname, data.AvatarUrl, data.Bio, data.Gender, data.Birthday, data.Level, data.Exp, data.FollowerCount, data.FollowingCount, data.PostCount, data.LikeCount, data.Status, data.FavoritesVisibility)
 	return ret, err
 }
 
 func (m *defaultUserProfileModel) Update(ctx context.Context, newData *UserProfile) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, userProfileRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, newData.Username, newData.Password, newData.Phone, newData.Email, newData.Nickname, newData.AvatarUrl, newData.Bio, newData.Gender, newData.Birthday, newData.Level, newData.Exp, newData.FollowerCount, newData.FollowingCount, newData.PostCount, newData.LikeCount, newData.Status, newData.Id)
+	_, err := m.conn.ExecCtx(ctx, query, newData.Username, newData.Password, newData.Phone, newData.Email, newData.Nickname, newData.AvatarUrl, newData.Bio, newData.Gender, newData.Birthday, newData.Level, newData.Exp, newData.FollowerCount, newData.FollowingCount, newData.PostCount, newData.LikeCount, newData.Status, newData.FavoritesVisibility, newData.Id)
 	return err
 }
 

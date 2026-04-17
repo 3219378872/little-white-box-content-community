@@ -169,6 +169,24 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: user.GetUserHandler(serverCtx),
 			},
 			{
+				// 获取用户的收藏帖子列表
+				Method:  http.MethodGet,
+				Path:    "/users/:userId/favorites",
+				Handler: user.GetUserFavoritesHandler(serverCtx),
+			},
+			{
+				// 获取用户发布的帖子列表
+				Method:  http.MethodGet,
+				Path:    "/users/:userId/posts",
+				Handler: user.GetUserPostsHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
 				// 关注用户
 				Method:  http.MethodPost,
 				Path:    "/user/follow",

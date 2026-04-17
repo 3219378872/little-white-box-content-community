@@ -7,6 +7,7 @@ import (
 
 	"errx"
 	"esx/app/content/internal/model"
+	"esx/app/content/internal/svc"
 	"esx/app/content/pb/xiaobaihe/content/pb"
 
 	"github.com/stretchr/testify/assert"
@@ -546,7 +547,7 @@ func TestGetUserPostsLogic(t *testing.T) {
 			name: "成功获取用户帖子",
 			req:  &pb.GetUserPostsReq{UserId: 5001, Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10).Return(userPosts, int64(1), nil)
+				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10, model.SortByLatest).Return(userPosts, int64(1), nil)
 				ptm.On("FindTagNamesByPostIds", mock.Anything, mock.Anything).Return(map[int64][]string{10: {"go"}}, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
@@ -559,7 +560,7 @@ func TestGetUserPostsLogic(t *testing.T) {
 			name: "用户无帖子返回空列表",
 			req:  &pb.GetUserPostsReq{UserId: 9999, Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindByAuthorId", mock.Anything, int64(9999), 1, 10).Return([]*model.Post{}, int64(0), nil)
+				pm.On("FindByAuthorId", mock.Anything, int64(9999), 1, 10, model.SortByLatest).Return([]*model.Post{}, int64(0), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
 				assert.Len(t, resp.Posts, 0)
@@ -570,7 +571,7 @@ func TestGetUserPostsLogic(t *testing.T) {
 			name: "数据库错误",
 			req:  &pb.GetUserPostsReq{UserId: 5001, Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10).Return([]*model.Post{}, int64(0), fmt.Errorf("db error"))
+				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10, model.SortByLatest).Return([]*model.Post{}, int64(0), fmt.Errorf("db error"))
 			},
 			wantErr: true,
 		},
@@ -578,7 +579,7 @@ func TestGetUserPostsLogic(t *testing.T) {
 			name: "页大小超限修正为20",
 			req:  &pb.GetUserPostsReq{UserId: 5001, Page: 1, PageSize: 100},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 20).Return([]*model.Post{}, int64(0), nil)
+				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 20, model.SortByLatest).Return([]*model.Post{}, int64(0), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
 				assert.Len(t, resp.Posts, 0)
@@ -588,7 +589,7 @@ func TestGetUserPostsLogic(t *testing.T) {
 			name: "查询标签失败时降级为空标签",
 			req:  &pb.GetUserPostsReq{UserId: 5001, Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10).Return(userPosts, int64(1), nil)
+				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10, model.SortByLatest).Return(userPosts, int64(1), nil)
 				ptm.On("FindTagNamesByPostIds", mock.Anything, mock.Anything).Return(map[int64][]string{}, fmt.Errorf("redis down"))
 			},
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
@@ -620,6 +621,80 @@ func TestGetUserPostsLogic(t *testing.T) {
 			}
 			pm.AssertExpectations(t)
 			ptm.AssertExpectations(t)
+		})
+	}
+}
+
+// ─── GetUserPosts ─────────────────────────────────────────────────────────────
+
+func TestGetUserPostsLogic_SortBy(t *testing.T) {
+	tests := []struct {
+		name   string
+		req    *pb.GetUserPostsReq
+		sortBy int
+	}{
+		{"默认最新排序", &pb.GetUserPostsReq{UserId: 100, Page: 1, PageSize: 10, SortBy: 0}, 1},
+		{"sortBy=1 最新", &pb.GetUserPostsReq{UserId: 100, Page: 1, PageSize: 10, SortBy: 1}, 1},
+		{"sortBy=2 热门", &pb.GetUserPostsReq{UserId: 100, Page: 1, PageSize: 10, SortBy: 2}, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := new(MockPostModel)
+			ptm := new(MockPostTagModel)
+			pm.On("FindByAuthorId", mock.Anything, int64(100), 1, 10, tt.sortBy).
+				Return([]*model.Post{}, int64(0), nil)
+			svcCtx := &svc.ServiceContext{PostModel: pm, PostTagModel: ptm}
+			l := NewGetUserPostsLogic(context.Background(), svcCtx)
+			_, err := l.GetUserPosts(tt.req)
+			require.NoError(t, err)
+			pm.AssertExpectations(t)
+		})
+	}
+}
+
+// ─── GetPostsByIds ────────────────────────────────────────────────────────────
+
+func TestGetPostsByIdsLogic(t *testing.T) {
+	tests := []struct {
+		name      string
+		req       *pb.GetPostsByIdsReq
+		setupMock func(*MockPostModel, *MockPostTagModel)
+		wantLen   int
+	}{
+		{
+			name: "空 ID 列表返回空结果",
+			req:  &pb.GetPostsByIdsReq{PostIds: []int64{}},
+			setupMock: func(pm *MockPostModel, _ *MockPostTagModel) {
+				pm.On("FindByIds", mock.Anything, mock.Anything).Return([]*model.Post{}, nil).Maybe()
+			},
+			wantLen: 0,
+		},
+		{
+			name: "过滤已删除帖子（status != 1）",
+			req:  &pb.GetPostsByIdsReq{PostIds: []int64{1, 2, 3}},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindByIds", mock.Anything, []int64{1, 2, 3}).Return([]*model.Post{
+					{Id: 1, AuthorId: 100, Title: "t1", Status: 1},
+					{Id: 2, AuthorId: 100, Title: "t2", Status: 2},
+					{Id: 3, AuthorId: 100, Title: "t3", Status: 1},
+				}, nil)
+				ptm.On("FindTagNamesByPostIds", mock.Anything, mock.Anything).Return(map[int64][]string{}, nil)
+			},
+			wantLen: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := new(MockPostModel)
+			ptm := new(MockPostTagModel)
+			if tt.setupMock != nil {
+				tt.setupMock(pm, ptm)
+			}
+			svcCtx := &svc.ServiceContext{PostModel: pm, PostTagModel: ptm}
+			l := NewGetPostsByIdsLogic(context.Background(), svcCtx)
+			resp, err := l.GetPostsByIds(tt.req)
+			require.NoError(t, err)
+			assert.Len(t, resp.Posts, tt.wantLen)
 		})
 	}
 }

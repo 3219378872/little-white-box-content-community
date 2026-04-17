@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `user_profile` (
     `post_count` BIGINT DEFAULT 0 COMMENT '帖子数',
     `like_count` BIGINT DEFAULT 0 COMMENT '获赞数',
     `status` TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:正常',
+    `favorites_visibility` TINYINT NOT NULL DEFAULT 1 COMMENT '收藏列表可见性 1:公开 2:仅自己',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),

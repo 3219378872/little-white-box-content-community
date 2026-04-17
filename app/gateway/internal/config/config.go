@@ -16,4 +16,5 @@ type Config struct {
 	}
 	UserRpc    zrpc.RpcClientConf
 	ContentRpc zrpc.RpcClientConf
+	MediaRpc   zrpc.RpcClientConf
 }

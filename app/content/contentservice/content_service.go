@@ -6,38 +6,41 @@ package contentservice
 
 import (
 	"context"
-	pb2 "esx/app/content/pb/xiaobaihe/content/pb"
+
+	"esx/app/content/pb/xiaobaihe/content/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	CommentInfo        = pb2.CommentInfo
-	CreateCommentReq   = pb2.CreateCommentReq
-	CreateCommentResp  = pb2.CreateCommentResp
-	CreatePostReq      = pb2.CreatePostReq
-	CreatePostResp     = pb2.CreatePostResp
-	DeleteCommentReq   = pb2.DeleteCommentReq
-	DeleteCommentResp  = pb2.DeleteCommentResp
-	DeletePostReq      = pb2.DeletePostReq
-	DeletePostResp     = pb2.DeletePostResp
-	GetCommentListReq  = pb2.GetCommentListReq
-	GetCommentListResp = pb2.GetCommentListResp
-	GetPostListReq     = pb2.GetPostListReq
-	GetPostListResp    = pb2.GetPostListResp
-	GetPostReq         = pb2.GetPostReq
-	GetPostResp        = pb2.GetPostResp
-	GetPostsByTagReq   = pb2.GetPostsByTagReq
-	GetPostsByTagResp  = pb2.GetPostsByTagResp
-	GetTagsReq         = pb2.GetTagsReq
-	GetTagsResp        = pb2.GetTagsResp
-	GetUserPostsReq    = pb2.GetUserPostsReq
-	GetUserPostsResp   = pb2.GetUserPostsResp
-	PostInfo           = pb2.PostInfo
-	TagInfo            = pb2.TagInfo
-	UpdatePostReq      = pb2.UpdatePostReq
-	UpdatePostResp     = pb2.UpdatePostResp
+	CommentInfo        = pb.CommentInfo
+	CreateCommentReq   = pb.CreateCommentReq
+	CreateCommentResp  = pb.CreateCommentResp
+	CreatePostReq      = pb.CreatePostReq
+	CreatePostResp     = pb.CreatePostResp
+	DeleteCommentReq   = pb.DeleteCommentReq
+	DeleteCommentResp  = pb.DeleteCommentResp
+	DeletePostReq      = pb.DeletePostReq
+	DeletePostResp     = pb.DeletePostResp
+	GetCommentListReq  = pb.GetCommentListReq
+	GetCommentListResp = pb.GetCommentListResp
+	GetPostListReq     = pb.GetPostListReq
+	GetPostListResp    = pb.GetPostListResp
+	GetPostReq         = pb.GetPostReq
+	GetPostResp        = pb.GetPostResp
+	GetPostsByIdsReq   = pb.GetPostsByIdsReq
+	GetPostsByIdsResp  = pb.GetPostsByIdsResp
+	GetPostsByTagReq   = pb.GetPostsByTagReq
+	GetPostsByTagResp  = pb.GetPostsByTagResp
+	GetTagsReq         = pb.GetTagsReq
+	GetTagsResp        = pb.GetTagsResp
+	GetUserPostsReq    = pb.GetUserPostsReq
+	GetUserPostsResp   = pb.GetUserPostsResp
+	PostInfo           = pb.PostInfo
+	TagInfo            = pb.TagInfo
+	UpdatePostReq      = pb.UpdatePostReq
+	UpdatePostResp     = pb.UpdatePostResp
 
 	ContentService interface {
 		// 创建帖子
@@ -52,6 +55,8 @@ type (
 		GetPostList(ctx context.Context, in *GetPostListReq, opts ...grpc.CallOption) (*GetPostListResp, error)
 		// 获取用户帖子列表
 		GetUserPosts(ctx context.Context, in *GetUserPostsReq, opts ...grpc.CallOption) (*GetUserPostsResp, error)
+		// 按ID批量获取帖子
+		GetPostsByIds(ctx context.Context, in *GetPostsByIdsReq, opts ...grpc.CallOption) (*GetPostsByIdsResp, error)
 		// 创建评论
 		CreateComment(ctx context.Context, in *CreateCommentReq, opts ...grpc.CallOption) (*CreateCommentResp, error)
 		// 删除评论
@@ -77,66 +82,72 @@ func NewContentService(cli zrpc.Client) ContentService {
 
 // 创建帖子
 func (m *defaultContentService) CreatePost(ctx context.Context, in *CreatePostReq, opts ...grpc.CallOption) (*CreatePostResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.CreatePost(ctx, in, opts...)
 }
 
 // 获取帖子详情
 func (m *defaultContentService) GetPost(ctx context.Context, in *GetPostReq, opts ...grpc.CallOption) (*GetPostResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetPost(ctx, in, opts...)
 }
 
 // 更新帖子
 func (m *defaultContentService) UpdatePost(ctx context.Context, in *UpdatePostReq, opts ...grpc.CallOption) (*UpdatePostResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.UpdatePost(ctx, in, opts...)
 }
 
 // 删除帖子
 func (m *defaultContentService) DeletePost(ctx context.Context, in *DeletePostReq, opts ...grpc.CallOption) (*DeletePostResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.DeletePost(ctx, in, opts...)
 }
 
 // 获取帖子列表
 func (m *defaultContentService) GetPostList(ctx context.Context, in *GetPostListReq, opts ...grpc.CallOption) (*GetPostListResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetPostList(ctx, in, opts...)
 }
 
 // 获取用户帖子列表
 func (m *defaultContentService) GetUserPosts(ctx context.Context, in *GetUserPostsReq, opts ...grpc.CallOption) (*GetUserPostsResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetUserPosts(ctx, in, opts...)
+}
+
+// 按ID批量获取帖子
+func (m *defaultContentService) GetPostsByIds(ctx context.Context, in *GetPostsByIdsReq, opts ...grpc.CallOption) (*GetPostsByIdsResp, error) {
+	client := pb.NewContentServiceClient(m.cli.Conn())
+	return client.GetPostsByIds(ctx, in, opts...)
 }
 
 // 创建评论
 func (m *defaultContentService) CreateComment(ctx context.Context, in *CreateCommentReq, opts ...grpc.CallOption) (*CreateCommentResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.CreateComment(ctx, in, opts...)
 }
 
 // 删除评论
 func (m *defaultContentService) DeleteComment(ctx context.Context, in *DeleteCommentReq, opts ...grpc.CallOption) (*DeleteCommentResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.DeleteComment(ctx, in, opts...)
 }
 
 // 获取评论列表
 func (m *defaultContentService) GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetCommentList(ctx, in, opts...)
 }
 
 // 获取标签列表
 func (m *defaultContentService) GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetTags(ctx, in, opts...)
 }
 
 // 获取标签下的帖子
 func (m *defaultContentService) GetPostsByTag(ctx context.Context, in *GetPostsByTagReq, opts ...grpc.CallOption) (*GetPostsByTagResp, error) {
-	client := pb2.NewContentServiceClient(m.cli.Conn())
+	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetPostsByTag(ctx, in, opts...)
 }

@@ -62,8 +62,8 @@ func (m *MockPostModel) Delete(ctx context.Context, id int64) error {
 	return m.Called(ctx, id).Error(0)
 }
 
-func (m *MockPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize int) ([]*model.Post, int64, error) {
-	args := m.Called(ctx, authorId, page, pageSize)
+func (m *MockPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*model.Post, int64, error) {
+	args := m.Called(ctx, authorId, page, pageSize, sortBy)
 	return args.Get(0).([]*model.Post), args.Get(1).(int64), args.Error(2)
 }
 

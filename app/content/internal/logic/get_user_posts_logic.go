@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
 	"fmt"
 
@@ -34,8 +35,15 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 	if pageSize <= 0 || pageSize > 50 {
 		pageSize = 20
 	}
+	sortBy := int(in.SortBy)
+	switch sortBy {
+	case model.SortByHot, model.SortByLatest:
+		// keep
+	default:
+		sortBy = model.SortByLatest
+	}
 
-	posts, total, err := l.svcCtx.PostModel.FindByAuthorId(l.ctx, in.UserId, page, pageSize)
+	posts, total, err := l.svcCtx.PostModel.FindByAuthorId(l.ctx, in.UserId, page, pageSize, sortBy)
 	if err != nil {
 		return nil, fmt.Errorf("查询用户帖子失败: %w", err)
 	}

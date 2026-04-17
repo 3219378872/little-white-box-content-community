@@ -7,6 +7,7 @@ import (
 	"context"
 	"esx/app/content/contentservice"
 	"fmt"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -31,7 +32,7 @@ func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLo
 
 func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, err error) {
 	// 未登录用户 userId 为 0，RPC 层根据 userId 判断互动状态
-	userId, _ := l.ctx.Value("userId").(int64)
+	userId, _ := jwtx.GetUserIdFromContext(l.ctx)
 
 	result, err := l.svcCtx.ContentService.GetPost(l.ctx, &contentservice.GetPostReq{
 		PostId: req.PostId,
