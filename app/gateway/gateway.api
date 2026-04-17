@@ -383,6 +383,7 @@ service gateway {
 	@handler DeletePost
 	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
 
+	//TODO: 获取帖子列表需要JWT验证吗
 	@doc "获取帖子列表"
 	@handler GetPostList
 	get /posts (GetPostListReq) returns (GetPostListResp)
