@@ -2,5 +2,29 @@ Name: media.rpc
 ListenOn: 0.0.0.0:8080
 Etcd:
   Hosts:
-  - 127.0.0.1:2379
+    - 127.0.0.1:2379
   Key: media.rpc
+
+DataSource: "root:root@tcp(127.0.0.1:3306)/xbh_media?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai"
+
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASS}"
+  Type: node
+  Key: media
+
+S3Storage:
+  Endpoint: "127.0.0.1:8333"
+  AccessKey: "xbh-media"
+  SecretKey: "xbh-media-secret"
+  UseSSL: false
+  Region: "us-east-1"
+  Bucket: "xbh-media"
+  PublicBaseURL: "http://127.0.0.1:8333/xbh-media"
+
+Upload:
+  MaxImageSize: 10485760
+  MaxVideoSize: 104857600
+  DefaultQuality: 85
+  ThumbnailLongSide: 256
+  TempDir: ""
