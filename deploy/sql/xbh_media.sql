@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `media` (
     `mime_type` VARCHAR(100) DEFAULT NULL COMMENT 'MIME类型',
     `url` VARCHAR(500) NOT NULL COMMENT '访问URL',
     `thumbnail_url` VARCHAR(500) DEFAULT NULL COMMENT '缩略图URL',
-    `storage_type` TINYINT DEFAULT 1 COMMENT '存储类型 1:MinIO 2:OSS',
+    `storage_type` TINYINT DEFAULT 1 COMMENT '存储类型 1:MinIO 2:OSS 3:SeaweedFS',
     `bucket` VARCHAR(100) DEFAULT NULL COMMENT '存储桶',
     `object_key` VARCHAR(255) DEFAULT NULL COMMENT '对象键',
     `file_size` BIGINT DEFAULT 0 COMMENT '文件大小(字节)',
