@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"fmt"
 
 	"esx/app/content/internal/svc"
 	"esx/app/content/pb/xiaobaihe/content/pb"
@@ -23,9 +24,36 @@ func NewGetPostsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 	}
 }
 
-// 按ID批量获取帖子
+// GetPostsByIds 批量按 ID 查询帖子（过滤软删除/未发布）
 func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPostsByIdsResp, error) {
-	// todo: add your logic here and delete this line
+	if len(in.PostIds) == 0 {
+		return &pb.GetPostsByIdsResp{Posts: []*pb.PostInfo{}}, nil
+	}
 
-	return &pb.GetPostsByIdsResp{}, nil
+	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, in.PostIds)
+	if err != nil {
+		return nil, fmt.Errorf("批量查询帖子失败: %w", err)
+	}
+
+	validIds := make([]int64, 0, len(posts))
+	for _, p := range posts {
+		if p.Status == 1 {
+			validIds = append(validIds, p.Id)
+		}
+	}
+
+	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
+	if err != nil {
+		l.Logger.Errorf("批量查询标签失败 err=%v", err)
+		tagsMap = map[int64][]string{}
+	}
+
+	result := make([]*pb.PostInfo, 0, len(validIds))
+	for _, p := range posts {
+		if p.Status != 1 {
+			continue
+		}
+		result = append(result, PostToPostInfo(p, tagsMap[p.Id]))
+	}
+	return &pb.GetPostsByIdsResp{Posts: result}, nil
 }

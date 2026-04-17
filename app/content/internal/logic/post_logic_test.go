@@ -651,3 +651,50 @@ func TestGetUserPostsLogic_SortBy(t *testing.T) {
 		})
 	}
 }
+
+// ─── GetPostsByIds ────────────────────────────────────────────────────────────
+
+func TestGetPostsByIdsLogic(t *testing.T) {
+	tests := []struct {
+		name      string
+		req       *pb.GetPostsByIdsReq
+		setupMock func(*MockPostModel, *MockPostTagModel)
+		wantLen   int
+	}{
+		{
+			name: "空 ID 列表返回空结果",
+			req:  &pb.GetPostsByIdsReq{PostIds: []int64{}},
+			setupMock: func(pm *MockPostModel, _ *MockPostTagModel) {
+				pm.On("FindByIds", mock.Anything, mock.Anything).Return([]*model.Post{}, nil).Maybe()
+			},
+			wantLen: 0,
+		},
+		{
+			name: "过滤已删除帖子（status != 1）",
+			req:  &pb.GetPostsByIdsReq{PostIds: []int64{1, 2, 3}},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindByIds", mock.Anything, []int64{1, 2, 3}).Return([]*model.Post{
+					{Id: 1, AuthorId: 100, Title: "t1", Status: 1},
+					{Id: 2, AuthorId: 100, Title: "t2", Status: 2},
+					{Id: 3, AuthorId: 100, Title: "t3", Status: 1},
+				}, nil)
+				ptm.On("FindTagNamesByPostIds", mock.Anything, mock.Anything).Return(map[int64][]string{}, nil)
+			},
+			wantLen: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := new(MockPostModel)
+			ptm := new(MockPostTagModel)
+			if tt.setupMock != nil {
+				tt.setupMock(pm, ptm)
+			}
+			svcCtx := &svc.ServiceContext{PostModel: pm, PostTagModel: ptm}
+			l := NewGetPostsByIdsLogic(context.Background(), svcCtx)
+			resp, err := l.GetPostsByIds(tt.req)
+			require.NoError(t, err)
+			assert.Len(t, resp.Posts, tt.wantLen)
+		})
+	}
+}
