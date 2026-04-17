@@ -21,7 +21,7 @@ type (
 		postModel
 		FindPostById(ctx context.Context, id int64) (*Post, error)
 		InsertPost(ctx context.Context, post *Post) error
-		FindByAuthorId(ctx context.Context, authorId int64, page, pageSize int) ([]*Post, int64, error)
+		FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error)
 		FindList(ctx context.Context, page, pageSize int, sortBy int) ([]*Post, int64, error)
 		FindByIds(ctx context.Context, ids []int64) ([]*Post, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
@@ -85,11 +85,17 @@ func (m *customPostModel) InsertPost(ctx context.Context, post *Post) error {
 	return err
 }
 
-func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize int) ([]*Post, int64, error) {
+func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error) {
 	offset := (page - 1) * pageSize
 
+	orderBy := "`created_at` desc"
+	switch sortBy {
+	case SortByHot:
+		orderBy = "`like_count` desc, `created_at` desc"
+	}
+
 	var posts []*Post
-	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = 1 order by `created_at` desc limit ?,?", postRows, m.table)
+	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = 1 order by %s limit ?,?", postRows, m.table, orderBy)
 	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &posts, query, authorId, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
@@ -110,9 +116,9 @@ func (m *customPostModel) FindList(ctx context.Context, page, pageSize int, sort
 
 	orderBy := "`created_at` desc"
 	switch sortBy {
-	case 2:
+	case SortByHot:
 		orderBy = "`like_count` desc"
-	case 3:
+	case SortByViewed:
 		orderBy = "`view_count` desc"
 	}
 
