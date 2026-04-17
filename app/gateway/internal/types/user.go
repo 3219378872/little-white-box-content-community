@@ -15,15 +15,16 @@ type GetUserReq struct {
 }
 
 type GetUserResp struct {
-	Id             int64  `json:"id"`
-	Username       string `json:"username"`
-	Nickname       string `json:"nickname"`
-	AvatarUrl      string `json:"avatarUrl"`
-	Bio            string `json:"bio"`
-	Level          int32  `json:"level"`
-	FollowerCount  int64  `json:"followerCount"`
-	FollowingCount int64  `json:"followingCount"`
-	PostCount      int64  `json:"postCount"`
+	Id               int64  `json:"id"`
+	Username         string `json:"username"`
+	Nickname         string `json:"nickname"`
+	AvatarUrl        string `json:"avatarUrl"`
+	Bio              string `json:"bio"`
+	Level            int32  `json:"level"`
+	FollowerCount    int64  `json:"followerCount"`
+	FollowingCount   int64  `json:"followingCount"`
+	PostCount        int64  `json:"postCount"`
+	FavoritesVisible bool   `json:"favoritesVisible"`
 }
 
 type UnfollowReq struct {

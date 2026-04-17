@@ -50,15 +50,16 @@ type (
 		UserId int64 `path:"userId"`
 	}
 	GetUserResp {
-		Id             int64  `json:"id"`
-		Username       string `json:"username"`
-		Nickname       string `json:"nickname"`
-		AvatarUrl      string `json:"avatarUrl"`
-		Bio            string `json:"bio"`
-		Level          int32  `json:"level"`
-		FollowerCount  int64  `json:"followerCount"`
-		FollowingCount int64  `json:"followingCount"`
-		PostCount      int64  `json:"postCount"`
+		Id               int64  `json:"id"`
+		Username         string `json:"username"`
+		Nickname         string `json:"nickname"`
+		AvatarUrl        string `json:"avatarUrl"`
+		Bio              string `json:"bio"`
+		Level            int32  `json:"level"`
+		FollowerCount    int64  `json:"followerCount"`
+		FollowingCount   int64  `json:"followingCount"`
+		PostCount        int64  `json:"postCount"`
+		FavoritesVisible bool   `json:"favoritesVisible"`
 	}
 )
 
@@ -69,6 +70,23 @@ type (
 		Bio       string `json:"bio,optional"`
 	}
 	UpdateProfileResp  {}
+)
+
+type (
+	GetUserPostsReq {
+		UserId   int64 `path:"userId"`
+		Page     int32 `form:"page,default=1"`
+		PageSize int32 `form:"pageSize,default=20"`
+		SortBy   int32 `form:"sortBy,optional,default=1"`
+	}
+)
+
+type (
+	GetUserFavoritesReq {
+		UserId   int64 `path:"userId"`
+		Page     int32 `form:"page,default=1"`
+		PageSize int32 `form:"pageSize,default=20"`
+	}
 )
 
 // ============================================
@@ -135,18 +153,21 @@ type (
 		SortBy   int32 `form:"sortBy,default=1"` // 1:最新 2:热门 3:推荐
 	}
 	PostItem {
-		Id           int64    `json:"id"`
-		AuthorId     int64    `json:"authorId"`
-		AuthorName   string   `json:"authorName"`
-		AuthorAvatar string   `json:"authorAvatar"`
-		Title        string   `json:"title"`
-		Content      string   `json:"content"`
-		Images       []string `json:"images"`
-		Tags         []string `json:"tags"`
-		ViewCount    int64    `json:"viewCount"`
-		LikeCount    int64    `json:"likeCount"`
-		CommentCount int64    `json:"commentCount"`
-		CreatedAt    int64    `json:"createdAt"`
+		Id            int64    `json:"id"`
+		AuthorId      int64    `json:"authorId"`
+		AuthorName    string   `json:"authorName"`
+		AuthorAvatar  string   `json:"authorAvatar"`
+		Title         string   `json:"title"`
+		Content       string   `json:"content"`
+		Images        []string `json:"images"`
+		Tags          []string `json:"tags"`
+		ViewCount     int64    `json:"viewCount"`
+		LikeCount     int64    `json:"likeCount"`
+		CommentCount  int64    `json:"commentCount"`
+		FavoriteCount int64    `json:"favoriteCount"`
+		IsLiked       bool     `json:"isLiked"`
+		IsFavorited   bool     `json:"isFavorited"`
+		CreatedAt     int64    `json:"createdAt"`
 	}
 	GetPostListResp {
 		List     []PostItem `json:"list"`
@@ -255,9 +276,7 @@ type (
 // 媒体相关类型
 // ============================================
 type (
-	UploadImageReq {
-		File []byte `form:"file"`
-	}
+	UploadImageReq  {}
 	UploadImageResp {
 		MediaId      int64  `json:"mediaId"`
 		Url          string `json:"url"`
@@ -307,7 +326,6 @@ service gateway {
 
 @server (
 	prefix: /api/v1
-	jwt:    Auth
 	group:  user
 )
 service gateway {
@@ -315,6 +333,21 @@ service gateway {
 	@handler GetUser
 	get /user/:userId (GetUserReq) returns (GetUserResp)
 
+	@doc "获取用户发布的帖子列表"
+	@handler GetUserPosts
+	get /users/:userId/posts (GetUserPostsReq) returns (GetPostListResp)
+
+	@doc "获取用户的收藏帖子列表"
+	@handler GetUserFavorites
+	get /users/:userId/favorites (GetUserFavoritesReq) returns (GetPostListResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  user
+)
+service gateway {
 	@doc "更新用户资料"
 	@handler UpdateProfile
 	put /user/profile (UpdateProfileReq) returns (UpdateProfileResp)

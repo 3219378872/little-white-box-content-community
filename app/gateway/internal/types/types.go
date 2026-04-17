@@ -15,6 +15,19 @@ type CommentItem struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
+type GetUserFavoritesReq struct {
+	UserId   int64 `path:"userId"`
+	Page     int32 `form:"page,default=1"`
+	PageSize int32 `form:"pageSize,default=20"`
+}
+
+type GetUserPostsReq struct {
+	UserId   int64 `path:"userId"`
+	Page     int32 `form:"page,default=1"`
+	PageSize int32 `form:"pageSize,default=20"`
+	SortBy   int32 `form:"sortBy,optional,default=1"`
+}
+
 type HealthReq struct {
 }
 
@@ -23,16 +36,19 @@ type HealthResp struct {
 }
 
 type PostItem struct {
-	Id           int64    `json:"id"`
-	AuthorId     int64    `json:"authorId"`
-	AuthorName   string   `json:"authorName"`
-	AuthorAvatar string   `json:"authorAvatar"`
-	Title        string   `json:"title"`
-	Content      string   `json:"content"`
-	Images       []string `json:"images"`
-	Tags         []string `json:"tags"`
-	ViewCount    int64    `json:"viewCount"`
-	LikeCount    int64    `json:"likeCount"`
-	CommentCount int64    `json:"commentCount"`
-	CreatedAt    int64    `json:"createdAt"`
+	Id            int64    `json:"id"`
+	AuthorId      int64    `json:"authorId"`
+	AuthorName    string   `json:"authorName"`
+	AuthorAvatar  string   `json:"authorAvatar"`
+	Title         string   `json:"title"`
+	Content       string   `json:"content"`
+	Images        []string `json:"images"`
+	Tags          []string `json:"tags"`
+	ViewCount     int64    `json:"viewCount"`
+	LikeCount     int64    `json:"likeCount"`
+	CommentCount  int64    `json:"commentCount"`
+	FavoriteCount int64    `json:"favoriteCount"`
+	IsLiked       bool     `json:"isLiked"`
+	IsFavorited   bool     `json:"isFavorited"`
+	CreatedAt     int64    `json:"createdAt"`
 }
