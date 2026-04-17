@@ -246,6 +246,31 @@ services:
     networks:
       - xbh-network
 
+  # SeaweedFS（业务对象存储，替代 MinIO）
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: xbh-seaweedfs
+    restart: unless-stopped
+    ports:
+      - "9333:9333"
+      - "8080:8080"
+      - "8888:8888"
+      - "8333:8333"
+    command: >
+      server -master -volume -filer -s3
+      -s3.config=/etc/seaweedfs/s3_config.json
+      -dir=/data
+    volumes:
+      - seaweedfs_data:/data
+      - ./seaweedfs/s3_config.json:/etc/seaweedfs/s3_config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - xbh-network
+
   # DTM 分布式事务
   dtm:
     image: yedf/dtm:latest
@@ -342,6 +367,7 @@ volumes:
   milvus_minio:
   milvus_data:
   minio_data:
+  seaweedfs_data:
   prometheus_data:
   grafana_data:
   loki_data:
