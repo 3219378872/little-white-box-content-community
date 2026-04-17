@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "xbh-media",
+      "credentials": [
+        {
+          "accessKey": "xbh-media",
+          "secretKey": "xbh-media-secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
