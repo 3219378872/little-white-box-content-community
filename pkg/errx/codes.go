@@ -37,6 +37,7 @@ const (
 	NotFavoritedYet  = 3004
 	CannotLikeSelf   = 3005
 	CannotFollowSelf = 3006
+	FavoritesPrivate = 3007
 
 	// 媒体相关错误码 4000-4999
 	FileTooLarge       = 4001
@@ -81,6 +82,7 @@ var codeMsg = map[int]string{
 	NotFavoritedYet:  "未收藏",
 	CannotLikeSelf:   "不能点赞自己",
 	CannotFollowSelf: "不能关注自己",
+	FavoritesPrivate: "收藏列表已设为私密",
 
 	FileTooLarge:       "文件过大",
 	FileTypeNotAllowed: "文件类型不支持",
