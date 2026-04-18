@@ -8,6 +8,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // Config 聚合对象存储所需参数。
@@ -55,7 +56,7 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 		return nil, err
 	}
 	if err = client.setPublicReadPolicy(context.Background()); err != nil {
-		return nil, err
+		logx.Errorf("media: 设置公开读策略失败（不阻断启动，可能需手动配置匿名读权限）: %v", err)
 	}
 	return client, nil
 }
