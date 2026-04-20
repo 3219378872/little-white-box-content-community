@@ -13,13 +13,14 @@ import (
 
 // Config 聚合对象存储所需参数。
 type Config struct {
-	Endpoint      string
-	AccessKey     string
-	SecretKey     string
-	UseSSL        bool
-	Region        string
-	Bucket        string
-	PublicBaseURL string
+	Endpoint         string
+	AccessKey        string
+	SecretKey        string
+	UseSSL           bool
+	Region           string
+	Bucket           string
+	PublicBaseURL    string
+	SkipBucketPolicy bool
 }
 
 // ObjectStorage 对 logic 层暴露的最小接口。
@@ -55,11 +56,13 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 	if err = client.ensureBucket(context.Background(), cfg.Region); err != nil {
 		return nil, err
 	}
-	if err = client.setPublicReadPolicy(context.Background()); err != nil {
-		logx.Errorw("set public read policy failed (non-blocking, may need manual anonymous-read config)",
-			logx.Field("bucket", cfg.Bucket),
-			logx.Field("err", err.Error()),
-		)
+	if !cfg.SkipBucketPolicy {
+		if err = client.setPublicReadPolicy(context.Background()); err != nil {
+			logx.Errorw("set public read policy failed (non-blocking, may need manual anonymous-read config)",
+				logx.Field("bucket", cfg.Bucket),
+				logx.Field("err", err.Error()),
+			)
+		}
 	}
 	return client, nil
 }

@@ -10,6 +10,5 @@ use (
 	./pkg/jwtx
 	./pkg/middleware
 	./pkg/mqx
-	./pkg/result
 	./pkg/util
 )

@@ -20,6 +20,7 @@ S3Storage:
   Region: "us-east-1"
   Bucket: "xbh-media"
   PublicBaseURL: "http://127.0.0.1:8333/xbh-media"
+  SkipBucketPolicy: true
 
 Upload:
   MaxImageSize: 10485760
