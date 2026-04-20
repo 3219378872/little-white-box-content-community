@@ -27,3 +27,18 @@ Upload:
   DefaultQuality: 85
   ThumbnailLongSide: 256
   TempDir: ""
+
+Log:
+  ServiceName: media.rpc
+  Mode: console
+  Encoding: json
+  Level: info
+  KeepDays: 30
+  Compress: true
+  Rotation: daily
+
+Telemetry:
+  Name: media.rpc
+  Endpoint: ""
+  Sampler: 0.1
+  Batcher: otlphttp

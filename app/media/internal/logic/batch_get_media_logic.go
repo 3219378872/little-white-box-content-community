@@ -40,7 +40,10 @@ func (l *BatchGetMediaLogic) BatchGetMedia(in *pb.BatchGetMediaReq) (*pb.BatchGe
 
 	rows, err := l.svcCtx.MediaModel.FindByIds(l.ctx, in.MediaIds)
 	if err != nil {
-		l.Errorf("MediaModel.FindByIds failed: %v", err)
+		l.Errorw("MediaModel.FindByIds failed",
+			logx.Field("media_ids", in.MediaIds),
+			logx.Field("err", err.Error()),
+		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

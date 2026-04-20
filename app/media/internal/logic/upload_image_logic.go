@@ -32,7 +32,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 	upload := l.svcCtx.Config.Upload
 	sink, err := mediautil.NewTempSink(upload.TempDir, upload.MaxImageSize)
 	if err != nil {
-		l.Errorf("create temp sink: %v", err)
+		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
 	defer sink.Close()
@@ -66,14 +66,22 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		quality,
 	)
 	if err != nil {
-		l.Errorf("compress image: %v", err)
+		l.Errorw("compress image failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("file_name", meta.GetFileName()),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
 	defer os.Remove(compressedPath)
 
 	thumbPath, err := mediautil.MakeThumbnail(sink.Path())
 	if err != nil {
-		l.Errorf("make thumbnail: %v", err)
+		l.Errorw("make thumbnail failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("file_name", meta.GetFileName()),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
 	defer os.Remove(thumbPath)
@@ -82,11 +90,19 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 	thumbKey := buildObjectKey("thumb", "jpg")
 
 	if err = putFile(l.ctx, l.svcCtx, compressedPath, objKey, "image/jpeg"); err != nil {
-		l.Errorf("put original: %v", err)
+		l.Errorw("put original failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
 	if err = putFile(l.ctx, l.svcCtx, thumbPath, thumbKey, "image/jpeg"); err != nil {
-		l.Errorf("put thumbnail: %v", err)
+		l.Errorw("put thumbnail failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", thumbKey),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
 
@@ -113,12 +129,30 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 	}
 	res, err := l.svcCtx.MediaModel.Insert(l.ctx, row)
 	if err != nil {
-		l.Errorf("insert media row: %v", err)
+		l.Errorw("insert media row failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.SystemError)
 	}
-	id, _ := res.LastInsertId()
+	id, err := res.LastInsertId()
+	if err != nil {
+		l.Errorw("LastInsertId failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
+		return errx.NewWithCode(errx.SystemError)
+	}
 	row.Id = id
 
+	l.Infow("upload image success",
+		logx.Field("media_id", id),
+		logx.Field("user_id", meta.GetUserId()),
+		logx.Field("file_size", info.Size()),
+		logx.Field("object_key", objKey),
+	)
 	return stream.SendAndClose(&pb.UploadImageResp{Media: toPBMediaInfo(row)})
 }
 

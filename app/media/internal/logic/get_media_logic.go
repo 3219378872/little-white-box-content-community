@@ -38,7 +38,10 @@ func (l *GetMediaLogic) GetMedia(in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.MediaNotFound)
 		}
-		l.Errorf("MediaModel.FindOne(%d) failed: %v", in.MediaId, err)
+		l.Errorw("MediaModel.FindOne failed",
+			logx.Field("media_id", in.MediaId),
+			logx.Field("err", err.Error()),
+		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if m.Status != 1 {

@@ -31,7 +31,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 	upload := l.svcCtx.Config.Upload
 	sink, err := mediautil.NewTempSink(upload.TempDir, upload.MaxVideoSize)
 	if err != nil {
-		l.Errorf("create temp sink: %v", err)
+		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
 	defer sink.Close()
@@ -56,7 +56,11 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 
 	objKey := buildObjectKey("original", detected.Ext)
 	if err = putFile(l.ctx, l.svcCtx, sink.Path(), objKey, detected.MIME); err != nil {
-		l.Errorf("put video: %v", err)
+		l.Errorw("put video failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
 
@@ -75,11 +79,29 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 	}
 	res, err := l.svcCtx.MediaModel.Insert(l.ctx, row)
 	if err != nil {
-		l.Errorf("insert media row: %v", err)
+		l.Errorw("insert media row failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
 		return errx.NewWithCode(errx.SystemError)
 	}
-	id, _ := res.LastInsertId()
+	id, err := res.LastInsertId()
+	if err != nil {
+		l.Errorw("LastInsertId failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("object_key", objKey),
+			logx.Field("err", err.Error()),
+		)
+		return errx.NewWithCode(errx.SystemError)
+	}
 	row.Id = id
 
+	l.Infow("upload video success",
+		logx.Field("media_id", id),
+		logx.Field("user_id", meta.GetUserId()),
+		logx.Field("file_size", sink.Size()),
+		logx.Field("object_key", objKey),
+	)
 	return stream.SendAndClose(&pb.UploadVideoResp{Media: toPBMediaInfo(row)})
 }

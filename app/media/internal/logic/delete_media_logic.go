@@ -37,7 +37,10 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.MediaNotFound)
 		}
-		l.Errorf("MediaModel.FindOne(%d) failed: %v", in.MediaId, err)
+		l.Errorw("MediaModel.FindOne failed",
+			logx.Field("media_id", in.MediaId),
+			logx.Field("err", err.Error()),
+		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -51,8 +54,15 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 
 	m.Status = 0
 	if err = l.svcCtx.MediaModel.Update(l.ctx, m); err != nil {
-		l.Errorf("MediaModel.Update(%d) failed: %v", in.MediaId, err)
+		l.Errorw("MediaModel.Update failed",
+			logx.Field("media_id", in.MediaId),
+			logx.Field("err", err.Error()),
+		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	l.Infow("delete media success",
+		logx.Field("media_id", in.MediaId),
+		logx.Field("user_id", in.UserId),
+	)
 	return &pb.DeleteMediaResp{}, nil
 }

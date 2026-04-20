@@ -56,7 +56,10 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 		return nil, err
 	}
 	if err = client.setPublicReadPolicy(context.Background()); err != nil {
-		logx.Errorf("media: 设置公开读策略失败（不阻断启动，可能需手动配置匿名读权限）: %v", err)
+		logx.Errorw("set public read policy failed (non-blocking, may need manual anonymous-read config)",
+			logx.Field("bucket", cfg.Bucket),
+			logx.Field("err", err.Error()),
+		)
 	}
 	return client, nil
 }
