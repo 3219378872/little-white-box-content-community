@@ -254,7 +254,7 @@ services:
     ports:
       - "9333:9333"
       - "8080:8080"
-      - "8888:8888"
+      - "8889:8888"
       - "8333:8333"
     command: >
       server -master -volume -filer -s3
