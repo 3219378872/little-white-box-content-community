@@ -5,8 +5,9 @@ package posts
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -45,7 +46,11 @@ func (l *UpdatePostLogic) UpdatePost(req *types.UpdatePostReq) (resp *types.Upda
 		Tags:     req.Tags,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("更新帖子失败: %w", err)
+		l.Errorw("ContentService.UpdatePost RPC failed",
+			logx.Field("postId", req.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &types.UpdatePostResp{}, nil

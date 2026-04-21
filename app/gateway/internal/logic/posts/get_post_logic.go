@@ -5,8 +5,9 @@ package posts
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -39,12 +40,16 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		UserId: userId,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取帖子失败: %w", err)
+		l.Errorw("ContentService.GetPost RPC failed",
+			logx.Field("postId", req.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	post := result.Post
 	if post == nil {
-		return nil, fmt.Errorf("帖子不存在")
+		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 
 	return &types.GetPostResp{
