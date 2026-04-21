@@ -25,7 +25,7 @@ func receiveUploadStream[Req any](
 ) (*pb.UploadMeta, error) {
 	first, err := recv()
 	if err != nil {
-		return nil, fmt.Errorf("media: recv first packet: %w", err)
+		return nil, errx.Wrap(err, errx.UploadFailed)
 	}
 	meta := getMeta(first)
 	if meta == nil {
@@ -38,7 +38,7 @@ func receiveUploadStream[Req any](
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("media: recv chunk: %w", err)
+			return nil, errx.Wrap(err, errx.UploadFailed)
 		}
 		chunk := getChunk(req)
 		if chunk == nil {
@@ -48,7 +48,7 @@ func receiveUploadStream[Req any](
 			if errors.Is(werr, mediautil.ErrSizeExceeded) {
 				return nil, errx.NewWithCode(errx.FileTooLarge)
 			}
-			return nil, fmt.Errorf("media: write chunk: %w", werr)
+			return nil, errx.Wrap(werr, errx.UploadFailed)
 		}
 	}
 	return meta, nil

@@ -10,10 +10,16 @@ import (
 type BizError struct {
 	Code    int
 	Message string
+	cause   error
 }
 
 func (e *BizError) Error() string {
 	return fmt.Sprintf("code: %d, message: %s", e.Code, e.Message)
+}
+
+// Unwrap 返回底层错误，支持 errors.Is / errors.As 穿透
+func (e *BizError) Unwrap() error {
+	return e.cause
 }
 
 // BizCode 返回业务错误码，供 result 包通过接口提取
@@ -53,18 +59,19 @@ func GetCode(err error) int {
 	return UnknownError
 }
 
-// Wrap 包装错误
+// Wrap 包装错误，保留原始错误用于 errors.Is / errors.As 穿透
 func Wrap(err error, code int) error {
 	if err == nil {
 		return nil
 	}
 	return &BizError{
 		Code:    code,
-		Message: err.Error(),
+		Message: GetMsg(code),
+		cause:   err,
 	}
 }
 
-// WrapMsg 包装错误并自定义消息
+// WrapMsg 包装错误并自定义消息，保留原始错误用于 errors.Is / errors.As 穿透
 func WrapMsg(err error, message string) error {
 	if err == nil {
 		return nil
@@ -72,6 +79,7 @@ func WrapMsg(err error, message string) error {
 	return &BizError{
 		Code:    UnknownError,
 		Message: message + ": " + err.Error(),
+		cause:   err,
 	}
 }
 

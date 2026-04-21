@@ -50,7 +50,7 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 		return nil, err
 	}
 
-	user, err := newUser(req)
+	user, err := l.newUser(req)
 
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		return nil, errx.NewWithCode(errx.VerifyCodeError)
 	}
 
-	user, err := newUser(in)
+	user, err := l.newUser(in)
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +120,11 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 }
 
 // 用于填充初始化内容
-func newUser(req *pb.RegisterReq) (*model.UserProfile, error) {
+func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error) {
 	id, err := util.NextID()
 	if err != nil {
-		logx.Errorf("雪花算法生成id失败%v", err)
-		return nil, errx.New(errx.SystemError, "雪花代码生成失败")
+		l.Errorw("util.NextID snowflake id generation failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 处理空用户名

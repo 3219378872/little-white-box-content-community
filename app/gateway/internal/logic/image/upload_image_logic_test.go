@@ -9,7 +9,6 @@ import (
 	"mime/multipart"
 	"net/textproto"
 	"strconv"
-	"strings"
 	"testing"
 
 	"errx"
@@ -169,8 +168,8 @@ func TestUploadImageMultipart_StreamSetupError_WrapsError(t *testing.T) {
 	}
 	l := buildUploadLogic(7, ms)
 	_, err := l.UploadImageMultipart(file, header)
-	if err == nil || !strings.Contains(err.Error(), "建立 media 流失败") {
-		t.Fatalf("expected wrapped 建立 media 流失败 error, got: %v", err)
+	if !errx.Is(err, errx.SystemError) {
+		t.Fatalf("expected SystemError, got: %v", err)
 	}
 }
 
@@ -185,8 +184,8 @@ func TestUploadImageMultipart_SendMetaError_WrapsError(t *testing.T) {
 	}
 	l := buildUploadLogic(7, ms)
 	_, err := l.UploadImageMultipart(file, header)
-	if err == nil || !strings.Contains(err.Error(), "发送 meta 失败") {
-		t.Fatalf("expected wrapped 发送 meta 失败 error, got: %v", err)
+	if !errx.Is(err, errx.UploadFailed) {
+		t.Fatalf("expected UploadFailed, got: %v", err)
 	}
 }
 

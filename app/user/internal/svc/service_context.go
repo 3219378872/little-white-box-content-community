@@ -1,11 +1,11 @@
 package svc
 
 import (
+	"fmt"
 	"user/internal/config"
 	"user/internal/model"
 	"util"
 
-	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -25,8 +25,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DriverName: "mysql",
 	})
 	if err != nil {
-		logx.Errorf("数据库连接失败")
-		panic("数据库初始化失败")
+		panic(fmt.Sprintf("数据库初始化失败: %v", err))
 	}
 
 	// 注入Redis
@@ -35,8 +34,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// 初始化雪花算法
 	err = util.InitSnowflake(0, 1)
 	if err != nil {
-		logx.Errorf("雪花算法初始化失败%v", err)
-		panic("雪花算法初始化失败")
+		panic(fmt.Sprintf("雪花算法初始化失败: %v", err))
 	}
 
 	return &ServiceContext{

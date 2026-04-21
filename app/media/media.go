@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"esx/app/media/internal/config"
 	"esx/app/media/internal/server"
@@ -9,7 +10,6 @@ import (
 	"esx/app/media/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -34,6 +34,6 @@ func main() {
 	})
 	defer s.Stop()
 
-	logx.Infof("Starting rpc server at %s...", c.ListenOn)
+	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()
 }

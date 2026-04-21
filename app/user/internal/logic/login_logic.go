@@ -80,8 +80,11 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 	// 生成token
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		logx.Errorf("token生成失败")
-		return nil, err
+		l.Errorw("jwtx.GenerateToken failed",
+			logx.Field("userId", user.Id),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 组装返回值
