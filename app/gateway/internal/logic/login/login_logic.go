@@ -46,6 +46,7 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 	}
 	login, err := l.svcCtx.UserService.Login(l.ctx, &loginReq)
 	if err != nil {
+
 		return nil, err
 	}
 	return &types.LoginResp{
