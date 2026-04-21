@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"errors"
 
+	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
@@ -23,9 +25,15 @@ func NewCheckFavoritedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ch
 	}
 }
 
-// 检查是否收藏
 func (l *CheckFavoritedLogic) CheckFavorited(in *pb.CheckFavoritedReq) (*pb.CheckFavoritedResp, error) {
-	// todo: add your logic here and delete this line
+	record, err := l.svcCtx.FavoriteModel.FindOneByUserIdPostId(l.ctx, in.UserId, in.PostId)
+	if errors.Is(err, model.ErrNotFound) {
+		return &pb.CheckFavoritedResp{IsFavorited: false}, nil
+	}
+	if err != nil {
+		l.Logger.Errorf("check favorited failed: %v", err)
+		return nil, err
+	}
 
-	return &pb.CheckFavoritedResp{}, nil
+	return &pb.CheckFavoritedResp{IsFavorited: record.Status == 1}, nil
 }

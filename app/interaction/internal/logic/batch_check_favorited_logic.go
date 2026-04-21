@@ -23,9 +23,18 @@ func NewBatchCheckFavoritedLogic(ctx context.Context, svcCtx *svc.ServiceContext
 	}
 }
 
-// 批量检查是否收藏
 func (l *BatchCheckFavoritedLogic) BatchCheckFavorited(in *pb.BatchCheckFavoritedReq) (*pb.BatchCheckFavoritedResp, error) {
-	// todo: add your logic here and delete this line
+	results := make(map[int64]bool, len(in.PostIds))
+	for _, postID := range in.PostIds {
+		resp, err := NewCheckFavoritedLogic(l.ctx, l.svcCtx).CheckFavorited(&pb.CheckFavoritedReq{
+			UserId: in.UserId,
+			PostId: postID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		results[postID] = resp.IsFavorited
+	}
 
-	return &pb.BatchCheckFavoritedResp{}, nil
+	return &pb.BatchCheckFavoritedResp{Results: results}, nil
 }

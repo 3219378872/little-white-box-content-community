@@ -23,9 +23,22 @@ func NewGetFavoriteListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *G
 	}
 }
 
-// 获取收藏列表
 func (l *GetFavoriteListLogic) GetFavoriteList(in *pb.GetFavoriteListReq) (*pb.GetFavoriteListResp, error) {
-	// todo: add your logic here and delete this line
+	if in.Page < 1 {
+		in.Page = 1
+	}
+	if in.PageSize < 1 || in.PageSize > 100 {
+		in.PageSize = 20
+	}
 
-	return &pb.GetFavoriteListResp{}, nil
+	postIDs, total, err := l.svcCtx.FavoriteModel.FindActivePostIds(l.ctx, in.UserId, in.Page, in.PageSize)
+	if err != nil {
+		l.Logger.Errorf("get favorite list failed: %v", err)
+		return nil, err
+	}
+
+	return &pb.GetFavoriteListResp{
+		PostIds: postIDs,
+		Total:   total,
+	}, nil
 }

@@ -1,0 +1,191 @@
+package logic
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+
+	"esx/app/interaction/internal/model"
+	"esx/app/interaction/internal/svc"
+	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
+	"errx"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
+
+type stubResult struct {
+	lastInsertID int64
+	rowsAffected int64
+}
+
+func (r stubResult) LastInsertId() (int64, error) {
+	return r.lastInsertID, nil
+}
+
+func (r stubResult) RowsAffected() (int64, error) {
+	return r.rowsAffected, nil
+}
+
+type mockLikeRecordModel struct {
+	mock.Mock
+}
+
+func (m *mockLikeRecordModel) Insert(ctx context.Context, data *model.LikeRecord) (sql.Result, error) {
+	args := m.Called(ctx, data)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
+func (m *mockLikeRecordModel) FindOne(ctx context.Context, id int64) (*model.LikeRecord, error) {
+	args := m.Called(ctx, id)
+	record, _ := args.Get(0).(*model.LikeRecord)
+	return record, args.Error(1)
+}
+
+func (m *mockLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Context, userID int64, targetID int64, targetType int64) (*model.LikeRecord, error) {
+	args := m.Called(ctx, userID, targetID, targetType)
+	record, _ := args.Get(0).(*model.LikeRecord)
+	return record, args.Error(1)
+}
+
+func (m *mockLikeRecordModel) Update(ctx context.Context, data *model.LikeRecord) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *mockLikeRecordModel) Delete(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+type mockActionCountModel struct {
+	mock.Mock
+}
+
+func (m *mockActionCountModel) Insert(ctx context.Context, data *model.ActionCount) (sql.Result, error) {
+	args := m.Called(ctx, data)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
+func (m *mockActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*model.ActionCount, error) {
+	args := m.Called(ctx, targetID, targetType)
+	record, _ := args.Get(0).(*model.ActionCount)
+	return record, args.Error(1)
+}
+
+func (m *mockActionCountModel) Update(ctx context.Context, data *model.ActionCount) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func TestLikeLogic_Like_FirstTime(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel:  likeModel,
+		ActionCountModel: countModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return((*model.LikeRecord)(nil), model.ErrNotFound).
+		Once()
+	likeModel.
+		On("Insert", mock.Anything, mock.MatchedBy(func(data *model.LikeRecord) bool {
+			return data.UserId == 1 && data.TargetId == 100 && data.TargetType == 1 && data.Status == 1
+		})).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 5}, nil).
+		Once()
+	countModel.
+		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
+			return data.Id == 10 && data.LikeCount == 6
+		})).
+		Return(nil).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	likeModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}
+
+func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel: likeModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.AlreadyLiked))
+	likeModel.AssertExpectations(t)
+}
+
+func TestLikeLogic_Like_ReviveCanceledRecord(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel: likeModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 0}, nil).
+		Once()
+	likeModel.
+		On("Update", mock.Anything, mock.MatchedBy(func(data *model.LikeRecord) bool {
+			return data.Id == 1 && data.Status == 1
+		})).
+		Return(nil).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	likeModel.AssertExpectations(t)
+}
+
+func TestLikeLogic_IncrLikeCount_InsertMissingCountWritesCache(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	redisStore := new(mockRedisStore)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+		RedisStore:       redisStore,
+	}
+
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), model.ErrNotFound).
+		Once()
+	countModel.
+		On("Insert", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
+			return data.TargetId == 100 && data.TargetType == 1 && data.LikeCount == 1
+		})).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+	redisStore.On("Hset", "action_count:100:1", "like_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "action_count:100:1", "favorite_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "action_count:100:1", "comment_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "action_count:100:1", 300).Return(nil).Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	require.NoError(t, logic.incrLikeCount(100, 1))
+	countModel.AssertExpectations(t)
+	redisStore.AssertExpectations(t)
+}

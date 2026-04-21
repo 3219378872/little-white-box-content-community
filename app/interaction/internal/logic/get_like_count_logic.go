@@ -23,9 +23,14 @@ func NewGetLikeCountLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetL
 	}
 }
 
-// 获取点赞数
 func (l *GetLikeCountLogic) GetLikeCount(in *pb.GetLikeCountReq) (*pb.GetLikeCountResp, error) {
-	// todo: add your logic here and delete this line
+	resp, err := NewGetCountsLogic(l.ctx, l.svcCtx).GetCounts(&pb.GetCountsReq{
+		TargetId:   in.TargetId,
+		TargetType: in.TargetType,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return &pb.GetLikeCountResp{}, nil
+	return &pb.GetLikeCountResp{Count: resp.LikeCount}, nil
 }

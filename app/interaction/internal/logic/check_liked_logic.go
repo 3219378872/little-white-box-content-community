@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"errors"
 
+	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
@@ -23,9 +25,15 @@ func NewCheckLikedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CheckL
 	}
 }
 
-// 检查是否点赞
 func (l *CheckLikedLogic) CheckLiked(in *pb.CheckLikedReq) (*pb.CheckLikedResp, error) {
-	// todo: add your logic here and delete this line
+	record, err := l.svcCtx.LikeRecordModel.FindOneByUserIdTargetIdTargetType(l.ctx, in.UserId, in.TargetId, int64(in.TargetType))
+	if errors.Is(err, model.ErrNotFound) {
+		return &pb.CheckLikedResp{IsLiked: false}, nil
+	}
+	if err != nil {
+		l.Logger.Errorf("check liked failed: %v", err)
+		return nil, err
+	}
 
-	return &pb.CheckLikedResp{}, nil
+	return &pb.CheckLikedResp{IsLiked: record.Status == 1}, nil
 }

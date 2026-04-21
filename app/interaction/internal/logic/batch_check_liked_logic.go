@@ -23,9 +23,19 @@ func NewBatchCheckLikedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *B
 	}
 }
 
-// 批量检查是否点赞
 func (l *BatchCheckLikedLogic) BatchCheckLiked(in *pb.BatchCheckLikedReq) (*pb.BatchCheckLikedResp, error) {
-	// todo: add your logic here and delete this line
+	results := make(map[int64]bool, len(in.TargetIds))
+	for _, targetID := range in.TargetIds {
+		resp, err := NewCheckLikedLogic(l.ctx, l.svcCtx).CheckLiked(&pb.CheckLikedReq{
+			UserId:     in.UserId,
+			TargetId:   targetID,
+			TargetType: in.TargetType,
+		})
+		if err != nil {
+			return nil, err
+		}
+		results[targetID] = resp.IsLiked
+	}
 
-	return &pb.BatchCheckLikedResp{}, nil
+	return &pb.BatchCheckLikedResp{Results: results}, nil
 }
