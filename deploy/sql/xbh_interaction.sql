@@ -79,15 +79,15 @@ CREATE TABLE IF NOT EXISTS `report` (
     KEY `idx_status` (`status`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='举报表';
--- 浜掑姩璁℃暟琛?
+-- 互动计数表
 CREATE TABLE IF NOT EXISTS `action_count` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `target_id` BIGINT NOT NULL COMMENT '鐩爣ID',
-    `target_type` TINYINT NOT NULL COMMENT '鐩爣绫诲瀷 1:甯栧瓙 2:璇勮',
-    `like_count` BIGINT NOT NULL DEFAULT 0 COMMENT '鐐硅禐鏁?',
-    `favorite_count` BIGINT NOT NULL DEFAULT 0 COMMENT '鏀惰棌鏁?',
-    `comment_count` BIGINT NOT NULL DEFAULT 0 COMMENT '璇勮鏁?',
-    `share_count` BIGINT NOT NULL DEFAULT 0 COMMENT '鍒嗕韩鏁?',
+    `target_id` BIGINT NOT NULL COMMENT '目标ID',
+    `target_type` TINYINT NOT NULL COMMENT '目标类型 1:帖子 2:评论',
+    `like_count` BIGINT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    `favorite_count` BIGINT NOT NULL DEFAULT 0 COMMENT '收藏数',
+    `comment_count` BIGINT NOT NULL DEFAULT 0 COMMENT '评论数',
+    `share_count` BIGINT NOT NULL DEFAULT 0 COMMENT '分享数',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_target` (`target_id`, `target_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='浜掑姩璁℃暟琛?;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='互动计数表';

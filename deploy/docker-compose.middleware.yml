@@ -10,6 +10,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Xbh@MySQL2024!}
       MYSQL_DATABASE: xbh_user
       TZ: Asia/Shanghai
+      LANG: C.UTF-8
     ports:
       - "3306:3306"
     volumes:
