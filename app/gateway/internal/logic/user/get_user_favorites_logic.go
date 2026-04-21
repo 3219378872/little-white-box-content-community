@@ -6,7 +6,6 @@ package user
 import (
 	"context"
 	"errx"
-	"fmt"
 	"jwtx"
 	"user/pb/xiaobaihe/user/pb"
 
@@ -37,10 +36,14 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 
 	userResp, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId})
 	if err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+		l.Errorw("UserService.GetUser RPC failed",
+			logx.Field("userId", req.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if userResp.User == nil {
-		return nil, fmt.Errorf("用户不存在: userId=%d", req.UserId)
+		return nil, errx.NewWithCode(errx.UserNotFound)
 	}
 
 	isOwner := requesterID != 0 && requesterID == req.UserId

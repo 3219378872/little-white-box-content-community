@@ -5,8 +5,9 @@ package user
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -37,7 +38,11 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		SortBy:   req.SortBy,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取用户帖子失败: %w", err)
+		l.Errorw("ContentService.GetUserPosts RPC failed",
+			logx.Field("userId", req.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	list := make([]types.PostItem, 0, len(result.Posts))

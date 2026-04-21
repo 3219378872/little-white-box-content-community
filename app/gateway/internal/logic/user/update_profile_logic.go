@@ -6,7 +6,6 @@ package user
 import (
 	"context"
 	"errx"
-	"fmt"
 	"jwtx"
 	"user/pb/xiaobaihe/user/pb"
 
@@ -34,8 +33,8 @@ func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 func (l *UpdateProfileLogic) UpdateProfile(req *types.UpdateProfileReq) (resp *types.UpdateProfileResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		logx.Errorf("获取userId上下文错误")
-		return nil, fmt.Errorf("服务器内部错误:%w", errx.NewWithCode(errx.SystemError))
+		l.Errorw("jwtx.GetUserIdFromContext failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	_, err = l.svcCtx.UserService.UpdateProfile(l.ctx, &pb.UpdateProfileReq{
 		UserId:    userId,

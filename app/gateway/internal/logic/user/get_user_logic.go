@@ -5,7 +5,8 @@ package user
 
 import (
 	"context"
-	"fmt"
+
+	"errx"
 	"user/pb/xiaobaihe/user/pb"
 
 	"gateway/internal/svc"
@@ -32,10 +33,14 @@ func NewGetUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserLo
 func (l *GetUserLogic) GetUser(req *types.GetUserReq) (resp *types.GetUserResp, err error) {
 	result, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId})
 	if err != nil {
-		return nil, fmt.Errorf("获取用户远程RPC错误: %w", err)
+		l.Errorw("UserService.GetUser RPC failed",
+			logx.Field("userId", req.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if result.User == nil {
-		return nil, fmt.Errorf("用户不存在: userId=%d", req.UserId)
+		return nil, errx.NewWithCode(errx.UserNotFound)
 	}
 	// DB 1=公开 → true；2=私密 → false
 	favoritesVisible := result.User.FavoritesVisibility == 1
