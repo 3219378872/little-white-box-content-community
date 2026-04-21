@@ -2,7 +2,8 @@ package logic
 
 import (
 	"context"
-	"fmt"
+
+	"errx"
 	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
 
@@ -27,7 +28,11 @@ func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 func (l *UpdateProfileLogic) UpdateProfile(in *pb.UpdateProfileReq) (*pb.UpdateProfileResp, error) {
 	err := l.svcCtx.UserProfileModel.UpdateUserDes(l.ctx, in.UserId, in.Nickname, in.AvatarUrl, in.Bio)
 	if err != nil {
-		return nil, fmt.Errorf("更新用户数据失败, 服务器内部错误:%v", err)
+		l.Errorw("UserProfileModel.UpdateUserDes failed",
+			logx.Field("userId", in.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &pb.UpdateProfileResp{}, nil
 }
