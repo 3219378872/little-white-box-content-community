@@ -6,7 +6,6 @@ import (
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 	"strings"
 	"util"
 
@@ -55,7 +54,8 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 
 	imageJsonString, err := util.ToJsonObject(in.Images).JsonString()
 	if err != nil {
-		return nil, err
+		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	// 插入帖子
 	if err = l.svcCtx.PostModel.InsertPost(l.ctx, &model.Post{
@@ -69,7 +69,8 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 			Valid:  len(in.Images) > 0,
 		},
 	}); err != nil {
-		return nil, fmt.Errorf("创建帖子失败: %w", err)
+		l.Errorw("PostModel.InsertPost failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 收集有效标签并预生成分布式 ID
@@ -81,7 +82,8 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		}
 		tid, idErr := util.NextID()
 		if idErr != nil {
-			return nil, fmt.Errorf("生成标签ID失败: %w", idErr)
+			l.Errorw("generate tag id failed", logx.Field("err", idErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		validTags = append(validTags, tag)
 		tagIds = append(tagIds, tid)
@@ -89,7 +91,8 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 
 	// 事务内批量插入标签，全部成功或全部回滚
 	if err = l.svcCtx.PostTagModel.BatchInsertTagsByPostId(l.ctx, l.svcCtx.Conn, id, validTags, tagIds); err != nil {
-		return nil, fmt.Errorf("创建帖子标签失败: %w", err)
+		l.Errorw("PostTagModel.BatchInsertTagsByPostId failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.CreatePostResp{

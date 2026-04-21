@@ -6,7 +6,6 @@ import (
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 	"strings"
 	"util"
 
@@ -47,7 +46,11 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
-		return nil, fmt.Errorf("查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindPostById failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if post.Status == 2 {
 		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
@@ -77,7 +80,11 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	}
 
 	if err = l.svcCtx.PostModel.UpdateFields(l.ctx, post.Id, fields); err != nil {
-		return nil, fmt.Errorf("更新帖子失败: %w", err)
+		l.Errorw("PostModel.UpdateFields failed",
+			logx.Field("postId", post.Id),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 收集有效标签并预生成 ID
@@ -91,14 +98,19 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	for range validTags {
 		tid, idErr := util.NextID()
 		if idErr != nil {
-			return nil, fmt.Errorf("生成标签ID失败: %w", idErr)
+			l.Errorw("generate tag id failed", logx.Field("err", idErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		tagIds = append(tagIds, tid)
 	}
 
 	// 事务内原子替换标签
 	if err = l.svcCtx.PostTagModel.TransactReplaceTagsByPostId(l.ctx, l.svcCtx.Conn, post.Id, validTags, tagIds); err != nil {
-		return nil, fmt.Errorf("更新标签失败: %w", err)
+		l.Errorw("PostTagModel.TransactReplaceTagsByPostId failed",
+			logx.Field("postId", post.Id),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.UpdatePostResp{}, nil

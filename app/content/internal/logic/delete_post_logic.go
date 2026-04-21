@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -34,10 +34,14 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 
 	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
 	if err != nil {
-		if err == model.ErrNotFound {
+		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
-		return nil, fmt.Errorf("查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindPostById failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if post.Status == 2 {
@@ -48,7 +52,11 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	}
 
 	if err = l.svcCtx.PostModel.UpdateStatus(l.ctx, post.Id, 2); err != nil {
-		return nil, fmt.Errorf("删除帖子失败: %w", err)
+		l.Errorw("PostModel.UpdateStatus failed",
+			logx.Field("postId", post.Id),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.DeletePostResp{}, nil

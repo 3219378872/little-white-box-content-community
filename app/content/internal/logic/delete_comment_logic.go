@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -34,10 +34,14 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 
 	comment, err := l.svcCtx.CommentModel.FindCommentById(l.ctx, in.CommentId)
 	if err != nil {
-		if err == model.ErrNotFound {
+		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
-		return nil, fmt.Errorf("查询评论失败: %w", err)
+		l.Errorw("CommentModel.FindCommentById failed",
+			logx.Field("commentId", in.CommentId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if comment.Status == 0 {
@@ -48,12 +52,19 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 	}
 
 	if err = l.svcCtx.CommentModel.UpdateStatus(l.ctx, comment.Id, 0); err != nil {
-		return nil, fmt.Errorf("删除评论失败: %w", err)
+		l.Errorw("CommentModel.UpdateStatus failed",
+			logx.Field("commentId", comment.Id),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 原子递减评论数，避免并发更新丢失
 	if err = l.svcCtx.PostModel.DecrCommentCount(l.ctx, comment.PostId); err != nil {
-		l.Logger.Errorf("更新评论数失败 postId=%d err=%v", comment.PostId, err)
+		l.Errorw("PostModel.DecrCommentCount failed",
+			logx.Field("postId", comment.PostId),
+			logx.Field("err", err.Error()),
+		)
 	}
 
 	return &pb.DeleteCommentResp{}, nil

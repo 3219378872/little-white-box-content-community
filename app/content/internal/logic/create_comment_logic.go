@@ -7,7 +7,6 @@ import (
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 	"util"
 
 	"esx/app/content/internal/svc"
@@ -44,7 +43,11 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
-		return nil, fmt.Errorf("查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindPostById failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if post.Status == 2 {
 		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
@@ -70,12 +73,19 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 	}
 
 	if err = l.svcCtx.CommentModel.InsertComment(l.ctx, comment); err != nil {
-		return nil, fmt.Errorf("创建评论失败: %w", err)
+		l.Errorw("CommentModel.InsertComment failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 原子递增评论数；计数服务不可用时降级——评论已落库，不因统计失败回滚
 	if err = l.svcCtx.PostModel.IncrCommentCount(l.ctx, in.PostId); err != nil {
-		l.Logger.Errorf("更新评论数失败 postId=%d err=%v", in.PostId, err)
+		l.Errorw("PostModel.IncrCommentCount failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
 	}
 
 	return &pb.CreateCommentResp{
