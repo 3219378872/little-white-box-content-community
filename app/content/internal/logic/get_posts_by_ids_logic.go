@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
-	"fmt"
 
+	"errx"
 	"esx/app/content/internal/svc"
 	"esx/app/content/pb/xiaobaihe/content/pb"
 
@@ -32,7 +32,8 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 
 	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, in.PostIds)
 	if err != nil {
-		return nil, fmt.Errorf("批量查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	validIds := make([]int64, 0, len(posts))
@@ -44,7 +45,7 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
 	if err != nil {
-		l.Logger.Errorf("批量查询标签失败 err=%v", err)
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 

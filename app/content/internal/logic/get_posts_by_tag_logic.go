@@ -4,7 +4,6 @@ import (
 	"context"
 	"errx"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -43,13 +42,18 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 	// FindPostIdsByTagName 已 JOIN post 过滤 status=1，total 与数据一致
 	postIds, total, err := l.svcCtx.PostTagModel.FindPostIdsByTagName(l.ctx, in.TagName, page, pageSize)
 	if err != nil {
-		return nil, fmt.Errorf("查询标签帖子失败: %w", err)
+		l.Errorw("PostTagModel.FindPostIdsByTagName failed",
+			logx.Field("tagName", in.TagName),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 批量加载帖子，避免 N 次 FindOne
 	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, postIds)
 	if err != nil {
-		return nil, fmt.Errorf("批量查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if len(posts) == 0 {
@@ -58,7 +62,7 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
 	if err != nil {
-		l.Logger.Errorf("批量查询标签失败 err=%v", err)
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 	postInfos := make([]*pb.PostInfo, 0, len(posts))

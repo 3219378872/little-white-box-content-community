@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
+	"errx"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -33,7 +33,8 @@ func (l *GetTagsLogic) GetTags(in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
 
 	tags, err := l.svcCtx.TagModel.FindList(l.ctx, limit)
 	if err != nil {
-		return nil, fmt.Errorf("查询标签列表失败: %w", err)
+		l.Errorw("TagModel.FindList failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	tagInfos := make([]*pb.TagInfo, 0, len(tags))

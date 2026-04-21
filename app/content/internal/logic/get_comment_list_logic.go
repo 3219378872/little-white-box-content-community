@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
+	"errx"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -37,7 +37,11 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 
 	comments, total, err := l.svcCtx.CommentModel.FindByPostId(l.ctx, in.PostId, page, pageSize, int(in.SortBy))
 	if err != nil {
-		return nil, fmt.Errorf("查询评论列表失败: %w", err)
+		l.Errorw("CommentModel.FindByPostId failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	commentInfos := make([]*pb.CommentInfo, 0, len(comments))

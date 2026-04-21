@@ -2,9 +2,9 @@ package logic
 
 import (
 	"context"
+	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -45,7 +45,11 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 
 	posts, total, err := l.svcCtx.PostModel.FindByAuthorId(l.ctx, in.UserId, page, pageSize, sortBy)
 	if err != nil {
-		return nil, fmt.Errorf("查询用户帖子失败: %w", err)
+		l.Errorw("PostModel.FindByAuthorId failed",
+			logx.Field("userId", in.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if len(posts) == 0 {
@@ -58,7 +62,7 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 	}
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
 	if err != nil {
-		l.Logger.Errorf("批量查询标签失败 err=%v", err)
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 	postInfos := make([]*pb.PostInfo, 0, len(posts))

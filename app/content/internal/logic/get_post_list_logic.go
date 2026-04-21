@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
+	"errx"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -37,7 +37,8 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 
 	posts, total, err := l.svcCtx.PostModel.FindList(l.ctx, page, pageSize, int(in.SortBy))
 	if err != nil {
-		return nil, fmt.Errorf("查询帖子列表失败: %w", err)
+		l.Errorw("PostModel.FindList failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if len(posts) == 0 {
@@ -50,7 +51,7 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 	}
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
 	if err != nil {
-		l.Logger.Errorf("批量查询标签失败 err=%v", err)
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 	postInfos := make([]*pb.PostInfo, 0, len(posts))

@@ -6,7 +6,6 @@ import (
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"fmt"
 
 	"esx/app/content/internal/svc"
 
@@ -38,7 +37,11 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
-		return nil, fmt.Errorf("查询帖子失败: %w", err)
+		l.Errorw("PostModel.FindPostById failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	switch post.Status {
@@ -53,7 +56,10 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 
 	tags, err := l.svcCtx.PostTagModel.FindTagNamesByPostId(l.ctx, post.Id)
 	if err != nil {
-		l.Logger.Errorf("查询标签失败 postId=%d err=%v", post.Id, err)
+		l.Errorw("PostTagModel.FindTagNamesByPostId failed",
+			logx.Field("postId", post.Id),
+			logx.Field("err", err.Error()),
+		)
 		tags = []string{}
 	}
 
