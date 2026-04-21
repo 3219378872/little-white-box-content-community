@@ -7,6 +7,7 @@ import (
 	"esx/app/content/contentservice"
 	"esx/app/media/mediaservice"
 	"gateway/internal/config"
+	"interceptor"
 	"user/userservice"
 
 	"github.com/zeromicro/go-zero/zrpc"
@@ -20,11 +21,13 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	userClient := zrpc.MustNewClient(c.UserRpc)
+	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
+
+	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	userService := userservice.NewUserService(userClient)
-	contentClient := zrpc.MustNewClient(c.ContentRpc)
+	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	contentService := contentservice.NewContentService(contentClient)
-	mediaClient := zrpc.MustNewClient(c.MediaRpc)
+	mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	mediaService := mediaservice.NewMediaService(mediaClient)
 
 	return &ServiceContext{
