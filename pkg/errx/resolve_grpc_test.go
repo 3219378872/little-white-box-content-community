@@ -1,9 +1,11 @@
 package errx
 
 import (
+	"fmt"
 	"testing"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -84,5 +86,75 @@ func TestBizError_GRPCStatus_SuccessReturnsNil(t *testing.T) {
 	// codes.OK status — Err() should return nil per gRPC contract
 	if st.Err() != nil {
 		t.Errorf("SUCCESS BizError should produce nil Err(), got %v", st.Err())
+	}
+}
+
+func TestFromGRPCError_WithBizDetail(t *testing.T) {
+	// Simulate: RPC server returned BizError, serialized through GRPCStatus()
+	original := &BizError{Code: UserNotFound, Message: "用户不存在"}
+	grpcErr := original.GRPCStatus().Err()
+
+	// Act: convert back
+	result := FromGRPCError(grpcErr)
+
+	// Assert: should be a BizError with the same code and message
+	bizErr, ok := result.(*BizError)
+	if !ok {
+		t.Fatalf("FromGRPCError returned %T, want *BizError", result)
+	}
+	if bizErr.Code != UserNotFound {
+		t.Errorf("Code = %d, want %d", bizErr.Code, UserNotFound)
+	}
+	if bizErr.Message != "用户不存在" {
+		t.Errorf("Message = %q, want %q", bizErr.Message, "用户不存在")
+	}
+}
+
+func TestFromGRPCError_Nil(t *testing.T) {
+	if err := FromGRPCError(nil); err != nil {
+		t.Errorf("FromGRPCError(nil) = %v, want nil", err)
+	}
+}
+
+func TestFromGRPCError_FrameworkErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		grpcCode codes.Code
+		grpcMsg  string
+		wantBiz  int
+	}{
+		{"DeadlineExceeded → SystemError", codes.DeadlineExceeded, "context deadline exceeded", SystemError},
+		{"Unavailable → ServiceUnavailable", codes.Unavailable, "service unavailable", ServiceUnavailable},
+		{"Internal → SystemError", codes.Internal, "panic: something", SystemError},
+		{"ResourceExhausted → TooManyReq", codes.ResourceExhausted, "cpu overloaded", TooManyReq},
+		{"Unknown → SystemError", codes.Unknown, "unexpected", SystemError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			grpcErr := status.Error(tt.grpcCode, tt.grpcMsg)
+			result := FromGRPCError(grpcErr)
+
+			bizErr, ok := result.(*BizError)
+			if !ok {
+				t.Fatalf("FromGRPCError returned %T, want *BizError", result)
+			}
+			if bizErr.Code != tt.wantBiz {
+				t.Errorf("Code = %d, want %d", bizErr.Code, tt.wantBiz)
+			}
+			if bizErr.Message != tt.grpcMsg {
+				t.Errorf("Message = %q, want %q", bizErr.Message, tt.grpcMsg)
+			}
+		})
+	}
+}
+
+func TestFromGRPCError_NonGRPCError(t *testing.T) {
+	plainErr := fmt.Errorf("some plain error")
+	result := FromGRPCError(plainErr)
+
+	// Non-gRPC error should be returned as-is
+	if result != plainErr {
+		t.Errorf("expected original error, got %v", result)
 	}
 }

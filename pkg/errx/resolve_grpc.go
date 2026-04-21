@@ -46,3 +46,57 @@ func (e *BizError) GRPCStatus() *status.Status {
 	}
 	return detailed
 }
+
+// FromGRPCError converts a gRPC status error back to a BizError.
+// If the status carries a BizError detail (Int32Value), the original business code and message are restored.
+// If not (e.g. framework-generated timeout/breaker errors), a BizError is synthesized from the gRPC code.
+// Non-gRPC errors and nil are returned as-is.
+func FromGRPCError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	s, ok := status.FromError(err)
+	if !ok {
+		return err
+	}
+
+	for _, detail := range s.Details() {
+		if v, ok := detail.(*wrapperspb.Int32Value); ok {
+			return &BizError{
+				Code:    int(v.Value),
+				Message: s.Message(),
+			}
+		}
+	}
+
+	return &BizError{
+		Code:    grpcCodeToBizCode(s.Code()),
+		Message: s.Message(),
+	}
+}
+
+func grpcCodeToBizCode(c codes.Code) int {
+	switch c {
+	case codes.OK:
+		return SUCCESS
+	case codes.InvalidArgument:
+		return ParamError
+	case codes.NotFound:
+		return NotFound
+	case codes.Unauthenticated:
+		return LoginRequired
+	case codes.PermissionDenied:
+		return PermissionDenied
+	case codes.AlreadyExists:
+		return UserAlreadyExist
+	case codes.ResourceExhausted:
+		return TooManyReq
+	case codes.Unavailable:
+		return ServiceUnavailable
+	case codes.DeadlineExceeded:
+		return SystemError
+	default:
+		return SystemError
+	}
+}
