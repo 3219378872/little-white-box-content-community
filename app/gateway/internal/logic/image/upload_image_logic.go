@@ -7,7 +7,6 @@ import (
 	"context"
 	"errx"
 	mediapb "esx/app/media/pb/xiaobaihe/media/pb"
-	"fmt"
 	"io"
 	"jwtx"
 	"mime/multipart"
@@ -48,7 +47,8 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 
 	stream, err := l.svcCtx.MediaService.UploadImage(l.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("建立 media 流失败: %w", err)
+		l.Errorw("MediaService.UploadImage stream failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if err := stream.Send(&mediapb.UploadImageReq{
@@ -60,7 +60,8 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 			},
 		},
 	}); err != nil {
-		return nil, fmt.Errorf("发送 meta 失败: %w", err)
+		l.Errorw("stream.Send meta failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.UploadFailed)
 	}
 
 	buf := make([]byte, chunkSize)
@@ -72,20 +73,23 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 			if err := stream.Send(&mediapb.UploadImageReq{
 				Data: &mediapb.UploadImageReq_Chunk{Chunk: chunk},
 			}); err != nil {
-				return nil, fmt.Errorf("发送 chunk 失败: %w", err)
+				l.Errorw("stream.Send chunk failed", logx.Field("err", err.Error()))
+				return nil, errx.NewWithCode(errx.UploadFailed)
 			}
 		}
 		if readErr == io.EOF {
 			break
 		}
 		if readErr != nil {
-			return nil, fmt.Errorf("读取文件失败: %w", readErr)
+			l.Errorw("file.Read failed", logx.Field("err", readErr.Error()))
+			return nil, errx.NewWithCode(errx.UploadFailed)
 		}
 	}
 
 	mediaResp, err := stream.CloseAndRecv()
 	if err != nil {
-		return nil, fmt.Errorf("关闭流失败: %w", err)
+		l.Errorw("stream.CloseAndRecv failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.UploadFailed)
 	}
 	if mediaResp == nil || mediaResp.Media == nil {
 		return nil, errx.NewWithCode(errx.UploadFailed)

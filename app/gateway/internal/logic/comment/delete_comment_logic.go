@@ -5,8 +5,9 @@ package comment
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -41,7 +42,11 @@ func (l *DeleteCommentLogic) DeleteComment(req *types.DeleteCommentReq) (resp *t
 		UserId:    userId,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("删除评论失败: %w", err)
+		l.Errorw("ContentService.DeleteComment RPC failed",
+			logx.Field("commentId", req.CommentId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &types.DeleteCommentResp{}, nil

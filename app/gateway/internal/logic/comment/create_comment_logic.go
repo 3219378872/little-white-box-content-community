@@ -5,8 +5,9 @@ package comment
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -44,7 +45,8 @@ func (l *CreateCommentLogic) CreateComment(req *types.CreateCommentReq) (resp *t
 		Content:     req.Content,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("创建评论失败: %w", err)
+		l.Errorw("ContentService.CreateComment RPC failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &types.CreateCommentResp{

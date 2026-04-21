@@ -5,8 +5,9 @@ package comment
 
 import (
 	"context"
+
+	"errx"
 	"esx/app/content/contentservice"
-	"fmt"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -37,7 +38,11 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 		SortBy:   req.SortBy,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("获取评论列表失败: %w", err)
+		l.Errorw("ContentService.GetCommentList RPC failed",
+			logx.Field("postId", req.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	list := make([]types.CommentItem, 0, len(result.Comments))
