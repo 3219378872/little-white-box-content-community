@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 
 	"errx"
 
@@ -33,15 +32,13 @@ func main() {
 	defer server.Stop()
 
 	httpx.SetErrorHandlerCtx(func(ctx context.Context, err error) (int, any) {
-		if bizErr, ok := errors.AsType[*errx.BizError](err); ok {
-			return bizErr.HTTPStatus(), map[string]any{
-				"code":    bizErr.Code,
-				"message": bizErr.Message,
-			}
+		bizErr, ok := errors.AsType[*errx.BizError](err)
+		if !ok {
+			bizErr = errx.FromHTTPError(err)
 		}
-		return http.StatusInternalServerError, map[string]any{
-			"code":    errx.SystemError,
-			"message": errx.GetMsg(errx.SystemError),
+		return bizErr.HTTPStatus(), map[string]any{
+			"code":    bizErr.Code,
+			"message": bizErr.Message,
 		}
 	})
 
