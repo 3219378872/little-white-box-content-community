@@ -78,9 +78,8 @@ services:
 
   # RocketMQ NameServer
   rocketmq-namesrv:
-    image: apache/rocketmq:5.1.0
+    image: apache/rocketmq:5.1.3
     container_name: xbh-rocketmq-namesrv
-    restart: unless-stopped
     ports:
       - "9876:9876"
     environment:
@@ -89,7 +88,7 @@ services:
     volumes:
       - rocketmq_namesrv_logs:/home/rocketmq/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9876/clusters || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9876' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -98,20 +97,20 @@ services:
 
   # RocketMQ Broker
   rocketmq-broker:
-    image: apache/rocketmq:5.1.0
+    image: apache/rocketmq:5.1.3
     container_name: xbh-rocketmq-broker
-    restart: unless-stopped
     ports:
       - "10911:10911"
       - "10909:10909"
     environment:
       NAMESRV_ADDR: "rocketmq-namesrv:9876"
       JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -server -Xms512m -Xmx512m"
-    command: sh mqbroker -c /home/rocketmq/rocketmq-5.1.0/conf/broker.conf
+    command: bash -c "chown -R rocketmq:rocketmq /home/rocketmq/store /home/rocketmq/logs && su rocketmq -s /bin/bash -c 'sh mqbroker -c /home/rocketmq/rocketmq-5.1.3/conf/broker.conf -n rocketmq-namesrv:9876'"
+    user: root
     volumes:
       - rocketmq_broker_logs:/home/rocketmq/logs
       - rocketmq_broker_store:/home/rocketmq/store
-      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.1.0/conf/broker.conf
+      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-5.1.3/conf/broker.conf
     depends_on:
       rocketmq-namesrv:
         condition: service_healthy
