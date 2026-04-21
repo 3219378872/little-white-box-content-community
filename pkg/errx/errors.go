@@ -3,6 +3,7 @@ package errx
 import (
 	"errors"
 	"fmt"
+	"net/http"
 )
 
 // BizError 业务错误
@@ -71,5 +72,37 @@ func WrapMsg(err error, message string) error {
 	return &BizError{
 		Code:    UnknownError,
 		Message: message + ": " + err.Error(),
+	}
+}
+
+// HTTPStatus maps business error codes to HTTP status codes.
+func (e *BizError) HTTPStatus() int {
+	switch {
+	case e.Code == SUCCESS:
+		return http.StatusOK
+	case e.Code == ParamError:
+		return http.StatusBadRequest
+	case e.Code == NotFound, e.Code == UserNotFound, e.Code == ContentNotFound, e.Code == MediaNotFound:
+		return http.StatusNotFound
+	case e.Code == LoginRequired, e.Code == TokenExpired, e.Code == TokenInvalid:
+		return http.StatusUnauthorized
+	case e.Code == PermissionDenied, e.Code == ContentForbidden, e.Code == FavoritesPrivate:
+		return http.StatusForbidden
+	case e.Code == TooManyReq:
+		return http.StatusTooManyRequests
+	case e.Code == UserAlreadyExist:
+		return http.StatusConflict
+	case e.Code == AlreadyLiked, e.Code == AlreadyFavorited, e.Code == NotLikedYet, e.Code == NotFavoritedYet,
+		e.Code == CannotLikeSelf, e.Code == CannotFollowSelf:
+		return http.StatusBadRequest
+	case e.Code == TitleEmpty, e.Code == ContentEmpty, e.Code == ContentTooLong,
+		e.Code == FileTooLarge, e.Code == FileTypeNotAllowed, e.Code == MediaMetaMissing:
+		return http.StatusBadRequest
+	case e.Code == PostAlreadyDeleted:
+		return http.StatusGone
+	case e.Code == ServiceUnavailable:
+		return http.StatusServiceUnavailable
+	default:
+		return http.StatusInternalServerError
 	}
 }
