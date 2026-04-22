@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"errx"
 	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
-	"errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,19 +28,17 @@ func TestUnlikeLogic_Unlike_Success(t *testing.T) {
 		Once()
 	likeModel.
 		On("Update", mock.Anything, mock.MatchedBy(func(data *model.LikeRecord) bool {
-			return data.Id == 1 && data.Status == 0
+			return data.Id == 1 && data.Status == model.StatusInactive
 		})).
+		Return(nil).
+		Once()
+	countModel.
+		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
 		Return(nil).
 		Once()
 	countModel.
 		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 5}, nil).
-		Once()
-	countModel.
-		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.Id == 10 && data.LikeCount == 4
-		})).
-		Return(nil).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 4}, nil).
 		Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
@@ -77,7 +75,7 @@ func TestUnlikeLogic_Unlike_AlreadyUnliked(t *testing.T) {
 
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 0}, nil).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusInactive}, nil).
 		Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
@@ -96,23 +94,117 @@ func TestUnlikeLogic_DecrLikeCount_WritesCache(t *testing.T) {
 	}
 
 	countModel.
-		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 2}, nil).
-		Once()
-	countModel.
-		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.Id == 10 && data.LikeCount == 1
-		})).
+		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
 		Return(nil).
 		Once()
-	redisStore.On("Hset", "action_count:100:1", "like_count", "1").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "favorite_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "comment_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:100:1", 300).Return(nil).Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 1}, nil).
+		Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "like_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	require.NoError(t, logic.decrLikeCount(100, 1))
 	countModel.AssertExpectations(t)
 	redisStore.AssertExpectations(t)
+}
+
+func TestUnlikeLogic_Unlike_NilActionCountModel(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel: likeModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Once()
+	likeModel.
+		On("Update", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
+
+	logic := NewUnlikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	likeModel.AssertExpectations(t)
+}
+
+func TestUnlikeLogic_DecrLikeCount_NotFound(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+	}
+
+	countModel.
+		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), model.ErrNotFound).
+		Once()
+
+	logic := NewUnlikeLogic(context.Background(), svcCtx)
+	require.NoError(t, logic.decrLikeCount(100, 1))
+	countModel.AssertExpectations(t)
+}
+
+func TestUnlikeLogic_SyncLikeCountCache_NoStore(t *testing.T) {
+	logic := NewUnlikeLogic(context.Background(), &svc.ServiceContext{})
+	logic.syncLikeCountCache(&model.ActionCount{TargetId: 100, TargetType: 1})
+}
+
+func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel:  likeModel,
+		ActionCountModel: countModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Once()
+	likeModel.
+		On("Update", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
+	countModel.
+		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewUnlikeLogic(context.Background(), svcCtx)
+	_, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.Error(t, err)
+	likeModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}
+
+func TestUnlikeLogic_DecrLikeCount_FindError(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+	}
+
+	countModel.
+		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), assert.AnError).
+		Once()
+
+	logic := NewUnlikeLogic(context.Background(), svcCtx)
+	err := logic.decrLikeCount(100, 1)
+	require.Error(t, err)
+	countModel.AssertExpectations(t)
 }

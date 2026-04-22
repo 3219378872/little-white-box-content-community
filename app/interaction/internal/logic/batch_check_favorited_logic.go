@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"errx"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
@@ -31,7 +32,8 @@ func (l *BatchCheckFavoritedLogic) BatchCheckFavorited(in *pb.BatchCheckFavorite
 			PostId: postID,
 		})
 		if err != nil {
-			return nil, err
+			l.Logger.Errorf("batch check favorited failed for post %d: %v", postID, err)
+			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		results[postID] = resp.IsFavorited
 	}

@@ -29,8 +29,11 @@ func getEnv(key, defaultVal string) string {
 }
 
 func TestMain(m *testing.M) {
-	dsn := getEnv("TEST_MYSQL_DSN", getEnv("DB_INTERACTION",
-		"root:root@tcp(127.0.0.1:3306)/xbh_interaction?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai"))
+	dsn := getEnv("TEST_MYSQL_DSN", getEnv("DB_INTERACTION", ""))
+	if dsn == "" {
+		fmt.Fprintln(os.Stderr, "错误: TEST_MYSQL_DSN 或 DB_INTERACTION 环境变量必须设置")
+		os.Exit(1)
+	}
 	redisHost := getEnv("TEST_REDIS_HOST", "127.0.0.1:6379")
 	redisPass := getEnv("TEST_REDIS_PASS", getEnv("REDIS_PASS", ""))
 
@@ -74,16 +77,16 @@ func TestMain(m *testing.M) {
 
 func resetIntegrationState() {
 	for _, table := range []string{"like_record", "favorite", "action_count", "favorite_folder", "view_history", "report"} {
-		if _, err := testDB.Exec("DELETE FROM `" + table + "`"); err != nil {
+		if _, err := testDB.Exec(fmt.Sprintf("DELETE FROM `%s`", table)); err != nil {
 			fmt.Fprintf(os.Stderr, "清理 %s 失败: %v\n", table, err)
 			os.Exit(1)
 		}
 	}
 
 	for _, key := range []string{
-		"action_count:900001:1",
-		"action_count:910101:1",
-		"action_count:920001:1",
+		"interaction:action_count:900001:1",
+		"interaction:action_count:910101:1",
+		"interaction:action_count:920001:1",
 	} {
 		if _, err := testSvcCtx.Redis.Del(key); err != nil {
 			fmt.Fprintf(os.Stderr, "清理 Redis key %s 失败: %v\n", key, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"errx"
 	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
@@ -32,8 +33,8 @@ func (l *CheckFavoritedLogic) CheckFavorited(in *pb.CheckFavoritedReq) (*pb.Chec
 	}
 	if err != nil {
 		l.Logger.Errorf("check favorited failed: %v", err)
-		return nil, err
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	return &pb.CheckFavoritedResp{IsFavorited: record.Status == 1}, nil
+	return &pb.CheckFavoritedResp{IsFavorited: record.Status == model.StatusActive}, nil
 }

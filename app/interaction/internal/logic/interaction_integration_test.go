@@ -150,11 +150,11 @@ func TestGetCountsCacheBackfillIntegration(t *testing.T) {
 	require.Equal(t, int64(3), countsResp.FavoriteCount)
 	require.Equal(t, int64(2), countsResp.CommentCount)
 
-	cachedLike, err := testSvcCtx.Redis.Hget("action_count:920001:1", "like_count")
+	cachedLike, err := testSvcCtx.Redis.Hget("interaction:action_count:920001:1", "like_count")
 	require.NoError(t, err)
 	require.Equal(t, "7", cachedLike)
 
-	cachedFavorite, err := testSvcCtx.Redis.Hget("action_count:920001:1", "favorite_count")
+	cachedFavorite, err := testSvcCtx.Redis.Hget("interaction:action_count:920001:1", "favorite_count")
 	require.NoError(t, err)
 	require.Equal(t, "3", cachedFavorite)
 

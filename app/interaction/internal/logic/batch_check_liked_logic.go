@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"errx"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
@@ -32,7 +33,8 @@ func (l *BatchCheckLikedLogic) BatchCheckLiked(in *pb.BatchCheckLikedReq) (*pb.B
 			TargetType: in.TargetType,
 		})
 		if err != nil {
-			return nil, err
+			l.Logger.Errorf("batch check liked failed for target %d: %v", targetID, err)
+			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		results[targetID] = resp.IsLiked
 	}

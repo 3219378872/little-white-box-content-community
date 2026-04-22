@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"util"
+
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
@@ -15,6 +17,10 @@ type (
 		Insert(ctx context.Context, data *ActionCount) (sql.Result, error)
 		FindOneByTarget(ctx context.Context, targetID, targetType int64) (*ActionCount, error)
 		Update(ctx context.Context, data *ActionCount) error
+		IncrLikeCount(ctx context.Context, targetID, targetType int64) error
+		IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error
+		DecrLikeCount(ctx context.Context, targetID, targetType int64) error
+		DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error
 	}
 
 	customActionCountModel struct {
@@ -41,8 +47,15 @@ func NewActionCountModel(conn sqlx.SqlConn) ActionCountModel {
 }
 
 func (m *customActionCountModel) Insert(ctx context.Context, data *ActionCount) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, ?, ?, ?, ?)", m.table)
-	return m.conn.ExecCtx(ctx, query, data.TargetId, data.TargetType, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount)
+	if data.Id == 0 {
+		id, err := util.NextID()
+		if err != nil {
+			return nil, err
+		}
+		data.Id = id
+	}
+	query := fmt.Sprintf("insert into %s (`id`, `target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, ?, ?, ?, ?, ?)", m.table)
+	return m.conn.ExecCtx(ctx, query, data.Id, data.TargetId, data.TargetType, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount)
 }
 
 func (m *customActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*ActionCount, error) {
@@ -62,5 +75,29 @@ func (m *customActionCountModel) FindOneByTarget(ctx context.Context, targetID, 
 func (m *customActionCountModel) Update(ctx context.Context, data *ActionCount) error {
 	query := fmt.Sprintf("update %s set `like_count` = ?, `favorite_count` = ?, `comment_count` = ?, `share_count` = ? where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount, data.Id)
+	return err
+}
+
+func (m *customActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 1, 0, 0, 0) on duplicate key update `like_count` = `like_count` + 1", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 0, 1, 0, 0) on duplicate key update `favorite_count` = `favorite_count` + 1", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) DecrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `like_count` = `like_count` - 1 where `target_id` = ? and `target_type` = ? and `like_count` > 0", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `favorite_count` = `favorite_count` - 1 where `target_id` = ? and `target_type` = ? and `favorite_count` > 0", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
 	return err
 }
