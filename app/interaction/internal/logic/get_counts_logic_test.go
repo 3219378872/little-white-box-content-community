@@ -127,3 +127,37 @@ func TestGetCountsLogic_ReadCountsFromCache_NoStore(t *testing.T) {
 	assert.False(t, ok)
 	assert.Nil(t, resp)
 }
+
+func TestGetCountsLogic_WriteCountsToCache_NoStore(t *testing.T) {
+	logic := NewGetCountsLogic(context.Background(), &svc.ServiceContext{})
+	logic.writeCountsToCache("interaction:action_count:100:1", &model.ActionCount{TargetId: 100, TargetType: 1}, model.CacheLongTTL)
+}
+
+func TestGetCountsLogic_WriteCountsToCache_HsetError(t *testing.T) {
+	redisStore := new(mockRedisStore)
+	svcCtx := &svc.ServiceContext{RedisStore: redisStore}
+
+	redisStore.On("Hset", "interaction:action_count:100:1", "like_count", "5").Return(assert.AnError).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "3").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
+
+	logic := NewGetCountsLogic(context.Background(), svcCtx)
+	logic.writeCountsToCache("interaction:action_count:100:1", &model.ActionCount{TargetId: 100, TargetType: 1, LikeCount: 5, FavoriteCount: 3, CommentCount: 1}, model.CacheLongTTL)
+	redisStore.AssertExpectations(t)
+}
+
+func TestGetCountsLogic_RedisStore_FromRedis(t *testing.T) {
+	logic := NewGetCountsLogic(context.Background(), &svc.ServiceContext{})
+	store := logic.redisStore()
+	assert.Nil(t, store)
+}
+
+func TestParseInt64_Valid(t *testing.T) {
+	assert.Equal(t, int64(42), parseInt64("42"))
+}
+
+func TestParseInt64_Invalid(t *testing.T) {
+	assert.Equal(t, int64(0), parseInt64("not-a-number"))
+}

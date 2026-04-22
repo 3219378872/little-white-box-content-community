@@ -205,3 +205,94 @@ func TestLikeLogic_IncrLikeCount_InsertMissingCountWritesCache(t *testing.T) {
 	countModel.AssertExpectations(t)
 	redisStore.AssertExpectations(t)
 }
+
+func TestLikeLogic_Like_NilActionCountModel(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel: likeModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return((*model.LikeRecord)(nil), model.ErrNotFound).
+		Once()
+	likeModel.
+		On("Insert", mock.Anything, mock.Anything).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	likeModel.AssertExpectations(t)
+}
+
+func TestLikeLogic_IncrLikeCount_FindError(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+	}
+
+	countModel.
+		On("IncrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), assert.AnError).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	err := logic.incrLikeCount(100, 1)
+	require.Error(t, err)
+	countModel.AssertExpectations(t)
+}
+
+func TestLikeLogic_SyncLikeCountCache_NoStore(t *testing.T) {
+	logic := NewLikeLogic(context.Background(), &svc.ServiceContext{})
+	logic.syncLikeCountCache(&model.ActionCount{TargetId: 100, TargetType: 1})
+}
+
+func TestLikeLogic_SyncLikeCountCache_HsetError(t *testing.T) {
+	redisStore := new(mockRedisStore)
+	svcCtx := &svc.ServiceContext{RedisStore: redisStore}
+
+	redisStore.On("Hset", "interaction:action_count:100:1", "like_count", "5").Return(assert.AnError).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "3").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	logic.syncLikeCountCache(&model.ActionCount{TargetId: 100, TargetType: 1, LikeCount: 5, FavoriteCount: 3, CommentCount: 1})
+	redisStore.AssertExpectations(t)
+}
+
+func TestLikeLogic_Like_IncrCountError(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		LikeRecordModel:  likeModel,
+		ActionCountModel: countModel,
+	}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return((*model.LikeRecord)(nil), model.ErrNotFound).
+		Once()
+	likeModel.
+		On("Insert", mock.Anything, mock.Anything).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+	countModel.
+		On("IncrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.Error(t, err)
+	likeModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}

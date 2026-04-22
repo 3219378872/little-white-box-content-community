@@ -112,3 +112,99 @@ func TestUnfavoriteLogic_DecrFavoriteCount_WritesCache(t *testing.T) {
 	countModel.AssertExpectations(t)
 	redisStore.AssertExpectations(t)
 }
+
+func TestUnfavoriteLogic_Unfavorite_NilActionCountModel(t *testing.T) {
+	favoriteModel := new(mockFavoriteModel)
+	svcCtx := &svc.ServiceContext{
+		FavoriteModel: favoriteModel,
+	}
+
+	favoriteModel.
+		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
+		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Once()
+	favoriteModel.
+		On("Update", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
+
+	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
+	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	favoriteModel.AssertExpectations(t)
+}
+
+func TestUnfavoriteLogic_DecrFavoriteCount_NotFound(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+	}
+
+	countModel.
+		On("DecrFavoriteCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), model.ErrNotFound).
+		Once()
+
+	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
+	require.NoError(t, logic.decrFavoriteCount(100))
+	countModel.AssertExpectations(t)
+}
+
+func TestUnfavoriteLogic_SyncFavoriteCountCache_NoStore(t *testing.T) {
+	logic := NewUnfavoriteLogic(context.Background(), &svc.ServiceContext{})
+	logic.syncFavoriteCountCache(&model.ActionCount{TargetId: 100, TargetType: 1})
+}
+
+func TestUnfavoriteLogic_Unfavorite_DecrCountError(t *testing.T) {
+	favoriteModel := new(mockFavoriteModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		FavoriteModel:    favoriteModel,
+		ActionCountModel: countModel,
+	}
+
+	favoriteModel.
+		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
+		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Once()
+	favoriteModel.
+		On("Update", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
+	countModel.
+		On("DecrFavoriteCount", mock.Anything, int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
+	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
+	require.Error(t, err)
+	favoriteModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}
+
+func TestUnfavoriteLogic_DecrFavoriteCount_FindError(t *testing.T) {
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		ActionCountModel: countModel,
+	}
+
+	countModel.
+		On("DecrFavoriteCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	countModel.
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return((*model.ActionCount)(nil), assert.AnError).
+		Once()
+
+	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
+	err := logic.decrFavoriteCount(100)
+	require.Error(t, err)
+	countModel.AssertExpectations(t)
+}

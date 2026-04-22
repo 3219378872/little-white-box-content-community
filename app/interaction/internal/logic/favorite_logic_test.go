@@ -157,3 +157,58 @@ func TestFavoriteLogic_IncrFavoriteCount_InsertMissingCountWritesCache(t *testin
 	countModel.AssertExpectations(t)
 	redisStore.AssertExpectations(t)
 }
+
+func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
+	favoriteModel := new(mockFavoriteModel)
+	svcCtx := &svc.ServiceContext{
+		FavoriteModel: favoriteModel,
+	}
+
+	favoriteModel.
+		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
+		Return((*model.Favorite)(nil), model.ErrNotFound).
+		Once()
+	favoriteModel.
+		On("Insert", mock.Anything, mock.Anything).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+
+	logic := NewFavoriteLogic(context.Background(), svcCtx)
+	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	favoriteModel.AssertExpectations(t)
+}
+
+func TestFavoriteLogic_SyncFavoriteCountCache_NoStore(t *testing.T) {
+	logic := NewFavoriteLogic(context.Background(), &svc.ServiceContext{})
+	logic.syncFavoriteCountCache(&model.ActionCount{TargetId: 100, TargetType: 1})
+}
+
+func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
+	favoriteModel := new(mockFavoriteModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		FavoriteModel:    favoriteModel,
+		ActionCountModel: countModel,
+	}
+
+	favoriteModel.
+		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
+		Return((*model.Favorite)(nil), model.ErrNotFound).
+		Once()
+	favoriteModel.
+		On("Insert", mock.Anything, mock.Anything).
+		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		Once()
+	countModel.
+		On("IncrFavoriteCount", mock.Anything, int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewFavoriteLogic(context.Background(), svcCtx)
+	_, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
+	require.Error(t, err)
+	favoriteModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}
