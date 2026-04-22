@@ -2,7 +2,6 @@ package jwtx
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"errx"
 	"fmt"
@@ -75,10 +74,9 @@ func ParseToken(tokenString string, config JwtConfig) (*Claims, error) {
 
 // GetUserIdFromContext 从上下文中获取userId
 func GetUserIdFromContext(ctx context.Context) (int64, error) {
-	value := ctx.Value("userId")
-	userId, ok := value.(json.Number)
+	userId, ok := GetOptionalUserIdFromContext(ctx)
 	if !ok {
-		return 0, fmt.Errorf("转换userId失败%w", errx.NewWithCode(errx.SystemError))
+		return 0, fmt.Errorf("convert userId failed: %w", errx.NewWithCode(errx.SystemError))
 	}
-	return userId.Int64()
+	return userId, nil
 }
