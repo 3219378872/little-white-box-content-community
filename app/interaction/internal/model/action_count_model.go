@@ -15,6 +15,10 @@ type (
 		Insert(ctx context.Context, data *ActionCount) (sql.Result, error)
 		FindOneByTarget(ctx context.Context, targetID, targetType int64) (*ActionCount, error)
 		Update(ctx context.Context, data *ActionCount) error
+		IncrLikeCount(ctx context.Context, targetID, targetType int64) error
+		IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error
+		DecrLikeCount(ctx context.Context, targetID, targetType int64) error
+		DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error
 	}
 
 	customActionCountModel struct {
@@ -62,5 +66,29 @@ func (m *customActionCountModel) FindOneByTarget(ctx context.Context, targetID, 
 func (m *customActionCountModel) Update(ctx context.Context, data *ActionCount) error {
 	query := fmt.Sprintf("update %s set `like_count` = ?, `favorite_count` = ?, `comment_count` = ?, `share_count` = ? where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount, data.Id)
+	return err
+}
+
+func (m *customActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `like_count` = `like_count` + 1 where `target_id` = ? and `target_type` = ?", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `favorite_count` = `favorite_count` + 1 where `target_id` = ? and `target_type` = ?", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) DecrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `like_count` = `like_count` - 1 where `target_id` = ? and `target_type` = ? and `like_count` > 0", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	query := fmt.Sprintf("update %s set `favorite_count` = `favorite_count` - 1 where `target_id` = ? and `target_type` = ? and `favorite_count` > 0", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
 	return err
 }

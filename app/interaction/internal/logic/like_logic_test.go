@@ -81,6 +81,26 @@ func (m *mockActionCountModel) Update(ctx context.Context, data *model.ActionCou
 	return args.Error(0)
 }
 
+func (m *mockActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	args := m.Called(ctx, targetID, targetType)
+	return args.Error(0)
+}
+
+func (m *mockActionCountModel) IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	args := m.Called(ctx, targetID, targetType)
+	return args.Error(0)
+}
+
+func (m *mockActionCountModel) DecrLikeCount(ctx context.Context, targetID, targetType int64) error {
+	args := m.Called(ctx, targetID, targetType)
+	return args.Error(0)
+}
+
+func (m *mockActionCountModel) DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
+	args := m.Called(ctx, targetID, targetType)
+	return args.Error(0)
+}
+
 func TestLikeLogic_Like_FirstTime(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	countModel := new(mockActionCountModel)
