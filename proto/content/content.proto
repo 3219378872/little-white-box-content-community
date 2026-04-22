@@ -119,6 +119,7 @@ message GetPostListReq {
   int32 page      = 1;
   int32 page_size = 2;
   int32 sort_by   = 3; // 1: 最新 2: 热门 3: 推荐
+  int64 user_id   = 4; // 可选，用于判断当前用户是否点赞/收藏
 }
 
 // 获取帖子列表响应

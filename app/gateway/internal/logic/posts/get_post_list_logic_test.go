@@ -21,7 +21,7 @@ func (f *fakePostListContentService) GetPostList(ctx context.Context, in *conten
 	return f.getPostListFn(ctx, in, opts...)
 }
 
-func newLogic(t *testing.T, ctx context.Context) *GetPostListLogic {
+func newLogic(t *testing.T, ctx context.Context, expectedUserId int64) *GetPostListLogic {
 	t.Helper()
 
 	svcCtx := &svc.ServiceContext{
@@ -29,6 +29,9 @@ func newLogic(t *testing.T, ctx context.Context) *GetPostListLogic {
 			getPostListFn: func(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
 				if in.Page != 1 || in.PageSize != 20 || in.SortBy != 1 {
 					t.Fatalf("unexpected rpc req: %+v", in)
+				}
+				if in.UserId != expectedUserId {
+					t.Fatalf("expected UserId %d, got %d", expectedUserId, in.UserId)
 				}
 				return &contentservice.GetPostListResp{
 					Posts: []*contentpb.PostInfo{
@@ -56,7 +59,7 @@ func newLogic(t *testing.T, ctx context.Context) *GetPostListLogic {
 }
 
 func TestGetPostList_AnonymousContext_ReturnsPublicData(t *testing.T) {
-	l := newLogic(t, context.Background())
+	l := newLogic(t, context.Background(), 0)
 
 	resp, err := l.GetPostList(&types.GetPostListReq{
 		Page:     1,
@@ -79,7 +82,7 @@ func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
 		UserId:   42,
 		Username: "alice",
 	})
-	l := newLogic(t, ctx)
+	l := newLogic(t, ctx, 42)
 
 	resp, err := l.GetPostList(&types.GetPostListReq{
 		Page:     1,

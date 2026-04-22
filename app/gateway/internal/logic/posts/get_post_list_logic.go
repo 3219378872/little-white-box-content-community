@@ -8,6 +8,7 @@ import (
 
 	"errx"
 	"esx/app/content/contentservice"
+	"jwtx"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -31,11 +32,16 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 }
 
 func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.GetPostListResp, err error) {
-	result, err := l.svcCtx.ContentService.GetPostList(l.ctx, &contentservice.GetPostListReq{
+	rpcReq := &contentservice.GetPostListReq{
 		Page:     req.Page,
 		PageSize: req.PageSize,
 		SortBy:   req.SortBy,
-	})
+	}
+	if userId, ok := jwtx.GetOptionalUserIdFromContext(l.ctx); ok {
+		rpcReq.UserId = userId
+	}
+
+	result, err := l.svcCtx.ContentService.GetPostList(l.ctx, rpcReq)
 	if err != nil {
 		l.Errorw("ContentService.GetPostList RPC failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

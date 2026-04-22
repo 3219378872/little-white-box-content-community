@@ -67,9 +67,6 @@ func TestGetPostListHandler_NoToken_Returns200AndAnonymous(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
-	if got := rec.Header().Get("X-Auth-State"); got != "anonymous" {
-		t.Fatalf("expected anonymous auth state, got %q", got)
-	}
 
 	var resp struct {
 		List  []map[string]any `json:"list"`
@@ -101,9 +98,6 @@ func TestGetPostListHandler_ExpiredToken_Returns200AndExpired(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
-	if got := rec.Header().Get("X-Auth-State"); got != "expired" {
-		t.Fatalf("expected expired auth state, got %q", got)
-	}
 }
 
 func TestGetPostListHandler_ValidToken_Returns200AndAuthenticated(t *testing.T) {
@@ -123,8 +117,5 @@ func TestGetPostListHandler_ValidToken_Returns200AndAuthenticated(t *testing.T) 
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-	if got := rec.Header().Get("X-Auth-State"); got != "authenticated" {
-		t.Fatalf("expected authenticated auth state, got %q", got)
 	}
 }

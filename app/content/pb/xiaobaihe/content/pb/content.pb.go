@@ -741,6 +741,7 @@ type GetPostListReq struct {
 	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	SortBy        int32                  `protobuf:"varint,3,opt,name=sort_by,json=sortBy,proto3" json:"sort_by,omitempty"` // 1: 最新 2: 热门 3: 推荐
+	UserId        int64                  `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // 可选，用于判断当前用户是否点赞/收藏
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -792,6 +793,13 @@ func (x *GetPostListReq) GetPageSize() int32 {
 func (x *GetPostListReq) GetSortBy() int32 {
 	if x != nil {
 		return x.SortBy
+	}
+	return 0
+}
+
+func (x *GetPostListReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
 	}
 	return 0
 }
@@ -1725,11 +1733,12 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\rDeletePostReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\"\x10\n" +
-	"\x0eDeletePostResp\"Z\n" +
+	"\x0eDeletePostResp\"s\n" +
 	"\x0eGetPostListReq\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x17\n" +
-	"\asort_by\x18\x03 \x01(\x05R\x06sortBy\"P\n" +
+	"\asort_by\x18\x03 \x01(\x05R\x06sortBy\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x03R\x06userId\"P\n" +
 	"\x0fGetPostListResp\x12'\n" +
 	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x03R\x05total\"t\n" +
