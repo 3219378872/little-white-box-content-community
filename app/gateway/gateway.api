@@ -308,6 +308,16 @@ service gateway {
 
 @server (
 	prefix: /api/v1
+	group:  posts
+)
+service gateway {
+	@doc "获取帖子列表"
+	@handler GetPostList
+	get /posts (GetPostListReq) returns (GetPostListResp)
+}
+
+@server (
+	prefix: /api/v1
 	group:  login
 )
 service gateway {
@@ -382,11 +392,6 @@ service gateway {
 	@doc "删除帖子"
 	@handler DeletePost
 	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
-
-	//TODO: 获取帖子列表需要JWT验证吗
-	@doc "获取帖子列表"
-	@handler GetPostList
-	get /posts (GetPostListReq) returns (GetPostListResp)
 }
 
 @server (
