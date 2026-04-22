@@ -8,8 +8,11 @@ import (
 	"esx/app/media/mediaservice"
 	"gateway/internal/config"
 	"interceptor"
+	"jwtx"
+	"middleware"
 	"user/userservice"
 
+	"github.com/zeromicro/go-zero/rest"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -18,6 +21,7 @@ type ServiceContext struct {
 	UserService    userservice.UserService
 	ContentService contentservice.ContentService
 	MediaService   mediaservice.MediaService
+	OptionalAuth   rest.Middleware
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -30,10 +34,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	mediaService := mediaservice.NewMediaService(mediaClient)
 
+	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{
+		AccessSecret: c.Auth.AccessSecret,
+		AccessExpire: c.Auth.AccessExpire,
+	})
+
 	return &ServiceContext{
 		Config:         c,
 		UserService:    userService,
 		ContentService: contentService,
 		MediaService:   mediaService,
+		OptionalAuth:   optionalAuth.Handle,
 	}
 }
