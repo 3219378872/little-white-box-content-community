@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"testing"
 
+	"errx"
 	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
-	"errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

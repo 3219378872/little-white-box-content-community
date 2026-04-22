@@ -77,7 +77,7 @@ func TestMain(m *testing.M) {
 
 func resetIntegrationState() {
 	for _, table := range []string{"like_record", "favorite", "action_count", "favorite_folder", "view_history", "report"} {
-		if _, err := testDB.Exec("DELETE FROM `" + table + "`"); err != nil {
+		if _, err := testDB.Exec(fmt.Sprintf("DELETE FROM `%s`", table)); err != nil {
 			fmt.Fprintf(os.Stderr, "清理 %s 失败: %v\n", table, err)
 			os.Exit(1)
 		}
