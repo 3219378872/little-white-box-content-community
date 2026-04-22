@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"errx"
 	"esx/app/interaction/internal/model"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
@@ -28,7 +29,7 @@ func NewGetCountsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCoun
 }
 
 func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, error) {
-	key := fmt.Sprintf("action_count:%d:%d", in.TargetId, in.TargetType)
+	key := fmt.Sprintf("interaction:action_count:%d:%d", in.TargetId, in.TargetType)
 
 	if resp, ok := l.readCountsFromCache(key); ok {
 		return resp, nil
@@ -46,7 +47,7 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				resp := &pb.GetCountsResp{}
-				l.writeCountsToCache(key, &model.ActionCount{TargetId: in.TargetId, TargetType: int64(in.TargetType)}, 30)
+				l.writeCountsToCache(key, &model.ActionCount{TargetId: in.TargetId, TargetType: int64(in.TargetType)}, model.CacheShortTTL)
 				return resp, nil
 			}
 			return nil, err
@@ -57,12 +58,12 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 			FavoriteCount: count.FavoriteCount,
 			CommentCount:  count.CommentCount,
 		}
-		l.writeCountsToCache(key, count, 300)
+		l.writeCountsToCache(key, count, model.CacheLongTTL)
 		return resp, nil
 	})
 	if err != nil {
 		l.Logger.Errorf("get counts failed: %v", err)
-		return nil, err
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return result.(*pb.GetCountsResp), nil
@@ -100,11 +101,21 @@ func (l *GetCountsLogic) writeCountsToCache(key string, count *model.ActionCount
 		return
 	}
 
-	_ = store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount))
-	_ = store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount))
-	_ = store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount))
-	_ = store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount))
-	_ = store.Expire(key, ttlSeconds)
+	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
+		l.Logger.Errorf("write like_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
+		l.Logger.Errorf("write favorite_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
+		l.Logger.Errorf("write comment_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
+		l.Logger.Errorf("write share_count cache failed: %v", err)
+	}
+	if err := store.Expire(key, ttlSeconds); err != nil {
+		l.Logger.Errorf("set cache expire failed: %v", err)
+	}
 }
 
 func (l *GetCountsLogic) redisStore() svc.RedisStore {
@@ -120,6 +131,7 @@ func (l *GetCountsLogic) redisStore() svc.RedisStore {
 func parseInt64(value string) int64 {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
+		logx.Errorf("parseInt64 failed: value=%s, err=%v", value, err)
 		return 0
 	}
 	return parsed

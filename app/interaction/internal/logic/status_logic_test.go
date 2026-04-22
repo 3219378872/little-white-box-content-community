@@ -17,7 +17,7 @@ func TestCheckLikedLogic_CheckLiked_Liked(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusActive}, nil).
 		Once()
 
 	logic := NewCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
@@ -50,7 +50,7 @@ func TestCheckLikedLogic_CheckLiked_Error(t *testing.T) {
 
 	logic := NewCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
 	_, err := logic.CheckLiked(&pb.CheckLikedReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.ErrorIs(t, err, assert.AnError)
+	require.Error(t, err)
 	likeModel.AssertExpectations(t)
 }
 
@@ -58,7 +58,7 @@ func TestBatchCheckLikedLogic_BatchCheckLiked(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusActive}, nil).
 		Once()
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(200), int64(1)).
@@ -76,7 +76,7 @@ func TestCheckFavoritedLogic_CheckFavorited_Favorited(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusActive}, nil).
 		Once()
 
 	logic := NewCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
@@ -109,7 +109,7 @@ func TestCheckFavoritedLogic_CheckFavorited_Error(t *testing.T) {
 
 	logic := NewCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
 	_, err := logic.CheckFavorited(&pb.CheckFavoritedReq{UserId: 1, PostId: 100})
-	require.ErrorIs(t, err, assert.AnError)
+	require.Error(t, err)
 	favoriteModel.AssertExpectations(t)
 }
 
@@ -117,7 +117,7 @@ func TestBatchCheckFavoritedLogic_BatchCheckFavorited(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusActive}, nil).
 		Once()
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(200)).

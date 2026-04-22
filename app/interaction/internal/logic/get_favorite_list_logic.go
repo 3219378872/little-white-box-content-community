@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"errx"
 	"esx/app/interaction/internal/svc"
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
@@ -34,7 +35,7 @@ func (l *GetFavoriteListLogic) GetFavoriteList(in *pb.GetFavoriteListReq) (*pb.G
 	postIDs, total, err := l.svcCtx.FavoriteModel.FindActivePostIds(l.ctx, in.UserId, in.Page, in.PageSize)
 	if err != nil {
 		l.Logger.Errorf("get favorite list failed: %v", err)
-		return nil, err
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.GetFavoriteListResp{

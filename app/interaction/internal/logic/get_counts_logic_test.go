@@ -44,9 +44,9 @@ func (m *mockRedisStore) Hincrby(key, field string, increment int) (int, error) 
 
 func TestGetCountsLogic_GetCounts_RedisHit(t *testing.T) {
 	redisStore := new(mockRedisStore)
-	redisStore.On("Hget", "action_count:100:1", "like_count").Return("10", nil).Once()
-	redisStore.On("Hget", "action_count:100:1", "favorite_count").Return("5", nil).Once()
-	redisStore.On("Hget", "action_count:100:1", "comment_count").Return("2", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "like_count").Return("10", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "favorite_count").Return("5", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "comment_count").Return("2", nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		RedisStore: redisStore,
@@ -64,12 +64,12 @@ func TestGetCountsLogic_GetCounts_RedisHit(t *testing.T) {
 func TestGetCountsLogic_GetCounts_RedisMiss(t *testing.T) {
 	countModel := new(mockActionCountModel)
 	redisStore := new(mockRedisStore)
-	redisStore.On("Hget", "action_count:100:1", "like_count").Return("", assert.AnError).Twice()
-	redisStore.On("Hset", "action_count:100:1", "like_count", "7").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "favorite_count", "3").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "comment_count", "1").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:100:1", 300).Return(nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "like_count").Return("", assert.AnError).Twice()
+	redisStore.On("Hset", "interaction:action_count:100:1", "like_count", "7").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "3").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		ActionCountModel: countModel,
@@ -94,12 +94,12 @@ func TestGetCountsLogic_GetCounts_RedisMiss(t *testing.T) {
 func TestGetCountsLogic_GetCounts_NotFound(t *testing.T) {
 	countModel := new(mockActionCountModel)
 	redisStore := new(mockRedisStore)
-	redisStore.On("Hget", "action_count:999:1", "like_count").Return("", assert.AnError).Twice()
-	redisStore.On("Hset", "action_count:999:1", "like_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:999:1", "favorite_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:999:1", "comment_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:999:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:999:1", 30).Return(nil).Once()
+	redisStore.On("Hget", "interaction:action_count:999:1", "like_count").Return("", assert.AnError).Twice()
+	redisStore.On("Hset", "interaction:action_count:999:1", "like_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:999:1", "favorite_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:999:1", "comment_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:999:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:999:1", model.CacheShortTTL).Return(nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		ActionCountModel: countModel,
@@ -123,7 +123,7 @@ func TestGetCountsLogic_GetCounts_NotFound(t *testing.T) {
 
 func TestGetCountsLogic_ReadCountsFromCache_NoStore(t *testing.T) {
 	logic := NewGetCountsLogic(context.Background(), &svc.ServiceContext{})
-	resp, ok := logic.readCountsFromCache("action_count:100:1")
+	resp, ok := logic.readCountsFromCache("interaction:action_count:100:1")
 	assert.False(t, ok)
 	assert.Nil(t, resp)
 }
