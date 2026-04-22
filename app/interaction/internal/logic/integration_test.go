@@ -84,9 +84,9 @@ func resetIntegrationState() {
 	}
 
 	for _, key := range []string{
-		"action_count:900001:1",
-		"action_count:910101:1",
-		"action_count:920001:1",
+		"interaction:action_count:900001:1",
+		"interaction:action_count:910101:1",
+		"interaction:action_count:920001:1",
 	} {
 		if _, err := testSvcCtx.Redis.Del(key); err != nil {
 			fmt.Fprintf(os.Stderr, "清理 Redis key %s 失败: %v\n", key, err)

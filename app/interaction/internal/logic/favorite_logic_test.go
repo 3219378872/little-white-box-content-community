@@ -146,11 +146,11 @@ func TestFavoriteLogic_IncrFavoriteCount_InsertMissingCountWritesCache(t *testin
 		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
 		Return(&model.ActionCount{Id: 1, TargetId: 100, TargetType: 1, FavoriteCount: 1}, nil).
 		Once()
-	redisStore.On("Hset", "action_count:100:1", "like_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "favorite_count", "1").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "comment_count", "0").Return(nil).Once()
-	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:100:1", model.CacheLongTTL).Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "like_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "1").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "0").Return(nil).Once()
+	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	require.NoError(t, logic.incrFavoriteCount(100))

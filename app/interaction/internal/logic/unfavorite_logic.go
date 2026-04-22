@@ -83,7 +83,7 @@ func (l *UnfavoriteLogic) syncFavoriteCountCache(count *model.ActionCount) {
 		return
 	}
 
-	key := fmt.Sprintf("action_count:%d:%d", count.TargetId, count.TargetType)
+	key := fmt.Sprintf("interaction:action_count:%d:%d", count.TargetId, count.TargetType)
 	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
 		l.Logger.Errorf("sync like_count cache failed: %v", err)
 	}

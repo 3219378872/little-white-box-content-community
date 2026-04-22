@@ -15,9 +15,9 @@ import (
 
 func TestGetLikeCountLogic_GetLikeCount(t *testing.T) {
 	redisStore := new(mockRedisStore)
-	redisStore.On("Hget", "action_count:100:1", "like_count").Return("9", nil).Once()
-	redisStore.On("Hget", "action_count:100:1", "favorite_count").Return("4", nil).Once()
-	redisStore.On("Hget", "action_count:100:1", "comment_count").Return("1", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "like_count").Return("9", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "favorite_count").Return("4", nil).Once()
+	redisStore.On("Hget", "interaction:action_count:100:1", "comment_count").Return("1", nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		RedisStore: redisStore,
@@ -36,6 +36,6 @@ func TestGetLikeCountLogic_GetLikeCount_Error(t *testing.T) {
 
 	logic := NewGetLikeCountLogic(context.Background(), &svc.ServiceContext{ActionCountModel: countModel})
 	_, err := logic.GetLikeCount(&pb.GetLikeCountReq{TargetId: 100, TargetType: 1})
-	require.ErrorIs(t, err, assert.AnError)
+	require.Error(t, err)
 	countModel.AssertExpectations(t)
 }

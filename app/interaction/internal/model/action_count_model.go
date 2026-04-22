@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"util"
+
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
@@ -45,8 +47,15 @@ func NewActionCountModel(conn sqlx.SqlConn) ActionCountModel {
 }
 
 func (m *customActionCountModel) Insert(ctx context.Context, data *ActionCount) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, ?, ?, ?, ?)", m.table)
-	return m.conn.ExecCtx(ctx, query, data.TargetId, data.TargetType, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount)
+	if data.Id == 0 {
+		id, err := util.NextID()
+		if err != nil {
+			return nil, err
+		}
+		data.Id = id
+	}
+	query := fmt.Sprintf("insert into %s (`id`, `target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, ?, ?, ?, ?, ?)", m.table)
+	return m.conn.ExecCtx(ctx, query, data.Id, data.TargetId, data.TargetType, data.LikeCount, data.FavoriteCount, data.CommentCount, data.ShareCount)
 }
 
 func (m *customActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*ActionCount, error) {
