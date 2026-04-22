@@ -28,19 +28,17 @@ func TestUnfavoriteLogic_Unfavorite_Success(t *testing.T) {
 		Once()
 	favoriteModel.
 		On("Update", mock.Anything, mock.MatchedBy(func(data *model.Favorite) bool {
-			return data.Id == 1 && data.Status == 0
+			return data.Id == 1 && data.Status == model.StatusInactive
 		})).
+		Return(nil).
+		Once()
+	countModel.
+		On("DecrFavoriteCount", mock.Anything, int64(100), int64(1)).
 		Return(nil).
 		Once()
 	countModel.
 		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, FavoriteCount: 3}, nil).
-		Once()
-	countModel.
-		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.Id == 10 && data.FavoriteCount == 2
-		})).
-		Return(nil).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, FavoriteCount: 2}, nil).
 		Once()
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
@@ -77,7 +75,7 @@ func TestUnfavoriteLogic_Unfavorite_AlreadyUnfavorited(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 0}, nil).
+		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusInactive}, nil).
 		Once()
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
@@ -96,20 +94,18 @@ func TestUnfavoriteLogic_DecrFavoriteCount_WritesCache(t *testing.T) {
 	}
 
 	countModel.
-		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, FavoriteCount: 2}, nil).
+		On("DecrFavoriteCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
 		Once()
 	countModel.
-		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.Id == 10 && data.FavoriteCount == 1
-		})).
-		Return(nil).
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, FavoriteCount: 1}, nil).
 		Once()
 	redisStore.On("Hset", "action_count:100:1", "like_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "favorite_count", "1").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "comment_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:100:1", 300).Return(nil).Once()
+	redisStore.On("Expire", "action_count:100:1", model.CacheLongTTL).Return(nil).Once()
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	require.NoError(t, logic.decrFavoriteCount(100))

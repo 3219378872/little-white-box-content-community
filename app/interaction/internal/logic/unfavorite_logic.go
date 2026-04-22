@@ -36,11 +36,11 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 		l.Logger.Errorf("find favorite record failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if record.Status == 0 {
+	if record.Status == model.StatusInactive {
 		return nil, errx.NewWithCode(errx.NotFavoritedYet)
 	}
 
-	record.Status = 0
+	record.Status = model.StatusInactive
 	if err := l.svcCtx.FavoriteModel.Update(l.ctx, record); err != nil {
 		l.Logger.Errorf("update favorite record failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
@@ -48,6 +48,7 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 
 	if err := l.decrFavoriteCount(in.PostId); err != nil {
 		l.Logger.Errorf("decrease favorite count failed: %v", err)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.UnfavoriteResp{}, nil
@@ -58,22 +59,19 @@ func (l *UnfavoriteLogic) decrFavoriteCount(postID int64) error {
 		return nil
 	}
 
-	count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, postID, 1)
-	switch {
-	case err == nil:
-		if count.FavoriteCount > 0 {
-			count.FavoriteCount--
-		}
-		if err := l.svcCtx.ActionCountModel.Update(l.ctx, count); err != nil {
-			return err
-		}
-		l.syncFavoriteCountCache(count)
-		return nil
-	case errors.Is(err, model.ErrNotFound):
-		return nil
-	default:
+	if err := l.svcCtx.ActionCountModel.DecrFavoriteCount(l.ctx, postID, 1); err != nil {
 		return err
 	}
+
+	count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, postID, 1)
+	if errors.Is(err, model.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	l.syncFavoriteCountCache(count)
+	return nil
 }
 
 func (l *UnfavoriteLogic) syncFavoriteCountCache(count *model.ActionCount) {
@@ -86,9 +84,19 @@ func (l *UnfavoriteLogic) syncFavoriteCountCache(count *model.ActionCount) {
 	}
 
 	key := fmt.Sprintf("action_count:%d:%d", count.TargetId, count.TargetType)
-	_ = store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount))
-	_ = store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount))
-	_ = store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount))
-	_ = store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount))
-	_ = store.Expire(key, 300)
+	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
+		l.Logger.Errorf("sync like_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
+		l.Logger.Errorf("sync favorite_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
+		l.Logger.Errorf("sync comment_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
+		l.Logger.Errorf("sync share_count cache failed: %v", err)
+	}
+	if err := store.Expire(key, model.CacheLongTTL); err != nil {
+		l.Logger.Errorf("set cache expire failed: %v", err)
+	}
 }
