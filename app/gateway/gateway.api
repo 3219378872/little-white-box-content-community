@@ -307,8 +307,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	group:  posts
+	prefix:     /api/v1
+	group:      posts
+	middleware: OptionalAuth
 )
 service gateway {
 	@doc "获取帖子列表"

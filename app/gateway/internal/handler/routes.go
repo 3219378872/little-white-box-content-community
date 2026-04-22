@@ -124,14 +124,17 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 获取帖子列表
-				Method:  http.MethodGet,
-				Path:    "/posts",
-				Handler: posts.GetPostListHandler(serverCtx),
-			},
-		},
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.OptionalAuth},
+			[]rest.Route{
+				{
+					// 获取帖子列表
+					Method:  http.MethodGet,
+					Path:    "/posts",
+					Handler: posts.GetPostListHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 
