@@ -29,8 +29,11 @@ func getEnv(key, defaultVal string) string {
 }
 
 func TestMain(m *testing.M) {
-	dsn := getEnv("TEST_MYSQL_DSN", getEnv("DB_INTERACTION",
-		"root:root@tcp(127.0.0.1:3306)/xbh_interaction?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai"))
+	dsn := getEnv("TEST_MYSQL_DSN", getEnv("DB_INTERACTION", ""))
+	if dsn == "" {
+		fmt.Fprintln(os.Stderr, "错误: TEST_MYSQL_DSN 或 DB_INTERACTION 环境变量必须设置")
+		os.Exit(1)
+	}
 	redisHost := getEnv("TEST_REDIS_HOST", "127.0.0.1:6379")
 	redisPass := getEnv("TEST_REDIS_PASS", getEnv("REDIS_PASS", ""))
 
