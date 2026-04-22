@@ -14,7 +14,7 @@ import (
 func runOptionalAuthRequest(t *testing.T, authHeader string, expire int64) (int, string, string) {
 	t.Helper()
 
-	mw := OptionalAuthMiddleware(jwtx.JwtConfig{
+	mw := NewOptionalAuthMiddleware(jwtx.JwtConfig{
 		AccessSecret: "secret",
 		AccessExpire: expire,
 	})
@@ -34,7 +34,7 @@ func runOptionalAuthRequest(t *testing.T, authHeader string, expire int64) (int,
 		req.Header.Set("Authorization", authHeader)
 	}
 	rec := httptest.NewRecorder()
-	mw(next).ServeHTTP(rec, req)
+	mw.Handle(next)(rec, req)
 
 	body, _ := io.ReadAll(rec.Result().Body)
 	return rec.Result().StatusCode, rec.Header().Get(AuthStateHeader), seenUser + ":" + string(body)
