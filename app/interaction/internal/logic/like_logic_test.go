@@ -115,19 +115,17 @@ func TestLikeLogic_Like_FirstTime(t *testing.T) {
 		Once()
 	likeModel.
 		On("Insert", mock.Anything, mock.MatchedBy(func(data *model.LikeRecord) bool {
-			return data.UserId == 1 && data.TargetId == 100 && data.TargetType == 1 && data.Status == 1
+			return data.UserId == 1 && data.TargetId == 100 && data.TargetType == 1 && data.Status == model.StatusActive
 		})).
 		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
 		Once()
 	countModel.
-		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 5}, nil).
+		On("IncrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
 		Once()
 	countModel.
-		On("Update", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.Id == 10 && data.LikeCount == 6
-		})).
-		Return(nil).
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return(&model.ActionCount{Id: 10, TargetId: 100, TargetType: 1, LikeCount: 6}, nil).
 		Once()
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
@@ -164,11 +162,11 @@ func TestLikeLogic_Like_ReviveCanceledRecord(t *testing.T) {
 
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 0}, nil).
+		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusInactive}, nil).
 		Once()
 	likeModel.
 		On("Update", mock.Anything, mock.MatchedBy(func(data *model.LikeRecord) bool {
-			return data.Id == 1 && data.Status == 1
+			return data.Id == 1 && data.Status == model.StatusActive
 		})).
 		Return(nil).
 		Once()
@@ -189,20 +187,18 @@ func TestLikeLogic_IncrLikeCount_InsertMissingCountWritesCache(t *testing.T) {
 	}
 
 	countModel.
-		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return((*model.ActionCount)(nil), model.ErrNotFound).
+		On("IncrLikeCount", mock.Anything, int64(100), int64(1)).
+		Return(nil).
 		Once()
 	countModel.
-		On("Insert", mock.Anything, mock.MatchedBy(func(data *model.ActionCount) bool {
-			return data.TargetId == 100 && data.TargetType == 1 && data.LikeCount == 1
-		})).
-		Return(stubResult{lastInsertID: 1, rowsAffected: 1}, nil).
+		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
+		Return(&model.ActionCount{Id: 1, TargetId: 100, TargetType: 1, LikeCount: 1}, nil).
 		Once()
 	redisStore.On("Hset", "action_count:100:1", "like_count", "1").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "favorite_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "comment_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "action_count:100:1", 300).Return(nil).Once()
+	redisStore.On("Expire", "action_count:100:1", model.CacheLongTTL).Return(nil).Once()
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	require.NoError(t, logic.incrLikeCount(100, 1))

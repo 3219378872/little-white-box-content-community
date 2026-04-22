@@ -70,13 +70,13 @@ func (m *customActionCountModel) Update(ctx context.Context, data *ActionCount) 
 }
 
 func (m *customActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
-	query := fmt.Sprintf("update %s set `like_count` = `like_count` + 1 where `target_id` = ? and `target_type` = ?", m.table)
+	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 1, 0, 0, 0) on duplicate key update `like_count` = `like_count` + 1", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
 	return err
 }
 
 func (m *customActionCountModel) IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
-	query := fmt.Sprintf("update %s set `favorite_count` = `favorite_count` + 1 where `target_id` = ? and `target_type` = ?", m.table)
+	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 0, 1, 0, 0) on duplicate key update `favorite_count` = `favorite_count` + 1", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
 	return err
 }

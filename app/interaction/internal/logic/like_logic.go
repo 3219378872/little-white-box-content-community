@@ -33,7 +33,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 		l.Logger.Errorf("find like record failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if record != nil && record.Status == 1 {
+	if record != nil && record.Status == model.StatusActive {
 		return nil, errx.NewWithCode(errx.AlreadyLiked)
 	}
 
@@ -42,10 +42,10 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 			UserId:     in.UserId,
 			TargetId:   in.TargetId,
 			TargetType: int64(in.TargetType),
-			Status:     1,
+			Status:     model.StatusActive,
 		})
 	} else {
-		record.Status = 1
+		record.Status = model.StatusActive
 		err = l.svcCtx.LikeRecordModel.Update(l.ctx, record)
 	}
 	if err != nil {
@@ -55,6 +55,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 
 	if err := l.incrLikeCount(in.TargetId, int64(in.TargetType)); err != nil {
 		l.Logger.Errorf("increase like count failed: %v", err)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.LikeResp{}, nil
@@ -65,29 +66,16 @@ func (l *LikeLogic) incrLikeCount(targetID, targetType int64) error {
 		return nil
 	}
 
-	count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, targetID, targetType)
-	switch {
-	case err == nil:
-		count.LikeCount++
-		if err := l.svcCtx.ActionCountModel.Update(l.ctx, count); err != nil {
-			return err
-		}
-		l.syncLikeCountCache(count)
-		return nil
-	case errors.Is(err, model.ErrNotFound):
-		count = &model.ActionCount{
-			TargetId:   targetID,
-			TargetType: targetType,
-			LikeCount:  1,
-		}
-		if _, err := l.svcCtx.ActionCountModel.Insert(l.ctx, count); err != nil {
-			return err
-		}
-		l.syncLikeCountCache(count)
-		return nil
-	default:
+	if err := l.svcCtx.ActionCountModel.IncrLikeCount(l.ctx, targetID, targetType); err != nil {
 		return err
 	}
+
+	count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, targetID, targetType)
+	if err != nil {
+		return err
+	}
+	l.syncLikeCountCache(count)
+	return nil
 }
 
 func (l *LikeLogic) syncLikeCountCache(count *model.ActionCount) {
@@ -100,9 +88,19 @@ func (l *LikeLogic) syncLikeCountCache(count *model.ActionCount) {
 	}
 
 	key := fmt.Sprintf("action_count:%d:%d", count.TargetId, count.TargetType)
-	_ = store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount))
-	_ = store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount))
-	_ = store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount))
-	_ = store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount))
-	_ = store.Expire(key, 300)
+	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
+		l.Logger.Errorf("sync like_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
+		l.Logger.Errorf("sync favorite_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
+		l.Logger.Errorf("sync comment_count cache failed: %v", err)
+	}
+	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
+		l.Logger.Errorf("sync share_count cache failed: %v", err)
+	}
+	if err := store.Expire(key, model.CacheLongTTL); err != nil {
+		l.Logger.Errorf("set cache expire failed: %v", err)
+	}
 }
