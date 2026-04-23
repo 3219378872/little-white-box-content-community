@@ -7,7 +7,10 @@ import (
 	"unicode/utf8"
 )
 
-var phoneRegex = regexp.MustCompile(`^1[3-9]\d{9}$`)
+var (
+	phoneRegex    = regexp.MustCompile(`^1[3-9]\d{9}$`)
+	usernameRegex = regexp.MustCompile(`^[\w一-龥]{2,32}$`)
+)
 
 func ValidatePhone(phone string) error {
 	if !phoneRegex.MatchString(phone) {
@@ -45,6 +48,33 @@ func ValidateUserName(userName string) error {
 		return nil
 	}
 	return errx.New(errx.ParamError, "用户名长度应在6~50之间")
+}
+
+// IsPhoneValid returns true if the phone number is valid.
+func IsPhoneValid(phone string) bool {
+	return phoneRegex.MatchString(phone)
+}
+
+// IsUsernameValid returns true if the username matches the allowed pattern.
+func IsUsernameValid(username string) bool {
+	return usernameRegex.MatchString(username)
+}
+
+// IsPasswordValid returns true if the password meets minimum requirements.
+func IsPasswordValid(password string) bool {
+	if len(password) < 8 || len(password) > 32 {
+		return false
+	}
+	var hasLetter, hasDigit bool
+	for _, ch := range password {
+		switch {
+		case ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z':
+			hasLetter = true
+		case ch >= '0' && ch <= '9':
+			hasDigit = true
+		}
+	}
+	return hasLetter && hasDigit
 }
 
 //// 需修改types包下的自动生成结构体，较难维护，此处仅存放示例代码

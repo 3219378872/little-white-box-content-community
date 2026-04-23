@@ -62,7 +62,8 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		return nil, err
+		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 
 	return &pb.RegisterResp{
@@ -77,7 +78,8 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		Valid:  true,
 	})
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		return nil, err
+		l.Errorw("UserProfileModel.FindOneByPhone failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if phone != nil {
 		return nil, errx.NewWithCode(errx.UserAlreadyExist)
@@ -85,7 +87,8 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 
 	code, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.Phone)
 	if err != nil {
-		return nil, err
+		l.Errorw("Redis.GetCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if code == "" {
 		return nil, errx.New(errx.VerifyCodeExpired, "验证码过期")
@@ -106,12 +109,14 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 	}
 	_, err = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
 	if err != nil {
-		return nil, err
+		l.Errorw("Redis.DelCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		return nil, err
+		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	return &pb.RegisterResp{
 		UserId: user.Id,
@@ -140,12 +145,14 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 		rawPass := fmt.Sprintf("rp_%d", rand.Intn(100000000))
 		password, err = util.HashPassword(rawPass)
 		if err != nil {
-			return nil, err
+			l.Errorw("util.HashPassword failed", logx.Field("err", err.Error()))
+			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	} else {
 		password, err = util.HashPassword(req.Password)
 		if err != nil {
-			return nil, err
+			l.Errorw("util.HashPassword failed", logx.Field("err", err.Error()))
+			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	}
 

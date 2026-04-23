@@ -8,6 +8,8 @@ import (
 	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
 
+	"errx"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,7 +31,8 @@ func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Se
 func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.SendVerifyCodeResp, error) {
 	n, err := cr.Int(cr.Reader, big.NewInt(1000000))
 	if err != nil {
-		return nil, err
+		l.Errorw("crypto/rand.Int failed", logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	randInt := n.Int64()
 
@@ -38,7 +41,8 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	err = l.svcCtx.RedisClient.SetexCtx(l.ctx, in.Phone, fmt.Sprintf("%06d", randInt), expireTime)
 
 	if err != nil {
-		return nil, err
+		l.Errorw("Redis.SetexCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 
 	return &pb.SendVerifyCodeResp{}, nil
