@@ -23,6 +23,12 @@ func main() {
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
+
+	// 校验 S3 凭据已配置
+	if c.S3Storage.AccessKey == "" || c.S3Storage.SecretKey == "" {
+		panic("S3_ACCESS_KEY and S3_SECRET_KEY must be set")
+	}
+
 	ctx := svc.NewServiceContext(c)
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
