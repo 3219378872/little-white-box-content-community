@@ -72,7 +72,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		"content": in.Content,
 	}
 	if len(in.Images) > 0 {
-		fields["images"] = new(util.ToJsonObject(in.Images))
+		fields["images"] = util.ToJsonObject(in.Images)
 	}
 	// Status 只在显式设置（>0）时更新，避免 proto3 零值默认把已发布帖子降级为草稿
 	if in.Status > 0 {
