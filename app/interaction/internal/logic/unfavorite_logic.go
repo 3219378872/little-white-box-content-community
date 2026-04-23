@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"errx"
 	"esx/app/interaction/internal/model"
@@ -28,75 +27,36 @@ func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfavo
 }
 
 func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, error) {
+	if in.UserId <= 0 || in.PostId <= 0 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+
 	record, err := l.svcCtx.FavoriteModel.FindOneByUserIdPostId(l.ctx, in.UserId, in.PostId)
 	if errors.Is(err, model.ErrNotFound) {
 		return nil, errx.NewWithCode(errx.NotFavoritedYet)
 	}
 	if err != nil {
-		l.Logger.Errorf("find favorite record failed: %v", err)
+		l.Logger.Errorw("FindOneByUserIdPostId failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
 		return nil, errx.NewWithCode(errx.NotFavoritedYet)
 	}
 
-	record.Status = model.StatusInactive
-	if err := l.svcCtx.FavoriteModel.Update(l.ctx, record); err != nil {
-		l.Logger.Errorf("update favorite record failed: %v", err)
+	result, err := l.svcCtx.FavoriteModel.UpdateStatusById(l.ctx, record.Id, model.StatusActive, model.StatusInactive)
+	if err != nil {
+		l.Logger.Errorw("UpdateStatusById failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	if err := l.decrFavoriteCount(in.PostId); err != nil {
-		l.Logger.Errorf("decrease favorite count failed: %v", err)
-		return nil, errx.NewWithCode(errx.SystemError)
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected > 0 {
+		if l.svcCtx.ActionCountModel != nil {
+			if err := l.svcCtx.ActionCountModel.DecrFavoriteCount(l.ctx, in.PostId, 1); err != nil {
+				l.Logger.Errorw("DecrFavoriteCount failed", logx.Field("err", err.Error()))
+			}
+		}
 	}
 
 	return &pb.UnfavoriteResp{}, nil
-}
-
-func (l *UnfavoriteLogic) decrFavoriteCount(postID int64) error {
-	if l.svcCtx.ActionCountModel == nil {
-		return nil
-	}
-
-	if err := l.svcCtx.ActionCountModel.DecrFavoriteCount(l.ctx, postID, 1); err != nil {
-		return err
-	}
-
-	count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, postID, 1)
-	if errors.Is(err, model.ErrNotFound) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	l.syncFavoriteCountCache(count)
-	return nil
-}
-
-func (l *UnfavoriteLogic) syncFavoriteCountCache(count *model.ActionCount) {
-	store := l.svcCtx.RedisStore
-	if store == nil && l.svcCtx.Redis != nil {
-		store = svc.NewRedisStore(l.svcCtx.Redis)
-	}
-	if store == nil {
-		return
-	}
-
-	key := fmt.Sprintf("interaction:action_count:%d:%d", count.TargetId, count.TargetType)
-	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
-		l.Logger.Errorf("sync like_count cache failed: %v", err)
-	}
-	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
-		l.Logger.Errorf("sync favorite_count cache failed: %v", err)
-	}
-	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
-		l.Logger.Errorf("sync comment_count cache failed: %v", err)
-	}
-	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
-		l.Logger.Errorf("sync share_count cache failed: %v", err)
-	}
-	if err := store.Expire(key, model.CacheLongTTL); err != nil {
-		l.Logger.Errorf("set cache expire failed: %v", err)
-	}
 }
