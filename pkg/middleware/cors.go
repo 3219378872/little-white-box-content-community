@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 )
 
 // CORS 中间件配置
@@ -16,7 +17,7 @@ type CORSConfig struct {
 
 // DefaultCORSConfig 默认 CORS 配置
 var DefaultCORSConfig = CORSConfig{
-	AllowOrigins: []string{"*"},
+	AllowOrigins: []string{}, // 禁止默认通配，由调用方显式配置白名单
 	AllowMethods: []string{
 		http.MethodGet,
 		http.MethodPost,
@@ -42,20 +43,24 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				origin = "*"
+				next.ServeHTTP(w, r)
+				return
 			}
 
-			// 检查 origin 是否允许
-			allowed := false
+			allowedOrigin := ""
 			for _, o := range config.AllowOrigins {
-				if o == "*" || o == origin {
-					allowed = true
+				if o == origin {
+					allowedOrigin = origin
 					break
 				}
 			}
 
-			if allowed {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
+			// 若 AllowCredentials=true，绝不允许回写 *（浏览器会拒绝）
+			if allowedOrigin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+			} else if !config.AllowCredentials && len(config.AllowOrigins) == 1 && config.AllowOrigins[0] == "*" {
+				// 仅当不携带凭证时才允许通配
+				w.Header().Set("Access-Control-Allow-Origin", "*")
 			}
 
 			if len(config.AllowMethods) > 0 {
@@ -75,7 +80,7 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 			}
 
 			if config.MaxAge > 0 {
-				w.Header().Set("Access-Control-Max-Age", intToStr(config.MaxAge))
+				w.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
 			}
 
 			// 处理预检请求
@@ -100,10 +105,3 @@ func joinStrings(strs []string, sep string) string {
 	return result
 }
 
-func intToStr(n int) string {
-	return string(rune('0'+n/10000%10)) +
-		string(rune('0'+n/1000%10)) +
-		string(rune('0'+n/100%10)) +
-		string(rune('0'+n/10%10)) +
-		string(rune('0'+n%10))
-}
