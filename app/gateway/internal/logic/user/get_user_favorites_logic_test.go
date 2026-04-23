@@ -2,8 +2,6 @@ package user
 
 import (
 	"context"
-	"encoding/json"
-	"strconv"
 	"testing"
 
 	"esx/app/content/contentservice"
@@ -13,6 +11,7 @@ import (
 	"errx"
 	"gateway/internal/svc"
 	"gateway/internal/types"
+	"jwtx"
 	"user/pb/xiaobaihe/user/pb"
 	"user/userservice"
 
@@ -48,8 +47,7 @@ func buildFavoritesLogic(requesterID int64, visibility int32) *GetUserFavoritesL
 	}
 	ctx := context.Background()
 	if requesterID != 0 {
-		// 对齐 go-zero JWT middleware：userId 以 json.Number 形式注入 ctx
-		ctx = context.WithValue(ctx, "userId", json.Number(strconv.FormatInt(requesterID, 10)))
+		ctx = jwtx.WithUserIdContext(ctx, requesterID)
 	}
 	return NewGetUserFavoritesLogic(ctx, svcCtx)
 }
@@ -158,7 +156,7 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), "userId", json.Number(strconv.FormatInt(42, 10)))
+	ctx := jwtx.WithUserIdContext(context.Background(), 42)
 	l := NewGetUserFavoritesLogic(ctx, svcCtx)
 
 	resp, err := l.GetUserFavorites(&types.GetUserFavoritesReq{UserId: 42, Page: 1, PageSize: 20})
@@ -190,7 +188,7 @@ func TestGetUserFavorites_InteractionRPCError_ReturnsSystemError(t *testing.T) {
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), "userId", json.Number(strconv.FormatInt(42, 10)))
+	ctx := jwtx.WithUserIdContext(context.Background(), 42)
 	l := NewGetUserFavoritesLogic(ctx, svcCtx)
 
 	_, err := l.GetUserFavorites(&types.GetUserFavoritesReq{UserId: 42, Page: 1, PageSize: 20})
@@ -218,7 +216,7 @@ func TestGetUserFavorites_ContentRPCError_ReturnsSystemError(t *testing.T) {
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), "userId", json.Number(strconv.FormatInt(42, 10)))
+	ctx := jwtx.WithUserIdContext(context.Background(), 42)
 	l := NewGetUserFavoritesLogic(ctx, svcCtx)
 
 	_, err := l.GetUserFavorites(&types.GetUserFavoritesReq{UserId: 42, Page: 1, PageSize: 20})

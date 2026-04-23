@@ -3,18 +3,17 @@ package image
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"mime/multipart"
 	"net/textproto"
-	"strconv"
 	"testing"
 
 	"errx"
 	mediapb "esx/app/media/pb/xiaobaihe/media/pb"
 	"esx/app/media/mediaservice"
 	"gateway/internal/svc"
+	"jwtx"
 
 	"google.golang.org/grpc"
 )
@@ -98,7 +97,7 @@ func buildUploadLogic(userID int64, ms mediaservice.MediaService) *UploadImageLo
 	svcCtx := &svc.ServiceContext{MediaService: ms}
 	ctx := context.Background()
 	if userID != 0 {
-		ctx = context.WithValue(ctx, "userId", json.Number(strconv.FormatInt(userID, 10)))
+		ctx = jwtx.WithUserIdContext(ctx, userID)
 	}
 	return NewUploadImageLogic(ctx, svcCtx)
 }

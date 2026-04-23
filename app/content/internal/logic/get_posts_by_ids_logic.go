@@ -27,7 +27,7 @@ func NewGetPostsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 
 // GetPostsByIds 批量按 ID 查询帖子（过滤软删除/未发布）
 func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPostsByIdsResp, error) {
-	if len(in.PostIds) == 0 || len(in.PostIds) > validator.MaxBatchQueryIds {
+	if len(in.PostIds) > validator.MaxBatchQueryIds {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
@@ -35,6 +35,10 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 	if err != nil {
 		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	if len(posts) == 0 {
+		return &pb.GetPostsByIdsResp{Posts: []*pb.PostInfo{}}, nil
 	}
 
 	validIds := make([]int64, 0, len(posts))

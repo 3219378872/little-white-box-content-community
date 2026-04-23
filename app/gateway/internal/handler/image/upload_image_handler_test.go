@@ -18,6 +18,7 @@ import (
 	mediapb "esx/app/media/pb/xiaobaihe/media/pb"
 	"esx/app/media/mediaservice"
 	"gateway/internal/svc"
+	"jwtx"
 
 	"google.golang.org/grpc"
 )
@@ -76,7 +77,7 @@ func makeMultipartRequest(t *testing.T, formField, filename, contentType string,
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/upload/image", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	if authedUserID != 0 {
-		ctx := context.WithValue(req.Context(), "userId", json.Number(strconv.FormatInt(authedUserID, 10)))
+		ctx := jwtx.WithUserIdContext(req.Context(), authedUserID)
 		req = req.WithContext(ctx)
 	}
 	return req
