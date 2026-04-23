@@ -32,6 +32,9 @@ const (
 
 	// 消息相关 Topic
 	TopicMessagePush = "message-push" // 消息推送事件
+
+	// 媒体相关 Topic
+	TopicMediaDelete = "media-deleted" // 媒体删除事件（触发 S3 清理）
 )
 
 // Tag 定义
@@ -46,4 +49,5 @@ const (
 	GroupSearchService    = "search-service-group"
 	GroupFeedService      = "feed-service-group"
 	GroupRecommendService = "recommend-service-group"
+	GroupMediaService     = "media-service-group"
 )

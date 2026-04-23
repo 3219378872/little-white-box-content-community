@@ -38,6 +38,12 @@ Log:
   Compress: true
   Rotation: daily
 
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "media-producer-group"
+  Retry: 3
+  SendTimeout: 3000
+
 Telemetry:
   Name: media.rpc
   Endpoint: ""

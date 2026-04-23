@@ -2,6 +2,7 @@ package config
 
 import (
 	"esx/app/media/internal/storage"
+	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -11,6 +12,7 @@ type Config struct {
 	DataSource string
 	S3Storage  storage.Config
 	Upload     UploadConf
+	MQ         mqx.ProducerConfig
 }
 
 // UploadConf 上传相关阈值与路径。

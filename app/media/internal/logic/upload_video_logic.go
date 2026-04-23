@@ -8,6 +8,7 @@ import (
 	"esx/app/media/internal/model"
 	"esx/app/media/internal/svc"
 	"esx/app/media/pb/xiaobaihe/media/pb"
+	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -64,7 +65,14 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
 
+	mediaId, err := util.NextID()
+	if err != nil {
+		l.Errorw("NextID failed", logx.Field("err", err.Error()))
+		return errx.NewWithCode(errx.SystemError)
+	}
+
 	row := &model.Media{
+		Id:           mediaId,
 		UserId:       meta.GetUserId(),
 		FileName:     meta.GetFileName(),
 		OriginalName: nullStringOr(meta.GetFileName()),
@@ -77,7 +85,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		FileSize:     sink.Size(),
 		Status:       1,
 	}
-	res, err := l.svcCtx.MediaModel.Insert(l.ctx, row)
+	_, err = l.svcCtx.MediaModel.Insert(l.ctx, row)
 	if err != nil {
 		l.Errorw("insert media row failed",
 			logx.Field("user_id", meta.GetUserId()),
@@ -86,19 +94,9 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		)
 		return errx.NewWithCode(errx.SystemError)
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		l.Errorw("LastInsertId failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("object_key", objKey),
-			logx.Field("err", err.Error()),
-		)
-		return errx.NewWithCode(errx.SystemError)
-	}
-	row.Id = id
 
 	l.Infow("upload video success",
-		logx.Field("media_id", id),
+		logx.Field("media_id", mediaId),
 		logx.Field("user_id", meta.GetUserId()),
 		logx.Field("file_size", sink.Size()),
 		logx.Field("object_key", objKey),

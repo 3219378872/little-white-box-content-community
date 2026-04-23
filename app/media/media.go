@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"esx/app/media/internal/config"
+	"esx/app/media/internal/mqs"
 	"esx/app/media/internal/server"
 	"esx/app/media/internal/svc"
 	"esx/app/media/pb/xiaobaihe/media/pb"
@@ -30,6 +31,18 @@ func main() {
 	}
 
 	ctx := svc.NewServiceContext(c)
+
+	// 启动 MQ 消费者（可选，仅在配置了 NameServer 时启动）
+	if c.MQ.NameServer != "" {
+		mqConsumer, err := mqs.NewMediaCleanupConsumer(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("media: MQ consumer initialization failed: %v", err))
+		}
+		if err = mqConsumer.Start(); err != nil {
+			panic(fmt.Sprintf("media: MQ consumer start failed: %v", err))
+		}
+		defer mqConsumer.Shutdown()
+	}
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterMediaServiceServer(grpcServer, server.NewMediaServiceServer(ctx))

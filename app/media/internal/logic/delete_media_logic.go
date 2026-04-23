@@ -2,15 +2,25 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"errx"
+	"time"
 
 	"esx/app/media/internal/model"
 	"esx/app/media/internal/svc"
 	"esx/app/media/pb/xiaobaihe/media/pb"
+	"mqx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
+
+type mediaDeletedMessage struct {
+	MediaId     int64  `json:"media_id"`
+	S3ObjectKey string `json:"s3_object_key"`
+	Bucket      string `json:"bucket"`
+	DeletedAt   int64  `json:"deleted_at"`
+}
 
 type DeleteMediaLogic struct {
 	ctx    context.Context
@@ -67,6 +77,23 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		l.Infow("delete media no-op (concurrent or already deleted)",
 			logx.Field("media_id", in.MediaId),
 		)
+	}
+
+	// 投递异步清理事件
+	if l.svcCtx.MQProducer != nil {
+		msg := mediaDeletedMessage{
+			MediaId:     in.MediaId,
+			S3ObjectKey: m.ObjectKey.String,
+			Bucket:      l.svcCtx.Config.S3Storage.Bucket,
+			DeletedAt:   time.Now().Unix(),
+		}
+		body, _ := json.Marshal(msg)
+		if err := l.svcCtx.MQProducer.SendOneWay(l.ctx, mqx.TopicMediaDelete, body); err != nil {
+			l.Errorw("send media_deleted event failed",
+				logx.Field("media_id", in.MediaId),
+				logx.Field("err", err.Error()),
+		)
+		}
 	}
 
 	l.Infow("delete media success",

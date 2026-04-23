@@ -6,6 +6,7 @@ import (
 	"esx/app/media/internal/config"
 	"esx/app/media/internal/model"
 	"esx/app/media/internal/storage"
+	"mqx"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -16,6 +17,7 @@ type ServiceContext struct {
 	Conn       sqlx.SqlConn
 	MediaModel model.MediaModel
 	Storage    storage.ObjectStorage
+	MQProducer *mqx.Producer
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -33,10 +35,20 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(fmt.Sprintf("media: 对象存储初始化失败: %v", err))
 	}
 
+	var mqProducer *mqx.Producer
+	if c.MQ.NameServer != "" {
+		p, err := mqx.NewProducer(c.MQ)
+		if err != nil {
+			panic(fmt.Sprintf("media: MQ producer initialization failed: %v", err))
+		}
+		mqProducer = p
+	}
+
 	return &ServiceContext{
 		Config:     c,
 		Conn:       conn,
 		MediaModel: model.NewMediaModel(conn, cacheConf),
 		Storage:    s3Client,
+		MQProducer: mqProducer,
 	}
 }
