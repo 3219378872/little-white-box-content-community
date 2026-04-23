@@ -6,6 +6,7 @@ import (
 	"errx"
 	"esx/app/content/internal/svc"
 	"esx/app/content/pb/xiaobaihe/content/pb"
+	"esx/pkg/validator"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -26,8 +27,8 @@ func NewGetPostsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 
 // GetPostsByIds 批量按 ID 查询帖子（过滤软删除/未发布）
 func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPostsByIdsResp, error) {
-	if len(in.PostIds) == 0 {
-		return &pb.GetPostsByIdsResp{Posts: []*pb.PostInfo{}}, nil
+	if len(in.PostIds) == 0 || len(in.PostIds) > validator.MaxBatchQueryIds {
+		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
 	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, in.PostIds)

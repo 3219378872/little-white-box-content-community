@@ -57,12 +57,8 @@ func TestCheckLikedLogic_CheckLiked_Error(t *testing.T) {
 func TestBatchCheckLikedLogic_BatchCheckLiked(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
-		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusActive}, nil).
-		Once()
-	likeModel.
-		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(200), int64(1)).
-		Return((*model.LikeRecord)(nil), model.ErrNotFound).
+		On("FindStatusByUserAndTargets", mock.Anything, int64(1), []int64{100, 200}, int64(1)).
+		Return(map[int64]bool{100: true}, nil).
 		Once()
 
 	logic := NewBatchCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
@@ -116,12 +112,8 @@ func TestCheckFavoritedLogic_CheckFavorited_Error(t *testing.T) {
 func TestBatchCheckFavoritedLogic_BatchCheckFavorited(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
-		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusActive}, nil).
-		Once()
-	favoriteModel.
-		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(200)).
-		Return((*model.Favorite)(nil), model.ErrNotFound).
+		On("FindFavoriteStatusByUserAndPosts", mock.Anything, int64(1), []int64{100, 200}).
+		Return(map[int64]bool{100: true}, nil).
 		Once()
 
 	logic := NewBatchCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
