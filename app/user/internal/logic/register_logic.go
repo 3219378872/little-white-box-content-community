@@ -136,7 +136,9 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 	// 处理密码，采用bcrypt算法
 	var password string // 填充用户的密码
 	if req.GetPassword() == "" {
-		password, err = util.HashPassword(util.DefaultPassword)
+		// 未提供密码时生成随机密码，不再使用硬编码默认值
+		rawPass := fmt.Sprintf("rp_%d", rand.Intn(100000000))
+		password, err = util.HashPassword(rawPass)
 		if err != nil {
 			return nil, err
 		}
