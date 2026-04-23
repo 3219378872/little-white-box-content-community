@@ -78,7 +78,7 @@ func WrapMsg(err error, message string) error {
 	}
 	return &BizError{
 		Code:    UnknownError,
-		Message: message + ": " + err.Error(),
+		Message: message, // 不再拼接 err.Error()，防止内部信息泄漏
 		cause:   err,
 	}
 }
