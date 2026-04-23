@@ -49,6 +49,10 @@ func GenerateToken(userId int64, username string, config JwtConfig) (string, err
 // ParseToken 解析 token
 func ParseToken(tokenString string, config JwtConfig) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// 强制校验签名算法，防止算法混淆攻击（alg:none 或 RS256→HS256 等）
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return []byte(config.AccessSecret), nil
 	})
 
