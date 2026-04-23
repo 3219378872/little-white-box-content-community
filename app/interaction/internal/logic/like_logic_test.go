@@ -60,6 +60,24 @@ func (m *mockLikeRecordModel) Delete(ctx context.Context, id int64) error {
 	return args.Error(0)
 }
 
+func (m *mockLikeRecordModel) UpsertLikeStatus(ctx context.Context, userId, targetId, targetType, status int64) (sql.Result, error) {
+	args := m.Called(ctx, userId, targetId, targetType, status)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
+func (m *mockLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, userId int64, targetIds []int64, targetType int64) (map[int64]bool, error) {
+	args := m.Called(ctx, userId, targetIds, targetType)
+	result, _ := args.Get(0).(map[int64]bool)
+	return result, args.Error(1)
+}
+
+func (m *mockLikeRecordModel) UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error) {
+	args := m.Called(ctx, id, expectedStatus, newStatus)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
 type mockActionCountModel struct {
 	mock.Mock
 }

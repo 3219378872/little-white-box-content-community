@@ -53,6 +53,24 @@ func (m *mockFavoriteModel) FindActivePostIds(ctx context.Context, userID int64,
 	return postIDs, args.Get(1).(int64), args.Error(2)
 }
 
+func (m *mockFavoriteModel) UpsertFavoriteStatus(ctx context.Context, userId, postId, status int64) (sql.Result, error) {
+	args := m.Called(ctx, userId, postId, status)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
+func (m *mockFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Context, userId int64, postIds []int64) (map[int64]bool, error) {
+	args := m.Called(ctx, userId, postIds)
+	result, _ := args.Get(0).(map[int64]bool)
+	return result, args.Error(1)
+}
+
+func (m *mockFavoriteModel) UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error) {
+	args := m.Called(ctx, id, expectedStatus, newStatus)
+	result, _ := args.Get(0).(sql.Result)
+	return result, args.Error(1)
+}
+
 func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	countModel := new(mockActionCountModel)

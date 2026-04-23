@@ -5,12 +5,14 @@ package user
 
 import (
 	"context"
-	"errx"
-	"jwtx"
-	"user/pb/xiaobaihe/user/pb"
 
+	"esx/app/content/contentservice"
+	"esx/app/interaction/interactionservice"
+	"errx"
 	"gateway/internal/svc"
 	"gateway/internal/types"
+	"jwtx"
+	"user/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -53,10 +55,59 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, errx.NewWithCode(errx.FavoritesPrivate)
 	}
 
-	// TODO: Interaction 服务实现后接入批量查询，当前返回空列表
+	favoriteResp, err := l.svcCtx.InteractionService.GetFavoriteList(l.ctx, &interactionservice.GetFavoriteListReq{
+		UserId:   req.UserId,
+		Page:     int32(req.Page),
+		PageSize: int32(req.PageSize),
+	})
+	if err != nil {
+		l.Errorw("InteractionService.GetFavoriteList RPC failed",
+			logx.Field("userId", req.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	if len(favoriteResp.PostIds) == 0 {
+		return &types.GetPostListResp{
+			List:     []types.PostItem{},
+			Total:    favoriteResp.Total,
+			Page:     req.Page,
+			PageSize: req.PageSize,
+		}, nil
+	}
+
+	postsResp, err := l.svcCtx.ContentService.GetPostsByIds(l.ctx, &contentservice.GetPostsByIdsReq{
+		PostIds: favoriteResp.PostIds,
+	})
+	if err != nil {
+		l.Errorw("ContentService.GetPostsByIds RPC failed",
+			logx.Field("postIds", favoriteResp.PostIds),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	list := make([]types.PostItem, 0, len(postsResp.Posts))
+	for _, post := range postsResp.Posts {
+		list = append(list, types.PostItem{
+			Id:            post.Id,
+			AuthorId:      post.AuthorId,
+			Title:         post.Title,
+			Content:       post.Content,
+			Images:        post.Images,
+			Tags:          post.Tags,
+			ViewCount:     post.ViewCount,
+			LikeCount:     post.LikeCount,
+			CommentCount:  post.CommentCount,
+			FavoriteCount: post.FavoriteCount,
+			CreatedAt:     post.CreatedAt,
+		})
+	}
+
 	return &types.GetPostListResp{
-		List:     []types.PostItem{},
-		Total:    0,
+		List:     list,
+		Total:    favoriteResp.Total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, nil
