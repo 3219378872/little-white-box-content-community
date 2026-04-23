@@ -14,6 +14,14 @@ import (
 
 var _ PostModel = (*customPostModel)(nil)
 
+// allowedUpdateCols UpdateFields 允许的列白名单，防止 SQL 注入
+var allowedUpdateCols = map[string]struct{}{
+	"title":   {},
+	"content": {},
+	"images":  {},
+	"status":  {},
+}
+
 type (
 	// PostModel is an interface to be customized, add more methods here,
 	// and implement the added methods in customPostModel.
@@ -159,6 +167,9 @@ func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map
 	setClauses := make([]string, 0, len(fields))
 	args := make([]interface{}, 0, len(fields)+1)
 	for col, val := range fields {
+		if _, ok := allowedUpdateCols[col]; !ok {
+			return fmt.Errorf("UpdateFields: disallowed column %q", col)
+		}
 		setClauses = append(setClauses, fmt.Sprintf("`%s`=?", col))
 		args = append(args, val)
 	}
