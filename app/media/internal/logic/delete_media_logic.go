@@ -52,14 +52,23 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		return nil, errx.NewWithCode(errx.PermissionDenied)
 	}
 
-	m.Status = 0
-	if err = l.svcCtx.MediaModel.Update(l.ctx, m); err != nil {
-		l.Errorw("MediaModel.Update failed",
+	result, err := l.svcCtx.MediaModel.UpdateStatus(l.ctx, in.MediaId, 1, 0)
+	if err != nil {
+		l.Errorw("MediaModel.UpdateStatus failed",
 			logx.Field("media_id", in.MediaId),
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		// 可能是并发重复删除，幂等返回成功
+		l.Infow("delete media no-op (concurrent or already deleted)",
+			logx.Field("media_id", in.MediaId),
+		)
+	}
+
 	l.Infow("delete media success",
 		logx.Field("media_id", in.MediaId),
 		logx.Field("user_id", in.UserId),

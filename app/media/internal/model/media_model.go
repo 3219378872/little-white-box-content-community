@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,7 @@ type (
 	MediaModel interface {
 		mediaModel
 		FindByIds(ctx context.Context, ids []int64) ([]*Media, error)
+		UpdateStatus(ctx context.Context, id int64, expectedStatus, newStatus int64) (sql.Result, error)
 	}
 
 	customMediaModel struct {
@@ -49,4 +51,12 @@ func (m *customMediaModel) FindByIds(ctx context.Context, ids []int64) ([]*Media
 		return nil, err
 	}
 	return result, nil
+}
+
+// UpdateStatus 条件更新状态，仅当当前状态为 expectedStatus 时才更新，防止并发 Lost Update
+func (m *customMediaModel) UpdateStatus(ctx context.Context, id int64, expectedStatus, newStatus int64) (sql.Result, error) {
+	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
+		query := fmt.Sprintf("update %s set `status`=? where `id`=? and `status`=?", m.table)
+		return conn.ExecCtx(ctx, query, newStatus, id, expectedStatus)
+	})
 }

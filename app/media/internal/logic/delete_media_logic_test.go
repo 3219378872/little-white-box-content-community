@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -63,14 +64,14 @@ func TestDeleteMedia_DBErrorOnFindMapsToSystemError(t *testing.T) {
 
 func TestDeleteMedia_IdempotentWhenAlreadyDeleted(t *testing.T) {
 	// status=0 直接返回成功，不校验归属，不写库。
-	updateCalled := false
+	updateStatusCalled := false
 	f := &fakeMediaModel{
 		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
 			return &model.Media{Id: 1, UserId: 999, Status: 0}, nil
 		},
-		updateFn: func(_ context.Context, _ *model.Media) error {
-			updateCalled = true
-			return nil
+		updateStatusFn: func(_ context.Context, _ int64, _, _ int64) (sql.Result, error) {
+			updateStatusCalled = true
+			return nil, nil
 		},
 	}
 	l := newDeleteLogicWithFake(f)
@@ -83,8 +84,8 @@ func TestDeleteMedia_IdempotentWhenAlreadyDeleted(t *testing.T) {
 	if resp == nil {
 		t.Fatal("expected non-nil DeleteMediaResp")
 	}
-	if updateCalled {
-		t.Fatal("Update must not be called when row is already soft-deleted")
+	if updateStatusCalled {
+		t.Fatal("UpdateStatus must not be called when row is already soft-deleted")
 	}
 }
 
@@ -93,9 +94,9 @@ func TestDeleteMedia_RejectsNonOwner(t *testing.T) {
 		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
 			return &model.Media{Id: 1, UserId: 999, Status: 1}, nil
 		},
-		updateFn: func(_ context.Context, _ *model.Media) error {
-			t.Fatal("Update must not run for non-owner")
-			return nil
+		updateStatusFn: func(_ context.Context, _ int64, _, _ int64) (sql.Result, error) {
+			t.Fatal("UpdateStatus must not run for non-owner")
+			return nil, nil
 		},
 	}
 	l := newDeleteLogicWithFake(f)
@@ -108,14 +109,17 @@ func TestDeleteMedia_RejectsNonOwner(t *testing.T) {
 
 func TestDeleteMedia_OwnerSoftDeletesAndPersistsStatusZero(t *testing.T) {
 	stored := &model.Media{Id: 1, UserId: 7, Status: 1}
-	var persisted *model.Media
+	var updatedId int64
+	var updatedExpectedStatus, updatedNewStatus int64
 	f := &fakeMediaModel{
 		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
 			return stored, nil
 		},
-		updateFn: func(_ context.Context, data *model.Media) error {
-			persisted = data
-			return nil
+		updateStatusFn: func(_ context.Context, id int64, expectedStatus, newStatus int64) (sql.Result, error) {
+			updatedId = id
+			updatedExpectedStatus = expectedStatus
+			updatedNewStatus = newStatus
+			return &fakeResult{rowsAffected: 1}, nil
 		},
 	}
 	l := newDeleteLogicWithFake(f)
@@ -124,14 +128,14 @@ func TestDeleteMedia_OwnerSoftDeletesAndPersistsStatusZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if persisted == nil {
-		t.Fatal("Update was not called")
+	if updatedId != 1 {
+		t.Fatalf("expected UpdateStatus called with id=1, got %d", updatedId)
 	}
-	if persisted.Status != 0 {
-		t.Fatalf("expected persisted Status=0, got %d", persisted.Status)
+	if updatedExpectedStatus != 1 {
+		t.Fatalf("expected expectedStatus=1, got %d", updatedExpectedStatus)
 	}
-	if persisted.Id != 1 {
-		t.Fatalf("expected persisted Id=1, got %d", persisted.Id)
+	if updatedNewStatus != 0 {
+		t.Fatalf("expected newStatus=0, got %d", updatedNewStatus)
 	}
 }
 
@@ -140,8 +144,8 @@ func TestDeleteMedia_DBErrorOnUpdateMapsToSystemError(t *testing.T) {
 		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
 			return &model.Media{Id: 1, UserId: 7, Status: 1}, nil
 		},
-		updateFn: func(_ context.Context, _ *model.Media) error {
-			return errors.New("conn lost")
+		updateStatusFn: func(_ context.Context, _ int64, _, _ int64) (sql.Result, error) {
+			return nil, errors.New("conn lost")
 		},
 	}
 	l := newDeleteLogicWithFake(f)
