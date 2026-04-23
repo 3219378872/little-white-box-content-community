@@ -36,8 +36,8 @@ func AuthMiddleware(config jwtx.JwtConfig) func(http.Handler) http.Handler {
 
 			// 将用户信息存入 context
 			ctx := r.Context()
-			ctx = contextWithUserId(ctx, claims.UserId)
-			ctx = contextWithUsername(ctx, claims.Username)
+			ctx = jwtx.WithUserIdContext(ctx, claims.UserId)
+			ctx = jwtx.WithUsernameContext(ctx, claims.Username)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -51,30 +51,14 @@ func writeUnauthorized(w http.ResponseWriter) {
 	w.Write([]byte(`{"code":1006,"message":"请先登录","data":null}`))
 }
 
-// context key
-type ctxKey string
-
-const (
-	userIdKey   ctxKey = "userId"
-	usernameKey ctxKey = "username"
-)
-
-func contextWithUserId(ctx context.Context, userId int64) context.Context {
-	return context.WithValue(ctx, userIdKey, userId)
-}
-
-func contextWithUsername(ctx context.Context, username string) context.Context {
-	return context.WithValue(ctx, usernameKey, username)
-}
-
-// GetUserId 从 context 获取用户 ID
+// GetUserId 从 context 获取用户 ID（统一走 jwtx）
 func GetUserId(ctx context.Context) int64 {
-	userId, _ := ctx.Value(userIdKey).(int64)
+	userId, _ := jwtx.GetOptionalUserIdFromContext(ctx)
 	return userId
 }
 
-// GetUsername 从 context 获取用户名
+// GetUsername 从 context 获取用户名（统一走 jwtx）
 func GetUsername(ctx context.Context) string {
-	username, _ := ctx.Value(usernameKey).(string)
+	username, _ := jwtx.GetUsernameFromContext(ctx)
 	return username
 }
