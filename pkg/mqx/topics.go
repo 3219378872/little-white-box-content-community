@@ -48,6 +48,7 @@ const (
 	GroupContentService   = "content-service-group"
 	GroupSearchService    = "search-service-group"
 	GroupFeedService      = "feed-service-group"
+	GroupMessageService   = "message-service-group"
 	GroupRecommendService = "recommend-service-group"
 	GroupMediaService     = "media-service-group"
 )

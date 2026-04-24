@@ -1,0 +1,16 @@
+Name: message.rpc
+ListenOn: 0.0.0.0:9092
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: message.rpc
+DataSource: "${DB_MESSAGE}"
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASS}"
+  Type: node
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "message-service-group"
+  Topic: "message-push"
+  Tag: "default"
