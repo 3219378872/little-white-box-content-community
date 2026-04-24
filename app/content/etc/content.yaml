@@ -10,3 +10,8 @@ Redis:
   Type: node
   Key: content
 DataSource: "${DB_CONTENT}"
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "content-producer-group"
+  Retry: 3
+  SendTimeout: 3000

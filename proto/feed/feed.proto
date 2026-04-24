@@ -3,62 +3,51 @@ syntax = "proto3";
 package feed;
 option go_package = "xiaobaihe/feed/pb";
 
-// Feed 服务
 service FeedService {
-  // 获取关注动态
-  rpc GetFollowingFeed(GetFollowingFeedReq) returns (GetFollowingFeedResp);
-  // 获取用户动态
-  rpc GetUserFeed(GetUserFeedReq) returns (GetUserFeedResp);
-  // 推送动态
-  rpc PushFeed(PushFeedReq) returns (PushFeedResp);
+  rpc GetFollowFeed(GetFollowFeedReq) returns (GetFollowFeedResp);
+  rpc GetRecommendFeed(GetRecommendFeedReq) returns (GetRecommendFeedResp);
+  rpc PushToInbox(PushToInboxReq) returns (PushToInboxResp);
 }
 
-// 获取关注动态请求（游标分页）
-message GetFollowingFeedReq {
-  int64 user_id   = 1;
-  int64 last_id   = 2; // 游标，用于分页
-  int32 page_size = 3;
-}
-
-// 获取关注动态响应
-message GetFollowingFeedResp {
-  repeated FeedItem items    = 1;
-  bool              has_more = 2;
-}
-
-// 获取用户动态请求
-message GetUserFeedReq {
-  int64 user_id   = 1;
-  int32 page      = 2;
-  int32 page_size = 3;
-}
-
-// 获取用户动态响应
-message GetUserFeedResp {
-  repeated FeedItem items = 1;
-  int64             total = 2;
-}
-
-// 动态项
 message FeedItem {
-  int64  id           = 1;
-  int32  type         = 2; // 1: 发帖 2: 评论 3: 点赞 4: 关注
-  int64  user_id      = 3;
-  string user_name    = 4;
-  string user_avatar  = 5;
-  int64  target_id    = 6;
-  string target_title = 7;
-  string content      = 8;
-  int64  created_at   = 9; // Unix 时间戳（毫秒）
+  int64 post_id = 1;
+  int64 author_id = 2;
+  int64 created_at = 3;
+  int32 feed_type = 4; // 1=follow 2=recommend
 }
 
-// 推送动态请求
-message PushFeedReq {
-  int64  user_id   = 1;
-  int32  type      = 2;
-  int64  target_id = 3;
-  string content   = 4;
+message GetFollowFeedReq {
+  int64 user_id = 1;
+  int64 cursor_created_at = 2;
+  int64 cursor_post_id = 3;
+  int32 page_size = 4;
 }
 
-// 推送动态响应
-message PushFeedResp {}
+message GetFollowFeedResp {
+  repeated FeedItem items = 1;
+  bool has_more = 2;
+  int64 next_cursor_created_at = 3;
+  int64 next_cursor_post_id = 4;
+}
+
+message GetRecommendFeedReq {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetRecommendFeedResp {
+  repeated FeedItem items = 1;
+  bool has_more = 2;
+}
+
+message PushToInboxReq {
+  int64 author_id = 1;
+  int64 post_id = 2;
+  int64 created_at = 3;
+  repeated int64 follower_ids = 4;
+}
+
+message PushToInboxResp {
+  int64 pushed_count = 1;
+}
