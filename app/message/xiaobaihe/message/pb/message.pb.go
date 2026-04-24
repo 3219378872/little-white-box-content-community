@@ -558,6 +558,7 @@ type GetMessagesReq struct {
 	ConversationId int64                  `protobuf:"varint,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	LastId         int64                  `protobuf:"varint,2,opt,name=last_id,json=lastId,proto3" json:"last_id,omitempty"` // 游标
 	PageSize       int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	UserId         int64                  `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // 调用者用户ID，用于会话归属校验
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -609,6 +610,13 @@ func (x *GetMessagesReq) GetLastId() int64 {
 func (x *GetMessagesReq) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
+	}
+	return 0
+}
+
+func (x *GetMessagesReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
 	}
 	return 0
 }
@@ -1148,11 +1156,12 @@ const file_proto_message_message_proto_rawDesc = "" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"m\n" +
 	"\x14GetConversationsResp\x12?\n" +
 	"\rconversations\x18\x01 \x03(\v2\x19.message.ConversationInfoR\rconversations\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\"o\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"\x88\x01\n" +
 	"\x0eGetMessagesReq\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\x03R\x0econversationId\x12\x17\n" +
 	"\alast_id\x18\x02 \x01(\x03R\x06lastId\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"^\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x03R\x06userId\"^\n" +
 	"\x0fGetMessagesResp\x120\n" +
 	"\bmessages\x18\x01 \x03(\v2\x14.message.MessageInfoR\bmessages\x12\x19\n" +
 	"\bhas_more\x18\x02 \x01(\bR\ahasMore\"O\n" +

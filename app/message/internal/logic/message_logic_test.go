@@ -48,11 +48,17 @@ func (m *fakeNotificationModel) MarkAllRead(ctx context.Context, userID int64) (
 }
 
 type fakeMessageModel struct {
-	inserted []*model.Message
-	list     []*model.Message
-	hasMore  bool
-	unread   int64
-	marked   int64
+	inserted     []*model.Message
+	list         []*model.Message
+	hasMore      bool
+	unread       int64
+	marked       int64
+	findUserID   int64
+	findTargetID int64
+	findLastID   int64
+	findLimit    int64
+	markUserID   int64
+	markTargetID int64
 }
 
 func (m *fakeMessageModel) Insert(ctx context.Context, data *model.Message) (sql.Result, error) {
@@ -62,7 +68,11 @@ func (m *fakeMessageModel) Insert(ctx context.Context, data *model.Message) (sql
 	return fakeResult{id: data.Id}, nil
 }
 
-func (m *fakeMessageModel) FindByConversation(ctx context.Context, conversationID int64, lastID int64, limit int64) ([]*model.Message, bool, error) {
+func (m *fakeMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model.Message, bool, error) {
+	m.findUserID = userID
+	m.findTargetID = targetUserID
+	m.findLastID = lastID
+	m.findLimit = limit
 	return m.list, m.hasMore, nil
 }
 
@@ -70,8 +80,10 @@ func (m *fakeMessageModel) CountUnreadByUser(ctx context.Context, userID int64) 
 	return m.unread, nil
 }
 
-func (m *fakeMessageModel) MarkConversationRead(ctx context.Context, userID int64, conversationID int64) (int64, error) {
+func (m *fakeMessageModel) MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
 	m.marked++
+	m.markUserID = userID
+	m.markTargetID = targetUserID
 	return 3, nil
 }
 
@@ -80,6 +92,10 @@ type fakeConversationModel struct {
 	createdReceiver int64
 	list            []*model.Conversation
 	total           int64
+	conversation    *model.Conversation
+	findOneUserID   int64
+	findOneID       int64
+	findOneErr      error
 }
 
 func (m *fakeConversationModel) UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error) {
@@ -90,6 +106,18 @@ func (m *fakeConversationModel) UpsertPairForMessage(ctx context.Context, sender
 
 func (m *fakeConversationModel) FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model.Conversation, int64, error) {
 	return m.list, m.total, nil
+}
+
+func (m *fakeConversationModel) FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model.Conversation, error) {
+	m.findOneUserID = userID
+	m.findOneID = conversationID
+	if m.findOneErr != nil {
+		return nil, m.findOneErr
+	}
+	if m.conversation != nil {
+		return m.conversation, nil
+	}
+	return &model.Conversation{Id: conversationID, UserId: userID, TargetUserId: 8}, nil
 }
 
 type fakeUnreadStore struct {
@@ -190,16 +218,33 @@ func TestGetUnreadCountFallsBackToDatabaseAndCaches(t *testing.T) {
 	require.Equal(t, int64(6), store.setNotification)
 }
 
-func TestMarkReadMarksMessagesAndNotificationsThenInvalidatesCache(t *testing.T) {
+func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
+	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 11, UserId: 7, TargetUserId: 8}}
 	messages := &fakeMessageModel{}
 	notifications := &fakeNotificationModel{}
 	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
 
 	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7, ConversationId: 11})
 
 	require.NoError(t, err)
 	require.Equal(t, int64(1), messages.marked)
+	require.Equal(t, int64(7), messages.markUserID)
+	require.Equal(t, int64(8), messages.markTargetID)
+	require.Equal(t, int64(0), notifications.marked)
+	require.Equal(t, []int64{7}, store.deleted)
+}
+
+func TestMarkReadWithoutConversationMarksAllNotifications(t *testing.T) {
+	messages := &fakeMessageModel{}
+	notifications := &fakeNotificationModel{}
+	store := &fakeUnreadStore{}
+	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
+
+	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(0), messages.marked)
 	require.Equal(t, int64(1), notifications.marked)
 	require.Equal(t, []int64{7}, store.deleted)
 }
@@ -239,18 +284,49 @@ func TestGetConversationsReturnsPagedItems(t *testing.T) {
 
 func TestGetMessagesReturnsCursorItems(t *testing.T) {
 	createdAt := time.UnixMilli(45678)
+	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
 	messages := &fakeMessageModel{hasMore: true, list: []*model.Message{{
 		Id: 1, ConversationId: 12, SenderId: 1, ReceiverId: 2, Content: "hi", MsgType: 1, Status: 0, CreatedAt: createdAt,
 	}}}
-	ctx := &svc.ServiceContext{MessageModel: messages}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages}
 
-	resp, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{ConversationId: 12, PageSize: 20})
+	resp, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 12, PageSize: 20})
 
 	require.NoError(t, err)
 	require.True(t, resp.HasMore)
 	require.Len(t, resp.Messages, 1)
 	require.Equal(t, "hi", resp.Messages[0].Content)
 	require.Equal(t, int64(45678), resp.Messages[0].CreatedAt)
+}
+
+func TestGetMessagesUsesCallerOwnedConversationParticipants(t *testing.T) {
+	createdAt := time.UnixMilli(45678)
+	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
+	messages := &fakeMessageModel{hasMore: true, list: []*model.Message{{
+		Id: 1, ConversationId: 99, SenderId: 8, ReceiverId: 7, Content: "hi", MsgType: 1, Status: 0, CreatedAt: createdAt,
+	}}}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages}
+
+	resp, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 12, PageSize: 20})
+
+	require.NoError(t, err)
+	require.True(t, resp.HasMore)
+	require.Len(t, resp.Messages, 1)
+	require.Equal(t, int64(7), conversations.findOneUserID)
+	require.Equal(t, int64(12), conversations.findOneID)
+	require.Equal(t, int64(7), messages.findUserID)
+	require.Equal(t, int64(8), messages.findTargetID)
+	require.Equal(t, int64(20), messages.findLimit)
+}
+
+func TestGetMessagesRejectsConversationNotOwnedByUser(t *testing.T) {
+	conversations := &fakeConversationModel{findOneErr: model.ErrNotFound}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: &fakeMessageModel{}}
+
+	_, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 12, PageSize: 20})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.PermissionDenied))
 }
 
 func TestSendMessageRejectsInvalidRequest(t *testing.T) {
@@ -266,7 +342,11 @@ func TestGetConversationsRejectsInvalidRequest(t *testing.T) {
 }
 
 func TestGetMessagesRejectsInvalidRequest(t *testing.T) {
-	_, err := NewGetMessagesLogic(context.Background(), &svc.ServiceContext{}).GetMessages(&pb.GetMessagesReq{ConversationId: 0})
+	_, err := NewGetMessagesLogic(context.Background(), &svc.ServiceContext{}).GetMessages(&pb.GetMessagesReq{UserId: 0, ConversationId: 12})
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+
+	_, err = NewGetMessagesLogic(context.Background(), &svc.ServiceContext{}).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 0})
 	require.Error(t, err)
 	require.True(t, errx.Is(err, errx.ParamError))
 }

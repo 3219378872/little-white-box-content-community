@@ -16,6 +16,7 @@ type (
 		conversationModel
 		UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error)
 		FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*Conversation, int64, error)
+		FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*Conversation, error)
 	}
 
 	customConversationModel struct {
@@ -78,6 +79,15 @@ func (m *customConversationModel) FindByUser(ctx context.Context, userID int64, 
 		return nil, 0, err
 	}
 	return rows, total, nil
+}
+
+func (m *customConversationModel) FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*Conversation, error) {
+	query := fmt.Sprintf("select %s from %s where `id` = ? and `user_id` = ? limit 1", conversationRows, m.table)
+	var row Conversation
+	if err := m.QueryRowNoCacheCtx(ctx, &row, query, conversationID, userID); err != nil {
+		return nil, err
+	}
+	return &row, nil
 }
 
 var _ sql.Result

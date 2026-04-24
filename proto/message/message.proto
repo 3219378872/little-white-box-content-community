@@ -89,6 +89,7 @@ message GetMessagesReq {
   int64 conversation_id = 1;
   int64 last_id         = 2; // 游标
   int32 page_size       = 3;
+  int64 user_id         = 4; // 调用者用户ID，用于会话归属校验
 }
 
 // 获取聊天记录响应

@@ -14,9 +14,9 @@ var _ MessageModel = (*customMessageModel)(nil)
 type (
 	MessageModel interface {
 		messageModel
-		FindByConversation(ctx context.Context, conversationID int64, lastID int64, limit int64) ([]*Message, bool, error)
+		FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*Message, bool, error)
 		CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
-		MarkConversationRead(ctx context.Context, userID int64, conversationID int64) (int64, error)
+		MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 	}
 
 	customMessageModel struct {
@@ -28,7 +28,7 @@ func NewMessageModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	return &customMessageModel{defaultMessageModel: newMessageModel(conn, c, opts...)}
 }
 
-func (m *customMessageModel) FindByConversation(ctx context.Context, conversationID int64, lastID int64, limit int64) ([]*Message, bool, error) {
+func (m *customMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*Message, bool, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -36,8 +36,8 @@ func (m *customMessageModel) FindByConversation(ctx context.Context, conversatio
 		limit = 100
 	}
 	queryLimit := limit + 1
-	where := "where `conversation_id` = ?"
-	args := []any{conversationID}
+	where := "where ((`sender_id` = ? and `receiver_id` = ?) or (`sender_id` = ? and `receiver_id` = ?))"
+	args := []any{userID, targetUserID, targetUserID, userID}
 	if lastID > 0 {
 		where += " and `id` < ?"
 		args = append(args, lastID)
@@ -64,9 +64,9 @@ func (m *customMessageModel) CountUnreadByUser(ctx context.Context, userID int64
 	return count, nil
 }
 
-func (m *customMessageModel) MarkConversationRead(ctx context.Context, userID int64, conversationID int64) (int64, error) {
-	query := fmt.Sprintf("update %s set `status` = 1 where `receiver_id` = ? and `conversation_id` = ? and `status` = 0", m.table)
-	result, err := m.ExecNoCacheCtx(ctx, query, userID, conversationID)
+func (m *customMessageModel) MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
+	query := fmt.Sprintf("update %s set `status` = 1 where `receiver_id` = ? and `sender_id` = ? and `status` = 0", m.table)
+	result, err := m.ExecNoCacheCtx(ctx, query, userID, targetUserID)
 	if err != nil {
 		return 0, err
 	}

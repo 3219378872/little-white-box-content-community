@@ -15,13 +15,14 @@ import (
 type ConversationModel interface {
 	UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error)
 	FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model.Conversation, int64, error)
+	FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model.Conversation, error)
 }
 
 type MessageModel interface {
 	Insert(ctx context.Context, data *model.Message) (sql.Result, error)
-	FindByConversation(ctx context.Context, conversationID int64, lastID int64, limit int64) ([]*model.Message, bool, error)
+	FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model.Message, bool, error)
 	CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
-	MarkConversationRead(ctx context.Context, userID int64, conversationID int64) (int64, error)
+	MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
 type NotificationModel interface {
