@@ -1,0 +1,26 @@
+Name: feed.rpc
+ListenOn: 0.0.0.0:9091
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: feed.rpc
+DataSource: "${DB_FEED}"
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASS}"
+  Type: node
+UserRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: user.rpc
+ContentRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: content.rpc
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "feed-service-group"
+BigVThreshold: 10000
+FanoutBatchSize: 500

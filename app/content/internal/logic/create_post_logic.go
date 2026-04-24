@@ -3,10 +3,13 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
+	"mqx"
 	"strings"
+	"time"
 	"util"
 
 	"esx/app/content/internal/svc"
@@ -93,6 +96,18 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if err = l.svcCtx.PostTagModel.BatchInsertTagsByPostId(l.ctx, l.svcCtx.Conn, id, validTags, tagIds); err != nil {
 		l.Errorw("PostTagModel.BatchInsertTagsByPostId failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	if l.svcCtx.MQProducer != nil {
+		body, marshalErr := json.Marshal(map[string]int64{"post_id": id, "author_id": in.AuthorId, "created_at": time.Now().UnixMilli()})
+		if marshalErr != nil {
+			l.Errorw("marshal post created event failed", logx.Field("err", marshalErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		if _, sendErr := l.svcCtx.MQProducer.SendSyncWithTag(l.ctx, mqx.TopicPostCreate, mqx.TagDefault, body); sendErr != nil {
+			l.Errorw("publish post created event failed", logx.Field("err", sendErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
 	}
 
 	return &pb.CreatePostResp{
