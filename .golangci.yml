@@ -1,0 +1,58 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  concurrency: 4
+  go: "1.26.1"
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unused
+  exclusions:
+    generated: lax
+    paths:
+      - ".*\\.pb\\.go$"
+      - ".*_grpc\\.pb\\.go$"
+      - ".*_gen\\.go$"
+      - "app/gateway/internal/types/.*\\.go$"
+      - "app/gateway/internal/handler/routes\\.go$"
+      - ".worktrees/"
+      - "vendor/"
+    rules:
+      - path: "_test\\.go$"
+        linters:
+          - errcheck
+        text: "Error return value.*(Close|Rollback|Remove|RemoveAll|Write|Encode|Decode|Fprint|Fprintf|Fprintln|Print|Printf|Println)"
+      - path: "(.*/)?internal/handler/.*_handler\\.go$"
+        linters:
+          - errcheck
+        text: "Error return value of `httpx\\.Parse` is not checked"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - ".*\\.pb\\.go$"
+      - ".*_grpc\\.pb\\.go$"
+      - ".*_gen\\.go$"
+      - "app/gateway/internal/types/.*\\.go$"
+      - "app/gateway/internal/handler/routes\\.go$"
+      - ".worktrees/"
+      - "vendor/"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
