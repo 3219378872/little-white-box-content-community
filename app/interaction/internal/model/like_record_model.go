@@ -61,7 +61,7 @@ func (m *customLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, 
 		Status   int64 `db:"status"`
 	}
 	query := fmt.Sprintf("select `target_id`,`status` from %s where `user_id`=? and `target_type`=? and `target_id` in (%s)", m.table, placeholders)
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 

@@ -40,7 +40,7 @@ func (l *BatchCheckLikedLogic) BatchCheckLiked(in *pb.BatchCheckLikedReq) (*pb.B
 
 	statusMap, err := l.svcCtx.LikeRecordModel.FindStatusByUserAndTargets(l.ctx, in.UserId, in.TargetIds, int64(in.TargetType))
 	if err != nil {
-		l.Logger.Errorw("FindStatusByUserAndTargets failed",
+		l.Errorw("FindStatusByUserAndTargets failed",
 			logx.Field("userId", in.UserId),
 			logx.Field("err", err.Error()),
 		)

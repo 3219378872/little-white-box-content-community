@@ -32,7 +32,7 @@ func (l *CheckLikedLogic) CheckLiked(in *pb.CheckLikedReq) (*pb.CheckLikedResp, 
 		return &pb.CheckLikedResp{IsLiked: false}, nil
 	}
 	if err != nil {
-		l.Logger.Errorf("check liked failed: %v", err)
+		l.Errorf("check liked failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

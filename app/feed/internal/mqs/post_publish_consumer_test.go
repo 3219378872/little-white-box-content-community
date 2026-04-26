@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"esx/app/content/contentservice"
 	"esx/app/feed/internal/model"
 	"esx/app/feed/internal/svc"
 	"user/userservice"
@@ -65,24 +64,6 @@ func (m *mockUserService) GetFollowing(ctx context.Context, in *userservice.GetF
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetFollowingResp), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-type mockContentService struct{ mock.Mock }
-
-func (m *mockContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
-	args := m.Called(ctx, in)
-	if v := args.Get(0); v != nil {
-		return v.(*contentservice.GetPostListResp), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *mockContentService) GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
-	args := m.Called(ctx, in)
-	if v := args.Get(0); v != nil {
-		return v.(*contentservice.GetPostsByIdsResp), args.Error(1)
 	}
 	return nil, args.Error(1)
 }

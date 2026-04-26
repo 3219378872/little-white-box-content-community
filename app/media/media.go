@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
+	"cleanupx"
 	"esx/app/media/internal/config"
 	"esx/app/media/internal/mqs"
 	"esx/app/media/internal/server"
@@ -11,6 +13,7 @@ import (
 	"esx/app/media/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -41,7 +44,7 @@ func main() {
 		if err = mqConsumer.Start(); err != nil {
 			panic(fmt.Sprintf("media: MQ consumer start failed: %v", err))
 		}
-		defer mqConsumer.Shutdown()
+		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "media cleanup consumer", mqConsumer.Shutdown)
 	}
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {

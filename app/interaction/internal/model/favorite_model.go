@@ -42,7 +42,7 @@ func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int6
 		PostID int64 `db:"post_id"`
 	}
 	query := fmt.Sprintf("select `post_id` from %s where `user_id` = ? and `status` = 1 order by `created_at` desc limit ?, ?", m.table)
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, userID, offset, pageSize); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &rows, query, userID, offset, pageSize); err != nil {
 		return nil, 0, err
 	}
 	postIDs := make([]int64, 0, len(rows))
@@ -52,7 +52,7 @@ func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int6
 
 	var total int64
 	countQuery := fmt.Sprintf("select count(*) from %s where `user_id` = ? and `status` = 1", m.table)
-	if err := m.CachedConn.QueryRowNoCacheCtx(ctx, &total, countQuery, userID); err != nil {
+	if err := m.QueryRowNoCacheCtx(ctx, &total, countQuery, userID); err != nil {
 		return nil, 0, err
 	}
 
@@ -86,7 +86,7 @@ func (m *customFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Conte
 		Status int64 `db:"status"`
 	}
 	query := fmt.Sprintf("select `post_id`,`status` from %s where `user_id`=? and `post_id` in (%s)", m.table, placeholders)
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 

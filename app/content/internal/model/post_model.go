@@ -106,14 +106,14 @@ func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, pa
 
 	var posts []*Post
 	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = 1 order by %s limit ?,?", postRows, m.table, orderBy)
-	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &posts, query, authorId, offset, pageSize)
+	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, authorId, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
 	countQuery := fmt.Sprintf("select count(*) from %s where `author_id` = ? and `status` = 1", m.table)
-	err = m.CachedConn.QueryRowNoCacheCtx(ctx, &total, countQuery, authorId)
+	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, authorId)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -134,14 +134,14 @@ func (m *customPostModel) FindList(ctx context.Context, page, pageSize int, sort
 
 	var posts []*Post
 	query := fmt.Sprintf("select %s from %s where `status` = 1 order by %s limit ?,?", postRows, m.table, orderBy)
-	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &posts, query, offset, pageSize)
+	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
 	countQuery := fmt.Sprintf("select count(*) from %s where `status` = 1", m.table)
-	err = m.CachedConn.QueryRowNoCacheCtx(ctx, &total, countQuery)
+	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -215,7 +215,7 @@ func (m *customPostModel) FindByIds(ctx context.Context, ids []int64) ([]*Post, 
 	placeholders = placeholders[:len(placeholders)-1]
 	var posts []*Post
 	query := fmt.Sprintf("select %s from %s where `id` IN (%s)", postRows, m.table, placeholders)
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &posts, query, args...); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &posts, query, args...); err != nil {
 		return nil, err
 	}
 	return posts, nil

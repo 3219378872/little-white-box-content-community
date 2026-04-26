@@ -32,7 +32,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 
 	result, err := l.svcCtx.FavoriteModel.UpsertFavoriteStatus(l.ctx, in.UserId, in.PostId, model.StatusActive)
 	if err != nil {
-		l.Logger.Errorw("UpsertFavoriteStatus failed",
+		l.Errorw("UpsertFavoriteStatus failed",
 			logx.Field("userId", in.UserId),
 			logx.Field("postId", in.PostId),
 			logx.Field("err", err.Error()),
@@ -44,7 +44,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	if rowsAffected > 0 {
 		if l.svcCtx.ActionCountModel != nil {
 			if err := l.svcCtx.ActionCountModel.IncrFavoriteCount(l.ctx, in.PostId, 1); err != nil {
-				l.Logger.Errorw("IncrFavoriteCount failed",
+				l.Errorw("IncrFavoriteCount failed",
 					logx.Field("postId", in.PostId),
 					logx.Field("err", err.Error()),
 				)

@@ -72,14 +72,14 @@ func (m *customCommentModel) FindByPostId(ctx context.Context, postId int64, pag
 
 	var comments []*Comment
 	query := fmt.Sprintf("select %s from %s where `post_id` = ? and `status` = 1 and `parent_id` is null order by %s limit ?,?", commentRows, m.table, orderBy)
-	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &comments, query, postId, offset, pageSize)
+	err := m.QueryRowsNoCacheCtx(ctx, &comments, query, postId, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
 	countQuery := fmt.Sprintf("select count(*) from %s where `post_id` = ? and `status` = 1 and `parent_id` is null", m.table)
-	err = m.CachedConn.QueryRowNoCacheCtx(ctx, &total, countQuery, postId)
+	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, postId)
 	if err != nil {
 		return nil, 0, err
 	}

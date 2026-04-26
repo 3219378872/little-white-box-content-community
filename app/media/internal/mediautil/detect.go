@@ -57,12 +57,16 @@ func mimeToKind(mime string, allowImage, allowVideo bool) MediaKind {
 }
 
 // Detect 读取文件前 262 字节嗅探类型并按白名单过滤。
-func Detect(path string, allowImage, allowVideo bool) (DetectedType, error) {
+func Detect(path string, allowImage, allowVideo bool) (detected DetectedType, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return DetectedType{}, fmt.Errorf("media: open for detect: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("media: close detect file: %w", closeErr)
+		}
+	}()
 
 	head := make([]byte, 262)
 	n, err := f.Read(head)

@@ -42,7 +42,7 @@ func (m *customPostTagModel) FindTagNamesByPostId(ctx context.Context, postId in
 		TagName string `db:"tag_name"`
 	}
 	query := fmt.Sprintf("select `tag_name` from %s where `post_id` = ?", m.table)
-	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, postId)
+	err := m.QueryRowsNoCacheCtx(ctx, &rows, query, postId)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (m *customPostTagModel) FindTagNamesByPostIds(ctx context.Context, postIds 
 	}
 	query := fmt.Sprintf("select `post_id`, `tag_name` from %s where `post_id` in (%s)",
 		m.table, strings.Join(placeholders, ","))
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 	result := make(map[int64][]string, len(postIds))
@@ -89,14 +89,14 @@ func (m *customPostTagModel) FindPostIdsByTagName(ctx context.Context, tagName s
 		PostId int64 `db:"post_id"`
 	}
 	query := fmt.Sprintf("select pt.`post_id` from %s pt join `post` p on pt.`post_id`=p.`id` where pt.`tag_name`=? and p.`status`=1 limit ?,?", m.table)
-	err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &rows, query, tagName, offset, pageSize)
+	err := m.QueryRowsNoCacheCtx(ctx, &rows, query, tagName, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
 	countQuery := fmt.Sprintf("select count(*) from %s pt join `post` p on pt.`post_id`=p.`id` where pt.`tag_name`=? and p.`status`=1", m.table)
-	err = m.CachedConn.QueryRowNoCacheCtx(ctx, &total, countQuery, tagName)
+	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, tagName)
 	if err != nil {
 		return nil, 0, err
 	}

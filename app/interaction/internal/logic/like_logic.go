@@ -32,7 +32,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 
 	result, err := l.svcCtx.LikeRecordModel.UpsertLikeStatus(l.ctx, in.UserId, in.TargetId, int64(in.TargetType), model.StatusActive)
 	if err != nil {
-		l.Logger.Errorw("UpsertLikeStatus failed",
+		l.Errorw("UpsertLikeStatus failed",
 			logx.Field("userId", in.UserId),
 			logx.Field("targetId", in.TargetId),
 			logx.Field("err", err.Error()),
@@ -46,7 +46,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if rowsAffected > 0 {
 		if l.svcCtx.ActionCountModel != nil {
 			if err := l.svcCtx.ActionCountModel.IncrLikeCount(l.ctx, in.TargetId, int64(in.TargetType)); err != nil {
-				l.Logger.Errorw("IncrLikeCount failed",
+				l.Errorw("IncrLikeCount failed",
 					logx.Field("targetId", in.TargetId),
 					logx.Field("err", err.Error()),
 				)

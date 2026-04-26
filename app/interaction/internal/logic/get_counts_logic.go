@@ -62,7 +62,7 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 		return resp, nil
 	})
 	if err != nil {
-		l.Logger.Errorf("get counts failed: %v", err)
+		l.Errorf("get counts failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -102,19 +102,19 @@ func (l *GetCountsLogic) writeCountsToCache(key string, count *model.ActionCount
 	}
 
 	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
-		l.Logger.Errorf("write like_count cache failed: %v", err)
+		l.Errorf("write like_count cache failed: %v", err)
 	}
 	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
-		l.Logger.Errorf("write favorite_count cache failed: %v", err)
+		l.Errorf("write favorite_count cache failed: %v", err)
 	}
 	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
-		l.Logger.Errorf("write comment_count cache failed: %v", err)
+		l.Errorf("write comment_count cache failed: %v", err)
 	}
 	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
-		l.Logger.Errorf("write share_count cache failed: %v", err)
+		l.Errorf("write share_count cache failed: %v", err)
 	}
 	if err := store.Expire(key, ttlSeconds); err != nil {
-		l.Logger.Errorf("set cache expire failed: %v", err)
+		l.Errorf("set cache expire failed: %v", err)
 	}
 }
 

@@ -47,7 +47,7 @@ func (m *customMediaModel) FindByIds(ctx context.Context, ids []int64) ([]*Media
 	placeholders = placeholders[:len(placeholders)-1]
 	query := fmt.Sprintf("select %s from %s where `id` IN (%s)", mediaRows, m.table, placeholders)
 	var result []*Media
-	if err := m.CachedConn.QueryRowsNoCacheCtx(ctx, &result, query, args...); err != nil {
+	if err := m.QueryRowsNoCacheCtx(ctx, &result, query, args...); err != nil {
 		return nil, err
 	}
 	return result, nil

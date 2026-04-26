@@ -92,7 +92,7 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 			l.Errorw("send media_deleted event failed",
 				logx.Field("media_id", in.MediaId),
 				logx.Field("err", err.Error()),
-		)
+			)
 		}
 	}
 

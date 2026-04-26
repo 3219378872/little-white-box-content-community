@@ -36,7 +36,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		return nil, errx.NewWithCode(errx.NotLikedYet)
 	}
 	if err != nil {
-		l.Logger.Errorw("FindOneByUserIdTargetIdTargetType failed", logx.Field("err", err.Error()))
+		l.Errorw("FindOneByUserIdTargetIdTargetType failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
@@ -45,7 +45,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 
 	result, err := l.svcCtx.LikeRecordModel.UpdateStatusById(l.ctx, record.Id, model.StatusActive, model.StatusInactive)
 	if err != nil {
-		l.Logger.Errorw("UpdateStatusById failed", logx.Field("err", err.Error()))
+		l.Errorw("UpdateStatusById failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -53,7 +53,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 	if rowsAffected > 0 {
 		if l.svcCtx.ActionCountModel != nil {
 			if err := l.svcCtx.ActionCountModel.DecrLikeCount(l.ctx, in.TargetId, int64(in.TargetType)); err != nil {
-				l.Logger.Errorw("DecrLikeCount failed", logx.Field("err", err.Error()))
+				l.Errorw("DecrLikeCount failed", logx.Field("err", err.Error()))
 			}
 		}
 	}

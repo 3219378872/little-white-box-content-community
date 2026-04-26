@@ -4,6 +4,7 @@ import (
 	"context"
 	"errx"
 
+	"cleanupx"
 	"esx/app/media/internal/mediautil"
 	"esx/app/media/internal/model"
 	"esx/app/media/internal/svc"
@@ -35,7 +36,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
-	defer sink.Close()
+	defer cleanupx.Close(l.Logger, "upload video temp sink", sink)
 
 	meta, err := receiveUploadStream(
 		stream.Recv,

@@ -21,7 +21,7 @@ func init() {
 type mockSQLResult struct{}
 
 func (mockSQLResult) LastInsertId() (int64, error) { return 1, nil }
-func (mockSQLResult) RowsAffected() (int64, error)  { return 1, nil }
+func (mockSQLResult) RowsAffected() (int64, error) { return 1, nil }
 
 // ─── MockPostModel ────────────────────────────────────────────────────────────
 

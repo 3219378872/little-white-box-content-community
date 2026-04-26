@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
+	"cleanupx"
 	"esx/app/message/internal/config"
 	"esx/app/message/internal/mqs"
 	"esx/app/message/internal/server"
@@ -37,7 +39,7 @@ func main() {
 		if err := messageConsumer.Start(); err != nil {
 			logx.Must(err)
 		}
-		defer messageConsumer.Shutdown()
+		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "message consumer", messageConsumer.Shutdown)
 	}
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {

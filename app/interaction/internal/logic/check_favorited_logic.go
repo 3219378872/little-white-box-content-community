@@ -32,7 +32,7 @@ func (l *CheckFavoritedLogic) CheckFavorited(in *pb.CheckFavoritedReq) (*pb.Chec
 		return &pb.CheckFavoritedResp{IsFavorited: false}, nil
 	}
 	if err != nil {
-		l.Logger.Errorf("check favorited failed: %v", err)
+		l.Errorf("check favorited failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

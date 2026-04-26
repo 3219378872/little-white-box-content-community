@@ -34,7 +34,7 @@ func (l *GetFavoriteListLogic) GetFavoriteList(in *pb.GetFavoriteListReq) (*pb.G
 
 	postIDs, total, err := l.svcCtx.FavoriteModel.FindActivePostIds(l.ctx, in.UserId, in.Page, in.PageSize)
 	if err != nil {
-		l.Logger.Errorf("get favorite list failed: %v", err)
+		l.Errorf("get favorite list failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

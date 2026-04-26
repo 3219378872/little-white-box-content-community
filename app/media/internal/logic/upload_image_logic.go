@@ -5,6 +5,7 @@ import (
 	"errx"
 	"os"
 
+	"cleanupx"
 	"esx/app/media/internal/mediautil"
 	"esx/app/media/internal/model"
 	"esx/app/media/internal/svc"
@@ -36,7 +37,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
-	defer sink.Close()
+	defer cleanupx.Close(l.Logger, "upload image temp sink", sink)
 
 	meta, err := receiveUploadStream(
 		stream.Recv,
@@ -74,7 +75,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
-	defer os.Remove(compressedPath)
+	defer cleanupx.Remove(l.Logger, compressedPath)
 
 	thumbPath, err := mediautil.MakeThumbnail(sink.Path())
 	if err != nil {
@@ -85,7 +86,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
-	defer os.Remove(thumbPath)
+	defer cleanupx.Remove(l.Logger, thumbPath)
 
 	objKey := buildObjectKey("original", "jpg")
 	thumbKey := buildObjectKey("thumb", "jpg")
@@ -160,7 +161,7 @@ func putFile(ctx context.Context, svcCtx *svc.ServiceContext, localPath, objectK
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer cleanupx.Close(logx.WithContext(ctx), "upload source file", f)
 	info, err := f.Stat()
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ use (
 	./app/gateway
 	./app/user
 	./pkg/cachex
+	./pkg/cleanupx
 	./pkg/errx
 	./pkg/interceptor
 	./pkg/jwtx
