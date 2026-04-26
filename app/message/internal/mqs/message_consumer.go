@@ -68,17 +68,24 @@ func NewRocketMQConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	}
 	messageConsumer := NewMessageConsumer(svcCtx)
 	handler := func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-		for _, msg := range msgs {
-			if err := messageConsumer.Consume(ctx, msg.Body); err != nil {
-				return consumeResultForError(ctx, msg.MsgId, err), nil
-			}
-		}
-		return consumer.ConsumeSuccess, nil
+		return consumeMessageBatch(ctx, messageConsumer, msgs...), nil
 	}
 	if err := c.SubscribeWithTopic(svcCtx.Config.MQ.Topic, svcCtx.Config.MQ.Tag, handler); err != nil {
 		return nil, fmt.Errorf("subscribe message topic: %w", err)
 	}
 	return c, nil
+}
+
+func consumeMessageBatch(ctx context.Context, messageConsumer *MessageConsumer, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	for _, msg := range msgs {
+		if err := messageConsumer.Consume(ctx, msg.Body); err != nil {
+			result := consumeResultForError(ctx, msg.MsgId, err)
+			if result == consumer.ConsumeRetryLater {
+				return result
+			}
+		}
+	}
+	return consumer.ConsumeSuccess
 }
 
 func (c *MessageConsumer) Consume(ctx context.Context, body []byte) error {

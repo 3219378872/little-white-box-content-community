@@ -10,6 +10,7 @@ import (
 	"esx/app/message/internal/svc"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/require"
 )
 
@@ -116,6 +117,20 @@ func TestConsumeResultForErrorRetriesTransientError(t *testing.T) {
 	result := consumeResultForError(context.Background(), "msg-1", errors.New("db offline"))
 
 	require.Equal(t, consumer.ConsumeRetryLater, result)
+}
+
+func TestConsumeMessageBatchSkipsPermanentErrorAndProcessesLaterMessages(t *testing.T) {
+	notifications := &fakeNotificationModel{}
+	messageConsumer := NewMessageConsumer(&svc.ServiceContext{NotificationModel: notifications})
+
+	result := consumeMessageBatch(context.Background(), messageConsumer,
+		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`not-json`)}, MsgId: "bad"},
+		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"target_user_id":9,"action_type":1,"user_id":7,"username":"小白","target_id":99}`)}, MsgId: "good"},
+	)
+
+	require.Equal(t, consumer.ConsumeSuccess, result)
+	require.Len(t, notifications.inserted, 1)
+	require.Equal(t, int64(9), notifications.inserted[0].UserId)
 }
 
 func TestMessageConsumerReturnsTransientInsertError(t *testing.T) {
