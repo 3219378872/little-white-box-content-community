@@ -25,14 +25,20 @@ func NewSendNotificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 // 发送系统通知
 func (l *SendNotificationLogic) SendNotification(in *pb.SendNotificationReq) (*pb.SendNotificationResp, error) {
-	if in.UserId <= 0 || in.Type <= 0 || strings.TrimSpace(in.Content) == "" {
+	title := strings.TrimSpace(in.Title)
+	content := strings.TrimSpace(in.Content)
+	if in.UserId <= 0 ||
+		!validNotificationType(in.Type) ||
+		content == "" ||
+		runeLen(title) > maxNotificationTitleLength ||
+		runeLen(content) > maxNotificationContentLength {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	row := &model.Notification{
 		UserId:   in.UserId,
 		Type:     int64(in.Type),
-		Title:    nullableString(in.Title),
-		Content:  nullableString(in.Content),
+		Title:    nullableString(title),
+		Content:  nullableString(content),
 		TargetId: sql.NullInt64{Int64: in.TargetId, Valid: in.TargetId > 0},
 		Status:   0,
 	}

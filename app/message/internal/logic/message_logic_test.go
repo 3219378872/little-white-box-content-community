@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -217,6 +218,33 @@ func TestSendNotificationRejectsInvalidRequest(t *testing.T) {
 	require.True(t, errx.Is(err, errx.ParamError))
 }
 
+func TestSendNotificationRejectsUnsupportedType(t *testing.T) {
+	notifications := &fakeNotificationModel{}
+	_, err := NewSendNotificationLogic(context.Background(), &svc.ServiceContext{NotificationModel: notifications}).SendNotification(&pb.SendNotificationReq{
+		UserId: 7, Type: 9, Content: "bad type",
+	})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+	require.Len(t, notifications.inserted, 0)
+}
+
+func TestSendNotificationRejectsOversizedFields(t *testing.T) {
+	notifications := &fakeNotificationModel{}
+	_, err := NewSendNotificationLogic(context.Background(), &svc.ServiceContext{NotificationModel: notifications}).SendNotification(&pb.SendNotificationReq{
+		UserId: 7, Type: 4, Title: strings.Repeat("t", 101), Content: "system",
+	})
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+
+	_, err = NewSendNotificationLogic(context.Background(), &svc.ServiceContext{NotificationModel: notifications}).SendNotification(&pb.SendNotificationReq{
+		UserId: 7, Type: 4, Content: strings.Repeat("c", 501),
+	})
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+	require.Len(t, notifications.inserted, 0)
+}
+
 func TestGetNotificationsReturnsPagedItems(t *testing.T) {
 	createdAt := time.UnixMilli(12345)
 	notifications := &fakeNotificationModel{total: 1, list: []*model.Notification{{
@@ -367,6 +395,26 @@ func TestGetMessagesRejectsConversationNotOwnedByUser(t *testing.T) {
 
 	require.Error(t, err)
 	require.True(t, errx.Is(err, errx.PermissionDenied))
+}
+
+func TestGetMessagesReturnsSystemErrorForConversationLookupFailure(t *testing.T) {
+	conversations := &fakeConversationModel{findOneErr: errors.New("db offline")}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: &fakeMessageModel{}}
+
+	_, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 12, PageSize: 20})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.SystemError))
+}
+
+func TestMarkReadReturnsSystemErrorForConversationLookupFailure(t *testing.T) {
+	conversations := &fakeConversationModel{findOneErr: errors.New("db offline")}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageCommandModel: &fakeMessageCommandModel{}}
+
+	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7, ConversationId: 12})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.SystemError))
 }
 
 func TestSendMessageRejectsInvalidRequest(t *testing.T) {

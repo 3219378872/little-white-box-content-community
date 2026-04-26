@@ -2,8 +2,10 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"errx"
+	"esx/app/message/internal/model"
 	"esx/app/message/internal/svc"
 	"esx/app/message/xiaobaihe/message/pb"
 
@@ -29,7 +31,10 @@ func (l *MarkReadLogic) MarkRead(in *pb.MarkReadReq) (*pb.MarkReadResp, error) {
 		conversation, err := l.svcCtx.ConversationModel.FindOneForUser(l.ctx, in.UserId, in.ConversationId)
 		if err != nil {
 			l.Errorw("ConversationModel.FindOneForUser failed", logx.Field("err", err.Error()))
-			return nil, errx.NewWithCode(errx.PermissionDenied)
+			if errors.Is(err, model.ErrNotFound) {
+				return nil, errx.NewWithCode(errx.PermissionDenied)
+			}
+			return nil, errx.Wrap(err, errx.SystemError)
 		}
 		if _, err := l.svcCtx.MessageCommandModel.MarkConversationRead(l.ctx, in.UserId, conversation.TargetUserId); err != nil {
 			l.Errorw("MessageCommandModel.MarkConversationRead failed", logx.Field("err", err.Error()))

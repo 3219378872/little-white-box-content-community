@@ -2,8 +2,10 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"errx"
+	"esx/app/message/internal/model"
 	"esx/app/message/internal/svc"
 	"esx/app/message/xiaobaihe/message/pb"
 
@@ -28,7 +30,10 @@ func (l *GetMessagesLogic) GetMessages(in *pb.GetMessagesReq) (*pb.GetMessagesRe
 	conversation, err := l.svcCtx.ConversationModel.FindOneForUser(l.ctx, in.UserId, in.ConversationId)
 	if err != nil {
 		l.Errorw("ConversationModel.FindOneForUser failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.PermissionDenied)
+		if errors.Is(err, model.ErrNotFound) {
+			return nil, errx.NewWithCode(errx.PermissionDenied)
+		}
+		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	_, pageSize := normalizePage(1, in.PageSize)
 	rows, hasMore, err := l.svcCtx.MessageModel.FindByUserConversation(l.ctx, in.UserId, conversation.TargetUserId, in.LastId, pageSize)
