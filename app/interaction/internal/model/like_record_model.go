@@ -18,6 +18,8 @@ type (
 	LikeRecordModel interface {
 		likeRecordModel
 		UpsertLikeStatus(ctx context.Context, userId, targetId, targetType, status int64) (sql.Result, error)
+		UpsertLikeStatusTx(ctx context.Context, conn sqlx.SqlConn, userId, targetId, targetType, status int64) (sql.Result, int64, error)
+		InvalidateLikeRecordCache(ctx context.Context, id, userId, targetId, targetType int64) error
 		FindStatusByUserAndTargets(ctx context.Context, userId int64, targetIds []int64, targetType int64) (map[int64]bool, error)
 		UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error)
 	}
@@ -42,6 +44,30 @@ func (m *customLikeRecordModel) UpsertLikeStatus(ctx context.Context, userId, ta
 	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
 		return conn.ExecCtx(ctx, query, userId, targetId, targetType, status)
 	})
+}
+
+func (m *customLikeRecordModel) UpsertLikeStatusTx(ctx context.Context, conn sqlx.SqlConn, userId, targetId, targetType, status int64) (sql.Result, int64, error) {
+	query := fmt.Sprintf(
+		"insert into %s (`user_id`,`target_id`,`target_type`,`status`) values (?,?,?,?) on duplicate key update `id`=last_insert_id(`id`), `status`=values(`status`)",
+		m.table,
+	)
+	result, err := conn.ExecCtx(ctx, query, userId, targetId, targetType, status)
+	if err != nil {
+		return nil, 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, 0, err
+	}
+	return result, id, nil
+}
+
+func (m *customLikeRecordModel) InvalidateLikeRecordCache(ctx context.Context, id, userId, targetId, targetType int64) error {
+	keys := []string{fmt.Sprintf("%s%v:%v:%v", cacheLikeRecordUserIdTargetIdTargetTypePrefix, userId, targetId, targetType)}
+	if id > 0 {
+		keys = append(keys, fmt.Sprintf("%s%v", cacheLikeRecordIdPrefix, id))
+	}
+	return m.DelCacheCtx(ctx, keys...)
 }
 
 func (m *customLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, userId int64, targetIds []int64, targetType int64) (map[int64]bool, error) {

@@ -18,6 +18,7 @@ type (
 		FindOneByTarget(ctx context.Context, targetID, targetType int64) (*ActionCount, error)
 		Update(ctx context.Context, data *ActionCount) error
 		IncrLikeCount(ctx context.Context, targetID, targetType int64) error
+		IncrLikeCountTx(ctx context.Context, conn sqlx.SqlConn, targetID, targetType int64) error
 		IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error
 		DecrLikeCount(ctx context.Context, targetID, targetType int64) error
 		DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error
@@ -81,6 +82,12 @@ func (m *customActionCountModel) Update(ctx context.Context, data *ActionCount) 
 func (m *customActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
 	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 1, 0, 0, 0) on duplicate key update `like_count` = `like_count` + 1", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, targetID, targetType)
+	return err
+}
+
+func (m *customActionCountModel) IncrLikeCountTx(ctx context.Context, conn sqlx.SqlConn, targetID, targetType int64) error {
+	query := fmt.Sprintf("insert into %s (`target_id`, `target_type`, `like_count`, `favorite_count`, `comment_count`, `share_count`) values (?, ?, 1, 0, 0, 0) on duplicate key update `like_count` = `like_count` + 1", m.table)
+	_, err := conn.ExecCtx(ctx, query, targetID, targetType)
 	return err
 }
 
