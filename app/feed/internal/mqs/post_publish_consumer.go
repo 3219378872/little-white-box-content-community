@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"esx/app/feed/internal/model"
+	"esx/app/feed/internal/fanout"
 	"esx/app/feed/internal/svc"
 	"mqx"
-	"user/userservice"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -47,31 +46,10 @@ func NewPostPublishConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 }
 
 func handlePostPublished(ctx context.Context, svcCtx *svc.ServiceContext, event postPublishedMessage) error {
-	userResp, err := svcCtx.UserService.GetUser(ctx, &userservice.GetUserReq{UserId: event.AuthorId})
-	if err != nil {
-		return err
-	}
-	if err := svcCtx.OutboxModel.InsertIgnore(ctx, &model.FeedOutbox{AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt}); err != nil {
-		return err
-	}
-	if userResp.User == nil || userResp.User.FollowerCount >= svcCtx.BigVThreshold {
-		return nil
-	}
-	pageSize := int32(svcCtx.FanoutBatchSize)
-	if pageSize <= 0 {
-		pageSize = 500
-	}
-	followersResp, err := svcCtx.UserService.GetFollowers(ctx, &userservice.GetFollowersReq{UserId: event.AuthorId, Page: 1, PageSize: pageSize})
-	if err != nil {
-		return err
-	}
-	rows := make([]*model.FeedInbox, 0, len(followersResp.Users))
-	for _, user := range followersResp.Users {
-		if user.Id <= 0 {
-			continue
-		}
-		rows = append(rows, &model.FeedInbox{UserId: user.Id, AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt})
-	}
-	_, err = svcCtx.InboxModel.BatchInsertIgnore(ctx, rows)
+	_, err := fanout.HandlePostPublished(ctx, svcCtx, fanout.PostPublished{
+		PostId:    event.PostId,
+		AuthorId:  event.AuthorId,
+		CreatedAt: event.CreatedAt,
+	})
 	return err
 }
