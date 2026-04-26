@@ -29,14 +29,21 @@ func HandlePostPublished(ctx context.Context, svcCtx *svc.ServiceContext, event 
 	if pageSize <= 0 {
 		pageSize = 500
 	}
-	followersResp, err := svcCtx.UserService.GetFollowers(ctx, &userservice.GetFollowersReq{UserId: event.AuthorId, Page: 1, PageSize: pageSize})
-	if err != nil {
-		return 0, err
-	}
-	rows := make([]*model.FeedInbox, 0, len(followersResp.Users))
-	for _, user := range followersResp.Users {
-		if user.Id > 0 {
-			rows = append(rows, &model.FeedInbox{UserId: user.Id, AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt})
+	rows := make([]*model.FeedInbox, 0)
+	var fetched int64
+	for page := int32(1); ; page++ {
+		followersResp, err := svcCtx.UserService.GetFollowers(ctx, &userservice.GetFollowersReq{UserId: event.AuthorId, Page: page, PageSize: pageSize})
+		if err != nil {
+			return 0, err
+		}
+		for _, user := range followersResp.Users {
+			if user.Id > 0 {
+				rows = append(rows, &model.FeedInbox{UserId: user.Id, AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt})
+			}
+		}
+		fetched += int64(len(followersResp.Users))
+		if len(followersResp.Users) == 0 || int32(len(followersResp.Users)) < pageSize || fetched >= followersResp.Total {
+			break
 		}
 	}
 	return svcCtx.InboxModel.BatchInsertIgnore(ctx, rows)

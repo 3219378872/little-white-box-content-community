@@ -393,6 +393,38 @@ func TestLikeLogic_Like_NilActionCountModel(t *testing.T) {
 	likeModel.AssertExpectations(t)
 }
 
+func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	countModel := new(mockActionCountModel)
+	svcCtx := &svc.ServiceContext{
+		Conn:             fakeTxConn{},
+		LikeRecordModel:  likeModel,
+		ActionCountModel: countModel,
+	}
+
+	likeModel.
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
+		Once()
+	countModel.
+		On("IncrLikeCountTx", mock.Anything, mock.Anything, int64(100), int64(1)).
+		Return(nil).
+		Once()
+	likeModel.
+		On("InvalidateLikeRecordCache", mock.Anything, int64(10), int64(1), int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewLikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+
+	require.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.SystemError))
+	likeModel.AssertExpectations(t)
+	countModel.AssertExpectations(t)
+}
+
 func TestLikeLogic_Like_InvalidParam(t *testing.T) {
 	logic := NewLikeLogic(context.Background(), &svc.ServiceContext{})
 

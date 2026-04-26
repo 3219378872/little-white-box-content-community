@@ -9,6 +9,7 @@ import (
 	"mqx"
 	"os"
 	"strconv"
+	"strings"
 	"util"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -34,6 +35,11 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	if err := validateDTMConfig(c); err != nil {
+		panic(err)
+	}
+	configureDTMBarrierTable()
+
 	db, err := sql.Open("mysql", c.DataSource)
 	if err != nil {
 		panic(fmt.Sprintf("数据库连接失败: %v", err))
@@ -93,4 +99,21 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MQProducer:           producer,
 		PostCreateMsgFactory: DTMPostCreateMsgFactory{DtmServer: c.DtmServer, DB: db},
 	}
+}
+
+func validateDTMConfig(c config.Config) error {
+	missing := make([]string, 0, 3)
+	if c.DtmServer == "" {
+		missing = append(missing, "DtmServer")
+	}
+	if c.ContentBusiServer == "" {
+		missing = append(missing, "ContentBusiServer")
+	}
+	if c.FeedBusiServer == "" {
+		missing = append(missing, "FeedBusiServer")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing DTM content config: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }

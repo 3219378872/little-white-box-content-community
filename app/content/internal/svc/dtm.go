@@ -3,10 +3,13 @@ package svc
 import (
 	"database/sql"
 
+	"github.com/dtm-labs/dtm/client/dtmcli"
 	"github.com/dtm-labs/dtm/client/dtmgrpc"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 )
+
+const barrierTableName = "dtm_barrier"
 
 type PostCreateMsg interface {
 	Add(action string, payload proto.Message)
@@ -44,4 +47,8 @@ func (m dtmPostCreateMsg) DoAndSubmitDB(queryPrepared string, fn func(*sql.Tx) e
 	return m.msg.DoAndSubmitDB(queryPrepared, m.db, func(tx *sql.Tx) error {
 		return fn(tx)
 	})
+}
+
+func configureDTMBarrierTable() {
+	dtmcli.SetBarrierTableName(barrierTableName)
 }
