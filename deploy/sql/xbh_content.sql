@@ -3,6 +3,22 @@ CREATE DATABASE IF NOT EXISTS `xbh_content` DEFAULT CHARACTER SET utf8mb4 COLLAT
 
 USE `xbh_content`;
 
+CREATE TABLE IF NOT EXISTS `dtm_barrier` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `trans_type` VARCHAR(45) NOT NULL DEFAULT '',
+    `gid` VARCHAR(128) NOT NULL DEFAULT '',
+    `branch_id` VARCHAR(128) NOT NULL DEFAULT '',
+    `op` VARCHAR(45) NOT NULL DEFAULT '',
+    `barrier_id` VARCHAR(45) NOT NULL DEFAULT '',
+    `reason` VARCHAR(45) NOT NULL DEFAULT '',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_barrier` (`gid`, `branch_id`, `op`, `barrier_id`),
+    KEY `idx_create_time` (`create_time`),
+    KEY `idx_update_time` (`update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='DTM branch barrier table';
+
 -- 帖子表
 CREATE TABLE IF NOT EXISTS `post` (
     `id` BIGINT NOT NULL COMMENT '帖子ID',
