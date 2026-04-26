@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,6 +85,45 @@ func (m *fakeMessageModel) MarkConversationReadForUser(ctx context.Context, user
 	m.marked++
 	m.markUserID = userID
 	m.markTargetID = targetUserID
+	return 3, nil
+}
+
+type fakeMessageCommandModel struct {
+	createdSenderID   int64
+	createdReceiverID int64
+	createdContent    string
+	createdMsgType    int64
+	createdMessageID  int64
+	createCalls       int64
+	createErr         error
+	markUserID        int64
+	markTargetID      int64
+	markCalls         int64
+	markErr           error
+}
+
+func (m *fakeMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64) (int64, error) {
+	m.createCalls++
+	m.createdSenderID = senderID
+	m.createdReceiverID = receiverID
+	m.createdContent = content
+	m.createdMsgType = msgType
+	if m.createErr != nil {
+		return 0, m.createErr
+	}
+	if m.createdMessageID == 0 {
+		m.createdMessageID = 300
+	}
+	return m.createdMessageID, nil
+}
+
+func (m *fakeMessageCommandModel) MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
+	m.markCalls++
+	m.markUserID = userID
+	m.markTargetID = targetUserID
+	if m.markErr != nil {
+		return 0, m.markErr
+	}
 	return 3, nil
 }
 
@@ -220,17 +260,17 @@ func TestGetUnreadCountFallsBackToDatabaseAndCaches(t *testing.T) {
 
 func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
 	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 11, UserId: 7, TargetUserId: 8}}
-	messages := &fakeMessageModel{}
+	commands := &fakeMessageCommandModel{}
 	notifications := &fakeNotificationModel{}
 	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageCommandModel: commands, NotificationModel: notifications, UnreadStore: store}
 
 	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7, ConversationId: 11})
 
 	require.NoError(t, err)
-	require.Equal(t, int64(1), messages.marked)
-	require.Equal(t, int64(7), messages.markUserID)
-	require.Equal(t, int64(8), messages.markTargetID)
+	require.Equal(t, int64(1), commands.markCalls)
+	require.Equal(t, int64(7), commands.markUserID)
+	require.Equal(t, int64(8), commands.markTargetID)
 	require.Equal(t, int64(0), notifications.marked)
 	require.Equal(t, []int64{7}, store.deleted)
 }
@@ -249,20 +289,20 @@ func TestMarkReadWithoutConversationMarksAllNotifications(t *testing.T) {
 	require.Equal(t, []int64{7}, store.deleted)
 }
 
-func TestSendMessageCreatesConversationAndMessage(t *testing.T) {
-	conversations := &fakeConversationModel{}
-	messages := &fakeMessageModel{}
+func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
+	commands := &fakeMessageCommandModel{createdMessageID: 301}
 	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages, UnreadStore: store}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands, UnreadStore: store}
 
-	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1})
+	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 2, Content: " hello ", MsgType: 1})
 
 	require.NoError(t, err)
-	require.Equal(t, int64(200), resp.MessageId)
-	require.Equal(t, int64(1), conversations.createdSender)
-	require.Equal(t, int64(2), conversations.createdReceiver)
-	require.Len(t, messages.inserted, 1)
-	require.Equal(t, int64(12), messages.inserted[0].ConversationId)
+	require.Equal(t, int64(301), resp.MessageId)
+	require.Equal(t, int64(1), commands.createCalls)
+	require.Equal(t, int64(1), commands.createdSenderID)
+	require.Equal(t, int64(2), commands.createdReceiverID)
+	require.Equal(t, "hello", commands.createdContent)
+	require.Equal(t, int64(1), commands.createdMsgType)
 	require.Equal(t, []int64{2}, store.deleted)
 }
 
@@ -333,6 +373,28 @@ func TestSendMessageRejectsInvalidRequest(t *testing.T) {
 	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{}).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 1, Content: "hello", MsgType: 1})
 	require.Error(t, err)
 	require.True(t, errx.Is(err, errx.ParamError))
+}
+
+func TestSendMessageRejectsUnsupportedMessageType(t *testing.T) {
+	commands := &fakeMessageCommandModel{}
+	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{MessageCommandModel: commands}).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 9,
+	})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+	require.Equal(t, int64(0), commands.createCalls)
+}
+
+func TestSendMessageRejectsOversizedContent(t *testing.T) {
+	commands := &fakeMessageCommandModel{}
+	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{MessageCommandModel: commands}).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: strings.Repeat("x", 1001), MsgType: 1,
+	})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+	require.Equal(t, int64(0), commands.createCalls)
 }
 
 func TestGetConversationsRejectsInvalidRequest(t *testing.T) {

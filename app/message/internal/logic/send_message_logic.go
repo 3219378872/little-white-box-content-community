@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"errx"
-	"esx/app/message/internal/model"
 	"esx/app/message/internal/svc"
 	"esx/app/message/xiaobaihe/message/pb"
 
@@ -25,28 +24,17 @@ func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendM
 // 发送私信
 func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageResp, error) {
 	content := strings.TrimSpace(in.Content)
-	if in.SenderId <= 0 || in.ReceiverId <= 0 || in.SenderId == in.ReceiverId || content == "" || in.MsgType <= 0 {
+	if in.SenderId <= 0 ||
+		in.ReceiverId <= 0 ||
+		in.SenderId == in.ReceiverId ||
+		content == "" ||
+		!validMessageType(in.MsgType) ||
+		runeLen(content) > maxMessageContentLength {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	_, receiverConversationID, err := l.svcCtx.ConversationModel.UpsertPairForMessage(l.ctx, in.SenderId, in.ReceiverId, content)
+	id, err := l.svcCtx.MessageCommandModel.CreateMessageWithConversations(l.ctx, in.SenderId, in.ReceiverId, content, int64(in.MsgType))
 	if err != nil {
-		l.Errorw("ConversationModel.UpsertPairForMessage failed", logx.Field("err", err.Error()))
-		return nil, errx.Wrap(err, errx.SystemError)
-	}
-	result, err := l.svcCtx.MessageModel.Insert(l.ctx, &model.Message{
-		ConversationId: receiverConversationID,
-		SenderId:       in.SenderId,
-		ReceiverId:     in.ReceiverId,
-		Content:        content,
-		MsgType:        int64(in.MsgType),
-		Status:         0,
-	})
-	if err != nil {
-		l.Errorw("MessageModel.Insert failed", logx.Field("err", err.Error()))
-		return nil, errx.Wrap(err, errx.SystemError)
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
+		l.Errorw("MessageCommandModel.CreateMessageWithConversations failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if l.svcCtx.UnreadStore != nil {

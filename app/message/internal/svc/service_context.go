@@ -25,6 +25,11 @@ type MessageModel interface {
 	MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
+type MessageCommandModel interface {
+	CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64) (int64, error)
+	MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error)
+}
+
 type NotificationModel interface {
 	Insert(ctx context.Context, data *model.Notification) (sql.Result, error)
 	FindByUser(ctx context.Context, userID int64, typ int64, page int64, pageSize int64) ([]*model.Notification, int64, error)
@@ -33,13 +38,14 @@ type NotificationModel interface {
 }
 
 type ServiceContext struct {
-	Config            config.Config
-	Conn              sqlx.SqlConn
-	Redis             *redis.Redis
-	ConversationModel ConversationModel
-	MessageModel      MessageModel
-	NotificationModel NotificationModel
-	UnreadStore       UnreadStore
+	Config              config.Config
+	Conn                sqlx.SqlConn
+	Redis               *redis.Redis
+	ConversationModel   ConversationModel
+	MessageModel        MessageModel
+	MessageCommandModel MessageCommandModel
+	NotificationModel   NotificationModel
+	UnreadStore         UnreadStore
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -50,12 +56,13 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	redisClient := redis.MustNewRedis(c.Redis)
 
 	return &ServiceContext{
-		Config:            c,
-		Conn:              conn,
-		Redis:             redisClient,
-		ConversationModel: model.NewConversationModel(conn, cacheConf),
-		MessageModel:      model.NewMessageModel(conn, cacheConf),
-		NotificationModel: model.NewNotificationModel(conn, cacheConf),
-		UnreadStore:       NewRedisUnreadStore(redisClient),
+		Config:              c,
+		Conn:                conn,
+		Redis:               redisClient,
+		ConversationModel:   model.NewConversationModel(conn, cacheConf),
+		MessageModel:        model.NewMessageModel(conn, cacheConf),
+		MessageCommandModel: model.NewMessageCommandModel(conn),
+		NotificationModel:   model.NewNotificationModel(conn, cacheConf),
+		UnreadStore:         NewRedisUnreadStore(redisClient),
 	}
 }

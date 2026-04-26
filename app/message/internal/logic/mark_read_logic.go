@@ -31,8 +31,8 @@ func (l *MarkReadLogic) MarkRead(in *pb.MarkReadReq) (*pb.MarkReadResp, error) {
 			l.Errorw("ConversationModel.FindOneForUser failed", logx.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.PermissionDenied)
 		}
-		if _, err := l.svcCtx.MessageModel.MarkConversationReadForUser(l.ctx, in.UserId, conversation.TargetUserId); err != nil {
-			l.Errorw("MessageModel.MarkConversationReadForUser failed", logx.Field("err", err.Error()))
+		if _, err := l.svcCtx.MessageCommandModel.MarkConversationRead(l.ctx, in.UserId, conversation.TargetUserId); err != nil {
+			l.Errorw("MessageCommandModel.MarkConversationRead failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	} else {
