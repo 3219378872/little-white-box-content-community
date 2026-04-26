@@ -54,6 +54,10 @@ func (m *MockPostModel) InsertPost(ctx context.Context, data *model.Post) error 
 	return m.Called(ctx, data).Error(0)
 }
 
+func (m *MockPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, data *model.Post) error {
+	return m.Called(ctx, tx, data).Error(0)
+}
+
 func (m *MockPostModel) Update(ctx context.Context, data *model.Post) error {
 	return m.Called(ctx, data).Error(0)
 }
@@ -244,6 +248,10 @@ func (m *MockPostTagModel) TransactReplaceTagsByPostId(ctx context.Context, conn
 
 func (m *MockPostTagModel) BatchInsertTagsByPostId(ctx context.Context, conn sqlx.SqlConn, postId int64, tags []string, ids []int64) error {
 	return m.Called(ctx, conn, postId, tags, ids).Error(0)
+}
+
+func (m *MockPostTagModel) BatchInsertTagsByPostIdTx(ctx context.Context, tx *sql.Tx, postId int64, tags []string, ids []int64) error {
+	return m.Called(ctx, tx, postId, tags, ids).Error(0)
 }
 
 // ─── 辅助构造 ─────────────────────────────────────────────────────────────────
