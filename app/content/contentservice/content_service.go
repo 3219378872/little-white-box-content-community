@@ -38,6 +38,8 @@ type (
 	GetUserPostsReq    = pb.GetUserPostsReq
 	GetUserPostsResp   = pb.GetUserPostsResp
 	PostInfo           = pb.PostInfo
+	QueryPreparedReq   = pb.QueryPreparedReq
+	QueryPreparedResp  = pb.QueryPreparedResp
 	TagInfo            = pb.TagInfo
 	UpdatePostReq      = pb.UpdatePostReq
 	UpdatePostResp     = pb.UpdatePostResp
@@ -67,6 +69,8 @@ type (
 		GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error)
 		// 获取标签下的帖子
 		GetPostsByTag(ctx context.Context, in *GetPostsByTagReq, opts ...grpc.CallOption) (*GetPostsByTagResp, error)
+		// DTM reliable message query-prepared checkback
+		QueryPrepared(ctx context.Context, in *QueryPreparedReq, opts ...grpc.CallOption) (*QueryPreparedResp, error)
 	}
 
 	defaultContentService struct {
@@ -150,4 +154,10 @@ func (m *defaultContentService) GetTags(ctx context.Context, in *GetTagsReq, opt
 func (m *defaultContentService) GetPostsByTag(ctx context.Context, in *GetPostsByTagReq, opts ...grpc.CallOption) (*GetPostsByTagResp, error) {
 	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetPostsByTag(ctx, in, opts...)
+}
+
+// DTM reliable message query-prepared checkback
+func (m *defaultContentService) QueryPrepared(ctx context.Context, in *QueryPreparedReq, opts ...grpc.CallOption) (*QueryPreparedResp, error) {
+	client := pb.NewContentServiceClient(m.cli.Conn())
+	return client.QueryPrepared(ctx, in, opts...)
 }

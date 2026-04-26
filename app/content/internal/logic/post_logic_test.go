@@ -35,9 +35,8 @@ func TestCreatePostLogic(t *testing.T) {
 				Status:   1,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
-				// 无标签时仍调用 BatchInsertTagsByPostId（传入空切片，实现内部短路返回 nil）
-				ptm.On("BatchInsertTagsByPostId", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
+				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {
 				assert.Greater(t, resp.PostId, int64(0))
@@ -53,8 +52,8 @@ func TestCreatePostLogic(t *testing.T) {
 				Status:   1,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
-				ptm.On("BatchInsertTagsByPostId", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
+				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {
 				assert.Greater(t, resp.PostId, int64(0))
@@ -87,7 +86,7 @@ func TestCreatePostLogic(t *testing.T) {
 			name: "数据库Insert失败",
 			req:  &pb.CreatePostReq{AuthorId: 1001, Title: "标题", Content: "内容"},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(fmt.Errorf("connection refused"))
+				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(fmt.Errorf("connection refused"))
 			},
 			wantErr: true,
 		},
@@ -100,8 +99,8 @@ func TestCreatePostLogic(t *testing.T) {
 				Tags:     []string{"golang"},
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
-				ptm.On("BatchInsertTagsByPostId", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(fmt.Errorf("db error"))
+				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(fmt.Errorf("db error"))
 			},
 			wantErr: true,
 		},
@@ -114,8 +113,8 @@ func TestCreatePostLogic(t *testing.T) {
 				Tags:     []string{"", "golang", ""},
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
-				ptm.On("BatchInsertTagsByPostId", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
+				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {
 				assert.Greater(t, resp.PostId, int64(0))
@@ -131,6 +130,9 @@ func TestCreatePostLogic(t *testing.T) {
 				tt.setupMock(pm, ptm)
 			}
 			svcCtx := newUnitSvcCtx(pm, nil, nil, ptm)
+			svcCtx.Config.FeedBusiServer = "feed:9091"
+			svcCtx.Config.ContentBusiServer = "content:8088"
+			svcCtx.PostCreateMsgFactory = fakePostCreateMsgFactory{msg: &fakePostCreateMsg{}}
 			l := NewCreatePostLogic(context.Background(), svcCtx)
 
 			resp, err := l.CreatePost(tt.req)

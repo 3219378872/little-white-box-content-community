@@ -29,6 +29,7 @@ type (
 		postModel
 		FindPostById(ctx context.Context, id int64) (*Post, error)
 		InsertPost(ctx context.Context, post *Post) error
+		InsertPostTx(ctx context.Context, tx *sql.Tx, post *Post) error
 		FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error)
 		FindList(ctx context.Context, page, pageSize int, sortBy int) ([]*Post, int64, error)
 		FindByIds(ctx context.Context, ids []int64) ([]*Post, error)
@@ -92,6 +93,20 @@ func (m *customPostModel) InsertPost(ctx context.Context, post *Post) error {
 		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`) values (?,?,?,?,?,?)", m.table)
 		return conn.ExecCtx(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status)
 	}, postIdKey)
+	return err
+}
+
+func (m *customPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, post *Post) error {
+	if tx == nil {
+		return fmt.Errorf("nil sql transaction")
+	}
+	if !post.Images.Valid {
+		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`status`) values (?,?,?,?,?)", m.table)
+		_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Status)
+		return err
+	}
+	query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`) values (?,?,?,?,?,?)", m.table)
+	_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status)
 	return err
 }
 

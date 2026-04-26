@@ -12,6 +12,7 @@ import (
 
 type ServiceContext struct {
 	Config              config.Config
+	Conn                sqlx.SqlConn
 	FavoriteFolderModel model.FavoriteFolderModel
 	FavoriteModel       model.FavoriteModel
 	LikeRecordModel     model.LikeRecordModel
@@ -43,6 +44,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	return &ServiceContext{
 		Config:              c,
+		Conn:                conn,
 		FavoriteFolderModel: model.NewFavoriteFolderModel(conn, conf),
 		FavoriteModel:       model.NewFavoriteModel(conn, conf),
 		LikeRecordModel:     model.NewLikeRecordModel(conn, conf),

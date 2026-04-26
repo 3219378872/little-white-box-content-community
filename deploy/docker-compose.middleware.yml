@@ -278,15 +278,13 @@ services:
     restart: unless-stopped
     environment:
       IS_DOCKER: "1"
-      STORE_DRIVER: redis
-      STORE_HOST: redis
-      STORE_PORT: 6379
-      STORE_PASSWORD: ${REDIS_PASSWORD:-Xbh@Redis2024!}
+      STORE_DRIVER: mysql
+      STORE_DSN: "${DTM_STORE_DSN}"
     ports:
       - "36789:36789"
       - "36790:36790"
     depends_on:
-      redis:
+      mysql:
         condition: service_healthy
     networks:
       - xbh-network

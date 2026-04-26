@@ -9,7 +9,10 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	DataSource string
-	Redis      cache.NodeConf
-	MQ         mqx.ProducerConfig
+	DataSource        string
+	DtmServer         string
+	ContentBusiServer string
+	FeedBusiServer    string
+	Redis             cache.NodeConf
+	MQ                mqx.ProducerConfig
 }

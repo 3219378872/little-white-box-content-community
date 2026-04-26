@@ -3,11 +3,10 @@ package logic
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errx"
 	"esx/app/content/internal/model"
 	"esx/app/content/pb/xiaobaihe/content/pb"
-	"mqx"
+	feedpb "esx/app/feed/xiaobaihe/feed/pb"
 	"strings"
 	"time"
 	"util"
@@ -60,8 +59,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	// 插入帖子
-	if err = l.svcCtx.PostModel.InsertPost(l.ctx, &model.Post{
+	post := &model.Post{
 		Id:       id,
 		AuthorId: in.GetAuthorId(),
 		Title:    in.GetTitle(),
@@ -71,9 +69,6 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 			String: imageJsonString,
 			Valid:  len(in.Images) > 0,
 		},
-	}); err != nil {
-		l.Errorw("PostModel.InsertPost failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	// 收集有效标签并预生成分布式 ID
@@ -92,22 +87,26 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		tagIds = append(tagIds, tid)
 	}
 
-	// 事务内批量插入标签，全部成功或全部回滚
-	if err = l.svcCtx.PostTagModel.BatchInsertTagsByPostId(l.ctx, l.svcCtx.Conn, id, validTags, tagIds); err != nil {
-		l.Errorw("PostTagModel.BatchInsertTagsByPostId failed", logx.Field("err", err.Error()))
+	factory := l.svcCtx.PostCreateMsgFactory
+	if factory == nil {
+		l.Errorw("PostCreateMsgFactory is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	if l.svcCtx.MQProducer != nil {
-		body, marshalErr := json.Marshal(map[string]int64{"post_id": id, "author_id": in.AuthorId, "created_at": time.Now().UnixMilli()})
-		if marshalErr != nil {
-			l.Errorw("marshal post created event failed", logx.Field("err", marshalErr.Error()))
-			return nil, errx.NewWithCode(errx.SystemError)
+	gid := factory.NewGID()
+	msg := factory.NewPostCreateMsg(gid)
+	createdAt := time.Now().UnixMilli()
+	fanoutAction := l.svcCtx.Config.FeedBusiServer + "/feed.FeedService/FanoutPost"
+	queryPrepared := l.svcCtx.Config.ContentBusiServer + "/content.ContentService/QueryPrepared"
+	msg.Add(fanoutAction, &feedpb.FanoutPostReq{AuthorId: in.AuthorId, PostId: id, CreatedAt: createdAt})
+	if err = msg.DoAndSubmitDB(queryPrepared, func(tx *sql.Tx) error {
+		if err := l.svcCtx.PostModel.InsertPostTx(l.ctx, tx, post); err != nil {
+			return err
 		}
-		if _, sendErr := l.svcCtx.MQProducer.SendSyncWithTag(l.ctx, mqx.TopicPostCreate, mqx.TagDefault, body); sendErr != nil {
-			l.Errorw("publish post created event failed", logx.Field("err", sendErr.Error()))
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
+		return l.svcCtx.PostTagModel.BatchInsertTagsByPostIdTx(l.ctx, tx, id, validTags, tagIds)
+	}); err != nil {
+		l.Errorw("DTM post creation message failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.CreatePostResp{

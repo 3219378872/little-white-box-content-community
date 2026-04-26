@@ -14,6 +14,8 @@ import (
 )
 
 type (
+	FanoutPostReq        = pb.FanoutPostReq
+	FanoutPostResp       = pb.FanoutPostResp
 	FeedItem             = pb.FeedItem
 	GetFollowFeedReq     = pb.GetFollowFeedReq
 	GetFollowFeedResp    = pb.GetFollowFeedResp
@@ -26,6 +28,7 @@ type (
 		GetFollowFeed(ctx context.Context, in *GetFollowFeedReq, opts ...grpc.CallOption) (*GetFollowFeedResp, error)
 		GetRecommendFeed(ctx context.Context, in *GetRecommendFeedReq, opts ...grpc.CallOption) (*GetRecommendFeedResp, error)
 		PushToInbox(ctx context.Context, in *PushToInboxReq, opts ...grpc.CallOption) (*PushToInboxResp, error)
+		FanoutPost(ctx context.Context, in *FanoutPostReq, opts ...grpc.CallOption) (*FanoutPostResp, error)
 	}
 
 	defaultFeedService struct {
@@ -52,4 +55,9 @@ func (m *defaultFeedService) GetRecommendFeed(ctx context.Context, in *GetRecomm
 func (m *defaultFeedService) PushToInbox(ctx context.Context, in *PushToInboxReq, opts ...grpc.CallOption) (*PushToInboxResp, error) {
 	client := pb.NewFeedServiceClient(m.cli.Conn())
 	return client.PushToInbox(ctx, in, opts...)
+}
+
+func (m *defaultFeedService) FanoutPost(ctx context.Context, in *FanoutPostReq, opts ...grpc.CallOption) (*FanoutPostResp, error) {
+	client := pb.NewFeedServiceClient(m.cli.Conn())
+	return client.FanoutPost(ctx, in, opts...)
 }

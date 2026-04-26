@@ -9,6 +9,7 @@ import (
 	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type LikeLogic struct {
@@ -29,10 +30,36 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if in.UserId <= 0 || in.TargetId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if l.svcCtx.Conn == nil || l.svcCtx.LikeRecordModel == nil || l.svcCtx.ActionCountModel == nil {
+		l.Errorw("like dependencies are not configured")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 
-	result, err := l.svcCtx.LikeRecordModel.UpsertLikeStatus(l.ctx, in.UserId, in.TargetId, int64(in.TargetType), model.StatusActive)
+	var likeRecordID int64
+	err := l.svcCtx.Conn.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
+		txConn := sqlx.NewSqlConnFromSession(session)
+		result, id, err := l.svcCtx.LikeRecordModel.UpsertLikeStatusTx(ctx, txConn, in.UserId, in.TargetId, int64(in.TargetType), model.StatusActive)
+		if err != nil {
+			return err
+		}
+		if result == nil {
+			return errx.NewWithCode(errx.SystemError)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return errx.NewWithCode(errx.AlreadyLiked)
+		}
+		likeRecordID = id
+		return l.svcCtx.ActionCountModel.IncrLikeCountTx(ctx, txConn, in.TargetId, int64(in.TargetType))
+	})
 	if err != nil {
-		l.Errorw("UpsertLikeStatus failed",
+		if errx.Is(err, errx.AlreadyLiked) {
+			return nil, err
+		}
+		l.Errorw("local like transaction failed",
 			logx.Field("userId", in.UserId),
 			logx.Field("targetId", in.TargetId),
 			logx.Field("err", err.Error()),
@@ -40,22 +67,9 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	// RowsAffected: 1 = inserted (new like), 2 = updated (was inactive)
-	// Only increment count when the status actually changed to active
-	if rowsAffected > 0 {
-		if l.svcCtx.ActionCountModel != nil {
-			if err := l.svcCtx.ActionCountModel.IncrLikeCount(l.ctx, in.TargetId, int64(in.TargetType)); err != nil {
-				l.Errorw("IncrLikeCount failed",
-					logx.Field("targetId", in.TargetId),
-					logx.Field("err", err.Error()),
-				)
-				// Do not fail the request; count inconsistency can be repaired
-			}
-		}
-	} else {
-		// Already active, return already liked
-		return nil, errx.NewWithCode(errx.AlreadyLiked)
+	if err := l.svcCtx.LikeRecordModel.InvalidateLikeRecordCache(l.ctx, likeRecordID, in.UserId, in.TargetId, int64(in.TargetType)); err != nil {
+		l.Errorw("InvalidateLikeRecordCache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.LikeResp{}, nil

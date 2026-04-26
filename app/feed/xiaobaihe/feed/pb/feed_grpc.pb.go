@@ -22,6 +22,7 @@ const (
 	FeedService_GetFollowFeed_FullMethodName    = "/feed.FeedService/GetFollowFeed"
 	FeedService_GetRecommendFeed_FullMethodName = "/feed.FeedService/GetRecommendFeed"
 	FeedService_PushToInbox_FullMethodName      = "/feed.FeedService/PushToInbox"
+	FeedService_FanoutPost_FullMethodName       = "/feed.FeedService/FanoutPost"
 )
 
 // FeedServiceClient is the client API for FeedService service.
@@ -31,6 +32,7 @@ type FeedServiceClient interface {
 	GetFollowFeed(ctx context.Context, in *GetFollowFeedReq, opts ...grpc.CallOption) (*GetFollowFeedResp, error)
 	GetRecommendFeed(ctx context.Context, in *GetRecommendFeedReq, opts ...grpc.CallOption) (*GetRecommendFeedResp, error)
 	PushToInbox(ctx context.Context, in *PushToInboxReq, opts ...grpc.CallOption) (*PushToInboxResp, error)
+	FanoutPost(ctx context.Context, in *FanoutPostReq, opts ...grpc.CallOption) (*FanoutPostResp, error)
 }
 
 type feedServiceClient struct {
@@ -71,6 +73,16 @@ func (c *feedServiceClient) PushToInbox(ctx context.Context, in *PushToInboxReq,
 	return out, nil
 }
 
+func (c *feedServiceClient) FanoutPost(ctx context.Context, in *FanoutPostReq, opts ...grpc.CallOption) (*FanoutPostResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FanoutPostResp)
+	err := c.cc.Invoke(ctx, FeedService_FanoutPost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FeedServiceServer is the server API for FeedService service.
 // All implementations must embed UnimplementedFeedServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type FeedServiceServer interface {
 	GetFollowFeed(context.Context, *GetFollowFeedReq) (*GetFollowFeedResp, error)
 	GetRecommendFeed(context.Context, *GetRecommendFeedReq) (*GetRecommendFeedResp, error)
 	PushToInbox(context.Context, *PushToInboxReq) (*PushToInboxResp, error)
+	FanoutPost(context.Context, *FanoutPostReq) (*FanoutPostResp, error)
 	mustEmbedUnimplementedFeedServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedFeedServiceServer) GetRecommendFeed(context.Context, *GetReco
 }
 func (UnimplementedFeedServiceServer) PushToInbox(context.Context, *PushToInboxReq) (*PushToInboxResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method PushToInbox not implemented")
+}
+func (UnimplementedFeedServiceServer) FanoutPost(context.Context, *FanoutPostReq) (*FanoutPostResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method FanoutPost not implemented")
 }
 func (UnimplementedFeedServiceServer) mustEmbedUnimplementedFeedServiceServer() {}
 func (UnimplementedFeedServiceServer) testEmbeddedByValue()                     {}
@@ -172,6 +188,24 @@ func _FeedService_PushToInbox_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FeedService_FanoutPost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FanoutPostReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeedServiceServer).FanoutPost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeedService_FanoutPost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeedServiceServer).FanoutPost(ctx, req.(*FanoutPostReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FeedService_ServiceDesc is the grpc.ServiceDesc for FeedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var FeedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushToInbox",
 			Handler:    _FeedService_PushToInbox_Handler,
+		},
+		{
+			MethodName: "FanoutPost",
+			Handler:    _FeedService_FanoutPost_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

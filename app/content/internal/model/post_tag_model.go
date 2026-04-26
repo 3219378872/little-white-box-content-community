@@ -23,6 +23,7 @@ type (
 		DeleteByPostId(ctx context.Context, postId int64) error
 		TransactReplaceTagsByPostId(ctx context.Context, conn sqlx.SqlConn, postId int64, tags []string, ids []int64) error
 		BatchInsertTagsByPostId(ctx context.Context, conn sqlx.SqlConn, postId int64, tags []string, ids []int64) error
+		BatchInsertTagsByPostIdTx(ctx context.Context, tx *sql.Tx, postId int64, tags []string, ids []int64) error
 	}
 
 	customPostTagModel struct {
@@ -132,6 +133,27 @@ func (m *customPostTagModel) BatchInsertTagsByPostId(ctx context.Context, conn s
 		}
 		return nil
 	})
+}
+
+func (m *customPostTagModel) BatchInsertTagsByPostIdTx(ctx context.Context, tx *sql.Tx, postId int64, tags []string, ids []int64) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	if tx == nil {
+		return fmt.Errorf("nil sql transaction")
+	}
+	if len(tags) != len(ids) {
+		return fmt.Errorf("tags and ids length mismatch")
+	}
+	for i, tag := range tags {
+		if _, err := tx.ExecContext(ctx,
+			fmt.Sprintf("INSERT INTO %s (`id`,`post_id`,`tag_name`) VALUES (?,?,?)", m.table),
+			ids[i], postId, tag,
+		); err != nil {
+			return fmt.Errorf("插入标签失败 tag=%s: %w", tag, err)
+		}
+	}
+	return nil
 }
 
 // TransactReplaceTagsByPostId 在事务中原子替换帖子标签（先删再插），避免部分失败导致数据不一致

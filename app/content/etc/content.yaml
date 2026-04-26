@@ -10,6 +10,9 @@ Redis:
   Type: node
   Key: content
 DataSource: "${DB_CONTENT}"
+DtmServer: "${DTM_GRPC_SERVER}"
+ContentBusiServer: "${CONTENT_BUSI_SERVER}"
+FeedBusiServer: "${FEED_BUSI_SERVER}"
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "content-producer-group"
