@@ -31,8 +31,9 @@ CREATE TABLE IF NOT EXISTS `message` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     KEY `idx_conversation_id` (`conversation_id`),
-    KEY `idx_sender_id` (`sender_id`),
-    KEY `idx_receiver_id` (`receiver_id`),
+    KEY `idx_sender_receiver_id` (`sender_id`, `receiver_id`, `id`),
+    KEY `idx_receiver_sender_id` (`receiver_id`, `sender_id`, `id`),
+    KEY `idx_receiver_status_sender` (`receiver_id`, `status`, `sender_id`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='私信表';
 
@@ -50,6 +51,8 @@ CREATE TABLE IF NOT EXISTS `notification` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
+    KEY `idx_user_type_id` (`user_id`, `type`, `id`),
+    KEY `idx_user_status` (`user_id`, `status`),
     KEY `idx_type` (`type`),
     KEY `idx_status` (`status`),
     KEY `idx_created_at` (`created_at`)
