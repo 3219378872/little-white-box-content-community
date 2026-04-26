@@ -1,7 +1,11 @@
 package logic
 
-import contentpb "esx/app/content/pb/xiaobaihe/content/pb"
+import (
+	"testing"
 
-func requireQueryPreparedContract() {
+	contentpb "esx/app/content/pb/xiaobaihe/content/pb"
+)
+
+func TestContentDTMContractTypesCompile(t *testing.T) {
 	var _ = (*contentpb.QueryPreparedReq)(nil)
 }

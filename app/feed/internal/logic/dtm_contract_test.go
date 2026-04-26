@@ -1,7 +1,11 @@
 package logic
 
-import feedpb "esx/app/feed/xiaobaihe/feed/pb"
+import (
+	"testing"
 
-func requireFanoutPostContract() {
+	feedpb "esx/app/feed/xiaobaihe/feed/pb"
+)
+
+func TestFeedDTMContractTypesCompile(t *testing.T) {
 	var _ = (*feedpb.FanoutPostReq)(nil)
 }
