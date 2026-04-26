@@ -3,11 +3,13 @@ package mqs
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"esx/app/message/internal/model"
 	"esx/app/message/internal/svc"
 
+	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,9 +18,15 @@ type fakeResult struct{ id int64 }
 func (r fakeResult) LastInsertId() (int64, error) { return r.id, nil }
 func (r fakeResult) RowsAffected() (int64, error) { return 1, nil }
 
-type fakeNotificationModel struct{ inserted []*model.Notification }
+type fakeNotificationModel struct {
+	inserted  []*model.Notification
+	insertErr error
+}
 
 func (m *fakeNotificationModel) Insert(ctx context.Context, data *model.Notification) (sql.Result, error) {
+	if m.insertErr != nil {
+		return nil, m.insertErr
+	}
 	m.inserted = append(m.inserted, data)
 	return fakeResult{id: 1}, nil
 }
@@ -80,10 +88,43 @@ func TestRenderNotificationContentSupportsCommentAndFollow(t *testing.T) {
 	require.Equal(t, "小蓝 关注了你", followContent)
 }
 
-func TestMessageConsumerRejectsMalformedPayload(t *testing.T) {
+func TestMessageConsumerClassifiesMalformedPayloadAsPermanent(t *testing.T) {
 	consumer := NewMessageConsumer(&svc.ServiceContext{})
 
 	err := consumer.Consume(context.Background(), []byte(`not-json`))
 
 	require.Error(t, err)
+	require.True(t, IsPermanentEventError(err))
+}
+
+func TestMessageConsumerClassifiesUnsupportedActionAsPermanent(t *testing.T) {
+	consumer := NewMessageConsumer(&svc.ServiceContext{})
+
+	err := consumer.Consume(context.Background(), []byte(`{"target_user_id":9,"action_type":99}`))
+
+	require.Error(t, err)
+	require.True(t, IsPermanentEventError(err))
+}
+
+func TestConsumeResultForErrorAcknowledgesPermanentError(t *testing.T) {
+	result := consumeResultForError(context.Background(), "msg-1", newPermanentEventError("bad payload"))
+
+	require.Equal(t, consumer.ConsumeSuccess, result)
+}
+
+func TestConsumeResultForErrorRetriesTransientError(t *testing.T) {
+	result := consumeResultForError(context.Background(), "msg-1", errors.New("db offline"))
+
+	require.Equal(t, consumer.ConsumeRetryLater, result)
+}
+
+func TestMessageConsumerReturnsTransientInsertError(t *testing.T) {
+	insertErr := errors.New("db offline")
+	notifications := &fakeNotificationModel{insertErr: insertErr}
+	consumer := NewMessageConsumer(&svc.ServiceContext{NotificationModel: notifications})
+
+	err := consumer.Consume(context.Background(), []byte(`{"target_user_id":9,"action_type":1,"user_id":7,"username":"小白","target_id":99}`))
+
+	require.ErrorIs(t, err, insertErr)
+	require.False(t, IsPermanentEventError(err))
 }

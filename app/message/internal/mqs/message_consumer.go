@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
-	"errx"
 	"esx/app/message/internal/model"
 	"esx/app/message/internal/svc"
 	"mqx"
@@ -23,6 +23,25 @@ const (
 	NotificationTypeFollow  = int64(3)
 	NotificationTypeSystem  = int64(4)
 )
+
+var ErrPermanentEvent = errors.New("permanent message event error")
+
+func newPermanentEventError(message string) error {
+	return fmt.Errorf("%w: %s", ErrPermanentEvent, message)
+}
+
+func IsPermanentEventError(err error) bool {
+	return errors.Is(err, ErrPermanentEvent)
+}
+
+func consumeResultForError(ctx context.Context, msgID string, err error) consumer.ConsumeResult {
+	if IsPermanentEventError(err) {
+		logx.WithContext(ctx).Errorw("skip permanent message notification event", logx.Field("msg_id", msgID), logx.Field("err", err.Error()))
+		return consumer.ConsumeSuccess
+	}
+	logx.WithContext(ctx).Errorw("consume message notification event failed", logx.Field("msg_id", msgID), logx.Field("err", err.Error()))
+	return consumer.ConsumeRetryLater
+}
 
 type UserActionEvent struct {
 	TargetUserID int64  `json:"target_user_id"`
@@ -51,8 +70,7 @@ func NewRocketMQConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	handler := func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 		for _, msg := range msgs {
 			if err := messageConsumer.Consume(ctx, msg.Body); err != nil {
-				logx.WithContext(ctx).Errorw("consume message notification event failed", logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
-				return consumer.ConsumeRetryLater, nil
+				return consumeResultForError(ctx, msg.MsgId, err), nil
 			}
 		}
 		return consumer.ConsumeSuccess, nil
@@ -66,14 +84,20 @@ func NewRocketMQConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 func (c *MessageConsumer) Consume(ctx context.Context, body []byte) error {
 	var event UserActionEvent
 	if err := json.Unmarshal(body, &event); err != nil {
-		return err
+		return fmt.Errorf("%w: unmarshal user action event: %v", ErrPermanentEvent, err)
 	}
-	if event.TargetUserID <= 0 || event.ActionType <= 0 {
-		return errx.NewWithCode(errx.ParamError)
+	if event.TargetUserID <= 0 {
+		return newPermanentEventError("missing target_user_id")
+	}
+	if event.ActionType <= 0 {
+		return newPermanentEventError("missing action_type")
 	}
 	title, content := RenderNotificationContent(event)
+	if title == "" {
+		return newPermanentEventError("unsupported action_type")
+	}
 	if strings.TrimSpace(content) == "" {
-		return errx.NewWithCode(errx.ParamError)
+		return newPermanentEventError("empty notification content")
 	}
 	_, err := c.svcCtx.NotificationModel.Insert(ctx, &model.Notification{
 		UserId:     event.TargetUserID,
