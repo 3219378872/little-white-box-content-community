@@ -449,6 +449,110 @@ func (x *PushToInboxResp) GetPushedCount() int64 {
 	return 0
 }
 
+type FanoutPostReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthorId      int64                  `protobuf:"varint,1,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	PostId        int64                  `protobuf:"varint,2,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FanoutPostReq) Reset() {
+	*x = FanoutPostReq{}
+	mi := &file_proto_feed_feed_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FanoutPostReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FanoutPostReq) ProtoMessage() {}
+
+func (x *FanoutPostReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_feed_feed_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FanoutPostReq.ProtoReflect.Descriptor instead.
+func (*FanoutPostReq) Descriptor() ([]byte, []int) {
+	return file_proto_feed_feed_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FanoutPostReq) GetAuthorId() int64 {
+	if x != nil {
+		return x.AuthorId
+	}
+	return 0
+}
+
+func (x *FanoutPostReq) GetPostId() int64 {
+	if x != nil {
+		return x.PostId
+	}
+	return 0
+}
+
+func (x *FanoutPostReq) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type FanoutPostResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PushedCount   int64                  `protobuf:"varint,1,opt,name=pushed_count,json=pushedCount,proto3" json:"pushed_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FanoutPostResp) Reset() {
+	*x = FanoutPostResp{}
+	mi := &file_proto_feed_feed_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FanoutPostResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FanoutPostResp) ProtoMessage() {}
+
+func (x *FanoutPostResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_feed_feed_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FanoutPostResp.ProtoReflect.Descriptor instead.
+func (*FanoutPostResp) Descriptor() ([]byte, []int) {
+	return file_proto_feed_feed_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *FanoutPostResp) GetPushedCount() int64 {
+	if x != nil {
+		return x.PushedCount
+	}
+	return 0
+}
+
 var File_proto_feed_feed_proto protoreflect.FileDescriptor
 
 const file_proto_feed_feed_proto_rawDesc = "" +
@@ -484,11 +588,20 @@ const file_proto_feed_feed_proto_rawDesc = "" +
 	"created_at\x18\x03 \x01(\x03R\tcreatedAt\x12!\n" +
 	"\ffollower_ids\x18\x04 \x03(\x03R\vfollowerIds\"4\n" +
 	"\x0fPushToInboxResp\x12!\n" +
-	"\fpushed_count\x18\x01 \x01(\x03R\vpushedCount2\xd6\x01\n" +
+	"\fpushed_count\x18\x01 \x01(\x03R\vpushedCount\"d\n" +
+	"\rFanoutPostReq\x12\x1b\n" +
+	"\tauthor_id\x18\x01 \x01(\x03R\bauthorId\x12\x17\n" +
+	"\apost_id\x18\x02 \x01(\x03R\x06postId\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\x03R\tcreatedAt\"3\n" +
+	"\x0eFanoutPostResp\x12!\n" +
+	"\fpushed_count\x18\x01 \x01(\x03R\vpushedCount2\x8f\x02\n" +
 	"\vFeedService\x12@\n" +
 	"\rGetFollowFeed\x12\x16.feed.GetFollowFeedReq\x1a\x17.feed.GetFollowFeedResp\x12I\n" +
 	"\x10GetRecommendFeed\x12\x19.feed.GetRecommendFeedReq\x1a\x1a.feed.GetRecommendFeedResp\x12:\n" +
-	"\vPushToInbox\x12\x14.feed.PushToInboxReq\x1a\x15.feed.PushToInboxRespB\x13Z\x11xiaobaihe/feed/pbb\x06proto3"
+	"\vPushToInbox\x12\x14.feed.PushToInboxReq\x1a\x15.feed.PushToInboxResp\x127\n" +
+	"\n" +
+	"FanoutPost\x12\x13.feed.FanoutPostReq\x1a\x14.feed.FanoutPostRespB\x13Z\x11xiaobaihe/feed/pbb\x06proto3"
 
 var (
 	file_proto_feed_feed_proto_rawDescOnce sync.Once
@@ -502,7 +615,7 @@ func file_proto_feed_feed_proto_rawDescGZIP() []byte {
 	return file_proto_feed_feed_proto_rawDescData
 }
 
-var file_proto_feed_feed_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_proto_feed_feed_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_feed_feed_proto_goTypes = []any{
 	(*FeedItem)(nil),             // 0: feed.FeedItem
 	(*GetFollowFeedReq)(nil),     // 1: feed.GetFollowFeedReq
@@ -511,6 +624,8 @@ var file_proto_feed_feed_proto_goTypes = []any{
 	(*GetRecommendFeedResp)(nil), // 4: feed.GetRecommendFeedResp
 	(*PushToInboxReq)(nil),       // 5: feed.PushToInboxReq
 	(*PushToInboxResp)(nil),      // 6: feed.PushToInboxResp
+	(*FanoutPostReq)(nil),        // 7: feed.FanoutPostReq
+	(*FanoutPostResp)(nil),       // 8: feed.FanoutPostResp
 }
 var file_proto_feed_feed_proto_depIdxs = []int32{
 	0, // 0: feed.GetFollowFeedResp.items:type_name -> feed.FeedItem
@@ -518,11 +633,13 @@ var file_proto_feed_feed_proto_depIdxs = []int32{
 	1, // 2: feed.FeedService.GetFollowFeed:input_type -> feed.GetFollowFeedReq
 	3, // 3: feed.FeedService.GetRecommendFeed:input_type -> feed.GetRecommendFeedReq
 	5, // 4: feed.FeedService.PushToInbox:input_type -> feed.PushToInboxReq
-	2, // 5: feed.FeedService.GetFollowFeed:output_type -> feed.GetFollowFeedResp
-	4, // 6: feed.FeedService.GetRecommendFeed:output_type -> feed.GetRecommendFeedResp
-	6, // 7: feed.FeedService.PushToInbox:output_type -> feed.PushToInboxResp
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
+	7, // 5: feed.FeedService.FanoutPost:input_type -> feed.FanoutPostReq
+	2, // 6: feed.FeedService.GetFollowFeed:output_type -> feed.GetFollowFeedResp
+	4, // 7: feed.FeedService.GetRecommendFeed:output_type -> feed.GetRecommendFeedResp
+	6, // 8: feed.FeedService.PushToInbox:output_type -> feed.PushToInboxResp
+	8, // 9: feed.FeedService.FanoutPost:output_type -> feed.FanoutPostResp
+	6, // [6:10] is the sub-list for method output_type
+	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -539,7 +656,7 @@ func file_proto_feed_feed_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_feed_feed_proto_rawDesc), len(file_proto_feed_feed_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

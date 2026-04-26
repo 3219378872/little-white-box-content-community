@@ -37,3 +37,8 @@ func (s *FeedServiceServer) PushToInbox(ctx context.Context, in *pb.PushToInboxR
 	l := logic.NewPushToInboxLogic(ctx, s.svcCtx)
 	return l.PushToInbox(in)
 }
+
+func (s *FeedServiceServer) FanoutPost(ctx context.Context, in *pb.FanoutPostReq) (*pb.FanoutPostResp, error) {
+	l := logic.NewFanoutPostLogic(ctx, s.svcCtx)
+	return l.FanoutPost(in)
+}

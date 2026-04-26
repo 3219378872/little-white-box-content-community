@@ -94,3 +94,9 @@ func (s *ContentServiceServer) GetPostsByTag(ctx context.Context, in *pb.GetPost
 	l := logic.NewGetPostsByTagLogic(ctx, s.svcCtx)
 	return l.GetPostsByTag(in)
 }
+
+// DTM reliable message query-prepared checkback
+func (s *ContentServiceServer) QueryPrepared(ctx context.Context, in *pb.QueryPreparedReq) (*pb.QueryPreparedResp, error) {
+	l := logic.NewQueryPreparedLogic(ctx, s.svcCtx)
+	return l.QueryPrepared(in)
+}
