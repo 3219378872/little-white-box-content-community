@@ -23,5 +23,8 @@ ContentRpc:
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "feed-service-group"
+  Topic: 'post-create'
+  Tag: 'default'
+  ConsumeOrder: false
 BigVThreshold: 10000
 FanoutBatchSize: 500
