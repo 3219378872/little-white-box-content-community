@@ -7,9 +7,9 @@ package server
 import (
 	"context"
 
-	"esx/app/feed/internal/logic"
-	"esx/app/feed/internal/svc"
-	"esx/app/feed/xiaobaihe/feed/pb"
+	"esx/app/feed/rpc/internal/logic"
+	"esx/app/feed/rpc/internal/svc"
+	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 )
 
 type FeedServiceServer struct {

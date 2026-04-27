@@ -3,7 +3,7 @@ package logic
 import (
 	"testing"
 
-	feedpb "esx/app/feed/xiaobaihe/feed/pb"
+	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 )
 
 func TestFeedDTMContractTypesCompile(t *testing.T) {

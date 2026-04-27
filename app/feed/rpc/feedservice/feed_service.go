@@ -6,22 +6,23 @@ package feedservice
 
 import (
 	"context"
-	pb2 "esx/app/feed/rpc/xiaobaihe/feed/pb"
+
+	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	FanoutPostReq        = pb2.FanoutPostReq
-	FanoutPostResp       = pb2.FanoutPostResp
-	FeedItem             = pb2.FeedItem
-	GetFollowFeedReq     = pb2.GetFollowFeedReq
-	GetFollowFeedResp    = pb2.GetFollowFeedResp
-	GetRecommendFeedReq  = pb2.GetRecommendFeedReq
-	GetRecommendFeedResp = pb2.GetRecommendFeedResp
-	PushToInboxReq       = pb2.PushToInboxReq
-	PushToInboxResp      = pb2.PushToInboxResp
+	FanoutPostReq        = pb.FanoutPostReq
+	FanoutPostResp       = pb.FanoutPostResp
+	FeedItem             = pb.FeedItem
+	GetFollowFeedReq     = pb.GetFollowFeedReq
+	GetFollowFeedResp    = pb.GetFollowFeedResp
+	GetRecommendFeedReq  = pb.GetRecommendFeedReq
+	GetRecommendFeedResp = pb.GetRecommendFeedResp
+	PushToInboxReq       = pb.PushToInboxReq
+	PushToInboxResp      = pb.PushToInboxResp
 
 	FeedService interface {
 		GetFollowFeed(ctx context.Context, in *GetFollowFeedReq, opts ...grpc.CallOption) (*GetFollowFeedResp, error)
@@ -42,21 +43,21 @@ func NewFeedService(cli zrpc.Client) FeedService {
 }
 
 func (m *defaultFeedService) GetFollowFeed(ctx context.Context, in *GetFollowFeedReq, opts ...grpc.CallOption) (*GetFollowFeedResp, error) {
-	client := pb2.NewFeedServiceClient(m.cli.Conn())
+	client := pb.NewFeedServiceClient(m.cli.Conn())
 	return client.GetFollowFeed(ctx, in, opts...)
 }
 
 func (m *defaultFeedService) GetRecommendFeed(ctx context.Context, in *GetRecommendFeedReq, opts ...grpc.CallOption) (*GetRecommendFeedResp, error) {
-	client := pb2.NewFeedServiceClient(m.cli.Conn())
+	client := pb.NewFeedServiceClient(m.cli.Conn())
 	return client.GetRecommendFeed(ctx, in, opts...)
 }
 
 func (m *defaultFeedService) PushToInbox(ctx context.Context, in *PushToInboxReq, opts ...grpc.CallOption) (*PushToInboxResp, error) {
-	client := pb2.NewFeedServiceClient(m.cli.Conn())
+	client := pb.NewFeedServiceClient(m.cli.Conn())
 	return client.PushToInbox(ctx, in, opts...)
 }
 
 func (m *defaultFeedService) FanoutPost(ctx context.Context, in *FanoutPostReq, opts ...grpc.CallOption) (*FanoutPostResp, error) {
-	client := pb2.NewFeedServiceClient(m.cli.Conn())
+	client := pb.NewFeedServiceClient(m.cli.Conn())
 	return client.FanoutPost(ctx, in, opts...)
 }
