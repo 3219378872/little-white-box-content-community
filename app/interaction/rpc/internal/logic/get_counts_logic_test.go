@@ -2,11 +2,10 @@ package logic
 
 import (
 	"context"
+	model2 "esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
-
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -69,7 +68,7 @@ func TestGetCountsLogic_GetCounts_RedisMiss(t *testing.T) {
 	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "3").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "1").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model2.CacheLongTTL).Return(nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		ActionCountModel: countModel,
@@ -78,7 +77,7 @@ func TestGetCountsLogic_GetCounts_RedisMiss(t *testing.T) {
 
 	countModel.
 		On("FindOneByTarget", mock.Anything, int64(100), int64(1)).
-		Return(&model.ActionCount{Id: 1, TargetId: 100, TargetType: 1, LikeCount: 7, FavoriteCount: 3, CommentCount: 1}, nil).
+		Return(&model2.ActionCount{Id: 1, TargetId: 100, TargetType: 1, LikeCount: 7, FavoriteCount: 3, CommentCount: 1}, nil).
 		Once()
 
 	logic := NewGetCountsLogic(context.Background(), svcCtx)
@@ -99,7 +98,7 @@ func TestGetCountsLogic_GetCounts_NotFound(t *testing.T) {
 	redisStore.On("Hset", "interaction:action_count:999:1", "favorite_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:999:1", "comment_count", "0").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:999:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "interaction:action_count:999:1", model.CacheShortTTL).Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:999:1", model2.CacheShortTTL).Return(nil).Once()
 
 	svcCtx := &svc.ServiceContext{
 		ActionCountModel: countModel,
@@ -108,7 +107,7 @@ func TestGetCountsLogic_GetCounts_NotFound(t *testing.T) {
 
 	countModel.
 		On("FindOneByTarget", mock.Anything, int64(999), int64(1)).
-		Return((*model.ActionCount)(nil), model.ErrNotFound).
+		Return((*model2.ActionCount)(nil), model2.ErrNotFound).
 		Once()
 
 	logic := NewGetCountsLogic(context.Background(), svcCtx)
@@ -130,7 +129,7 @@ func TestGetCountsLogic_ReadCountsFromCache_NoStore(t *testing.T) {
 
 func TestGetCountsLogic_WriteCountsToCache_NoStore(t *testing.T) {
 	logic := NewGetCountsLogic(context.Background(), &svc.ServiceContext{})
-	logic.writeCountsToCache("interaction:action_count:100:1", &model.ActionCount{TargetId: 100, TargetType: 1}, model.CacheLongTTL)
+	logic.writeCountsToCache("interaction:action_count:100:1", &model2.ActionCount{TargetId: 100, TargetType: 1}, model2.CacheLongTTL)
 }
 
 func TestGetCountsLogic_WriteCountsToCache_HsetError(t *testing.T) {
@@ -141,10 +140,10 @@ func TestGetCountsLogic_WriteCountsToCache_HsetError(t *testing.T) {
 	redisStore.On("Hset", "interaction:action_count:100:1", "favorite_count", "3").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:100:1", "comment_count", "1").Return(nil).Once()
 	redisStore.On("Hset", "interaction:action_count:100:1", "share_count", "0").Return(nil).Once()
-	redisStore.On("Expire", "interaction:action_count:100:1", model.CacheLongTTL).Return(nil).Once()
+	redisStore.On("Expire", "interaction:action_count:100:1", model2.CacheLongTTL).Return(nil).Once()
 
 	logic := NewGetCountsLogic(context.Background(), svcCtx)
-	logic.writeCountsToCache("interaction:action_count:100:1", &model.ActionCount{TargetId: 100, TargetType: 1, LikeCount: 5, FavoriteCount: 3, CommentCount: 1}, model.CacheLongTTL)
+	logic.writeCountsToCache("interaction:action_count:100:1", &model2.ActionCount{TargetId: 100, TargetType: 1, LikeCount: 5, FavoriteCount: 3, CommentCount: 1}, model2.CacheLongTTL)
 	redisStore.AssertExpectations(t)
 }
 

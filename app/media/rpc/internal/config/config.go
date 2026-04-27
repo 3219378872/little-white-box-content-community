@@ -1,7 +1,7 @@
 package config
 
 import (
-	"esx/app/media/internal/storage"
+	"esx/app/media/rpc/internal/storage"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"

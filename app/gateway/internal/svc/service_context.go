@@ -4,9 +4,9 @@
 package svc
 
 import (
-	"esx/app/content/contentservice"
-	"esx/app/interaction/interactionservice"
-	"esx/app/media/mediaservice"
+	"esx/app/content/rpc/contentservice"
+	"esx/app/interaction/rpc/interactionservice"
+	"esx/app/media/rpc/mediaservice"
 	"gateway/internal/config"
 	"interceptor"
 	"jwtx"

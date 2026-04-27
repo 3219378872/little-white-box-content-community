@@ -2,12 +2,12 @@ package logic
 
 import (
 	"context"
+	model2 "esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
 
 	"errx"
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,10 +24,10 @@ func TestUnfavoriteLogic_Unfavorite_Success(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
 		Once()
 	favoriteModel.
-		On("UpdateStatusById", mock.Anything, int64(1), int64(model.StatusActive), int64(model.StatusInactive)).
+		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 	countModel.
@@ -51,7 +51,7 @@ func TestUnfavoriteLogic_Unfavorite_NotFavorited(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return((*model.Favorite)(nil), model.ErrNotFound).
+		Return((*model2.Favorite)(nil), model2.ErrNotFound).
 		Once()
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
@@ -69,7 +69,7 @@ func TestUnfavoriteLogic_Unfavorite_AlreadyUnfavorited(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusInactive}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model2.StatusInactive}, nil).
 		Once()
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
@@ -87,10 +87,10 @@ func TestUnfavoriteLogic_Unfavorite_NilActionCountModel(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
 		Once()
 	favoriteModel.
-		On("UpdateStatusById", mock.Anything, int64(1), int64(model.StatusActive), int64(model.StatusInactive)).
+		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 
@@ -111,10 +111,10 @@ func TestUnfavoriteLogic_Unfavorite_DecrCountError(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
 		Once()
 	favoriteModel.
-		On("UpdateStatusById", mock.Anything, int64(1), int64(model.StatusActive), int64(model.StatusInactive)).
+		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 	countModel.
@@ -138,10 +138,10 @@ func TestUnfavoriteLogic_Unfavorite_UpdateStatusError(t *testing.T) {
 
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: 1}, nil).
 		Once()
 	favoriteModel.
-		On("UpdateStatusById", mock.Anything, int64(1), int64(model.StatusActive), int64(model.StatusInactive)).
+		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(nil, assert.AnError).
 		Once()
 

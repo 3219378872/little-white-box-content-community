@@ -7,7 +7,7 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	feedpb "esx/app/feed/xiaobaihe/feed/pb"
+	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"strings"
 	"time"
 	"util"

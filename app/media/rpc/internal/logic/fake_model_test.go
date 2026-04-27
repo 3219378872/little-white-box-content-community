@@ -3,8 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
-
-	"esx/app/media/internal/model"
+	"esx/app/media/rpc/internal/model"
 )
 
 // fakeResult 为测试提供可控的 sql.Result

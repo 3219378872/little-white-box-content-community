@@ -3,9 +3,9 @@ package mqs
 import (
 	"context"
 	"encoding/json"
+	"esx/app/media/rpc/internal/svc"
 	"fmt"
 
-	"esx/app/media/internal/svc"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"

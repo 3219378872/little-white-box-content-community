@@ -7,12 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"esx/app/content/contentservice"
-	contentpb "esx/app/content/pb/xiaobaihe/content/pb"
+	"esx/app/content/rpc/contentservice"
+	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"gateway/internal/config"
 	"gateway/internal/svc"
-	"google.golang.org/grpc"
 	"jwtx"
+
+	"google.golang.org/grpc"
 )
 
 type fakeContentService struct {

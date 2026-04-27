@@ -2,11 +2,10 @@ package logic
 
 import (
 	"database/sql"
+	model2 "esx/app/message/rpc/internal/model"
+	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"strings"
 	"time"
-
-	"esx/app/message/internal/model"
-	"esx/app/message/xiaobaihe/message/pb"
 )
 
 const (
@@ -54,7 +53,7 @@ func nullableString(value string) sql.NullString {
 	return sql.NullString{String: value, Valid: value != ""}
 }
 
-func toNotificationInfo(row *model.Notification) *pb.NotificationInfo {
+func toNotificationInfo(row *model2.Notification) *pb.NotificationInfo {
 	return &pb.NotificationInfo{
 		Id:        row.Id,
 		UserId:    row.UserId,
@@ -67,7 +66,7 @@ func toNotificationInfo(row *model.Notification) *pb.NotificationInfo {
 	}
 }
 
-func toMessageInfo(row *model.Message) *pb.MessageInfo {
+func toMessageInfo(row *model2.Message) *pb.MessageInfo {
 	return &pb.MessageInfo{
 		Id:             row.Id,
 		ConversationId: row.ConversationId,
@@ -80,7 +79,7 @@ func toMessageInfo(row *model.Message) *pb.MessageInfo {
 	}
 }
 
-func toConversationInfo(row *model.Conversation) *pb.ConversationInfo {
+func toConversationInfo(row *model2.Conversation) *pb.ConversationInfo {
 	return &pb.ConversationInfo{
 		Id:              row.Id,
 		UserId:          row.UserId,

@@ -1,11 +1,11 @@
 package svc
 
 import (
+	"esx/app/media/rpc/internal/config"
+	"esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/storage"
 	"fmt"
 
-	"esx/app/media/internal/config"
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/storage"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"

@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"testing"
-
-	feedpb "esx/app/feed/xiaobaihe/feed/pb"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"

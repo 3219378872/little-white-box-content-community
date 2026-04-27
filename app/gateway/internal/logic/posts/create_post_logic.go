@@ -5,7 +5,7 @@ package posts
 
 import (
 	"context"
-	"esx/app/content/contentservice"
+	"esx/app/content/rpc/contentservice"
 	"jwtx"
 
 	"gateway/internal/svc"

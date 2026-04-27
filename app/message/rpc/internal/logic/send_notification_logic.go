@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"esx/app/message/rpc/internal/model"
+	"esx/app/message/rpc/internal/svc"
+	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"strings"
 
 	"errx"
-	"esx/app/message/internal/model"
-	"esx/app/message/internal/svc"
-	"esx/app/message/xiaobaihe/message/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

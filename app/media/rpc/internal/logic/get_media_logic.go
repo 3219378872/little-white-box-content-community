@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"errx"
-
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
+	model2 "esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -35,7 +34,7 @@ func (l *GetMediaLogic) GetMedia(in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
 
 	m, err := l.svcCtx.MediaModel.FindOne(l.ctx, in.MediaId)
 	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
+		if errors.Is(err, model2.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.MediaNotFound)
 		}
 		l.Errorw("MediaModel.FindOne failed",
@@ -52,7 +51,7 @@ func (l *GetMediaLogic) GetMedia(in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
 }
 
 // toPBMediaInfo 把 DB 模型转 pb.MediaInfo（多处复用）。
-func toPBMediaInfo(m *model.Media) *pb.MediaInfo {
+func toPBMediaInfo(m *model2.Media) *pb.MediaInfo {
 	nullStr := func(s sql.NullString) string {
 		if s.Valid {
 			return s.String

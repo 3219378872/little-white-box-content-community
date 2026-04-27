@@ -4,12 +4,11 @@ package logic
 
 import (
 	"database/sql"
+	"esx/app/interaction/rpc/internal/config"
+	"esx/app/interaction/rpc/internal/svc"
 	"fmt"
 	"os"
 	"testing"
-
-	"esx/app/interaction/internal/config"
-	"esx/app/interaction/internal/svc"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/stores/redis"

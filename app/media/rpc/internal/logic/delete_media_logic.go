@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"errx"
+	"esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"time"
 
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/core/logx"

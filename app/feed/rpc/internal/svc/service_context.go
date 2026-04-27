@@ -3,9 +3,9 @@ package svc
 import (
 	"context"
 
-	"esx/app/content/contentservice"
-	"esx/app/feed/internal/config"
-	"esx/app/feed/internal/model"
+	"esx/app/content/rpc/contentservice"
+	"esx/app/feed/rpc/internal/config"
+	"esx/app/feed/rpc/internal/model"
 	"interceptor"
 	"user/userservice"
 

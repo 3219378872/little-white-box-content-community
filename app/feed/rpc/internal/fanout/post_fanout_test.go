@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"esx/app/feed/internal/model"
-	"esx/app/feed/internal/svc"
+	"esx/app/feed/rpc/internal/model"
+	"esx/app/feed/rpc/internal/svc"
 	"user/userservice"
 
 	"github.com/stretchr/testify/mock"

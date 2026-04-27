@@ -1,8 +1,8 @@
 package svc
 
 import (
-	"esx/app/interaction/internal/config"
-	"esx/app/interaction/internal/model"
+	"esx/app/interaction/rpc/internal/config"
+	model2 "esx/app/interaction/rpc/internal/model"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -13,12 +13,12 @@ import (
 type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
-	FavoriteFolderModel model.FavoriteFolderModel
-	FavoriteModel       model.FavoriteModel
-	LikeRecordModel     model.LikeRecordModel
-	ReportModel         model.ReportModel
-	ViewHistoryModel    model.ViewHistoryModel
-	ActionCountModel    model.ActionCountModel
+	FavoriteFolderModel model2.FavoriteFolderModel
+	FavoriteModel       model2.FavoriteModel
+	LikeRecordModel     model2.LikeRecordModel
+	ReportModel         model2.ReportModel
+	ViewHistoryModel    model2.ViewHistoryModel
+	ActionCountModel    model2.ActionCountModel
 	Redis               *redis.Redis
 	RedisStore          RedisStore
 	SingleFlight        singleflight.Group
@@ -45,12 +45,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:              c,
 		Conn:                conn,
-		FavoriteFolderModel: model.NewFavoriteFolderModel(conn, conf),
-		FavoriteModel:       model.NewFavoriteModel(conn, conf),
-		LikeRecordModel:     model.NewLikeRecordModel(conn, conf),
-		ReportModel:         model.NewReportModel(conn, conf),
-		ViewHistoryModel:    model.NewViewHistoryModel(conn, conf),
-		ActionCountModel:    model.NewActionCountModel(conn),
+		FavoriteFolderModel: model2.NewFavoriteFolderModel(conn, conf),
+		FavoriteModel:       model2.NewFavoriteModel(conn, conf),
+		LikeRecordModel:     model2.NewLikeRecordModel(conn, conf),
+		ReportModel:         model2.NewReportModel(conn, conf),
+		ViewHistoryModel:    model2.NewViewHistoryModel(conn, conf),
+		ActionCountModel:    model2.NewActionCountModel(conn),
 		Redis:               redisClient,
 		RedisStore:          NewRedisStore(redisClient),
 	}

@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
 	"errx"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 	"esx/pkg/validator"
 
 	"github.com/zeromicro/go-zero/core/logx"

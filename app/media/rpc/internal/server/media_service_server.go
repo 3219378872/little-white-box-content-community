@@ -6,15 +6,14 @@ package server
 
 import (
 	"context"
-
-	"esx/app/media/internal/logic"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
+	logic2 "esx/app/media/rpc/internal/logic"
+	"esx/app/media/rpc/internal/svc"
+	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 )
 
 type MediaServiceServer struct {
 	svcCtx *svc.ServiceContext
-	pb.UnimplementedMediaServiceServer
+	pb2.UnimplementedMediaServiceServer
 }
 
 func NewMediaServiceServer(svcCtx *svc.ServiceContext) *MediaServiceServer {
@@ -24,31 +23,31 @@ func NewMediaServiceServer(svcCtx *svc.ServiceContext) *MediaServiceServer {
 }
 
 // 上传图片（client streaming，每包 ≤ 1MB）
-func (s *MediaServiceServer) UploadImage(stream pb.MediaService_UploadImageServer) error {
-	l := logic.NewUploadImageLogic(stream.Context(), s.svcCtx)
+func (s *MediaServiceServer) UploadImage(stream pb2.MediaService_UploadImageServer) error {
+	l := logic2.NewUploadImageLogic(stream.Context(), s.svcCtx)
 	return l.UploadImage(stream)
 }
 
 // 上传视频（client streaming，每包 ≤ 1MB）
-func (s *MediaServiceServer) UploadVideo(stream pb.MediaService_UploadVideoServer) error {
-	l := logic.NewUploadVideoLogic(stream.Context(), s.svcCtx)
+func (s *MediaServiceServer) UploadVideo(stream pb2.MediaService_UploadVideoServer) error {
+	l := logic2.NewUploadVideoLogic(stream.Context(), s.svcCtx)
 	return l.UploadVideo(stream)
 }
 
 // 获取媒体信息
-func (s *MediaServiceServer) GetMedia(ctx context.Context, in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
-	l := logic.NewGetMediaLogic(ctx, s.svcCtx)
+func (s *MediaServiceServer) GetMedia(ctx context.Context, in *pb2.GetMediaReq) (*pb2.GetMediaResp, error) {
+	l := logic2.NewGetMediaLogic(ctx, s.svcCtx)
 	return l.GetMedia(in)
 }
 
 // 删除媒体
-func (s *MediaServiceServer) DeleteMedia(ctx context.Context, in *pb.DeleteMediaReq) (*pb.DeleteMediaResp, error) {
-	l := logic.NewDeleteMediaLogic(ctx, s.svcCtx)
+func (s *MediaServiceServer) DeleteMedia(ctx context.Context, in *pb2.DeleteMediaReq) (*pb2.DeleteMediaResp, error) {
+	l := logic2.NewDeleteMediaLogic(ctx, s.svcCtx)
 	return l.DeleteMedia(in)
 }
 
 // 批量获取媒体信息
-func (s *MediaServiceServer) BatchGetMedia(ctx context.Context, in *pb.BatchGetMediaReq) (*pb.BatchGetMediaResp, error) {
-	l := logic.NewBatchGetMediaLogic(ctx, s.svcCtx)
+func (s *MediaServiceServer) BatchGetMedia(ctx context.Context, in *pb2.BatchGetMediaReq) (*pb2.BatchGetMediaResp, error) {
+	l := logic2.NewBatchGetMediaLogic(ctx, s.svcCtx)
 	return l.BatchGetMedia(in)
 }

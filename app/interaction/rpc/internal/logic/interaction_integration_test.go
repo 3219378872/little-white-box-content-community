@@ -4,9 +4,8 @@ package logic
 
 import (
 	"context"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
-
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/require"
 )

@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
+	"esx/app/message/rpc/internal/config"
+	"esx/app/message/rpc/internal/mqs"
+	"esx/app/message/rpc/internal/server"
+	"esx/app/message/rpc/internal/svc"
+	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"flag"
 	"fmt"
 
 	"cleanupx"
-	"esx/app/message/internal/config"
-	"esx/app/message/internal/mqs"
-	"esx/app/message/internal/server"
-	"esx/app/message/internal/svc"
-	"esx/app/message/xiaobaihe/message/pb"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/core/conf"

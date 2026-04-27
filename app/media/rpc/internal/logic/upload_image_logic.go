@@ -3,13 +3,13 @@ package logic
 import (
 	"context"
 	"errx"
+	mediautil2 "esx/app/media/rpc/internal/mediautil"
+	"esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"os"
 
 	"cleanupx"
-	"esx/app/media/internal/mediautil"
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -30,9 +30,9 @@ func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Uploa
 }
 
 // UploadImage 接收 client streaming → 落盘 → 嗅探 → 压缩 → 缩略图 → 上传 → 入库 → SendAndClose。
-func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer) error {
+func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer) error {
 	upload := l.svcCtx.Config.Upload
-	sink, err := mediautil.NewTempSink(upload.TempDir, upload.MaxImageSize)
+	sink, err := mediautil2.NewTempSink(upload.TempDir, upload.MaxImageSize)
 	if err != nil {
 		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
@@ -41,8 +41,8 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 
 	meta, err := receiveUploadStream(
 		stream.Recv,
-		func(r *pb.UploadImageReq) *pb.UploadMeta { return r.GetMeta() },
-		func(r *pb.UploadImageReq) []byte { return r.GetChunk() },
+		func(r *pb2.UploadImageReq) *pb2.UploadMeta { return r.GetMeta() },
+		func(r *pb2.UploadImageReq) []byte { return r.GetChunk() },
 		sink,
 	)
 	if err != nil {
@@ -52,7 +52,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		return errx.NewWithCode(errx.ParamError)
 	}
 
-	if _, err = mediautil.Detect(sink.Path(), true, false); err != nil {
+	if _, err = mediautil2.Detect(sink.Path(), true, false); err != nil {
 		return errx.NewWithCode(errx.FileTypeNotAllowed)
 	}
 
@@ -61,7 +61,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		quality = upload.DefaultQuality
 	}
 
-	compressedPath, width, height, err := mediautil.CompressImage(
+	compressedPath, width, height, err := mediautil2.CompressImage(
 		sink.Path(),
 		int(meta.GetMaxWidth()),
 		int(meta.GetMaxHeight()),
@@ -77,7 +77,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 	}
 	defer cleanupx.Remove(l.Logger, compressedPath)
 
-	thumbPath, err := mediautil.MakeThumbnail(sink.Path())
+	thumbPath, err := mediautil2.MakeThumbnail(sink.Path())
 	if err != nil {
 		l.Errorw("make thumbnail failed",
 			logx.Field("user_id", meta.GetUserId()),
@@ -152,7 +152,7 @@ func (l *UploadImageLogic) UploadImage(stream pb.MediaService_UploadImageServer)
 		logx.Field("file_size", info.Size()),
 		logx.Field("object_key", objKey),
 	)
-	return stream.SendAndClose(&pb.UploadImageResp{Media: toPBMediaInfo(row)})
+	return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(row)})
 }
 
 // putFile 从本地文件读取并流式上传到 Storage。

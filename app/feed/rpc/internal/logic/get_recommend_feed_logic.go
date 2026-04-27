@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"errx"
-	"esx/app/content/contentservice"
-	"esx/app/feed/internal/svc"
-	"esx/app/feed/xiaobaihe/feed/pb"
+	"esx/app/content/rpc/contentservice"
+	"esx/app/feed/rpc/internal/svc"
+	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

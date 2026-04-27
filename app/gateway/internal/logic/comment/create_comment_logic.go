@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"errx"
-	"esx/app/content/contentservice"
+	"esx/app/content/rpc/contentservice"
 	"jwtx"
 
 	"gateway/internal/svc"

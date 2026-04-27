@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"database/sql"
+	model2 "esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
 
 	"errx"
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,25 +19,25 @@ type mockFavoriteModel struct {
 	mock.Mock
 }
 
-func (m *mockFavoriteModel) Insert(ctx context.Context, data *model.Favorite) (sql.Result, error) {
+func (m *mockFavoriteModel) Insert(ctx context.Context, data *model2.Favorite) (sql.Result, error) {
 	args := m.Called(ctx, data)
 	result, _ := args.Get(0).(sql.Result)
 	return result, args.Error(1)
 }
 
-func (m *mockFavoriteModel) FindOne(ctx context.Context, id int64) (*model.Favorite, error) {
+func (m *mockFavoriteModel) FindOne(ctx context.Context, id int64) (*model2.Favorite, error) {
 	args := m.Called(ctx, id)
-	record, _ := args.Get(0).(*model.Favorite)
+	record, _ := args.Get(0).(*model2.Favorite)
 	return record, args.Error(1)
 }
 
-func (m *mockFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userID int64, postID int64) (*model.Favorite, error) {
+func (m *mockFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userID int64, postID int64) (*model2.Favorite, error) {
 	args := m.Called(ctx, userID, postID)
-	record, _ := args.Get(0).(*model.Favorite)
+	record, _ := args.Get(0).(*model2.Favorite)
 	return record, args.Error(1)
 }
 
-func (m *mockFavoriteModel) Update(ctx context.Context, data *model.Favorite) error {
+func (m *mockFavoriteModel) Update(ctx context.Context, data *model2.Favorite) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
@@ -80,7 +80,7 @@ func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 	}
 
 	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model.StatusActive)).
+		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 	countModel.
@@ -103,7 +103,7 @@ func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 	}
 
 	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model.StatusActive)).
+		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 0}, nil).
 		Once()
 
@@ -123,7 +123,7 @@ func TestFavoriteLogic_Favorite_ReviveCanceledRecord(t *testing.T) {
 	}
 
 	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model.StatusActive)).
+		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 2}, nil).
 		Once()
 	countModel.
@@ -146,7 +146,7 @@ func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
 	}
 
 	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model.StatusActive)).
+		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 
@@ -166,7 +166,7 @@ func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 	}
 
 	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model.StatusActive)).
+		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 	countModel.

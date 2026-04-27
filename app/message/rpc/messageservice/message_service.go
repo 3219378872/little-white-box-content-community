@@ -6,31 +6,30 @@ package messageservice
 
 import (
 	"context"
-
-	"esx/app/message/xiaobaihe/message/pb"
+	pb2 "esx/app/message/rpc/xiaobaihe/message/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	ConversationInfo     = pb.ConversationInfo
-	GetConversationsReq  = pb.GetConversationsReq
-	GetConversationsResp = pb.GetConversationsResp
-	GetMessagesReq       = pb.GetMessagesReq
-	GetMessagesResp      = pb.GetMessagesResp
-	GetNotificationsReq  = pb.GetNotificationsReq
-	GetNotificationsResp = pb.GetNotificationsResp
-	GetUnreadCountReq    = pb.GetUnreadCountReq
-	GetUnreadCountResp   = pb.GetUnreadCountResp
-	MarkReadReq          = pb.MarkReadReq
-	MarkReadResp         = pb.MarkReadResp
-	MessageInfo          = pb.MessageInfo
-	NotificationInfo     = pb.NotificationInfo
-	SendMessageReq       = pb.SendMessageReq
-	SendMessageResp      = pb.SendMessageResp
-	SendNotificationReq  = pb.SendNotificationReq
-	SendNotificationResp = pb.SendNotificationResp
+	ConversationInfo     = pb2.ConversationInfo
+	GetConversationsReq  = pb2.GetConversationsReq
+	GetConversationsResp = pb2.GetConversationsResp
+	GetMessagesReq       = pb2.GetMessagesReq
+	GetMessagesResp      = pb2.GetMessagesResp
+	GetNotificationsReq  = pb2.GetNotificationsReq
+	GetNotificationsResp = pb2.GetNotificationsResp
+	GetUnreadCountReq    = pb2.GetUnreadCountReq
+	GetUnreadCountResp   = pb2.GetUnreadCountResp
+	MarkReadReq          = pb2.MarkReadReq
+	MarkReadResp         = pb2.MarkReadResp
+	MessageInfo          = pb2.MessageInfo
+	NotificationInfo     = pb2.NotificationInfo
+	SendMessageReq       = pb2.SendMessageReq
+	SendMessageResp      = pb2.SendMessageResp
+	SendNotificationReq  = pb2.SendNotificationReq
+	SendNotificationResp = pb2.SendNotificationResp
 
 	MessageService interface {
 		// 发送私信
@@ -62,42 +61,42 @@ func NewMessageService(cli zrpc.Client) MessageService {
 
 // 发送私信
 func (m *defaultMessageService) SendMessage(ctx context.Context, in *SendMessageReq, opts ...grpc.CallOption) (*SendMessageResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.SendMessage(ctx, in, opts...)
 }
 
 // 获取会话列表
 func (m *defaultMessageService) GetConversations(ctx context.Context, in *GetConversationsReq, opts ...grpc.CallOption) (*GetConversationsResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.GetConversations(ctx, in, opts...)
 }
 
 // 获取聊天记录
 func (m *defaultMessageService) GetMessages(ctx context.Context, in *GetMessagesReq, opts ...grpc.CallOption) (*GetMessagesResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.GetMessages(ctx, in, opts...)
 }
 
 // 标记已读
 func (m *defaultMessageService) MarkRead(ctx context.Context, in *MarkReadReq, opts ...grpc.CallOption) (*MarkReadResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.MarkRead(ctx, in, opts...)
 }
 
 // 获取未读数
 func (m *defaultMessageService) GetUnreadCount(ctx context.Context, in *GetUnreadCountReq, opts ...grpc.CallOption) (*GetUnreadCountResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.GetUnreadCount(ctx, in, opts...)
 }
 
 // 发送系统通知
 func (m *defaultMessageService) SendNotification(ctx context.Context, in *SendNotificationReq, opts ...grpc.CallOption) (*SendNotificationResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.SendNotification(ctx, in, opts...)
 }
 
 // 获取通知列表
 func (m *defaultMessageService) GetNotifications(ctx context.Context, in *GetNotificationsReq, opts ...grpc.CallOption) (*GetNotificationsResp, error) {
-	client := pb.NewMessageServiceClient(m.cli.Conn())
+	client := pb2.NewMessageServiceClient(m.cli.Conn())
 	return client.GetNotifications(ctx, in, opts...)
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"esx/app/interaction/interactionservice"
-	interactionpb "esx/app/interaction/pb/xiaobaihe/interaction/pb"
+	"esx/app/interaction/rpc/interactionservice"
+	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"jwtx"

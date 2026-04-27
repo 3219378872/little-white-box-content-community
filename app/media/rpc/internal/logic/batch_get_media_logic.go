@@ -3,9 +3,8 @@ package logic
 import (
 	"context"
 	"errx"
-
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

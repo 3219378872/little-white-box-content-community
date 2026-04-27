@@ -3,11 +3,11 @@ package logic
 import (
 	"context"
 	"errors"
+	"esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
 	"errx"
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

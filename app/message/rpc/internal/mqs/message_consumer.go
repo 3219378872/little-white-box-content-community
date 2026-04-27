@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"esx/app/message/rpc/internal/model"
+	"esx/app/message/rpc/internal/svc"
 	"fmt"
 	"strings"
 
-	"esx/app/message/internal/model"
-	"esx/app/message/internal/svc"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"

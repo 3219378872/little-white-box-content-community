@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"errx"
+	mediautil2 "esx/app/media/rpc/internal/mediautil"
+	"esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"cleanupx"
-	"esx/app/media/internal/mediautil"
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -29,9 +29,9 @@ func NewUploadVideoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Uploa
 }
 
 // UploadVideo 接收 client streaming → 落盘 → 嗅探 → 直传（不转码/截图） → 入库 → SendAndClose。
-func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer) error {
+func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer) error {
 	upload := l.svcCtx.Config.Upload
-	sink, err := mediautil.NewTempSink(upload.TempDir, upload.MaxVideoSize)
+	sink, err := mediautil2.NewTempSink(upload.TempDir, upload.MaxVideoSize)
 	if err != nil {
 		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
@@ -40,8 +40,8 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 
 	meta, err := receiveUploadStream(
 		stream.Recv,
-		func(r *pb.UploadVideoReq) *pb.UploadMeta { return r.GetMeta() },
-		func(r *pb.UploadVideoReq) []byte { return r.GetChunk() },
+		func(r *pb2.UploadVideoReq) *pb2.UploadMeta { return r.GetMeta() },
+		func(r *pb2.UploadVideoReq) []byte { return r.GetChunk() },
 		sink,
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		return errx.NewWithCode(errx.ParamError)
 	}
 
-	detected, err := mediautil.Detect(sink.Path(), false, true)
+	detected, err := mediautil2.Detect(sink.Path(), false, true)
 	if err != nil {
 		return errx.NewWithCode(errx.FileTypeNotAllowed)
 	}
@@ -102,5 +102,5 @@ func (l *UploadVideoLogic) UploadVideo(stream pb.MediaService_UploadVideoServer)
 		logx.Field("file_size", sink.Size()),
 		logx.Field("object_key", objKey),
 	)
-	return stream.SendAndClose(&pb.UploadVideoResp{Media: toPBMediaInfo(row)})
+	return stream.SendAndClose(&pb2.UploadVideoResp{Media: toPBMediaInfo(row)})
 }

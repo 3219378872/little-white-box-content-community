@@ -15,8 +15,8 @@ import (
 	"testing"
 
 	"errx"
-	mediapb "esx/app/media/pb/xiaobaihe/media/pb"
-	"esx/app/media/mediaservice"
+	"esx/app/media/rpc/mediaservice"
+	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"gateway/internal/svc"
 	"jwtx"
 
@@ -33,7 +33,7 @@ type fakeUploadStream struct {
 	closeErr  error
 }
 
-func (f *fakeUploadStream) Send(_ *mediapb.UploadImageReq) error      { return nil }
+func (f *fakeUploadStream) Send(_ *mediapb.UploadImageReq) error { return nil }
 func (f *fakeUploadStream) CloseAndRecv() (*mediapb.UploadImageResp, error) {
 	return f.closeResp, f.closeErr
 }

@@ -6,9 +6,9 @@ package user
 import (
 	"context"
 
-	"esx/app/content/contentservice"
-	"esx/app/interaction/interactionservice"
 	"errx"
+	"esx/app/content/rpc/contentservice"
+	"esx/app/interaction/rpc/interactionservice"
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"jwtx"

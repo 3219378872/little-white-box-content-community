@@ -4,14 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	model2 "esx/app/message/rpc/internal/model"
+	"esx/app/message/rpc/internal/svc"
+	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"strings"
 	"testing"
 	"time"
 
 	"errx"
-	"esx/app/message/internal/model"
-	"esx/app/message/internal/svc"
-	"esx/app/message/xiaobaihe/message/pb"
 
 	"github.com/stretchr/testify/require"
 )
@@ -22,21 +22,21 @@ func (r fakeResult) LastInsertId() (int64, error) { return r.id, nil }
 func (r fakeResult) RowsAffected() (int64, error) { return 1, nil }
 
 type fakeNotificationModel struct {
-	inserted []*model.Notification
-	list     []*model.Notification
+	inserted []*model2.Notification
+	list     []*model2.Notification
 	total    int64
 	unread   int64
 	marked   int64
 }
 
-func (m *fakeNotificationModel) Insert(ctx context.Context, data *model.Notification) (sql.Result, error) {
+func (m *fakeNotificationModel) Insert(ctx context.Context, data *model2.Notification) (sql.Result, error) {
 	data.Id = int64(len(m.inserted) + 100)
 	data.CreatedAt = time.Unix(10, 0)
 	m.inserted = append(m.inserted, data)
 	return fakeResult{id: data.Id}, nil
 }
 
-func (m *fakeNotificationModel) FindByUser(ctx context.Context, userID int64, typ int64, page int64, pageSize int64) ([]*model.Notification, int64, error) {
+func (m *fakeNotificationModel) FindByUser(ctx context.Context, userID int64, typ int64, page int64, pageSize int64) ([]*model2.Notification, int64, error) {
 	return m.list, m.total, nil
 }
 
@@ -50,8 +50,8 @@ func (m *fakeNotificationModel) MarkAllRead(ctx context.Context, userID int64) (
 }
 
 type fakeMessageModel struct {
-	inserted     []*model.Message
-	list         []*model.Message
+	inserted     []*model2.Message
+	list         []*model2.Message
 	hasMore      bool
 	unread       int64
 	marked       int64
@@ -63,14 +63,14 @@ type fakeMessageModel struct {
 	markTargetID int64
 }
 
-func (m *fakeMessageModel) Insert(ctx context.Context, data *model.Message) (sql.Result, error) {
+func (m *fakeMessageModel) Insert(ctx context.Context, data *model2.Message) (sql.Result, error) {
 	data.Id = int64(len(m.inserted) + 200)
 	data.CreatedAt = time.Unix(20, 0)
 	m.inserted = append(m.inserted, data)
 	return fakeResult{id: data.Id}, nil
 }
 
-func (m *fakeMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model.Message, bool, error) {
+func (m *fakeMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model2.Message, bool, error) {
 	m.findUserID = userID
 	m.findTargetID = targetUserID
 	m.findLastID = lastID
@@ -131,9 +131,9 @@ func (m *fakeMessageCommandModel) MarkConversationRead(ctx context.Context, user
 type fakeConversationModel struct {
 	createdSender   int64
 	createdReceiver int64
-	list            []*model.Conversation
+	list            []*model2.Conversation
 	total           int64
-	conversation    *model.Conversation
+	conversation    *model2.Conversation
 	findOneUserID   int64
 	findOneID       int64
 	findOneErr      error
@@ -145,11 +145,11 @@ func (m *fakeConversationModel) UpsertPairForMessage(ctx context.Context, sender
 	return 11, 12, nil
 }
 
-func (m *fakeConversationModel) FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model.Conversation, int64, error) {
+func (m *fakeConversationModel) FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model2.Conversation, int64, error) {
 	return m.list, m.total, nil
 }
 
-func (m *fakeConversationModel) FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model.Conversation, error) {
+func (m *fakeConversationModel) FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model2.Conversation, error) {
 	m.findOneUserID = userID
 	m.findOneID = conversationID
 	if m.findOneErr != nil {
@@ -158,7 +158,7 @@ func (m *fakeConversationModel) FindOneForUser(ctx context.Context, userID int64
 	if m.conversation != nil {
 		return m.conversation, nil
 	}
-	return &model.Conversation{Id: conversationID, UserId: userID, TargetUserId: 8}, nil
+	return &model2.Conversation{Id: conversationID, UserId: userID, TargetUserId: 8}, nil
 }
 
 type fakeUnreadStore struct {
@@ -247,7 +247,7 @@ func TestSendNotificationRejectsOversizedFields(t *testing.T) {
 
 func TestGetNotificationsReturnsPagedItems(t *testing.T) {
 	createdAt := time.UnixMilli(12345)
-	notifications := &fakeNotificationModel{total: 1, list: []*model.Notification{{
+	notifications := &fakeNotificationModel{total: 1, list: []*model2.Notification{{
 		Id: 1, UserId: 7, Type: 1, Title: sql.NullString{String: "点赞", Valid: true}, Content: sql.NullString{String: "小白赞了你", Valid: true}, TargetId: sql.NullInt64{Int64: 99, Valid: true}, Status: 0, CreatedAt: createdAt,
 	}}}
 	ctx := &svc.ServiceContext{NotificationModel: notifications}
@@ -287,7 +287,7 @@ func TestGetUnreadCountFallsBackToDatabaseAndCaches(t *testing.T) {
 }
 
 func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
-	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 11, UserId: 7, TargetUserId: 8}}
+	conversations := &fakeConversationModel{conversation: &model2.Conversation{Id: 11, UserId: 7, TargetUserId: 8}}
 	commands := &fakeMessageCommandModel{}
 	notifications := &fakeNotificationModel{}
 	store := &fakeUnreadStore{}
@@ -336,7 +336,7 @@ func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
 
 func TestGetConversationsReturnsPagedItems(t *testing.T) {
 	last := time.UnixMilli(56789)
-	conversations := &fakeConversationModel{total: 1, list: []*model.Conversation{{
+	conversations := &fakeConversationModel{total: 1, list: []*model2.Conversation{{
 		Id: 12, UserId: 7, TargetUserId: 8, LastMessage: sql.NullString{String: "hi", Valid: true}, LastMessageTime: sql.NullTime{Time: last, Valid: true}, UnreadCount: 2,
 	}}}
 	ctx := &svc.ServiceContext{ConversationModel: conversations}
@@ -352,8 +352,8 @@ func TestGetConversationsReturnsPagedItems(t *testing.T) {
 
 func TestGetMessagesReturnsCursorItems(t *testing.T) {
 	createdAt := time.UnixMilli(45678)
-	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
-	messages := &fakeMessageModel{hasMore: true, list: []*model.Message{{
+	conversations := &fakeConversationModel{conversation: &model2.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
+	messages := &fakeMessageModel{hasMore: true, list: []*model2.Message{{
 		Id: 1, ConversationId: 12, SenderId: 1, ReceiverId: 2, Content: "hi", MsgType: 1, Status: 0, CreatedAt: createdAt,
 	}}}
 	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages}
@@ -369,8 +369,8 @@ func TestGetMessagesReturnsCursorItems(t *testing.T) {
 
 func TestGetMessagesUsesCallerOwnedConversationParticipants(t *testing.T) {
 	createdAt := time.UnixMilli(45678)
-	conversations := &fakeConversationModel{conversation: &model.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
-	messages := &fakeMessageModel{hasMore: true, list: []*model.Message{{
+	conversations := &fakeConversationModel{conversation: &model2.Conversation{Id: 12, UserId: 7, TargetUserId: 8}}
+	messages := &fakeMessageModel{hasMore: true, list: []*model2.Message{{
 		Id: 1, ConversationId: 99, SenderId: 8, ReceiverId: 7, Content: "hi", MsgType: 1, Status: 0, CreatedAt: createdAt,
 	}}}
 	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: messages}
@@ -388,7 +388,7 @@ func TestGetMessagesUsesCallerOwnedConversationParticipants(t *testing.T) {
 }
 
 func TestGetMessagesRejectsConversationNotOwnedByUser(t *testing.T) {
-	conversations := &fakeConversationModel{findOneErr: model.ErrNotFound}
+	conversations := &fakeConversationModel{findOneErr: model2.ErrNotFound}
 	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageModel: &fakeMessageModel{}}
 
 	_, err := NewGetMessagesLogic(context.Background(), ctx).GetMessages(&pb.GetMessagesReq{UserId: 7, ConversationId: 12, PageSize: 20})

@@ -2,9 +2,8 @@ package logic
 
 import (
 	"context"
-
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

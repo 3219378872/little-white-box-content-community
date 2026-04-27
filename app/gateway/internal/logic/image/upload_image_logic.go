@@ -6,7 +6,7 @@ package image
 import (
 	"context"
 	"errx"
-	mediapb "esx/app/media/pb/xiaobaihe/media/pb"
+	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"io"
 	"jwtx"
 	"mime/multipart"

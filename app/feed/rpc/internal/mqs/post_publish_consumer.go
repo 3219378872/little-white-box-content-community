@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"esx/app/feed/internal/fanout"
-	"esx/app/feed/internal/svc"
+	"esx/app/feed/rpc/internal/fanout"
+	"esx/app/feed/rpc/internal/svc"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"

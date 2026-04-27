@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"errx"
-	"esx/app/feed/internal/model"
-	"esx/app/feed/internal/svc"
-	"esx/app/feed/xiaobaihe/feed/pb"
+	"esx/app/feed/rpc/internal/model"
+	"esx/app/feed/rpc/internal/svc"
+	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

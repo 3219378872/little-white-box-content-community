@@ -2,11 +2,10 @@ package logic
 
 import (
 	"context"
+	model2 "esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
-
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,7 +16,7 @@ func TestCheckLikedLogic_CheckLiked_Liked(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model.StatusActive}, nil).
+		Return(&model2.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model2.StatusActive}, nil).
 		Once()
 
 	logic := NewCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
@@ -31,7 +30,7 @@ func TestCheckLikedLogic_CheckLiked_NotFound(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return((*model.LikeRecord)(nil), model.ErrNotFound).
+		Return((*model2.LikeRecord)(nil), model2.ErrNotFound).
 		Once()
 
 	logic := NewCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
@@ -45,7 +44,7 @@ func TestCheckLikedLogic_CheckLiked_Error(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	likeModel.
 		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return((*model.LikeRecord)(nil), assert.AnError).
+		Return((*model2.LikeRecord)(nil), assert.AnError).
 		Once()
 
 	logic := NewCheckLikedLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
@@ -72,7 +71,7 @@ func TestCheckFavoritedLogic_CheckFavorited_Favorited(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return(&model.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model.StatusActive}, nil).
+		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model2.StatusActive}, nil).
 		Once()
 
 	logic := NewCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
@@ -86,7 +85,7 @@ func TestCheckFavoritedLogic_CheckFavorited_NotFound(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return((*model.Favorite)(nil), model.ErrNotFound).
+		Return((*model2.Favorite)(nil), model2.ErrNotFound).
 		Once()
 
 	logic := NewCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
@@ -100,7 +99,7 @@ func TestCheckFavoritedLogic_CheckFavorited_Error(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	favoriteModel.
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
-		Return((*model.Favorite)(nil), assert.AnError).
+		Return((*model2.Favorite)(nil), assert.AnError).
 		Once()
 
 	logic := NewCheckFavoritedLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})

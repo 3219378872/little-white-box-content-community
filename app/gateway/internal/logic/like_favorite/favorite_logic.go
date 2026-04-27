@@ -6,8 +6,8 @@ package like_favorite
 import (
 	"context"
 
-	"esx/app/interaction/interactionservice"
 	"errx"
+	"esx/app/interaction/rpc/interactionservice"
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"jwtx"

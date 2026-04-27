@@ -6,13 +6,12 @@ import (
 	"bytes"
 	"context"
 	"errx"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"io"
 	"testing"
-
-	"esx/app/media/pb/xiaobaihe/media/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

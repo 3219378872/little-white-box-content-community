@@ -6,32 +6,31 @@ package mediaservice
 
 import (
 	"context"
-
-	"esx/app/media/pb/xiaobaihe/media/pb"
+	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	BatchGetMediaReq  = pb.BatchGetMediaReq
-	BatchGetMediaResp = pb.BatchGetMediaResp
-	DeleteMediaReq    = pb.DeleteMediaReq
-	DeleteMediaResp   = pb.DeleteMediaResp
-	GetMediaReq       = pb.GetMediaReq
-	GetMediaResp      = pb.GetMediaResp
-	MediaInfo         = pb.MediaInfo
-	UploadImageReq    = pb.UploadImageReq
-	UploadImageResp   = pb.UploadImageResp
-	UploadMeta        = pb.UploadMeta
-	UploadVideoReq    = pb.UploadVideoReq
-	UploadVideoResp   = pb.UploadVideoResp
+	BatchGetMediaReq  = pb2.BatchGetMediaReq
+	BatchGetMediaResp = pb2.BatchGetMediaResp
+	DeleteMediaReq    = pb2.DeleteMediaReq
+	DeleteMediaResp   = pb2.DeleteMediaResp
+	GetMediaReq       = pb2.GetMediaReq
+	GetMediaResp      = pb2.GetMediaResp
+	MediaInfo         = pb2.MediaInfo
+	UploadImageReq    = pb2.UploadImageReq
+	UploadImageResp   = pb2.UploadImageResp
+	UploadMeta        = pb2.UploadMeta
+	UploadVideoReq    = pb2.UploadVideoReq
+	UploadVideoResp   = pb2.UploadVideoResp
 
 	MediaService interface {
 		// 上传图片（client streaming，每包 ≤ 1MB）
-		UploadImage(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadImageClient, error)
+		UploadImage(ctx context.Context, opts ...grpc.CallOption) (pb2.MediaService_UploadImageClient, error)
 		// 上传视频（client streaming，每包 ≤ 1MB）
-		UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadVideoClient, error)
+		UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb2.MediaService_UploadVideoClient, error)
 		// 获取媒体信息
 		GetMedia(ctx context.Context, in *GetMediaReq, opts ...grpc.CallOption) (*GetMediaResp, error)
 		// 删除媒体
@@ -52,31 +51,31 @@ func NewMediaService(cli zrpc.Client) MediaService {
 }
 
 // 上传图片（client streaming，每包 ≤ 1MB）
-func (m *defaultMediaService) UploadImage(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadImageClient, error) {
-	client := pb.NewMediaServiceClient(m.cli.Conn())
+func (m *defaultMediaService) UploadImage(ctx context.Context, opts ...grpc.CallOption) (pb2.MediaService_UploadImageClient, error) {
+	client := pb2.NewMediaServiceClient(m.cli.Conn())
 	return client.UploadImage(ctx, opts...)
 }
 
 // 上传视频（client streaming，每包 ≤ 1MB）
-func (m *defaultMediaService) UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadVideoClient, error) {
-	client := pb.NewMediaServiceClient(m.cli.Conn())
+func (m *defaultMediaService) UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb2.MediaService_UploadVideoClient, error) {
+	client := pb2.NewMediaServiceClient(m.cli.Conn())
 	return client.UploadVideo(ctx, opts...)
 }
 
 // 获取媒体信息
 func (m *defaultMediaService) GetMedia(ctx context.Context, in *GetMediaReq, opts ...grpc.CallOption) (*GetMediaResp, error) {
-	client := pb.NewMediaServiceClient(m.cli.Conn())
+	client := pb2.NewMediaServiceClient(m.cli.Conn())
 	return client.GetMedia(ctx, in, opts...)
 }
 
 // 删除媒体
 func (m *defaultMediaService) DeleteMedia(ctx context.Context, in *DeleteMediaReq, opts ...grpc.CallOption) (*DeleteMediaResp, error) {
-	client := pb.NewMediaServiceClient(m.cli.Conn())
+	client := pb2.NewMediaServiceClient(m.cli.Conn())
 	return client.DeleteMedia(ctx, in, opts...)
 }
 
 // 批量获取媒体信息
 func (m *defaultMediaService) BatchGetMedia(ctx context.Context, in *BatchGetMediaReq, opts ...grpc.CallOption) (*BatchGetMediaResp, error) {
-	client := pb.NewMediaServiceClient(m.cli.Conn())
+	client := pb2.NewMediaServiceClient(m.cli.Conn())
 	return client.BatchGetMedia(ctx, in, opts...)
 }

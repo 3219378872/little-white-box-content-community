@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	model2 "esx/app/interaction/rpc/internal/model"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
 
 	"errx"
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -34,25 +34,25 @@ type mockLikeRecordModel struct {
 	mock.Mock
 }
 
-func (m *mockLikeRecordModel) Insert(ctx context.Context, data *model.LikeRecord) (sql.Result, error) {
+func (m *mockLikeRecordModel) Insert(ctx context.Context, data *model2.LikeRecord) (sql.Result, error) {
 	args := m.Called(ctx, data)
 	result, _ := args.Get(0).(sql.Result)
 	return result, args.Error(1)
 }
 
-func (m *mockLikeRecordModel) FindOne(ctx context.Context, id int64) (*model.LikeRecord, error) {
+func (m *mockLikeRecordModel) FindOne(ctx context.Context, id int64) (*model2.LikeRecord, error) {
 	args := m.Called(ctx, id)
-	record, _ := args.Get(0).(*model.LikeRecord)
+	record, _ := args.Get(0).(*model2.LikeRecord)
 	return record, args.Error(1)
 }
 
-func (m *mockLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Context, userID int64, targetID int64, targetType int64) (*model.LikeRecord, error) {
+func (m *mockLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Context, userID int64, targetID int64, targetType int64) (*model2.LikeRecord, error) {
 	args := m.Called(ctx, userID, targetID, targetType)
-	record, _ := args.Get(0).(*model.LikeRecord)
+	record, _ := args.Get(0).(*model2.LikeRecord)
 	return record, args.Error(1)
 }
 
-func (m *mockLikeRecordModel) Update(ctx context.Context, data *model.LikeRecord) error {
+func (m *mockLikeRecordModel) Update(ctx context.Context, data *model2.LikeRecord) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
@@ -95,19 +95,19 @@ type mockActionCountModel struct {
 	mock.Mock
 }
 
-func (m *mockActionCountModel) Insert(ctx context.Context, data *model.ActionCount) (sql.Result, error) {
+func (m *mockActionCountModel) Insert(ctx context.Context, data *model2.ActionCount) (sql.Result, error) {
 	args := m.Called(ctx, data)
 	result, _ := args.Get(0).(sql.Result)
 	return result, args.Error(1)
 }
 
-func (m *mockActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*model.ActionCount, error) {
+func (m *mockActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*model2.ActionCount, error) {
 	args := m.Called(ctx, targetID, targetType)
-	record, _ := args.Get(0).(*model.ActionCount)
+	record, _ := args.Get(0).(*model2.ActionCount)
 	return record, args.Error(1)
 }
 
-func (m *mockActionCountModel) Update(ctx context.Context, data *model.ActionCount) error {
+func (m *mockActionCountModel) Update(ctx context.Context, data *model2.ActionCount) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
@@ -259,7 +259,7 @@ func TestLikeLogic_Like_FirstTime(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
 		Once()
 	countModel.
@@ -289,7 +289,7 @@ func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 0}, int64(10), nil).
 		Once()
 
@@ -310,7 +310,7 @@ func TestLikeLogic_Like_ReviveCanceledRecord(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 2}, int64(10), nil).
 		Once()
 	countModel.
@@ -340,7 +340,7 @@ func TestLikeLogic_Like_UpsertError(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(nil, int64(0), assert.AnError).
 		Once()
 
@@ -361,7 +361,7 @@ func TestLikeLogic_Like_IncrCountError(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
 		Once()
 	countModel.
@@ -403,7 +403,7 @@ func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
 	}
 
 	likeModel.
-		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model.StatusActive)).
+		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
 		Once()
 	countModel.

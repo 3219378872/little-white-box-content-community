@@ -6,36 +6,35 @@ package interactionservice
 
 import (
 	"context"
-
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
+	pb2 "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	BatchCheckFavoritedReq  = pb.BatchCheckFavoritedReq
-	BatchCheckFavoritedResp = pb.BatchCheckFavoritedResp
-	BatchCheckLikedReq      = pb.BatchCheckLikedReq
-	BatchCheckLikedResp     = pb.BatchCheckLikedResp
-	CheckFavoritedReq       = pb.CheckFavoritedReq
-	CheckFavoritedResp      = pb.CheckFavoritedResp
-	CheckLikedReq           = pb.CheckLikedReq
-	CheckLikedResp          = pb.CheckLikedResp
-	FavoriteReq             = pb.FavoriteReq
-	FavoriteResp            = pb.FavoriteResp
-	GetCountsReq            = pb.GetCountsReq
-	GetCountsResp           = pb.GetCountsResp
-	GetFavoriteListReq      = pb.GetFavoriteListReq
-	GetFavoriteListResp     = pb.GetFavoriteListResp
-	GetLikeCountReq         = pb.GetLikeCountReq
-	GetLikeCountResp        = pb.GetLikeCountResp
-	LikeReq                 = pb.LikeReq
-	LikeResp                = pb.LikeResp
-	UnfavoriteReq           = pb.UnfavoriteReq
-	UnfavoriteResp          = pb.UnfavoriteResp
-	UnlikeReq               = pb.UnlikeReq
-	UnlikeResp              = pb.UnlikeResp
+	BatchCheckFavoritedReq  = pb2.BatchCheckFavoritedReq
+	BatchCheckFavoritedResp = pb2.BatchCheckFavoritedResp
+	BatchCheckLikedReq      = pb2.BatchCheckLikedReq
+	BatchCheckLikedResp     = pb2.BatchCheckLikedResp
+	CheckFavoritedReq       = pb2.CheckFavoritedReq
+	CheckFavoritedResp      = pb2.CheckFavoritedResp
+	CheckLikedReq           = pb2.CheckLikedReq
+	CheckLikedResp          = pb2.CheckLikedResp
+	FavoriteReq             = pb2.FavoriteReq
+	FavoriteResp            = pb2.FavoriteResp
+	GetCountsReq            = pb2.GetCountsReq
+	GetCountsResp           = pb2.GetCountsResp
+	GetFavoriteListReq      = pb2.GetFavoriteListReq
+	GetFavoriteListResp     = pb2.GetFavoriteListResp
+	GetLikeCountReq         = pb2.GetLikeCountReq
+	GetLikeCountResp        = pb2.GetLikeCountResp
+	LikeReq                 = pb2.LikeReq
+	LikeResp                = pb2.LikeResp
+	UnfavoriteReq           = pb2.UnfavoriteReq
+	UnfavoriteResp          = pb2.UnfavoriteResp
+	UnlikeReq               = pb2.UnlikeReq
+	UnlikeResp              = pb2.UnlikeResp
 
 	InteractionService interface {
 		// 点赞
@@ -75,66 +74,66 @@ func NewInteractionService(cli zrpc.Client) InteractionService {
 
 // 点赞
 func (m *defaultInteractionService) Like(ctx context.Context, in *LikeReq, opts ...grpc.CallOption) (*LikeResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.Like(ctx, in, opts...)
 }
 
 // 取消点赞
 func (m *defaultInteractionService) Unlike(ctx context.Context, in *UnlikeReq, opts ...grpc.CallOption) (*UnlikeResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.Unlike(ctx, in, opts...)
 }
 
 // 检查是否点赞
 func (m *defaultInteractionService) CheckLiked(ctx context.Context, in *CheckLikedReq, opts ...grpc.CallOption) (*CheckLikedResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.CheckLiked(ctx, in, opts...)
 }
 
 // 批量检查是否点赞
 func (m *defaultInteractionService) BatchCheckLiked(ctx context.Context, in *BatchCheckLikedReq, opts ...grpc.CallOption) (*BatchCheckLikedResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.BatchCheckLiked(ctx, in, opts...)
 }
 
 // 获取点赞数
 func (m *defaultInteractionService) GetLikeCount(ctx context.Context, in *GetLikeCountReq, opts ...grpc.CallOption) (*GetLikeCountResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.GetLikeCount(ctx, in, opts...)
 }
 
 // 收藏
 func (m *defaultInteractionService) Favorite(ctx context.Context, in *FavoriteReq, opts ...grpc.CallOption) (*FavoriteResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.Favorite(ctx, in, opts...)
 }
 
 // 取消收藏
 func (m *defaultInteractionService) Unfavorite(ctx context.Context, in *UnfavoriteReq, opts ...grpc.CallOption) (*UnfavoriteResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.Unfavorite(ctx, in, opts...)
 }
 
 // 检查是否收藏
 func (m *defaultInteractionService) CheckFavorited(ctx context.Context, in *CheckFavoritedReq, opts ...grpc.CallOption) (*CheckFavoritedResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.CheckFavorited(ctx, in, opts...)
 }
 
 // 批量检查是否收藏
 func (m *defaultInteractionService) BatchCheckFavorited(ctx context.Context, in *BatchCheckFavoritedReq, opts ...grpc.CallOption) (*BatchCheckFavoritedResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.BatchCheckFavorited(ctx, in, opts...)
 }
 
 // 获取收藏列表
 func (m *defaultInteractionService) GetFavoriteList(ctx context.Context, in *GetFavoriteListReq, opts ...grpc.CallOption) (*GetFavoriteListResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.GetFavoriteList(ctx, in, opts...)
 }
 
 // 获取互动统计
 func (m *defaultInteractionService) GetCounts(ctx context.Context, in *GetCountsReq, opts ...grpc.CallOption) (*GetCountsResp, error) {
-	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	client := pb2.NewInteractionServiceClient(m.cli.Conn())
 	return client.GetCounts(ctx, in, opts...)
 }

@@ -3,15 +3,14 @@ package logic
 import (
 	"errors"
 	"errx"
+	"esx/app/media/rpc/internal/mediautil"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"io"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
-
-	"esx/app/media/internal/mediautil"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 )
 
 func TestNullStringOr_EmptyMapsToInvalid(t *testing.T) {

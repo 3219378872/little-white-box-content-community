@@ -3,13 +3,12 @@ package logic
 import (
 	"context"
 	"errors"
+	"esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"testing"
 
 	"errx"
-
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 )
 
 func newBatchLogicWithFake(f *fakeMediaModel) *BatchGetMediaLogic {

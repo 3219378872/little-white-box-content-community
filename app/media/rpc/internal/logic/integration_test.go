@@ -4,13 +4,12 @@ package logic
 
 import (
 	"errx"
+	"esx/app/media/rpc/internal/config"
+	"esx/app/media/rpc/internal/storage"
+	"esx/app/media/rpc/internal/svc"
 	"fmt"
 	"os"
 	"testing"
-
-	"esx/app/media/internal/config"
-	"esx/app/media/internal/storage"
-	"esx/app/media/internal/svc"
 
 	"github.com/stretchr/testify/require"
 	"github.com/zeromicro/go-zero/core/stores/redis"

@@ -3,7 +3,7 @@ go 1.26.1
 use (
 	.
 	./app/gateway
-	./app/user
+	./app/user/rpc
 	./pkg/cachex
 	./pkg/cleanupx
 	./pkg/errx

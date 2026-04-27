@@ -6,15 +6,14 @@ package server
 
 import (
 	"context"
-
-	"esx/app/interaction/internal/logic"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
+	logic2 "esx/app/interaction/rpc/internal/logic"
+	"esx/app/interaction/rpc/internal/svc"
+	pb2 "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 )
 
 type InteractionServiceServer struct {
 	svcCtx *svc.ServiceContext
-	pb.UnimplementedInteractionServiceServer
+	pb2.UnimplementedInteractionServiceServer
 }
 
 func NewInteractionServiceServer(svcCtx *svc.ServiceContext) *InteractionServiceServer {
@@ -24,67 +23,67 @@ func NewInteractionServiceServer(svcCtx *svc.ServiceContext) *InteractionService
 }
 
 // 点赞
-func (s *InteractionServiceServer) Like(ctx context.Context, in *pb.LikeReq) (*pb.LikeResp, error) {
-	l := logic.NewLikeLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) Like(ctx context.Context, in *pb2.LikeReq) (*pb2.LikeResp, error) {
+	l := logic2.NewLikeLogic(ctx, s.svcCtx)
 	return l.Like(in)
 }
 
 // 取消点赞
-func (s *InteractionServiceServer) Unlike(ctx context.Context, in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
-	l := logic.NewUnlikeLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) Unlike(ctx context.Context, in *pb2.UnlikeReq) (*pb2.UnlikeResp, error) {
+	l := logic2.NewUnlikeLogic(ctx, s.svcCtx)
 	return l.Unlike(in)
 }
 
 // 检查是否点赞
-func (s *InteractionServiceServer) CheckLiked(ctx context.Context, in *pb.CheckLikedReq) (*pb.CheckLikedResp, error) {
-	l := logic.NewCheckLikedLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) CheckLiked(ctx context.Context, in *pb2.CheckLikedReq) (*pb2.CheckLikedResp, error) {
+	l := logic2.NewCheckLikedLogic(ctx, s.svcCtx)
 	return l.CheckLiked(in)
 }
 
 // 批量检查是否点赞
-func (s *InteractionServiceServer) BatchCheckLiked(ctx context.Context, in *pb.BatchCheckLikedReq) (*pb.BatchCheckLikedResp, error) {
-	l := logic.NewBatchCheckLikedLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) BatchCheckLiked(ctx context.Context, in *pb2.BatchCheckLikedReq) (*pb2.BatchCheckLikedResp, error) {
+	l := logic2.NewBatchCheckLikedLogic(ctx, s.svcCtx)
 	return l.BatchCheckLiked(in)
 }
 
 // 获取点赞数
-func (s *InteractionServiceServer) GetLikeCount(ctx context.Context, in *pb.GetLikeCountReq) (*pb.GetLikeCountResp, error) {
-	l := logic.NewGetLikeCountLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) GetLikeCount(ctx context.Context, in *pb2.GetLikeCountReq) (*pb2.GetLikeCountResp, error) {
+	l := logic2.NewGetLikeCountLogic(ctx, s.svcCtx)
 	return l.GetLikeCount(in)
 }
 
 // 收藏
-func (s *InteractionServiceServer) Favorite(ctx context.Context, in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
-	l := logic.NewFavoriteLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) Favorite(ctx context.Context, in *pb2.FavoriteReq) (*pb2.FavoriteResp, error) {
+	l := logic2.NewFavoriteLogic(ctx, s.svcCtx)
 	return l.Favorite(in)
 }
 
 // 取消收藏
-func (s *InteractionServiceServer) Unfavorite(ctx context.Context, in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, error) {
-	l := logic.NewUnfavoriteLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) Unfavorite(ctx context.Context, in *pb2.UnfavoriteReq) (*pb2.UnfavoriteResp, error) {
+	l := logic2.NewUnfavoriteLogic(ctx, s.svcCtx)
 	return l.Unfavorite(in)
 }
 
 // 检查是否收藏
-func (s *InteractionServiceServer) CheckFavorited(ctx context.Context, in *pb.CheckFavoritedReq) (*pb.CheckFavoritedResp, error) {
-	l := logic.NewCheckFavoritedLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) CheckFavorited(ctx context.Context, in *pb2.CheckFavoritedReq) (*pb2.CheckFavoritedResp, error) {
+	l := logic2.NewCheckFavoritedLogic(ctx, s.svcCtx)
 	return l.CheckFavorited(in)
 }
 
 // 批量检查是否收藏
-func (s *InteractionServiceServer) BatchCheckFavorited(ctx context.Context, in *pb.BatchCheckFavoritedReq) (*pb.BatchCheckFavoritedResp, error) {
-	l := logic.NewBatchCheckFavoritedLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) BatchCheckFavorited(ctx context.Context, in *pb2.BatchCheckFavoritedReq) (*pb2.BatchCheckFavoritedResp, error) {
+	l := logic2.NewBatchCheckFavoritedLogic(ctx, s.svcCtx)
 	return l.BatchCheckFavorited(in)
 }
 
 // 获取收藏列表
-func (s *InteractionServiceServer) GetFavoriteList(ctx context.Context, in *pb.GetFavoriteListReq) (*pb.GetFavoriteListResp, error) {
-	l := logic.NewGetFavoriteListLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) GetFavoriteList(ctx context.Context, in *pb2.GetFavoriteListReq) (*pb2.GetFavoriteListResp, error) {
+	l := logic2.NewGetFavoriteListLogic(ctx, s.svcCtx)
 	return l.GetFavoriteList(in)
 }
 
 // 获取互动统计
-func (s *InteractionServiceServer) GetCounts(ctx context.Context, in *pb.GetCountsReq) (*pb.GetCountsResp, error) {
-	l := logic.NewGetCountsLogic(ctx, s.svcCtx)
+func (s *InteractionServiceServer) GetCounts(ctx context.Context, in *pb2.GetCountsReq) (*pb2.GetCountsResp, error) {
+	l := logic2.NewGetCountsLogic(ctx, s.svcCtx)
 	return l.GetCounts(in)
 }

@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"esx/app/message/rpc/internal/model"
+	"esx/app/message/rpc/internal/svc"
 	"testing"
-
-	"esx/app/message/internal/model"
-	"esx/app/message/internal/svc"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

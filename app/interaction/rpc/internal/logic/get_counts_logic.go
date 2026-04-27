@@ -3,24 +3,24 @@ package logic
 import (
 	"context"
 	"errors"
+	model2 "esx/app/interaction/rpc/internal/model"
+	svc2 "esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"fmt"
 	"strconv"
 
 	"errx"
-	"esx/app/interaction/internal/model"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type GetCountsLogic struct {
 	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	svcCtx *svc2.ServiceContext
 	logx.Logger
 }
 
-func NewGetCountsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCountsLogic {
+func NewGetCountsLogic(ctx context.Context, svcCtx *svc2.ServiceContext) *GetCountsLogic {
 	return &GetCountsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
@@ -45,9 +45,9 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 
 		count, err := l.svcCtx.ActionCountModel.FindOneByTarget(l.ctx, in.TargetId, int64(in.TargetType))
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, model2.ErrNotFound) {
 				resp := &pb.GetCountsResp{}
-				l.writeCountsToCache(key, &model.ActionCount{TargetId: in.TargetId, TargetType: int64(in.TargetType)}, model.CacheShortTTL)
+				l.writeCountsToCache(key, &model2.ActionCount{TargetId: in.TargetId, TargetType: int64(in.TargetType)}, model2.CacheShortTTL)
 				return resp, nil
 			}
 			return nil, err
@@ -58,7 +58,7 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 			FavoriteCount: count.FavoriteCount,
 			CommentCount:  count.CommentCount,
 		}
-		l.writeCountsToCache(key, count, model.CacheLongTTL)
+		l.writeCountsToCache(key, count, model2.CacheLongTTL)
 		return resp, nil
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, boo
 	}, true
 }
 
-func (l *GetCountsLogic) writeCountsToCache(key string, count *model.ActionCount, ttlSeconds int) {
+func (l *GetCountsLogic) writeCountsToCache(key string, count *model2.ActionCount, ttlSeconds int) {
 	store := l.redisStore()
 	if store == nil {
 		return
@@ -118,12 +118,12 @@ func (l *GetCountsLogic) writeCountsToCache(key string, count *model.ActionCount
 	}
 }
 
-func (l *GetCountsLogic) redisStore() svc.RedisStore {
+func (l *GetCountsLogic) redisStore() svc2.RedisStore {
 	if l.svcCtx.RedisStore != nil {
 		return l.svcCtx.RedisStore
 	}
 	if l.svcCtx.Redis != nil {
-		return svc.NewRedisStore(l.svcCtx.Redis)
+		return svc2.NewRedisStore(l.svcCtx.Redis)
 	}
 	return nil
 }

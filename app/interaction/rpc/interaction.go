@@ -1,13 +1,12 @@
 package main
 
 import (
+	"esx/app/interaction/rpc/internal/config"
+	"esx/app/interaction/rpc/internal/server"
+	"esx/app/interaction/rpc/internal/svc"
+	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"flag"
 	"fmt"
-
-	"esx/app/interaction/internal/config"
-	"esx/app/interaction/internal/server"
-	"esx/app/interaction/internal/svc"
-	"esx/app/interaction/pb/xiaobaihe/interaction/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"

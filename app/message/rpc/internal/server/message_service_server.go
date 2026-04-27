@@ -6,15 +6,14 @@ package server
 
 import (
 	"context"
-
-	"esx/app/message/internal/logic"
-	"esx/app/message/internal/svc"
-	"esx/app/message/xiaobaihe/message/pb"
+	logic2 "esx/app/message/rpc/internal/logic"
+	"esx/app/message/rpc/internal/svc"
+	pb2 "esx/app/message/rpc/xiaobaihe/message/pb"
 )
 
 type MessageServiceServer struct {
 	svcCtx *svc.ServiceContext
-	pb.UnimplementedMessageServiceServer
+	pb2.UnimplementedMessageServiceServer
 }
 
 func NewMessageServiceServer(svcCtx *svc.ServiceContext) *MessageServiceServer {
@@ -24,43 +23,43 @@ func NewMessageServiceServer(svcCtx *svc.ServiceContext) *MessageServiceServer {
 }
 
 // 发送私信
-func (s *MessageServiceServer) SendMessage(ctx context.Context, in *pb.SendMessageReq) (*pb.SendMessageResp, error) {
-	l := logic.NewSendMessageLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) SendMessage(ctx context.Context, in *pb2.SendMessageReq) (*pb2.SendMessageResp, error) {
+	l := logic2.NewSendMessageLogic(ctx, s.svcCtx)
 	return l.SendMessage(in)
 }
 
 // 获取会话列表
-func (s *MessageServiceServer) GetConversations(ctx context.Context, in *pb.GetConversationsReq) (*pb.GetConversationsResp, error) {
-	l := logic.NewGetConversationsLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) GetConversations(ctx context.Context, in *pb2.GetConversationsReq) (*pb2.GetConversationsResp, error) {
+	l := logic2.NewGetConversationsLogic(ctx, s.svcCtx)
 	return l.GetConversations(in)
 }
 
 // 获取聊天记录
-func (s *MessageServiceServer) GetMessages(ctx context.Context, in *pb.GetMessagesReq) (*pb.GetMessagesResp, error) {
-	l := logic.NewGetMessagesLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) GetMessages(ctx context.Context, in *pb2.GetMessagesReq) (*pb2.GetMessagesResp, error) {
+	l := logic2.NewGetMessagesLogic(ctx, s.svcCtx)
 	return l.GetMessages(in)
 }
 
 // 标记已读
-func (s *MessageServiceServer) MarkRead(ctx context.Context, in *pb.MarkReadReq) (*pb.MarkReadResp, error) {
-	l := logic.NewMarkReadLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) MarkRead(ctx context.Context, in *pb2.MarkReadReq) (*pb2.MarkReadResp, error) {
+	l := logic2.NewMarkReadLogic(ctx, s.svcCtx)
 	return l.MarkRead(in)
 }
 
 // 获取未读数
-func (s *MessageServiceServer) GetUnreadCount(ctx context.Context, in *pb.GetUnreadCountReq) (*pb.GetUnreadCountResp, error) {
-	l := logic.NewGetUnreadCountLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) GetUnreadCount(ctx context.Context, in *pb2.GetUnreadCountReq) (*pb2.GetUnreadCountResp, error) {
+	l := logic2.NewGetUnreadCountLogic(ctx, s.svcCtx)
 	return l.GetUnreadCount(in)
 }
 
 // 发送系统通知
-func (s *MessageServiceServer) SendNotification(ctx context.Context, in *pb.SendNotificationReq) (*pb.SendNotificationResp, error) {
-	l := logic.NewSendNotificationLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) SendNotification(ctx context.Context, in *pb2.SendNotificationReq) (*pb2.SendNotificationResp, error) {
+	l := logic2.NewSendNotificationLogic(ctx, s.svcCtx)
 	return l.SendNotification(in)
 }
 
 // 获取通知列表
-func (s *MessageServiceServer) GetNotifications(ctx context.Context, in *pb.GetNotificationsReq) (*pb.GetNotificationsResp, error) {
-	l := logic.NewGetNotificationsLogic(ctx, s.svcCtx)
+func (s *MessageServiceServer) GetNotifications(ctx context.Context, in *pb2.GetNotificationsReq) (*pb2.GetNotificationsResp, error) {
+	l := logic2.NewGetNotificationsLogic(ctx, s.svcCtx)
 	return l.GetNotifications(in)
 }

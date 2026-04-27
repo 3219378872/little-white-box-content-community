@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
+	"esx/app/media/rpc/internal/config"
+	"esx/app/media/rpc/internal/mqs"
+	"esx/app/media/rpc/internal/server"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"flag"
 	"fmt"
 
 	"cleanupx"
-	"esx/app/media/internal/config"
-	"esx/app/media/internal/mqs"
-	"esx/app/media/internal/server"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

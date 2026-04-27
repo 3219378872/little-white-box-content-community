@@ -4,14 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	model2 "esx/app/media/rpc/internal/model"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"testing"
 	"time"
 
 	"errx"
-
-	"esx/app/media/internal/model"
-	"esx/app/media/internal/svc"
-	"esx/app/media/pb/xiaobaihe/media/pb"
 )
 
 func newGetLogicWithFake(f *fakeMediaModel) *GetMediaLogic {
@@ -32,8 +31,8 @@ func TestGetMedia_RejectsNonPositiveId(t *testing.T) {
 
 func TestGetMedia_NotFoundMapsToMediaNotFound(t *testing.T) {
 	f := &fakeMediaModel{
-		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
-			return nil, model.ErrNotFound
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
+			return nil, model2.ErrNotFound
 		},
 	}
 	l := newGetLogicWithFake(f)
@@ -47,7 +46,7 @@ func TestGetMedia_NotFoundMapsToMediaNotFound(t *testing.T) {
 
 func TestGetMedia_DBErrorMapsToSystemError(t *testing.T) {
 	f := &fakeMediaModel{
-		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
 			return nil, errors.New("db exploded")
 		},
 	}
@@ -62,8 +61,8 @@ func TestGetMedia_DBErrorMapsToSystemError(t *testing.T) {
 
 func TestGetMedia_SoftDeletedRowMapsToMediaNotFound(t *testing.T) {
 	f := &fakeMediaModel{
-		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
-			return &model.Media{Id: 7, Status: 0}, nil
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
+			return &model2.Media{Id: 7, Status: 0}, nil
 		},
 	}
 	l := newGetLogicWithFake(f)
@@ -78,8 +77,8 @@ func TestGetMedia_SoftDeletedRowMapsToMediaNotFound(t *testing.T) {
 func TestGetMedia_ProcessingStatusMapsToMediaNotFound(t *testing.T) {
 	// status=2 处理中也应被视为不可见。
 	f := &fakeMediaModel{
-		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
-			return &model.Media{Id: 7, Status: 2}, nil
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
+			return &model2.Media{Id: 7, Status: 2}, nil
 		},
 	}
 	l := newGetLogicWithFake(f)
@@ -92,7 +91,7 @@ func TestGetMedia_ProcessingStatusMapsToMediaNotFound(t *testing.T) {
 
 func TestGetMedia_HappyPathReturnsMappedInfo(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0).UTC()
-	want := &model.Media{
+	want := &model2.Media{
 		Id:           101,
 		UserId:       9,
 		FileName:     "a.jpg",
@@ -107,7 +106,7 @@ func TestGetMedia_HappyPathReturnsMappedInfo(t *testing.T) {
 		CreatedAt:    now,
 	}
 	f := &fakeMediaModel{
-		findOneFn: func(_ context.Context, _ int64) (*model.Media, error) {
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
 			return want, nil
 		},
 	}
@@ -132,7 +131,7 @@ func TestGetMedia_HappyPathReturnsMappedInfo(t *testing.T) {
 }
 
 func TestToPBMediaInfo_NullableFieldsFallBackToZero(t *testing.T) {
-	m := &model.Media{
+	m := &model2.Media{
 		Id:           1,
 		UserId:       2,
 		FileName:     "f",
