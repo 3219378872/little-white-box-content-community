@@ -3,6 +3,7 @@ package svc
 import (
 	"esx/app/interaction/rpc/internal/config"
 	model2 "esx/app/interaction/rpc/internal/model"
+	"fmt"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -30,7 +31,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DriverName: "mysql",
 	})
 	if err != nil {
-		panic("数据库连接初始化错误")
+		panic(fmt.Sprintf("数据库连接初始化错误%v", err))
 	}
 
 	conf := cache.CacheConf{

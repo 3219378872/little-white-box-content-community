@@ -275,11 +275,14 @@ services:
   dtm:
     image: yedf/dtm:latest
     container_name: xbh-dtm
-    restart: unless-stopped
     environment:
       IS_DOCKER: "1"
-      STORE_DRIVER: mysql
-      STORE_DSN: "${DTM_STORE_DSN}"
+      Store_Driver: mysql
+      Store_Host: 'localhost'
+      Store_User: 'root'
+      Store_Password: 'Xbh@MySQL2024!'
+      Store_Port: 3306
+      Store_Db: 'dtm'
     ports:
       - "36789:36789"
       - "36790:36790"

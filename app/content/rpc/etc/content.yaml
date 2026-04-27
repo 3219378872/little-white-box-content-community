@@ -1,18 +1,18 @@
-Name: content
+Name: content.rpc
 ListenOn: 0.0.0.0:8088
 Etcd:
   Hosts:
   - 127.0.0.1:2379
-  Key: content
+  Key: content.rpc
 Redis:
   Host: 127.0.0.1:6379
   Pass: "${REDIS_PASS}"
   Type: node
   Key: content
 DataSource: "${DB_CONTENT}"
-DtmServer: "${DTM_GRPC_SERVER}"
-ContentBusiServer: "${CONTENT_BUSI_SERVER}"
-FeedBusiServer: "${FEED_BUSI_SERVER}"
+DtmServer: "etcd://127.0.0.1:2379/dtmservice"
+ContentBusiServer: "etcd://127.0.0.1:2379/content"
+FeedBusiServer: "etcd://127.0.0.1:2379/feed.rpc"
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "content-producer-group"

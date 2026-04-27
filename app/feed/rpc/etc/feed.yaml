@@ -9,6 +9,7 @@ Redis:
   Host: 127.0.0.1:6379
   Pass: "${REDIS_PASS}"
   Type: node
+  Key: feed
 UserRpc:
   Etcd:
     Hosts:

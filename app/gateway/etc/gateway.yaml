@@ -10,14 +10,19 @@ UserRpc:
   Etcd:
     Hosts:
       - 127.0.0.1:2379
-    Key: user
+    Key: user.rpc
 ContentRpc:
   Etcd:
     Hosts:
       - 127.0.0.1:2379
-    Key: content
+    Key: content.rpc
 MediaRpc:
   Etcd:
     Hosts:
       - 127.0.0.1:2379
     Key: media.rpc
+InteractionRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: interaction.rpc
