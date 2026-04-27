@@ -1,0 +1,76 @@
+package logic
+
+import (
+	"context"
+	"errx"
+	"esx/app/content/rpc/internal/model"
+	"esx/app/content/rpc/internal/svc"
+	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+
+	"github.com/zeromicro/go-zero/core/logx"
+)
+
+type GetUserPostsLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+	logx.Logger
+}
+
+func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserPostsLogic {
+	return &GetUserPostsLogic{
+		ctx:    ctx,
+		svcCtx: svcCtx,
+		Logger: logx.WithContext(ctx),
+	}
+}
+
+// GetUserPosts 获取用户帖子列表
+func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPostsResp, error) {
+	page := int(in.Page)
+	pageSize := int(in.PageSize)
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 50 {
+		pageSize = 20
+	}
+	sortBy := int(in.SortBy)
+	switch sortBy {
+	case model.SortByHot, model.SortByLatest:
+		// keep
+	default:
+		sortBy = model.SortByLatest
+	}
+
+	posts, total, err := l.svcCtx.PostModel.FindByAuthorId(l.ctx, in.UserId, page, pageSize, sortBy)
+	if err != nil {
+		l.Errorw("PostModel.FindByAuthorId failed",
+			logx.Field("userId", in.UserId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	if len(posts) == 0 {
+		return &pb.GetUserPostsResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+	}
+
+	postIds := make([]int64, 0, len(posts))
+	for _, post := range posts {
+		postIds = append(postIds, post.Id)
+	}
+	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
+	if err != nil {
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
+		tagsMap = map[int64][]string{}
+	}
+	postInfos := make([]*pb.PostInfo, 0, len(posts))
+	for _, post := range posts {
+		postInfos = append(postInfos, PostToPostInfo(post, tagsMap[post.Id]))
+	}
+
+	return &pb.GetUserPostsResp{
+		Posts: postInfos,
+		Total: total,
+	}, nil
+}
