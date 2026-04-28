@@ -1,0 +1,10 @@
+DataSource: "${DB_MESSAGE}"
+Redis:
+  Host: "127.0.0.1:6379"
+  Pass: "${REDIS_PASS}"
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "message-service-group"
+  Topic: "message-push"
+  Tag: "default"
+  ConsumeOrder: false
