@@ -27,7 +27,7 @@ func main() {
 	flag.Parse()
 
 	var c config.Config
-	conf.MustLoad(*configFile, &c)
+	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
 	var messageConsumer *mqx.Consumer
 	if c.MQ.NameServer != "" && c.MQ.Topic != "" {
