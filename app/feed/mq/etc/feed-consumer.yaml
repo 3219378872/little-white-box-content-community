@@ -1,0 +1,14 @@
+DataSource: "${DB_FEED}"
+UserRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: user.rpc
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "feed-service-group"
+  Topic: "post-create"
+  Tag: "default"
+  ConsumeOrder: false
+BigVThreshold: 10000
+FanoutBatchSize: 500
