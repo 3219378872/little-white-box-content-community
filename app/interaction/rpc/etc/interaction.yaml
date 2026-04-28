@@ -1,9 +1,9 @@
-Name: interaction
+Name: interaction.rpc
 ListenOn: 0.0.0.0:9003
 Etcd:
   Hosts:
   - 127.0.0.1:2379
-  Key: interaction
+  Key: interaction.rpc
 
 DataSource: "${DB_INTERACTION}"
 
