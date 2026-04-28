@@ -27,8 +27,8 @@ func TestDTMServiceUsesMySQLStorage(t *testing.T) {
 	if strings.Contains(block, "STORE_DRIVER: redis") || strings.Contains(block, "STORE_HOST: redis") {
 		t.Fatalf("dtm block still contains redis storage config:\n%s", block)
 	}
-	if !strings.Contains(block, `STORE_DSN: "${DTM_STORE_DSN}"`) {
-		t.Fatalf("dtm block must use DTM_STORE_DSN env placeholder, block:\n%s", block)
+	if !strings.Contains(block, "STORE_HOST") || !strings.Contains(block, "STORE_USER") || !strings.Contains(block, "STORE_PASSWORD") || !strings.Contains(block, "STORE_PORT") || !strings.Contains(block, "STORE_DB") {
+		t.Fatalf("dtm block must use individual STORE_* env vars (HOST/USER/PASSWORD/PORT/DB), block:\n%s", block)
 	}
 	if !strings.Contains(block, "mysql:") || !strings.Contains(block, "condition: service_healthy") {
 		t.Fatalf("dtm must depend on healthy mysql, block:\n%s", block)

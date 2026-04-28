@@ -285,12 +285,12 @@ services:
     container_name: xbh-dtm
     environment:
       IS_DOCKER: "1"
-      Store_Driver: mysql
-      Store_Host: 'localhost'
-      Store_User: 'root'
-      Store_Password: 'Xbh@MySQL2024!'
-      Store_Port: 3306
-      Store_Db: 'dtm'
+      STORE_DRIVER: mysql
+      STORE_HOST: 'localhost'
+      STORE_USER: 'root'
+      STORE_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      STORE_PORT: 3306
+      STORE_DB: 'dtm'
     ports:
       - "36789:36789"
       - "36790:36790"
