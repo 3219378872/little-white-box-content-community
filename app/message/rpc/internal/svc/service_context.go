@@ -50,9 +50,9 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn := sqlx.NewMysql(c.DataSource)
 	cacheConf := cache.CacheConf{
-		cache.NodeConf{RedisConf: c.Redis, Weight: 100},
+		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},
 	}
-	redisClient := redis.MustNewRedis(c.Redis)
+	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 
 	return &ServiceContext{
 		Config:              c,
