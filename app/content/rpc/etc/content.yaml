@@ -18,3 +18,5 @@ MQ:
   GroupName: "content-producer-group"
   Retry: 3
   SendTimeout: 3000
+Log:
+  Level: info
