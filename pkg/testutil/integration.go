@@ -19,10 +19,11 @@ import (
 )
 
 type TestEnv struct {
-	DB       *sql.DB
-	Redis    *redis.Redis
-	MySQLDSN string
-	closeFn  func()
+	DB        *sql.DB
+	Redis     *redis.Redis
+	RedisAddr string
+	MySQLDSN  string
+	closeFn   func()
 }
 
 // SetupTestEnv 启动 MySQL 8.0 + Redis 7 容器，返回统一测试环境。
@@ -124,10 +125,11 @@ func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 	}
 
 	return &TestEnv{
-		DB:       db,
-		Redis:    rds,
-		MySQLDSN: dsn,
-		closeFn:  cleanup,
+		DB:        db,
+		Redis:     rds,
+		RedisAddr: redisAddr,
+		MySQLDSN:  dsn,
+		closeFn:   cleanup,
 	}, nil
 }
 

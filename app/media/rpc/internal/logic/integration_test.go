@@ -7,6 +7,7 @@ import (
 	"esx/app/media/rpc/internal/config"
 	"esx/app/media/rpc/internal/storage"
 	"esx/app/media/rpc/internal/svc"
+	"esx/pkg/testutil"
 	"fmt"
 	"os"
 	"testing"
@@ -16,36 +17,29 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
+var testEnv *testutil.TestEnv
 var testSvcCtx *svc.ServiceContext
 
-func getEnv(key, defaultVal string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultVal
-}
-
 func TestMain(m *testing.M) {
-	dsn := getEnv("TEST_MYSQL_DSN",
-		"root:root@tcp(127.0.0.1:3306)/xbh_media?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai")
-	redisHost := getEnv("TEST_REDIS_HOST", "127.0.0.1:6379")
-	redisPass := getEnv("TEST_REDIS_PASS", "")
-	s3Endpoint := getEnv("TEST_S3_ENDPOINT", "127.0.0.1:8333")
-	s3AK := getEnv("TEST_S3_AK", "xbh-media")
-	s3SK := getEnv("TEST_S3_SK", "xbh-media-secret")
-	s3Bucket := getEnv("TEST_S3_BUCKET", "xbh-media-test")
+	testEnv = testutil.SetupTestEnvM("xbh_media", testutil.SchemaPath("xbh_media.sql"))
+
+	// S3 storage 仍从环境变量读取（MinIO/SeaweedFS 端到端暂不纳入 testcontainers）
+	s3Endpoint := os.Getenv("TEST_S3_ENDPOINT")
+	if s3Endpoint == "" {
+		s3Endpoint = "127.0.0.1:8333"
+	}
 
 	cfg := config.Config{
 		RpcServerConf: zrpc.RpcServerConf{},
-		DataSource:    dsn,
+		DataSource:    testEnv.MySQLDSN,
 		S3Storage: storage.Config{
 			Endpoint:      s3Endpoint,
-			AccessKey:     s3AK,
-			SecretKey:     s3SK,
+			AccessKey:     "xbh-media",
+			SecretKey:     "xbh-media-secret",
 			UseSSL:        false,
 			Region:        "us-east-1",
-			Bucket:        s3Bucket,
-			PublicBaseURL: "http://" + s3Endpoint + "/" + s3Bucket,
+			Bucket:        "xbh-media-test",
+			PublicBaseURL: "http://" + s3Endpoint + "/xbh-media-test",
 		},
 		Upload: config.UploadConf{
 			MaxImageSize:      10 * 1024 * 1024,
@@ -56,20 +50,16 @@ func TestMain(m *testing.M) {
 		},
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
-		Host: redisHost,
-		Pass: redisPass,
+		Host: testEnv.RedisAddr,
 		Type: "node",
 	}
 
 	testSvcCtx = svc.NewServiceContext(cfg)
-	if _, err := testSvcCtx.Conn.Exec("SELECT 1"); err != nil {
-		fmt.Fprintf(os.Stderr, "数据库连接失败: %v\n", err)
-		os.Exit(1)
-	}
 
 	truncateAll()
 	code := m.Run()
 	truncateAll()
+	testEnv.Close()
 	os.Exit(code)
 }
 

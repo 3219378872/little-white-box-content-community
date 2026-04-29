@@ -7,6 +7,8 @@ import (
 	"esx/app/content/rpc/internal/config"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/testutil"
+	"util"
 	"fmt"
 	"os"
 	"testing"
@@ -18,39 +20,25 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
+var testEnv *testutil.TestEnv
 var testSvcCtx *svc.ServiceContext
 
-// getEnv 读取环境变量，未设置时返回 defaultVal
-func getEnv(key, defaultVal string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultVal
-}
-
 func TestMain(m *testing.M) {
-	dsn := getEnv("TEST_MYSQL_DSN",
-		"root:root@tcp(127.0.0.1:3306)/xbh_content?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai")
-	redisHost := getEnv("TEST_REDIS_HOST", "127.0.0.1:6379")
-	redisPass := getEnv("TEST_REDIS_PASS", "")
+	testEnv = testutil.SetupTestEnvM("xbh_content", testutil.SchemaPath("xbh_content.sql"))
 
 	cfg := config.Config{
-		RpcServerConf: zrpc.RpcServerConf{},
-		DataSource:    dsn,
+		RpcServerConf:     zrpc.RpcServerConf{},
+		DataSource:        testEnv.MySQLDSN,
+		DtmServer:         "http://127.0.0.1:36789",
+		ContentBusiServer: "http://127.0.0.1:0",
+		FeedBusiServer:    "http://127.0.0.1:0",
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
-		Host: redisHost,
-		Pass: redisPass,
+		Host: testEnv.RedisAddr,
 		Type: "node",
 	}
 
 	testSvcCtx = svc.NewServiceContext(cfg)
-
-	// 验证数据库连接
-	if _, err := testSvcCtx.Conn.Exec("SELECT 1"); err != nil {
-		fmt.Fprintf(os.Stderr, "数据库连接失败: %v\n", err)
-		os.Exit(1)
-	}
 
 	truncateAll()
 	seedTags()
@@ -58,6 +46,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	truncateAll()
+	testEnv.Close()
 	os.Exit(code)
 }
 
@@ -81,9 +70,10 @@ func seedTags() {
 		{"rust", 50},
 	}
 	for _, s := range seeds {
+		id, _ := util.NextID()
 		_, err := testSvcCtx.Conn.Exec(
-			"INSERT INTO `tag` (`name`, `post_count`, `status`) VALUES (?, ?, 1)",
-			s.name, s.postCount,
+			"INSERT INTO `tag` (`id`, `name`, `post_count`, `status`) VALUES (?, ?, ?, 1)",
+			id, s.name, s.postCount,
 		)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "seedTags 插入 %s 失败: %v\n", s.name, err)
