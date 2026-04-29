@@ -14,8 +14,13 @@ import (
 
 type errorIndexer struct{ err error }
 
-func (e *errorIndexer) Index(ctx context.Context, doc indexer.IndexDoc) error  { return e.err }
-func (e *errorIndexer) Delete(ctx context.Context, docID string) error          { return e.err }
+func (e *errorIndexer) Index(ctx context.Context, doc indexer.IndexDoc) error {
+	return e.err
+}
+
+func (e *errorIndexer) Delete(ctx context.Context, docID string) error {
+	return e.err
+}
 
 type recordingIndexer struct {
 	indexed []indexer.IndexDoc

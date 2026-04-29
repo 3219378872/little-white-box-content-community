@@ -2,10 +2,12 @@ package logic
 
 import (
 	"context"
+	"fmt"
 
 	"esx/app/feed/mq/internal/model"
 	"user/userservice"
 
+	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
 )
 
@@ -39,14 +41,19 @@ func HandlePostPublished(
 ) (int64, error) {
 	userResp, err := userSvc.GetUser(ctx, &userservice.GetUserReq{UserId: event.AuthorId})
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("fanout: get user %d: %w", event.AuthorId, err)
 	}
 	if err := outbox.InsertIgnore(ctx, &model.FeedOutbox{
 		AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt,
 	}); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("fanout: insert outbox for post %d: %w", event.PostId, err)
 	}
-	if userResp.User == nil || userResp.User.FollowerCount >= bigVThreshold {
+	if userResp.User == nil {
+		logx.WithContext(ctx).Errorw("fanout: GetUser returned nil user",
+			logx.Field("author_id", event.AuthorId), logx.Field("post_id", event.PostId))
+		return 0, fmt.Errorf("fanout: nil user for author %d", event.AuthorId)
+	}
+	if userResp.User.FollowerCount >= bigVThreshold {
 		return 0, nil
 	}
 	pageSize := int32(fanoutBatchSize)
@@ -60,7 +67,7 @@ func HandlePostPublished(
 			UserId: event.AuthorId, Page: page, PageSize: pageSize,
 		})
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("fanout: get followers page %d for author %d: %w", page, event.AuthorId, err)
 		}
 		for _, user := range followersResp.Users {
 			if user.Id > 0 {

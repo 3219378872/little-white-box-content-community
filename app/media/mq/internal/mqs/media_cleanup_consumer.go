@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"esx/app/media/mq/internal/svc"
 	"mqx"
@@ -40,6 +41,8 @@ func NewMediaCleanupConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) 
 }
 
 func consumeMediaDeleteBatch(ctx context.Context, deleter ObjectDeleter, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for _, msg := range msgs {
 		var m mediaDeletedMessage
 		if err := json.Unmarshal(msg.Body, &m); err != nil {

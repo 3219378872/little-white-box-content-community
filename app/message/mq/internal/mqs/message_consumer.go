@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
+	"esx/app/message/mq/internal/logic"
 	"esx/app/message/mq/internal/model"
 	"esx/app/message/mq/internal/svc"
 	"mqx"
@@ -14,13 +16,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/zeromicro/go-zero/core/logx"
-)
-
-const (
-	NotificationTypeLike    = int64(1)
-	NotificationTypeComment = int64(2)
-	NotificationTypeFollow  = int64(3)
-	NotificationTypeSystem  = int64(4)
 )
 
 type userActionEvent struct {
@@ -48,6 +43,8 @@ func NewMessageConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 }
 
 func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for _, msg := range msgs {
 		var event userActionEvent
 		if err := json.Unmarshal(msg.Body, &event); err != nil {
@@ -65,7 +62,15 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 				logx.Field("msg_id", msg.MsgId))
 			continue
 		}
-		title, content := renderNotificationContent(event)
+		title, content := logic.RenderNotification(logic.UserActionEvent{
+			TargetUserID: event.TargetUserID,
+			ActionType:   event.ActionType,
+			UserID:       event.UserID,
+			Username:     event.Username,
+			TargetID:     event.TargetID,
+			TargetType:   event.TargetType,
+			Content:      event.Content,
+		})
 		if title == "" {
 			logx.WithContext(ctx).Errorw("message-consumer: unsupported action_type",
 				logx.Field("msg_id", msg.MsgId), logx.Field("action_type", event.ActionType))
@@ -100,23 +105,4 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 		}
 	}
 	return consumer.ConsumeSuccess
-}
-
-func renderNotificationContent(event userActionEvent) (string, string) {
-	username := strings.TrimSpace(event.Username)
-	if username == "" {
-		username = "有人"
-	}
-	switch event.ActionType {
-	case NotificationTypeLike:
-		return "点赞", fmt.Sprintf("%s 赞了你的帖子", username)
-	case NotificationTypeComment:
-		return "评论", fmt.Sprintf("%s 评论了你的帖子", username)
-	case NotificationTypeFollow:
-		return "关注", fmt.Sprintf("%s 关注了你", username)
-	case NotificationTypeSystem:
-		return "系统通知", strings.TrimSpace(event.Content)
-	default:
-		return "", ""
-	}
 }

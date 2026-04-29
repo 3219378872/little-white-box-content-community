@@ -4,7 +4,6 @@ import (
 	"context"
 	"esx/app/feed/mq/internal/config"
 	"esx/app/feed/mq/internal/model"
-	"fmt"
 	"user/userservice"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -44,7 +43,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 func MustServiceContext(c config.Config) *ServiceContext {
 	ctx := NewServiceContext(c)
 	if ctx.Conn == nil {
-		panic(fmt.Sprintf("feed-consumer: mysql connection failed"))
+		panic("feed-consumer: mysql connection failed")
 	}
 	return ctx
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"esx/app/search/mq/internal/indexer"
 	"esx/app/search/mq/internal/svc"
@@ -35,6 +36,8 @@ func NewSearchConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 }
 
 func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for _, msg := range msgs {
 		var event searchEvent
 		if err := json.Unmarshal(msg.Body, &event); err != nil {

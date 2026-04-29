@@ -3,7 +3,6 @@ package svc
 import (
 	"esx/app/message/mq/internal/config"
 	"esx/app/message/mq/internal/model"
-	"fmt"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -38,7 +37,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 func MustServiceContext(c config.Config) *ServiceContext {
 	ctx := NewServiceContext(c)
 	if ctx.Conn == nil {
-		panic(fmt.Sprintf("message-consumer: mysql connection failed"))
+		panic("message-consumer: mysql connection failed")
 	}
 	return ctx
 }

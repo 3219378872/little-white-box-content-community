@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"esx/app/feed/mq/internal/logic"
 	"esx/app/feed/mq/internal/svc"
@@ -35,6 +36,8 @@ func NewPostPublishConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 }
 
 func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for _, msg := range msgs {
 		var event postPublishedMessage
 		if err := json.Unmarshal(msg.Body, &event); err != nil {

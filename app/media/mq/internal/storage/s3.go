@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -44,7 +45,9 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 		bucket:        cfg.Bucket,
 		publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"),
 	}
-	if err = client.ensureBucket(context.Background(), cfg.Region); err != nil {
+	ensureCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err = client.ensureBucket(ensureCtx, cfg.Region); err != nil {
 		return nil, err
 	}
 	return client, nil

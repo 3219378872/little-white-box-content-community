@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"esx/app/recommend/mq/internal/store"
 	"esx/app/recommend/mq/internal/svc"
@@ -36,6 +37,8 @@ func NewRecommendConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 }
 
 func consumeBehaviorBatch(ctx context.Context, bs store.BehaviorStore, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	for _, msg := range msgs {
 		var event behaviorEvent
 		if err := json.Unmarshal(msg.Body, &event); err != nil {
