@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -38,28 +39,38 @@ func (m *customUserFollowModel) withSession(session sqlx.Session) UserFollowMode
 }
 
 func (m *customUserFollowModel) FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error) {
-	query := fmt.Sprintf(`SELECT p.%s
-FROM user_follow f
-JOIN user_profile p ON p.id = f.user_id
-WHERE f.target_user_id = ?
-ORDER BY f.id DESC
-LIMIT ?, ?`, userProfileRows)
+	query := fmt.Sprintf(`SELECT %s
+	FROM user_follow f
+	JOIN user_profile p ON p.id = f.user_id
+	WHERE f.target_user_id = ?
+	ORDER BY f.id DESC
+	LIMIT ?, ?`, prefixedProfileColumns("p."))
 	var rows []*UserProfile
 	err := m.conn.QueryRowsCtx(ctx, &rows, query, userID, offset, limit)
 	return rows, err
 }
 
 func (m *customUserFollowModel) FindFollowing(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error) {
-	query := fmt.Sprintf(`SELECT p.%s
-FROM user_follow f
-JOIN user_profile p ON p.id = f.target_user_id
-WHERE f.user_id = ?
-ORDER BY f.id DESC
-LIMIT ?, ?`, userProfileRows)
+	query := fmt.Sprintf(`SELECT %s
+	FROM user_follow f
+	JOIN user_profile p ON p.id = f.target_user_id
+	WHERE f.user_id = ?
+	ORDER BY f.id DESC
+	LIMIT ?, ?`, prefixedProfileColumns("p."))
 	var rows []*UserProfile
 	err := m.conn.QueryRowsCtx(ctx, &rows, query, userID, offset, limit)
 	return rows, err
 }
+
+// prefixedProfileColumns returns userProfileRows with each column prefixed.
+func prefixedProfileColumns(prefix string) string {
+	cols := strings.Split(userProfileRows, ",")
+	for i, c := range cols {
+		cols[i] = prefix + c
+	}
+	return strings.Join(cols, ",")
+}
+
 
 func (m *customUserFollowModel) CountFollowers(ctx context.Context, userID int64) (int64, error) {
 	var total int64
