@@ -18,7 +18,7 @@ var testEnv *testutil.TestEnv
 var testSvcCtx *svc.ServiceContext
 
 func TestMain(m *testing.M) {
-	testEnv = testutil.SetupTestEnvM(testutil.SchemaPath("xbh_user.sql"))
+	testEnv = testutil.SetupTestEnvM("xbh_user", testutil.SchemaPath("xbh_user.sql"))
 	testSvcCtx = buildSvcCtx(testEnv)
 	_ = util.InitSnowflake(1, 1)
 	code := m.Run()

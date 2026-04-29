@@ -26,16 +26,16 @@ type TestEnv struct {
 }
 
 // SetupTestEnv 启动 MySQL 8.0 + Redis 7 容器，返回统一测试环境。
-func SetupTestEnv(t *testing.T, schemaPath string) *TestEnv {
+func SetupTestEnv(t *testing.T, dbName, schemaPath string) *TestEnv {
 	t.Helper()
-	env, err := setupTestEnv(schemaPath)
+	env, err := setupTestEnv(dbName, schemaPath)
 	require.NoError(t, err)
 	return env
 }
 
 // SetupTestEnvM for TestMain (*testing.M).
-func SetupTestEnvM(schemaPath string) *TestEnv {
-	env, err := setupTestEnv(schemaPath)
+func SetupTestEnvM(dbName, schemaPath string) *TestEnv {
+	env, err := setupTestEnv(dbName, schemaPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "SetupTestEnvM: %v\n", err)
 		os.Exit(1)
@@ -43,13 +43,13 @@ func SetupTestEnvM(schemaPath string) *TestEnv {
 	return env
 }
 
-func setupTestEnv(schemaPath string) (*TestEnv, error) {
+func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 	ctx := context.Background()
 
 	// MySQL
 	mysqlContainer, err := mysqlcontainer.Run(ctx,
 		"mysql:8.0",
-		mysqlcontainer.WithDatabase("testdb"),
+		mysqlcontainer.WithDatabase(dbName),
 		mysqlcontainer.WithUsername("root"),
 		mysqlcontainer.WithPassword("testpass"),
 		mysqlcontainer.WithScripts(schemaPath),
