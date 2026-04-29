@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -27,6 +28,22 @@ type TestEnv struct {
 // SetupTestEnv 启动 MySQL 8.0 + Redis 7 容器，返回统一测试环境。
 func SetupTestEnv(t *testing.T, schemaPath string) *TestEnv {
 	t.Helper()
+	env, err := setupTestEnv(schemaPath)
+	require.NoError(t, err)
+	return env
+}
+
+// SetupTestEnvM for TestMain (*testing.M).
+func SetupTestEnvM(schemaPath string) *TestEnv {
+	env, err := setupTestEnv(schemaPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "SetupTestEnvM: %v\n", err)
+		os.Exit(1)
+	}
+	return env
+}
+
+func setupTestEnv(schemaPath string) (*TestEnv, error) {
 	ctx := context.Background()
 
 	// MySQL
@@ -47,15 +64,24 @@ func SetupTestEnv(t *testing.T, schemaPath string) *TestEnv {
 			"--sql-mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION",
 		),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, fmt.Errorf("mysql container: %w", err)
+	}
 
 	dsn, err := mysqlContainer.ConnectionString(ctx,
 		"charset=utf8mb4", "parseTime=true", "loc=Asia%2FShanghai")
-	require.NoError(t, err)
+	if err != nil {
+		return nil, fmt.Errorf("mysql connection string: %w", err)
+	}
 
 	db, err := sql.Open("mysql", dsn)
-	require.NoError(t, err)
-	require.NoError(t, db.PingContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("sql.Open: %w", err)
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("mysql ping: %w", err)
+	}
 
 	// Redis
 	req := testcontainers.GenericContainerRequest{
@@ -67,12 +93,23 @@ func SetupTestEnv(t *testing.T, schemaPath string) *TestEnv {
 		Started: true,
 	}
 	redisContainer, err := testcontainers.GenericContainer(ctx, req)
-	require.NoError(t, err)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("redis container: %w", err)
+	}
 
 	redisHost, err := redisContainer.Host(ctx)
-	require.NoError(t, err)
+	if err != nil {
+		db.Close()
+		_ = testcontainers.TerminateContainer(redisContainer)
+		return nil, fmt.Errorf("redis host: %w", err)
+	}
 	redisPort, err := redisContainer.MappedPort(ctx, "6379")
-	require.NoError(t, err)
+	if err != nil {
+		db.Close()
+		_ = testcontainers.TerminateContainer(redisContainer)
+		return nil, fmt.Errorf("redis port: %w", err)
+	}
 
 	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort.Port())
 	rds := redis.MustNewRedis(redis.RedisConf{
@@ -91,7 +128,7 @@ func SetupTestEnv(t *testing.T, schemaPath string) *TestEnv {
 		Redis:    rds,
 		MySQLDSN: dsn,
 		closeFn:  cleanup,
-	}
+	}, nil
 }
 
 func (e *TestEnv) Close() {
