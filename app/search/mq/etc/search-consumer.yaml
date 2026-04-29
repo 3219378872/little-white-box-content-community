@@ -1,0 +1,6 @@
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "search-service-group"
+  Topic: "search-index"
+  Tag: "default"
+  ConsumeOrder: false
