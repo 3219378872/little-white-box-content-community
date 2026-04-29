@@ -1,19 +1,15 @@
 package main
 
 import (
-	"context"
-	"esx/app/media/rpc/internal/config"
-	"esx/app/media/rpc/internal/mqs"
-	"esx/app/media/rpc/internal/server"
-	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"flag"
 	"fmt"
 
-	"cleanupx"
+	"esx/app/media/rpc/internal/config"
+	"esx/app/media/rpc/internal/server"
+	"esx/app/media/rpc/internal/svc"
+	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -34,18 +30,6 @@ func main() {
 	}
 
 	ctx := svc.NewServiceContext(c)
-
-	// 启动 MQ 消费者（可选，仅在配置了 NameServer 时启动）
-	if c.MQ.NameServer != "" {
-		mqConsumer, err := mqs.NewMediaCleanupConsumer(ctx)
-		if err != nil {
-			panic(fmt.Sprintf("media: MQ consumer initialization failed: %v", err))
-		}
-		if err = mqConsumer.Start(); err != nil {
-			panic(fmt.Sprintf("media: MQ consumer start failed: %v", err))
-		}
-		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "media cleanup consumer", mqConsumer.Shutdown)
-	}
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterMediaServiceServer(grpcServer, server.NewMediaServiceServer(ctx))
