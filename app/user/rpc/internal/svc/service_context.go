@@ -2,6 +2,7 @@ package svc
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"user/internal/config"
 	"user/internal/model"
@@ -10,6 +11,14 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
+
+type UserProfileStore interface {
+	FindOne(ctx context.Context, id int64) (*model.UserProfile, error)
+	FindOneByPhone(ctx context.Context, phone sql.NullString) (*model.UserProfile, error)
+	FindOneByUsername(ctx context.Context, username string) (*model.UserProfile, error)
+	Insert(ctx context.Context, data *model.UserProfile) (sql.Result, error)
+	UpdateUserDes(ctx context.Context, userId int64, nickname, avatarUrl, bio string) error
+}
 
 type UserFollowStore interface {
 	FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*model.UserProfile, error)
@@ -22,7 +31,7 @@ type ServiceContext struct {
 	Config            config.Config
 	DB                sqlx.SqlConn
 	UserLoginLogModel model.UserLoginLogModel
-	UserProfileModel  model.UserProfileModel
+	UserProfileModel  UserProfileStore
 	UserFollowModel   UserFollowStore
 	RedisClient       *redis.Redis
 }

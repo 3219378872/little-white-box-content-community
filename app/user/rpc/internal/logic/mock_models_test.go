@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	"util"
 
 	"user/internal/model"
 	"user/internal/svc"
@@ -11,6 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
+
+func init() {
+	_ = util.InitSnowflake(1, 1)
+}
 
 // ── Mock UserProfileModel ─────────────────────────────────────────────────────
 
@@ -61,12 +66,6 @@ func (m *MockUserProfileModel) FindOneByIdForUpdate(ctx context.Context, session
 	return v, args.Error(1)
 }
 
-func (m *MockUserProfileModel) withSession(session sqlx.Session) model.UserProfileModel {
-	args := m.Called(session)
-	v, _ := args.Get(0).(model.UserProfileModel)
-	return v
-}
-
 // ── Mock UserFollowStore ──────────────────────────────────────────────────────
 
 type MockUserFollowStore struct{ mock.Mock }
@@ -96,7 +95,7 @@ func (m *MockUserFollowStore) CountFollowing(ctx context.Context, userID int64) 
 // ── SvcCtx Builder ────────────────────────────────────────────────────────────
 
 func newUnitSvcCtx(
-	profileModel model.UserProfileModel,
+	profileModel svc.UserProfileStore,
 	followStore svc.UserFollowStore,
 ) *svc.ServiceContext {
 	return &svc.ServiceContext{
