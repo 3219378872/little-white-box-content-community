@@ -1,0 +1,6 @@
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "recommend-service-group"
+  Topic: "user-behavior"
+  Tag: "default"
+  ConsumeOrder: false
