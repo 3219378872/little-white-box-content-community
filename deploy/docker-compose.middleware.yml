@@ -364,6 +364,28 @@ services:
     networks:
       - xbh-network
 
+  # ClickHouse 行为日志分析库
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: xbh-clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse:/docker-entrypoint-initdb.d
+    environment:
+      CLICKHOUSE_DB: xbh_analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - xbh-network
+
 volumes:
   mysql_data:
   redis_data:
@@ -380,6 +402,7 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  clickhouse_data:
 
 networks:
   xbh-network:
