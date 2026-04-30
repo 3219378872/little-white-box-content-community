@@ -80,7 +80,7 @@ func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 		return nil, fmt.Errorf("sql.Open: %w", err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("mysql ping: %w", err)
 	}
 
@@ -95,19 +95,19 @@ func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 	}
 	redisContainer, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("redis container: %w", err)
 	}
 
 	redisHost, err := redisContainer.Host(ctx)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		_ = testcontainers.TerminateContainer(redisContainer)
 		return nil, fmt.Errorf("redis host: %w", err)
 	}
 	redisPort, err := redisContainer.MappedPort(ctx, "6379")
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		_ = testcontainers.TerminateContainer(redisContainer)
 		return nil, fmt.Errorf("redis port: %w", err)
 	}
