@@ -17,6 +17,7 @@ type ServiceContext struct {
 	Config config.Config
 	Store  store.BehaviorStore
 	Dedup  *dedup.BloomDedup
+	db     *sql.DB
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -34,5 +35,13 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config: c,
 		Store:  store.NewClickHouseStore(db),
 		Dedup:  dedup.NewBloomDedup(rds, c.BloomBits),
+		db:     db,
 	}
+}
+
+func (s *ServiceContext) Close() error {
+	if s.db == nil {
+		return nil
+	}
+	return s.db.Close()
 }

@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"cleanupx"
 	"esx/app/pipeline/behaviorlog/internal/config"
@@ -50,8 +53,13 @@ func main() {
 	if err := mq.Start(); err != nil {
 		logx.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "behavior-log consumer", mq.Shutdown)
+	logger := logx.WithContext(context.Background())
+	defer cleanupx.Shutdown(logger, "behavior-log clickhouse", svcCtx.Close)
+	defer cleanupx.Shutdown(logger, "behavior-log consumer", mq.Shutdown)
+
+	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	fmt.Println("Behavior-log consumer started, subscribing: like/unlike/favorite/unfavorite/comment-create/user-follow/user-unfollow")
-	select {}
+	<-shutdownCtx.Done()
 }

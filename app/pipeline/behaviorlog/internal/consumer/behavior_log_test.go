@@ -31,8 +31,9 @@ func (m *mockStore) Insert(_ context.Context, e event.BehaviorEvent) error {
 }
 
 type mockDedup struct {
-	seen map[string]bool
-	err  error
+	seen    map[string]bool
+	err     error
+	markErr error
 }
 
 func newMockDedup() *mockDedup {
@@ -43,11 +44,15 @@ func (m *mockDedup) IsDuplicate(_ context.Context, eventID string) (bool, error)
 	if m.err != nil {
 		return false, m.err
 	}
-	if m.seen[eventID] {
-		return true, nil
+	return m.seen[eventID], nil
+}
+
+func (m *mockDedup) MarkProcessed(_ context.Context, eventID string) error {
+	if m.markErr != nil {
+		return m.markErr
 	}
 	m.seen[eventID] = true
-	return false, nil
+	return nil
 }
 
 func makeMsg(body string) *primitive.MessageExt {
@@ -121,6 +126,21 @@ func TestConsumeBehavior_StoreError_ReturnsRetry(t *testing.T) {
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
 }
 
+func TestConsumeBehavior_StoreError_DoesNotMarkDuplicate(t *testing.T) {
+	store := &mockStore{err: errors.New("clickhouse down")}
+	dedup := newMockDedup()
+	msg := makeMsg(`{"event_id":1,"event_time":1714300000000,"user_id":42,"action":"like","target_id":999,"target_type":"post"}`)
+
+	result := consumeBehaviorMsg(context.Background(), store, dedup, msg)
+	assert.Equal(t, consumer.ConsumeRetryLater, result)
+
+	store.err = nil
+	result = consumeBehaviorMsg(context.Background(), store, dedup, msg)
+
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	assert.Len(t, store.inserted, 1)
+}
+
 func TestConsumeBehavior_DedupError_FallsThrough(t *testing.T) {
 	store := &mockStore{}
 	dedup := &mockDedup{seen: make(map[string]bool), err: errors.New("redis down")}
@@ -142,6 +162,20 @@ func TestConsumeBehavior_ZeroEventID_GeneratesOne(t *testing.T) {
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
+	assert.Len(t, store.inserted, 1)
+	assert.NotZero(t, store.inserted[0].EventID)
+}
+
+func TestConsumeBehavior_ZeroEventID_UsesStableMessageID(t *testing.T) {
+	store := &mockStore{}
+	dedup := newMockDedup()
+	msg := makeMsg(`{"user_id":42,"action":"like","target_id":999,"target_type":"post"}`)
+
+	result1 := consumeBehaviorMsg(context.Background(), store, dedup, msg)
+	result2 := consumeBehaviorMsg(context.Background(), store, dedup, msg)
+
+	assert.Equal(t, consumer.ConsumeSuccess, result1)
+	assert.Equal(t, consumer.ConsumeSuccess, result2)
 	assert.Len(t, store.inserted, 1)
 	assert.NotZero(t, store.inserted[0].EventID)
 }

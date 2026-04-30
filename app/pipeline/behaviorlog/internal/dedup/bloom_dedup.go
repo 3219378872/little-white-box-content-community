@@ -54,12 +54,21 @@ func (d *BloomDedup) IsDuplicate(ctx context.Context, eventID string) (bool, err
 		return true, nil
 	}
 
+	return false, nil
+}
+
+func (d *BloomDedup) MarkProcessed(ctx context.Context, eventID string) error {
+	now := time.Now()
+	data := []byte(eventID)
+	todayKey := d.keyForDate(now)
+	todayFilter := bloom.New(d.rds, todayKey, d.bits)
+
 	if err := todayFilter.AddCtx(ctx, data); err != nil {
-		return false, fmt.Errorf("bloom add: %w", err)
+		return fmt.Errorf("bloom add: %w", err)
 	}
 	if err := d.rds.ExpireCtx(ctx, todayKey, int(ttlHours*3600)); err != nil {
-		return false, fmt.Errorf("bloom expire: %w", err)
+		return fmt.Errorf("bloom expire: %w", err)
 	}
 
-	return false, nil
+	return nil
 }

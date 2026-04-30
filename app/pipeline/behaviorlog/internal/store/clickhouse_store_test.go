@@ -70,6 +70,13 @@ func TestClickHouseStore_Insert_DuplicateEventID_Deduped(t *testing.T) {
 		"SELECT count() FROM xbh_analytics.behavior_events FINAL WHERE event_id = 20001").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
+
+	err = chEnv.DB.QueryRowContext(context.Background(),
+		`SELECT uniqExactMerge(cnt)
+		 FROM xbh_analytics.user_action_daily
+		 WHERE user_id = 42 AND action = 'like' AND target_type = 'post'`).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(1), count)
 }
 
 func TestClickHouseStore_Insert_InvalidEvent_ReturnsError(t *testing.T) {

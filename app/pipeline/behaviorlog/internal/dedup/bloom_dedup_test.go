@@ -56,6 +56,8 @@ func TestBloomDedup_SameEvent_IsDuplicate(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, dup1)
 
+	require.NoError(t, d.MarkProcessed(context.Background(), "event-002"))
+
 	dup2, err := d.IsDuplicate(context.Background(), "event-002")
 	require.NoError(t, err)
 	assert.True(t, dup2)
@@ -65,7 +67,7 @@ func TestBloomDedup_DifferentEvents_NotDuplicate(t *testing.T) {
 	rds := setupRedis(t)
 	d := NewBloomDedup(rds, 1024)
 
-	_, _ = d.IsDuplicate(context.Background(), "event-aaa")
+	require.NoError(t, d.MarkProcessed(context.Background(), "event-aaa"))
 	dup, err := d.IsDuplicate(context.Background(), "event-bbb")
 	require.NoError(t, err)
 	assert.False(t, dup)
@@ -91,5 +93,20 @@ func TestBloomDedup_RedisError_ReturnsError(t *testing.T) {
 	defer cancel()
 
 	_, err := d.IsDuplicate(ctx, "event-unavailable")
+	assert.Error(t, err)
+}
+
+func TestBloomDedup_MarkProcessed_RedisError_ReturnsError(t *testing.T) {
+	rds := redis.MustNewRedis(redis.RedisConf{
+		Host:     "127.0.0.1:1",
+		Type:     redis.NodeType,
+		NonBlock: true,
+	})
+	d := NewBloomDedup(rds, 1024)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := d.MarkProcessed(ctx, "event-unavailable")
 	assert.Error(t, err)
 }

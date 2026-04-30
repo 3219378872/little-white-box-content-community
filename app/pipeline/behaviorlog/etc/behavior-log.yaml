@@ -5,11 +5,12 @@ MQ:
   Tag: "default"
   ConsumeOrder: false
 
-ClickHouseDSN: "clickhouse://default:@127.0.0.1:9000/xbh_analytics?dial_timeout=5s&compress=lz4"
+ClickHouseDSN: "${CLICKHOUSE_DSN}"
 
 Redis:
-  Host: "127.0.0.1:6379"
+  Host: "${REDIS_HOST}"
   Type: node
+  Pass: "${REDIS_PASSWORD}"
 
 BloomBits: 20971520
 WorkerID: 1
