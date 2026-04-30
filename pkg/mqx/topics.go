@@ -44,11 +44,12 @@ const (
 
 // ConsumerGroup 消费者组定义
 const (
-	GroupUserService      = "user-service-group"
-	GroupContentService   = "content-service-group"
-	GroupSearchService    = "search-service-group"
-	GroupFeedService      = "feed-service-group"
-	GroupMessageService   = "message-service-group"
-	GroupRecommendService = "recommend-service-group"
-	GroupMediaService     = "media-service-group"
+	GroupUserService        = "user-service-group"
+	GroupContentService     = "content-service-group"
+	GroupSearchService      = "search-service-group"
+	GroupFeedService        = "feed-service-group"
+	GroupMessageService     = "message-service-group"
+	GroupRecommendService   = "recommend-service-group"
+	GroupMediaService       = "media-service-group"
+	GroupBehaviorLogService = "behavior-log-service-group"
 )
