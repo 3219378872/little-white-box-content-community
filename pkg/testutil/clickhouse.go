@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
@@ -81,4 +83,10 @@ func (e *ClickHouseEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()
 	}
+}
+
+func ClickHouseSchemaPath(filename string) string {
+	_, f, _, _ := runtime.Caller(0)
+	root := filepath.Join(filepath.Dir(f), "..", "..")
+	return filepath.Join(root, "deploy", "clickhouse", filename)
 }
