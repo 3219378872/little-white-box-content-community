@@ -374,7 +374,7 @@ services:
       - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./clickhouse:/docker-entrypoint-initdb.d
+      - ./sql/xbh_analytics.sql:/docker-entrypoint-initdb.d/xbh_analytics.sql:ro
     environment:
       CLICKHOUSE_DB: xbh_analytics
       CLICKHOUSE_USER: default

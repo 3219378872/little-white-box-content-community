@@ -9,10 +9,6 @@ import (
 	"esx/pkg/event"
 )
 
-type BehaviorStore interface {
-	Insert(ctx context.Context, e event.BehaviorEvent) error
-}
-
 type ClickHouseStore struct {
 	db *sql.DB
 }

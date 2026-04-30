@@ -1,22 +1,34 @@
+//go:build integration
+
 package clickhousex
 
 import (
 	"context"
+	"os"
 	"testing"
 
+	"cleanupx"
 	"esx/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
-func TestNewClient_PingSucceeds(t *testing.T) {
-	chEnv := testutil.SetupClickHouseEnv(t)
-	defer chEnv.Close()
+var chEnv *testutil.ClickHouseEnv
 
+func TestMain(m *testing.M) {
+	chEnv = testutil.SetupClickHouseEnvM()
+
+	code := m.Run()
+	chEnv.Close()
+	os.Exit(code)
+}
+
+func TestNewClient_PingSucceeds(t *testing.T) {
 	client, err := NewClient(chEnv.DSN)
 	require.NoError(t, err)
-	defer client.Close()
+	defer cleanupx.Close(logx.WithContext(context.Background()), "clickhouse client", client)
 
 	assert.NoError(t, client.Ping(context.Background()))
 }

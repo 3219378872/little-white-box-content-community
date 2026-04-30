@@ -1,7 +1,10 @@
+//go:build integration
+
 package store
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -12,15 +15,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupCH(t *testing.T) *testutil.ClickHouseEnv {
-	t.Helper()
-	return testutil.SetupClickHouseEnv(t, testutil.ClickHouseSchemaPath("behavior_events.sql"))
+var chEnv *testutil.ClickHouseEnv
+
+func TestMain(m *testing.M) {
+	chEnv = testutil.SetupClickHouseEnvM(testutil.ClickHouseSchemaPath("xbh_analytics.sql"))
+
+	code := m.Run()
+	chEnv.Close()
+	os.Exit(code)
 }
 
 func TestClickHouseStore_Insert_SingleEvent(t *testing.T) {
-	chEnv := setupCH(t)
-	defer chEnv.Close()
-
 	s := NewClickHouseStore(chEnv.DB)
 	e := event.BehaviorEvent{
 		EventID:    10001,
@@ -45,15 +50,12 @@ func TestClickHouseStore_Insert_SingleEvent(t *testing.T) {
 }
 
 func TestClickHouseStore_Insert_DuplicateEventID_Deduped(t *testing.T) {
-	chEnv := setupCH(t)
-	defer chEnv.Close()
-
 	s := NewClickHouseStore(chEnv.DB)
 	e := event.BehaviorEvent{
 		EventID:    20001,
 		EventTime:  time.Now().UnixMilli(),
-		UserID:     42,
-		Action:     "like",
+		UserID:     42001,
+		Action:     "share",
 		TargetID:   999,
 		TargetType: "post",
 	}
@@ -74,15 +76,12 @@ func TestClickHouseStore_Insert_DuplicateEventID_Deduped(t *testing.T) {
 	err = chEnv.DB.QueryRowContext(context.Background(),
 		`SELECT uniqExactMerge(cnt)
 		 FROM xbh_analytics.user_action_daily
-		 WHERE user_id = 42 AND action = 'like' AND target_type = 'post'`).Scan(&count)
+		 WHERE user_id = 42001 AND action = 'share' AND target_type = 'post'`).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 }
 
 func TestClickHouseStore_Insert_InvalidEvent_ReturnsError(t *testing.T) {
-	chEnv := setupCH(t)
-	defer chEnv.Close()
-
 	s := NewClickHouseStore(chEnv.DB)
 	e := event.BehaviorEvent{}
 
@@ -91,9 +90,6 @@ func TestClickHouseStore_Insert_InvalidEvent_ReturnsError(t *testing.T) {
 }
 
 func TestClickHouseStore_QueryByUser(t *testing.T) {
-	chEnv := setupCH(t)
-	defer chEnv.Close()
-
 	s := NewClickHouseStore(chEnv.DB)
 	now := time.Now().UnixMilli()
 

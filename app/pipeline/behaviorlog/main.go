@@ -10,10 +10,10 @@ import (
 
 	"cleanupx"
 	"esx/app/pipeline/behaviorlog/internal/config"
-	behaviorconsumer "esx/app/pipeline/behaviorlog/internal/consumer"
+	behaviorlogic "esx/app/pipeline/behaviorlog/internal/logic"
+	behaviorconsumer "esx/app/pipeline/behaviorlog/internal/mqs/behavior_log"
 	"esx/app/pipeline/behaviorlog/internal/svc"
 	"mqx"
-	"util"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -26,12 +26,9 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 
-	if err := util.InitSnowflake(c.WorkerID, c.DatacenterID); err != nil {
-		logx.Must(err)
-	}
-
 	svcCtx := svc.NewServiceContext(c)
-	handler := behaviorconsumer.MakeBehaviorHandler(svcCtx.Store, svcCtx.Dedup)
+	processor := behaviorlogic.NewRecorder(svcCtx.Store, svcCtx.Dedup)
+	handler := behaviorconsumer.MakeBehaviorHandler(processor)
 
 	mq, err := mqx.NewConsumer(c.MQ)
 	if err != nil {

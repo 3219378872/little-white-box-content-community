@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"github.com/zeromicro/go-zero/core/bloom"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 const (
@@ -15,12 +12,18 @@ const (
 )
 
 type BloomDedup struct {
-	rds  *redis.Redis
-	bits uint
+	store BloomStore
+	bits  uint
 }
 
-func NewBloomDedup(rds *redis.Redis, bits uint) *BloomDedup {
-	return &BloomDedup{rds: rds, bits: bits}
+type BloomStore interface {
+	Exists(ctx context.Context, key string, bits uint, data []byte) (bool, error)
+	Add(ctx context.Context, key string, bits uint, data []byte) error
+	Expire(ctx context.Context, key string, seconds int) error
+}
+
+func NewBloomDedup(store BloomStore, bits uint) *BloomDedup {
+	return &BloomDedup{store: store, bits: bits}
 }
 
 func (d *BloomDedup) keyForDate(t time.Time) string {
@@ -32,9 +35,7 @@ func (d *BloomDedup) IsDuplicate(ctx context.Context, eventID string) (bool, err
 	data := []byte(eventID)
 
 	todayKey := d.keyForDate(now)
-	todayFilter := bloom.New(d.rds, todayKey, d.bits)
-
-	exists, err := todayFilter.ExistsCtx(ctx, data)
+	exists, err := d.store.Exists(ctx, todayKey, d.bits, data)
 	if err != nil {
 		return false, fmt.Errorf("bloom exists today: %w", err)
 	}
@@ -44,9 +45,7 @@ func (d *BloomDedup) IsDuplicate(ctx context.Context, eventID string) (bool, err
 
 	yesterday := now.AddDate(0, 0, -1)
 	yesterdayKey := d.keyForDate(yesterday)
-	yesterdayFilter := bloom.New(d.rds, yesterdayKey, d.bits)
-
-	exists, err = yesterdayFilter.ExistsCtx(ctx, data)
+	exists, err = d.store.Exists(ctx, yesterdayKey, d.bits, data)
 	if err != nil {
 		return false, fmt.Errorf("bloom exists yesterday: %w", err)
 	}
@@ -61,12 +60,11 @@ func (d *BloomDedup) MarkProcessed(ctx context.Context, eventID string) error {
 	now := time.Now()
 	data := []byte(eventID)
 	todayKey := d.keyForDate(now)
-	todayFilter := bloom.New(d.rds, todayKey, d.bits)
 
-	if err := todayFilter.AddCtx(ctx, data); err != nil {
+	if err := d.store.Add(ctx, todayKey, d.bits, data); err != nil {
 		return fmt.Errorf("bloom add: %w", err)
 	}
-	if err := d.rds.ExpireCtx(ctx, todayKey, int(ttlHours*3600)); err != nil {
+	if err := d.store.Expire(ctx, todayKey, int(ttlHours*3600)); err != nil {
 		return fmt.Errorf("bloom expire: %w", err)
 	}
 

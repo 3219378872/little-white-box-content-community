@@ -13,5 +13,5 @@ Redis:
   Pass: "${REDIS_PASSWORD}"
 
 BloomBits: 20971520
-WorkerID: 1
-DatacenterID: 1
+WorkerID: "${SNOWFLAKE_WORKER_ID}"
+DatacenterID: "${SNOWFLAKE_DATACENTER_ID}"
