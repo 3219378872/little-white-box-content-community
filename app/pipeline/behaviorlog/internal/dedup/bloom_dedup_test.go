@@ -78,3 +78,18 @@ func TestBloomDedup_KeyContainsDate(t *testing.T) {
 	key := d.keyForDate(time.Date(2026, 4, 29, 0, 0, 0, 0, time.UTC))
 	assert.Equal(t, "bf:behavior_events:20260429", key)
 }
+
+func TestBloomDedup_RedisError_ReturnsError(t *testing.T) {
+	rds := redis.MustNewRedis(redis.RedisConf{
+		Host:     "127.0.0.1:1",
+		Type:     redis.NodeType,
+		NonBlock: true,
+	})
+	d := NewBloomDedup(rds, 1024)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := d.IsDuplicate(ctx, "event-unavailable")
+	assert.Error(t, err)
+}
