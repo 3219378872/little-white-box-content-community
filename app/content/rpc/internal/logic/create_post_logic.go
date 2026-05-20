@@ -8,6 +8,8 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"esx/pkg/event"
+	"mqx"
 	"strings"
 	"time"
 	"util"
@@ -107,6 +109,20 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		l.Errorw("DTM post creation message failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+
+	bodyExcerpt := in.GetContent()
+	if len(bodyExcerpt) > 256 {
+		bodyExcerpt = bodyExcerpt[:256]
+	}
+	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostCreate, event.PostEvent{
+		EventTime:   createdAt,
+		Type:        event.PostEventCreated,
+		PostID:      id,
+		AuthorID:    in.GetAuthorId(),
+		Title:       in.GetTitle(),
+		BodyExcerpt: bodyExcerpt,
+		Tags:        validTags,
+	})
 
 	return &pb.CreatePostResp{
 		PostId: id,

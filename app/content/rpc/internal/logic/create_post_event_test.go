@@ -3,9 +3,11 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"esx/pkg/event"
 	"testing"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -87,7 +89,10 @@ func TestCreatePostLogic_UsesDTMFeedFanoutBranch(t *testing.T) {
 	ptm.AssertExpectations(t)
 }
 
-func TestCreatePostLogic_DTMPathDoesNotPublishPostCreatedEvent(t *testing.T) {
+// 父 spec §2 要求业务服务不直接写 ES/Milvus/ClickHouse，只发 MQ 消息。
+// CreatePostLogic 在 DTM 提交成功后，必须额外发 post-create 事件给
+// search/embedding/cleanup/feed-fanout 等 L1 消费者。
+func TestCreatePostLogic_PublishesPostCreatedEvent(t *testing.T) {
 	msg := &fakePostCreateMsg{}
 	mq := &fakeMQProducer{}
 	pm := new(MockPostModel)
@@ -101,13 +106,21 @@ func TestCreatePostLogic_DTMPathDoesNotPublishPostCreatedEvent(t *testing.T) {
 	svcCtx.MQProducer = mq
 	logic := NewCreatePostLogic(context.Background(), svcCtx)
 
-	resp, err := logic.CreatePost(&pb.CreatePostReq{AuthorId: 9, Title: "t", Content: "content"})
+	resp, err := logic.CreatePost(&pb.CreatePostReq{AuthorId: 9, Title: "t", Content: "content", Tags: []string{"x"}})
 
 	require.NoError(t, err)
 	require.NotZero(t, resp.PostId)
-	assert.Empty(t, mq.topic)
-	assert.Empty(t, mq.tag)
-	assert.Nil(t, mq.body)
+	assert.Equal(t, "post-create", mq.topic)
+	assert.Equal(t, "default", mq.tag)
+	require.NotNil(t, mq.body)
+
+	var got event.PostEvent
+	require.NoError(t, json.Unmarshal(mq.body, &got))
+	assert.Equal(t, event.PostEventCreated, got.Type)
+	assert.Equal(t, resp.PostId, got.PostID)
+	assert.Equal(t, int64(9), got.AuthorID)
+	assert.Equal(t, "t", got.Title)
+	assert.Equal(t, []string{"x"}, got.Tags)
 	pm.AssertExpectations(t)
 	ptm.AssertExpectations(t)
 }

@@ -7,6 +7,8 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/event"
+	"mqx"
 	"strings"
 	"util"
 
@@ -111,6 +113,19 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+
+	bodyExcerpt := in.GetContent()
+	if len(bodyExcerpt) > 256 {
+		bodyExcerpt = bodyExcerpt[:256]
+	}
+	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostUpdate, event.PostEvent{
+		Type:        event.PostEventUpdated,
+		PostID:      post.Id,
+		AuthorID:    post.AuthorId,
+		Title:       in.GetTitle(),
+		BodyExcerpt: bodyExcerpt,
+		Tags:        validTags,
+	})
 
 	return &pb.UpdatePostResp{}, nil
 }

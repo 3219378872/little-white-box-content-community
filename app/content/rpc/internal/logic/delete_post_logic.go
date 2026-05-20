@@ -7,6 +7,8 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/event"
+	"mqx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -57,6 +59,12 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+
+	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostDelete, event.PostEvent{
+		Type:     event.PostEventDeleted,
+		PostID:   post.Id,
+		AuthorID: post.AuthorId,
+	})
 
 	return &pb.DeletePostResp{}, nil
 }
