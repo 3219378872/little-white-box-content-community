@@ -41,6 +41,21 @@ const (
 
 	// 限流缓存
 	RateLimitPrefix = "rate:limit:" // 限流
+
+	// 数据基座（spec: 2026-04-29-data-foundation-design.md §4.3）
+	// post:{pid}:stats / post:{pid}:quality / hot:posts:24h / hot:posts:7d /
+	// hot:tags:24h / tag:{name}:posts / user:{uid}:recent_actions / user:{uid}:session_tags /
+	// user:{uid}:embedding 等共享键前缀。下游消费者用 BuildPostStatsKey 等 helper 构造完整 key。
+	PostStatsKeyFmt    = "post:%d:stats"
+	PostQualityKeyFmt  = "post:%d:quality"
+	TagPostsKeyFmt     = "tag:%s:posts"
+	HotPostsKey24h     = "hot:posts:24h"
+	HotPostsKey7d      = "hot:posts:7d"
+	HotTagsKey24h      = "hot:tags:24h"
+	UserRecentKeyFmt   = "user:%d:recent_actions"
+	UserSessionKeyFmt  = "user:%d:session_tags"
+	UserEmbedKeyFmt    = "user:%d:embedding"
+	FeatureVersionsKey = "feature:versions"
 )
 
 // BuildKey 构建缓存 key

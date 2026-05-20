@@ -1,0 +1,11 @@
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "content-cleanup-service-group"
+  Topic: "post-delete"
+  Tag: "default"
+  ConsumeOrder: false
+
+Redis:
+  Host: "${REDIS_HOST}"
+  Type: node
+  Pass: "${REDIS_PASSWORD}"
