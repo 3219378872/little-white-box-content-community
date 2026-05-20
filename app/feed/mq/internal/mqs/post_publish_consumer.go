@@ -8,6 +8,7 @@ import (
 
 	"esx/app/feed/mq/internal/logic"
 	"esx/app/feed/mq/internal/svc"
+	"esx/pkg/event"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -15,12 +16,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type postPublishedMessage struct {
-	PostId    int64 `json:"post_id"`
-	AuthorId  int64 `json:"author_id"`
-	CreatedAt int64 `json:"created_at"`
-}
-
+// NewPostPublishConsumer 订阅 post-create，按 PostEvent 触发 inbox/outbox fanout。
+// spec §3.2 feed-fanout-consumer，与 search/embedding/cleanup 统一使用 pkg/event.PostEvent。
 func NewPostPublishConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	c, err := mqx.NewConsumer(svcCtx.Config.MQ)
 	if err != nil {
@@ -39,27 +36,30 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {
-		var event postPublishedMessage
-		if err := json.Unmarshal(msg.Body, &event); err != nil {
+		var e event.PostEvent
+		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logx.WithContext(ctx).Errorw("feed-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
 			continue
 		}
-		if event.PostId <= 0 || event.AuthorId <= 0 || event.CreatedAt <= 0 {
-			logx.WithContext(ctx).Errorw("feed-consumer: missing required fields",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", event.PostId),
-				logx.Field("author_id", event.AuthorId), logx.Field("created_at", event.CreatedAt))
+		if err := e.Validate(); err != nil {
+			logx.WithContext(ctx).Errorw("feed-consumer: invalid event, skipping",
+				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			continue
+		}
+		if e.Type != event.PostEventCreated {
+			// 只处理新发布；编辑/删除有其他消费者负责
 			continue
 		}
 		_, err := logic.HandlePostPublished(ctx,
 			svcCtx.OutboxModel, svcCtx.InboxModel, svcCtx.UserService,
 			svcCtx.BigVThreshold, svcCtx.FanoutBatchSize,
 			logic.PostPublished{
-				PostId: event.PostId, AuthorId: event.AuthorId, CreatedAt: event.CreatedAt,
+				PostId: e.PostID, AuthorId: e.AuthorID, CreatedAt: e.EventTime,
 			})
 		if err != nil {
 			logx.WithContext(ctx).Errorw("feed-consumer: fanout failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", event.PostId),
+				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 				logx.Field("err", err.Error()))
 			return consumer.ConsumeRetryLater
 		}
