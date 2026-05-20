@@ -1,6 +1,13 @@
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "search-service-group"
-  Topic: "search-index"
+  Topic: "post-create"
   Tag: "default"
   ConsumeOrder: false
+
+ES:
+  Addresses:
+    - "${ES_ADDRESS}"
+  Index: "xbh_posts"
+  Username: "${ES_USERNAME}"
+  Password: "${ES_PASSWORD}"
