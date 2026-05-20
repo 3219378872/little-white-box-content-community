@@ -1,0 +1,13 @@
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "embedding-service-group"
+  Topic: "post-create"
+  Tag: "default"
+  ConsumeOrder: false
+
+Milvus:
+  Address: "${MILVUS_ADDRESS}"
+  Collection: "xbh_post_embeddings"
+  Dim: 256
+  Username: "${MILVUS_USERNAME}"
+  Password: "${MILVUS_PASSWORD}"
