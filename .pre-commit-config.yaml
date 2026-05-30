@@ -1,0 +1,41 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+        exclude: '(\.pb\.go|_grpc\.pb\.go|internal/types/types\.go|internal/handler/routes\.go)$'
+      - id: golangci-lint
+        name: golangci-lint
+        entry: scripts/lint.sh
+        language: system
+        types: [go]
+        pass_filenames: false
+      - id: python-compile
+        name: Python compile (tooling scripts)
+        entry: python3 -m compileall -q scripts
+        language: system
+        files: '^scripts/.*\.py$'
+        pass_filenames: false
+      - id: agent-harness
+        name: Agent harness check
+        entry: python3 scripts/agent_harness.py check
+        language: system
+        files: '^docs/agent-harness/.*'
+        pass_filenames: false
+      - id: knowledge-base
+        name: Knowledge base check
+        entry: python3 scripts/knowledge_base.py check
+        language: system
+        files: '^(docs/knowledge-base/.*|app/.*\.go|pkg/.*\.go)$'
+        pass_filenames: false
+      - id: engineering-lint
+        name: Engineering lint
+        description: Validates md links, KB sync, and harness compliance.
+        entry: python3 scripts/engineering-lint.py
+        language: system
+        files: '\.(md|go|py|yaml|yml)$'
+        pass_filenames: false
+        always_run: true
