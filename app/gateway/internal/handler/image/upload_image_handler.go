@@ -35,7 +35,7 @@ func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, errx.NewWithCode(errx.ParamError))
 			return
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		ct := header.Header.Get("Content-Type")
 		if _, ok := allowedImageTypes[ct]; !ok {

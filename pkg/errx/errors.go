@@ -85,30 +85,30 @@ func WrapMsg(err error, message string) error {
 
 // HTTPStatus maps business error codes to HTTP status codes.
 func (e *BizError) HTTPStatus() int {
-	switch {
-	case e.Code == SUCCESS:
+	switch e.Code {
+	case SUCCESS:
 		return http.StatusOK
-	case e.Code == ParamError:
+	case ParamError:
 		return http.StatusBadRequest
-	case e.Code == NotFound, e.Code == UserNotFound, e.Code == ContentNotFound, e.Code == MediaNotFound:
+	case NotFound, UserNotFound, ContentNotFound, MediaNotFound:
 		return http.StatusNotFound
-	case e.Code == LoginRequired, e.Code == TokenExpired, e.Code == TokenInvalid:
+	case LoginRequired, TokenExpired, TokenInvalid:
 		return http.StatusUnauthorized
-	case e.Code == PermissionDenied, e.Code == ContentForbidden, e.Code == FavoritesPrivate:
+	case PermissionDenied, ContentForbidden, FavoritesPrivate:
 		return http.StatusForbidden
-	case e.Code == TooManyReq:
+	case TooManyReq:
 		return http.StatusTooManyRequests
-	case e.Code == UserAlreadyExist:
+	case UserAlreadyExist:
 		return http.StatusConflict
-	case e.Code == AlreadyLiked, e.Code == AlreadyFavorited, e.Code == NotLikedYet, e.Code == NotFavoritedYet,
-		e.Code == CannotLikeSelf, e.Code == CannotFollowSelf:
+	case AlreadyLiked, AlreadyFavorited, NotLikedYet, NotFavoritedYet,
+		CannotLikeSelf, CannotFollowSelf:
 		return http.StatusBadRequest
-	case e.Code == TitleEmpty, e.Code == ContentEmpty, e.Code == ContentTooLong,
-		e.Code == FileTooLarge, e.Code == FileTypeNotAllowed, e.Code == MediaMetaMissing:
+	case TitleEmpty, ContentEmpty, ContentTooLong,
+		FileTooLarge, FileTypeNotAllowed, MediaMetaMissing:
 		return http.StatusBadRequest
-	case e.Code == PostAlreadyDeleted:
+	case PostAlreadyDeleted:
 		return http.StatusGone
-	case e.Code == ServiceUnavailable:
+	case ServiceUnavailable:
 		return http.StatusServiceUnavailable
 	default:
 		return http.StatusInternalServerError
