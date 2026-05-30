@@ -18,7 +18,7 @@ below are derived from the goal "参考 ../bidking-controller，完成 harness �
 | CI gating: weekly KB sync + PR branch cleanup | met | `knowledge-base-sync.yml`, `pr-cleanup.yml` |
 | CI gating: Codex completion/compliance review (go-zero prompt) | met | ci.yml codex-review job; fails closed without secrets |
 | pre-commit parity | met | `.pre-commit-config.yaml` (gofmt, golangci-lint, python-compile, harness, KB, engineering-lint) |
-| No production Go behavior changed | met | only gofmt whitespace normalization on 3 pre-existing files; no logic edits |
+| No production Go behavior changed | met | only gofmt/goimports + staticcheck/errcheck compliance fixes on pre-existing issues (see context.md); no logic/behavior change; generated handlers untouched |
 
 ## Deviations From Reference
 - Dropped the strict `diff AGENTS.md CLAUDE.md` mirror gate: the two files
@@ -26,3 +26,7 @@ below are derived from the goal "参考 ../bidking-controller，完成 harness �
   names). Recorded as a manual GC checklist item instead.
 - Module coverage `_expected_modules` scans `app/` + `pkg/` (Go monorepo) rather
   than the reference's single `src/bidking_controller/` package tree.
+- goctl-generated handler files (`internal/handler/*_handler.go`) are excluded
+  from the lint gate in `.golangci.yml` (alongside `routes.go` / `types/` /
+  `*.pb.go`) rather than edited, honoring the "do not hand-edit generated files"
+  rule while keeping the repo-wide lint gate green.

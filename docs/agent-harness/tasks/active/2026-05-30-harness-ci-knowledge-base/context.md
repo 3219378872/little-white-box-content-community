@@ -12,10 +12,27 @@ and a code knowledge base — modeled on the reference repo `../bidking-controll
     `docs/knowledge-base/` (README, INDEX, one page per `app/`+`pkg/` module, flows).
   - CI gating: `.github/workflows/` (ci, knowledge-base-sync, pr-cleanup),
     `.pre-commit-config.yaml`, `scripts/engineering-lint.py`, `scripts/test.sh`,
-    `scripts/vet.sh`.
+    `scripts/vet.sh`, `scripts/lint.sh`, `.golangci.yml` exclusions.
+  - Behavior-neutral compliance fixes required to make the now-repo-wide gofmt
+    and golangci-lint gates green on arrival (see below). No logic/behavior
+    changes.
 - Out of scope:
-  - Changing any Go production code under `app/` or `pkg/`.
+  - Any change to Go behavior / business logic under `app/` or `pkg/`.
+  - Editing goctl-generated files (`internal/handler/*_handler.go`, `routes.go`,
+    `internal/types/*.go`, `*.pb.go`) — these are excluded from the lint
+    gate in `.golangci.yml` instead.
   - Wiring the Codex review secrets (OPENAI_API_KEY / endpoint) — repo settings.
+
+## Compliance Fixes (in scope, behavior-neutral)
+Turning the lint gate from root-only to repo-wide surfaced pre-existing issues
+in previously-unlinted modules. Fixed without behavior change:
+- gofmt: `pkg/middleware/cors.go`, `app/user/rpc/internal/model/user_follow_model.go`,
+  `app/content/rpc/internal/logic/integration_test.go`.
+- goimports: `app/gateway/internal/logic/login/*_test.go`,
+  `app/user/rpc/internal/config/config.go`.
+- staticcheck/errcheck: `pkg/errx/errors.go` (tagged switch), `pkg/util/hash.go`
+  (`return err == nil`), `pkg/middleware/auth.go` (`_, _ = w.Write`).
+Generated handler files were NOT edited; they are excluded from the gate.
 
 ## Related Artifacts
 - Spec: none — see `spec_waiver`. The design is established in

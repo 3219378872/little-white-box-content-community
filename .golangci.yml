@@ -24,8 +24,11 @@ linters:
       - ".*\\.pb\\.go$"
       - ".*_grpc\\.pb\\.go$"
       - ".*_gen\\.go$"
-      - "app/gateway/internal/types/.*\\.go$"
-      - "app/gateway/internal/handler/routes\\.go$"
+      # goctl-generated files (cwd-agnostic so per-module lint also matches).
+      # Editing these is prohibited; they are regenerated from .api / .proto.
+      - "(.*/)?internal/types/.*\\.go$"
+      - "(.*/)?internal/handler/routes\\.go$"
+      - "(.*/)?internal/handler/.*_handler\\.go$"
       - ".worktrees/"
       - "vendor/"
     rules:
@@ -48,8 +51,11 @@ formatters:
       - ".*\\.pb\\.go$"
       - ".*_grpc\\.pb\\.go$"
       - ".*_gen\\.go$"
-      - "app/gateway/internal/types/.*\\.go$"
-      - "app/gateway/internal/handler/routes\\.go$"
+      # goctl-generated files (cwd-agnostic so per-module lint also matches).
+      # Editing these is prohibited; they are regenerated from .api / .proto.
+      - "(.*/)?internal/types/.*\\.go$"
+      - "(.*/)?internal/handler/routes\\.go$"
+      - "(.*/)?internal/handler/.*_handler\\.go$"
       - ".worktrees/"
       - "vendor/"
 

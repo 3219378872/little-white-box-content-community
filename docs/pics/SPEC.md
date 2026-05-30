@@ -289,9 +289,9 @@ Feed 采用 **推拉结合（写扩散 + 读扩散）**：
 flowchart TD
     Start["FanoutPost 事件<br/>{authorId, postId, createdAt}"] --> GU["UserSvc.GetUser(authorId)"]
     GU --> OUT["InsertIgnore feed_outbox<br/>(作者发件箱, 幂等)"]
-    OUT --> J{"FollowerCount >=<br/>BigVThreshold?"}
-    J -->|是 (大V)| BIGV["仅保留 outbox<br/>读扩散: 读时拉取<br/>结束"]
-    J -->|否 (普通)| PAGE["分页 GetFollowers<br/>pageSize = FanoutBatchSize"]
+    OUT --> J{"FollowerCount ≥<br/>BigVThreshold?"}
+    J -->|"是 (大V)"| BIGV["仅保留 outbox<br/>读扩散: 读时拉取<br/>结束"]
+    J -->|"否 (普通)"| PAGE["分页 GetFollowers<br/>pageSize = FanoutBatchSize"]
     PAGE --> BUILD["构建 FeedInbox 行<br/>{userId, authorId, postId, createdAt}"]
     BUILD --> MORE{"还有下一页?"}
     MORE -->|是| PAGE
