@@ -2,9 +2,9 @@
 title: content
 tracks:
   - app/content/
-last_synced_commit: 8ce9ecc
+last_synced_commit: cbbc743
 last_synced_date: 2026-05-30
-sync_note: ""
+sync_note: "synced including the gofmt normalization of tracked files in cbbc743"
 ---
 
 # content
