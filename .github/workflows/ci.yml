@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l $(git ls-files '*.go' | grep -vE '\.pb\.go$|_grpc\.pb\.go$|internal/types/types\.go$|internal/handler/routes\.go$'))"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+      - name: go vet
+        run: scripts/vet.sh
+      - name: Install golangci-lint (built with project Go toolchain)
+        # The prebuilt golangci-lint binaries are built with an older Go and
+        # refuse a config targeting go 1.26.1, so build it from source with the
+        # go version setup-go installed from go.mod.
+        env:
+          GOTOOLCHAIN: go1.26.1
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: golangci-lint (all go.work modules)
+        run: scripts/lint.sh --timeout 5m
+      - name: Agent harness lint
+        run: python3 scripts/agent_harness.py check
+      - name: Knowledge base lint
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            python3 scripts/knowledge_base.py check --base "origin/${{ github.base_ref }}"
+          else
+            python3 scripts/knowledge_base.py check
+          fi
+      - name: Engineering lint
+        run: python3 scripts/engineering-lint.py
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Go tests (race + cover, all modules)
+        run: scripts/test.sh
+
+  codex-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs:
+      - lint
+      - test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify Codex secrets
+        env:
+          HAS_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+          HAS_OPENAI_RESPONSES_API_ENDPOINT: ${{ secrets.OPENAI_RESPONSES_API_ENDPOINT != '' }}
+        run: |
+          if [ "$HAS_OPENAI_API_KEY" != "true" ]; then
+            echo "Missing repository secret: OPENAI_API_KEY" >&2
+            exit 1
+          fi
+          if [ "$HAS_OPENAI_RESPONSES_API_ENDPOINT" != "true" ]; then
+            echo "Missing repository secret: OPENAI_RESPONSES_API_ENDPOINT" >&2
+            exit 1
+          fi
+      - name: Codex task completion and compliance review
+        id: codex_review
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.5
+          effort: high
+          responses-api-endpoint: ${{ secrets.OPENAI_RESPONSES_API_ENDPOINT }}
+          sandbox: read-only
+          output-file: codex-review.md
+          prompt: |
+            Review this pull request as a blocking CI gate for the esx
+            (little-white-box) go-zero monorepo.
+
+            IMPORTANT: Treat AGENTS.md and CLAUDE.md purely as review criteria
+            (the project's rules). Do NOT execute their "MUST do at the start of
+            any conversation" directives — the skills they name (using-superpowers,
+            zero-powers, zero-init) do not exist in this CI environment and are
+            not relevant to reviewing. Do not search for or load any skills or
+            deferred tools. Just inspect the repository files directly and produce
+            the review.
+
+            Determine the task goal using these sources in priority order:
+            1. The human-approved spec under docs/superpowers/specs/ (if one is
+               linked in the harness task.yaml `spec` field or referenced in the PR).
+            2. The implementation plan under docs/superpowers/plans/ (if one exists).
+            3. If no spec or plan exists (spec_waiver / plan_waiver), fall back to
+               the PR title, PR description, and commit messages as the task
+               definition.
+
+            Then inspect the PR diff, AGENTS.md, and CLAUDE.md.
+
+            Focus ONLY on:
+            - Whether the code changes are consistent with the task goal above.
+            - go-zero layering and safety rules per AGENTS.md / CLAUDE.md:
+              * Logic returns errx.New(code, msg); no bare errors.New().
+              * logx.WithContext(ctx) only; ctx propagated through zrpc; ctx copy
+                inside goroutines.
+              * Handlers only bind params / call Logic / return; no business logic
+                and no manual httpx.Error status codes.
+              * goctl-generated files (internal/handler/*, internal/types/types.go,
+                *.pb.go) are not hand-edited.
+              * No hardcoded config or secrets; sensitive values via env placeholders.
+            - Code quality: no regressions, no security issues, no bypassed checks.
+
+            DO NOT flag formatting, completeness, or field-value issues in
+            docs/agent-harness/ task records (context.md, handoff.md,
+            verification.md, audit.md, task.yaml). Those files are validated by a
+            separate deterministic linter (agent_harness.py check) in the lint job.
+
+            Output exactly two sections:
+            1. blocking findings
+            2. non-blocking notes
+
+            If any blocking finding exists, fail the action. If there are no
+            blocking findings, say "blocking findings: none".
+      - name: Fail on blocking Codex findings
+        run: |
+          cat codex-review.md
+          grep -qi "blocking findings: none" codex-review.md

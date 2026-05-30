@@ -56,10 +56,7 @@ func ComparePassword(hash string, password string) error {
 
 func IsDefaultPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword(hashedDefaultPassword, []byte(password))
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // SHA256 SHA256 哈希

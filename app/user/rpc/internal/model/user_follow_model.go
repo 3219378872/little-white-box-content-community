@@ -71,7 +71,6 @@ func prefixedProfileColumns(prefix string) string {
 	return strings.Join(cols, ",")
 }
 
-
 func (m *customUserFollowModel) CountFollowers(ctx context.Context, userID int64) (int64, error) {
 	var total int64
 	err := m.conn.QueryRowCtx(ctx, &total, "SELECT COUNT(*) FROM user_follow WHERE target_user_id = ?", userID)

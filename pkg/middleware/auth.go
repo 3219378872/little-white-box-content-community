@@ -48,7 +48,7 @@ func AuthMiddleware(config jwtx.JwtConfig) func(http.Handler) http.Handler {
 func writeUnauthorized(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	w.Write([]byte(`{"code":1006,"message":"请先登录","data":null}`))
+	_, _ = w.Write([]byte(`{"code":1006,"message":"请先登录","data":null}`))
 }
 
 // GetUserId 从 context 获取用户 ID（统一走 jwtx）

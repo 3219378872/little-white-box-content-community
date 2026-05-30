@@ -8,10 +8,11 @@ import (
 	"errx"
 	"gateway/internal/types"
 
+	"user/userservice"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"user/userservice"
 )
 
 func TestRegisterLogic(t *testing.T) {

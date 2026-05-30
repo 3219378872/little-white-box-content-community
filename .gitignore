@@ -1,0 +1,9 @@
+# Python tooling caches (scripts/_agent_harness, scripts/_knowledge_base)
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+
+# Go / build
+*.out
+coverage.txt

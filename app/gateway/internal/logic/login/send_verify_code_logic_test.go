@@ -9,10 +9,11 @@ import (
 	"gateway/internal/types"
 	"user/pb/xiaobaihe/user/pb"
 
+	"user/userservice"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"user/userservice"
 )
 
 func TestSendVerifyCodeLogic(t *testing.T) {
