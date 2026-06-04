@@ -45,8 +45,6 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: golangci-lint (all go.work modules)
         run: scripts/lint.sh --timeout 5m
-      - name: Agent harness lint
-        run: python3 scripts/agent_harness.py check
       - name: Knowledge base lint
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -115,10 +113,10 @@ jobs:
             the review.
 
             Determine the task goal using these sources in priority order:
-            1. The human-approved spec under docs/superpowers/specs/ (if one is
-               linked in the harness task.yaml `spec` field or referenced in the PR).
-            2. The implementation plan under docs/superpowers/plans/ (if one exists).
-            3. If no spec or plan exists (spec_waiver / plan_waiver), fall back to
+            1. The human-approved spec under docs/design-docs/ (if one is
+               linked in the PR or referenced in the commit messages).
+            2. The implementation plan under docs/exec-plans/ (if one exists).
+            3. If no spec or plan exists, fall back to
                the PR title, PR description, and commit messages as the task
                definition.
 
@@ -138,9 +136,8 @@ jobs:
             - Code quality: no regressions, no security issues, no bypassed checks.
 
             DO NOT flag formatting, completeness, or field-value issues in
-            docs/agent-harness/ task records (context.md, handoff.md,
-            verification.md, audit.md, task.yaml). Those files are validated by a
-            separate deterministic linter (agent_harness.py check) in the lint job.
+            docs/exec-plans/ or docs/design-docs/ markdown files. Those files
+            are documentation and are not part of the code review scope.
 
             Output exactly two sections:
             1. blocking findings

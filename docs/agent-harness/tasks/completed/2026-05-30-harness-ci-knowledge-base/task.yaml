@@ -1,7 +1,0 @@
-slug: 2026-05-30-harness-ci-knowledge-base
-status: done
-task_branch: task/2026-05-30-harness-ci-knowledge-base
-spec: null
-plan: null
-spec_waiver: ports an established three-pillar design from the reference repo ../bidking-controller; no new design decisions to approve
-plan_waiver: mechanical port plus per-module knowledge-base authoring; steps are linear and tracked in this record

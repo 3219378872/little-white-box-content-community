@@ -20,7 +20,7 @@ class CheckIssue:
 
 
 def _kb_root(repo_root: Path) -> Path:
-    return repo_root / "docs" / "knowledge-base"
+    return repo_root / "docs" / "generated"
 
 
 def _page_files(kb_root: Path) -> list[Path]:
@@ -112,8 +112,7 @@ def _check_module_coverage(
 
 # Files outside modules/ and flows/ whose markdown links K004 also validates.
 _EXTRA_LINK_FILES = (
-    "docs/knowledge-base/README.md",
-    "docs/knowledge-base/INDEX.md",
+    "docs/generated/INDEX.md",
 )
 
 
@@ -169,7 +168,7 @@ def check_co_change(
 ) -> list[CheckIssue]:
     issues: list[CheckIssue] = []
     for page in pages:
-        rel_suffix = f"knowledge-base/{page.path.parent.name}/{page.path.name}"
+        rel_suffix = f"generated/{page.path.parent.name}/{page.path.name}"
         page_changed = any(
             c == str(page.path) or c.endswith(rel_suffix) for c in changed_files
         )

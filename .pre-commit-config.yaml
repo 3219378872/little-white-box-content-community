@@ -19,17 +19,11 @@ repos:
         language: system
         files: '^scripts/.*\.py$'
         pass_filenames: false
-      - id: agent-harness
-        name: Agent harness check
-        entry: python3 scripts/agent_harness.py check
-        language: system
-        files: '^docs/agent-harness/.*'
-        pass_filenames: false
       - id: knowledge-base
         name: Knowledge base check
         entry: python3 scripts/knowledge_base.py check
         language: system
-        files: '^(docs/knowledge-base/.*|app/.*\.go|pkg/.*\.go)$'
+        files: '^(docs/generated/.*|app/.*\.go|pkg/.*\.go)$'
         pass_filenames: false
       - id: engineering-lint
         name: Engineering lint

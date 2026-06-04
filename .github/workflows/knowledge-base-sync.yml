@@ -22,18 +22,18 @@ jobs:
       - name: Generate knowledge base staleness report
         run: >
           python3 scripts/knowledge_base.py sync-report
-          --output docs/knowledge-base/SYNC-STATUS.md
+          --output docs/generated/SYNC-STATUS.md
       - name: Open knowledge base sync pull request
         uses: peter-evans/create-pull-request@v6
         with:
           branch: chore/knowledge-base-sync
-          add-paths: docs/knowledge-base/SYNC-STATUS.md
+          add-paths: docs/generated/SYNC-STATUS.md
           commit-message: "chore: refresh knowledge base staleness report"
           title: "chore: knowledge base sync"
           body: |
             Automated weekly knowledge base sync.
 
-            `docs/knowledge-base/SYNC-STATUS.md` lists pages whose tracked code
+            `docs/generated/SYNC-STATUS.md` lists pages whose tracked code
             has drifted since their `last_synced_commit`. Refresh each flagged
             page on this branch, then bump its `last_synced_commit` /
             `last_synced_date`. Close this pull request if no pages are stale.

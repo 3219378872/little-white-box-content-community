@@ -11,7 +11,7 @@ DOCS_DIR = ROOT / "docs"
 
 # Only scan these directories for broken references in active records.
 ACTIVE_DIRS = [
-    DOCS_DIR / "agent-harness" / "tasks" / "active",
+    DOCS_DIR / "exec-plans" / "active",
 ]
 
 
@@ -25,8 +25,8 @@ def resolve_reference(md_file: Path, ref: str) -> Path:
     parts = Path(ref).parts
     if parts:
         if parts[0] == "flows" or parts[0] == "modules":
-            candidates.append((ROOT / "docs" / "knowledge-base" / ref).resolve())
-        if parts[0] in {"_knowledge_base", "_agent_harness"}:
+            candidates.append((ROOT / "docs" / "generated" / ref).resolve())
+        if parts[0] == "_knowledge_base":
             candidates.append((ROOT / "scripts" / ref).resolve())
     for candidate in candidates:
         if candidate.exists():
@@ -93,13 +93,12 @@ def main():
     errors.extend(check_md_file_links())
 
     kb_check = os.system(f"cd {ROOT} && python3 scripts/knowledge_base.py check")
-    harness_check = os.system(f"cd {ROOT} && python3 scripts/agent_harness.py check")
 
     if errors:
         print("\n".join(errors))
         print(f"\n{len(errors)} engineering-lint error(s) found")
 
-    exit_code = 1 if errors or kb_check != 0 or harness_check != 0 else 0
+    exit_code = 1 if errors or kb_check != 0 else 0
     if exit_code == 0:
         print("engineering-lint: all checks passed")
     sys.exit(exit_code)
