@@ -744,5 +744,5 @@ count({__name__=~"http_.*"}) > 50000
 - Ignore trace context when publishing to message queues
 - Skip health checks for readiness probes — they prevent traffic to unhealthy pods
 
-For resilience patterns (circuit breaker, rate limiting), see [Resilience Patterns](./resilience-patterns.md).
-For database monitoring, see [Database Patterns](./database-patterns.md).
+For resilience patterns (circuit breaker, rate limiting), see [Resilience Patterns](./resilience.md).
+For database monitoring, see [Database Patterns](./database.md).

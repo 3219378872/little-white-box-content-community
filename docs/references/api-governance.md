@@ -614,7 +614,7 @@ func (m *RequestIDMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 
 ## Cross-References
 
-- For REST handler patterns, see [REST API Patterns](./rest-api-patterns.md)
-- For rate limiting on API endpoints, see [Resilience Patterns](./resilience-patterns.md)
-- For idempotency keys on write endpoints, see [Concurrency Patterns](./concurrency-patterns.md#5-idempotency)
-- For distributed tracing with request IDs, see [Observability Patterns](./observability-patterns.md)
+- For REST handler patterns, see [REST API Patterns](./rest-api.md)
+- For rate limiting on API endpoints, see [Resilience Patterns](./resilience.md)
+- For idempotency keys on write endpoints, see [Concurrency Patterns](./concurrency.md#5-idempotency)
+- For distributed tracing with request IDs, see [Observability Patterns](./observability.md)

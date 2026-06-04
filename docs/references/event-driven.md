@@ -681,7 +681,7 @@ func (m *EventStoreModel) AppendEvent(ctx context.Context, aggregateType string,
 | Search/analytics separate from writes | CQRS | Different read/write optimization |
 | Failed message handling | DLQ + retry | Prevents message loss and blocking |
 | Audit trail needed | Event Store | Immutable history of all changes |
-| Cross-service transactions | Saga + events | See [Concurrency Patterns](./concurrency-patterns.md#6-distributed-transactions--saga-pattern) |
+| Cross-service transactions | Saga + events | See [Concurrency Patterns](./concurrency.md#6-distributed-transactions--saga-pattern) |
 
 ---
 
@@ -708,7 +708,7 @@ func (m *EventStoreModel) AppendEvent(ctx context.Context, aggregateType string,
 
 ## Cross-References
 
-- For Saga distributed transactions, see [Concurrency Patterns](./concurrency-patterns.md#6-distributed-transactions--saga-pattern)
-- For idempotency on consumers, see [Concurrency Patterns](./concurrency-patterns.md#5-idempotency)
-- For tracing across async boundaries, see [Observability Patterns](./observability-patterns.md)
-- For rate limiting producers, see [Resilience Patterns](./resilience-patterns.md)
+- For Saga distributed transactions, see [Concurrency Patterns](./concurrency.md#6-distributed-transactions--saga-pattern)
+- For idempotency on consumers, see [Concurrency Patterns](./concurrency.md#5-idempotency)
+- For tracing across async boundaries, see [Observability Patterns](./observability.md)
+- For rate limiting producers, see [Resilience Patterns](./resilience.md)

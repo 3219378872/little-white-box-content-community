@@ -624,7 +624,7 @@ MySQL default is `REPEATABLE READ`. Choose based on your use case:
 _, err := session.ExecCtx(ctx, "SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
 ```
 
-> **Note**: For concurrent write safety, see [Concurrency Patterns](./concurrency-patterns.md) — isolation levels alone do NOT prevent Lost Update in read-modify-write scenarios.
+> **Note**: For concurrent write safety, see [Concurrency Patterns](./concurrency.md) — isolation levels alone do NOT prevent Lost Update in read-modify-write scenarios.
 
 ### ✅ Simple Transaction
 
@@ -1076,4 +1076,4 @@ func (m *defaultUserModel) Delete(ctx context.Context, id string) error {
 - Pub/sub messaging
 - Hot data caching
 
-For Redis-specific patterns, see [Resilience Patterns](./resilience-patterns.md).
+For Redis-specific patterns, see [Resilience Patterns](./resilience.md).

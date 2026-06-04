@@ -818,5 +818,5 @@ rds.DelCtx(ctx, "lock:inventory:1") // May delete another owner's lock!
 - Ignore compensation failures in Saga — they need manual resolution
 - Lock rows in random order — causes deadlocks
 
-For database CRUD operations, see [Database Patterns](./database-patterns.md).
-For system-level resilience, see [Resilience Patterns](./resilience-patterns.md).
+For database CRUD operations, see [Database Patterns](./database.md).
+For system-level resilience, see [Resilience Patterns](./resilience.md).

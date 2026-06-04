@@ -938,6 +938,6 @@ jobs:
 - Rely solely on unit tests — the testing pyramid needs all levels
 - Ignore benchmark regressions — track and investigate performance changes
 
-For database testing patterns, see [Database Patterns](./database-patterns.md).
-For resilience testing (circuit breaker, rate limiting), see [Resilience Patterns](./resilience-patterns.md).
-For deployment CI/CD integration, see [Deployment Patterns](./deployment-patterns.md).
+For database testing patterns, see [Database Patterns](./database.md).
+For resilience testing (circuit breaker, rate limiting), see [Resilience Patterns](./resilience.md).
+For deployment CI/CD integration, see [Deployment Patterns](./deployment.md).

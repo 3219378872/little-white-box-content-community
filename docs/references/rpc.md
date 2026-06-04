@@ -720,4 +720,4 @@ Etcd:
 - Simple CRUD operations
 - HTTP standards required
 
-For REST patterns, see [REST API Patterns](./rest-api-patterns.md).
+For REST patterns, see [REST API Patterns](./rest-api.md).

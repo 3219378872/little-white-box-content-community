@@ -865,7 +865,7 @@ func (m *UserRateLimitMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc
 
 ## Cross-References
 
-- For JWT authentication middleware, see [REST API Patterns](./rest-api-patterns.md#middleware-pattern)
-- For Redis-based distributed locks, see [Concurrency Patterns](./concurrency-patterns.md#4-distributed-locks)
-- For structured logging with PII masking, see [Observability Patterns](./observability-patterns.md)
-- For resilience (rate limiting, circuit breaker), see [Resilience Patterns](./resilience-patterns.md)
+- For JWT authentication middleware, see [REST API Patterns](./rest-api.md#middleware-pattern)
+- For Redis-based distributed locks, see [Concurrency Patterns](./concurrency.md#4-distributed-locks)
+- For structured logging with PII masking, see [Observability Patterns](./observability.md)
+- For resilience (rate limiting, circuit breaker), see [Resilience Patterns](./resilience.md)

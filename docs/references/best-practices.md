@@ -52,7 +52,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 敏感值走环境变量 `${ENV_VAR}`，不在 yaml 明文
 - 用 `conf.MustLoad` 加载，注入到 ServiceContext
 
-详细示例：[rest-api-patterns.md](../references/rest-api-patterns.md#configuration-pattern)
+详细示例：[rest-api.md](../references/rest-api.md#configuration-pattern)
 
 ## Error Handling
 
@@ -62,7 +62,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 注册 `httpx.SetErrorHandler` 统一映射 HTTP 状态码
 - Logic 层返回领域错误，Handler 层不直接设置状态码
 
-详细示例：[rest-api-patterns.md](../references/rest-api-patterns.md#error-handling)、[api-governance-patterns.md](../references/api-governance-patterns.md)
+详细示例：[rest-api.md](../references/rest-api.md#error-handling)、[api-governance.md](../references/api-governance.md)
 
 ## Logging
 
@@ -71,7 +71,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 生产环境用 JSON 编码，不开 DEBUG 级别
 - 批量操作记录摘要而非逐条日志
 
-详细示例：[observability-patterns.md](../references/observability-patterns.md)
+详细示例：[observability.md](../references/observability.md)
 
 ## Testing
 
@@ -81,7 +81,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 集成测试用 testcontainers 跑真实数据库
 - 每个 Logic 方法至少一个成功路径 + 一个失败路径测试
 
-详细示例：[testing-patterns.md](../references/testing-patterns.md)
+详细示例：[testing.md](../references/testing.md)
 
 ## Performance
 
@@ -91,7 +91,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 读热数据启用 cache（`NewUsersModel(conn, c.Cache)`）
 - **禁止**创建无界 goroutine，使用 `threading.NewTaskRunner(n)`
 
-详细示例：[resilience-patterns.md](../references/resilience-patterns.md)、[database-patterns.md](../references/database-patterns.md#caching-pattern)
+详细示例：[resilience.md](../references/resilience.md)、[database.md](../references/database.md#caching-pattern)
 
 ## Security
 
@@ -101,7 +101,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - **禁止**暴露内部错误给客户端（返回泛化消息）
 - 文件路径参数用 `filepath.Clean` 防路径穿越
 
-详细示例：[security-patterns.md](../references/security-patterns.md)
+详细示例：[security.md](../references/security.md)
 
 ## Database
 
@@ -113,7 +113,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - `sql.Null*` 类型必须检查 `.Valid` 再访问值
 - 动态 SQL 用 `[]string` 拼接 SET/WHERE 子句，**禁止**为每种字段组合硬编码
 
-详细示例：[database-patterns.md](../references/database-patterns.md)、[concurrency-patterns.md](../references/concurrency-patterns.md)
+详细示例：[database.md](../references/database.md)、[concurrency.md](../references/concurrency.md)
 
 ## Deployment
 
@@ -122,7 +122,7 @@ authmiddleware.go, ratelimitmiddleware.go
 - 设置资源 requests/limits
 - 生产环境 `Mode: pro`（启用 load shedding）
 
-详细示例：[deployment-patterns.md](../references/deployment-patterns.md)
+详细示例：[deployment.md](../references/deployment.md)
 
 ---
 

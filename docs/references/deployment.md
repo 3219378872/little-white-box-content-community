@@ -688,7 +688,7 @@ func main() {
 
 ## Cross-References
 
-- For health check endpoint implementation, see [Observability Patterns](./observability-patterns.md)
+- For health check endpoint implementation, see [Observability Patterns](./observability.md)
 - For K8s config templates, see [goctl Commands](./goctl-commands.md)
-- For graceful shutdown patterns, see [Resilience Patterns](./resilience-patterns.md)
-- For secret management, see [Security Patterns](./security-patterns.md#6-secret-management--rotation)
+- For graceful shutdown patterns, see [Resilience Patterns](./resilience.md)
+- For secret management, see [Security Patterns](./security.md#6-secret-management--rotation)

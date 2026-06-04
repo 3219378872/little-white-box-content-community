@@ -521,7 +521,7 @@ Use the standard three-layer REST pattern for:
 - Backend-for-frontend (BFF) services
 - Microservice APIs
 
-For RPC services, see [RPC Patterns](./rpc-patterns.md).
-For database transactions and isolation levels, see [Database Patterns](./database-patterns.md#transaction-pattern).
-For idempotency (payment/order endpoints), see [Concurrency Patterns](./concurrency-patterns.md#5-idempotency).
-For concurrent write safety (optimistic/pessimistic locking), see [Concurrency Patterns](./concurrency-patterns.md).
+For RPC services, see [RPC Patterns](./rpc.md).
+For database transactions and isolation levels, see [Database Patterns](./database.md#transaction-pattern).
+For idempotency (payment/order endpoints), see [Concurrency Patterns](./concurrency.md#5-idempotency).
+For concurrent write safety (optimistic/pessimistic locking), see [Concurrency Patterns](./concurrency.md).
