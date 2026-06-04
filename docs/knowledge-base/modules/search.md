@@ -2,9 +2,9 @@
 title: search
 tracks:
   - app/search/
-last_synced_commit: 8ce9ecc
-last_synced_date: 2026-05-30
-sync_note: ""
+last_synced_commit: b3d788b
+last_synced_date: 2026-06-04
+sync_note: "refreshed after ESIndexer errcheck fixes and SA5008 lint config"
 ---
 
 # search

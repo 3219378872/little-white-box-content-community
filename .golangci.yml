@@ -40,6 +40,13 @@ linters:
         linters:
           - errcheck
         text: "Error return value of `httpx\\.Parse` is not checked"
+      # go-zero uses custom JSON struct tags (json:",optional", json:",default=…")
+      # that staticcheck's SA5008 doesn't recognise — suppress the false positives
+      # only in config structs where these tags are idiomatic.
+      - path: "(.*/)?internal/config/.*\\.go$"
+        linters:
+          - staticcheck
+        text: "SA5008.*unknown JSON option"
 
 formatters:
   enable:

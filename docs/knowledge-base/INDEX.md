@@ -14,6 +14,7 @@ The esx (little-white-box) social content platform knowledge base. See
 - [message](modules/message.md) — 消息 RPC + MQ：私信与通知。
 - [recommend](modules/recommend.md) — 推荐 MQ 消费者（Milvus 向量）。
 - [search](modules/search.md) — 搜索 MQ 消费者（Elasticsearch 索引）。
+- [embedding](modules/embedding.md) — 向量化 MQ 消费者（Milvus 向量库）。
 - [pipeline](modules/pipeline.md) — 行为日志管道：去重 + ClickHouse。
 
 ## Shared Libraries (`pkg/`)

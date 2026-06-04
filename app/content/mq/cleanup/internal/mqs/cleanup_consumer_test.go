@@ -16,13 +16,13 @@ import (
 )
 
 type stubCleanupStore struct {
-	mu             sync.Mutex
-	deletedPosts   []int64
-	hotRemovals    []int64
-	tagRemovals    map[int64][]string
-	stateErr       error
-	hotErr         error
-	tagErr         error
+	mu           sync.Mutex
+	deletedPosts []int64
+	hotRemovals  []int64
+	tagRemovals  map[int64][]string
+	stateErr     error
+	hotErr       error
+	tagErr       error
 }
 
 func newStub() *stubCleanupStore {
