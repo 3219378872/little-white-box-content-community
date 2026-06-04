@@ -104,10 +104,10 @@ def _gc_notes(repo_root: Path, today: dt.date) -> list[str]:
 
 
 def _specs_without_plans(repo_root: Path) -> list[str]:
-    specs = _markdown_files(repo_root / "docs" / "superpowers" / "specs")
+    specs = _markdown_files(repo_root / "docs" / "design-docs")
     plan_keys = {
         p.stem
-        for p in _markdown_files(repo_root / "docs" / "superpowers" / "plans")
+        for p in _markdown_files(repo_root / "docs" / "exec-plans" / "completed")
     }
     return [
         str(s.relative_to(repo_root))
@@ -117,7 +117,7 @@ def _specs_without_plans(repo_root: Path) -> list[str]:
 
 
 def _plans_without_task_refs(repo_root: Path) -> list[str]:
-    plans = _markdown_files(repo_root / "docs" / "superpowers" / "plans")
+    plans = _markdown_files(repo_root / "docs" / "exec-plans" / "completed")
     chunks: list[str] = []
     for root in (active_root(repo_root), completed_root(repo_root)):
         for task_dir in _task_dirs(root):

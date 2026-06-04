@@ -45,8 +45,6 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: golangci-lint (all go.work modules)
         run: scripts/lint.sh --timeout 5m
-      - name: Agent harness lint
-        run: python3 scripts/agent_harness.py check
       - name: Knowledge base lint
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

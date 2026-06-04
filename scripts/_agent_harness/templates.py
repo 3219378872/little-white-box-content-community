@@ -16,7 +16,7 @@ def render(repo_root: Path, file_name: str, *, slug: str, day: str) -> str:
     template_name = _FILE_TO_TEMPLATE.get(file_name)
     if template_name is None:
         raise HarnessError(f"unknown template file: {file_name}")
-    path = repo_root / "docs" / "agent-harness" / "templates" / template_name
+    path = repo_root / "docs" / "exec-plans" / "templates" / template_name
     if not path.exists():
         raise HarnessError(f"missing template: {path}")
     task_branch = f"task/{day}-{slug}"

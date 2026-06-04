@@ -18,15 +18,15 @@ from _agent_harness.model import (
 
 
 def _harness_root(repo_root: Path) -> Path:
-    return repo_root / "docs" / "agent-harness"
+    return repo_root / "docs" / "exec-plans"
 
 
 def active_root(repo_root: Path) -> Path:
-    return _harness_root(repo_root) / "tasks" / "active"
+    return _harness_root(repo_root) / "active"
 
 
 def completed_root(repo_root: Path) -> Path:
-    return _harness_root(repo_root) / "tasks" / "completed"
+    return _harness_root(repo_root) / "completed"
 
 
 def _slugify(value: str) -> str:
