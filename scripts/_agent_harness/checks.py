@@ -35,12 +35,12 @@ def _record_issues(task: str, record: TaskRecord) -> list[CheckIssue]:
         add("H005", "task_branch must match task/YYYY-MM-DD-<slug>")
     if record.spec is None and not record.spec_waiver:
         add("H002", "spec must be a path or null with a spec_waiver reason")
-    if record.spec and not record.spec.startswith("docs/superpowers/specs/"):
-        add("H002", "spec must live under docs/superpowers/specs/")
+    if record.spec and not record.spec.startswith("docs/design-docs/"):
+        add("H002", "spec must live under docs/design-docs/")
     if record.plan is None and not record.plan_waiver:
         add("H003", "plan must be a path or null with a plan_waiver reason")
-    if record.plan and not record.plan.startswith("docs/superpowers/plans/"):
-        add("H003", "plan must live under docs/superpowers/plans/")
+    if record.plan and not record.plan.startswith("docs/exec-plans/"):
+        add("H003", "plan must live under docs/exec-plans/")
     return issues
 
 

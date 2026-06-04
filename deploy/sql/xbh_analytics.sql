@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS xbh_analytics;
 
 -- 主表：以 user_id 为首列，优化用户维度聚合查询
--- spec: docs/superpowers/specs/2026-04-29-data-foundation-design.md §4.1
+-- spec: docs/design-docs/2026-04-29-data-foundation-design.md §4.1
 CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
     event_id    Int64,
     event_time  DateTime64(3),
