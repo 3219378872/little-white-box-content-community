@@ -30,7 +30,7 @@ func TestPostEvent_JSONRoundTrip(t *testing.T) {
 
 func TestPostEvent_Validate(t *testing.T) {
 	base := PostEvent{
-		EventID:  1, EventTime: 1, Type: PostEventCreated,
+		EventID: 1, EventTime: 1, Type: PostEventCreated,
 		PostID: 100, AuthorID: 1,
 	}
 	require.NoError(t, base.Validate())

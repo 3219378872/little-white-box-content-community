@@ -69,7 +69,7 @@ func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
 	if err != nil {
 		return fmt.Errorf("ES index request: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.IsError() {
 		raw, _ := io.ReadAll(res.Body)
 		return fmt.Errorf("ES index failed status=%s body=%s", res.Status(), string(raw))
@@ -87,7 +87,7 @@ func (e *ESIndexer) Delete(ctx context.Context, docID string) error {
 	if err != nil {
 		return fmt.Errorf("ES delete request: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	// 404 视为已删除（幂等）
 	if res.StatusCode == http.StatusNotFound {
 		return nil
@@ -105,7 +105,7 @@ func (e *ESIndexer) EnsureIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ES indices exists: %w", err)
 	}
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		return nil
 	}
@@ -117,7 +117,7 @@ func (e *ESIndexer) EnsureIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ES indices create: %w", err)
 	}
-	defer create.Body.Close()
+	defer func() { _ = create.Body.Close() }()
 	if create.IsError() {
 		raw, _ := io.ReadAll(create.Body)
 		return fmt.Errorf("ES create index failed status=%s body=%s", create.Status(), string(raw))
@@ -134,7 +134,7 @@ func (e *ESIndexer) Refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ES refresh: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.IsError() {
 		return fmt.Errorf("ES refresh failed: %s", res.Status())
 	}
