@@ -26,7 +26,7 @@ def resolve_reference(md_file: Path, ref: str) -> Path:
     if parts:
         if parts[0] == "flows" or parts[0] == "modules":
             candidates.append((ROOT / "docs" / "generated" / ref).resolve())
-        if parts[0] in {"_knowledge_base", "_agent_harness"}:
+        if parts[0] == "_knowledge_base":
             candidates.append((ROOT / "scripts" / ref).resolve())
     for candidate in candidates:
         if candidate.exists():
