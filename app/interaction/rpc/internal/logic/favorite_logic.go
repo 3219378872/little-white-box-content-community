@@ -53,6 +53,10 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	} else {
 		return nil, errx.NewWithCode(errx.AlreadyFavorited)
 	}
+	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
+		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 
 	return &pb.FavoriteResp{}, nil
 }

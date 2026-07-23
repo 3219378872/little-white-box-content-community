@@ -28,7 +28,5 @@ func NewHealthLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HealthLogi
 }
 
 func (l *HealthLogic) Health(req *types.HealthReq) (resp *types.HealthResp, err error) {
-	// todo: add your logic here and delete this line
-
-	return
+	return &types.HealthResp{Status: "ok"}, nil
 }

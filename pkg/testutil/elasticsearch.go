@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	esmodule "github.com/testcontainers/testcontainers-go/modules/elasticsearch"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // ElasticsearchEnv 是 testcontainers 启动的 ES 单节点环境，供集成测试使用。
@@ -43,19 +43,36 @@ func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	container, err := esmodule.Run(ctx, defaultElasticsearchImage)
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        defaultElasticsearchImage,
+			ExposedPorts: []string{"9200/tcp"},
+			Env: map[string]string{
+				"discovery.type": "single-node",
+				"cluster.routing.allocation.disk.threshold_enabled": "false",
+				"xpack.security.enabled":                            "false",
+				"ES_JAVA_OPTS":                                      "-Xms512m -Xmx512m",
+			},
+			WaitingFor: wait.ForHTTP("/").
+				WithPort("9200/tcp").
+				WithStartupTimeout(3 * time.Minute),
+		},
+		Started: true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("elasticsearch container: %w", err)
+	}
+	address, err := container.PortEndpoint(ctx, "9200/tcp", "http")
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("elasticsearch endpoint: %w", err)
 	}
 	cleanup := func() {
 		_ = testcontainers.TerminateContainer(container)
 	}
 	return &ElasticsearchEnv{
-		URL:      container.Settings.Address,
-		Username: container.Settings.Username,
-		Password: container.Settings.Password,
-		CACert:   container.Settings.CACert,
-		closeFn:  cleanup,
+		URL:     address,
+		closeFn: cleanup,
 	}, nil
 }
 

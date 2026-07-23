@@ -29,7 +29,7 @@ func NewGetCountsLogic(ctx context.Context, svcCtx *svc2.ServiceContext) *GetCou
 }
 
 func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, error) {
-	key := fmt.Sprintf("interaction:action_count:%d:%d", in.TargetId, in.TargetType)
+	key := actionCountCacheKey(in.TargetId, int64(in.TargetType))
 
 	if resp, ok := l.readCountsFromCache(key); ok {
 		return resp, nil
@@ -67,6 +67,21 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 	}
 
 	return result.(*pb.GetCountsResp), nil
+}
+
+func actionCountCacheKey(targetID, targetType int64) string {
+	return fmt.Sprintf("interaction:action_count:%d:%d", targetID, targetType)
+}
+
+func invalidateActionCountCache(svcCtx *svc2.ServiceContext, targetID, targetType int64) error {
+	store := svcCtx.RedisStore
+	if store == nil && svcCtx.Redis != nil {
+		store = svc2.NewRedisStore(svcCtx.Redis)
+	}
+	if store == nil {
+		return nil
+	}
+	return store.Del(actionCountCacheKey(targetID, targetType))
 }
 
 func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, bool) {

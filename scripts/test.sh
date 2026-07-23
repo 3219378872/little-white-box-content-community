@@ -17,7 +17,14 @@ mapfile -t MODULES < <(
 fail=0
 for module in "${MODULES[@]}"; do
   echo "==> go test ${module}/..."
-  if ! (cd "$module" && go test -race -cover "$@" ./...); then
+  module_name="$(printf '%s' "$module" | sed 's#^\./##; s#[/.]#_#g')"
+  [[ -n "$module_name" ]] || module_name="root"
+  if [[ -n "${TEST_JSON_DIR:-}" ]]; then
+    mkdir -p "$TEST_JSON_DIR"
+    if ! (cd "$module" && go test -json -race -cover "$@" ./... | tee "$TEST_JSON_DIR/$module_name.json"); then
+      fail=1
+    fi
+  elif ! (cd "$module" && go test -race -cover "$@" ./...); then
     fail=1
   fi
 done

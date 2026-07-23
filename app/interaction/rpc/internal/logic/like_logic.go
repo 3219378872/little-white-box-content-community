@@ -71,6 +71,10 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 		l.Errorw("InvalidateLikeRecordCache failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	if err := invalidateActionCountCache(l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
+		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 
 	return &pb.LikeResp{}, nil
 }

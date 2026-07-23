@@ -42,7 +42,7 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 	require.Equal(t, int64(1), countsResp.LikeCount)
 
 	var status int64
-	err = testDB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
+	err = testEnv.DB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
 		7001, 900001, 1).Scan(&status)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), status)
@@ -69,7 +69,7 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(0), countsResp.LikeCount)
 
-	err = testDB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
+	err = testEnv.DB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
 		7001, 900001, 1).Scan(&status)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), status)
@@ -78,7 +78,7 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 func TestFavoriteListIntegration(t *testing.T) {
 	resetIntegrationState()
 
-	_, err := testDB.Exec(`
+	_, err := testEnv.DB.Exec(`
 		INSERT INTO favorite (user_id, post_id, status, created_at, updated_at)
 		VALUES
 			(8001, 910101, 1, '2026-04-21 10:00:00', '2026-04-21 10:00:00'),
@@ -130,7 +130,7 @@ func TestFavoriteListIntegration(t *testing.T) {
 func TestGetCountsCacheBackfillIntegration(t *testing.T) {
 	resetIntegrationState()
 
-	_, err := testDB.Exec(`
+	_, err := testEnv.DB.Exec(`
 		INSERT INTO action_count (target_id, target_type, like_count, favorite_count, comment_count, share_count)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`, 920001, 1, 7, 3, 2, 0)

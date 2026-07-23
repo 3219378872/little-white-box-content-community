@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	chmodule "github.com/testcontainers/testcontainers-go/modules/clickhouse"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type ClickHouseEnv struct {
@@ -44,6 +46,13 @@ func setupClickHouseEnv(initScripts ...string) (*ClickHouseEnv, error) {
 		chmodule.WithDatabase("xbh_analytics"),
 		chmodule.WithUsername("default"),
 		chmodule.WithPassword(""),
+		testcontainers.WithWaitStrategyAndDeadline(
+			5*time.Minute,
+			wait.ForHTTP("/").
+				WithPort("8123/tcp").
+				WithStatusCodeMatcher(func(status int) bool { return status == 200 }).
+				WithStartupTimeout(5*time.Minute),
+		),
 	}
 	for _, script := range initScripts {
 		opts = append(opts, chmodule.WithInitScripts(script))

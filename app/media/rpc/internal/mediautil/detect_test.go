@@ -67,3 +67,13 @@ func TestDetect_TableDriven(t *testing.T) {
 		})
 	}
 }
+
+func FuzzDetectNeverPanics(f *testing.F) {
+	for _, seed := range [][]byte{nil, pngHeader, jpegHeader, mp4Header, pdfHeader} {
+		f.Add(seed, true, true)
+	}
+	f.Fuzz(func(t *testing.T, data []byte, allowImage, allowVideo bool) {
+		path := writeFile(t, data)
+		_, _ = Detect(path, allowImage, allowVideo)
+	})
+}

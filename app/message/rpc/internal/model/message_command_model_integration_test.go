@@ -5,8 +5,8 @@ package model
 import (
 	"context"
 	"database/sql"
+	"esx/pkg/testutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,9 +21,7 @@ func newMessageTestDB(t *testing.T) (sqlx.SqlConn, func()) {
 	t.Helper()
 	ctx := context.Background()
 
-	root, err := filepath.Abs("../../../..")
-	require.NoError(t, err)
-	scriptPath := filepath.Join(root, "deploy", "sql", "xbh_message.sql")
+	scriptPath := testutil.SchemaPath("xbh_message.sql")
 
 	password := os.Getenv("MYSQL_ROOT_PASSWORD")
 	if password == "" {

@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 	cfg := config.Config{
 		RpcServerConf:     zrpc.RpcServerConf{},
 		DataSource:        testEnv.MySQLDSN,
-		DtmServer:         "http://127.0.0.1:36789",
+		DtmServer:         "127.0.0.1:36790",
 		ContentBusiServer: "http://127.0.0.1:0",
 		FeedBusiServer:    "http://127.0.0.1:0",
 	}

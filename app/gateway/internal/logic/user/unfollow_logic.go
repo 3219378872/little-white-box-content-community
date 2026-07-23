@@ -5,6 +5,8 @@ package user
 
 import (
 	"context"
+	"jwtx"
+	"user/userservice"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,16 @@ func NewUnfollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfollow
 }
 
 func (l *UnfollowLogic) Unfollow(req *types.UnfollowReq) (resp *types.UnfollowResp, err error) {
-	// todo: add your logic here and delete this line
+	userID, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = l.svcCtx.UserService.Unfollow(l.ctx, &userservice.UnfollowReq{
+		UserId:       userID,
+		TargetUserId: req.TargetUserId,
+	}); err != nil {
+		return nil, err
+	}
 
-	return
+	return &types.UnfollowResp{}, nil
 }

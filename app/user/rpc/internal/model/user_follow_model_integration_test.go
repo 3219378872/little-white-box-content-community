@@ -88,3 +88,30 @@ func TestUserFollowModelCountFollowing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count)
 }
+
+func TestUserFollowModelFollowAndUnfollowAreIdempotent(t *testing.T) {
+	testEnv.TruncateAll(t, "user_follow", "user_profile")
+	seedProfilesAndFollows(t)
+
+	ctx := context.Background()
+	model := NewUserFollowModel(newTestConn())
+	require.NoError(t, model.Follow(ctx, 3, 2))
+	require.NoError(t, model.Follow(ctx, 3, 2))
+
+	var followingCount, followerCount int64
+	require.NoError(t, testEnv.DB.QueryRowContext(ctx,
+		"SELECT following_count FROM user_profile WHERE id = 3").Scan(&followingCount))
+	require.NoError(t, testEnv.DB.QueryRowContext(ctx,
+		"SELECT follower_count FROM user_profile WHERE id = 2").Scan(&followerCount))
+	assert.Equal(t, int64(1), followingCount)
+	assert.Equal(t, int64(1), followerCount)
+
+	require.NoError(t, model.Unfollow(ctx, 3, 2))
+	require.NoError(t, model.Unfollow(ctx, 3, 2))
+	require.NoError(t, testEnv.DB.QueryRowContext(ctx,
+		"SELECT following_count FROM user_profile WHERE id = 3").Scan(&followingCount))
+	require.NoError(t, testEnv.DB.QueryRowContext(ctx,
+		"SELECT follower_count FROM user_profile WHERE id = 2").Scan(&followerCount))
+	assert.Zero(t, followingCount)
+	assert.Zero(t, followerCount)
+}

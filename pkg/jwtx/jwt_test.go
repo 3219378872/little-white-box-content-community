@@ -43,3 +43,17 @@ func TestParseToken_ValidToken(t *testing.T) {
 	assert.Equal(t, int64(42), claims.UserId)
 	assert.Equal(t, "testuser", claims.Username)
 }
+
+func FuzzParseTokenNeverPanics(f *testing.F) {
+	config := JwtConfig{AccessSecret: "fuzz-secret", AccessExpire: 60}
+	valid, err := GenerateToken(1, "alice", config)
+	if err != nil {
+		f.Fatal(err)
+	}
+	for _, seed := range []string{"", "not-a-token", valid, "a.b.c"} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, token string) {
+		_, _ = ParseToken(token, config)
+	})
+}

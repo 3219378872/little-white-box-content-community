@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    - cron: "30 18 * * *"
 
 permissions:
   contents: read
@@ -57,4 +60,74 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Go tests (race + cover, all modules)
+        env:
+          TEST_JSON_DIR: ${{ github.workspace }}/.artifacts/test-json
         run: scripts/test.sh
+      - name: Layered coverage gate
+        run: scripts/coverage.sh
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence
+          path: .artifacts/
+
+  critical-integration:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Critical MySQL and Redis integration tests
+        run: scripts/integration-test.sh --critical
+
+  nightly-full-integration:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Start DTM and SeaweedFS
+        run: |
+          docker run --detach --name xbh-test-dtm \
+            --publish 36789:36789 --publish 36790:36790 \
+            yedf/dtm:latest
+          docker run --detach --name xbh-test-seaweedfs \
+            --publish 8333:8333 --publish 9333:9333 \
+            --volume "$PWD/deploy/seaweedfs/s3_config.json:/etc/seaweedfs/s3_config.json:ro" \
+            chrislusf/seaweedfs:latest \
+            server -master -volume -filer -s3 \
+            -s3.config=/etc/seaweedfs/s3_config.json -dir=/data
+          for attempt in $(seq 1 60); do
+            if timeout 2 bash -c '</dev/tcp/127.0.0.1/36790' 2>/dev/null && \
+               timeout 2 bash -c '</dev/tcp/127.0.0.1/8333' 2>/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs xbh-test-dtm || true
+          docker logs xbh-test-seaweedfs || true
+          exit 1
+      - name: All build-tagged integration tests
+        env:
+          INTEGRATION_PARALLELISM: "1"
+          TEST_S3_ENDPOINT: 127.0.0.1:8333
+        run: scripts/integration-test.sh --all
+      - name: Bounded native fuzz tests
+        run: scripts/fuzz.sh
+      - name: External integration service logs
+        if: failure()
+        run: |
+          docker logs xbh-test-dtm || true
+          docker logs xbh-test-seaweedfs || true
+      - name: Stop external integration services
+        if: always()
+        run: docker rm --force xbh-test-dtm xbh-test-seaweedfs || true
