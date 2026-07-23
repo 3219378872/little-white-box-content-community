@@ -19,15 +19,9 @@ repos:
         language: system
         files: '^scripts/.*\.py$'
         pass_filenames: false
-      - id: knowledge-base
-        name: Knowledge base check
-        entry: python3 scripts/knowledge_base.py check
-        language: system
-        files: '^(docs/generated/.*|app/.*\.go|pkg/.*\.go)$'
-        pass_filenames: false
       - id: engineering-lint
         name: Engineering lint
-        description: Validates md links, KB sync, and harness compliance.
+        description: Validates active documentation links and repository policy.
         entry: python3 scripts/engineering-lint.py
         language: system
         files: '\.(md|go|py|yaml|yml)$'

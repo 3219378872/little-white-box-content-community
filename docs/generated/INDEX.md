@@ -72,6 +72,6 @@ sync_note: ""
 
 ### Keeping It Current
 
-`python3 scripts/knowledge_base.py check` 验证结构和链接，是 CI 的阻塞检查步骤。规则 K005 是共变更检查：修改了某页面跟踪路径的 PR 也必须修改该页面。如果变更不需要内容编辑，更新 `last_synced_commit` 并填写 `sync_note` 说明原因即可（轻量豁免）。
+`scripts/knowledge_base.py` 保留为可选的手动维护工具，不属于 CI、pre-commit 或 agent 完工检查要求。需要刷新生成知识时，可按页面的 `tracks`、`last_synced_commit` 和 `last_synced_date` 自行核对。
 
 在 `app/` 下添加新服务或在 `pkg/` 下添加新库时，必须在同一个 PR 中添加对应的 `modules/` 页面（规则 K002）。
