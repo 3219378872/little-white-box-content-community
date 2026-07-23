@@ -25,14 +25,15 @@
 
 只打开 [docs/INDEX.md](docs/INDEX.md) 指定的 1～2 个 active 文档。历史计划和日期设计文档不是当前规则，除非用户明确要求追溯。
 
-## 验证入口
+## 命令入口
 
-```bash
-python3 scripts/engineering-lint.py
-scripts/test.sh
-scripts/vet.sh
-scripts/lint.sh
-```
+所有日常检查统一通过根目录 `Makefile`，先运行 `make help` 查看目标和参数。
+
+- `make check`：格式、文档策略、`go vet` 和 golangci-lint。
+- `make test`：所有 module 的 race 测试与包级覆盖率；额外参数用 `ARGS` 传入。
+- `make coverage`、`make coverage-target`、`make coverage-no-gate`：覆盖率基线、终态或无门禁报告。
+- `make integration-critical`、`make integration-all`：PR 核心或完整 integration-tag 测试。
+- `make fuzz FUZZ_TIME=10s`：限时 fuzz；`make quality`：运行标准本地质量门禁。
 
 根据变更范围执行相关命令；完成时报告实际执行的命令和结果，不用未执行的全量检查代替证据。
 

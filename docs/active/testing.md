@@ -12,11 +12,11 @@
 
 ## 测试分层
 
-- `scripts/test.sh`：所有 module 的默认测试，启用 race 和包级覆盖率。
-- `scripts/coverage.sh`：生成 `.artifacts/coverage/` 分层报告并执行当前基线门禁；`--target` 检查终态门槛。
-- `scripts/integration-test.sh --critical`：PR 使用的自包含核心 MySQL/Redis 集成测试，不依赖常驻中间件。
-- `scripts/integration-test.sh --all`：夜间或手动运行全部 integration-tag 测试；要求本机 `127.0.0.1:36790` 有 DTM gRPC、`127.0.0.1:8333` 有使用 `deploy/seaweedfs/s3_config.json` 的 SeaweedFS S3，CI 会显式启动并清理它们。
-- `scripts/fuzz.sh`：夜间限时 fuzz；通过 `FUZZ_TIME` 调整每个目标时长。
+- `make test`：所有 module 的默认测试，启用 race 和包级覆盖率；额外 go test 参数通过 `ARGS` 传入。
+- `make coverage`：生成 `.artifacts/coverage/` 分层报告并执行当前基线门禁；`make coverage-target` 检查终态门槛，`make coverage-no-gate` 不执行门禁。
+- `make integration-critical`：PR 使用的自包含核心 MySQL/Redis 集成测试，不依赖常驻中间件。
+- `make integration-all`：夜间或手动运行全部 integration-tag 测试；要求本机 `127.0.0.1:36790` 有 DTM gRPC、`127.0.0.1:8333` 有使用 `deploy/seaweedfs/s3_config.json` 的 SeaweedFS S3，CI 会显式启动并清理它们。
+- `make fuzz`：夜间限时 fuzz；通过 `FUZZ_TIME` 调整每个目标时长。
 
 当测试进程运行在容器内并通过宿主机 Docker socket 启动 testcontainers 时，集成脚本会将 Docker bridge 网关追加到 `NO_PROXY/no_proxy`，避免本地健康探针被 HTTP 代理转发。
 
@@ -29,10 +29,9 @@ REST 决策表以 Case ID 标识规则，至少记录方法、路径、认证状
 ## 验证命令
 
 ```bash
-python3 scripts/engineering-lint.py
-scripts/test.sh
-scripts/vet.sh
-scripts/lint.sh
+make check
+make test
+make coverage
 ```
 
-根据变更范围执行相关命令；报告实际执行结果。生成文件、文档链接、知识库同步和代码质量由 `engineering-lint.py` 与 CI 检查。
+根据变更范围执行相关命令；报告实际执行结果。生成文件、文档链接和代码质量由 `make engineering-lint`、`make check` 与 CI 检查。
