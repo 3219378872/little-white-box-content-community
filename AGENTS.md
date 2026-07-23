@@ -35,3 +35,11 @@ scripts/lint.sh
 ```
 
 根据变更范围执行相关命令；完成时报告实际执行的命令和结果，不用未执行的全量检查代替证据。
+
+
+## 工作流程
+
+- 使用git worktree 在.worktree目录创建任务分支task/task-name 
+- 在该工作树完成task
+- 切回main分支，rebase该任务分支
+- 处理冲突，提交并推送
