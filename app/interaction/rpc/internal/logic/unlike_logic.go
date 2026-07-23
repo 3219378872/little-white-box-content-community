@@ -57,6 +57,16 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 			}
 		}
 	}
+	if err := l.svcCtx.LikeRecordModel.InvalidateLikeRecordCache(
+		l.ctx, record.Id, in.UserId, in.TargetId, int64(in.TargetType),
+	); err != nil {
+		l.Errorw("InvalidateLikeRecordCache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err := invalidateActionCountCache(l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
+		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 
 	return &pb.UnlikeResp{}, nil
 }

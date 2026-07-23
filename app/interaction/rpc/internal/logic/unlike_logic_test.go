@@ -34,6 +34,10 @@ func TestUnlikeLogic_Unlike_Success(t *testing.T) {
 		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
 		Return(nil).
 		Once()
+	likeModel.
+		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
+		Return(nil).
+		Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -93,6 +97,10 @@ func TestUnlikeLogic_Unlike_NilActionCountModel(t *testing.T) {
 		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
+	likeModel.
+		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
+		Return(nil).
+		Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -121,6 +129,10 @@ func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
 		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
 		Return(assert.AnError).
 		Once()
+	likeModel.
+		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
+		Return(nil).
+		Once()
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -128,6 +140,31 @@ func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
 	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
 	countModel.AssertExpectations(t)
+}
+
+func TestUnlikeLogic_Unlike_CacheInvalidationError(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	svcCtx := &svc.ServiceContext{LikeRecordModel: likeModel}
+
+	likeModel.
+		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
+		Return(&model2.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
+		Once()
+	likeModel.
+		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
+		Return(stubResult{rowsAffected: 1}, nil).
+		Once()
+	likeModel.
+		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
+		Return(assert.AnError).
+		Once()
+
+	logic := NewUnlikeLogic(context.Background(), svcCtx)
+	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.SystemError))
+	likeModel.AssertExpectations(t)
 }
 
 func TestUnlikeLogic_Unlike_UpdateStatusError(t *testing.T) {

@@ -1,0 +1,16 @@
+{
+  "baseline": {
+    "handler": 88.0,
+    "logic": 76.0,
+    "model": 0.2,
+    "mq_consumer": 72.0,
+    "shared": 42.0
+  },
+  "target": {
+    "handler": 90.0,
+    "logic": 85.0,
+    "model": 70.0,
+    "mq_consumer": 80.0,
+    "shared": 80.0
+  }
+}

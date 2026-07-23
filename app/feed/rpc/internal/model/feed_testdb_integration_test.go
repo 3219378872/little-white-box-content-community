@@ -5,8 +5,8 @@ package model
 import (
 	"context"
 	"database/sql"
+	"esx/pkg/testutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -19,9 +19,7 @@ import (
 func newFeedTestDB(t *testing.T) (sqlx.SqlConn, func()) {
 	t.Helper()
 	ctx := context.Background()
-	root, err := filepath.Abs("../../../..")
-	require.NoError(t, err)
-	scriptPath := filepath.Join(root, "deploy", "sql", "xbh_feed.sql")
+	scriptPath := testutil.SchemaPath("xbh_feed.sql")
 	password := os.Getenv("MYSQL_ROOT_PASSWORD")
 	if password == "" {
 		password = "Xbh@MySQL2024!"

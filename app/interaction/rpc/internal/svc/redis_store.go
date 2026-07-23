@@ -8,6 +8,7 @@ type RedisStore interface {
 	Expire(key string, seconds int) error
 	Exists(key string) (bool, error)
 	Hincrby(key, field string, increment int) (int, error)
+	Del(key string) error
 }
 
 type goZeroRedisStore struct {
@@ -40,4 +41,9 @@ func (s *goZeroRedisStore) Exists(key string) (bool, error) {
 
 func (s *goZeroRedisStore) Hincrby(key, field string, increment int) (int, error) {
 	return s.client.Hincrby(key, field, increment)
+}
+
+func (s *goZeroRedisStore) Del(key string) error {
+	_, err := s.client.Del(key)
+	return err
 }

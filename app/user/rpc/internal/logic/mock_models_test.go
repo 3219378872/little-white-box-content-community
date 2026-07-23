@@ -70,6 +70,14 @@ func (m *MockUserProfileModel) FindOneByIdForUpdate(ctx context.Context, session
 
 type MockUserFollowStore struct{ mock.Mock }
 
+func (m *MockUserFollowStore) Follow(ctx context.Context, userID, targetUserID int64) error {
+	return m.Called(ctx, userID, targetUserID).Error(0)
+}
+
+func (m *MockUserFollowStore) Unfollow(ctx context.Context, userID, targetUserID int64) error {
+	return m.Called(ctx, userID, targetUserID).Error(0)
+}
+
 func (m *MockUserFollowStore) FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*model.UserProfile, error) {
 	args := m.Called(ctx, userID, offset, limit)
 	v, _ := args.Get(0).([]*model.UserProfile)

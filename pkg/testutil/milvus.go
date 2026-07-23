@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	milvusmodule "github.com/testcontainers/testcontainers-go/modules/milvus"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // MilvusEnv 是 testcontainers 启动的 Milvus standalone 实例，供集成测试使用。
@@ -41,7 +42,14 @@ func setupMilvusEnv() (*MilvusEnv, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	container, err := milvusmodule.Run(ctx, defaultMilvusImage)
+	container, err := milvusmodule.Run(ctx, defaultMilvusImage,
+		testcontainers.WithWaitStrategyAndDeadline(
+			5*time.Minute,
+			wait.ForHTTP("/healthz").
+				WithPort("9091/tcp").
+				WithStartupTimeout(5*time.Minute),
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("milvus container: %w", err)
 	}

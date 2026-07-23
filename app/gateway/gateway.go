@@ -4,20 +4,16 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"fmt"
 
-	"errx"
-
 	"gateway/internal/config"
 	"gateway/internal/handler"
+	"gateway/internal/httpxconfig"
 	"gateway/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/rest"
-	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
 var configFile = flag.String("f", "etc/gateway.yaml", "the config file")
@@ -28,19 +24,10 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 
-	server := rest.MustNewServer(c.RestConf)
+	server := rest.MustNewServer(c.RestConf, rest.WithUnauthorizedCallback(httpxconfig.Unauthorized))
 	defer server.Stop()
 
-	httpx.SetErrorHandlerCtx(func(ctx context.Context, err error) (int, any) {
-		bizErr, ok := errors.AsType[*errx.BizError](err)
-		if !ok {
-			bizErr = errx.FromHTTPError(err)
-		}
-		return bizErr.HTTPStatus(), map[string]any{
-			"code":    bizErr.Code,
-			"message": bizErr.Message,
-		}
-	})
+	httpxconfig.ConfigureErrors()
 
 	ctx := svc.NewServiceContext(c)
 	handler.RegisterHandlers(server, ctx)

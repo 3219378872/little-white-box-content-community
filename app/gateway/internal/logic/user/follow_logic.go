@@ -5,6 +5,8 @@ package user
 
 import (
 	"context"
+	"jwtx"
+	"user/userservice"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -28,7 +30,16 @@ func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogi
 }
 
 func (l *FollowLogic) Follow(req *types.FollowReq) (resp *types.FollowResp, err error) {
-	// todo: add your logic here and delete this line
+	userID, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = l.svcCtx.UserService.Follow(l.ctx, &userservice.FollowReq{
+		UserId:       userID,
+		TargetUserId: req.TargetUserId,
+	}); err != nil {
+		return nil, err
+	}
 
-	return
+	return &types.FollowResp{}, nil
 }

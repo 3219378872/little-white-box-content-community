@@ -41,6 +41,11 @@ func (m *mockRedisStore) Hincrby(key, field string, increment int) (int, error) 
 	return args.Int(0), args.Error(1)
 }
 
+func (m *mockRedisStore) Del(key string) error {
+	args := m.Called(key)
+	return args.Error(0)
+}
+
 func TestGetCountsLogic_GetCounts_RedisHit(t *testing.T) {
 	redisStore := new(mockRedisStore)
 	redisStore.On("Hget", "interaction:action_count:100:1", "like_count").Return("10", nil).Once()
@@ -151,6 +156,26 @@ func TestGetCountsLogic_RedisStore_FromRedis(t *testing.T) {
 	logic := NewGetCountsLogic(context.Background(), &svc.ServiceContext{})
 	store := logic.redisStore()
 	assert.Nil(t, store)
+}
+
+func TestInvalidateActionCountCache(t *testing.T) {
+	t.Run("no store", func(t *testing.T) {
+		require.NoError(t, invalidateActionCountCache(&svc.ServiceContext{}, 100, 1))
+	})
+
+	t.Run("delete key", func(t *testing.T) {
+		store := new(mockRedisStore)
+		store.On("Del", "interaction:action_count:100:1").Return(nil).Once()
+		require.NoError(t, invalidateActionCountCache(&svc.ServiceContext{RedisStore: store}, 100, 1))
+		store.AssertExpectations(t)
+	})
+
+	t.Run("delete failure", func(t *testing.T) {
+		store := new(mockRedisStore)
+		store.On("Del", "interaction:action_count:100:1").Return(assert.AnError).Once()
+		require.ErrorIs(t, invalidateActionCountCache(&svc.ServiceContext{RedisStore: store}, 100, 1), assert.AnError)
+		store.AssertExpectations(t)
+	})
 }
 
 func TestParseInt64_Valid(t *testing.T) {

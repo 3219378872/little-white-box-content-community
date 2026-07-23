@@ -16,6 +16,8 @@ type (
 	UserFollowModel interface {
 		userFollowModel
 		withSession(session sqlx.Session) UserFollowModel
+		Follow(ctx context.Context, userID, targetUserID int64) error
+		Unfollow(ctx context.Context, userID, targetUserID int64) error
 		FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error)
 		FindFollowing(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error)
 		CountFollowers(ctx context.Context, userID int64) (int64, error)
@@ -32,6 +34,55 @@ func NewUserFollowModel(conn sqlx.SqlConn) UserFollowModel {
 	return &customUserFollowModel{
 		defaultUserFollowModel: newUserFollowModel(conn),
 	}
+}
+
+func (m *customUserFollowModel) Follow(ctx context.Context, userID, targetUserID int64) error {
+	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		result, err := session.ExecCtx(ctx,
+			"INSERT IGNORE INTO user_follow (user_id, target_user_id) VALUES (?, ?)",
+			userID, targetUserID,
+		)
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil || changed == 0 {
+			return err
+		}
+		if _, err = session.ExecCtx(ctx,
+			"UPDATE user_profile SET following_count = following_count + 1 WHERE id = ?", userID,
+		); err != nil {
+			return err
+		}
+		_, err = session.ExecCtx(ctx,
+			"UPDATE user_profile SET follower_count = follower_count + 1 WHERE id = ?", targetUserID,
+		)
+		return err
+	})
+}
+
+func (m *customUserFollowModel) Unfollow(ctx context.Context, userID, targetUserID int64) error {
+	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		result, err := session.ExecCtx(ctx,
+			"DELETE FROM user_follow WHERE user_id = ? AND target_user_id = ?", userID, targetUserID,
+		)
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil || changed == 0 {
+			return err
+		}
+		if _, err = session.ExecCtx(ctx,
+			"UPDATE user_profile SET following_count = GREATEST(following_count - 1, 0) WHERE id = ?", userID,
+		); err != nil {
+			return err
+		}
+		_, err = session.ExecCtx(ctx,
+			"UPDATE user_profile SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = ?", targetUserID,
+		)
+		return err
+	})
 }
 
 func (m *customUserFollowModel) withSession(session sqlx.Session) UserFollowModel {

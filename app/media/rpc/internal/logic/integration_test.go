@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"util"
 
 	"github.com/stretchr/testify/require"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -21,6 +22,10 @@ var testEnv *testutil.TestEnv
 var testSvcCtx *svc.ServiceContext
 
 func TestMain(m *testing.M) {
+	if err := util.InitSnowflake(1, 1); err != nil {
+		fmt.Fprintf(os.Stderr, "InitSnowflake: %v\n", err)
+		os.Exit(1)
+	}
 	testEnv = testutil.SetupTestEnvM("xbh_media", testutil.SchemaPath("xbh_media.sql"))
 
 	// S3 storage 仍从环境变量读取（MinIO/SeaweedFS 端到端暂不纳入 testcontainers）

@@ -57,6 +57,10 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 			}
 		}
 	}
+	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
+		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 
 	return &pb.UnfavoriteResp{}, nil
 }

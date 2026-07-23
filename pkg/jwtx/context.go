@@ -41,7 +41,15 @@ func WithUsernameContext(ctx context.Context, username string) context.Context {
 }
 
 func GetOptionalUserIdFromContext(ctx context.Context) (int64, bool) {
-	switch value := ctx.Value(ctxUserIDKey).(type) {
+	if id, ok := parseUserID(ctx.Value(ctxUserIDKey)); ok {
+		return id, true
+	}
+	// go-zero's built-in JWT middleware stores custom claims with string keys.
+	return parseUserID(ctx.Value("userId"))
+}
+
+func parseUserID(raw any) (int64, bool) {
+	switch value := raw.(type) {
 	case json.Number:
 		id, err := value.Int64()
 		if err != nil {
@@ -50,6 +58,11 @@ func GetOptionalUserIdFromContext(ctx context.Context) (int64, bool) {
 		return id, true
 	case int64:
 		return value, true
+	case float64:
+		if value != float64(int64(value)) {
+			return 0, false
+		}
+		return int64(value), true
 	case string:
 		id, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -63,6 +76,9 @@ func GetOptionalUserIdFromContext(ctx context.Context) (int64, bool) {
 
 // GetUsernameFromContext 从上下文中获取用户名
 func GetUsernameFromContext(ctx context.Context) (string, bool) {
-	username, ok := ctx.Value(ctxUsernameKey).(string)
+	if username, ok := ctx.Value(ctxUsernameKey).(string); ok {
+		return username, true
+	}
+	username, ok := ctx.Value("username").(string)
 	return username, ok
 }

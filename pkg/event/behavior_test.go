@@ -64,3 +64,20 @@ func TestBehaviorEvent_EventIDString(t *testing.T) {
 	e := BehaviorEvent{EventID: 123456789}
 	assert.Equal(t, "123456789", e.EventIDString())
 }
+
+func FuzzBehaviorEventJSONNeverPanics(f *testing.F) {
+	for _, seed := range []string{
+		`{}`,
+		`{"user_id":1,"action":"view","target_id":2,"target_type":"post"}`,
+		`null`,
+		`{"user_id":"wrong-type"}`,
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, payload string) {
+		var event BehaviorEvent
+		if json.Unmarshal([]byte(payload), &event) == nil {
+			_ = event.Validate()
+		}
+	})
+}
