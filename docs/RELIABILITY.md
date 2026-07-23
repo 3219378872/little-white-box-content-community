@@ -1,6 +1,6 @@
 # 弹性与可靠性
 
-esx 项目弹性模式概要。详细模式与代码示例参见 [references/resilience.md](references/resilience.md)。
+esx 项目弹性模式概要。运行和失败处理入口参见 [active/operations.md](active/operations.md)。
 
 ## go-zero 内置防护（默认启用）
 
@@ -23,8 +23,6 @@ Request → Load Shedding → Rate Limiting → Circuit Breaker → Timeout → 
 - RocketMQ SendOneWay 用于非关键异步事件（media-deleted）
 - 消费者 ConsumeRetryLater 自动重试
 
-## 详细参考
+## 按需参考
 
-- [弹性模式完整文档](references/resilience.md)
-- [并发模式](references/concurrency.md)
-- [事件驱动模式](references/event-driven.md)
+- [运行与可靠性速查](active/operations.md)

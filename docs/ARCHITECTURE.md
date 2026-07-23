@@ -12,12 +12,19 @@ Client → Gateway (REST :8888) → User RPC (:9090)
 
 ## 服务清单
 
-| 服务 | 类型 | 端口 | 入口文件 | 定义文件 |
-|------|------|------|---------|---------|
-| Gateway | REST API 网关 | :8888 | `app/gateway/gateway.go` | `app/gateway/gateway.api` |
-| User | RPC 服务 | :9090 | `app/user/user.go` | `proto/user/user.proto` |
-| Content | RPC 服务 | :8088 | `app/content/content.go` | `proto/content/content.proto` |
-| Media | RPC 服务 | :9008 | `app/media/media.go` | `proto/media/media.proto` |
+| 模块 | 类型 | 入口文件 | 定义文件 |
+|------|------|---------|---------|
+| Gateway | REST API 网关 | `app/gateway/gateway.go` | `app/gateway/gateway.api` |
+| User | RPC 服务 | `app/user/rpc/user.go` | `proto/user/user.proto` |
+| Content | RPC 服务 | `app/content/rpc/content.go` | `proto/content/content.proto` |
+| Media | RPC 服务 + MQ | `app/media/rpc/media.go`、`app/media/mq/main.go` | `proto/media/media.proto` |
+| Interaction | RPC 服务 | `app/interaction/rpc/interaction.go` | `proto/interaction/interaction.proto` |
+| Feed | RPC 服务 + MQ | `app/feed/rpc/feed.go`、`app/feed/mq/main.go` | `proto/feed/feed.proto` |
+| Message | RPC 服务 + MQ | `app/message/rpc/message.go`、`app/message/mq/main.go` | `proto/message/message.proto` |
+| Search | MQ 消费者 | `app/search/mq/main.go` | `proto/search/search.proto` |
+| Recommend | MQ 消费者 | `app/recommend/mq/main.go` | `proto/recommend/recommend.proto` |
+| Embedding | MQ 消费者 | `app/embedding/mq/main.go` | — |
+| Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |
 
 ## RPC 服务分层
 
@@ -38,6 +45,6 @@ internal/model/    → 数据访问层
 - **RPC → MQ**：异步事件通过 RocketMQ（media-deleted、post-create 等）
 - **DTM 二阶段消息**：Content 发帖使用 DTM 保证写库与 Feed Fanout 的最终一致性
 
-## 详细架构图
+## 当前代码索引
 
-参见 [architecture-diagrams.md](design-docs/architecture-diagrams.md) —— 包含 17 个 Mermaid 图覆盖系统全景、请求生命周期、事件总线、部署拓扑等。
+需要定位具体模块或请求流程时，先读 [generated/INDEX.md](generated/INDEX.md)，再回到对应的 `app/`、`pkg/` 或配置文件。历史设计图不作为当前实现依据。
