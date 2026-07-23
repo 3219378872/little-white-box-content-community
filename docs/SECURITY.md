@@ -1,6 +1,6 @@
 # 安全
 
-esx 项目安全模式概要。详细模式与代码示例参见 [references/security.md](references/security.md)。
+esx 项目安全模式概要。实现入口和边界参见 [active/security.md](active/security.md)。
 
 ## 核心安全措施
 
@@ -17,7 +17,6 @@ esx 项目安全模式概要。详细模式与代码示例参见 [references/sec
 - 错误消息不泄露敏感数据（errx 统一包装）
 - 新增依赖需经用户批准
 
-## 详细参考
+## 按需参考
 
-- [安全模式完整文档](references/security.md)
-- [生产就绪检查清单](references/checklists/production-readiness.md)
+- [安全与错误速查](active/security.md)

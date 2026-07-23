@@ -38,10 +38,9 @@
 - 修改 `.api` 后：`goctl api go -api xxx.api -dir . --style go_zero`
 - 修改 `.proto` 后：运行对应 goctl rpc 命令
 
-## 详细参考
+## 按需参考
 
-- [REST API 模式](references/rest-api.md)
-- [RPC 模式](references/rpc.md)
-- [数据库模式](references/database.md)
-- [错误治理模式](references/api-governance.md)
-- [最佳实践速查](references/best-practices.md)
+- [API 速查](active/api.md)
+- [RPC 速查](active/rpc.md)
+- [数据访问速查](active/data.md)
+- [安全与错误速查](active/security.md)

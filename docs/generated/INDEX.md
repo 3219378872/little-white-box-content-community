@@ -42,7 +42,7 @@ The esx (little-white-box) social content platform knowledge base.
 
 ## 维护指南
 
-本知识库是面向 agent 和人类的"项目当前运作方式"文档层，与 `docs/design-docs/`（时间点设计文档）互补。
+本知识库是面向 agent 和人类的"项目当前运作方式"文档层。它是代码生成的事实快照，不是规则入口；任务路由统一见 [`docs/INDEX.md`](../INDEX.md)。
 
 ### Page Frontmatter
 

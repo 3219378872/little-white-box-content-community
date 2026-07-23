@@ -33,8 +33,6 @@ go vet ./...
 golangci-lint run
 ```
 
-## 详细参考
+## 按需参考
 
-- [测试模式完整文档](references/testing.md)
-- [最佳实践](references/best-practices.md)
-- [完工检查清单](references/checklists/)
+- [测试与交付速查](active/testing.md)
