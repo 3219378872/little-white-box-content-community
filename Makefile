@@ -10,7 +10,8 @@ TEST_JSON_DIR ?=
 export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 
 .PHONY: help fmt-check engineering-lint vet lint check test coverage coverage-target \
-	coverage-no-gate integration-critical integration-all fuzz quality
+	coverage-no-gate integration-critical integration-init integration-run \
+	integration-clear integration-all fuzz quality
 
 help: ## Show the available project commands
 	@printf '%s\n' 'Usage: make <target> [ARGS="..."]'
@@ -55,8 +56,17 @@ coverage-no-gate: ## Generate coverage reports without enforcing a gate
 integration-critical: ## Run the self-contained critical integration tests
 	scripts/integration-test.sh --critical
 
-integration-all: ## Run all integration-tagged tests using local dependencies
+integration-init: ## Start isolated DTM and SeaweedFS integration dependencies
+	scripts/integration-env.sh init
+
+integration-run: ## Run all integration tests against prepared dependencies
 	scripts/integration-test.sh --all
+
+integration-clear: ## Remove isolated integration dependencies
+	scripts/integration-env.sh clear
+
+integration-all: ## Start dependencies, run all integration tests, and always clean up
+	scripts/integration-all.sh
 
 fuzz: ## Run bounded native fuzz targets (override FUZZ_TIME as needed)
 	scripts/fuzz.sh

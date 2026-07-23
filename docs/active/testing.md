@@ -15,7 +15,10 @@
 - `make test`：所有 module 的默认测试，启用 race 和包级覆盖率；额外 go test 参数通过 `ARGS` 传入。
 - `make coverage`：生成 `.artifacts/coverage/` 分层报告并执行当前基线门禁；`make coverage-target` 检查终态门槛，`make coverage-no-gate` 不执行门禁。
 - `make integration-critical`：PR 使用的自包含核心 MySQL/Redis 集成测试，不依赖常驻中间件。
-- `make integration-all`：夜间或手动运行全部 integration-tag 测试；要求本机 `127.0.0.1:36790` 有 DTM gRPC、`127.0.0.1:8333` 有使用 `deploy/seaweedfs/s3_config.json` 的 SeaweedFS S3，CI 会显式启动并清理它们。
+- `make integration-init`：创建隔离的 Docker network，启动 DTM 和使用 `deploy/seaweedfs/s3_config.json` 的 SeaweedFS S3，并等待端口就绪。
+- `make integration-run`：在已经准备好的 DTM 和 SeaweedFS 环境中运行全部 integration-tag 测试，不创建或清理外部依赖。
+- `make integration-clear`：删除 `integration-init` 创建的 DTM、SeaweedFS 容器和隔离 network；重复执行是安全的。
+- `make integration-all`：创建隔离环境、运行全部 integration-tag 测试，并在成功、失败或收到终止信号后清理环境；CI 和本地使用同一入口。
 - `make fuzz`：夜间限时 fuzz；通过 `FUZZ_TIME` 调整每个目标时长。
 
 当测试进程运行在容器内并通过宿主机 Docker socket 启动 testcontainers 时，集成脚本会将 Docker bridge 网关追加到 `NO_PROXY/no_proxy`，避免本地健康探针被 HTTP 代理转发。

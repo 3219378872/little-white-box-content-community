@@ -32,7 +32,7 @@
 - `make check`：格式、文档策略、`go vet` 和 golangci-lint。
 - `make test`：所有 module 的 race 测试与包级覆盖率；额外参数用 `ARGS` 传入。
 - `make coverage`、`make coverage-target`、`make coverage-no-gate`：覆盖率基线、终态或无门禁报告。
-- `make integration-critical`、`make integration-all`：PR 核心或完整 integration-tag 测试。
+- `make integration-critical`：PR 核心集成测试；`make integration-init/run/clear`：分步管理完整集成测试；`make integration-all`：隔离环境内运行并无条件清理。
 - `make fuzz FUZZ_TIME=10s`：限时 fuzz；`make quality`：运行标准本地质量门禁。
 
 根据变更范围执行相关命令；完成时报告实际执行的命令和结果，不用未执行的全量检查代替证据。
