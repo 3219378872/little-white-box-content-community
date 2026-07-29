@@ -415,6 +415,7 @@ services:
     environment:
       <<: [*etcd-env, *redis-env]
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
+      ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-chat_completions}
       ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}
       ASSISTANT_LLM_API_KEY: ${ASSISTANT_LLM_API_KEY:-}
       ASSISTANT_LLM_MODEL: ${ASSISTANT_LLM_MODEL:-}

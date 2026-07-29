@@ -6,12 +6,14 @@ import (
 
 type LLMConfig struct {
 	Enabled                        bool
+	WireAPI                        string `json:",default=chat_completions"`
 	Endpoint                       string
 	APIKey                         string `json:",optional"`
 	Model                          string
 	TimeoutMs                      int64   `json:",default=8000,range=[100:60000]"`
 	MaxContextRunes                int     `json:",default=8000,range=[100:50000]"`
 	MaxOutputRunes                 int     `json:",default=8000,range=[100:50000]"`
+	MaxOutputTokens                int     `json:",default=4096,range=[1:32768]"`
 	PromptCostPerMillionTokens     float64 `json:",default=0"`
 	CompletionCostPerMillionTokens float64 `json:",default=0"`
 }

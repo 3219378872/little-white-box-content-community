@@ -113,6 +113,9 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	if got := project.Services["online-infer"].Environment["MODEL_TRAFFIC_JSON"]; got != "{}" {
 		t.Errorf("production online-infer static model traffic = %q, want disabled", got)
 	}
+	if got := project.Services["assistant-rpc"].Environment["ASSISTANT_LLM_WIRE_API"]; got != "responses" {
+		t.Errorf("production assistant LLM wire API = %q, want responses", got)
+	}
 }
 
 func TestProductionComposeHostPortsAndNginxUpstreamsDoNotConflict(t *testing.T) {
@@ -224,6 +227,7 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"ASSISTANT_LLM_ENDPOINT":                           "",
 		"ASSISTANT_LLM_MODEL":                              "",
 		"ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS":     "0",
+		"ASSISTANT_LLM_WIRE_API":                           "responses",
 		"DB_CONTENT":                                       "contract-content-dsn",
 		"DB_FEED":                                          "contract-feed-dsn",
 		"DB_INTERACTION":                                   "contract-interaction-dsn",

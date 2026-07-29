@@ -62,11 +62,13 @@ Safety:
   - "儿童色情"
 LLM:
   Enabled: ${ASSISTANT_LLM_ENABLED}
+  WireAPI: "${ASSISTANT_LLM_WIRE_API}"
   Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
   APIKey: "${ASSISTANT_LLM_API_KEY}"
   Model: "${ASSISTANT_LLM_MODEL}"
   TimeoutMs: 8000
   MaxContextRunes: 8000
   MaxOutputRunes: 8000
+  MaxOutputTokens: 4096
   PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
   CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}

@@ -9,7 +9,8 @@ import (
 func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
-	t.Setenv("ASSISTANT_LLM_ENDPOINT", "http://127.0.0.1:18080/v1/chat/completions")
+	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")
+	t.Setenv("ASSISTANT_LLM_ENDPOINT", "http://127.0.0.1:18080/v1/responses")
 	t.Setenv("ASSISTANT_LLM_API_KEY", "")
 	t.Setenv("ASSISTANT_LLM_MODEL", "test-model")
 	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
@@ -30,5 +31,8 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	}
 	if !c.LLM.Enabled {
 		t.Fatal("LLM environment switch was not loaded")
+	}
+	if c.LLM.WireAPI != "responses" || c.LLM.MaxOutputTokens != 4096 {
+		t.Fatalf("unexpected LLM protocol config: %+v", c.LLM)
 	}
 }

@@ -53,9 +53,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	var generator llm.Generator
 	if c.LLM.Enabled {
 		generator, err = llm.NewOpenAICompatible(
-			c.LLM.Endpoint, c.LLM.APIKey, c.LLM.Model,
+			c.LLM.Endpoint, c.LLM.WireAPI, c.LLM.APIKey, c.LLM.Model,
 			time.Duration(c.LLM.TimeoutMs)*time.Millisecond,
-			c.LLM.MaxContextRunes, c.LLM.MaxOutputRunes,
+			c.LLM.MaxContextRunes, c.LLM.MaxOutputRunes, c.LLM.MaxOutputTokens,
 			c.LLM.PromptCostPerMillionTokens, c.LLM.CompletionCostPerMillionTokens,
 		)
 		if err != nil {
