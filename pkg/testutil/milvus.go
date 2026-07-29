@@ -45,8 +45,7 @@ func setupMilvusEnv() (*MilvusEnv, error) {
 	container, err := milvusmodule.Run(ctx, defaultMilvusImage,
 		testcontainers.WithWaitStrategyAndDeadline(
 			5*time.Minute,
-			wait.ForHTTP("/healthz").
-				WithPort("9091/tcp").
+			wait.ForListeningPort("19530/tcp").
 				WithStartupTimeout(5*time.Minute),
 		),
 	)

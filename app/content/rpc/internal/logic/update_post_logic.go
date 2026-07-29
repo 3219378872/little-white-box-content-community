@@ -80,14 +80,6 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		fields["status"] = int64(in.Status)
 	}
 
-	if err = l.svcCtx.PostModel.UpdateFields(l.ctx, post.Id, fields); err != nil {
-		l.Errorw("PostModel.UpdateFields failed",
-			logx.Field("postId", post.Id),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
 	// 收集有效标签并预生成 ID
 	validTags := make([]string, 0, len(in.Tags))
 	for _, tag := range in.Tags {
@@ -105,20 +97,11 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		tagIds = append(tagIds, tid)
 	}
 
-	// 事务内原子替换标签
-	if err = l.svcCtx.PostTagModel.TransactReplaceTagsByPostId(l.ctx, l.svcCtx.Conn, post.Id, validTags, tagIds); err != nil {
-		l.Errorw("PostTagModel.TransactReplaceTagsByPostId failed",
-			logx.Field("postId", post.Id),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
 	bodyExcerpt := in.GetContent()
 	if len(bodyExcerpt) > 256 {
 		bodyExcerpt = bodyExcerpt[:256]
 	}
-	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostUpdate, event.PostEvent{
+	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostUpdate, event.PostEvent{
 		Type:        event.PostEventUpdated,
 		PostID:      post.Id,
 		AuthorID:    post.AuthorId,
@@ -126,6 +109,23 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		BodyExcerpt: bodyExcerpt,
 		Tags:        validTags,
 	})
+	if err != nil {
+		l.Errorw("build post-updated event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if l.svcCtx.PostCommandModel == nil {
+		l.Errorw("PostCommandModel is nil")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, validTags, tagIds, outboxEvent); err != nil {
+		l.Errorw("update post transaction failed",
+			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
+		l.Errorw("invalidate post cache after update failed",
+			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+	}
 
 	return &pb.UpdatePostResp{}, nil
 }

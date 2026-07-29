@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"
@@ -11,7 +14,16 @@ type Config struct {
 	DataSource      string
 	UserRpc         zrpc.RpcClientConf
 	ContentRpc      zrpc.RpcClientConf
+	RecommendRpc    zrpc.RpcClientConf
+	CursorSecret    string
 	MQ              mqx.ConsumerConfig
 	BigVThreshold   int64
 	FanoutBatchSize int64
+}
+
+func (c Config) Validate() error {
+	if strings.TrimSpace(c.CursorSecret) == "" {
+		return fmt.Errorf("feed CursorSecret is required; set FEED_CURSOR_SECRET")
+	}
+	return nil
 }

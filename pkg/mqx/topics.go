@@ -25,7 +25,8 @@ const (
 	TopicSearchDelete = "search-delete" // 搜索删除事件
 
 	// 推荐相关 Topic
-	TopicUserBehavior = "user-behavior" // 用户行为事件
+	TopicUserBehavior   = "user-behavior"    // 旧用户行为事件，v2 稳定后停用
+	TopicUserBehaviorV2 = "user-behavior-v2" // 统一行为事件
 
 	// Feed 相关 Topic
 	TopicFeedGenerate = "feed-generate" // Feed 生成事件
@@ -52,4 +53,5 @@ const (
 	GroupRecommendService   = "recommend-service-group"
 	GroupMediaService       = "media-service-group"
 	GroupBehaviorLogService = "behavior-log-service-group"
+	GroupRecommendFeature   = "recommend-feature-service-group"
 )

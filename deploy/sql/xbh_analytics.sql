@@ -1,37 +1,66 @@
 CREATE DATABASE IF NOT EXISTS xbh_analytics;
 
--- 主表：以 user_id 为首列，优化用户维度聚合查询
--- context: docs/active/data.md
+-- Raw canonical facts. ReplacingMergeTree converges duplicate at-least-once
+-- deliveries by event_id; consumers also maintain an exact Redis dedup key.
 CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
-    event_id    Int64,
-    event_time  DateTime64(3),
-    user_id     Int64,
-    action      LowCardinality(String),
-    target_id   Int64,
-    target_type LowCardinality(String),
-    duration    Int32 DEFAULT 0,
-    scene       String DEFAULT '',
-    client_ip   String DEFAULT ''
-) ENGINE = ReplacingMergeTree(event_time)
+    event_id        Int64,
+    client_event_id String,
+    schema_version  UInt16,
+    event_time      DateTime64(3),
+    received_at     DateTime64(3),
+    user_id         Int64 DEFAULT 0,
+    anonymous_id    String DEFAULT '',
+    session_id      String DEFAULT '',
+    request_id      String DEFAULT '',
+    action          LowCardinality(String),
+    target_id       Int64,
+    target_type     LowCardinality(String),
+    scene           LowCardinality(String) DEFAULT '',
+    position        Nullable(Int32),
+    duration_ms     Nullable(Int64),
+    recall_source   LowCardinality(String) DEFAULT '',
+    model_version   LowCardinality(String) DEFAULT '',
+    experiment_id   LowCardinality(String) DEFAULT '',
+    producer        LowCardinality(String),
+    client_ip       String DEFAULT '',
+    client_version  LowCardinality(String) DEFAULT ''
+) ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY toYYYYMMDD(event_time)
-ORDER BY (user_id, action, event_time, event_id);
+ORDER BY event_id;
 
--- 用户行为每日聚合：SummingMergeTree 在 merge 时自动累加 cnt
--- 注意：MV 在每次 INSERT 时触发，不做事件级去重；去重责任在 Bloom Filter（消费端）
---      与主表 ReplacingMergeTree（CK 侧）共同保障
-CREATE MATERIALIZED VIEW IF NOT EXISTS xbh_analytics.user_action_daily
-ENGINE = SummingMergeTree()
-ORDER BY (user_id, action, target_type, date)
-AS SELECT
+-- Regular views aggregate the deduplicated raw facts at query time. An
+-- insert-triggered materialized view would overcount at-least-once delivery.
+CREATE VIEW IF NOT EXISTS xbh_analytics.user_action_daily AS
+SELECT
     toDate(event_time) AS date,
-    user_id, action, target_type,
+    user_id,
+    action,
+    target_type,
     count() AS cnt
-FROM xbh_analytics.behavior_events
+FROM xbh_analytics.behavior_events FINAL
 GROUP BY date, user_id, action, target_type;
 
--- 时间范围扫描优化视图：以 event_time 为首列，供 Spark 批量按时间窗口高效读取
-CREATE MATERIALIZED VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_time
-ENGINE = ReplacingMergeTree(event_time)
-PARTITION BY toYYYYMMDD(event_time)
-ORDER BY (event_time, user_id, event_id)
-AS SELECT * FROM xbh_analytics.behavior_events;
+CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_time AS
+SELECT *
+FROM xbh_analytics.behavior_events FINAL
+ORDER BY event_time, user_id, event_id;
+
+CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_scene AS
+SELECT *
+FROM xbh_analytics.behavior_events FINAL
+ORDER BY scene, event_time, event_id;
+
+CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_model AS
+SELECT *
+FROM xbh_analytics.behavior_events FINAL
+ORDER BY model_version, experiment_id, event_time, event_id;
+
+CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_dead_letters (
+    message_id  String,
+    event_id    Int64 DEFAULT 0,
+    payload     String,
+    error       String,
+    received_at DateTime64(3)
+) ENGINE = MergeTree
+PARTITION BY toYYYYMMDD(received_at)
+ORDER BY (received_at, message_id);

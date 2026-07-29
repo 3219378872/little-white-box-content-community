@@ -1,0 +1,13 @@
+{
+  "feature_names": [
+    "recall_score",
+    "quality",
+    "ctr",
+    "freshness",
+    "popularity",
+    "coarse_score"
+  ],
+  "feature_version": "v2",
+  "model_type": "linear-json",
+  "model_version": "rank-v1"
+}

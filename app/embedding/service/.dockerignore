@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+test_server.py
+generate_proto.sh
+requirements-dev.txt
+README.md

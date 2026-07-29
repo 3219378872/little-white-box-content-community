@@ -91,3 +91,24 @@ CREATE TABLE IF NOT EXISTS `action_count` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_target` (`target_id`, `target_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='互动计数表';
+
+CREATE TABLE IF NOT EXISTS `event_outbox` (
+    `id` BIGINT NOT NULL COMMENT '事件ID',
+    `topic` VARCHAR(128) NOT NULL COMMENT 'RocketMQ Topic',
+    `tag` VARCHAR(128) NOT NULL DEFAULT '' COMMENT 'RocketMQ Tag',
+    `message_key` VARCHAR(128) NOT NULL COMMENT '端到端幂等键',
+    `payload` LONGBLOB NOT NULL COMMENT '原始事件载荷',
+    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0待发送 1发送中 2已发送 3待重试 4死信',
+    `attempts` INT NOT NULL DEFAULT 0 COMMENT '投递尝试次数',
+    `next_attempt_at` BIGINT NOT NULL DEFAULT 0 COMMENT '下次重试 Unix 毫秒',
+    `locked_by` VARCHAR(128) NOT NULL DEFAULT '' COMMENT 'relay 租约持有者',
+    `locked_until` BIGINT NOT NULL DEFAULT 0 COMMENT 'relay 租约到期 Unix 毫秒',
+    `last_error` VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '最近一次投递错误',
+    `sent_at` BIGINT DEFAULT NULL COMMENT '发送成功 Unix 毫秒',
+    `created_at` BIGINT NOT NULL COMMENT '创建 Unix 毫秒',
+    `updated_at` BIGINT NOT NULL COMMENT '更新 Unix 毫秒',
+    PRIMARY KEY (`id`),
+    KEY `idx_event_outbox_ready` (`status`, `next_attempt_at`, `id`),
+    KEY `idx_event_outbox_lease` (`status`, `locked_until`, `id`),
+    KEY `idx_event_outbox_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事务事件发件箱';

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
@@ -9,7 +10,6 @@ import (
 	"errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type LikeLogic struct {
@@ -30,34 +30,23 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if in.UserId <= 0 || in.TargetId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if l.svcCtx.Conn == nil || l.svcCtx.LikeRecordModel == nil || l.svcCtx.ActionCountModel == nil {
+	if l.svcCtx.InteractionCommands == nil || l.svcCtx.LikeRecordModel == nil || l.svcCtx.ActionCountModel == nil {
 		l.Errorw("like dependencies are not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	var likeRecordID int64
-	err := l.svcCtx.Conn.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
-		txConn := sqlx.NewSqlConnFromSession(session)
-		result, id, err := l.svcCtx.LikeRecordModel.UpsertLikeStatusTx(ctx, txConn, in.UserId, in.TargetId, int64(in.TargetType), model.StatusActive)
-		if err != nil {
-			return err
-		}
-		if result == nil {
-			return errx.NewWithCode(errx.SystemError)
-		}
-		rowsAffected, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if rowsAffected == 0 {
-			return errx.NewWithCode(errx.AlreadyLiked)
-		}
-		likeRecordID = id
-		return l.svcCtx.ActionCountModel.IncrLikeCountTx(ctx, txConn, in.TargetId, int64(in.TargetType))
-	})
+	outboxEvent, err := interactionOutboxEvent(
+		in.UserId, in.TargetId, targetTypeName(in.TargetType), "like",
+	)
 	if err != nil {
-		if errx.Is(err, errx.AlreadyLiked) {
-			return nil, err
+		l.Errorw("build like behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	likeRecordID, err := l.svcCtx.InteractionCommands.Like(
+		l.ctx, in.UserId, in.TargetId, int64(in.TargetType), outboxEvent,
+	)
+	if err != nil {
+		if errors.Is(err, model.ErrNoStateChange) {
+			return nil, errx.NewWithCode(errx.AlreadyLiked)
 		}
 		l.Errorw("local like transaction failed",
 			logx.Field("userId", in.UserId),

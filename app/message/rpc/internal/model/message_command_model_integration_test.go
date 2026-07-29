@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"esx/pkg/testutil"
 	"os"
-	"strings"
+	"sync"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -72,9 +72,10 @@ func TestMessageCommandModelCreateMessageWithConversationsCommitsAllRows(t *test
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	messageID, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1)
+	result, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
 	require.NoError(t, err)
-	require.Positive(t, messageID)
+	require.True(t, result.Created)
+	require.Positive(t, result.MessageID)
 
 	var senderUnread int64
 	require.NoError(t, conn.QueryRowCtx(context.Background(), &senderUnread,
@@ -92,11 +93,72 @@ func TestMessageCommandModelCreateMessageWithConversationsCommitsAllRows(t *test
 	var storedConversationID int64
 	var storedContent string
 	require.NoError(t, conn.QueryRowCtx(context.Background(), &storedConversationID,
-		"select conversation_id from message where id = ?", messageID))
+		"select conversation_id from message where id = ?", result.MessageID))
 	require.NoError(t, conn.QueryRowCtx(context.Background(), &storedContent,
-		"select content from message where id = ?", messageID))
+		"select content from message where id = ?", result.MessageID))
 	require.Equal(t, receiverConversationID, storedConversationID)
 	require.Equal(t, "hello", storedContent)
+}
+
+func TestMessageCommandModelCreateMessageIsIdempotentAndRejectsConflicts(t *testing.T) {
+	conn, cleanup := newMessageTestDB(t)
+	defer cleanup()
+
+	command := NewMessageCommandModel(conn)
+	first, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
+	require.NoError(t, err)
+	require.True(t, first.Created)
+
+	replay, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
+	require.NoError(t, err)
+	require.False(t, replay.Created)
+	require.Equal(t, first.MessageID, replay.MessageID)
+	require.Equal(t, int64(1), countMessageRows(t, conn, "select count(*) from message"))
+
+	var unread int64
+	require.NoError(t, conn.QueryRowCtx(context.Background(), &unread,
+		"select unread_count from conversation where user_id = ? and target_user_id = ?", 2, 1))
+	require.Equal(t, int64(1), unread)
+
+	_, err = command.CreateMessageWithConversations(context.Background(), 1, 2, "different", 1, "message-1")
+	require.Error(t, err)
+	require.True(t, IsIdempotencyConflict(err))
+	require.Equal(t, int64(1), countMessageRows(t, conn, "select count(*) from message"))
+
+	var lastMessage string
+	require.NoError(t, conn.QueryRowCtx(context.Background(), &lastMessage,
+		"select last_message from conversation where user_id = ? and target_user_id = ?", 2, 1))
+	require.Equal(t, "hello", lastMessage)
+	require.NoError(t, conn.QueryRowCtx(context.Background(), &unread,
+		"select unread_count from conversation where user_id = ? and target_user_id = ?", 2, 1))
+	require.Equal(t, int64(1), unread)
+
+	results := make([]MessageCommandResult, 2)
+	errs := make([]error, 2)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range results {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			<-start
+			results[index], errs[index] = command.CreateMessageWithConversations(
+				context.Background(), 1, 2, "concurrent", 1, "message-concurrent",
+			)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	require.NoError(t, errs[0])
+	require.NoError(t, errs[1])
+	require.Equal(t, results[0].MessageID, results[1].MessageID)
+	require.NotEqual(t, results[0].Created, results[1].Created)
+	require.Equal(t, int64(1), countMessageRows(t, conn,
+		"select count(*) from message where sender_id = ? and idempotency_key = ?", 1, "message-concurrent"))
+	require.NoError(t, conn.QueryRowCtx(context.Background(), &unread,
+		"select unread_count from conversation where user_id = ? and target_user_id = ?", 2, 1))
+	require.Equal(t, int64(2), unread)
 }
 
 func TestMessageCommandModelCreateMessageRollsBackWhenMessageInsertFails(t *testing.T) {
@@ -104,7 +166,7 @@ func TestMessageCommandModelCreateMessageRollsBackWhenMessageInsertFails(t *test
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	_, err := command.CreateMessageWithConversations(context.Background(), 1, 2, strings.Repeat("x", 1001), 1)
+	_, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 256, "message-1")
 	require.Error(t, err)
 
 	require.Equal(t, int64(0), countMessageRows(t, conn, "select count(*) from conversation"))
@@ -116,9 +178,9 @@ func TestMessageCommandModelMarkConversationReadDecrementsUnreadByAffectedRows(t
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	_, err := command.CreateMessageWithConversations(context.Background(), 8, 7, "first", 1)
+	_, err := command.CreateMessageWithConversations(context.Background(), 8, 7, "first", 1, "message-1")
 	require.NoError(t, err)
-	_, err = command.CreateMessageWithConversations(context.Background(), 8, 7, "second", 1)
+	_, err = command.CreateMessageWithConversations(context.Background(), 8, 7, "second", 1, "message-2")
 	require.NoError(t, err)
 
 	var beforeUnread int64

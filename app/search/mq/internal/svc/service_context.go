@@ -3,6 +3,7 @@ package svc
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"esx/app/search/mq/internal/config"
@@ -14,16 +15,20 @@ type ServiceContext struct {
 	Indexer indexer.Indexer
 }
 
-func NewServiceContext(c config.Config) *ServiceContext {
-	return &ServiceContext{
-		Config:  c,
-		Indexer: buildIndexer(c.ES),
+func NewServiceContext(c config.Config) (*ServiceContext, error) {
+	searchIndexer, err := buildIndexer(c.ES)
+	if err != nil {
+		return nil, err
 	}
+	return &ServiceContext{Config: c, Indexer: searchIndexer}, nil
 }
 
-func buildIndexer(cfg config.ESConfig) indexer.Indexer {
-	if len(cfg.Addresses) == 0 {
-		return &indexer.NoopIndexer{}
+func buildIndexer(cfg config.ESConfig) (indexer.Indexer, error) {
+	if len(cfg.Addresses) == 0 || strings.TrimSpace(cfg.Addresses[0]) == "" {
+		return nil, fmt.Errorf("search-mq: ES address is required")
+	}
+	if strings.TrimSpace(cfg.Index) == "" {
+		return nil, fmt.Errorf("search-mq: ES index is required")
 	}
 	opts := []indexer.ESOption{}
 	if cfg.Username != "" {
@@ -31,15 +36,12 @@ func buildIndexer(cfg config.ESConfig) indexer.Indexer {
 	}
 	es, err := indexer.NewESIndexer(cfg.Addresses, cfg.Index, opts...)
 	if err != nil {
-		return &indexer.NoopIndexer{}
+		return nil, fmt.Errorf("search-mq: initialize ES indexer: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := es.EnsureIndex(ctx); err != nil {
-		// 启动期索引不可创建：降级为 Noop，避免阻塞消费者起动；
-		// 真实环境下 health check 会发现告警。
-		fmt.Printf("search-mq: EnsureIndex failed (%v), falling back to Noop\n", err)
-		return &indexer.NoopIndexer{}
+		return nil, fmt.Errorf("search-mq: ensure ES index: %w", err)
 	}
-	return es
+	return es, nil
 }

@@ -82,15 +82,23 @@ func (e *InteractionEvent) Validate() error {
 // ToBehaviorEvent 把交互事件转成 ClickHouse 落库的 BehaviorEvent。
 // pipeline/behaviorlog 用这个适配；保持两个 struct 解耦，业务事件和分析事件可独立演进。
 func (e *InteractionEvent) ToBehaviorEvent(duration int32) BehaviorEvent {
-	return BehaviorEvent{
-		EventID:    e.EventID,
-		EventTime:  e.EventTime,
-		UserID:     e.UserID,
-		Action:     e.Action,
-		TargetID:   e.TargetID,
-		TargetType: e.TargetType,
-		Duration:   duration,
-		Scene:      e.Scene,
-		ClientIP:   e.ClientIP,
+	behavior := BehaviorEvent{
+		EventID:       e.EventID,
+		ClientEventID: fmt.Sprintf("business-%d", e.EventID),
+		SchemaVersion: BehaviorSchemaVersion,
+		EventTime:     e.EventTime,
+		ReceivedAt:    e.EventTime,
+		UserID:        e.UserID,
+		Action:        e.Action,
+		TargetID:      e.TargetID,
+		TargetType:    e.TargetType,
+		Scene:         e.Scene,
+		Producer:      "business-outbox",
+		ClientIP:      e.ClientIP,
 	}
+	if _, ok := durationBehaviorActions[e.Action]; ok {
+		value := int64(duration)
+		behavior.DurationMs = &value
+	}
+	return behavior
 }

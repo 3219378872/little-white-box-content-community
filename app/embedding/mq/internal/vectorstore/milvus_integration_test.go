@@ -70,18 +70,37 @@ func queryPostIDs(t *testing.T, ctx context.Context, ids []int64) []int64 {
 	return idCol.Data()
 }
 
-func TestMilvus_Upsert_InsertsRecord(t *testing.T) {
+func record(postID int64, seed float32) Record {
+	return Record{
+		PostID: postID, Vector: sampleVec(seed), ModelVersion: "integration-model@v1", Dimension: testDim,
+	}
+}
+
+func TestMilvus_Upsert_InsertsRecordWithMetadata(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, store.Upsert(ctx, 30001, sampleVec(0.1)))
+	require.NoError(t, store.Upsert(ctx, record(30001, 0.1)))
 
 	got := queryPostIDs(t, ctx, []int64{30001})
 	assert.Equal(t, []int64{30001}, got)
+	cols, err := store.cli.QueryByPks(ctx, testColl, []string{},
+		entity.NewColumnInt64("post_id", []int64{30001}), []string{"model_version", "dimension"})
+	require.NoError(t, err)
+	columnsByName := make(map[string]entity.Column, len(cols))
+	for _, column := range cols {
+		columnsByName[column.Name()] = column
+	}
+	modelVersions, ok := columnsByName["model_version"].(*entity.ColumnVarChar)
+	require.True(t, ok)
+	dimensions, ok := columnsByName["dimension"].(*entity.ColumnInt32)
+	require.True(t, ok)
+	assert.Equal(t, []string{"integration-model@v1"}, modelVersions.Data())
+	assert.Equal(t, []int32{int32(testDim)}, dimensions.Data())
 }
 
 func TestMilvus_Upsert_OverwritesExisting(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, store.Upsert(ctx, 30002, sampleVec(0.2)))
-	require.NoError(t, store.Upsert(ctx, 30002, sampleVec(0.5)))
+	require.NoError(t, store.Upsert(ctx, record(30002, 0.2)))
+	require.NoError(t, store.Upsert(ctx, record(30002, 0.5)))
 
 	got := queryPostIDs(t, ctx, []int64{30002})
 	assert.Equal(t, []int64{30002}, got)
@@ -89,7 +108,7 @@ func TestMilvus_Upsert_OverwritesExisting(t *testing.T) {
 
 func TestMilvus_Delete_RemovesRecord(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, store.Upsert(ctx, 30003, sampleVec(0.3)))
+	require.NoError(t, store.Upsert(ctx, record(30003, 0.3)))
 	// 先 Flush 确保插入可见，然后再 Delete
 	require.NoError(t, store.cli.Flush(ctx, testColl, false))
 	require.NoError(t, store.Delete(ctx, 30003))
@@ -100,7 +119,7 @@ func TestMilvus_Delete_RemovesRecord(t *testing.T) {
 
 func TestMilvus_Upsert_DimMismatch_Errors(t *testing.T) {
 	ctx := context.Background()
-	err := store.Upsert(ctx, 30004, []float32{0.1})
+	err := store.Upsert(ctx, Record{PostID: 30004, Vector: []float32{0.1}, ModelVersion: "integration-model@v1", Dimension: testDim})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dim mismatch")
 }

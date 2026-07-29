@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
@@ -30,9 +31,21 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
-	result, err := l.svcCtx.FavoriteModel.UpsertFavoriteStatus(l.ctx, in.UserId, in.PostId, model.StatusActive)
+	if l.svcCtx.InteractionCommands == nil {
+		l.Errorw("favorite command dependency is not configured")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "favorite")
 	if err != nil {
-		l.Errorw("UpsertFavoriteStatus failed",
+		l.Errorw("build favorite behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	_, err = l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
+	if err != nil {
+		if errors.Is(err, model.ErrNoStateChange) {
+			return nil, errx.NewWithCode(errx.AlreadyFavorited)
+		}
+		l.Errorw("favorite transaction failed",
 			logx.Field("userId", in.UserId),
 			logx.Field("postId", in.PostId),
 			logx.Field("err", err.Error()),
@@ -40,19 +53,6 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		if l.svcCtx.ActionCountModel != nil {
-			if err := l.svcCtx.ActionCountModel.IncrFavoriteCount(l.ctx, in.PostId, 1); err != nil {
-				l.Errorw("IncrFavoriteCount failed",
-					logx.Field("postId", in.PostId),
-					logx.Field("err", err.Error()),
-				)
-			}
-		}
-	} else {
-		return nil, errx.NewWithCode(errx.AlreadyFavorited)
-	}
 	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

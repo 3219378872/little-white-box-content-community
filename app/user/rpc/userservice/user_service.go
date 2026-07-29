@@ -30,6 +30,8 @@ type (
 	LoginResp          = pb.LoginResp
 	RegisterReq        = pb.RegisterReq
 	RegisterResp       = pb.RegisterResp
+	SearchUsersReq     = pb.SearchUsersReq
+	SearchUsersResp    = pb.SearchUsersResp
 	SendVerifyCodeReq  = pb.SendVerifyCodeReq
 	SendVerifyCodeResp = pb.SendVerifyCodeResp
 	UnfollowReq        = pb.UnfollowReq
@@ -43,6 +45,8 @@ type (
 		GetUser(ctx context.Context, in *GetUserReq, opts ...grpc.CallOption) (*GetUserResp, error)
 		// 批量获取用户信息
 		BatchGetUsers(ctx context.Context, in *BatchGetUsersReq, opts ...grpc.CallOption) (*BatchGetUsersResp, error)
+		// 按公开资料搜索用户
+		SearchUsers(ctx context.Context, in *SearchUsersReq, opts ...grpc.CallOption) (*SearchUsersResp, error)
 		// 更新用户资料
 		UpdateProfile(ctx context.Context, in *UpdateProfileReq, opts ...grpc.CallOption) (*UpdateProfileResp, error)
 		// 关注用户
@@ -84,6 +88,12 @@ func (m *defaultUserService) GetUser(ctx context.Context, in *GetUserReq, opts .
 func (m *defaultUserService) BatchGetUsers(ctx context.Context, in *BatchGetUsersReq, opts ...grpc.CallOption) (*BatchGetUsersResp, error) {
 	client := pb.NewUserServiceClient(m.cli.Conn())
 	return client.BatchGetUsers(ctx, in, opts...)
+}
+
+// 按公开资料搜索用户
+func (m *defaultUserService) SearchUsers(ctx context.Context, in *SearchUsersReq, opts ...grpc.CallOption) (*SearchUsersResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.SearchUsers(ctx, in, opts...)
 }
 
 // 更新用户资料

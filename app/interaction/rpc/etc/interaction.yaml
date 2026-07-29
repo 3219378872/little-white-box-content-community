@@ -1,5 +1,11 @@
 Name: interaction.rpc
 ListenOn: 0.0.0.0:9003
+DevServer:
+  Enabled: true
+  Host: 0.0.0.0
+  Port: 9103
+  EnableMetrics: true
+  EnablePprof: false
 Etcd:
   Hosts:
   - 127.0.0.1:2379
@@ -12,3 +18,15 @@ Redis:
   Pass: "${REDIS_PASS}"
   Type: node
   Key: interaction
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "interaction-outbox-producer"
+  Retry: 3
+  SendTimeout: 3000
+Outbox:
+  BatchSize: 100
+  PollIntervalMs: 200
+  LeaseMs: 30000
+  BaseBackoffMs: 1000
+  MaxBackoffMs: 60000
+  MaxAttempts: 20

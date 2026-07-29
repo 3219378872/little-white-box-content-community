@@ -20,6 +20,7 @@ type (
 		InsertComment(ctx context.Context, comment *Comment) error
 		FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
+		InvalidateCommentCache(ctx context.Context, id int64) error
 	}
 
 	customCommentModel struct {
@@ -94,4 +95,8 @@ func (m *customCommentModel) UpdateStatus(ctx context.Context, id int64, status 
 		return conn.ExecCtx(ctx, query, status, id)
 	}, commentIdKey)
 	return err
+}
+
+func (m *customCommentModel) InvalidateCommentCache(ctx context.Context, id int64) error {
+	return m.DelCacheCtx(ctx, fmt.Sprintf("%s%v", cacheCommentIdPrefix, id))
 }

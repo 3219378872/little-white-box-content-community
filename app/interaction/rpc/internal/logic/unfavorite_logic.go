@@ -43,19 +43,21 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 		return nil, errx.NewWithCode(errx.NotFavoritedYet)
 	}
 
-	result, err := l.svcCtx.FavoriteModel.UpdateStatusById(l.ctx, record.Id, model.StatusActive, model.StatusInactive)
-	if err != nil {
-		l.Errorw("UpdateStatusById failed", logx.Field("err", err.Error()))
+	if l.svcCtx.InteractionCommands == nil {
+		l.Errorw("unfavorite command dependency is not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		if l.svcCtx.ActionCountModel != nil {
-			if err := l.svcCtx.ActionCountModel.DecrFavoriteCount(l.ctx, in.PostId, 1); err != nil {
-				l.Errorw("DecrFavoriteCount failed", logx.Field("err", err.Error()))
-			}
+	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "unfavorite")
+	if err != nil {
+		l.Errorw("build unfavorite behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.InteractionCommands.Unfavorite(l.ctx, record.Id, in.PostId, outboxEvent); err != nil {
+		if errors.Is(err, model.ErrNoStateChange) {
+			return nil, errx.NewWithCode(errx.NotFavoritedYet)
 		}
+		l.Errorw("unfavorite transaction failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))

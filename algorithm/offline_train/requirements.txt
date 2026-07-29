@@ -1,0 +1,4 @@
+clickhouse-connect>=0.8,<1
+numpy>=2,<3
+lightgbm>=4.6,<5
+boto3>=1.39,<2

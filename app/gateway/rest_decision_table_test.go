@@ -10,18 +10,28 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"errx"
+	"esx/app/assistant/rpc/assistantservice"
+	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/behavior/rpc/behaviorservice"
 	"esx/app/content/rpc/contentservice"
 	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/app/feed/rpc/feedservice"
+	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
 	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/app/message/rpc/messageservice"
+	messagepb "esx/app/message/rpc/xiaobaihe/message/pb"
+	"esx/app/search/rpc/searchservice"
 	"gateway/internal/config"
 	"gateway/internal/handler"
 	"gateway/internal/httpxconfig"
+	gatewaymiddleware "gateway/internal/middleware"
 	"gateway/internal/svc"
 	"jwtx"
 	"middleware"
@@ -38,6 +48,13 @@ type contractUserService struct{ userservice.UserService }
 
 func (contractUserService) GetUser(context.Context, *userservice.GetUserReq, ...grpc.CallOption) (*userservice.GetUserResp, error) {
 	return &userservice.GetUserResp{User: &userpb.UserInfo{Id: 2, Username: "user", FavoritesVisibility: 1}}, nil
+}
+func (contractUserService) BatchGetUsers(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+	users := make([]*userpb.UserInfo, 0, len(in.UserIds))
+	for _, userID := range in.UserIds {
+		users = append(users, &userpb.UserInfo{Id: userID, Username: "author", Nickname: "Author Name", AvatarUrl: "https://media/avatar.png"})
+	}
+	return &userservice.BatchGetUsersResp{Users: users}, nil
 }
 func (contractUserService) UpdateProfile(context.Context, *userservice.UpdateProfileReq, ...grpc.CallOption) (*userservice.UpdateProfileResp, error) {
 	return &userservice.UpdateProfileResp{}, nil
@@ -113,6 +130,13 @@ func (contractInteractionService) Unfavorite(context.Context, *interactionservic
 func (contractInteractionService) GetFavoriteList(context.Context, *interactionservice.GetFavoriteListReq, ...grpc.CallOption) (*interactionservice.GetFavoriteListResp, error) {
 	return &interactionservice.GetFavoriteListResp{PostIds: []int64{11}, Total: 1}, nil
 }
+func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+	results := make(map[int64]bool, len(in.TargetIds))
+	for _, targetID := range in.TargetIds {
+		results[targetID] = true
+	}
+	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
+}
 
 type contractUploadStream struct{ grpc.ClientStream }
 
@@ -127,18 +151,128 @@ func (contractMediaService) UploadImage(context.Context, ...grpc.CallOption) (me
 	return &contractUploadStream{}, nil
 }
 
+type contractBehaviorService struct {
+	behaviorservice.BehaviorService
+}
+
+func (contractBehaviorService) RecordEvents(_ context.Context, in *behaviorservice.RecordEventsReq, _ ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+	results := make([]*behaviorservice.RecordEventResult, 0, len(in.Events))
+	for index, event := range in.Events {
+		results = append(results, &behaviorservice.RecordEventResult{ClientEventId: event.ClientEventId, EventId: int64(index + 1), Accepted: true})
+	}
+	return &behaviorservice.RecordEventsResp{Results: results, AcceptedCount: int32(len(results))}, nil
+}
+
+type contractFeedService struct{ feedservice.FeedService }
+
+func (contractFeedService) GetFollowFeed(context.Context, *feedservice.GetFollowFeedReq, ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+	return &feedservice.GetFollowFeedResp{
+		Items: []*feedpb.FeedItem{{
+			PostId: 11, AuthorId: 1, CreatedAt: 100, FeedType: 1,
+			Title: "follow title", Content: "follow content", Images: []string{"follow.png"}, Tags: []string{"follow"},
+			ViewCount: 10, LikeCount: 9, CommentCount: 8, FavoriteCount: 7,
+		}},
+	}, nil
+}
+
+func (contractFeedService) GetRecommendFeed(_ context.Context, in *feedservice.GetRecommendFeedReq, _ ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+	if in.RequestId == "rpc-fail" {
+		return nil, context.DeadlineExceeded
+	}
+	return &feedservice.GetRecommendFeedResp{
+		Items: []*feedpb.FeedItem{{
+			PostId: 11, AuthorId: 1, CreatedAt: 100, FeedType: 2,
+			Title: "recommend title", Content: "recommend content", Images: []string{"recommend.png"}, Tags: []string{"recommend"},
+			ViewCount: 20, LikeCount: 19, CommentCount: 18, FavoriteCount: 17,
+			Score: 0.9, Reason: "relevant", RecallSource: "itemcf", Position: 1,
+		}},
+		RequestId: in.RequestId,
+	}, nil
+}
+
+type contractSearchService struct{ searchservice.SearchService }
+
+func (contractSearchService) Search(context.Context, *searchservice.SearchReq, ...grpc.CallOption) (*searchservice.SearchResp, error) {
+	return &searchservice.SearchResp{
+		Posts: []*searchservice.PostSearchResult{{Id: 11, Title: "title"}},
+		Users: []*searchservice.UserSearchResult{{Id: 2, Username: "user"}},
+		Tags:  []*searchservice.TagSearchResult{{Name: "tag", PostCount: 1}},
+	}, nil
+}
+func (contractSearchService) SearchUsers(context.Context, *searchservice.SearchUsersReq, ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+	return &searchservice.SearchUsersResp{Users: []*searchservice.UserSearchResult{{Id: 2, Username: "user"}}, Total: 1}, nil
+}
+func (contractSearchService) SearchTags(context.Context, *searchservice.SearchTagsReq, ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+	return &searchservice.SearchTagsResp{Tags: []*searchservice.TagSearchResult{{Name: "tag", PostCount: 1}}}, nil
+}
+
+type contractMessageService struct{ messageservice.MessageService }
+
+func (contractMessageService) GetConversations(context.Context, *messageservice.GetConversationsReq, ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+	return &messageservice.GetConversationsResp{
+		Conversations: []*messagepb.ConversationInfo{{Id: 41, TargetUserId: 2, TargetUserName: "user", LastMessage: "hello"}},
+		Total:         1,
+	}, nil
+}
+func (contractMessageService) GetMessages(context.Context, *messageservice.GetMessagesReq, ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+	return &messageservice.GetMessagesResp{
+		Messages: []*messagepb.MessageInfo{{Id: 51, ConversationId: 41, SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1}},
+	}, nil
+}
+func (contractMessageService) SendMessage(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+	return &messageservice.SendMessageResp{MessageId: 51}, nil
+}
+func (contractMessageService) MarkRead(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+	return &messageservice.MarkReadResp{}, nil
+}
+func (contractMessageService) GetUnreadCount(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+	return &messageservice.GetUnreadCountResp{MessageUnread: 3, NotificationUnread: 4}, nil
+}
+
+type contractAssistantStream struct {
+	grpc.ClientStream
+	ctx    context.Context
+	events []*assistantpb.ChatEvent
+	index  int
+}
+
+func (s *contractAssistantStream) Context() context.Context { return s.ctx }
+
+func (s *contractAssistantStream) Recv() (*assistantpb.ChatEvent, error) {
+	if s.index >= len(s.events) {
+		return nil, io.EOF
+	}
+	event := s.events[s.index]
+	s.index++
+	return event, nil
+}
+
+type contractAssistantService struct {
+	assistantservice.AssistantService
+}
+
+func (contractAssistantService) Chat(ctx context.Context, in *assistantservice.ChatReq, _ ...grpc.CallOption) (assistantpb.AssistantService_ChatClient, error) {
+	return &contractAssistantStream{ctx: ctx, events: []*assistantpb.ChatEvent{
+		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_TOKEN, Text: "answer", ConversationId: in.ConversationId},
+		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_SOURCE, Source: &assistantpb.SourceReference{SourceType: "post", SourceId: "11", Title: "title"}, ConversationId: in.ConversationId},
+		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_DONE, ConversationId: in.ConversationId},
+	}}, nil
+}
+
 type restDecision struct {
-	id          string
-	method      string
-	path        string
-	routePath   string
-	body        func(t *testing.T) (io.Reader, string)
-	auth        bool
-	headerToken string
-	wantStatus  int
-	wantCode    int
-	wantFields  []string
-	wantHeaders map[string]string
+	id             string
+	method         string
+	path           string
+	routePath      string
+	body           func(t *testing.T) (io.Reader, string)
+	auth           bool
+	headerToken    string
+	wantStatus     int
+	wantCode       int
+	wantFields     []string
+	wantItemFields []string
+	wantHeaders    map[string]string
+	wantSSE        bool
 }
 
 func jsonBody(value string) func(*testing.T) (io.Reader, string) {
@@ -191,13 +325,20 @@ func startContractServer(t *testing.T) (string, []rest.Route) {
 	cfg.Auth.AccessSecret = contractSecret
 	cfg.Auth.AccessExpire = 3600
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
+	behaviorAccepted := gatewaymiddleware.NewBehaviorAcceptedMiddleware()
 	ctx := &svc.ServiceContext{
 		Config:             cfg,
 		UserService:        contractUserService{},
 		ContentService:     contractContentService{},
 		InteractionService: contractInteractionService{},
 		MediaService:       contractMediaService{},
+		BehaviorService:    contractBehaviorService{},
+		FeedService:        contractFeedService{},
+		MessageService:     contractMessageService{},
+		SearchService:      contractSearchService{},
+		AssistantService:   contractAssistantService{},
 		OptionalAuth:       optionalAuth.Handle,
+		BehaviorAccepted:   behaviorAccepted.Handle,
 	}
 
 	httpxconfig.ConfigureErrors()
@@ -232,6 +373,10 @@ func TestRESTDecisionTable(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	feedItemFields := []string{
+		"postId", "authorId", "authorName", "authorAvatar", "createdAt", "feedType", "title", "content", "images", "tags",
+		"viewCount", "likeCount", "commentCount", "favoriteCount", "isLiked",
+	}
 	successes := []restDecision{
 		{id: "HEALTH-VALID", method: http.MethodGet, path: "/api/v1/health", wantStatus: http.StatusOK, wantFields: []string{"status"}},
 		{id: "POST-LIST-ANON", method: http.MethodGet, path: "/api/v1/posts?page=1&pageSize=20&sortBy=1", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
@@ -256,6 +401,18 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "FAVORITE-VALID", method: http.MethodPost, path: "/api/v1/favorite", body: jsonBody(`{"postId":11}`), auth: true, wantStatus: http.StatusOK},
 		{id: "UNFAVORITE-VALID", method: http.MethodDelete, path: "/api/v1/favorite", body: jsonBody(`{"postId":11}`), auth: true, wantStatus: http.StatusOK},
 		{id: "MEDIA-IMAGE-VALID", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, auth: true, wantStatus: http.StatusOK, wantFields: []string{"mediaId", "url", "thumbnailUrl"}},
+		{id: "BEHAVIOR-EVENTS-ANON", method: http.MethodPost, path: "/api/v2/behavior/events", body: jsonBody(`{"anonymousId":"device-1","events":[{"clientEventId":"event-1","occurredAt":1720000000000,"action":"click","targetId":11,"targetType":"post"}]}`), wantStatus: http.StatusAccepted, wantFields: []string{"results", "acceptedCount", "rejectedCount"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "FEED-FOLLOW-VALID", method: http.MethodGet, path: "/api/v2/feed/follow?pageSize=20", auth: true, wantStatus: http.StatusOK, wantFields: []string{"items", "hasMore", "nextCursorCreatedAt", "nextCursorPostId"}, wantItemFields: feedItemFields},
+		{id: "FEED-RECOMMEND-ANON", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=20", wantStatus: http.StatusOK, wantFields: []string{"items", "nextCursor", "hasMore", "requestId"}, wantItemFields: feedItemFields, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "SEARCH-VALID", method: http.MethodGet, path: "/api/v2/search?keyword=go&page=1&pageSize=20", wantStatus: http.StatusOK, wantFields: []string{"posts", "users", "tags"}},
+		{id: "SEARCH-USERS-VALID", method: http.MethodGet, path: "/api/v2/search/users?keyword=user&page=1&pageSize=20", wantStatus: http.StatusOK, wantFields: []string{"users", "total"}},
+		{id: "SEARCH-TAGS-VALID", method: http.MethodGet, path: "/api/v2/search/tags?keyword=tag&limit=20", wantStatus: http.StatusOK, wantFields: []string{"tags"}},
+		{id: "MESSAGE-CONVERSATIONS-VALID", method: http.MethodGet, path: "/api/v2/messages/conversations?page=1&pageSize=20", auth: true, wantStatus: http.StatusOK, wantFields: []string{"conversations", "total"}},
+		{id: "MESSAGE-LIST-VALID", method: http.MethodGet, path: "/api/v2/messages/conversations/41?pageSize=20", routePath: "/api/v2/messages/conversations/:id", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messages", "hasMore"}},
+		{id: "MESSAGE-SEND-VALID", method: http.MethodPost, path: "/api/v2/messages", body: jsonBody(`{"receiverId":2,"content":"hello","msgType":1,"idempotencyKey":"send-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageId"}},
+		{id: "MESSAGE-MARK-READ-VALID", method: http.MethodPost, path: "/api/v2/messages/conversations/41/read", routePath: "/api/v2/messages/conversations/:id/read", auth: true, wantStatus: http.StatusOK},
+		{id: "MESSAGE-UNREAD-VALID", method: http.MethodGet, path: "/api/v2/messages/unread", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageUnread", "notificationUnread"}},
+		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
 	}
 
 	decisions := append([]restDecision{}, successes...)
@@ -298,6 +455,18 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "FAVORITE-MALFORMED", method: http.MethodPost, path: "/api/v1/favorite", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "UNFAVORITE-MALFORMED", method: http.MethodDelete, path: "/api/v1/favorite", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "MEDIA-IMAGE-NOT-MULTIPART", method: http.MethodPost, path: "/api/v1/media/image", body: plainBody("not-multipart"), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.FileTooLarge},
+		restDecision{id: "BEHAVIOR-EVENTS-MALFORMED", method: http.MethodPost, path: "/api/v2/behavior/events", body: jsonBody(`{`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "FEED-FOLLOW-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/follow?pageSize=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "FEED-RECOMMEND-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "FEED-RECOMMEND-RPC-FAILURE", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=rpc-fail&pageSize=20", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "SEARCH-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search?keyword=go&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "SEARCH-USERS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/users?keyword=user&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "SEARCH-TAGS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/tags?keyword=tag&limit=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "MESSAGE-CONVERSATIONS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/messages/conversations?page=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "MESSAGE-LIST-BAD-QUERY", method: http.MethodGet, path: "/api/v2/messages/conversations/41?pageSize=bad", routePath: "/api/v2/messages/conversations/:id", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "MESSAGE-SEND-MALFORMED", method: http.MethodPost, path: "/api/v2/messages", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "MESSAGE-MARK-READ-BAD-PATH", method: http.MethodPost, path: "/api/v2/messages/conversations/not-a-number/read", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-CHAT-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 	)
 
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -319,6 +488,9 @@ func TestRESTDecisionTable(t *testing.T) {
 				req.Header.Set("Authorization", "Bearer "+token)
 			} else if decision.headerToken != "" {
 				req.Header.Set("Authorization", "Bearer "+decision.headerToken)
+			}
+			if decision.wantSSE {
+				req.Header.Set("Accept", "text/event-stream")
 			}
 			resp, err := client.Do(req)
 			if err != nil {
@@ -347,7 +519,15 @@ func TestRESTDecisionTable(t *testing.T) {
 				if envelope.Code != decision.wantCode {
 					t.Fatalf("code=%d want=%d body=%s", envelope.Code, decision.wantCode, payload)
 				}
-			} else if decision.wantStatus == http.StatusOK {
+			} else if decision.wantSSE {
+				if got := resp.Header.Get("Content-Type"); got != "text/event-stream" {
+					t.Fatalf("content-type=%q want text/event-stream", got)
+				}
+				body := string(payload)
+				if !strings.Contains(body, `"type":"token"`) || !strings.Contains(body, `"type":"source"`) || !strings.Contains(body, `"type":"done"`) {
+					t.Fatalf("missing SSE events: %s", payload)
+				}
+			} else if decision.wantStatus == http.StatusOK || decision.wantStatus == http.StatusAccepted {
 				var document map[string]any
 				if err := json.Unmarshal(payload, &document); err != nil {
 					t.Fatalf("decode success response: %v; body=%s", err, payload)
@@ -357,12 +537,27 @@ func TestRESTDecisionTable(t *testing.T) {
 						t.Errorf("response missing field %q; body=%s", field, payload)
 					}
 				}
+				if len(decision.wantItemFields) > 0 {
+					items, ok := document["items"].([]any)
+					if !ok || len(items) == 0 {
+						t.Fatalf("response has no contract item; body=%s", payload)
+					}
+					item, ok := items[0].(map[string]any)
+					if !ok {
+						t.Fatalf("response item is not an object; body=%s", payload)
+					}
+					for _, field := range decision.wantItemFields {
+						if _, ok := item[field]; !ok {
+							t.Errorf("response item missing field %q; body=%s", field, payload)
+						}
+					}
+				}
 			}
 		})
 	}
 
-	if len(successes) != 23 {
-		t.Fatalf("route inventory drift: got %d success rules, want 23", len(successes))
+	if len(successes) != 35 {
+		t.Fatalf("route inventory drift: got %d success rules, want 35", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

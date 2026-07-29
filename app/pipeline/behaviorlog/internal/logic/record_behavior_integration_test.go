@@ -4,6 +4,7 @@ package logic
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -35,20 +36,16 @@ func TestMain(m *testing.M) {
 
 func newIntegrationRecorder() *Recorder {
 	s := store.NewClickHouseStore(chEnv.DB)
-	d := dedup.NewBloomDedup(svc.NewRedisBloomStore(testEnv.Redis), 1024)
+	d := dedup.NewExactDedup(svc.NewRedisExactStore(testEnv.Redis), 3600)
 	return NewRecorder(s, d)
 }
 
 func TestIntegration_FullPipeline_EventPersistedInClickHouse(t *testing.T) {
 	recorder := newIntegrationRecorder()
 	e := event.BehaviorEvent{
-		EventID:    99001,
-		EventTime:  1714300000000,
-		UserID:     42,
-		Action:     "like",
-		TargetID:   999,
-		TargetType: "post",
-		Scene:      "home",
+		EventID: 99001, ClientEventID: "integration-99001", SchemaVersion: event.BehaviorSchemaVersion,
+		EventTime: 1714300000000, ReceivedAt: 1714300000100, UserID: 42,
+		Action: "like", TargetID: 999, TargetType: "post", Scene: "home", Producer: "test",
 	}
 
 	require.NoError(t, recorder.Process(context.Background(), e, MessageMeta{}))
@@ -63,12 +60,9 @@ func TestIntegration_FullPipeline_EventPersistedInClickHouse(t *testing.T) {
 func TestIntegration_DuplicateEvent_FilteredByBloom(t *testing.T) {
 	recorder := newIntegrationRecorder()
 	e := event.BehaviorEvent{
-		EventID:    99002,
-		EventTime:  1714300000000,
-		UserID:     42,
-		Action:     "favorite",
-		TargetID:   888,
-		TargetType: "post",
+		EventID: 99002, ClientEventID: "integration-99002", SchemaVersion: event.BehaviorSchemaVersion,
+		EventTime: 1714300000000, ReceivedAt: 1714300000100, UserID: 42,
+		Action: "favorite", TargetID: 888, TargetType: "post", Producer: "test",
 	}
 
 	require.NoError(t, recorder.Process(context.Background(), e, MessageMeta{}))
@@ -97,9 +91,9 @@ func TestIntegration_MultipleActions_AllPersisted(t *testing.T) {
 
 	for _, a := range actions {
 		e := event.BehaviorEvent{
-			EventID: a.eventID, EventTime: now,
-			UserID: 50, Action: a.action,
-			TargetID: a.targetID, TargetType: "post",
+			EventID: a.eventID, ClientEventID: fmt.Sprintf("integration-%d", a.eventID),
+			SchemaVersion: event.BehaviorSchemaVersion, EventTime: now, ReceivedAt: now,
+			UserID: 50, Action: a.action, TargetID: a.targetID, TargetType: "post", Producer: "test",
 		}
 		require.NoError(t, recorder.Process(context.Background(), e, MessageMeta{}))
 	}

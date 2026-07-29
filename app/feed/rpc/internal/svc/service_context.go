@@ -6,6 +6,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
+	"esx/app/recommend/rpc/recommendservice"
 	"interceptor"
 	"user/userservice"
 
@@ -36,16 +37,21 @@ type ContentService interface {
 	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error)
 }
 
+type RecommendService interface {
+	GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...grpc.CallOption) (*recommendservice.GetRecommendPostsResp, error)
+}
+
 type ServiceContext struct {
-	Config          config.Config
-	Conn            sqlx.SqlConn
-	Redis           *redis.Redis
-	InboxModel      InboxModel
-	OutboxModel     OutboxModel
-	UserService     UserService
-	ContentService  ContentService
-	BigVThreshold   int64
-	FanoutBatchSize int64
+	Config           config.Config
+	Conn             sqlx.SqlConn
+	Redis            *redis.Redis
+	InboxModel       InboxModel
+	OutboxModel      OutboxModel
+	UserService      UserService
+	ContentService   ContentService
+	RecommendService RecommendService
+	BigVThreshold    int64
+	FanoutBatchSize  int64
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -54,16 +60,18 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
+	recommendClient := zrpc.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 
 	return &ServiceContext{
-		Config:          c,
-		Conn:            conn,
-		Redis:           rds,
-		InboxModel:      model.NewFeedInboxModel(conn),
-		OutboxModel:     model.NewFeedOutboxModel(conn),
-		UserService:     userservice.NewUserService(userClient),
-		ContentService:  contentservice.NewContentService(contentClient),
-		BigVThreshold:   c.BigVThreshold,
-		FanoutBatchSize: c.FanoutBatchSize,
+		Config:           c,
+		Conn:             conn,
+		Redis:            rds,
+		InboxModel:       model.NewFeedInboxModel(conn),
+		OutboxModel:      model.NewFeedOutboxModel(conn),
+		UserService:      userservice.NewUserService(userClient),
+		ContentService:   contentservice.NewContentService(contentClient),
+		RecommendService: recommendservice.NewRecommendService(recommendClient),
+		BigVThreshold:    c.BigVThreshold,
+		FanoutBatchSize:  c.FanoutBatchSize,
 	}
 }

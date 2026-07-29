@@ -3,14 +3,14 @@ package config
 import (
 	"mqx"
 
+	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type Config struct {
+	service.ServiceConf
 	MQ            mqx.ConsumerConfig
 	ClickHouseDSN string
 	Redis         redis.RedisConf
-	BloomBits     uint
-	WorkerID      int64
-	DatacenterID  int64
+	DedupTTL      int `json:",default=7776000"`
 }

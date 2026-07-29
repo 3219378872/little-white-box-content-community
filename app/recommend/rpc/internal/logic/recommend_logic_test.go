@@ -1,0 +1,353 @@
+package logic
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"errx"
+	"esx/app/recommend/rpc/internal/config"
+	"esx/app/recommend/rpc/internal/cursor"
+	"esx/app/recommend/rpc/internal/model"
+	"esx/app/recommend/rpc/internal/svc"
+	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+)
+
+const testCursorSecret = "0123456789abcdef0123456789abcdef"
+
+type fakePostSource struct {
+	name   string
+	recall func(context.Context, model.RecallRequest) ([]model.PostCandidate, error)
+}
+
+func (s fakePostSource) Name() string { return s.name }
+
+func (s fakePostSource) Recall(ctx context.Context, req model.RecallRequest) ([]model.PostCandidate, error) {
+	return s.recall(ctx, req)
+}
+
+type fakeUserSource struct {
+	name   string
+	recall func(context.Context, model.RecallRequest) ([]model.UserCandidate, error)
+}
+
+func (s fakeUserSource) Name() string { return s.name }
+
+func (s fakeUserSource) Recall(ctx context.Context, req model.RecallRequest) ([]model.UserCandidate, error) {
+	return s.recall(ctx, req)
+}
+
+type fakeFeatureRepository struct {
+	viewer    model.ViewerFeatures
+	posts     map[int64]model.PostFeatures
+	users     map[int64]model.UserFeatures
+	viewerErr error
+	postsErr  error
+	usersErr  error
+}
+
+func (r *fakeFeatureRepository) LoadViewerFeatures(context.Context, string) (model.ViewerFeatures, error) {
+	return r.viewer, r.viewerErr
+}
+
+func (r *fakeFeatureRepository) LoadPostFeatures(context.Context, []int64) (map[int64]model.PostFeatures, error) {
+	return r.posts, r.postsErr
+}
+
+func (r *fakeFeatureRepository) LoadUserFeatures(context.Context, []int64) (map[int64]model.UserFeatures, error) {
+	return r.users, r.usersErr
+}
+
+type memorySnapshotStore struct {
+	mu       sync.Mutex
+	items    map[string]model.PostSnapshot
+	saveErr  error
+	loadErr  error
+	savedTTL int
+}
+
+func (s *memorySnapshotStore) Save(_ context.Context, id string, snapshot model.PostSnapshot, ttl int) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.savedTTL = ttl
+	s.items[id] = snapshot
+	return nil
+}
+
+func (s *memorySnapshotStore) Load(_ context.Context, id string) (model.PostSnapshot, error) {
+	if s.loadErr != nil {
+		return model.PostSnapshot{}, s.loadErr
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot, ok := s.items[id]
+	if !ok {
+		return model.PostSnapshot{}, model.ErrSnapshotMissing
+	}
+	return snapshot, nil
+}
+
+type fakeInferenceRanker struct {
+	rank func(context.Context, string, string, []model.PostCandidate) (model.InferenceResult, error)
+}
+
+func (r fakeInferenceRanker) Rank(ctx context.Context, requestID, version string, candidates []model.PostCandidate) (model.InferenceResult, error) {
+	return r.rank(ctx, requestID, version, candidates)
+}
+
+func newTestServiceContext(t *testing.T, now time.Time) *svc.ServiceContext {
+	t.Helper()
+	codec, err := cursor.New(testCursorSecret, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &svc.ServiceContext{
+		Config: config.Config{
+			DefaultPageSize: 2, MaxPageSize: 20, CandidateMultiplier: 4,
+			CursorTTLSeconds: 600, RuleModelVersion: "rules-test", MaxPerAuthor: 2,
+		},
+		CursorCodec:   codec,
+		SnapshotStore: &memorySnapshotStore{items: make(map[string]model.PostSnapshot)},
+		Now:           func() time.Time { return now },
+		NewSnapshotID: func() (string, error) { return "snapshot-1", nil },
+	}
+}
+
+func knownPost(postID, authorID int64, category string, quality float64) model.PostCandidate {
+	return model.PostCandidate{
+		PostID: postID,
+		Features: model.PostFeatures{
+			Known: true, Available: true, Visibility: "public", AuthorID: authorID,
+			Category: category, Quality: quality,
+		},
+	}
+}
+
+func knownUser(userID int64, category string, quality float64) model.UserCandidate {
+	return model.UserCandidate{
+		UserID: userID,
+		Features: model.UserFeatures{
+			Known: true, Available: true, Visibility: "public", Category: category, Quality: quality,
+		},
+	}
+}
+
+func TestGetRecommendPostsRunsFullPipelineAndPagesSnapshot(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	serviceContext := newTestServiceContext(t, now)
+	requestContext := context.WithValue(context.Background(), struct{ name string }{"trace"}, "preserved")
+	serviceContext.Config.ExploreRatio = 0.34
+	serviceContext.Config.OnlineInfer = config.OnlineInferConfig{Enabled: true, ModelVersion: "rank-requested", TimeoutMs: 50}
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(ctx context.Context, req model.RecallRequest) ([]model.PostCandidate, error) {
+			if ctx != requestContext || req.Identity != "u:42" || req.Scene != "home" || req.Limit != 8 {
+				t.Errorf("unexpected recall request: %+v", req)
+			}
+			return []model.PostCandidate{{PostID: 1}, {PostID: 2}, {PostID: 3}, {PostID: 4}}, nil
+		}},
+		fakePostSource{name: "itemcf", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{{PostID: 2}, {PostID: 4}}, nil
+		}},
+		fakePostSource{name: "explore", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{{PostID: 5}}, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		viewer: model.ViewerFeatures{
+			PositivePostIDs: map[int64]struct{}{},
+			NegativePostIDs: map[int64]struct{}{3: {}},
+			SeenPostIDs:     map[int64]struct{}{4: {}},
+			BlockedAuthors:  map[int64]struct{}{},
+		},
+		posts: map[int64]model.PostFeatures{
+			1: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Category: "tech", Quality: 0.2},
+			2: {Known: true, Available: true, Visibility: "public", AuthorID: 20, Category: "tech", Quality: 0.9},
+			3: {Known: true, Available: true, Visibility: "public", AuthorID: 30, Category: "sports", Quality: 0.7},
+			4: {Known: true, Available: true, Visibility: "public", AuthorID: 40, Category: "news", Quality: 0.8},
+			5: {Known: true, Available: true, Visibility: "public", AuthorID: 50, Category: "culture", Quality: 0.7},
+		},
+	}
+	serviceContext.InferenceRanker = fakeInferenceRanker{rank: func(ctx context.Context, requestID, version string, candidates []model.PostCandidate) (model.InferenceResult, error) {
+		if ctx.Value(struct{ name string }{"trace"}) != "preserved" || requestID != "request-1" || version != "rank-requested" {
+			t.Errorf("inference did not receive request context or metadata")
+		}
+		if len(candidates) != 3 {
+			t.Errorf("inference candidates=%d, want 3", len(candidates))
+		}
+		return model.InferenceResult{Scores: map[int64]float64{1: 0.5, 2: 0.95, 5: 0.8}, ModelVersion: "rank-v7"}, nil
+	}}
+
+	logic := NewGetRecommendPostsLogic(requestContext, serviceContext)
+	response, err := logic.GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 42, Scene: "home", RequestId: "request-1", SessionId: "session-1",
+		PageSize: 2, ExperimentId: "experiment-a",
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendPosts() error = %v", err)
+	}
+	if len(response.Posts) != 2 || response.Posts[0].PostId != 2 || response.Posts[1].PostId != 5 {
+		t.Fatalf("unexpected first page: %+v", response.Posts)
+	}
+	if !strings.Contains(response.Posts[0].RecallSource, "hot") || !strings.Contains(response.Posts[0].RecallSource, "itemcf") {
+		t.Fatalf("duplicate recall sources were not merged: %+v", response.Posts[0])
+	}
+	if response.Posts[0].ModelVersion != "rank-v7" || response.Posts[0].Position != 1 || response.Posts[1].Position != 2 {
+		t.Fatalf("rank metadata not preserved: %+v", response.Posts)
+	}
+	if !response.HasMore || response.NextCursor == "" || response.RequestId != "request-1" {
+		t.Fatalf("unexpected first page metadata: %+v", response)
+	}
+
+	next, err := logic.GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 42, Scene: "home", RequestId: "request-1", SessionId: "session-1",
+		PageSize: 2, ExperimentId: "experiment-a", Cursor: response.NextCursor,
+	})
+	if err != nil {
+		t.Fatalf("second page error = %v", err)
+	}
+	if len(next.Posts) != 1 || next.Posts[0].PostId != 1 || next.Posts[0].Position != 3 || next.HasMore || next.NextCursor != "" {
+		t.Fatalf("unexpected second page: %+v", next)
+	}
+	store := serviceContext.SnapshotStore.(*memorySnapshotStore)
+	if store.savedTTL != 600 {
+		t.Fatalf("snapshot ttl = %d, want 600", store.savedTTL)
+	}
+}
+
+func TestGetRecommendPostsMarksPartialRecallDegradation(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(7, 10, "tech", 0.7)}, nil
+		}},
+		fakePostSource{name: "milvus", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return nil, errors.New("milvus unavailable")
+		}},
+	}
+	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		AnonymousId: "device-1", RequestId: "request-1", PageSize: 2,
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendPosts() error = %v", err)
+	}
+	if len(response.Posts) != 1 || !strings.Contains(response.Posts[0].ModelVersion, "recall-degraded") ||
+		!strings.Contains(response.Posts[0].ModelVersion, "feature-degraded") {
+		t.Fatalf("degradation was not explicit: %+v", response.Posts)
+	}
+}
+
+func TestGetRecommendPostsReturnsUnavailableWhenAllRecallSourcesFail(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return nil, errors.New("redis unavailable")
+		}},
+		fakePostSource{name: "content", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return nil, errors.New("content unavailable")
+		}},
+	}
+	_, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 1, RequestId: "request-1", PageSize: 2,
+	})
+	if !errx.Is(err, errx.ServiceUnavailable) {
+		t.Fatalf("error = %v, want ServiceUnavailable", err)
+	}
+}
+
+func TestGetRecommendPostsFallsBackWhenInferenceTimesOut(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.Config.OnlineInfer = config.OnlineInferConfig{Enabled: true, ModelVersion: "rank-v1", TimeoutMs: 5}
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(8, 20, "tech", 0.5)}, nil
+		}},
+	}
+	serviceContext.InferenceRanker = fakeInferenceRanker{rank: func(ctx context.Context, _ string, _ string, _ []model.PostCandidate) (model.InferenceResult, error) {
+		<-ctx.Done()
+		return model.InferenceResult{}, ctx.Err()
+	}}
+	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 1, RequestId: "request-timeout", PageSize: 2,
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendPosts() error = %v", err)
+	}
+	if len(response.Posts) != 1 || !strings.Contains(response.Posts[0].ModelVersion, "infer-timeout") {
+		t.Fatalf("timeout fallback was not explicit: %+v", response.Posts)
+	}
+}
+
+func TestGetRecommendPostsRejectsTamperedCursorBeforeRecall(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	var called atomic.Bool
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			called.Store(true)
+			return nil, nil
+		}},
+	}
+	_, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 1, RequestId: "request-1", PageSize: 2, Cursor: "tampered.cursor",
+	})
+	if !errx.Is(err, errx.ParamError) {
+		t.Fatalf("error = %v, want ParamError", err)
+	}
+	if called.Load() {
+		t.Fatal("recall source was called for an invalid cursor")
+	}
+}
+
+func TestGetSimilarPostsUsesMultiRecallAndExcludesSeed(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.SimilarPostSources = []model.PostRecallSource{
+		fakePostSource{name: "itemcf", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(10, 1, "tech", 1), knownPost(11, 2, "tech", 0.8)}, nil
+		}},
+		fakePostSource{name: "milvus", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(11, 2, "tech", 0.8), knownPost(12, 3, "culture", 0.7)}, nil
+		}},
+	}
+	response, err := NewGetSimilarPostsLogic(context.Background(), serviceContext).GetSimilarPosts(&pb.GetSimilarPostsReq{
+		PostId: 10, Limit: 2, RequestId: "similar-1", ExperimentId: "exp-1",
+	})
+	if err != nil {
+		t.Fatalf("GetSimilarPosts() error = %v", err)
+	}
+	if len(response.Posts) != 2 || response.Posts[0].PostId != 11 || response.Posts[1].PostId != 12 {
+		t.Fatalf("unexpected similar posts: %+v", response.Posts)
+	}
+	if !strings.Contains(response.Posts[0].RecallSource, "itemcf") || !strings.Contains(response.Posts[0].RecallSource, "milvus") {
+		t.Fatalf("similar recall sources not merged: %+v", response.Posts[0])
+	}
+}
+
+func TestGetRecommendUsersDeduplicatesAndFiltersCurrentUser(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.UserRecallSources = []model.UserRecallSource{
+		fakeUserSource{name: "mutual", recall: func(context.Context, model.RecallRequest) ([]model.UserCandidate, error) {
+			return []model.UserCandidate{knownUser(42, "tech", 1), knownUser(7, "tech", 0.8)}, nil
+		}},
+		fakeUserSource{name: "interest", recall: func(context.Context, model.RecallRequest) ([]model.UserCandidate, error) {
+			return []model.UserCandidate{knownUser(7, "tech", 0.8), knownUser(8, "culture", 0.7)}, nil
+		}},
+	}
+	response, err := NewGetRecommendUsersLogic(context.Background(), serviceContext).GetRecommendUsers(&pb.GetRecommendUsersReq{
+		UserId: 42, RequestId: "users-1", Limit: 2, ExperimentId: "exp-1",
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendUsers() error = %v", err)
+	}
+	if len(response.Users) != 2 || response.Users[0].UserId != 7 || response.Users[1].UserId != 8 {
+		t.Fatalf("unexpected users: %+v", response.Users)
+	}
+	if !strings.Contains(response.Users[0].RecallSource, "mutual") || !strings.Contains(response.Users[0].RecallSource, "interest") {
+		t.Fatalf("user recall sources not merged: %+v", response.Users[0])
+	}
+}

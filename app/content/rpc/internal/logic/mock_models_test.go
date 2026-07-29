@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
+	"esx/pkg/outboxx"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -89,6 +90,10 @@ func (m *MockPostModel) UpdateFields(ctx context.Context, id int64, fields map[s
 	return m.Called(ctx, id, fields).Error(0)
 }
 
+func (m *MockPostModel) InvalidatePostCache(context.Context, int64) error {
+	return nil
+}
+
 func (m *MockPostModel) IncrCommentCount(ctx context.Context, postId int64) error {
 	return m.Called(ctx, postId).Error(0)
 }
@@ -143,6 +148,10 @@ func (m *MockCommentModel) FindByPostId(ctx context.Context, postId int64, page,
 
 func (m *MockCommentModel) UpdateStatus(ctx context.Context, id, status int64) error {
 	return m.Called(ctx, id, status).Error(0)
+}
+
+func (m *MockCommentModel) InvalidateCommentCache(context.Context, int64) error {
+	return nil
 }
 
 // ─── MockTagModel ─────────────────────────────────────────────────────────────
@@ -258,9 +267,70 @@ func (m *MockPostTagModel) BatchInsertTagsByPostIdTx(ctx context.Context, tx *sq
 
 func newUnitSvcCtx(pm model2.PostModel, cm model2.CommentModel, tm model2.TagModel, ptm model2.PostTagModel) *svc.ServiceContext {
 	return &svc.ServiceContext{
-		PostModel:    pm,
-		CommentModel: cm,
-		TagModel:     tm,
-		PostTagModel: ptm,
+		PostModel:           pm,
+		CommentModel:        cm,
+		TagModel:            tm,
+		PostTagModel:        ptm,
+		PostCommandModel:    legacyPostCommandModel{post: pm, tags: ptm},
+		CommentCommandModel: legacyCommentCommandModel{post: pm, comments: cm},
 	}
+}
+
+type legacyCommentCommandModel struct {
+	post     model2.PostModel
+	comments model2.CommentModel
+}
+
+func (m legacyCommentCommandModel) CreateComment(
+	ctx context.Context,
+	comment *model2.Comment,
+	_ outboxx.Event,
+) error {
+	if err := m.comments.InsertComment(ctx, comment); err != nil {
+		return err
+	}
+	return m.post.IncrCommentCount(ctx, comment.PostId)
+}
+
+func (m legacyCommentCommandModel) DeleteComment(ctx context.Context, commentID, postID int64) error {
+	if err := m.comments.UpdateStatus(ctx, commentID, 0); err != nil {
+		return err
+	}
+	return m.post.DecrCommentCount(ctx, postID)
+}
+
+type legacyPostCommandModel struct {
+	post model2.PostModel
+	tags model2.PostTagModel
+}
+
+func (m legacyPostCommandModel) CreatePost(
+	ctx context.Context,
+	post *model2.Post,
+	tags []string,
+	tagIDs []int64,
+	_ outboxx.Event,
+) error {
+	if err := m.post.InsertPostTx(ctx, nil, post); err != nil {
+		return err
+	}
+	return m.tags.BatchInsertTagsByPostIdTx(ctx, nil, post.Id, tags, tagIDs)
+}
+
+func (m legacyPostCommandModel) UpdatePost(
+	ctx context.Context,
+	postID int64,
+	fields map[string]any,
+	tags []string,
+	tagIDs []int64,
+	_ outboxx.Event,
+) error {
+	if err := m.post.UpdateFields(ctx, postID, fields); err != nil {
+		return err
+	}
+	return m.tags.TransactReplaceTagsByPostId(ctx, nil, postID, tags, tagIDs)
+}
+
+func (m legacyPostCommandModel) DeletePost(ctx context.Context, postID int64, _ outboxx.Event) error {
+	return m.post.UpdateStatus(ctx, postID, 2)
 }

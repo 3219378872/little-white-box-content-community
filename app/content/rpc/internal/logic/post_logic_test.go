@@ -130,9 +130,6 @@ func TestCreatePostLogic(t *testing.T) {
 				tt.setupMock(pm, ptm)
 			}
 			svcCtx := newUnitSvcCtx(pm, nil, nil, ptm)
-			svcCtx.Config.FeedBusiServer = "feed:9091"
-			svcCtx.Config.ContentBusiServer = "content:8088"
-			svcCtx.PostCreateMsgFactory = fakePostCreateMsgFactory{msg: &fakePostCreateMsg{}}
 			l := NewCreatePostLogic(context.Background(), svcCtx)
 
 			resp, err := l.CreatePost(tt.req)

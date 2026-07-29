@@ -4,7 +4,6 @@
 package types
 
 type UploadImageReq struct {
-	File []byte `form:"file"`
 }
 
 type UploadImageResp struct {

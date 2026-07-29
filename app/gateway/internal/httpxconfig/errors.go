@@ -17,7 +17,14 @@ func ConfigureErrors() {
 		if !ok {
 			bizErr = errx.FromHTTPError(err)
 		}
-		return bizErr.HTTPStatus(), map[string]any{
+		status := bizErr.HTTPStatus()
+		switch bizErr.Code {
+		case errx.SearchEmpty:
+			status = http.StatusBadRequest
+		case errx.SearchTimeout:
+			status = http.StatusGatewayTimeout
+		}
+		return status, map[string]any{
 			"code":    bizErr.Code,
 			"message": bizErr.Message,
 		}

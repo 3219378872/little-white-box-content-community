@@ -18,4 +18,9 @@ type Config struct {
 	ContentRpc     zrpc.RpcClientConf
 	MediaRpc       zrpc.RpcClientConf
 	InteractionRpc zrpc.RpcClientConf
+	BehaviorRpc    zrpc.RpcClientConf
+	FeedRpc        zrpc.RpcClientConf
+	MessageRpc     zrpc.RpcClientConf
+	SearchRpc      zrpc.RpcClientConf
+	AssistantRpc   zrpc.RpcClientConf
 }

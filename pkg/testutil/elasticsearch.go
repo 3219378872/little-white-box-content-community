@@ -53,8 +53,7 @@ func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 				"xpack.security.enabled":                            "false",
 				"ES_JAVA_OPTS":                                      "-Xms512m -Xmx512m",
 			},
-			WaitingFor: wait.ForHTTP("/").
-				WithPort("9200/tcp").
+			WaitingFor: wait.ForListeningPort("9200/tcp").
 				WithStartupTimeout(3 * time.Minute),
 		},
 		Started: true,

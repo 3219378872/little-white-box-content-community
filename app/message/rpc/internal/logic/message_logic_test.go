@@ -10,10 +10,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"user/userservice"
 
 	"errx"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 type fakeResult struct{ id int64 }
@@ -94,8 +96,10 @@ type fakeMessageCommandModel struct {
 	createdReceiverID int64
 	createdContent    string
 	createdMsgType    int64
+	createdKey        string
 	createdMessageID  int64
 	createCalls       int64
+	replayed          bool
 	createErr         error
 	markUserID        int64
 	markTargetID      int64
@@ -103,19 +107,20 @@ type fakeMessageCommandModel struct {
 	markErr           error
 }
 
-func (m *fakeMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64) (int64, error) {
+func (m *fakeMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, idempotencyKey string) (model2.MessageCommandResult, error) {
 	m.createCalls++
 	m.createdSenderID = senderID
 	m.createdReceiverID = receiverID
 	m.createdContent = content
 	m.createdMsgType = msgType
+	m.createdKey = idempotencyKey
 	if m.createErr != nil {
-		return 0, m.createErr
+		return model2.MessageCommandResult{}, m.createErr
 	}
 	if m.createdMessageID == 0 {
 		m.createdMessageID = 300
 	}
-	return m.createdMessageID, nil
+	return model2.MessageCommandResult{MessageID: m.createdMessageID, Created: !m.replayed}, nil
 }
 
 func (m *fakeMessageCommandModel) MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
@@ -137,6 +142,21 @@ type fakeConversationModel struct {
 	findOneUserID   int64
 	findOneID       int64
 	findOneErr      error
+}
+
+type fakeUserService struct {
+	ctx   context.Context
+	req   *userservice.BatchGetUsersReq
+	resp  *userservice.BatchGetUsersResp
+	err   error
+	calls int
+}
+
+func (s *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+	s.calls++
+	s.ctx = ctx
+	s.req = in
+	return s.resp, s.err
 }
 
 func (m *fakeConversationModel) UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error) {
@@ -322,7 +342,9 @@ func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
 	store := &fakeUnreadStore{}
 	ctx := &svc.ServiceContext{MessageCommandModel: commands, UnreadStore: store}
 
-	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 2, Content: " hello ", MsgType: 1})
+	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: " hello ", MsgType: 1, IdempotencyKey: " message-301 ",
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, int64(301), resp.MessageId)
@@ -331,7 +353,47 @@ func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
 	require.Equal(t, int64(2), commands.createdReceiverID)
 	require.Equal(t, "hello", commands.createdContent)
 	require.Equal(t, int64(1), commands.createdMsgType)
+	require.Equal(t, "message-301", commands.createdKey)
 	require.Equal(t, []int64{2}, store.deleted)
+}
+
+func TestSendMessageReplayReturnsExistingMessageWithoutCacheInvalidation(t *testing.T) {
+	commands := &fakeMessageCommandModel{createdMessageID: 301, replayed: true}
+	store := &fakeUnreadStore{}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands, UnreadStore: store}
+
+	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1, IdempotencyKey: "message-301",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, int64(301), resp.MessageId)
+	require.Empty(t, store.deleted)
+}
+
+func TestSendMessageRejectsIdempotencyConflict(t *testing.T) {
+	commands := &fakeMessageCommandModel{createErr: &model2.IdempotencyConflictError{}}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands}
+
+	_, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: "different", MsgType: 1, IdempotencyKey: "message-301",
+	})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.ParamError))
+	require.Contains(t, err.Error(), "幂等键")
+}
+
+func TestSendMessageMapsStorageFailureToSystemError(t *testing.T) {
+	commands := &fakeMessageCommandModel{createErr: errors.New("db offline")}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands}
+
+	_, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1, IdempotencyKey: "message-301",
+	})
+
+	require.Error(t, err)
+	require.True(t, errx.Is(err, errx.SystemError))
 }
 
 func TestGetConversationsReturnsPagedItems(t *testing.T) {
@@ -339,15 +401,78 @@ func TestGetConversationsReturnsPagedItems(t *testing.T) {
 	conversations := &fakeConversationModel{total: 1, list: []*model2.Conversation{{
 		Id: 12, UserId: 7, TargetUserId: 8, LastMessage: sql.NullString{String: "hi", Valid: true}, LastMessageTime: sql.NullTime{Time: last, Valid: true}, UnreadCount: 2,
 	}}}
-	ctx := &svc.ServiceContext{ConversationModel: conversations}
+	type contextKey string
+	requestCtx := context.WithValue(context.Background(), contextKey("request"), "message-1")
+	users := &fakeUserService{resp: &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+		Id: 8, Username: "target-user", Nickname: " Target ", AvatarUrl: "avatar.png",
+	}}}}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, UserService: users}
 
-	resp, err := NewGetConversationsLogic(context.Background(), ctx).GetConversations(&pb.GetConversationsReq{UserId: 7, Page: 1, PageSize: 10})
+	resp, err := NewGetConversationsLogic(requestCtx, ctx).GetConversations(&pb.GetConversationsReq{UserId: 7, Page: 1, PageSize: 10})
 
 	require.NoError(t, err)
+	require.Equal(t, requestCtx, users.ctx)
+	require.Equal(t, []int64{8}, users.req.UserIds)
+	require.Equal(t, 1, users.calls)
 	require.Equal(t, int64(1), resp.Total)
 	require.Len(t, resp.Conversations, 1)
 	require.Equal(t, int64(8), resp.Conversations[0].TargetUserId)
+	require.Equal(t, "Target", resp.Conversations[0].TargetUserName)
+	require.Equal(t, "avatar.png", resp.Conversations[0].TargetUserAvatar)
 	require.Equal(t, int32(2), resp.Conversations[0].UnreadCount)
+}
+
+func TestGetConversationsDeduplicatesTargetsAndFallsBackToUsername(t *testing.T) {
+	conversations := &fakeConversationModel{total: 2, list: []*model2.Conversation{
+		{Id: 12, UserId: 7, TargetUserId: 8},
+		{Id: 13, UserId: 7, TargetUserId: 8},
+	}}
+	users := &fakeUserService{resp: &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+		Id: 8, Username: " target-user ", AvatarUrl: "avatar.png",
+	}}}}
+
+	resp, err := NewGetConversationsLogic(context.Background(), &svc.ServiceContext{
+		ConversationModel: conversations,
+		UserService:       users,
+	}).GetConversations(&pb.GetConversationsReq{UserId: 7, Page: 1, PageSize: 10})
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{8}, users.req.UserIds)
+	require.Len(t, resp.Conversations, 2)
+	require.Equal(t, "target-user", resp.Conversations[0].TargetUserName)
+	require.Equal(t, "target-user", resp.Conversations[1].TargetUserName)
+}
+
+func TestGetConversationsSkipsUserRPCForEmptyPage(t *testing.T) {
+	resp, err := NewGetConversationsLogic(context.Background(), &svc.ServiceContext{
+		ConversationModel: &fakeConversationModel{},
+	}).GetConversations(&pb.GetConversationsReq{UserId: 7, Page: 1, PageSize: 10})
+
+	require.NoError(t, err)
+	require.Empty(t, resp.Conversations)
+}
+
+func TestGetConversationsMapsUserRPCFailures(t *testing.T) {
+	conversations := &fakeConversationModel{list: []*model2.Conversation{{Id: 12, UserId: 7, TargetUserId: 8}}}
+	tests := []struct {
+		name  string
+		users svc.UserService
+	}{
+		{name: "missing client"},
+		{name: "rpc error", users: &fakeUserService{err: errors.New("user rpc offline")}},
+		{name: "nil response", users: &fakeUserService{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewGetConversationsLogic(context.Background(), &svc.ServiceContext{
+				ConversationModel: conversations,
+				UserService:       tt.users,
+			}).GetConversations(&pb.GetConversationsReq{UserId: 7, Page: 1, PageSize: 10})
+
+			require.Error(t, err)
+			require.True(t, errx.Is(err, errx.SystemError))
+		})
+	}
 }
 
 func TestGetMessagesReturnsCursorItems(t *testing.T) {
@@ -418,15 +543,29 @@ func TestMarkReadReturnsSystemErrorForConversationLookupFailure(t *testing.T) {
 }
 
 func TestSendMessageRejectsInvalidRequest(t *testing.T) {
-	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{}).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 1, Content: "hello", MsgType: 1})
+	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{}).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 1, Content: "hello", MsgType: 1, IdempotencyKey: "message-1"})
 	require.Error(t, err)
 	require.True(t, errx.Is(err, errx.ParamError))
+}
+
+func TestSendMessageRejectsInvalidIdempotencyKey(t *testing.T) {
+	commands := &fakeMessageCommandModel{}
+	logic := NewSendMessageLogic(context.Background(), &svc.ServiceContext{MessageCommandModel: commands})
+
+	for _, key := range []string{"", "   ", strings.Repeat("k", maxMessageIdempotencyKeySize+1)} {
+		_, err := logic.SendMessage(&pb.SendMessageReq{
+			SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1, IdempotencyKey: key,
+		})
+		require.Error(t, err)
+		require.True(t, errx.Is(err, errx.ParamError))
+	}
+	require.Equal(t, int64(0), commands.createCalls)
 }
 
 func TestSendMessageRejectsUnsupportedMessageType(t *testing.T) {
 	commands := &fakeMessageCommandModel{}
 	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{MessageCommandModel: commands}).SendMessage(&pb.SendMessageReq{
-		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 9,
+		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 9, IdempotencyKey: "message-1",
 	})
 
 	require.Error(t, err)
@@ -437,7 +576,7 @@ func TestSendMessageRejectsUnsupportedMessageType(t *testing.T) {
 func TestSendMessageRejectsOversizedContent(t *testing.T) {
 	commands := &fakeMessageCommandModel{}
 	_, err := NewSendMessageLogic(context.Background(), &svc.ServiceContext{MessageCommandModel: commands}).SendMessage(&pb.SendMessageReq{
-		SenderId: 1, ReceiverId: 2, Content: strings.Repeat("x", 1001), MsgType: 1,
+		SenderId: 1, ReceiverId: 2, Content: strings.Repeat("x", 1001), MsgType: 1, IdempotencyKey: "message-1",
 	})
 
 	require.Error(t, err)

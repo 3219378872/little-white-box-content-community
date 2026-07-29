@@ -25,26 +25,19 @@ func main() {
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
+	c.MustSetUp()
 
 	svcCtx := svc.NewServiceContext(c)
 	processor := behaviorlogic.NewRecorder(svcCtx.Store, svcCtx.Dedup)
-	handler := behaviorconsumer.MakeBehaviorHandler(processor)
+	handler := behaviorconsumer.MakeBehaviorHandler(processor, svcCtx.DeadLetters)
 
 	mq, err := mqx.NewConsumer(c.MQ)
 	if err != nil {
 		logx.Must(err)
 	}
 
-	topics := []string{
-		mqx.TopicLike, mqx.TopicUnlike,
-		mqx.TopicFavorite, mqx.TopicUnfavorite,
-		mqx.TopicCommentCreate,
-		mqx.TopicUserFollow, mqx.TopicUserUnfollow,
-	}
-	for _, topic := range topics {
-		if err := mq.SubscribeWithTopic(topic, mqx.TagDefault, handler); err != nil {
-			logx.Must(fmt.Errorf("subscribe %s: %w", topic, err))
-		}
+	if err := mq.Subscribe(handler); err != nil {
+		logx.Must(fmt.Errorf("subscribe %s: %w", c.MQ.Topic, err))
 	}
 
 	if err := mq.Start(); err != nil {
@@ -57,6 +50,6 @@ func main() {
 	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Println("Behavior-log consumer started, subscribing: like/unlike/favorite/unfavorite/comment-create/user-follow/user-unfollow")
+	fmt.Printf("Behavior-log consumer started, subscribing: %s\n", c.MQ.Topic)
 	<-shutdownCtx.Done()
 }

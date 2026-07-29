@@ -52,19 +52,28 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
 
-	if err = l.svcCtx.PostModel.UpdateStatus(l.ctx, post.Id, 2); err != nil {
-		l.Errorw("PostModel.UpdateStatus failed",
-			logx.Field("postId", post.Id),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
-	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostDelete, event.PostEvent{
+	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostDelete, event.PostEvent{
 		Type:     event.PostEventDeleted,
 		PostID:   post.Id,
 		AuthorID: post.AuthorId,
 	})
+	if err != nil {
+		l.Errorw("build post-deleted event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if l.svcCtx.PostCommandModel == nil {
+		l.Errorw("PostCommandModel is nil")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent); err != nil {
+		l.Errorw("delete post transaction failed",
+			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
+		l.Errorw("invalidate post cache after delete failed",
+			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+	}
 
 	return &pb.DeletePostResp{}, nil
 }

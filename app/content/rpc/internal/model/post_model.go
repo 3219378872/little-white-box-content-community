@@ -35,6 +35,7 @@ type (
 		FindByIds(ctx context.Context, ids []int64) ([]*Post, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
 		UpdateFields(ctx context.Context, id int64, fields map[string]interface{}) error
+		InvalidatePostCache(ctx context.Context, id int64) error
 		IncrCommentCount(ctx context.Context, postId int64) error
 		DecrCommentCount(ctx context.Context, postId int64) error
 	}
@@ -195,6 +196,10 @@ func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map
 		return conn.ExecCtx(ctx, query, args...)
 	}, postIdKey)
 	return err
+}
+
+func (m *customPostModel) InvalidatePostCache(ctx context.Context, id int64) error {
+	return m.DelCacheCtx(ctx, fmt.Sprintf("%s%v", cachePostIdPrefix, id))
 }
 
 // IncrCommentCount 原子递增评论数，避免并发写丢失

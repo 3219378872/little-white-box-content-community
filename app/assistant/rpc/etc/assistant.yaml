@@ -1,0 +1,72 @@
+Name: assistant.rpc
+ListenOn: 0.0.0.0:9024
+Health: true
+DevServer:
+  Enabled: true
+  Host: 0.0.0.0
+  Port: 9124
+  EnableMetrics: true
+  EnablePprof: false
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: assistant.rpc
+SearchRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: search.rpc
+ContentRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: content.rpc
+RecommendRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: recommend.rpc
+UserRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: user.rpc
+Redis:
+  Host: "${REDIS_HOST}"
+  Type: node
+  Pass: "${REDIS_PASSWORD}"
+  Key: assistant
+AllowedTools:
+- search
+- content
+- recommend
+- user
+ToolTimeoutMs: 1500
+MaxMessageRunes: 2000
+MaxSources: 5
+TokenChunkRunes: 64
+StateKeyPrefix: assistant:v2
+ConversationTTLSeconds: 2592000
+ConversationMaxMessages: 100
+QuotaWindowSeconds: 60
+QuotaRequests: 20
+Safety:
+  Enabled: true
+  MaxScanRunes: 10000
+  BlockedTerms:
+  - "build a bomb"
+  - "suicide instructions"
+  - "child sexual abuse"
+  - "制作炸弹"
+  - "自杀方法"
+  - "儿童色情"
+LLM:
+  Enabled: ${ASSISTANT_LLM_ENABLED}
+  Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
+  APIKey: "${ASSISTANT_LLM_API_KEY}"
+  Model: "${ASSISTANT_LLM_MODEL}"
+  TimeoutMs: 8000
+  MaxContextRunes: 8000
+  MaxOutputRunes: 8000
+  PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
+  CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}

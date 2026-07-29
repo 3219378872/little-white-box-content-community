@@ -10,5 +10,6 @@ MQ:
   Topic: "post-create"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
 BigVThreshold: 10000
 FanoutBatchSize: 500

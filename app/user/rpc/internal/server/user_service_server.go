@@ -35,6 +35,12 @@ func (s *UserServiceServer) BatchGetUsers(ctx context.Context, in *pb.BatchGetUs
 	return l.BatchGetUsers(in)
 }
 
+// 按公开资料搜索用户
+func (s *UserServiceServer) SearchUsers(ctx context.Context, in *pb.SearchUsersReq) (*pb.SearchUsersResp, error) {
+	l := logic.NewSearchUsersLogic(ctx, s.svcCtx)
+	return l.SearchUsers(in)
+}
+
 // 更新用户资料
 func (s *UserServiceServer) UpdateProfile(ctx context.Context, in *pb.UpdateProfileReq) (*pb.UpdateProfileResp, error) {
 	l := logic.NewUpdateProfileLogic(ctx, s.svcCtx)

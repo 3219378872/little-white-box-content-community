@@ -8,19 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBehaviorEvent_JSONRoundTrip(t *testing.T) {
-	e := BehaviorEvent{
-		EventID:    100001,
-		EventTime:  1714300000000,
-		UserID:     42,
-		Action:     "like",
-		TargetID:   999,
-		TargetType: "post",
-		Duration:   0,
-		Scene:      "home",
-		ClientIP:   "10.0.0.1",
-	}
+func int32Ptr(value int32) *int32 { return &value }
+func int64Ptr(value int64) *int64 { return &value }
 
+func validBehaviorEvent() BehaviorEvent {
+	return BehaviorEvent{
+		EventID: 100001, ClientEventID: "client-1", SchemaVersion: BehaviorSchemaVersion,
+		EventTime: 1714300000000, ReceivedAt: 1714300000100, UserID: 42,
+		Action: BehaviorActionExposure, TargetID: 999, TargetType: "post",
+		Scene: "home", RequestID: "request-1", Position: int32Ptr(3),
+		Producer: "behavior-rpc", ClientIP: "10.0.0.1", ClientVersion: "2.0.0",
+	}
+}
+
+func TestBehaviorEventJSONRoundTrip(t *testing.T) {
+	e := validBehaviorEvent()
 	data, err := json.Marshal(e)
 	require.NoError(t, err)
 
@@ -29,55 +31,59 @@ func TestBehaviorEvent_JSONRoundTrip(t *testing.T) {
 	assert.Equal(t, e, got)
 }
 
-func TestBehaviorEvent_Validate_Valid(t *testing.T) {
-	e := BehaviorEvent{
-		EventID:    1,
-		UserID:     42,
-		Action:     "like",
-		TargetID:   100,
-		TargetType: "post",
+func TestBehaviorEventValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*BehaviorEvent)
+		wantErr string
+	}{
+		{name: "valid"},
+		{name: "anonymous accepted", mutate: func(e *BehaviorEvent) { e.UserID = 0; e.AnonymousID = "device-1" }},
+		{name: "identity required", mutate: func(e *BehaviorEvent) { e.UserID = 0 }, wantErr: "user_id or anonymous_id"},
+		{name: "client id required", mutate: func(e *BehaviorEvent) { e.ClientEventID = "" }, wantErr: "client_event_id"},
+		{name: "schema required", mutate: func(e *BehaviorEvent) { e.SchemaVersion = 1 }, wantErr: "schema_version"},
+		{name: "exposure request required", mutate: func(e *BehaviorEvent) { e.RequestID = "" }, wantErr: "request_id"},
+		{name: "exposure position required", mutate: func(e *BehaviorEvent) { e.Position = nil }, wantErr: "position"},
+		{name: "duration rejected for like", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionLike; e.DurationMs = int64Ptr(10) }, wantErr: "not allowed"},
+		{name: "duration required for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell }, wantErr: "duration_ms is required"},
+		{name: "duration accepted for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell; e.DurationMs = int64Ptr(1000) }},
 	}
-	assert.NoError(t, e.Validate())
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := validBehaviorEvent()
+			if tt.mutate != nil {
+				tt.mutate(&e)
+			}
+			err := e.Validate()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
 }
 
-func TestBehaviorEvent_Validate_MissingUserID(t *testing.T) {
-	e := BehaviorEvent{EventID: 1, Action: "like", TargetID: 100, TargetType: "post"}
-	assert.ErrorContains(t, e.Validate(), "user_id")
+func TestDeterministicBehaviorEventID(t *testing.T) {
+	first := DeterministicBehaviorEventID("client-1")
+	assert.Positive(t, first)
+	assert.Equal(t, first, DeterministicBehaviorEventID("client-1"))
+	assert.NotEqual(t, first, DeterministicBehaviorEventID("client-2"))
 }
 
-func TestBehaviorEvent_Validate_MissingAction(t *testing.T) {
-	e := BehaviorEvent{EventID: 1, UserID: 42, TargetID: 100, TargetType: "post"}
-	assert.ErrorContains(t, e.Validate(), "action")
-}
-
-func TestBehaviorEvent_Validate_MissingTargetID(t *testing.T) {
-	e := BehaviorEvent{EventID: 1, UserID: 42, Action: "like", TargetType: "post"}
-	assert.ErrorContains(t, e.Validate(), "target_id")
-}
-
-func TestBehaviorEvent_Validate_MissingTargetType(t *testing.T) {
-	e := BehaviorEvent{EventID: 1, UserID: 42, Action: "like", TargetID: 100}
-	assert.ErrorContains(t, e.Validate(), "target_type")
-}
-
-func TestBehaviorEvent_EventIDString(t *testing.T) {
-	e := BehaviorEvent{EventID: 123456789}
-	assert.Equal(t, "123456789", e.EventIDString())
+func TestBehaviorEventEventIDString(t *testing.T) {
+	assert.Equal(t, "123456789", BehaviorEvent{EventID: 123456789}.EventIDString())
 }
 
 func FuzzBehaviorEventJSONNeverPanics(f *testing.F) {
-	for _, seed := range []string{
-		`{}`,
-		`{"user_id":1,"action":"view","target_id":2,"target_type":"post"}`,
-		`null`,
-		`{"user_id":"wrong-type"}`,
-	} {
+	for _, seed := range []string{`{}`, `null`, `{"user_id":"wrong-type"}`} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, payload string) {
-		var event BehaviorEvent
-		if json.Unmarshal([]byte(payload), &event) == nil {
-			_ = event.Validate()
+		var behavior BehaviorEvent
+		if json.Unmarshal([]byte(payload), &behavior) == nil {
+			_ = behavior.Validate()
 		}
 	})
 }

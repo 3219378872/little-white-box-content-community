@@ -7,7 +7,6 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/pkg/event"
 	"mqx"
 	"strings"
@@ -88,33 +87,17 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		tagIds = append(tagIds, tid)
 	}
 
-	factory := l.svcCtx.PostCreateMsgFactory
-	if factory == nil {
-		l.Errorw("PostCreateMsgFactory is nil")
+	if l.svcCtx.PostCommandModel == nil {
+		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	gid := factory.NewGID()
-	msg := factory.NewPostCreateMsg(gid)
 	createdAt := time.Now().UnixMilli()
-	fanoutAction := l.svcCtx.Config.FeedBusiServer + "/feed.FeedService/FanoutPost"
-	queryPrepared := l.svcCtx.Config.ContentBusiServer + "/content.ContentService/QueryPrepared"
-	msg.Add(fanoutAction, &feedpb.FanoutPostReq{AuthorId: in.AuthorId, PostId: id, CreatedAt: createdAt})
-	if err = msg.DoAndSubmitDB(queryPrepared, func(tx *sql.Tx) error {
-		if err := l.svcCtx.PostModel.InsertPostTx(l.ctx, tx, post); err != nil {
-			return err
-		}
-		return l.svcCtx.PostTagModel.BatchInsertTagsByPostIdTx(l.ctx, tx, id, validTags, tagIds)
-	}); err != nil {
-		l.Errorw("DTM post creation message failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
 	bodyExcerpt := in.GetContent()
 	if len(bodyExcerpt) > 256 {
 		bodyExcerpt = bodyExcerpt[:256]
 	}
-	publishPostEvent(l.ctx, l.svcCtx.MQProducer, mqx.TopicPostCreate, event.PostEvent{
+	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostCreate, event.PostEvent{
 		EventTime:   createdAt,
 		Type:        event.PostEventCreated,
 		PostID:      id,
@@ -123,6 +106,17 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		BodyExcerpt: bodyExcerpt,
 		Tags:        validTags,
 	})
+	if err != nil {
+		l.Errorw("build post-created event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent); err != nil {
+		l.Errorw("create post transaction failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, id); err != nil {
+		l.Errorw("invalidate post cache after create failed", logx.Field("postId", id), logx.Field("err", err.Error()))
+	}
 
 	return &pb.CreatePostResp{
 		PostId: id,

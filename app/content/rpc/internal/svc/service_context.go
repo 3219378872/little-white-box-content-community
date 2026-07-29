@@ -3,24 +3,20 @@ package svc
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"esx/app/content/rpc/internal/config"
 	model2 "esx/app/content/rpc/internal/model"
+	"esx/pkg/outboxx"
 	"fmt"
 	"mqx"
 	"os"
 	"strconv"
-	"strings"
 	"util"
 
-	"github.com/apache/rocketmq-client-go/v2/primitive"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
-
-type MQProducer interface {
-	SendSyncWithTag(ctx context.Context, topic, tag string, body []byte) (*primitive.SendResult, error)
-}
 
 type ServiceContext struct {
 	Config               config.Config
@@ -28,18 +24,17 @@ type ServiceContext struct {
 	Conn                 sqlx.SqlConn
 	PostModel            model2.PostModel
 	CommentModel         model2.CommentModel
+	CommentCommandModel  model2.CommentCommandModel
 	TagModel             model2.TagModel
 	PostTagModel         model2.PostTagModel
-	MQProducer           MQProducer
+	PostCommandModel     model2.PostCommandModel
+	OutboxStore          *outboxx.SQLStore
+	OutboxRelay          *outboxx.Relay
+	MQProducer           *mqx.Producer
 	PostCreateMsgFactory PostCreateMsgFactory
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	if err := validateDTMConfig(c); err != nil {
-		panic(err)
-	}
-	configureDTMBarrierTable()
-
 	db, err := sql.Open("mysql", c.DataSource)
 	if err != nil {
 		panic(fmt.Sprintf("数据库连接失败: %v", err))
@@ -80,40 +75,61 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		},
 	}
 
-	var producer MQProducer
+	var producer *mqx.Producer
 	if c.MQ.NameServer != "" {
 		producer, err = mqx.NewProducer(c.MQ)
 		if err != nil {
 			panic(fmt.Errorf("RocketMQ producer 初始化失败: %w", err))
 		}
 	}
+	outboxStore := outboxx.NewSQLStore(conn)
+	var outboxRelay *outboxx.Relay
+	if producer != nil {
+		outboxRelay, err = outboxx.NewRelay(outboxStore, outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
+			_, publishErr := producer.Send(ctx, mqx.Message{
+				Topic: record.Topic, Tag: record.Tag, Key: record.Key, Body: record.Payload,
+			})
+			return publishErr
+		}), c.Outbox.RelayConfig("content"))
+		if err != nil {
+			panic(fmt.Errorf("content outbox relay initialization failed: %w", err))
+		}
+	}
+	postModel := model2.NewPostModel(conn, cacheConf)
 
 	return &ServiceContext{
-		Config:               c,
-		DB:                   db,
-		Conn:                 conn,
-		PostModel:            model2.NewPostModel(conn, cacheConf),
-		CommentModel:         model2.NewCommentModel(conn, cacheConf),
-		TagModel:             model2.NewTagModel(conn, cacheConf),
-		PostTagModel:         model2.NewPostTagModel(conn, cacheConf),
-		MQProducer:           producer,
-		PostCreateMsgFactory: DTMPostCreateMsgFactory{DtmServer: c.DtmServer, DB: db},
+		Config:              c,
+		DB:                  db,
+		Conn:                conn,
+		PostModel:           postModel,
+		CommentModel:        model2.NewCommentModel(conn, cacheConf),
+		CommentCommandModel: model2.NewCommentCommandModel(conn, outboxStore),
+		TagModel:            model2.NewTagModel(conn, cacheConf),
+		PostTagModel:        model2.NewPostTagModel(conn, cacheConf),
+		PostCommandModel:    model2.NewPostCommandModel(conn, outboxStore),
+		OutboxStore:         outboxStore,
+		OutboxRelay:         outboxRelay,
+		MQProducer:          producer,
 	}
 }
 
-func validateDTMConfig(c config.Config) error {
-	missing := make([]string, 0, 3)
-	if c.DtmServer == "" {
-		missing = append(missing, "DtmServer")
+func (s *ServiceContext) RunOutboxRelay(ctx context.Context) error {
+	if s == nil || s.OutboxRelay == nil {
+		return nil
 	}
-	if c.ContentBusiServer == "" {
-		missing = append(missing, "ContentBusiServer")
+	return s.OutboxRelay.Run(ctx)
+}
+
+func (s *ServiceContext) Close() error {
+	if s == nil {
+		return nil
 	}
-	if c.FeedBusiServer == "" {
-		missing = append(missing, "FeedBusiServer")
+	var closeErrors []error
+	if s.MQProducer != nil {
+		closeErrors = append(closeErrors, s.MQProducer.Shutdown())
 	}
-	if len(missing) > 0 {
-		return fmt.Errorf("missing DTM content config: %s", strings.Join(missing, ", "))
+	if s.DB != nil {
+		closeErrors = append(closeErrors, s.DB.Close())
 	}
-	return nil
+	return errors.Join(closeErrors...)
 }

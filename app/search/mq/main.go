@@ -20,8 +20,12 @@ func main() {
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
+	c.MustSetUp()
 
-	svcCtx := svc.NewServiceContext(c)
+	svcCtx, err := svc.NewServiceContext(c)
+	if err != nil {
+		logx.Must(err)
+	}
 
 	searchConsumer, err := mqs.NewSearchConsumer(svcCtx)
 	if err != nil {
@@ -32,6 +36,6 @@ func main() {
 	}
 	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "search consumer", searchConsumer.Shutdown)
 
-	fmt.Println("Search MQ consumer started, subscribing search-index...")
+	fmt.Println("Search MQ consumer started, subscribing post lifecycle topics...")
 	select {}
 }

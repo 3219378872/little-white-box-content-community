@@ -3,6 +3,35 @@
 
 package types
 
+type AssistantSourceReference struct {
+	SourceType string `json:"sourceType"`
+	SourceId   string `json:"sourceId"`
+	Title      string `json:"title"`
+}
+
+type BehaviorEvent struct {
+	ClientEventId string `json:"clientEventId"`
+	OccurredAt    int64  `json:"occurredAt"`
+	Action        string `json:"action"`
+	TargetId      int64  `json:"targetId"`
+	TargetType    string `json:"targetType"`
+	Scene         string `json:"scene,optional"`
+	RequestId     string `json:"requestId,optional"`
+	Position      *int32 `json:"position,optional"`
+	DurationMs    *int64 `json:"durationMs,optional"`
+	RecallSource  string `json:"recallSource,optional"`
+	ModelVersion  string `json:"modelVersion,optional"`
+	ExperimentId  string `json:"experimentId,optional"`
+}
+
+type BehaviorEventResult struct {
+	ClientEventId string `json:"clientEventId"`
+	EventId       int64  `json:"eventId"`
+	Accepted      bool   `json:"accepted"`
+	Code          int32  `json:"code"`
+	Reason        string `json:"reason"`
+}
+
 type CommentItem struct {
 	Id          int64  `json:"id"`
 	UserId      int64  `json:"userId"`
@@ -15,17 +44,39 @@ type CommentItem struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
-type GetUserFavoritesReq struct {
-	UserId   int64 `path:"userId"`
-	Page     int32 `form:"page,default=1"`
-	PageSize int32 `form:"pageSize,default=20"`
+type ConversationItem struct {
+	Id               int64  `json:"id"`
+	TargetUserId     int64  `json:"targetUserId"`
+	TargetUserName   string `json:"targetUserName"`
+	TargetUserAvatar string `json:"targetUserAvatar"`
+	LastMessage      string `json:"lastMessage"`
+	LastMessageTime  int64  `json:"lastMessageTime"`
+	UnreadCount      int32  `json:"unreadCount"`
 }
 
-type GetUserPostsReq struct {
-	UserId   int64 `path:"userId"`
-	Page     int32 `form:"page,default=1"`
-	PageSize int32 `form:"pageSize,default=20"`
-	SortBy   int32 `form:"sortBy,optional,default=1"`
+type FeedItem struct {
+	PostId        int64    `json:"postId"`
+	AuthorId      int64    `json:"authorId"`
+	AuthorName    string   `json:"authorName"`
+	AuthorAvatar  string   `json:"authorAvatar"`
+	CreatedAt     int64    `json:"createdAt"`
+	FeedType      int32    `json:"feedType"`
+	Title         string   `json:"title"`
+	Content       string   `json:"content"`
+	Images        []string `json:"images"`
+	Tags          []string `json:"tags"`
+	ViewCount     int64    `json:"viewCount"`
+	LikeCount     int64    `json:"likeCount"`
+	CommentCount  int64    `json:"commentCount"`
+	FavoriteCount int64    `json:"favoriteCount"`
+	IsLiked       bool     `json:"isLiked"`
+}
+
+type GetPostListResp struct {
+	List     []PostItem `json:"list"`
+	Total    int64      `json:"total"`
+	Page     int32      `json:"page"`
+	PageSize int32      `json:"pageSize"`
 }
 
 type HealthReq struct {
@@ -33,6 +84,17 @@ type HealthReq struct {
 
 type HealthResp struct {
 	Status string `json:"status"`
+}
+
+type MessageItem struct {
+	Id             int64  `json:"id"`
+	ConversationId int64  `json:"conversationId"`
+	SenderId       int64  `json:"senderId"`
+	ReceiverId     int64  `json:"receiverId"`
+	Content        string `json:"content"`
+	MsgType        int32  `json:"msgType"`
+	Status         int32  `json:"status"`
+	CreatedAt      int64  `json:"createdAt"`
 }
 
 type PostItem struct {
@@ -51,4 +113,52 @@ type PostItem struct {
 	IsLiked       bool     `json:"isLiked"`
 	IsFavorited   bool     `json:"isFavorited"`
 	CreatedAt     int64    `json:"createdAt"`
+}
+
+type RecommendFeedItem struct {
+	PostId        int64    `json:"postId"`
+	AuthorId      int64    `json:"authorId"`
+	AuthorName    string   `json:"authorName"`
+	AuthorAvatar  string   `json:"authorAvatar"`
+	CreatedAt     int64    `json:"createdAt"`
+	FeedType      int32    `json:"feedType"`
+	Title         string   `json:"title"`
+	Content       string   `json:"content"`
+	Images        []string `json:"images"`
+	Tags          []string `json:"tags"`
+	ViewCount     int64    `json:"viewCount"`
+	LikeCount     int64    `json:"likeCount"`
+	CommentCount  int64    `json:"commentCount"`
+	FavoriteCount int64    `json:"favoriteCount"`
+	IsLiked       bool     `json:"isLiked"`
+	Score         float64  `json:"score"`
+	Reason        string   `json:"reason"`
+	RecallSource  string   `json:"recallSource"`
+	ModelVersion  string   `json:"modelVersion"`
+	ExperimentId  string   `json:"experimentId"`
+	Position      int32    `json:"position"`
+}
+
+type SearchPostItem struct {
+	Id               int64  `json:"id"`
+	Title            string `json:"title"`
+	ContentHighlight string `json:"contentHighlight"`
+	AuthorName       string `json:"authorName"`
+	LikeCount        int64  `json:"likeCount"`
+	CommentCount     int64  `json:"commentCount"`
+	CreatedAt        int64  `json:"createdAt"`
+}
+
+type SearchTagItem struct {
+	Name      string `json:"name"`
+	PostCount int64  `json:"postCount"`
+}
+
+type SearchUserItem struct {
+	Id            int64  `json:"id"`
+	Username      string `json:"username"`
+	Nickname      string `json:"nickname"`
+	AvatarUrl     string `json:"avatarUrl"`
+	Bio           string `json:"bio"`
+	FollowerCount int64  `json:"followerCount"`
 }

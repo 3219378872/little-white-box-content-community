@@ -50,20 +50,22 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
 
-	if err = l.svcCtx.CommentModel.UpdateStatus(l.ctx, comment.Id, 0); err != nil {
-		l.Errorw("CommentModel.UpdateStatus failed",
+	if l.svcCtx.CommentCommandModel == nil {
+		l.Errorw("CommentCommandModel is nil")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.CommentCommandModel.DeleteComment(l.ctx, comment.Id, comment.PostId); err != nil {
+		l.Errorw("delete comment transaction failed",
 			logx.Field("commentId", comment.Id),
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	// 原子递减评论数，避免并发更新丢失
-	if err = l.svcCtx.PostModel.DecrCommentCount(l.ctx, comment.PostId); err != nil {
-		l.Errorw("PostModel.DecrCommentCount failed",
-			logx.Field("postId", comment.PostId),
-			logx.Field("err", err.Error()),
-		)
+	if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, comment.Id); err != nil {
+		l.Errorw("invalidate comment cache after delete failed", logx.Field("err", err.Error()))
+	}
+	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, comment.PostId); err != nil {
+		l.Errorw("invalidate post cache after comment delete failed", logx.Field("err", err.Error()))
 	}
 
 	return &pb.DeleteCommentResp{}, nil

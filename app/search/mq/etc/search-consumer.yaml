@@ -1,9 +1,16 @@
+Name: search-index-consumer
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9133
+  Path: /metrics
+
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "search-service-group"
   Topic: "post-create"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
 
 ES:
   Addresses:
@@ -11,3 +18,13 @@ ES:
   Index: "xbh_posts"
   Username: "${ES_USERNAME}"
   Password: "${ES_PASSWORD}"
+
+ContentRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: content.rpc
+
+Rebuild:
+  PageSize: 50
+  TimeoutSeconds: 900

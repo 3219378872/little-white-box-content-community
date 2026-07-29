@@ -8,3 +8,4 @@ MQ:
   Topic: "message-push"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8

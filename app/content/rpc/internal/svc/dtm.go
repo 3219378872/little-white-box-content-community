@@ -2,6 +2,10 @@ package svc
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
+
+	"esx/app/content/rpc/internal/config"
 
 	"github.com/dtm-labs/dtm/client/dtmcli"
 	"github.com/dtm-labs/dtm/client/dtmgrpc"
@@ -51,4 +55,23 @@ func (m dtmPostCreateMsg) DoAndSubmitDB(queryPrepared string, fn func(*sql.Tx) e
 
 func configureDTMBarrierTable() {
 	dtmcli.SetBarrierTableName(barrierTableName)
+}
+
+// validateDTMConfig remains for the legacy QueryPrepared compatibility RPC.
+// Post creation no longer depends on these addresses.
+func validateDTMConfig(c config.Config) error {
+	missing := make([]string, 0, 3)
+	if c.DtmServer == "" {
+		missing = append(missing, "DtmServer")
+	}
+	if c.ContentBusiServer == "" {
+		missing = append(missing, "ContentBusiServer")
+	}
+	if c.FeedBusiServer == "" {
+		missing = append(missing, "FeedBusiServer")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing DTM content config: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }

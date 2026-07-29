@@ -5,6 +5,11 @@ Etcd:
     - 127.0.0.1:2379
   Key: message.rpc
 DataSource: "${DB_MESSAGE}"
+UserRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: user.rpc
 Redis:
   Host: 127.0.0.1:6379
   Pass: "${REDIS_PASS}"
@@ -16,3 +21,4 @@ MQ:
   ConsumeOrder: false
   Topic: "message-push"
   Tag: "default"
+  MaxReconsumeTimes: 8

@@ -3,13 +3,10 @@ package logic
 import (
 	"context"
 	"fmt"
-	"hash/fnv"
-	"math"
 	"time"
 
 	"esx/pkg/event"
 	"mqx"
-	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -57,9 +54,9 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 	eventID := e.EventIDString()
 	dup, err := r.dedup.IsDuplicate(ctx, eventID)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("behavior-log: dedup check failed, falling through",
-			logx.Field("event_id", e.EventID), logx.Field("err", err.Error()))
-	} else if dup {
+		return fmt.Errorf("behavior-log: dedup check: %w", err)
+	}
+	if dup {
 		logx.WithContext(ctx).Infow("behavior-log: duplicate event skipped",
 			logx.Field("event_id", e.EventID))
 		return nil
@@ -70,8 +67,7 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 	}
 
 	if err := r.dedup.MarkProcessed(ctx, eventID); err != nil {
-		logx.WithContext(ctx).Errorw("behavior-log: mark processed failed",
-			logx.Field("event_id", e.EventID), logx.Field("err", err.Error()))
+		return fmt.Errorf("behavior-log: mark processed: %w", err)
 	}
 
 	logx.WithContext(ctx).Infow("behavior-log: event recorded",
@@ -82,38 +78,13 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 }
 
 func normalizeBehaviorEvent(e event.BehaviorEvent, meta MessageMeta) (event.BehaviorEvent, error) {
-	if e.EventID == 0 {
-		id, err := eventIDFromMeta(meta)
-		if err != nil {
-			return event.BehaviorEvent{}, err
-		}
-		e.EventID = id
+	if e.EventID == 0 && e.ClientEventID != "" {
+		e.EventID = event.DeterministicBehaviorEventID(e.ClientEventID)
 	}
-
-	if e.EventTime == 0 {
-		e.EventTime = eventTimeFromMeta(meta)
+	if e.ReceivedAt == 0 {
+		e.ReceivedAt = eventTimeFromMeta(meta)
 	}
-
 	return e, nil
-}
-
-func eventIDFromMeta(meta MessageMeta) (int64, error) {
-	stableID := meta.MsgID
-	if stableID == "" {
-		stableID = meta.OffsetMsgID
-	}
-	if stableID != "" {
-		h := fnv.New64a()
-		if _, err := h.Write([]byte(stableID)); err != nil {
-			return 0, err
-		}
-		id := int64(h.Sum64() & math.MaxInt64)
-		if id > 0 {
-			return id, nil
-		}
-	}
-
-	return util.NextID()
 }
 
 func eventTimeFromMeta(meta MessageMeta) int64 {

@@ -20,6 +20,7 @@ func main() {
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
+	c.MustSetUp()
 
 	svcCtx := svc.NewServiceContext(c)
 

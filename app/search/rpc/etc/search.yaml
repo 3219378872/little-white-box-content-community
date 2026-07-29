@@ -1,0 +1,25 @@
+Name: search.rpc
+ListenOn: 0.0.0.0:9022
+Health: true
+DevServer:
+  Enabled: true
+  Host: 0.0.0.0
+  Port: 9122
+  EnableMetrics: true
+  EnablePprof: false
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: search.rpc
+ES:
+  Addresses:
+    - "${ES_ADDRESS}"
+  Index: xbh_posts
+  Username: "${ES_USERNAME}"
+  Password: "${ES_PASSWORD}"
+  StartupTimeoutMillis: 10000
+UserRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: user.rpc

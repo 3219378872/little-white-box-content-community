@@ -20,11 +20,18 @@ ContentRpc:
     Hosts:
       - 127.0.0.1:2379
     Key: content.rpc
+RecommendRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: recommend.rpc
+CursorSecret: "${FEED_CURSOR_SECRET}"
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "feed-service-group"
   Topic: 'post-create'
   Tag: 'default'
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
 BigVThreshold: 10000
 FanoutBatchSize: 500

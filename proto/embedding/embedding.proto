@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package embedding;
+option go_package = "xiaobaihe/embedding/pb";
+
+service EmbeddingService {
+  rpc Embed(EmbedReq) returns (EmbedResp);
+  rpc EmbedBatch(EmbedBatchReq) returns (EmbedBatchResp);
+  rpc Health(EmbeddingHealthReq) returns (EmbeddingHealthResp);
+}
+
+message EmbedReq {
+  string text = 1;
+}
+
+message EmbedResp {
+  repeated float vector = 1;
+  string model_version = 2;
+  int32 dimension = 3;
+}
+
+message EmbedBatchReq {
+  repeated string texts = 1;
+}
+
+message EmbedBatchItem {
+  repeated float vector = 1;
+}
+
+message EmbedBatchResp {
+  repeated EmbedBatchItem items = 1;
+  string model_version = 2;
+  int32 dimension = 3;
+}
+
+message EmbeddingHealthReq {}
+
+message EmbeddingHealthResp {
+  bool ready = 1;
+  string model_version = 2;
+  int32 dimension = 3;
+}

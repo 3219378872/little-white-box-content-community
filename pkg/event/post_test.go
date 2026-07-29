@@ -122,7 +122,10 @@ func TestInteractionEvent_ToBehaviorEvent(t *testing.T) {
 	assert.Equal(t, "favorite", be.Action)
 	assert.Equal(t, int64(100), be.TargetID)
 	assert.Equal(t, "post", be.TargetType)
-	assert.Equal(t, int32(500), be.Duration)
+	assert.Nil(t, be.DurationMs)
+	assert.Equal(t, BehaviorSchemaVersion, be.SchemaVersion)
+	assert.Equal(t, "business-1", be.ClientEventID)
+	assert.Equal(t, "business-outbox", be.Producer)
 	assert.Equal(t, "discover", be.Scene)
 	assert.Equal(t, "1.1.1.1", be.ClientIP)
 }

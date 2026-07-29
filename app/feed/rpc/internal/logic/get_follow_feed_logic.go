@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"errx"
-	"esx/app/content/rpc/contentservice"
+	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"user/userservice"
@@ -29,7 +29,7 @@ func NewGetFollowFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 }
 
 func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFollowFeedResp, error) {
-	if in.UserId <= 0 || in.PageSize <= 0 {
+	if in == nil || in.UserId <= 0 || in.PageSize <= 0 || in.PageSize > maxFeedPageSize {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	cursorCreatedAt := in.CursorCreatedAt
@@ -53,57 +53,81 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 		l.Errorw("UserService.GetFollowing failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	if followingResp == nil {
+		l.Error("UserService.GetFollowing returned a nil response")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	authorIDs := make([]int64, 0, len(followingResp.Users))
 	for _, user := range followingResp.Users {
-		if user.Id > 0 {
+		if user != nil && user.Id > 0 {
 			authorIDs = append(authorIDs, user.Id)
 		}
 	}
 
-	outboxRows, err := l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs, cursorCreatedAt, cursorPostID, limit)
-	if err != nil {
-		l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
-	itemsByPostID := make(map[int64]*pb.FeedItem, len(inboxRows)+len(outboxRows))
-	for _, row := range inboxRows {
-		itemsByPostID[row.PostId] = &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: 1}
-	}
-	for _, row := range outboxRows {
-		itemsByPostID[row.PostId] = &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: 1}
-	}
-	items := make([]*pb.FeedItem, 0, len(itemsByPostID))
-	for _, item := range itemsByPostID {
-		items = append(items, item)
-	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].CreatedAt == items[j].CreatedAt {
-			return items[i].PostId > items[j].PostId
-		}
-		return items[i].CreatedAt > items[j].CreatedAt
-	})
-
-	postIDs := make([]int64, 0, len(items))
-	for _, item := range items {
-		postIDs = append(postIDs, item.PostId)
-	}
-	if len(postIDs) > 0 {
-		if _, err := l.svcCtx.ContentService.GetPostsByIds(l.ctx, &contentservice.GetPostsByIdsReq{PostIds: postIDs}); err != nil {
-			l.Errorw("ContentService.GetPostsByIds failed", logx.Field("err", err.Error()))
+	var outboxRows []*model.FeedOutbox
+	if len(authorIDs) > 0 {
+		outboxRows, err = l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs, cursorCreatedAt, cursorPostID, limit)
+		if err != nil {
+			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 	}
 
-	hasMore := len(inboxRows)+len(outboxRows) > int(in.PageSize) || len(items) > int(in.PageSize)
-	if hasMore {
-		items = items[:in.PageSize]
+	itemsByPostID := make(map[int64]*pb.FeedItem, len(inboxRows)+len(outboxRows))
+	for _, row := range inboxRows {
+		if row == nil || row.PostId <= 0 {
+			continue
+		}
+		itemsByPostID[row.PostId] = &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: feedTypeFollow}
 	}
+	for _, row := range outboxRows {
+		if row == nil || row.PostId <= 0 {
+			continue
+		}
+		candidate := &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: feedTypeFollow}
+		if existing := itemsByPostID[row.PostId]; existing == nil || candidate.CreatedAt > existing.CreatedAt {
+			itemsByPostID[row.PostId] = candidate
+		}
+	}
+	rawItems := make([]*pb.FeedItem, 0, len(itemsByPostID))
+	for _, item := range itemsByPostID {
+		rawItems = append(rawItems, item)
+	}
+	sort.Slice(rawItems, func(i, j int) bool {
+		if rawItems[i].CreatedAt == rawItems[j].CreatedAt {
+			return rawItems[i].PostId > rawItems[j].PostId
+		}
+		return rawItems[i].CreatedAt > rawItems[j].CreatedAt
+	})
+
+	rendered, err := enrichFeedItems(l.ctx, l.svcCtx.ContentService, rawItems)
+	if err != nil {
+		l.Errorw("ContentService.GetPostsByIds failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	renderedByPostID := make(map[int64]*pb.FeedItem, len(rendered))
+	for _, item := range rendered {
+		renderedByPostID[item.PostId] = item
+	}
+
+	items := make([]*pb.FeedItem, 0, in.PageSize)
+	var lastScanned *pb.FeedItem
+	hasUnscanned := false
+	for _, rawItem := range rawItems {
+		if len(items) == int(in.PageSize) {
+			hasUnscanned = true
+			break
+		}
+		lastScanned = rawItem
+		if item := renderedByPostID[rawItem.PostId]; item != nil {
+			items = append(items, item)
+		}
+	}
+	hasMore := hasUnscanned || len(inboxRows) == int(limit) || len(outboxRows) == int(limit)
 	resp := &pb.GetFollowFeedResp{Items: items, HasMore: hasMore}
-	if len(items) > 0 {
-		last := items[len(items)-1]
-		resp.NextCursorCreatedAt = last.CreatedAt
-		resp.NextCursorPostId = last.PostId
+	if lastScanned != nil {
+		resp.NextCursorCreatedAt = lastScanned.CreatedAt
+		resp.NextCursorPostId = lastScanned.PostId
 	}
 	return resp, nil
 }

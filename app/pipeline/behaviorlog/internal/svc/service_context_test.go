@@ -13,7 +13,7 @@ import (
 
 func TestNewServiceContext_PanicsWithMissingConfigList(t *testing.T) {
 	assert.PanicsWithError(t,
-		"missing behavior-log config: ClickHouseDSN, MQ.NameServer, MQ.GroupName, Redis.Host, BloomBits",
+		"missing behavior-log config: ClickHouseDSN, MQ.NameServer, MQ.GroupName, Redis.Host, DedupTTL",
 		func() { NewServiceContext(config.Config{}) })
 }
 
@@ -28,7 +28,7 @@ func TestValidateBehaviorLogConfig_AllowsMinimalRequiredConfig(t *testing.T) {
 			Host: "127.0.0.1:6379",
 			Type: redis.NodeType,
 		},
-		BloomBits: 1024,
+		DedupTTL: 3600,
 	})
 
 	assert.NoError(t, err)
@@ -38,7 +38,7 @@ func TestServiceContextDependencyFieldsUseSvcInterfaces(t *testing.T) {
 	serviceContextType := reflect.TypeOf(ServiceContext{})
 	expectedPkg := reflect.TypeOf((*BehaviorStore)(nil)).Elem().PkgPath()
 
-	for _, name := range []string{"Store", "Dedup"} {
+	for _, name := range []string{"Store", "Dedup", "DeadLetters"} {
 		field, ok := serviceContextType.FieldByName(name)
 		assert.True(t, ok)
 		assert.Equal(t, reflect.Interface, field.Type.Kind())

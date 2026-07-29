@@ -285,6 +285,248 @@ type (
 )
 
 // ============================================
+// v2 行为、Feed、搜索、消息和 Assistant 类型
+// ============================================
+type (
+	BehaviorEvent {
+		ClientEventId string `json:"clientEventId"`
+		OccurredAt    int64  `json:"occurredAt"`
+		Action        string `json:"action"`
+		TargetId      int64  `json:"targetId"`
+		TargetType    string `json:"targetType"`
+		Scene         string `json:"scene,optional"`
+		RequestId     string `json:"requestId,optional"`
+		Position      *int32 `json:"position,optional"`
+		DurationMs    *int64 `json:"durationMs,optional"`
+		RecallSource  string `json:"recallSource,optional"`
+		ModelVersion  string `json:"modelVersion,optional"`
+		ExperimentId  string `json:"experimentId,optional"`
+	}
+	RecordBehaviorEventsReq {
+		AnonymousId string          `json:"anonymousId,optional"`
+		SessionId   string          `json:"sessionId,optional"`
+		Events      []BehaviorEvent `json:"events"`
+	}
+	BehaviorEventResult {
+		ClientEventId string `json:"clientEventId"`
+		EventId       int64  `json:"eventId"`
+		Accepted      bool   `json:"accepted"`
+		Code          int32  `json:"code"`
+		Reason        string `json:"reason"`
+	}
+	RecordBehaviorEventsResp {
+		Results       []BehaviorEventResult `json:"results"`
+		AcceptedCount int32                 `json:"acceptedCount"`
+		RejectedCount int32                 `json:"rejectedCount"`
+	}
+)
+
+type (
+	FeedItem {
+		PostId        int64    `json:"postId"`
+		AuthorId      int64    `json:"authorId"`
+		AuthorName    string   `json:"authorName"`
+		AuthorAvatar  string   `json:"authorAvatar"`
+		CreatedAt     int64    `json:"createdAt"`
+		FeedType      int32    `json:"feedType"`
+		Title         string   `json:"title"`
+		Content       string   `json:"content"`
+		Images        []string `json:"images"`
+		Tags          []string `json:"tags"`
+		ViewCount     int64    `json:"viewCount"`
+		LikeCount     int64    `json:"likeCount"`
+		CommentCount  int64    `json:"commentCount"`
+		FavoriteCount int64    `json:"favoriteCount"`
+		IsLiked       bool     `json:"isLiked"`
+	}
+	GetFollowFeedReq {
+		CursorCreatedAt int64 `form:"cursorCreatedAt,optional"`
+		CursorPostId    int64 `form:"cursorPostId,optional"`
+		PageSize        int32 `form:"pageSize,default=20"`
+	}
+	GetFollowFeedResp {
+		Items               []FeedItem `json:"items"`
+		HasMore             bool       `json:"hasMore"`
+		NextCursorCreatedAt int64      `json:"nextCursorCreatedAt"`
+		NextCursorPostId    int64      `json:"nextCursorPostId"`
+	}
+)
+
+type (
+	GetRecommendFeedReq {
+		AnonymousId  string `form:"anonymousId,optional"`
+		Scene        string `form:"scene,default=home"`
+		RequestId    string `form:"requestId"`
+		SessionId    string `form:"sessionId,optional"`
+		Cursor       string `form:"cursor,optional"`
+		PageSize     int32  `form:"pageSize,default=20"`
+		ExperimentId string `form:"experimentId,optional"`
+	}
+	RecommendFeedItem {
+		PostId        int64    `json:"postId"`
+		AuthorId      int64    `json:"authorId"`
+		AuthorName    string   `json:"authorName"`
+		AuthorAvatar  string   `json:"authorAvatar"`
+		CreatedAt     int64    `json:"createdAt"`
+		FeedType      int32    `json:"feedType"`
+		Title         string   `json:"title"`
+		Content       string   `json:"content"`
+		Images        []string `json:"images"`
+		Tags          []string `json:"tags"`
+		ViewCount     int64    `json:"viewCount"`
+		LikeCount     int64    `json:"likeCount"`
+		CommentCount  int64    `json:"commentCount"`
+		FavoriteCount int64    `json:"favoriteCount"`
+		IsLiked       bool     `json:"isLiked"`
+		Score         float64  `json:"score"`
+		Reason        string   `json:"reason"`
+		RecallSource  string   `json:"recallSource"`
+		ModelVersion  string   `json:"modelVersion"`
+		ExperimentId  string   `json:"experimentId"`
+		Position      int32    `json:"position"`
+	}
+	GetRecommendFeedResp {
+		Items      []RecommendFeedItem `json:"items"`
+		NextCursor string              `json:"nextCursor"`
+		HasMore    bool                `json:"hasMore"`
+		RequestId  string              `json:"requestId"`
+	}
+)
+
+type (
+	SearchReq {
+		Keyword  string `form:"keyword"`
+		Page     int32  `form:"page,default=1"`
+		PageSize int32  `form:"pageSize,default=20"`
+	}
+	SearchPostItem {
+		Id               int64  `json:"id"`
+		Title            string `json:"title"`
+		ContentHighlight string `json:"contentHighlight"`
+		AuthorName       string `json:"authorName"`
+		LikeCount        int64  `json:"likeCount"`
+		CommentCount     int64  `json:"commentCount"`
+		CreatedAt        int64  `json:"createdAt"`
+	}
+	SearchUserItem {
+		Id            int64  `json:"id"`
+		Username      string `json:"username"`
+		Nickname      string `json:"nickname"`
+		AvatarUrl     string `json:"avatarUrl"`
+		Bio           string `json:"bio"`
+		FollowerCount int64  `json:"followerCount"`
+	}
+	SearchTagItem {
+		Name      string `json:"name"`
+		PostCount int64  `json:"postCount"`
+	}
+	SearchResp {
+		Posts []SearchPostItem `json:"posts"`
+		Users []SearchUserItem `json:"users"`
+		Tags  []SearchTagItem  `json:"tags"`
+	}
+)
+
+type (
+	SearchUsersReq {
+		Keyword  string `form:"keyword"`
+		Page     int32  `form:"page,default=1"`
+		PageSize int32  `form:"pageSize,default=20"`
+	}
+	SearchUsersResp {
+		Users []SearchUserItem `json:"users"`
+		Total int64            `json:"total"`
+	}
+	SearchTagsReq {
+		Keyword string `form:"keyword"`
+		Limit   int32  `form:"limit,default=20"`
+	}
+	SearchTagsResp {
+		Tags []SearchTagItem `json:"tags"`
+	}
+)
+
+type (
+	GetConversationsReq {
+		Page     int32 `form:"page,default=1"`
+		PageSize int32 `form:"pageSize,default=20"`
+	}
+	ConversationItem {
+		Id               int64  `json:"id"`
+		TargetUserId     int64  `json:"targetUserId"`
+		TargetUserName   string `json:"targetUserName"`
+		TargetUserAvatar string `json:"targetUserAvatar"`
+		LastMessage      string `json:"lastMessage"`
+		LastMessageTime  int64  `json:"lastMessageTime"`
+		UnreadCount      int32  `json:"unreadCount"`
+	}
+	GetConversationsResp {
+		Conversations []ConversationItem `json:"conversations"`
+		Total         int64              `json:"total"`
+	}
+)
+
+type (
+	GetMessagesReq {
+		ConversationId int64 `path:"id"`
+		LastId         int64 `form:"lastId,optional"`
+		PageSize       int32 `form:"pageSize,default=20"`
+	}
+	MessageItem {
+		Id             int64  `json:"id"`
+		ConversationId int64  `json:"conversationId"`
+		SenderId       int64  `json:"senderId"`
+		ReceiverId     int64  `json:"receiverId"`
+		Content        string `json:"content"`
+		MsgType        int32  `json:"msgType"`
+		Status         int32  `json:"status"`
+		CreatedAt      int64  `json:"createdAt"`
+	}
+	GetMessagesResp {
+		Messages []MessageItem `json:"messages"`
+		HasMore  bool          `json:"hasMore"`
+	}
+	SendMessageReq {
+		ReceiverId     int64  `json:"receiverId"`
+		Content        string `json:"content"`
+		MsgType        int32  `json:"msgType"`
+		IdempotencyKey string `json:"idempotencyKey"`
+	}
+	SendMessageResp {
+		MessageId int64 `json:"messageId"`
+	}
+	MarkConversationReadReq {
+		ConversationId int64 `path:"id"`
+	}
+	MarkConversationReadResp  {}
+	GetUnreadSummaryResp {
+		MessageUnread      int32 `json:"messageUnread"`
+		NotificationUnread int32 `json:"notificationUnread"`
+	}
+)
+
+type (
+	AssistantChatReq {
+		ConversationId string `json:"conversationId,optional"`
+		Message        string `json:"message"`
+		RequestId      string `json:"requestId,optional"`
+	}
+	AssistantSourceReference {
+		SourceType string `json:"sourceType"`
+		SourceId   string `json:"sourceId"`
+		Title      string `json:"title"`
+	}
+	AssistantChatEvent {
+		Type           string                    `json:"type"`
+		Text           string                    `json:"text,optional"`
+		Source         *AssistantSourceReference `json:"source,optional"`
+		Degraded       bool                      `json:"degraded,optional"`
+		ErrorCode      string                    `json:"errorCode,optional"`
+		ConversationId string                    `json:"conversationId"`
+	}
+)
+
+// ============================================
 // 健康检查
 // ============================================
 type (
@@ -446,5 +688,95 @@ service gateway {
 	@doc "上传图片"
 	@handler UploadImage
 	post /media/image (UploadImageReq) returns (UploadImageResp)
+}
+
+@server (
+	prefix:     /api/v2
+	group:      behavior
+	middleware: OptionalAuth,BehaviorAccepted
+)
+service gateway {
+	@doc "批量记录客户端行为"
+	@handler RecordBehaviorEvents
+	post /behavior/events (RecordBehaviorEventsReq) returns (RecordBehaviorEventsResp)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  feed
+)
+service gateway {
+	@doc "获取关注流"
+	@handler GetFollowFeed
+	get /feed/follow (GetFollowFeedReq) returns (GetFollowFeedResp)
+}
+
+@server (
+	prefix:     /api/v2
+	group:      feed
+	middleware: OptionalAuth
+)
+service gateway {
+	@doc "获取推荐流"
+	@handler GetRecommendFeed
+	get /feed/recommend (GetRecommendFeedReq) returns (GetRecommendFeedResp)
+}
+
+@server (
+	prefix: /api/v2
+	group:  search
+)
+service gateway {
+	@doc "综合搜索"
+	@handler Search
+	get /search (SearchReq) returns (SearchResp)
+
+	@doc "搜索用户"
+	@handler SearchUsers
+	get /search/users (SearchUsersReq) returns (SearchUsersResp)
+
+	@doc "搜索标签"
+	@handler SearchTags
+	get /search/tags (SearchTagsReq) returns (SearchTagsResp)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  message
+)
+service gateway {
+	@doc "获取会话列表"
+	@handler GetConversations
+	get /messages/conversations (GetConversationsReq) returns (GetConversationsResp)
+
+	@doc "获取会话消息"
+	@handler GetMessages
+	get /messages/conversations/:id (GetMessagesReq) returns (GetMessagesResp)
+
+	@doc "发送私信"
+	@handler SendMessage
+	post /messages (SendMessageReq) returns (SendMessageResp)
+
+	@doc "标记会话已读"
+	@handler MarkConversationRead
+	post /messages/conversations/:id/read (MarkConversationReadReq) returns (MarkConversationReadResp)
+
+	@doc "获取未读汇总"
+	@handler GetUnreadSummary
+	get /messages/unread returns (GetUnreadSummaryResp)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  assistant
+	sse:    true
+)
+service gateway {
+	@doc "Assistant SSE 对话"
+	@handler AssistantChat
+	post /assistant/chat (AssistantChatReq) returns (AssistantChatEvent)
 }
 

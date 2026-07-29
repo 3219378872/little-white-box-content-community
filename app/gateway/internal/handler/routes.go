@@ -6,11 +6,16 @@ package handler
 import (
 	"net/http"
 
+	assistant "gateway/internal/handler/assistant"
+	behavior "gateway/internal/handler/behavior"
 	comment "gateway/internal/handler/comment"
+	feed "gateway/internal/handler/feed"
 	image "gateway/internal/handler/image"
 	like_favorite "gateway/internal/handler/like_favorite"
 	login "gateway/internal/handler/login"
+	message "gateway/internal/handler/message"
 	posts "gateway/internal/handler/posts"
+	search "gateway/internal/handler/search"
 	user "gateway/internal/handler/user"
 	"gateway/internal/svc"
 
@@ -28,6 +33,35 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				// Assistant SSE 对话
+				Method:  http.MethodPost,
+				Path:    "/assistant/chat",
+				Handler: assistant.AssistantChatHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/api/v2"),
+		rest.WithSSE(),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.OptionalAuth, serverCtx.BehaviorAccepted},
+			[]rest.Route{
+				{
+					// 批量记录客户端行为
+					Method:  http.MethodPost,
+					Path:    "/behavior/events",
+					Handler: behavior.RecordBehaviorEventsHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v2"),
 	)
 
 	server.AddRoutes(
@@ -53,6 +87,34 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				// 获取关注流
+				Method:  http.MethodGet,
+				Path:    "/feed/follow",
+				Handler: feed.GetFollowFeedHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/api/v2"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.OptionalAuth},
+			[]rest.Route{
+				{
+					// 获取推荐流
+					Method:  http.MethodGet,
+					Path:    "/feed/recommend",
+					Handler: feed.GetRecommendFeedHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v2"),
 	)
 
 	server.AddRoutes(
@@ -124,6 +186,43 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
+		[]rest.Route{
+			{
+				// 发送私信
+				Method:  http.MethodPost,
+				Path:    "/messages",
+				Handler: message.SendMessageHandler(serverCtx),
+			},
+			{
+				// 获取会话列表
+				Method:  http.MethodGet,
+				Path:    "/messages/conversations",
+				Handler: message.GetConversationsHandler(serverCtx),
+			},
+			{
+				// 获取会话消息
+				Method:  http.MethodGet,
+				Path:    "/messages/conversations/:id",
+				Handler: message.GetMessagesHandler(serverCtx),
+			},
+			{
+				// 标记会话已读
+				Method:  http.MethodPost,
+				Path:    "/messages/conversations/:id/read",
+				Handler: message.MarkConversationReadHandler(serverCtx),
+			},
+			{
+				// 获取未读汇总
+				Method:  http.MethodGet,
+				Path:    "/messages/unread",
+				Handler: message.GetUnreadSummaryHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/api/v2"),
+	)
+
+	server.AddRoutes(
 		rest.WithMiddlewares(
 			[]rest.Middleware{serverCtx.OptionalAuth},
 			[]rest.Route{
@@ -167,6 +266,30 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				// 综合搜索
+				Method:  http.MethodGet,
+				Path:    "/search",
+				Handler: search.SearchHandler(serverCtx),
+			},
+			{
+				// 搜索标签
+				Method:  http.MethodGet,
+				Path:    "/search/tags",
+				Handler: search.SearchTagsHandler(serverCtx),
+			},
+			{
+				// 搜索用户
+				Method:  http.MethodGet,
+				Path:    "/search/users",
+				Handler: search.SearchUsersHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/v2"),
 	)
 
 	server.AddRoutes(

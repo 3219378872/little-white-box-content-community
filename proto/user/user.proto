@@ -9,6 +9,8 @@ service UserService {
   rpc GetUser(GetUserReq) returns (GetUserResp);
   // 批量获取用户信息
   rpc BatchGetUsers(BatchGetUsersReq) returns (BatchGetUsersResp);
+  // 按公开资料搜索用户
+  rpc SearchUsers(SearchUsersReq) returns (SearchUsersResp);
   // 更新用户资料
   rpc UpdateProfile(UpdateProfileReq) returns (UpdateProfileResp);
   // 关注用户
@@ -63,6 +65,19 @@ message BatchGetUsersReq {
 // 批量获取用户信息响应
 message BatchGetUsersResp {
   repeated UserInfo users = 1;
+}
+
+// 用户资料搜索请求
+message SearchUsersReq {
+  string keyword   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+// 用户资料搜索响应
+message SearchUsersResp {
+  repeated UserInfo users = 1;
+  int64             total = 2;
 }
 
 // 更新用户资料请求

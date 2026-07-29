@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package behavior;
+option go_package = "xiaobaihe/behavior/pb";
+
+// BehaviorService is the only RPC entrypoint for client-generated behavior.
+service BehaviorService {
+  rpc RecordEvents(RecordEventsReq) returns (RecordEventsResp);
+}
+
+message ClientBehaviorEvent {
+  string client_event_id = 1;
+  int64 occurred_at = 2;
+  string action = 3;
+  int64 target_id = 4;
+  string target_type = 5;
+  string scene = 6;
+  string request_id = 7;
+  optional int32 position = 8;
+  optional int64 duration_ms = 9;
+  string recall_source = 10;
+  string model_version = 11;
+  string experiment_id = 12;
+}
+
+message RecordEventsReq {
+  int64 user_id = 1;
+  string anonymous_id = 2;
+  string session_id = 3;
+  repeated ClientBehaviorEvent events = 4;
+  string client_ip = 5;
+  string user_agent = 6;
+  string client_version = 7;
+  string trace_id = 8;
+}
+
+message RecordEventResult {
+  string client_event_id = 1;
+  int64 event_id = 2;
+  bool accepted = 3;
+  int32 code = 4;
+  string reason = 5;
+}
+
+message RecordEventsResp {
+  repeated RecordEventResult results = 1;
+  int32 accepted_count = 2;
+  int32 rejected_count = 3;
+}

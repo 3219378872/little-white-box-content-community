@@ -2,6 +2,7 @@ package mqx
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -10,16 +11,18 @@ import (
 
 // ConsumerConfig 消费者配置
 type ConsumerConfig struct {
-	NameServer   string // NameServer 地址
-	GroupName    string // 消费者组名
-	Topic        string // 订阅 Topic
-	Tag          string // 订阅 Tag
-	ConsumeOrder bool   // 是否顺序消费
+	NameServer        string // NameServer 地址
+	GroupName         string // 消费者组名
+	Topic             string // 订阅 Topic
+	Tag               string // 订阅 Tag
+	ConsumeOrder      bool   // 是否顺序消费
+	MaxReconsumeTimes int32  // 最大重试次数
 }
 
 // Consumer RocketMQ 消费者封装
 type Consumer struct {
-	c rocketmq.PushConsumer
+	c      rocketmq.PushConsumer
+	config ConsumerConfig
 }
 
 // MessageHandler 消息处理函数
@@ -35,18 +38,24 @@ func NewConsumer(config ConsumerConfig) (*Consumer, error) {
 	if config.ConsumeOrder {
 		opts = append(opts, consumer.WithConsumerOrder(true))
 	}
+	if config.MaxReconsumeTimes > 0 {
+		opts = append(opts, consumer.WithMaxReconsumeTimes(config.MaxReconsumeTimes))
+	}
 
 	c, err := rocketmq.NewPushConsumer(opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Consumer{c: c}, nil
+	return &Consumer{c: c, config: config}, nil
 }
 
 // Subscribe 订阅消息
 func (c *Consumer) Subscribe(handler MessageHandler) error {
-	panic("未实现")
+	if c.config.Topic == "" {
+		return fmt.Errorf("mqx: consumer topic is required")
+	}
+	return c.SubscribeWithTopic(c.config.Topic, c.config.Tag, handler)
 }
 
 // SubscribeWithTopic 订阅指定 Topic

@@ -8,6 +8,7 @@ import (
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/event"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -71,20 +72,30 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		comment.ReplyUserId = sql.NullInt64{Int64: in.ReplyUserId, Valid: true}
 	}
 
-	if err = l.svcCtx.CommentModel.InsertComment(l.ctx, comment); err != nil {
-		l.Errorw("CommentModel.InsertComment failed",
+	outboxEvent, err := buildBusinessBehaviorOutbox(event.InteractionEvent{
+		UserID: in.UserId, Action: event.BehaviorActionComment,
+		TargetID: in.PostId, TargetType: "post", Scene: "content",
+	})
+	if err != nil {
+		l.Errorw("build comment behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if l.svcCtx.CommentCommandModel == nil {
+		l.Errorw("CommentCommandModel is nil")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.CommentCommandModel.CreateComment(l.ctx, comment, outboxEvent); err != nil {
+		l.Errorw("create comment transaction failed",
 			logx.Field("postId", in.PostId),
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	// 原子递增评论数；计数服务不可用时降级——评论已落库，不因统计失败回滚
-	if err = l.svcCtx.PostModel.IncrCommentCount(l.ctx, in.PostId); err != nil {
-		l.Errorw("PostModel.IncrCommentCount failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
-		)
+	if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, id); err != nil {
+		l.Errorw("invalidate comment cache after create failed", logx.Field("err", err.Error()))
+	}
+	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, in.PostId); err != nil {
+		l.Errorw("invalidate post cache after comment create failed", logx.Field("err", err.Error()))
 	}
 
 	return &pb.CreateCommentResp{

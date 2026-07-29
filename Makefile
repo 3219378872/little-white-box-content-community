@@ -6,12 +6,26 @@ ARGS ?=
 FUZZ_TIME ?= 20s
 INTEGRATION_PARALLELISM ?= 1
 TEST_JSON_DIR ?=
+PERF_GATEWAY_BASE_URL ?= http://127.0.0.1:8888
+PERF_GATEWAY_CONCURRENCY ?= 8
+PERF_GATEWAY_REQUESTS ?= 20
+PERF_GATEWAY_SCENARIOS ?= behavior,search,feed,gateway,assistant
+SEARCH_REBUILD_CONFIG ?= app/search/mq/etc/search-consumer.yaml
+EMBEDDING_REBUILD_CONFIG ?= app/embedding/mq/etc/embedding-consumer.yaml
+PRODUCTION_ENV_FILE ?=
+PRODUCTION_COMPOSE = docker compose $(if $(PRODUCTION_ENV_FILE),--env-file $(PRODUCTION_ENV_FILE),) \
+	-f deploy/docker-compose.middleware.yml -f deploy/docker-compose.production.yml --profile production
+PRODUCTION_BUILD_ARGS ?= --build-arg HTTP_PROXY --build-arg HTTPS_PROXY \
+	--build-arg NO_PROXY --build-arg ALL_PROXY
 
 export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 
-.PHONY: help fmt-check engineering-lint vet lint check test coverage coverage-target \
+.PHONY: help generate fmt-check engineering-lint vet lint check test coverage coverage-target \
 	coverage-no-gate integration-critical integration-init integration-run \
-	integration-clear integration-all fuzz quality
+	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
+	algorithm-test model-pipeline-integration performance-gateway \
+	fault-injection-recommend production-config production-build \
+	production-up production-down
 
 help: ## Show the available project commands
 	@printf '%s\n' 'Usage: make <target> [ARGS="..."]'
@@ -22,8 +36,11 @@ help: ## Show the available project commands
 		'  make lint ARGS="--timeout 5m"' \
 		'  make fuzz FUZZ_TIME=10s'
 
+generate: ## Regenerate API, protobuf, and RPC code
+	scripts/generate.sh
+
 fmt-check: ## Check formatting of handwritten Go files
-	@unformatted="$$(git ls-files '*.go' | grep -vE '\.pb\.go$$|_grpc\.pb\.go$$|internal/types/types\.go$$|internal/handler/routes\.go$$' | xargs -r gofmt -l)"; \
+	@unformatted="$$(git ls-files --cached --others --exclude-standard '*.go' | grep -vE '\.pb\.go$$|_grpc\.pb\.go$$|internal/types/types\.go$$|internal/handler/routes\.go$$' | while IFS= read -r file; do [[ -f "$$file" ]] && printf '%s\0' "$$file"; done | xargs -0 -r gofmt -l)"; \
 	if [[ -n "$$unformatted" ]]; then \
 		echo 'These files need gofmt:' >&2; \
 		echo "$$unformatted" >&2; \
@@ -72,3 +89,38 @@ fuzz: ## Run bounded native fuzz targets (override FUZZ_TIME as needed)
 	scripts/fuzz.sh
 
 quality: check test ## Run the standard local quality gates
+
+algorithm-test: ## Run dependency-light Python algorithm unit tests
+	python3 -m unittest discover -s algorithm -p 'test*.py' -v
+
+model-pipeline-integration: ## Verify ClickHouse, LightGBM, MinIO, and OnlineInfer end to end
+	algorithm/integration/run.sh
+
+performance-gateway: ## Check live Gateway P95 targets (JWT via PERF_GATEWAY_TOKEN)
+	python3 -m unittest -q scripts/test_gateway_performance.py
+	python3 scripts/gateway_performance.py --base-url "$(PERF_GATEWAY_BASE_URL)" \
+		--scenarios "$(PERF_GATEWAY_SCENARIOS)" --concurrency "$(PERF_GATEWAY_CONCURRENCY)" \
+		--requests "$(PERF_GATEWAY_REQUESTS)" $(ARGS)
+
+fault-injection-recommend: ## Verify OnlineInfer timeout/outage rule fallback
+	go test -race -count=1 -run '^TestGetRecommendPostsFaultInjectionOnlineInfer$$' \
+		./app/recommend/rpc/internal/logic
+
+search-rebuild: ## Rebuild the post search index and atomically promote its alias
+	go run ./app/search/mq/cmd/rebuild -f $(SEARCH_REBUILD_CONFIG)
+
+embedding-rebuild: ## Rebuild post embeddings and atomically promote the Milvus alias
+	go run ./app/embedding/mq/cmd/rebuild -f $(EMBEDDING_REBUILD_CONFIG)
+
+production-config: ## Render and validate the production Compose project
+	$(PRODUCTION_COMPOSE) config --quiet
+
+production-build: ## Build production Go and algorithm service images
+	$(PRODUCTION_COMPOSE) build $(PRODUCTION_BUILD_ARGS)
+
+production-up: ## Start the production-like stack
+	$(PRODUCTION_COMPOSE) build $(PRODUCTION_BUILD_ARGS)
+	$(PRODUCTION_COMPOSE) up -d
+
+production-down: ## Stop the production-like stack without deleting volumes
+	$(PRODUCTION_COMPOSE) down

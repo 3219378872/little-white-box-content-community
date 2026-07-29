@@ -12,3 +12,4 @@ MQ:
   Topic: "media-deleted"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8

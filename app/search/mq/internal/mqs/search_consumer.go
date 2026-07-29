@@ -43,11 +43,13 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logx.WithContext(ctx).Errorw("search-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			searchConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
 			logx.WithContext(ctx).Errorw("search-consumer: invalid event, skipping",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			searchConsumerMessages.Inc("invalid")
 			continue
 		}
 		switch e.Type {
@@ -57,6 +59,7 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 				logx.WithContext(ctx).Errorw("search-consumer: index failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				searchConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 			logx.WithContext(ctx).Infow("search-consumer: document indexed",
@@ -67,11 +70,14 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 				logx.WithContext(ctx).Errorw("search-consumer: delete failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				searchConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 			logx.WithContext(ctx).Infow("search-consumer: document deleted",
 				logx.Field("post_id", e.PostID))
 		}
+		searchConsumerMessages.Inc("processed")
+		observeSearchIndexLag(e.EventTime, time.Now())
 	}
 	return consumer.ConsumeSuccess
 }

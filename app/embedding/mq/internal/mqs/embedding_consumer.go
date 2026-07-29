@@ -43,41 +43,54 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logx.WithContext(ctx).Errorw("embedding-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
 			logx.WithContext(ctx).Errorw("embedding-consumer: invalid event, skipping",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
 			text := e.Title + "\n" + e.BodyExcerpt
-			vec, err := emb.Embed(ctx, text)
+			result, err := emb.Embed(ctx, text)
 			if err != nil {
 				logx.WithContext(ctx).Errorw("embedding-consumer: embed failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
-			if err := vs.Upsert(ctx, e.PostID, vec); err != nil {
+			if err := vs.Upsert(ctx, vectorstore.Record{
+				PostID:       e.PostID,
+				Vector:       result.Vector,
+				ModelVersion: result.ModelVersion,
+				Dimension:    result.Dimension,
+			}); err != nil {
 				logx.WithContext(ctx).Errorw("embedding-consumer: upsert failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 			logx.WithContext(ctx).Infow("embedding-consumer: vector upserted",
-				logx.Field("post_id", e.PostID), logx.Field("type", string(e.Type)))
+				logx.Field("post_id", e.PostID), logx.Field("type", string(e.Type)),
+				logx.Field("model_version", result.ModelVersion), logx.Field("dimension", result.Dimension))
 		case event.PostEventDeleted:
 			if err := vs.Delete(ctx, e.PostID); err != nil {
 				logx.WithContext(ctx).Errorw("embedding-consumer: delete failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 			logx.WithContext(ctx).Infow("embedding-consumer: vector deleted",
 				logx.Field("post_id", e.PostID))
 		}
+		embeddingConsumerMessages.Inc("processed")
+		observeEmbeddingIndexLag(e.EventTime, time.Now())
 	}
 	return consumer.ConsumeSuccess
 }

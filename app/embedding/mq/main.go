@@ -4,6 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"cleanupx"
 	"esx/app/embedding/mq/internal/config"
@@ -20,8 +24,16 @@ func main() {
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
+	c.MustSetUp()
 
-	svcCtx := svc.NewServiceContext(c)
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), time.Duration(c.StartupTimeoutMs)*time.Millisecond)
+	defer startupCancel()
+	svcCtx, err := svc.NewServiceContext(startupCtx, c)
+	if err != nil {
+		logx.Must(err)
+	}
+	logger := logx.WithContext(context.Background())
+	defer cleanupx.Shutdown(logger, "embedding dependencies", svcCtx.Close)
 
 	embeddingConsumer, err := mqs.NewEmbeddingConsumer(svcCtx)
 	if err != nil {
@@ -30,8 +42,10 @@ func main() {
 	if err := embeddingConsumer.Start(); err != nil {
 		logx.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "embedding consumer", embeddingConsumer.Shutdown)
+	defer cleanupx.Shutdown(logger, "embedding consumer", embeddingConsumer.Shutdown)
 
+	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	fmt.Println("Embedding MQ consumer started, subscribing post-create/update/delete...")
-	select {}
+	<-shutdownCtx.Done()
 }

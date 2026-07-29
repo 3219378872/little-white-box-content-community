@@ -10,6 +10,19 @@ type FollowReq struct {
 type FollowResp struct {
 }
 
+type GetUserFavoritesReq struct {
+	UserId   int64 `path:"userId"`
+	Page     int32 `form:"page,default=1"`
+	PageSize int32 `form:"pageSize,default=20"`
+}
+
+type GetUserPostsReq struct {
+	UserId   int64 `path:"userId"`
+	Page     int32 `form:"page,default=1"`
+	PageSize int32 `form:"pageSize,default=20"`
+	SortBy   int32 `form:"sortBy,optional,default=1"`
+}
+
 type GetUserReq struct {
 	UserId int64 `path:"userId"`
 }

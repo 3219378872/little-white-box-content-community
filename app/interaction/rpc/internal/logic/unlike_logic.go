@@ -43,19 +43,25 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		return nil, errx.NewWithCode(errx.NotLikedYet)
 	}
 
-	result, err := l.svcCtx.LikeRecordModel.UpdateStatusById(l.ctx, record.Id, model.StatusActive, model.StatusInactive)
-	if err != nil {
-		l.Errorw("UpdateStatusById failed", logx.Field("err", err.Error()))
+	if l.svcCtx.InteractionCommands == nil {
+		l.Errorw("unlike command dependency is not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		if l.svcCtx.ActionCountModel != nil {
-			if err := l.svcCtx.ActionCountModel.DecrLikeCount(l.ctx, in.TargetId, int64(in.TargetType)); err != nil {
-				l.Errorw("DecrLikeCount failed", logx.Field("err", err.Error()))
-			}
+	outboxEvent, err := interactionOutboxEvent(
+		in.UserId, in.TargetId, targetTypeName(in.TargetType), "unlike",
+	)
+	if err != nil {
+		l.Errorw("build unlike behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err = l.svcCtx.InteractionCommands.Unlike(
+		l.ctx, record.Id, in.TargetId, int64(in.TargetType), outboxEvent,
+	); err != nil {
+		if errors.Is(err, model.ErrNoStateChange) {
+			return nil, errx.NewWithCode(errx.NotLikedYet)
 		}
+		l.Errorw("unlike transaction failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := l.svcCtx.LikeRecordModel.InvalidateLikeRecordCache(
 		l.ctx, record.Id, in.UserId, in.TargetId, int64(in.TargetType),

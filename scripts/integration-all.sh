@@ -25,3 +25,4 @@ trap 'exit 143' TERM
 
 "$ENV_SCRIPT" init
 "$TEST_RUNNER" --all
+"$ROOT_DIR/algorithm/integration/run.sh"

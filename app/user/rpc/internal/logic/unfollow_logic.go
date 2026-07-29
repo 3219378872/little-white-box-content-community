@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"errx"
+	"esx/pkg/event"
 	"user/internal/model"
 	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
@@ -40,7 +41,16 @@ func (l *UnfollowLogic) Unfollow(in *pb.UnfollowReq) (*pb.UnfollowResp, error) {
 		}
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
-	if err := l.svcCtx.UserFollowModel.Unfollow(l.ctx, in.UserId, in.TargetUserId); err != nil {
+	if l.svcCtx.UserFollowCommands == nil {
+		l.Error("UserFollowCommands is not configured")
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	outboxEvent, err := followOutboxEvent(in.UserId, in.TargetUserId, event.BehaviorActionUnfollow)
+	if err != nil {
+		l.Errorw("build unfollow behavior event failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if err := l.svcCtx.UserFollowCommands.Unfollow(l.ctx, in.UserId, in.TargetUserId, outboxEvent); err != nil {
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 

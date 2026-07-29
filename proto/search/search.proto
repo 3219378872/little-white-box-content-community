@@ -14,11 +14,6 @@ service SearchService {
   // 综合搜索
   rpc Search(SearchReq) returns (SearchResp);
 
-  // 索引帖子
-  rpc IndexPost(IndexPostReq) returns (IndexPostResp);
-  // 删除帖子索引
-  rpc DeletePostIndex(DeletePostIndexReq) returns (DeletePostIndexResp);
-
   // 获取热门搜索
   rpc GetHotSearches(GetHotSearchesReq) returns (GetHotSearchesResp);
 }
@@ -102,28 +97,6 @@ message SearchResp {
   repeated UserSearchResult users = 2;
   repeated TagSearchResult  tags  = 3;
 }
-
-// 索引帖子请求
-message IndexPostReq {
-  int64           post_id     = 1;
-  string          title       = 2;
-  string          content     = 3;
-  repeated string tags        = 4;
-  int64           author_id   = 5;
-  string          author_name = 6;
-  int64           created_at  = 7; // Unix 时间戳（毫秒）
-}
-
-// 索引帖子响应
-message IndexPostResp {}
-
-// 删除帖子索引请求
-message DeletePostIndexReq {
-  int64 post_id = 1;
-}
-
-// 删除帖子索引响应
-message DeletePostIndexResp {}
 
 // 获取热门搜索请求
 message GetHotSearchesReq {

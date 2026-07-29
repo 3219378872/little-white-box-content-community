@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package inference;
+option go_package = "xiaobaihe/inference/pb";
+
+service OnlineInferService {
+  rpc Rank(RankReq) returns (RankResp);
+  rpc ReloadModel(ReloadModelReq) returns (ReloadModelResp);
+  rpc Health(InferHealthReq) returns (InferHealthResp);
+}
+
+message RankCandidate {
+  int64 post_id = 1;
+  map<string, double> features = 2;
+  double coarse_score = 3;
+}
+
+message RankReq {
+  string request_id = 1;
+  string model_version = 2;
+  repeated RankCandidate candidates = 3;
+}
+
+message RankedCandidate {
+  int64 post_id = 1;
+  double score = 2;
+}
+
+message RankResp {
+  repeated RankedCandidate candidates = 1;
+  string model_version = 2;
+}
+
+message ReloadModelReq {
+  string model_version = 1;
+  string model_uri = 2;
+}
+
+message ReloadModelResp {
+  bool loaded = 1;
+  string model_version = 2;
+}
+
+message InferHealthReq {}
+
+message InferHealthResp {
+  bool ready = 1;
+  repeated string loaded_versions = 2;
+}

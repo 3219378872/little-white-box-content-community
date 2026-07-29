@@ -88,6 +88,8 @@ func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 		Return(nil).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
 	require.NoError(t, err)
@@ -106,6 +108,8 @@ func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 0}, nil).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	_, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
@@ -131,6 +135,8 @@ func TestFavoriteLogic_Favorite_ReviveCanceledRecord(t *testing.T) {
 		Return(nil).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
 	require.NoError(t, err)
@@ -149,6 +155,8 @@ func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
 		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
@@ -174,10 +182,13 @@ func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 		Return(assert.AnError).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	assert.True(t, errx.Is(err, errx.SystemError))
 	favoriteModel.AssertExpectations(t)
 	countModel.AssertExpectations(t)
 }

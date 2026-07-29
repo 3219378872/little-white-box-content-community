@@ -8,6 +8,7 @@ alerting:
         - targets:
 
 rule_files:
+  - /etc/prometheus/alerts.yml
 
 scrape_configs:
   - job_name: 'prometheus'
@@ -20,12 +21,56 @@ scrape_configs:
 
   - job_name: 'user-rpc'
     static_configs:
-      - targets: ['host.docker.internal:9001']
+      - targets: ['host.docker.internal:9190']
 
   - job_name: 'content-rpc'
     static_configs:
-      - targets: ['host.docker.internal:9002']
+      - targets: ['host.docker.internal:9188']
 
   - job_name: 'media-rpc'
     static_configs:
-      - targets: ['host.docker.internal:9003']
+      - targets: ['host.docker.internal:9008']
+
+  - job_name: 'interaction-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9103']
+
+  - job_name: 'message-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9092']
+
+  - job_name: 'feed-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9093']
+
+  - job_name: 'behavior-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9121']
+
+  - job_name: 'search-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9122']
+
+  - job_name: 'recommend-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9123']
+
+  - job_name: 'assistant-rpc'
+    static_configs:
+      - targets: ['host.docker.internal:9124']
+
+  - job_name: 'behavior-log-consumer'
+    static_configs:
+      - targets: ['host.docker.internal:9131']
+
+  - job_name: 'recommend-feature-consumer'
+    static_configs:
+      - targets: ['host.docker.internal:9132']
+
+  - job_name: 'search-index-consumer'
+    static_configs:
+      - targets: ['host.docker.internal:9133']
+
+  - job_name: 'embedding-index-consumer'
+    static_configs:
+      - targets: ['host.docker.internal:9134']

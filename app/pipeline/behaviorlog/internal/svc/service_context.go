@@ -12,14 +12,12 @@ import (
 	"esx/app/pipeline/behaviorlog/internal/dedup"
 	"esx/app/pipeline/behaviorlog/internal/store"
 	"esx/pkg/event"
-	"util"
 
-	"github.com/zeromicro/go-zero/core/bloom"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type BehaviorStore interface {
-	Insert(ctx context.Context, e event.BehaviorEvent) error
+	Insert(ctx context.Context, behavior event.BehaviorEvent) error
 }
 
 type EventDeduper interface {
@@ -27,21 +25,22 @@ type EventDeduper interface {
 	MarkProcessed(ctx context.Context, eventID string) error
 }
 
+type DeadLetterStore interface {
+	InsertDeadLetter(ctx context.Context, letter store.DeadLetter) error
+}
+
 type ServiceContext struct {
-	Config config.Config
-	Store  BehaviorStore
-	Dedup  EventDeduper
-	db     *sql.DB
+	Config      config.Config
+	Store       BehaviorStore
+	Dedup       EventDeduper
+	DeadLetters DeadLetterStore
+	db          *sql.DB
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	if err := validateBehaviorLogConfig(c); err != nil {
 		panic(err)
 	}
-	if err := initSnowflake(c); err != nil {
-		panic(fmt.Errorf("behavior-log: init snowflake: %w", err))
-	}
-
 	db, err := sql.Open("clickhouse", c.ClickHouseDSN)
 	if err != nil {
 		panic(fmt.Sprintf("behavior-log: open clickhouse: %v", err))
@@ -51,13 +50,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	rds := redis.MustNewRedis(c.Redis)
-	bloomStore := NewRedisBloomStore(rds)
-
+	redisStore := NewRedisExactStore(rds)
+	clickhouseStore := store.NewClickHouseStore(db)
 	return &ServiceContext{
-		Config: c,
-		Store:  store.NewClickHouseStore(db),
-		Dedup:  dedup.NewBloomDedup(bloomStore, c.BloomBits),
-		db:     db,
+		Config: c, Store: clickhouseStore,
+		Dedup:       dedup.NewExactDedup(redisStore, c.DedupTTL),
+		DeadLetters: clickhouseStore, db: db,
 	}
 }
 
@@ -82,8 +80,8 @@ func validateBehaviorLogConfig(c config.Config) error {
 	if c.Redis.Host == "" {
 		missing = append(missing, "Redis.Host")
 	}
-	if c.BloomBits == 0 {
-		missing = append(missing, "BloomBits")
+	if c.DedupTTL <= 0 {
+		missing = append(missing, "DedupTTL")
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("missing behavior-log config: %s", strings.Join(missing, ", "))
@@ -91,34 +89,18 @@ func validateBehaviorLogConfig(c config.Config) error {
 	return nil
 }
 
-func initSnowflake(c config.Config) error {
-	workerID := c.WorkerID
-	if workerID == 0 {
-		workerID = 1
-	}
-	datacenterID := c.DatacenterID
-	if datacenterID == 0 {
-		datacenterID = 1
-	}
-	return util.InitSnowflake(workerID, datacenterID)
-}
-
-type RedisBloomStore struct {
+type RedisExactStore struct {
 	rds *redis.Redis
 }
 
-func NewRedisBloomStore(rds *redis.Redis) *RedisBloomStore {
-	return &RedisBloomStore{rds: rds}
+func NewRedisExactStore(rds *redis.Redis) *RedisExactStore {
+	return &RedisExactStore{rds: rds}
 }
 
-func (s *RedisBloomStore) Exists(ctx context.Context, key string, bits uint, data []byte) (bool, error) {
-	return bloom.New(s.rds, key, bits).ExistsCtx(ctx, data)
+func (s *RedisExactStore) Exists(ctx context.Context, key string) (bool, error) {
+	return s.rds.ExistsCtx(ctx, key)
 }
 
-func (s *RedisBloomStore) Add(ctx context.Context, key string, bits uint, data []byte) error {
-	return bloom.New(s.rds, key, bits).AddCtx(ctx, data)
-}
-
-func (s *RedisBloomStore) Expire(ctx context.Context, key string, seconds int) error {
-	return s.rds.ExpireCtx(ctx, key, seconds)
+func (s *RedisExactStore) Set(ctx context.Context, key, value string, seconds int) error {
+	return s.rds.SetexCtx(ctx, key, value, seconds)
 }

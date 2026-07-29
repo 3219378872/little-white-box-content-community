@@ -1,0 +1,63 @@
+Name: recommend.rpc
+ListenOn: 0.0.0.0:9023
+Health: true
+DevServer:
+  Enabled: true
+  Host: 0.0.0.0
+  Port: 9123
+  EnableMetrics: true
+  EnablePprof: false
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: recommend.rpc
+ContentRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: content.rpc
+UserRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: user.rpc
+Redis:
+  Host: "${REDIS_HOST}"
+  Type: node
+  Pass: "${REDIS_PASSWORD}"
+  Key: recommend
+FeatureVersion: v2
+RecallKeyPrefix: recommend
+DefaultPageSize: 20
+MaxPageSize: 50
+CandidateMultiplier: 8
+CursorSecret: "${RECOMMEND_CURSOR_SECRET}"
+CursorTTLSeconds: 600
+RuleModelVersion: rules-v2
+ExploreRatio: 0.1
+MaxPerAuthor: 2
+OnlineInfer:
+  Enabled: true
+  ModelVersion: auto
+  TimeoutMs: 80
+  Rpc:
+    Endpoints:
+    - "${ONLINE_INFER_ENDPOINT}"
+    NonBlock: true
+ElasticsearchRecall:
+  Enabled: true
+  Addresses:
+  - "${ES_ADDRESS}"
+  Index: xbh_posts
+  Username: "${ES_USERNAME}"
+  Password: "${ES_PASSWORD}"
+  TimeoutMs: 120
+MilvusRecall:
+  Enabled: true
+  Address: "${MILVUS_ADDRESS}"
+  Collection: xbh_post_embeddings_current
+  Username: "${MILVUS_USERNAME}"
+  Password: "${MILVUS_PASSWORD}"
+  Database: "${MILVUS_DATABASE}"
+  NProbe: 16
+  TimeoutMs: 120

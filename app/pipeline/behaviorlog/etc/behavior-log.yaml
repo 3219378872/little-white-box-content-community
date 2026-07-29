@@ -1,9 +1,16 @@
+Name: behavior-log-consumer
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9131
+  Path: /metrics
+
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "behavior-log-service-group"
-  Topic: ""
-  Tag: "default"
+  Topic: "user-behavior-v2"
+  Tag: ""
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
 
 ClickHouseDSN: "${CLICKHOUSE_DSN}"
 
@@ -12,6 +19,4 @@ Redis:
   Type: node
   Pass: "${REDIS_PASSWORD}"
 
-BloomBits: 20971520
-WorkerID: "${SNOWFLAKE_WORKER_ID}"
-DatacenterID: "${SNOWFLAKE_DATACENTER_ID}"
+DedupTTL: 7776000

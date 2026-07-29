@@ -9,5 +9,6 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	DataSource string
+	UserRpc    zrpc.RpcClientConf
 	MQ         mqx.ConsumerConfig
 }

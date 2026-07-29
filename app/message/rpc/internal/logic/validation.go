@@ -2,6 +2,7 @@ package logic
 
 const (
 	maxMessageContentLength      = 1000
+	maxMessageIdempotencyKeySize = 128
 	maxNotificationTitleLength   = 100
 	maxNotificationContentLength = 500
 )

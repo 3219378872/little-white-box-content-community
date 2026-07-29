@@ -104,16 +104,14 @@ func TestCreateCommentLogic(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "IncrCommentCount失败时仍返回成功（降级）",
+			name: "评论计数失败时事务整体失败",
 			req:  &pb.CreateCommentReq{PostId: 1000, UserId: 200, Content: "评论"},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
 				cm.On("InsertComment", mock.Anything, mock.AnythingOfType("*model.Comment")).Return(nil)
 				pm.On("IncrCommentCount", mock.Anything, int64(1000)).Return(fmt.Errorf("redis error"))
 			},
-			check: func(t *testing.T, resp *pb.CreateCommentResp) {
-				assert.Greater(t, resp.CommentId, int64(0))
-			},
+			wantErr: true,
 		},
 	}
 
@@ -212,13 +210,14 @@ func TestDeleteCommentLogic(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "DecrCommentCount失败时仍返回成功（降级）",
+			name: "删除评论计数失败时事务整体失败",
 			req:  &pb.DeleteCommentReq{CommentId: 2000, UserId: 300},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				cm.On("FindCommentById", mock.Anything, int64(2000)).Return(activeComment, nil)
 				cm.On("UpdateStatus", mock.Anything, int64(2000), int64(0)).Return(nil)
 				pm.On("DecrCommentCount", mock.Anything, int64(1000)).Return(fmt.Errorf("redis error"))
 			},
+			wantErr: true,
 		},
 	}
 

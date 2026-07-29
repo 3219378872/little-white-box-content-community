@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"esx/app/content/rpc/internal/config"
 	"esx/app/content/rpc/internal/server"
 	"esx/app/content/rpc/internal/svc"
@@ -9,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -23,6 +26,18 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
+	defer func() {
+		if err := ctx.Close(); err != nil {
+			logx.Errorw("close content service dependencies", logx.Field("err", err.Error()))
+		}
+	}()
+	relayCtx, cancelRelay := context.WithCancel(context.Background())
+	defer cancelRelay()
+	go func() {
+		if err := ctx.RunOutboxRelay(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+			logx.Errorw("content outbox relay stopped", logx.Field("err", err.Error()))
+		}
+	}()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterContentServiceServer(grpcServer, server.NewContentServiceServer(ctx))

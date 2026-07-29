@@ -26,3 +26,28 @@ InteractionRpc:
     Hosts:
       - 127.0.0.1:2379
     Key: interaction.rpc
+BehaviorRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: behavior.rpc
+FeedRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: feed.rpc
+MessageRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: message.rpc
+SearchRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: search.rpc
+AssistantRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: assistant.rpc

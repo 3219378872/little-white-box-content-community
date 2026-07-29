@@ -35,6 +35,8 @@ func TestUnfavoriteLogic_Unfavorite_Success(t *testing.T) {
 		Return(nil).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
 	require.NoError(t, err)
@@ -54,6 +56,8 @@ func TestUnfavoriteLogic_Unfavorite_NotFavorited(t *testing.T) {
 		Return((*model2.Favorite)(nil), model2.ErrNotFound).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
 	require.Error(t, err)
@@ -71,6 +75,8 @@ func TestUnfavoriteLogic_Unfavorite_AlreadyUnfavorited(t *testing.T) {
 		On("FindOneByUserIdPostId", mock.Anything, int64(1), int64(100)).
 		Return(&model2.Favorite{Id: 1, UserId: 1, PostId: 100, Status: model2.StatusInactive}, nil).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
@@ -93,6 +99,8 @@ func TestUnfavoriteLogic_Unfavorite_NilActionCountModel(t *testing.T) {
 		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
@@ -122,10 +130,13 @@ func TestUnfavoriteLogic_Unfavorite_DecrCountError(t *testing.T) {
 		Return(assert.AnError).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	assert.True(t, errx.Is(err, errx.SystemError))
 	favoriteModel.AssertExpectations(t)
 	countModel.AssertExpectations(t)
 }
@@ -144,6 +155,8 @@ func TestUnfavoriteLogic_Unfavorite_UpdateStatusError(t *testing.T) {
 		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(nil, assert.AnError).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
 	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})

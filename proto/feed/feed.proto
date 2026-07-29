@@ -15,6 +15,20 @@ message FeedItem {
   int64 author_id = 2;
   int64 created_at = 3;
   int32 feed_type = 4; // 1=follow 2=recommend
+  double score = 5;
+  string reason = 6;
+  string recall_source = 7;
+  string model_version = 8;
+  string experiment_id = 9;
+  int32 position = 10;
+  string title = 11;
+  string content = 12;
+  repeated string images = 13;
+  repeated string tags = 14;
+  int64 view_count = 15;
+  int64 like_count = 16;
+  int64 comment_count = 17;
+  int64 favorite_count = 18;
 }
 
 message GetFollowFeedReq {
@@ -33,13 +47,20 @@ message GetFollowFeedResp {
 
 message GetRecommendFeedReq {
   int64 user_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
+  string anonymous_id = 2;
+  string scene = 3;
+  string request_id = 4;
+  string session_id = 5;
+  string cursor = 6;
+  int32 page_size = 7;
+  string experiment_id = 8;
 }
 
 message GetRecommendFeedResp {
   repeated FeedItem items = 1;
   bool has_more = 2;
+  string next_cursor = 3;
+  string request_id = 4;
 }
 
 message PushToInboxReq {

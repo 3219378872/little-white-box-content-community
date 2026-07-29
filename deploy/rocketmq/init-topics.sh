@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -uo pipefail
 MQADMIN="/home/rocketmq/rocketmq-5.1.3/bin/mqadmin"
 NAMESRV="rocketmq-namesrv:9876"
 CLUSTER="DefaultCluster"
@@ -17,19 +18,15 @@ while true; do
   waited=$((waited + 3))
   if [ $waited -ge $MAX_WAIT ]; then
     echo "[init] broker not ready after ${MAX_WAIT}s, giving up"
-    exit 0
+    exit 1
   fi
 done
 
 echo "[init] creating topics and consumer groups..."
 
 TOPICS=(
-  user-register user-follow user-unfollow
-  post-create post-update post-delete comment-create comment-delete
-  like unlike favorite unfavorite
-  search-index search-delete
-  user-behavior
-  feed-generate
+  post-create post-update post-delete
+  user-behavior-v2
   message-push
   media-deleted
 )
@@ -48,17 +45,19 @@ create_topic() {
   return 1
 }
 
+failed=0
 for t in "${TOPICS[@]}"; do
-  create_topic "$t"
+  create_topic "$t" || failed=1
 done
 
 CONSUMER_GROUPS=(
-  user-service-group
-  content-service-group
+  content-cleanup-service-group
+  embedding-service-group
   search-service-group
   feed-service-group
   message-service-group
-  recommend-service-group
+  recommend-feature-service-group
+  behavior-log-service-group
   media-service-group
 )
 
@@ -77,7 +76,12 @@ create_group() {
 }
 
 for cg in "${CONSUMER_GROUPS[@]}"; do
-  create_group "$cg"
+  create_group "$cg" || failed=1
 done
+
+if [ "$failed" -ne 0 ]; then
+  echo "[init] one or more topics or consumer groups failed"
+  exit 1
+fi
 
 echo "[init] done."

@@ -26,6 +26,12 @@ func (m *MockUserService) BatchGetUsers(ctx context.Context, in *userservice.Bat
 	return v, args.Error(1)
 }
 
+func (m *MockUserService) SearchUsers(ctx context.Context, in *userservice.SearchUsersReq, opts ...grpc.CallOption) (*userservice.SearchUsersResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.SearchUsersResp)
+	return v, args.Error(1)
+}
+
 func (m *MockUserService) UpdateProfile(ctx context.Context, in *userservice.UpdateProfileReq, opts ...grpc.CallOption) (*userservice.UpdateProfileResp, error) {
 	args := m.Called(ctx, in)
 	v, _ := args.Get(0).(*userservice.UpdateProfileResp)

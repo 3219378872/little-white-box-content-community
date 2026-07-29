@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package assistant;
+option go_package = "xiaobaihe/assistant/pb";
+
+service AssistantService {
+  rpc Chat(ChatReq) returns (stream ChatEvent);
+}
+
+message ChatReq {
+  int64 user_id = 1;
+  string conversation_id = 2;
+  string message = 3;
+  string request_id = 4;
+}
+
+enum ChatEventType {
+  CHAT_EVENT_TYPE_UNSPECIFIED = 0;
+  CHAT_EVENT_TYPE_TOKEN = 1;
+  CHAT_EVENT_TYPE_SOURCE = 2;
+  CHAT_EVENT_TYPE_DONE = 3;
+  CHAT_EVENT_TYPE_ERROR = 4;
+}
+
+message SourceReference {
+  string source_type = 1;
+  string source_id = 2;
+  string title = 3;
+}
+
+message ChatEvent {
+  ChatEventType type = 1;
+  string text = 2;
+  SourceReference source = 3;
+  bool degraded = 4;
+  string error_code = 5;
+  string conversation_id = 6;
+}

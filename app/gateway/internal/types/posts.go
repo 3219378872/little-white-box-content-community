@@ -28,13 +28,6 @@ type GetPostListReq struct {
 	SortBy   int32 `form:"sortBy,default=1"` // 1:最新 2:热门 3:推荐
 }
 
-type GetPostListResp struct {
-	List     []PostItem `json:"list"`
-	Total    int64      `json:"total"`
-	Page     int32      `json:"page"`
-	PageSize int32      `json:"pageSize"`
-}
-
 type GetPostReq struct {
 	PostId int64 `path:"postId"`
 }

@@ -4,6 +4,7 @@ MQ:
   Topic: "post-delete"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
 
 Redis:
   Host: "${REDIS_HOST}"

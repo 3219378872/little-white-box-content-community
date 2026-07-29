@@ -15,12 +15,9 @@ import (
 
 func validBehaviorEvent() event.BehaviorEvent {
 	return event.BehaviorEvent{
-		EventID:    1,
-		EventTime:  1714300000000,
-		UserID:     42,
-		Action:     "like",
-		TargetID:   999,
-		TargetType: "post",
+		EventID: 1, ClientEventID: "client-1", SchemaVersion: event.BehaviorSchemaVersion,
+		EventTime: 1714300000000, ReceivedAt: 1714300000100, UserID: 42,
+		Action: "like", TargetID: 999, TargetType: "post", Producer: "behavior-rpc",
 	}
 }
 
@@ -72,17 +69,17 @@ func TestRecorderProcess(t *testing.T) {
 			},
 		},
 		{
-			name:  "dedup error falls through to store",
-			event: validBehaviorEvent(),
-			setupMocks: func(store *MockBehaviorStore, dedup *MockBehaviorDedup) {
+			name:    "dedup error retries without inserting",
+			event:   validBehaviorEvent(),
+			wantErr: true,
+			setupMocks: func(_ *MockBehaviorStore, dedup *MockBehaviorDedup) {
 				dedup.On("IsDuplicate", mock.Anything, "1").Return(false, dedupErr).Once()
-				store.On("Insert", mock.Anything, validBehaviorEvent()).Return(nil).Once()
-				dedup.On("MarkProcessed", mock.Anything, "1").Return(nil).Once()
 			},
 		},
 		{
-			name:  "mark processed error does not fail insert",
-			event: validBehaviorEvent(),
+			name:    "mark processed error retries",
+			event:   validBehaviorEvent(),
+			wantErr: true,
 			setupMocks: func(store *MockBehaviorStore, dedup *MockBehaviorDedup) {
 				dedup.On("IsDuplicate", mock.Anything, "1").Return(false, nil).Once()
 				store.On("Insert", mock.Anything, validBehaviorEvent()).Return(nil).Once()
@@ -90,13 +87,18 @@ func TestRecorderProcess(t *testing.T) {
 			},
 		},
 		{
-			name:  "zero event id uses stable message id",
-			event: event.BehaviorEvent{UserID: 42, Action: "like", TargetID: 999, TargetType: "post"},
-			meta:  MessageMeta{MsgID: "stable-msg", StoreTimestamp: 1714300000000},
+			name: "zero event id uses stable client event id",
+			event: event.BehaviorEvent{
+				ClientEventID: "stable-client", SchemaVersion: event.BehaviorSchemaVersion,
+				EventTime: 1714300000000, UserID: 42, Action: "like", TargetID: 999,
+				TargetType: "post", Producer: "behavior-rpc",
+			},
+			meta: MessageMeta{MsgID: "stable-msg", StoreTimestamp: 1714300000000},
 			setupMocks: func(store *MockBehaviorStore, dedup *MockBehaviorDedup) {
 				dedup.On("IsDuplicate", mock.Anything, mock.AnythingOfType("string")).Return(false, nil).Once()
 				store.On("Insert", mock.Anything, mock.MatchedBy(func(e event.BehaviorEvent) bool {
-					return e.EventID != 0 && e.EventTime == 1714300000000
+					return e.EventID == event.DeterministicBehaviorEventID("stable-client") &&
+						e.ReceivedAt == 1714300000000
 				})).Return(nil).Once()
 				dedup.On("MarkProcessed", mock.Anything, mock.AnythingOfType("string")).Return(nil).Once()
 			},

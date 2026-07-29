@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 
@@ -10,6 +12,7 @@ import (
 	"user/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -24,6 +27,18 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
+	defer func() {
+		if err := ctx.Close(); err != nil {
+			logx.Errorw("close user service dependencies", logx.Field("err", err.Error()))
+		}
+	}()
+	relayCtx, cancelRelay := context.WithCancel(context.Background())
+	defer cancelRelay()
+	go func() {
+		if err := ctx.RunOutboxRelay(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+			logx.Errorw("user outbox relay stopped", logx.Field("err", err.Error()))
+		}
+	}()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterUserServiceServer(grpcServer, server.NewUserServiceServer(ctx))

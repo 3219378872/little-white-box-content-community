@@ -271,6 +271,8 @@ func TestLikeLogic_Like_FirstTime(t *testing.T) {
 		Return(nil).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.NoError(t, err)
@@ -292,6 +294,8 @@ func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 0}, int64(10), nil).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -322,6 +326,8 @@ func TestLikeLogic_Like_ReviveCanceledRecord(t *testing.T) {
 		Return(nil).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.NoError(t, err)
@@ -343,6 +349,8 @@ func TestLikeLogic_Like_UpsertError(t *testing.T) {
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(nil, int64(0), assert.AnError).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -369,6 +377,8 @@ func TestLikeLogic_Like_IncrCountError(t *testing.T) {
 		Return(assert.AnError).
 		Once()
 
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.Nil(t, resp)
@@ -384,6 +394,8 @@ func TestLikeLogic_Like_NilActionCountModel(t *testing.T) {
 		Conn:            fakeTxConn{},
 		LikeRecordModel: likeModel,
 	}
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -414,6 +426,8 @@ func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
 		On("InvalidateLikeRecordCache", mock.Anything, int64(10), int64(1), int64(100), int64(1)).
 		Return(assert.AnError).
 		Once()
+
+	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})

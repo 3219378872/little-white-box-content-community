@@ -1,21 +1,222 @@
 package store
 
-import "context"
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strconv"
 
-// BehaviorEvent is a generic user behavior event.
-type BehaviorEvent struct {
-	UserID     int64  `json:"user_id"`
-	Action     string `json:"action"`
-	TargetID   int64  `json:"target_id"`
-	TargetType string `json:"target_type"`
-}
+	"esx/pkg/event"
+)
 
-// BehaviorStore is the future profile/feature write interface.
 type BehaviorStore interface {
-	Record(ctx context.Context, event BehaviorEvent) error
+	Record(ctx context.Context, behavior event.BehaviorEvent) error
 }
 
-// NoopBehaviorStore is the default no-op implementation.
-type NoopBehaviorStore struct{}
+type RedisEvaler interface {
+	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
+}
 
-func (n *NoopBehaviorStore) Record(ctx context.Context, event BehaviorEvent) error { return nil }
+type RedisBehaviorStore struct {
+	redis          RedisEvaler
+	featureVersion string
+	recallPrefix   string
+	ttlSeconds     int
+}
+
+func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int) *RedisBehaviorStore {
+	return &RedisBehaviorStore{
+		redis: redis, featureVersion: featureVersion,
+		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
+	}
+}
+
+func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.BehaviorEvent) error {
+	if err := behavior.Validate(); err != nil {
+		return fmt.Errorf("validate behavior feature event: %w", err)
+	}
+	identity := behaviorIdentity(behavior)
+	if identity == "" {
+		return fmt.Errorf("behavior feature identity is required")
+	}
+	prefix := "feature:" + s.featureVersion + ":" + identity
+	targetID := strconv.FormatInt(behavior.TargetID, 10)
+	scene := behavior.Scene
+	if scene == "" {
+		scene = "home"
+	}
+	recent, err := json.Marshal(map[string]any{
+		"event_id": behavior.EventID, "client_event_id": behavior.ClientEventID,
+		"request_id": behavior.RequestID, "action": behavior.Action,
+		"target_id": behavior.TargetID, "target_type": behavior.TargetType,
+		"scene": behavior.Scene, "event_time": behavior.EventTime,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal recent behavior: %w", err)
+	}
+	_, err = s.redis.EvalCtx(ctx, recordFeatureScript, []string{
+		"feature:" + s.featureVersion + ":dedup:" + behavior.EventIDString(),
+		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
+		s.recallPrefix + ":recall:post:hot:" + scene,
+		s.recallPrefix + ":recall:post:itemcf:" + identity + ":" + scene,
+		s.recallPrefix + ":recall:post:itemcf:seed:" + targetID + ":" + scene,
+		s.recallPrefix + ":recall:user:popular:" + scene,
+		"feature:" + s.featureVersion + ":user:" + targetID,
+		s.recallPrefix + ":follow:author:" + targetID + ":followers",
+		s.recallPrefix + ":author:" + targetID + ":posts",
+		s.recallPrefix + ":recall:post:follow:" + identity + ":" + scene,
+		"feature:" + s.featureVersion + ":post:" + targetID,
+		prefix + ":state",
+	}, s.ttlSeconds, string(recent), behavior.Action,
+		behavior.TargetType+":"+targetID, scene, targetID, behavior.TargetType,
+		identity, s.recallPrefix, behavior.EventTime, behavior.ClientEventID)
+	if err != nil {
+		return fmt.Errorf("record behavior features: %w", err)
+	}
+	return nil
+}
+
+func behaviorIdentity(behavior event.BehaviorEvent) string {
+	if behavior.UserID > 0 {
+		return "u:" + strconv.FormatInt(behavior.UserID, 10)
+	}
+	if behavior.AnonymousID == "" {
+		return ""
+	}
+	digest := sha256.Sum256([]byte(behavior.AnonymousID))
+	return "a:" + hex.EncodeToString(digest[:8])
+}
+
+const recordFeatureScript = `
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return 0
+end
+redis.call('SETEX', KEYS[1], ARGV[1], '1')
+local recent = redis.call('LRANGE', KEYS[2], 0, 49)
+table.insert(recent, ARGV[2])
+table.sort(recent, function(left, right)
+  local left_event = cjson.decode(left)
+  local right_event = cjson.decode(right)
+  local left_time = tonumber(left_event.event_time) or 0
+  local right_time = tonumber(right_event.event_time) or 0
+  if left_time == right_time then
+    return tostring(left_event.client_event_id or '') > tostring(right_event.client_event_id or '')
+  end
+  return left_time > right_time
+end)
+redis.call('DEL', KEYS[2])
+for index = 1, math.min(#recent, 50) do
+  redis.call('RPUSH', KEYS[2], recent[index])
+end
+redis.call('EXPIRE', KEYS[2], ARGV[1])
+
+local action = ARGV[3]
+local target = ARGV[4]
+local scene = ARGV[5]
+local target_id = ARGV[6]
+local target_type = ARGV[7]
+local identity = ARGV[8]
+local recall_prefix = ARGV[9]
+local event_time = tonumber(ARGV[10]) or 0
+local client_event_id = ARGV[11]
+local prior_positive = redis.call('HKEYS', KEYS[3])
+if action == 'like' or action == 'favorite' or action == 'comment' or action == 'share' or action == 'click' or action == 'dwell' then
+  redis.call('HINCRBY', KEYS[3], target, 1)
+  redis.call('EXPIRE', KEYS[3], ARGV[1])
+elseif action == 'unlike' or action == 'unfavorite' or action == 'hide' or action == 'dislike' then
+  redis.call('HINCRBY', KEYS[4], target, 1)
+  redis.call('EXPIRE', KEYS[4], ARGV[1])
+end
+
+if scene ~= '' then
+  redis.call('HINCRBY', KEYS[5], scene, 1)
+  redis.call('EXPIRE', KEYS[5], ARGV[1])
+end
+
+if target_type == 'post' then
+  local weight = 0
+  if action == 'exposure' then weight = 1
+  elseif action == 'click' or action == 'dwell' then weight = 2
+  elseif action == 'like' or action == 'favorite' or action == 'comment' or action == 'share' then weight = 5
+  elseif action == 'hide' or action == 'dislike' then weight = -5
+  end
+  if weight ~= 0 then
+    redis.call('ZINCRBY', KEYS[6], weight, target_id)
+    redis.call('EXPIRE', KEYS[6], ARGV[1])
+  end
+
+  if action == 'like' or action == 'favorite' or action == 'comment' or action == 'share' or action == 'click' or action == 'dwell' then
+    local neighbors = redis.call('ZREVRANGE', KEYS[8], 0, 99, 'WITHSCORES')
+    for i = 1, #neighbors, 2 do
+      if neighbors[i] ~= target_id then
+        redis.call('ZINCRBY', KEYS[7], tonumber(neighbors[i + 1]), neighbors[i])
+      end
+    end
+    for _, previous in ipairs(prior_positive) do
+      local previous_id = string.match(previous, '^post:(%d+)$')
+      if previous_id and previous_id ~= target_id then
+        redis.call('ZINCRBY', KEYS[8], 1, previous_id)
+        local reverse_key = recall_prefix .. ':recall:post:itemcf:seed:' .. previous_id .. ':' .. scene
+        redis.call('ZINCRBY', reverse_key, 1, target_id)
+        redis.call('EXPIRE', reverse_key, ARGV[1])
+      end
+    end
+    redis.call('EXPIRE', KEYS[7], ARGV[1])
+    redis.call('EXPIRE', KEYS[8], ARGV[1])
+  end
+
+  if redis.call('EXISTS', KEYS[14]) == 1 then
+    if action == 'exposure' then redis.call('HINCRBY', KEYS[14], 'impressions', 1) end
+    if action == 'click' then redis.call('HINCRBY', KEYS[14], 'clicks', 1) end
+    redis.call('HINCRBY', KEYS[14], 'popularity', weight)
+    local impressions = tonumber(redis.call('HGET', KEYS[14], 'impressions') or '0')
+    local clicks = tonumber(redis.call('HGET', KEYS[14], 'clicks') or '0')
+    if impressions > 0 then redis.call('HSET', KEYS[14], 'ctr', clicks / impressions) end
+  end
+elseif target_type == 'user' and (action == 'follow' or action == 'unfollow') then
+  local delta = 1
+  if action == 'unfollow' then delta = -1 end
+  redis.call('ZINCRBY', KEYS[9], delta, target_id)
+  redis.call('EXPIRE', KEYS[9], ARGV[1])
+  redis.call('HSET', KEYS[10], 'status', 'active', 'visibility', 'public')
+  redis.call('HINCRBY', KEYS[10], 'quality_score', delta)
+  local state_field = 'follow:user:' .. target_id
+  local previous_state = redis.call('HGET', KEYS[15], state_field)
+  local apply_state = true
+  if previous_state then
+    local decoded_state = cjson.decode(previous_state)
+    local previous_time = tonumber(decoded_state.event_time) or 0
+    local previous_client_event_id = tostring(decoded_state.client_event_id or '')
+    if previous_time > event_time or
+       (previous_time == event_time and previous_client_event_id >= client_event_id) then
+      apply_state = false
+    end
+  end
+  if apply_state then
+    redis.call('HSET', KEYS[15], state_field, cjson.encode({
+      event_time = event_time,
+      client_event_id = client_event_id,
+      action = action
+    }))
+    redis.call('EXPIRE', KEYS[15], ARGV[1])
+    local author_posts = redis.call('ZREVRANGE', KEYS[12], 0, 99, 'WITHSCORES')
+    if action == 'follow' then
+      redis.call('SADD', KEYS[11], identity)
+      for i = 1, #author_posts, 2 do
+        redis.call('ZADD', KEYS[13], author_posts[i + 1], author_posts[i])
+      end
+    else
+      redis.call('SREM', KEYS[11], identity)
+      for i = 1, #author_posts, 2 do
+        redis.call('ZREM', KEYS[13], author_posts[i])
+      end
+    end
+  end
+  redis.call('EXPIRE', KEYS[11], ARGV[1])
+  redis.call('EXPIRE', KEYS[12], ARGV[1])
+  redis.call('EXPIRE', KEYS[13], ARGV[1])
+end
+return 1
+`

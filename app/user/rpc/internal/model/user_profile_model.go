@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -17,6 +18,8 @@ type (
 		withSession(session sqlx.Session) UserProfileModel
 		UpdateUserDes(ctx context.Context, userId int64, nickname, avatarUrl, bio string) error
 		FindOneByIdForUpdate(ctx context.Context, session sqlx.Session, id int64) (*UserProfile, error)
+		FindByIDs(ctx context.Context, ids []int64) ([]*UserProfile, error)
+		SearchPublic(ctx context.Context, keyword string, offset, limit int64) ([]*UserProfile, int64, error)
 	}
 
 	customUserProfileModel struct {
@@ -50,4 +53,44 @@ func (m *customUserProfileModel) FindOneByIdForUpdate(ctx context.Context, sessi
 		return nil, err
 	}
 	return &userProfile, nil
+}
+
+func (m *customUserProfileModel) FindByIDs(ctx context.Context, ids []int64) ([]*UserProfile, error) {
+	if len(ids) == 0 {
+		return []*UserProfile{}, nil
+	}
+	placeholders := make([]string, 0, len(ids))
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		placeholders = append(placeholders, "?")
+		args = append(args, id)
+	}
+	query := fmt.Sprintf("select %s from %s where `id` in (%s)", userProfileRows, m.table, strings.Join(placeholders, ","))
+	var profiles []*UserProfile
+	if err := m.conn.QueryRowsCtx(ctx, &profiles, query, args...); err != nil {
+		return nil, err
+	}
+	return profiles, nil
+}
+
+func (m *customUserProfileModel) SearchPublic(
+	ctx context.Context,
+	keyword string,
+	offset, limit int64,
+) ([]*UserProfile, int64, error) {
+	const predicate = "`status` = 1 AND (LOCATE(?, `username`) > 0 OR LOCATE(?, COALESCE(`nickname`, '')) > 0 OR LOCATE(?, COALESCE(`bio`, '')) > 0)"
+	var total int64
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", m.table, predicate)
+	if err := m.conn.QueryRowCtx(ctx, &total, countQuery, keyword, keyword, keyword); err != nil {
+		return nil, 0, err
+	}
+	query := fmt.Sprintf(
+		"SELECT %s FROM %s WHERE %s ORDER BY `follower_count` DESC, `id` ASC LIMIT ? OFFSET ?",
+		userProfileRows, m.table, predicate,
+	)
+	profiles := make([]*UserProfile, 0, limit)
+	if err := m.conn.QueryRowsCtx(ctx, &profiles, query, keyword, keyword, keyword, limit, offset); err != nil {
+		return nil, 0, err
+	}
+	return profiles, total, nil
 }

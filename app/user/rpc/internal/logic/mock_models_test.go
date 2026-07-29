@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"esx/pkg/outboxx"
 	"time"
 	"util"
 
@@ -31,6 +32,18 @@ func (m *MockUserProfileModel) FindOne(ctx context.Context, id int64) (*model.Us
 	args := m.Called(ctx, id)
 	v, _ := args.Get(0).(*model.UserProfile)
 	return v, args.Error(1)
+}
+
+func (m *MockUserProfileModel) FindByIDs(ctx context.Context, ids []int64) ([]*model.UserProfile, error) {
+	args := m.Called(ctx, ids)
+	v, _ := args.Get(0).([]*model.UserProfile)
+	return v, args.Error(1)
+}
+
+func (m *MockUserProfileModel) SearchPublic(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, int64, error) {
+	args := m.Called(ctx, keyword, offset, limit)
+	v, _ := args.Get(0).([]*model.UserProfile)
+	return v, args.Get(1).(int64), args.Error(2)
 }
 
 func (m *MockUserProfileModel) FindOneByPhone(ctx context.Context, phone sql.NullString) (*model.UserProfile, error) {
@@ -107,9 +120,30 @@ func newUnitSvcCtx(
 	followStore svc.UserFollowStore,
 ) *svc.ServiceContext {
 	return &svc.ServiceContext{
-		UserProfileModel: profileModel,
-		UserFollowModel:  followStore,
+		UserProfileModel:   profileModel,
+		UserFollowModel:    followStore,
+		UserFollowCommands: legacyUserFollowCommands{store: followStore},
 	}
+}
+
+type legacyUserFollowCommands struct {
+	store svc.UserFollowStore
+}
+
+func (c legacyUserFollowCommands) Follow(
+	ctx context.Context,
+	userID, targetUserID int64,
+	_ outboxx.Event,
+) error {
+	return c.store.Follow(ctx, userID, targetUserID)
+}
+
+func (c legacyUserFollowCommands) Unfollow(
+	ctx context.Context,
+	userID, targetUserID int64,
+	_ outboxx.Event,
+) error {
+	return c.store.Unfollow(ctx, userID, targetUserID)
 }
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────

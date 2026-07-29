@@ -1,13 +1,46 @@
+Name: embedding-index-consumer
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9134
+  Path: /metrics
+
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "embedding-service-group"
   Topic: "post-create"
   Tag: "default"
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
+
+Embedding:
+  Address: "${EMBEDDING_GRPC_ADDRESS}"
+  ModelVersion: "${EMBEDDING_MODEL_VERSION}"
+  Dim: 384
+  TimeoutMs: 5000
+  MaxTextBytes: 16384
+  MaxBatchSize: 64
+  MaxBatchBytes: 262144
 
 Milvus:
   Address: "${MILVUS_ADDRESS}"
-  Collection: "xbh_post_embeddings"
-  Dim: 256
+  Collection: "xbh_post_embeddings_current"
+  Dim: 384
   Username: "${MILVUS_USERNAME}"
   Password: "${MILVUS_PASSWORD}"
+
+ContentRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: content.rpc
+
+Rebuild:
+  Alias: "xbh_post_embeddings_current"
+  CollectionPrefix: "xbh_post_embeddings"
+  PageSize: 50
+  BatchSize: 32
+  MaxAttempts: 3
+  RetryBackoffMs: 500
+  TimeoutSeconds: 3600
+
+StartupTimeoutMs: 30000

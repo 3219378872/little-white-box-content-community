@@ -1,6 +1,25 @@
+Name: recommend-feature-consumer
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9132
+  Path: /metrics
+
 MQ:
   NameServer: "${MQ_NAMESERVER}"
-  GroupName: "recommend-service-group"
-  Topic: "user-behavior"
-  Tag: "default"
+  GroupName: "recommend-feature-service-group"
+  Topic: "user-behavior-v2"
+  Tag: ""
   ConsumeOrder: false
+  MaxReconsumeTimes: 8
+
+Redis:
+  Host: "${REDIS_HOST}"
+  Type: node
+  Pass: "${REDIS_PASSWORD}"
+
+FeatureVersion: v2
+FeatureTTL: 2592000
+RecallKeyPrefix: recommend
+CandidateTTL: 2592000
+DeadLetterTTL: 604800
+DeadLetterMaxLength: 1000

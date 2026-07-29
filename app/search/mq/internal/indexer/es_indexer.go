@@ -125,7 +125,7 @@ func (e *ESIndexer) EnsureIndex(ctx context.Context) error {
 	return nil
 }
 
-// Refresh 强制刷新索引，仅供测试场景使用，业务路径不应调用。
+// Refresh 强制刷新索引，仅供测试和离线重建使用，在线写入路径不应调用。
 func (e *ESIndexer) Refresh(ctx context.Context) error {
 	res, err := e.client.Indices.Refresh(
 		e.client.Indices.Refresh.WithContext(ctx),
@@ -141,6 +141,92 @@ func (e *ESIndexer) Refresh(ctx context.Context) error {
 	return nil
 }
 
+// DeleteIndex removes this concrete index. It is intended for cleaning up a
+// failed rebuild target and must not be called with the public search alias.
+func (e *ESIndexer) DeleteIndex(ctx context.Context) error {
+	res, err := (esapi.IndicesDeleteRequest{Index: []string{e.index}}).Do(ctx, e.client)
+	if err != nil {
+		return fmt.Errorf("ES delete index: %w", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if res.IsError() {
+		raw, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("ES delete index failed status=%s body=%s", res.Status(), string(raw))
+	}
+	return nil
+}
+
+// PromoteToAlias atomically makes this concrete index the write target for
+// alias. The first promotion can migrate a legacy physical index with the same
+// name by using remove_index and add in one aliases request.
+func (e *ESIndexer) PromoteToAlias(ctx context.Context, alias string) error {
+	alias = strings.TrimSpace(alias)
+	if alias == "" || alias == e.index {
+		return fmt.Errorf("ES promotion requires a distinct non-empty alias")
+	}
+
+	actions := make([]map[string]any, 0, 3)
+	aliasResp, err := (esapi.IndicesGetAliasRequest{Name: []string{alias}}).Do(ctx, e.client)
+	if err != nil {
+		return fmt.Errorf("ES get alias: %w", err)
+	}
+	switch aliasResp.StatusCode {
+	case http.StatusOK:
+		var aliases map[string]json.RawMessage
+		decodeErr := json.NewDecoder(aliasResp.Body).Decode(&aliases)
+		_ = aliasResp.Body.Close()
+		if decodeErr != nil {
+			return fmt.Errorf("ES decode alias response: %w", decodeErr)
+		}
+		for indexName := range aliases {
+			actions = append(actions, map[string]any{"remove": map[string]any{
+				"index": indexName, "alias": alias,
+			}})
+		}
+	case http.StatusNotFound:
+		_ = aliasResp.Body.Close()
+		exists, existsErr := e.client.Indices.Exists(
+			[]string{alias}, e.client.Indices.Exists.WithContext(ctx),
+		)
+		if existsErr != nil {
+			return fmt.Errorf("ES inspect legacy index: %w", existsErr)
+		}
+		if exists.StatusCode == http.StatusOK {
+			actions = append(actions, map[string]any{"remove_index": map[string]any{"index": alias}})
+		} else if exists.StatusCode != http.StatusNotFound {
+			raw, _ := io.ReadAll(exists.Body)
+			_ = exists.Body.Close()
+			return fmt.Errorf("ES inspect legacy index failed status=%s body=%s", exists.Status(), string(raw))
+		}
+		_ = exists.Body.Close()
+	default:
+		raw, _ := io.ReadAll(aliasResp.Body)
+		_ = aliasResp.Body.Close()
+		return fmt.Errorf("ES get alias failed status=%s body=%s", aliasResp.Status(), string(raw))
+	}
+
+	actions = append(actions, map[string]any{"add": map[string]any{
+		"index": e.index, "alias": alias, "is_write_index": true,
+	}})
+	body, err := json.Marshal(map[string]any{"actions": actions})
+	if err != nil {
+		return fmt.Errorf("ES marshal alias promotion: %w", err)
+	}
+	res, err := (esapi.IndicesUpdateAliasesRequest{Body: bytes.NewReader(body)}).Do(ctx, e.client)
+	if err != nil {
+		return fmt.Errorf("ES promote alias: %w", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.IsError() {
+		raw, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("ES promote alias failed status=%s body=%s", res.Status(), string(raw))
+	}
+	return nil
+}
+
 // PostIndexMapping 是帖子索引的 ES mapping。title/body 使用 standard 分词
 // （生产可换 IK，由部署侧 plugin 配置），其余 keyword 字段直接精确匹配。
 const PostIndexMapping = `{
@@ -152,6 +238,8 @@ const PostIndexMapping = `{
       "title":       {"type": "text"},
       "body":        {"type": "text"},
       "tags":        {"type": "keyword"},
+	  "like_count":  {"type": "long"},
+	  "comment_count":{"type": "long"},
       "created_at":  {"type": "date", "format": "epoch_millis"}
     }
   }
@@ -164,13 +252,15 @@ func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 		DocID: strconv.FormatInt(e.PostID, 10),
 		Type:  string(e.Type),
 		Body: map[string]any{
-			"post_id":     e.PostID,
-			"author_id":   e.AuthorID,
-			"category_id": e.CategoryID,
-			"title":       e.Title,
-			"body":        e.BodyExcerpt,
-			"tags":        e.Tags,
-			"created_at":  e.EventTime,
+			"post_id":       e.PostID,
+			"author_id":     e.AuthorID,
+			"category_id":   e.CategoryID,
+			"title":         e.Title,
+			"body":          e.BodyExcerpt,
+			"tags":          e.Tags,
+			"like_count":    0,
+			"comment_count": 0,
+			"created_at":    e.EventTime,
 		},
 	}
 }

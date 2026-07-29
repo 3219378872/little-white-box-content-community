@@ -13,7 +13,6 @@ var _ MessageModel = (*customMessageModel)(nil)
 
 type (
 	MessageModel interface {
-		messageModel
 		FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*Message, bool, error)
 		CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
 		MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
