@@ -21,9 +21,22 @@
 - 不为通过测试修改测试；修复实现并覆盖至少一个失败路径。
 - 不引入新依赖，除非用户明确批准。
 
-## 按任务加载资料
+## 文档知识与地址
 
-只打开 [docs/INDEX.md](docs/INDEX.md) 指定的 1～2 个 active 文档。历史计划和日期设计文档不是当前规则，除非用户明确要求追溯。
+先通过 [docs/INDEX.md](docs/INDEX.md) 判断任务类型，只打开对应的 1～2 个 active 文档：
+
+| 任务知识 | 文档地址 | 内容范围 |
+| --- | --- | --- |
+| REST API | [docs/active/api.md](docs/active/api.md) | Handler、参数校验和 `.api` 修改流程 |
+| RPC | [docs/active/rpc.md](docs/active/rpc.md) | proto、服务间调用和代码生成要求 |
+| 数据 | [docs/active/data.md](docs/active/data.md) | MySQL、Redis、事务和缓存边界 |
+| 安全 | [docs/active/security.md](docs/active/security.md) | 鉴权、业务错误和 secret 约束 |
+| 运维 | [docs/active/operations.md](docs/active/operations.md) | MQ、重试、降级和部署排查 |
+| 测试 | [docs/active/testing.md](docs/active/testing.md) | 测试分层、覆盖率和质量门禁 |
+| 整体架构 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 服务、存储和主要数据流概览 |
+| 模块与流程事实 | [docs/generated/INDEX.md](docs/generated/INDEX.md) | 按代码生成的模块页和链路快照 |
+
+`docs/active/` 是当前短规范，`docs/generated/` 是定位具体模块时使用的代码事实快照。运行时判断仍以代码、配置、API/proto 定义和测试结果为先；历史计划和日期设计文档仅在明确追溯时读取。
 
 ## 命令入口
 
