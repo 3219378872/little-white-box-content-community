@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +23,10 @@ import (
 )
 
 const (
-	defaultMaxMessageRunes = 2000
-	defaultTokenChunkRunes = 64
-	defaultToolTimeout     = 1500 * time.Millisecond
+	defaultMaxMessageRunes  = 2000
+	defaultTokenChunkRunes  = 64
+	defaultToolTimeout      = 1500 * time.Millisecond
+	defaultMaxResponseRunes = 10000
 )
 
 var blockedDirectives = []string{
@@ -35,6 +38,8 @@ var blockedDirectives = []string{
 	"忽略以上",
 	"系统提示词",
 }
+
+var generatedPostSourceMarker = regexp.MustCompile(`(?i)\[post:[^\]\r\n]*\]`)
 
 type ChatLogic struct {
 	ctx    context.Context
@@ -101,9 +106,11 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	}
 	assistantToolCallsTotal.Inc(string(name), "success")
 	responseText := result.Text
-	if l.svcCtx.Generator != nil {
+	generatedResponse := false
+	if l.svcCtx.Generator != nil && (!result.EvidenceRequired || result.HasEvidence) {
 		generated, generateErr := l.svcCtx.Generator.Generate(l.ctx, llm.Request{
 			UserMessage: request.Message, ToolName: string(name), ToolResult: result.Text,
+			ContextKind: result.ContextKind,
 		})
 		if generateErr != nil {
 			assistantLLMCallsTotal.Inc("failure")
@@ -112,7 +119,11 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 		}
 		assistantLLMCallsTotal.Inc("success")
 		observeLLMUsage(generated)
-		responseText = generated.Text
+		responseText = neutralizeGeneratedSourceMarkers(generated.Text)
+		generatedResponse = true
+	}
+	if generatedResponse && result.ContextKind == "community_evidence" {
+		responseText = appendSourceEvidence(responseText, result.Sources, l.maxResponseRunes())
 	}
 	if l.svcCtx.Safety != nil {
 		if err := l.svcCtx.Safety.Check(l.ctx, responseText); err != nil {
@@ -203,7 +214,9 @@ func (l *ChatLogic) persistAssistant(
 		if source.Type == "" || source.ID == "" {
 			continue
 		}
-		references = append(references, store.Reference{Type: source.Type, ID: source.ID, Title: source.Title})
+		references = append(references, store.Reference{
+			Type: source.Type, ID: source.ID, Title: source.Title, Snippet: source.Snippet,
+		})
 	}
 	return l.svcCtx.Conversations.Append(l.ctx, request.UserID, conversationID, store.Message{
 		Role: "assistant", Content: text, RequestID: request.RequestID, Sources: references,
@@ -360,6 +373,43 @@ func splitRunes(value string, size int) []string {
 	return chunks
 }
 
+func appendSourceEvidence(answer string, sources []tool.Source, maxRunes int) string {
+	answer = neutralizeGeneratedSourceMarkers(strings.TrimSpace(answer))
+	if maxRunes <= 0 || len([]rune(answer)) >= maxRunes {
+		return answer
+	}
+	var citations strings.Builder
+	for _, source := range sources {
+		if source.Type != "post" || source.ID == "" || strings.TrimSpace(source.Snippet) == "" {
+			continue
+		}
+		postID, err := strconv.ParseInt(source.ID, 10, 64)
+		if err != nil || postID <= 0 || strconv.FormatInt(postID, 10) != source.ID {
+			continue
+		}
+		encoded, _ := json.Marshal(struct {
+			Title   string `json:"title"`
+			Excerpt string `json:"excerpt"`
+		}{Title: source.Title, Excerpt: source.Snippet})
+		header := ""
+		if citations.Len() == 0 {
+			header = "\n\nCommunity sources (quoted untrusted content):"
+		}
+		block := header + "\nSOURCE [post:" + source.ID + "]\nCOMMUNITY_CONTENT_JSON=" + string(encoded)
+		if len([]rune(answer))+len([]rune(citations.String()))+len([]rune(block)) > maxRunes {
+			break
+		}
+		citations.WriteString(block)
+	}
+	return answer + citations.String()
+}
+
+func neutralizeGeneratedSourceMarkers(answer string) string {
+	return generatedPostSourceMarker.ReplaceAllStringFunc(answer, func(marker string) string {
+		return "［" + marker[1:len(marker)-1] + "］"
+	})
+}
+
 func (l *ChatLogic) maxMessageRunes() int {
 	if l.svcCtx != nil && l.svcCtx.Config.MaxMessageRunes > 0 {
 		return l.svcCtx.Config.MaxMessageRunes
@@ -379,4 +429,11 @@ func (l *ChatLogic) toolTimeout() time.Duration {
 		return time.Duration(l.svcCtx.Config.ToolTimeoutMs) * time.Millisecond
 	}
 	return defaultToolTimeout
+}
+
+func (l *ChatLogic) maxResponseRunes() int {
+	if l.svcCtx != nil && l.svcCtx.Config.Safety.MaxScanRunes > 0 {
+		return l.svcCtx.Config.Safety.MaxScanRunes
+	}
+	return defaultMaxResponseRunes
 }
