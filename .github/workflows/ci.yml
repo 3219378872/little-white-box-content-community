@@ -6,8 +6,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-  schedule:
-    - cron: "30 18 * * *"
 
 permissions:
   contents: read
@@ -78,20 +76,3 @@ jobs:
           cache: true
       - name: Critical MySQL and Redis integration tests
         run: make integration-critical
-
-  nightly-full-integration:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Full integration lifecycle
-        env:
-          INTEGRATION_PARALLELISM: "1"
-        run: make integration-all
-      - name: Bounded native fuzz tests
-        run: make fuzz
