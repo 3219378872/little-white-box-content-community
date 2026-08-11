@@ -53,7 +53,11 @@ func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 				"xpack.security.enabled":                            "false",
 				"ES_JAVA_OPTS":                                      "-Xms512m -Xmx512m",
 			},
-			WaitingFor: wait.ForListeningPort("9200/tcp").
+			// Wait for the HTTP layer instead of only the TCP port: Elasticsearch
+			// binds the port early during startup and can reset connections until
+			// the node is ready, which made the integration tests flaky in CI.
+			WaitingFor: wait.ForHTTP("/").
+				WithPort("9200/tcp").
 				WithStartupTimeout(3 * time.Minute),
 		},
 		Started: true,

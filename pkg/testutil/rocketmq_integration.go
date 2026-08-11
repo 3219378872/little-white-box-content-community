@@ -123,7 +123,25 @@ exit 1
 	if err != nil {
 		return cleanup(fmt.Errorf("rocketmq nameserver port: %w", err))
 	}
-	nameServer := net.JoinHostPort(host, mappedNameServerPort.Port())
+	// The rocketmq client requires the namesrv address to be an IP literal, not a
+	// hostname. Docker maps published ports onto the daemon host; when the daemon
+	// host is "localhost" (a unix socket, as on GitHub Actions runners), use the
+	// loopback IP so consumer/producer bootstrap does not fail with an IP error.
+	namesrvHost := host
+	if net.ParseIP(host) == nil {
+		if resolved, err := net.LookupIP(host); err == nil {
+			for _, ip := range resolved {
+				if ip.To4() != nil {
+					namesrvHost = ip.String()
+					break
+				}
+			}
+		}
+		if namesrvHost == host {
+			namesrvHost = "127.0.0.1"
+		}
+	}
+	nameServer := net.JoinHostPort(namesrvHost, mappedNameServerPort.Port())
 	for _, topic := range topics {
 		if strings.TrimSpace(topic) == "" {
 			continue
