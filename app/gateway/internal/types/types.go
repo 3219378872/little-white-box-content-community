@@ -87,6 +87,11 @@ type HealthResp struct {
 	Status string `json:"status"`
 }
 
+type HealthReadyResp struct {
+	Status       string            `json:"status"`       // ready | degraded | unavailable
+	Dependencies map[string]string `json:"dependencies"` // name -> ok | down
+}
+
 type MessageItem struct {
 	Id             int64  `json:"id"`
 	ConversationId int64  `json:"conversationId"`

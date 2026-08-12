@@ -387,6 +387,7 @@ func TestRESTDecisionTable(t *testing.T) {
 	}
 	successes := []restDecision{
 		{id: "HEALTH-VALID", method: http.MethodGet, path: "/api/v1/health", wantStatus: http.StatusOK, wantFields: []string{"status"}},
+		{id: "HEALTH-READY-VALID", method: http.MethodGet, path: "/api/v1/health/ready", wantStatus: http.StatusOK, wantFields: []string{"status", "dependencies"}},
 		{id: "POST-LIST-ANON", method: http.MethodGet, path: "/api/v1/posts?page=1&pageSize=20&sortBy=1", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "AUTH-REGISTER-VALID", method: http.MethodPost, path: "/api/v1/auth/register", body: jsonBody(`{"username":"newuser","password":"Strong123"}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
 		{id: "AUTH-LOGIN-VALID", method: http.MethodPost, path: "/api/v1/auth/login", body: jsonBody(`{"username":"alice","password":"Strong123","loginType":1}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
@@ -568,8 +569,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 39 {
-		t.Fatalf("route inventory drift: got %d success rules, want 39", len(successes))
+	if len(successes) != 40 {
+		t.Fatalf("route inventory drift: got %d success rules, want 40", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

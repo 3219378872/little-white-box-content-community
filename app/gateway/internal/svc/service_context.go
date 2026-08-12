@@ -21,10 +21,19 @@ import (
 
 	"github.com/zeromicro/go-zero/rest"
 	"github.com/zeromicro/go-zero/zrpc"
+	"google.golang.org/grpc/connectivity"
 )
+
+// Dependency 描述一个就绪检查依赖（REL-053）。
+type Dependency struct {
+	Name      string
+	ConnState func() connectivity.State
+	Optional  bool // 可选能力（如发现）故障只降级，不使整个 Gateway 下线
+}
 
 type ServiceContext struct {
 	Config             config.Config
+	Dependencies       []Dependency
 	UserService        userservice.UserService
 	ContentService     contentservice.ContentService
 	MediaService       mediaservice.MediaService
@@ -67,7 +76,18 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	behaviorAccepted := gatewaymiddleware.NewBehaviorAcceptedMiddleware()
 
 	return &ServiceContext{
-		Config:             c,
+		Config: c,
+		Dependencies: []Dependency{
+			{Name: "user", ConnState: func() connectivity.State { return userClient.Conn().GetState() }},
+			{Name: "content", ConnState: func() connectivity.State { return contentClient.Conn().GetState() }},
+			{Name: "media", ConnState: func() connectivity.State { return mediaClient.Conn().GetState() }},
+			{Name: "interaction", ConnState: func() connectivity.State { return interactionClient.Conn().GetState() }},
+			{Name: "behavior", ConnState: func() connectivity.State { return behaviorClient.Conn().GetState() }},
+			{Name: "feed", ConnState: func() connectivity.State { return feedClient.Conn().GetState() }},
+			{Name: "message", ConnState: func() connectivity.State { return messageClient.Conn().GetState() }},
+			{Name: "search", ConnState: func() connectivity.State { return searchClient.Conn().GetState() }, Optional: true},
+			{Name: "assistant", ConnState: func() connectivity.State { return assistantClient.Conn().GetState() }, Optional: true},
+		},
 		UserService:        userService,
 		ContentService:     contentService,
 		MediaService:       mediaService,
@@ -79,5 +99,54 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AssistantService:   assistantService,
 		OptionalAuth:       optionalAuth.Handle,
 		BehaviorAccepted:   behaviorAccepted.Handle,
+	}
+}
+
+// DependencyStatus 是一次就绪检查的结果。
+type DependencyStatus struct {
+	Name    string `json:"name"`
+	Status  string `json:"status"` // ok | down
+	Healthy bool
+}
+
+// Readiness 检查所有依赖的连接状态。可选能力故障只标记 down；
+// 必需能力故障返回 unavailable。整体状态 ready/degraded/unavailable。
+func (s *ServiceContext) Readiness() (string, []DependencyStatus) {
+	statuses := make([]DependencyStatus, 0, len(s.Dependencies))
+	requiredDown := false
+	optionalDown := false
+	for _, dependency := range s.Dependencies {
+		healthy := dependencyHealthy(dependency)
+		status := "ok"
+		if !healthy {
+			status = "down"
+			if dependency.Optional {
+				optionalDown = true
+			} else {
+				requiredDown = true
+			}
+		}
+		statuses = append(statuses, DependencyStatus{Name: dependency.Name, Status: status, Healthy: healthy})
+	}
+	switch {
+	case requiredDown:
+		return "unavailable", statuses
+	case optionalDown:
+		return "degraded", statuses
+	default:
+		return "ready", statuses
+	}
+}
+
+func dependencyHealthy(dependency Dependency) bool {
+	if dependency.ConnState == nil {
+		return false
+	}
+	state := dependency.ConnState()
+	switch state {
+	case connectivity.Ready, connectivity.Idle, connectivity.Connecting:
+		return true
+	default:
+		return false
 	}
 }

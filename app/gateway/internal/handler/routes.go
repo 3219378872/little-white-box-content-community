@@ -31,6 +31,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/health",
 				Handler: HealthHandler(serverCtx),
 			},
+			{
+				// 就绪检查
+				Method:  http.MethodGet,
+				Path:    "/health/ready",
+				Handler: HealthReadyHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/api/v1"),
 	)

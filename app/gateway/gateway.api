@@ -563,6 +563,10 @@ type (
 	HealthResp {
 		Status string `json:"status"`
 	}
+	HealthReadyResp {
+		Status       string            `json:"status"` // ready | degraded | unavailable
+		Dependencies map[string]string `json:"dependencies"` // name -> ok | down
+	}
 )
 
 // ============================================
@@ -575,6 +579,10 @@ service gateway {
 	@doc "健康检查"
 	@handler Health
 	get /health (HealthReq) returns (HealthResp)
+
+	@doc "就绪检查"
+	@handler HealthReady
+	get /health/ready (HealthReq) returns (HealthReadyResp)
 }
 
 @server (
@@ -823,3 +831,4 @@ service gateway {
 	@handler SetPersonalizationPreference
 	put /me/personalization (SetPersonalizationPreferenceReq) returns (SetPersonalizationPreferenceResp)
 }
+
