@@ -6,6 +6,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"fmt"
+	"strings"
 	"testing"
 
 	"errx"
@@ -14,6 +15,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func int32Ptr(v int32) *int32 {
+	return &v
+}
 
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 
@@ -189,22 +194,46 @@ func TestGetPostLogic(t *testing.T) {
 			errCode: errx.ContentNotFound,
 		},
 		{
-			name: "已删除帖子报错",
-			req:  &pb.GetPostReq{PostId: 101},
+			name: "非作者读已删除帖子统一不存在",
+			req:  &pb.GetPostReq{PostId: 101, UserId: 999},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(101)).Return(deletedPost, nil)
 			},
 			wantErr: true,
-			errCode: errx.PostAlreadyDeleted,
+			errCode: errx.ContentNotFound,
 		},
 		{
-			name: "草稿帖子不公开",
-			req:  &pb.GetPostReq{PostId: 102},
+			name: "非作者读草稿统一不存在",
+			req:  &pb.GetPostReq{PostId: 102, UserId: 999},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(102)).Return(draftPost, nil)
 			},
 			wantErr: true,
 			errCode: errx.ContentNotFound,
+		},
+		{
+			name: "作者可读自己的草稿",
+			req:  &pb.GetPostReq{PostId: 102, UserId: 200},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindPostById", mock.Anything, int64(102)).Return(draftPost, nil)
+				ptm.On("FindTagNamesByPostId", mock.Anything, int64(102)).Return([]string{}, nil)
+			},
+			check: func(t *testing.T, resp *pb.GetPostResp) {
+				assert.Equal(t, int64(102), resp.Post.Id)
+				assert.Equal(t, int32(0), resp.Post.Status)
+			},
+		},
+		{
+			name: "作者可读自己的已删除帖子",
+			req:  &pb.GetPostReq{PostId: 101, UserId: 200},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindPostById", mock.Anything, int64(101)).Return(deletedPost, nil)
+				ptm.On("FindTagNamesByPostId", mock.Anything, int64(101)).Return([]string{}, nil)
+			},
+			check: func(t *testing.T, resp *pb.GetPostResp) {
+				assert.Equal(t, int64(101), resp.Post.Id)
+				assert.Equal(t, int32(2), resp.Post.Status)
+			},
 		},
 		{
 			name: "数据库错误",
@@ -260,8 +289,8 @@ func TestGetPostLogic(t *testing.T) {
 // ─── UpdatePost ───────────────────────────────────────────────────────────────
 
 func TestUpdatePostLogic(t *testing.T) {
-	authorPost := &model2.Post{Id: 300, AuthorId: 3001, Title: "原标题", Content: "原内容", Status: 1}
-	deletedPost := &model2.Post{Id: 301, AuthorId: 3001, Status: 2}
+	authorPost := &model2.Post{Id: 300, AuthorId: 3001, Title: "原标题", Content: "原内容", Status: 1, Revision: 3}
+	deletedPost := &model2.Post{Id: 301, AuthorId: 3001, Status: 2, Revision: 1}
 
 	tests := []struct {
 		name      string
@@ -273,12 +302,13 @@ func TestUpdatePostLogic(t *testing.T) {
 		{
 			name: "成功更新帖子",
 			req: &pb.UpdatePostReq{
-				PostId:   300,
-				AuthorId: 3001,
-				Title:    "新标题",
-				Content:  "新内容",
-				Tags:     []string{"golang"},
-				Status:   1,
+				PostId:           300,
+				AuthorId:         3001,
+				Title:            "新标题",
+				Content:          "新内容",
+				Tags:             []string{"golang"},
+				Status:           int32Ptr(1),
+				ExpectedRevision: 3,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
@@ -288,7 +318,7 @@ func TestUpdatePostLogic(t *testing.T) {
 		},
 		{
 			name: "帖子不存在报错",
-			req:  &pb.UpdatePostReq{PostId: 999, AuthorId: 3001, Title: "t", Content: "c"},
+			req:  &pb.UpdatePostReq{PostId: 999, AuthorId: 3001, Title: "t", Content: "c", ExpectedRevision: 3},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(999)).Return(nil, model2.ErrNotFound)
 			},
@@ -297,7 +327,7 @@ func TestUpdatePostLogic(t *testing.T) {
 		},
 		{
 			name: "非作者操作报错",
-			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 9999, Title: "t", Content: "c"},
+			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 9999, Title: "t", Content: "c", ExpectedRevision: 3},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
 			},
@@ -306,7 +336,7 @@ func TestUpdatePostLogic(t *testing.T) {
 		},
 		{
 			name: "已删除帖子报错",
-			req:  &pb.UpdatePostReq{PostId: 301, AuthorId: 3001, Title: "t", Content: "c"},
+			req:  &pb.UpdatePostReq{PostId: 301, AuthorId: 3001, Title: "t", Content: "c", ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(301)).Return(deletedPost, nil)
 			},
@@ -317,7 +347,8 @@ func TestUpdatePostLogic(t *testing.T) {
 			name: "图片URL含逗号报错",
 			req: &pb.UpdatePostReq{
 				PostId: 300, AuthorId: 3001, Title: "t", Content: "c",
-				Images: []string{"http://example.com/a,b.jpg"},
+				Images:           []string{"http://example.com/a,b.jpg"},
+				ExpectedRevision: 3,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
@@ -327,12 +358,27 @@ func TestUpdatePostLogic(t *testing.T) {
 		},
 		{
 			name: "UpdateFields数据库错误",
-			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c"},
+			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c", ExpectedRevision: 3},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
 				pm.On("UpdateFields", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("db error"))
 			},
 			wantErr: true,
+		},
+		{
+			name: "版本冲突报错",
+			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c", ExpectedRevision: 99},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentVersionConflict,
+		},
+		{
+			name:    "标题超长报错",
+			req:     &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: strings.Repeat("长", 121), Content: "c", ExpectedRevision: 3},
+			wantErr: true,
+			errCode: errx.ContentTooLong,
 		},
 	}
 
@@ -365,8 +411,8 @@ func TestUpdatePostLogic(t *testing.T) {
 // ─── DeletePost ───────────────────────────────────────────────────────────────
 
 func TestDeletePostLogic(t *testing.T) {
-	activePost := &model2.Post{Id: 400, AuthorId: 4001, Status: 1}
-	deletedPost := &model2.Post{Id: 401, AuthorId: 4001, Status: 2}
+	activePost := &model2.Post{Id: 400, AuthorId: 4001, Status: 1, Revision: 1}
+	deletedPost := &model2.Post{Id: 401, AuthorId: 4001, Status: 2, Revision: 1}
 
 	tests := []struct {
 		name      string
@@ -377,7 +423,7 @@ func TestDeletePostLogic(t *testing.T) {
 	}{
 		{
 			name: "成功软删除帖子",
-			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 4001},
+			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel) {
 				pm.On("FindPostById", mock.Anything, int64(400)).Return(activePost, nil)
 				pm.On("UpdateStatus", mock.Anything, int64(400), int64(2)).Return(nil)
@@ -385,7 +431,7 @@ func TestDeletePostLogic(t *testing.T) {
 		},
 		{
 			name: "帖子不存在报错",
-			req:  &pb.DeletePostReq{PostId: 999, AuthorId: 4001},
+			req:  &pb.DeletePostReq{PostId: 999, AuthorId: 4001, ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel) {
 				pm.On("FindPostById", mock.Anything, int64(999)).Return(nil, model2.ErrNotFound)
 			},
@@ -394,7 +440,7 @@ func TestDeletePostLogic(t *testing.T) {
 		},
 		{
 			name: "已删除帖子报错",
-			req:  &pb.DeletePostReq{PostId: 401, AuthorId: 4001},
+			req:  &pb.DeletePostReq{PostId: 401, AuthorId: 4001, ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel) {
 				pm.On("FindPostById", mock.Anything, int64(401)).Return(deletedPost, nil)
 			},
@@ -403,7 +449,7 @@ func TestDeletePostLogic(t *testing.T) {
 		},
 		{
 			name: "非作者删除报错",
-			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 9999},
+			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 9999, ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel) {
 				pm.On("FindPostById", mock.Anything, int64(400)).Return(activePost, nil)
 			},
@@ -412,11 +458,20 @@ func TestDeletePostLogic(t *testing.T) {
 		},
 		{
 			name: "数据库查询错误",
-			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 4001},
+			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1},
 			setupMock: func(pm *MockPostModel) {
 				pm.On("FindPostById", mock.Anything, int64(400)).Return(nil, fmt.Errorf("timeout"))
 			},
 			wantErr: true,
+		},
+		{
+			name: "版本冲突报错",
+			req:  &pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 99},
+			setupMock: func(pm *MockPostModel) {
+				pm.On("FindPostById", mock.Anything, int64(400)).Return(activePost, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentVersionConflict,
 		},
 	}
 

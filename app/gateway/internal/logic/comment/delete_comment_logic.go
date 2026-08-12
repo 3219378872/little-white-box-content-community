@@ -46,7 +46,7 @@ func (l *DeleteCommentLogic) DeleteComment(req *types.DeleteCommentReq) (resp *t
 			logx.Field("commentId", req.CommentId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.DeleteCommentResp{}, nil

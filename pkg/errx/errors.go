@@ -100,6 +100,8 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusTooManyRequests
 	case UserAlreadyExist:
 		return http.StatusConflict
+	case ContentVersionConflict, IdempotencyConflict:
+		return http.StatusConflict
 	case AlreadyLiked, AlreadyFavorited, NotLikedYet, NotFavoritedYet,
 		CannotLikeSelf, CannotFollowSelf:
 		return http.StatusBadRequest

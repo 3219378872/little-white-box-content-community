@@ -46,7 +46,7 @@ func (l *FavoriteLogic) Favorite(req *types.FavoriteReq) (resp *types.FavoriteRe
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.FavoriteResp{}, nil

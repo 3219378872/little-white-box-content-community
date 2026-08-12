@@ -46,7 +46,7 @@ func (l *UnfavoriteLogic) Unfavorite(req *types.UnfavoriteReq) (resp *types.Unfa
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.UnfavoriteResp{}, nil

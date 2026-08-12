@@ -10,6 +10,7 @@ import (
 	"esx/pkg/event"
 	"mqx"
 	"strings"
+	"unicode/utf8"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -34,11 +35,40 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if in.Title == "" {
+	if in.ExpectedRevision <= 0 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	titleRunes := utf8.RuneCountInString(in.GetTitle())
+	if titleRunes < 1 {
 		return nil, errx.NewWithCode(errx.TitleEmpty)
 	}
-	if in.Content == "" {
+	if titleRunes > 120 {
+		return nil, errx.NewWithCode(errx.ContentTooLong)
+	}
+	contentRunes := utf8.RuneCountInString(in.GetContent())
+	if contentRunes < 1 {
 		return nil, errx.NewWithCode(errx.ContentEmpty)
+	}
+	if contentRunes > 20000 {
+		return nil, errx.NewWithCode(errx.ContentTooLong)
+	}
+	if len(in.Images) > 9 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if len(in.Tags) > 10 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	for _, tag := range in.Tags {
+		if tag == "" {
+			continue
+		}
+		tagRunes := utf8.RuneCountInString(tag)
+		if tagRunes < 1 || tagRunes > 32 {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+	}
+	if in.Status != nil && *in.Status != 0 && *in.Status != 1 {
+		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
 	// 鉴权：查帖子仅用于身份校验，不用于写回（防止 Lost Update）
@@ -59,6 +89,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if post.AuthorId != in.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
+	if post.Revision != in.ExpectedRevision {
+		return nil, errx.NewWithCode(errx.ContentVersionConflict)
+	}
 
 	// 校验图片
 	for _, image := range in.Images {
@@ -75,9 +108,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if len(in.Images) > 0 {
 		fields["images"] = util.ToJsonObject(in.Images)
 	}
-	// Status 只在显式设置（>0）时更新，避免 proto3 零值默认把已发布帖子降级为草稿
-	if in.Status > 0 {
-		fields["status"] = int64(in.Status)
+	// Status 只在显式设置时更新，支持 draft ⇄ published 双向转换
+	if in.Status != nil && int64(*in.Status) != post.Status {
+		fields["status"] = int64(*in.Status)
 	}
 
 	// 收集有效标签并预生成 ID
@@ -117,7 +150,10 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, validTags, tagIds, outboxEvent); err != nil {
+	if err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, validTags, tagIds, outboxEvent, in.ExpectedRevision); err != nil {
+		if errors.Is(err, model.ErrVersionConflict) {
+			return nil, errx.NewWithCode(errx.ContentVersionConflict)
+		}
 		l.Errorw("update post transaction failed",
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
@@ -127,5 +163,12 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
 	}
 
-	return &pb.UpdatePostResp{}, nil
+	newStatus := post.Status
+	if in.Status != nil {
+		newStatus = int64(*in.Status)
+	}
+	return &pb.UpdatePostResp{
+		Status:   int32(newStatus),
+		Revision: post.Revision + 1,
+	}, nil
 }

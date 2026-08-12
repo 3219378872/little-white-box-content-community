@@ -112,6 +112,7 @@ type PostItem struct {
 	FavoriteCount int64    `json:"favoriteCount"`
 	IsLiked       bool     `json:"isLiked"`
 	IsFavorited   bool     `json:"isFavorited"`
+	Revision      int64    `json:"revision"`
 	CreatedAt     int64    `json:"createdAt"`
 }
 

@@ -97,13 +97,13 @@ func TestGetPost(t *testing.T) {
 
 		// 软删除
 		dl := NewDeletePostLogic(ctx, testSvcCtx)
-		_, err := dl.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 1003})
+		_, err := dl.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 1003, ExpectedRevision: 1})
 		require.NoError(t, err)
 
 		// 获取已删除帖子
 		gl := NewGetPostLogic(ctx, testSvcCtx)
-		_, err = gl.GetPost(&pb.GetPostReq{PostId: postId})
-		assertBizError(t, err, errx.PostAlreadyDeleted)
+		_, err = gl.GetPost(&pb.GetPostReq{PostId: postId, UserId: 999})
+		assertBizError(t, err, errx.ContentNotFound)
 	})
 }
 
@@ -114,32 +114,35 @@ func TestUpdatePost(t *testing.T) {
 		postId := createTestPost(t, 2001, "原标题", "原内容", []string{"golang"})
 
 		l := NewUpdatePostLogic(ctx, testSvcCtx)
-		_, err := l.UpdatePost(&pb.UpdatePostReq{
-			PostId:   postId,
-			AuthorId: 2001,
-			Title:    "新标题",
-			Content:  "新内容",
-			Tags:     []string{"rust", "python"},
-			Status:   1,
+		resp, err := l.UpdatePost(&pb.UpdatePostReq{
+			PostId:           postId,
+			AuthorId:         2001,
+			Title:            "新标题",
+			Content:          "新内容",
+			Tags:             []string{"rust", "python"},
+			Status:           int32Ptr(1),
+			ExpectedRevision: 1,
 		})
 		require.NoError(t, err)
+		assert.Equal(t, int64(2), resp.Revision)
 
 		// 验证更新后内容
 		gl := NewGetPostLogic(ctx, testSvcCtx)
-		resp, err := gl.GetPost(&pb.GetPostReq{PostId: postId})
+		getResp, err := gl.GetPost(&pb.GetPostReq{PostId: postId})
 		require.NoError(t, err)
-		assert.Equal(t, "新标题", resp.Post.Title)
-		assert.Equal(t, "新内容", resp.Post.Content)
-		assert.ElementsMatch(t, []string{"rust", "python"}, resp.Post.Tags)
+		assert.Equal(t, "新标题", getResp.Post.Title)
+		assert.Equal(t, "新内容", getResp.Post.Content)
+		assert.ElementsMatch(t, []string{"rust", "python"}, getResp.Post.Tags)
 	})
 
 	t.Run("帖子不存在报错", func(t *testing.T) {
 		l := NewUpdatePostLogic(ctx, testSvcCtx)
 		_, err := l.UpdatePost(&pb.UpdatePostReq{
-			PostId:   999999999,
-			AuthorId: 2001,
-			Title:    "标题",
-			Content:  "内容",
+			PostId:           999999999,
+			AuthorId:         2001,
+			Title:            "标题",
+			Content:          "内容",
+			ExpectedRevision: 1,
 		})
 		assertBizError(t, err, errx.ContentNotFound)
 	})
@@ -149,10 +152,11 @@ func TestUpdatePost(t *testing.T) {
 
 		l := NewUpdatePostLogic(ctx, testSvcCtx)
 		_, err := l.UpdatePost(&pb.UpdatePostReq{
-			PostId:   postId,
-			AuthorId: 2003, // 不同的用户
-			Title:    "标题",
-			Content:  "内容",
+			PostId:           postId,
+			AuthorId:         2003, // 不同的用户
+			Title:            "标题",
+			Content:          "内容",
+			ExpectedRevision: 1,
 		})
 		assertBizError(t, err, errx.ContentForbidden)
 	})
@@ -161,15 +165,16 @@ func TestUpdatePost(t *testing.T) {
 		postId := createTestPost(t, 2004, "标题", "内容", nil)
 
 		dl := NewDeletePostLogic(ctx, testSvcCtx)
-		_, err := dl.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 2004})
+		_, err := dl.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 2004, ExpectedRevision: 1})
 		require.NoError(t, err)
 
 		l := NewUpdatePostLogic(ctx, testSvcCtx)
 		_, err = l.UpdatePost(&pb.UpdatePostReq{
-			PostId:   postId,
-			AuthorId: 2004,
-			Title:    "标题",
-			Content:  "内容",
+			PostId:           postId,
+			AuthorId:         2004,
+			Title:            "标题",
+			Content:          "内容",
+			ExpectedRevision: 1,
 		})
 		assertBizError(t, err, errx.PostAlreadyDeleted)
 	})
@@ -182,18 +187,18 @@ func TestDeletePost(t *testing.T) {
 		postId := createTestPost(t, 3001, "标题", "内容", nil)
 
 		l := NewDeletePostLogic(ctx, testSvcCtx)
-		_, err := l.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 3001})
+		_, err := l.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 3001, ExpectedRevision: 1})
 		require.NoError(t, err)
 
 		// 再次获取应返回已删除错误
 		gl := NewGetPostLogic(ctx, testSvcCtx)
-		_, err = gl.GetPost(&pb.GetPostReq{PostId: postId})
-		assertBizError(t, err, errx.PostAlreadyDeleted)
+		_, err = gl.GetPost(&pb.GetPostReq{PostId: postId, UserId: 999})
+		assertBizError(t, err, errx.ContentNotFound)
 	})
 
 	t.Run("帖子不存在报错", func(t *testing.T) {
 		l := NewDeletePostLogic(ctx, testSvcCtx)
-		_, err := l.DeletePost(&pb.DeletePostReq{PostId: 999999999, AuthorId: 3001})
+		_, err := l.DeletePost(&pb.DeletePostReq{PostId: 999999999, AuthorId: 3001, ExpectedRevision: 1})
 		assertBizError(t, err, errx.ContentNotFound)
 	})
 
@@ -201,7 +206,7 @@ func TestDeletePost(t *testing.T) {
 		postId := createTestPost(t, 3002, "标题", "内容", nil)
 
 		l := NewDeletePostLogic(ctx, testSvcCtx)
-		_, err := l.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 3003})
+		_, err := l.DeletePost(&pb.DeletePostReq{PostId: postId, AuthorId: 3003, ExpectedRevision: 1})
 		assertBizError(t, err, errx.ContentForbidden)
 	})
 }

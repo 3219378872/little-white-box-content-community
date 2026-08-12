@@ -48,7 +48,7 @@ func (l *LikeLogic) Like(req *types.LikeReq) (resp *types.LikeResp, err error) {
 			logx.Field("targetType", req.TargetType),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.LikeResp{}, nil

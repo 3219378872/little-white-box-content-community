@@ -38,15 +38,16 @@ func (l *CreateCommentLogic) CreateComment(req *types.CreateCommentReq) (resp *t
 	}
 
 	result, err := l.svcCtx.ContentService.CreateComment(l.ctx, &contentservice.CreateCommentReq{
-		PostId:      req.PostId,
-		UserId:      userId,
-		ParentId:    req.ParentId,
-		ReplyUserId: req.ReplyUserId,
-		Content:     req.Content,
+		PostId:         req.PostId,
+		UserId:         userId,
+		ParentId:       req.ParentId,
+		ReplyUserId:    req.ReplyUserId,
+		Content:        req.Content,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		l.Errorw("ContentService.CreateComment RPC failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.CreateCommentResp{

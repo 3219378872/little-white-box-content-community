@@ -6,14 +6,15 @@ package server
 
 import (
 	"context"
-	logic2 "esx/app/content/rpc/internal/logic"
+
+	"esx/app/content/rpc/internal/logic"
 	"esx/app/content/rpc/internal/svc"
-	pb2 "esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 )
 
 type ContentServiceServer struct {
 	svcCtx *svc.ServiceContext
-	pb2.UnimplementedContentServiceServer
+	pb.UnimplementedContentServiceServer
 }
 
 func NewContentServiceServer(svcCtx *svc.ServiceContext) *ContentServiceServer {
@@ -23,79 +24,79 @@ func NewContentServiceServer(svcCtx *svc.ServiceContext) *ContentServiceServer {
 }
 
 // 创建帖子
-func (s *ContentServiceServer) CreatePost(ctx context.Context, in *pb2.CreatePostReq) (*pb2.CreatePostResp, error) {
-	l := logic2.NewCreatePostLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) CreatePost(ctx context.Context, in *pb.CreatePostReq) (*pb.CreatePostResp, error) {
+	l := logic.NewCreatePostLogic(ctx, s.svcCtx)
 	return l.CreatePost(in)
 }
 
 // 获取帖子详情
-func (s *ContentServiceServer) GetPost(ctx context.Context, in *pb2.GetPostReq) (*pb2.GetPostResp, error) {
-	l := logic2.NewGetPostLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetPost(ctx context.Context, in *pb.GetPostReq) (*pb.GetPostResp, error) {
+	l := logic.NewGetPostLogic(ctx, s.svcCtx)
 	return l.GetPost(in)
 }
 
 // 更新帖子
-func (s *ContentServiceServer) UpdatePost(ctx context.Context, in *pb2.UpdatePostReq) (*pb2.UpdatePostResp, error) {
-	l := logic2.NewUpdatePostLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) UpdatePost(ctx context.Context, in *pb.UpdatePostReq) (*pb.UpdatePostResp, error) {
+	l := logic.NewUpdatePostLogic(ctx, s.svcCtx)
 	return l.UpdatePost(in)
 }
 
 // 删除帖子
-func (s *ContentServiceServer) DeletePost(ctx context.Context, in *pb2.DeletePostReq) (*pb2.DeletePostResp, error) {
-	l := logic2.NewDeletePostLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) DeletePost(ctx context.Context, in *pb.DeletePostReq) (*pb.DeletePostResp, error) {
+	l := logic.NewDeletePostLogic(ctx, s.svcCtx)
 	return l.DeletePost(in)
 }
 
 // 获取帖子列表
-func (s *ContentServiceServer) GetPostList(ctx context.Context, in *pb2.GetPostListReq) (*pb2.GetPostListResp, error) {
-	l := logic2.NewGetPostListLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetPostList(ctx context.Context, in *pb.GetPostListReq) (*pb.GetPostListResp, error) {
+	l := logic.NewGetPostListLogic(ctx, s.svcCtx)
 	return l.GetPostList(in)
 }
 
 // 获取用户帖子列表
-func (s *ContentServiceServer) GetUserPosts(ctx context.Context, in *pb2.GetUserPostsReq) (*pb2.GetUserPostsResp, error) {
-	l := logic2.NewGetUserPostsLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetUserPosts(ctx context.Context, in *pb.GetUserPostsReq) (*pb.GetUserPostsResp, error) {
+	l := logic.NewGetUserPostsLogic(ctx, s.svcCtx)
 	return l.GetUserPosts(in)
 }
 
 // 按ID批量获取帖子
-func (s *ContentServiceServer) GetPostsByIds(ctx context.Context, in *pb2.GetPostsByIdsReq) (*pb2.GetPostsByIdsResp, error) {
-	l := logic2.NewGetPostsByIdsLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetPostsByIds(ctx context.Context, in *pb.GetPostsByIdsReq) (*pb.GetPostsByIdsResp, error) {
+	l := logic.NewGetPostsByIdsLogic(ctx, s.svcCtx)
 	return l.GetPostsByIds(in)
 }
 
 // 创建评论
-func (s *ContentServiceServer) CreateComment(ctx context.Context, in *pb2.CreateCommentReq) (*pb2.CreateCommentResp, error) {
-	l := logic2.NewCreateCommentLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) CreateComment(ctx context.Context, in *pb.CreateCommentReq) (*pb.CreateCommentResp, error) {
+	l := logic.NewCreateCommentLogic(ctx, s.svcCtx)
 	return l.CreateComment(in)
 }
 
 // 删除评论
-func (s *ContentServiceServer) DeleteComment(ctx context.Context, in *pb2.DeleteCommentReq) (*pb2.DeleteCommentResp, error) {
-	l := logic2.NewDeleteCommentLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) DeleteComment(ctx context.Context, in *pb.DeleteCommentReq) (*pb.DeleteCommentResp, error) {
+	l := logic.NewDeleteCommentLogic(ctx, s.svcCtx)
 	return l.DeleteComment(in)
 }
 
 // 获取评论列表
-func (s *ContentServiceServer) GetCommentList(ctx context.Context, in *pb2.GetCommentListReq) (*pb2.GetCommentListResp, error) {
-	l := logic2.NewGetCommentListLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetCommentList(ctx context.Context, in *pb.GetCommentListReq) (*pb.GetCommentListResp, error) {
+	l := logic.NewGetCommentListLogic(ctx, s.svcCtx)
 	return l.GetCommentList(in)
 }
 
 // 获取标签列表
-func (s *ContentServiceServer) GetTags(ctx context.Context, in *pb2.GetTagsReq) (*pb2.GetTagsResp, error) {
-	l := logic2.NewGetTagsLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetTags(ctx context.Context, in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
+	l := logic.NewGetTagsLogic(ctx, s.svcCtx)
 	return l.GetTags(in)
 }
 
 // 获取标签下的帖子
-func (s *ContentServiceServer) GetPostsByTag(ctx context.Context, in *pb2.GetPostsByTagReq) (*pb2.GetPostsByTagResp, error) {
-	l := logic2.NewGetPostsByTagLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) GetPostsByTag(ctx context.Context, in *pb.GetPostsByTagReq) (*pb.GetPostsByTagResp, error) {
+	l := logic.NewGetPostsByTagLogic(ctx, s.svcCtx)
 	return l.GetPostsByTag(in)
 }
 
 // DTM reliable message query-prepared checkback
-func (s *ContentServiceServer) QueryPrepared(ctx context.Context, in *pb2.QueryPreparedReq) (*pb2.QueryPreparedResp, error) {
-	l := logic2.NewQueryPreparedLogic(ctx, s.svcCtx)
+func (s *ContentServiceServer) QueryPrepared(ctx context.Context, in *pb.QueryPreparedReq) (*pb.QueryPreparedResp, error) {
+	l := logic.NewQueryPreparedLogic(ctx, s.svcCtx)
 	return l.QueryPrepared(in)
 }

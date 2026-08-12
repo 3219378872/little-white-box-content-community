@@ -4,10 +4,11 @@
 package types
 
 type CreateCommentReq struct {
-	PostId      int64  `json:"postId"`
-	ParentId    int64  `json:"parentId,optional"`
-	ReplyUserId int64  `json:"replyUserId,optional"`
-	Content     string `json:"content"`
+	PostId         int64  `json:"postId"`
+	ParentId       int64  `json:"parentId,optional"`
+	ReplyUserId    int64  `json:"replyUserId,optional"`
+	Content        string `json:"content"`
+	IdempotencyKey string `json:"idempotencyKey,optional"`
 }
 
 type CreateCommentResp struct {

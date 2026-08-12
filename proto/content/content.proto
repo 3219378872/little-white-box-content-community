@@ -44,6 +44,7 @@ message PostInfo {
   repeated string images         = 5;
   repeated string tags           = 6;
   int32           status         = 7; // 0: 草稿 1: 已发布 2: 已删除
+  int64           revision       = 14; // 内容版本，创建为 1，每次成功变更 +1
   int64           view_count     = 8;
   int64           like_count     = 9;
   int64           comment_count  = 10;
@@ -73,11 +74,14 @@ message CreatePostReq {
   repeated string images    = 4;
   repeated string tags      = 5;
   int32           status    = 6;
+  string          idempotency_key = 7; // 客户端幂等键，同一调用者范围内唯一，最长 128 字符
 }
 
 // 创建帖子响应
 message CreatePostResp {
   int64 post_id = 1;
+  int32 status   = 2;
+  int64 revision = 3;
 }
 
 // 获取帖子详情请求
@@ -101,16 +105,21 @@ message UpdatePostReq {
   string          content   = 4;
   repeated string images    = 5;
   repeated string tags      = 6;
-  int32           status    = 7;
+  optional int32  status    = 7; // 显式状态变更；draft(0) ⇄ published(1)
+  int64           expected_revision = 8; // 调用者最后读取的预期 revision，冲突返回 409
 }
 
 // 更新帖子响应
-message UpdatePostResp {}
+message UpdatePostResp {
+  int32 status   = 1;
+  int64 revision = 2;
+}
 
 // 删除帖子请求
 message DeletePostReq {
   int64 post_id   = 1;
   int64 author_id = 2;
+  int64 expected_revision = 3; // 调用者最后读取的预期 revision，冲突返回 409
 }
 
 // 删除帖子响应
@@ -151,6 +160,7 @@ message CreateCommentReq {
   int64  parent_id     = 3;
   int64  reply_user_id = 4;
   string content       = 5;
+  string idempotency_key = 6; // 客户端幂等键，同一调用者范围内唯一，最长 128 字符
 }
 
 // 创建评论响应

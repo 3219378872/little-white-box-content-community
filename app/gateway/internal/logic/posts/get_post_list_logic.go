@@ -44,7 +44,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 	result, err := l.svcCtx.ContentService.GetPostList(l.ctx, rpcReq)
 	if err != nil {
 		l.Errorw("ContentService.GetPostList RPC failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	list := make([]types.PostItem, 0, len(result.Posts))
@@ -59,6 +59,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 			ViewCount:    post.ViewCount,
 			LikeCount:    post.LikeCount,
 			CommentCount: post.CommentCount,
+			Revision:     post.Revision,
 			CreatedAt:    post.CreatedAt,
 		})
 	}

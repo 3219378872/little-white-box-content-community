@@ -9,6 +9,9 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"strconv"
+	"strings"
+	"unicode/utf8"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -33,8 +36,22 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 	if in.PostId <= 0 || in.UserId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if in.Content == "" {
+	contentRunes := utf8.RuneCountInString(in.GetContent())
+	if contentRunes < 1 {
 		return nil, errx.NewWithCode(errx.ContentEmpty)
+	}
+	if contentRunes > 2000 {
+		return nil, errx.NewWithCode(errx.ContentTooLong)
+	}
+	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
+	idem := model2.IdempotencyRecord{
+		Scope:       "comment:create",
+		UserID:      in.UserId,
+		Key:         idempotencyKey,
+		CommandHash: model2.CommandHash(in.GetContent(), strconv.FormatInt(in.GetPostId(), 10)),
+	}
+	if !idem.Valid() {
+		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
 	// 验证帖子是否存在
@@ -49,8 +66,9 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if post.Status == 2 {
-		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
+	// CORE-022：评论只能附着在当前可互动的已发布内容上。
+	if post.Status != 1 {
+		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 
 	id, err := util.NextID()
@@ -84,21 +102,27 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		l.Errorw("CommentCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.CommentCommandModel.CreateComment(l.ctx, comment, outboxEvent); err != nil {
+	commentID, created, err := l.svcCtx.CommentCommandModel.CreateComment(l.ctx, comment, outboxEvent, idem)
+	if err != nil {
+		if errors.Is(err, model2.ErrIdempotencyConflict) {
+			return nil, errx.NewWithCode(errx.IdempotencyConflict)
+		}
 		l.Errorw("create comment transaction failed",
 			logx.Field("postId", in.PostId),
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, id); err != nil {
-		l.Errorw("invalidate comment cache after create failed", logx.Field("err", err.Error()))
-	}
-	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, in.PostId); err != nil {
-		l.Errorw("invalidate post cache after comment create failed", logx.Field("err", err.Error()))
+	if created {
+		if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, id); err != nil {
+			l.Errorw("invalidate comment cache after create failed", logx.Field("err", err.Error()))
+		}
+		if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, in.PostId); err != nil {
+			l.Errorw("invalidate post cache after comment create failed", logx.Field("err", err.Error()))
+		}
 	}
 
 	return &pb.CreateCommentResp{
-		CommentId: id,
+		CommentId: commentID,
 	}, nil
 }

@@ -37,21 +37,26 @@ func (l *UpdatePostLogic) UpdatePost(req *types.UpdatePostReq) (resp *types.Upda
 		return nil, err
 	}
 
-	_, err = l.svcCtx.ContentService.UpdatePost(l.ctx, &contentservice.UpdatePostReq{
-		PostId:   req.PostId,
-		AuthorId: userId,
-		Title:    req.Title,
-		Content:  req.Content,
-		Images:   req.Images,
-		Tags:     req.Tags,
+	result, err := l.svcCtx.ContentService.UpdatePost(l.ctx, &contentservice.UpdatePostReq{
+		PostId:           req.PostId,
+		AuthorId:         userId,
+		Title:            req.Title,
+		Content:          req.Content,
+		Images:           req.Images,
+		Tags:             req.Tags,
+		Status:           req.Status,
+		ExpectedRevision: req.ExpectedRevision,
 	})
 	if err != nil {
 		l.Errorw("ContentService.UpdatePost RPC failed",
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
-	return &types.UpdatePostResp{}, nil
+	return &types.UpdatePostResp{
+		Status:   result.Status,
+		Revision: result.Revision,
+	}, nil
 }

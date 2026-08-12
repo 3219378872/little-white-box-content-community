@@ -23,12 +23,14 @@ const (
 	VerifyCodeExpired = 1009
 
 	// 内容相关错误码 2000-2999
-	ContentNotFound    = 2001
-	ContentForbidden   = 2002
-	ContentTooLong     = 2003
-	ContentEmpty       = 2004
-	TitleEmpty         = 2005
-	PostAlreadyDeleted = 2006
+	ContentNotFound        = 2001
+	ContentForbidden       = 2002
+	ContentTooLong         = 2003
+	ContentEmpty           = 2004
+	TitleEmpty             = 2005
+	PostAlreadyDeleted     = 2006
+	ContentVersionConflict = 2007
+	IdempotencyConflict    = 2008
 
 	// 互动相关错误码 3000-3999
 	AlreadyLiked     = 3001
@@ -72,12 +74,14 @@ var codeMsg = map[int]string{
 	VerifyCodeError:   "验证码错误",
 	VerifyCodeExpired: "验证码已过期",
 
-	ContentNotFound:    "内容不存在",
-	ContentForbidden:   "无权操作此内容",
-	ContentTooLong:     "内容过长",
-	ContentEmpty:       "内容不能为空",
-	TitleEmpty:         "标题不能为空",
-	PostAlreadyDeleted: "帖子已删除",
+	ContentNotFound:        "内容不存在",
+	ContentForbidden:       "无权操作此内容",
+	ContentTooLong:         "内容过长",
+	ContentEmpty:           "内容不能为空",
+	TitleEmpty:             "标题不能为空",
+	PostAlreadyDeleted:     "帖子已删除",
+	ContentVersionConflict: "内容版本冲突",
+	IdempotencyConflict:    "幂等键已用于其他命令",
 
 	AlreadyLiked:     "已点赞",
 	AlreadyFavorited: "已收藏",

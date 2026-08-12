@@ -4,6 +4,7 @@ import (
 	"context"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/outboxx"
 	"fmt"
 	"testing"
 
@@ -13,6 +14,19 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type conflictCommentCommandModel struct {
+	model2.CommentCommandModel
+}
+
+func (conflictCommentCommandModel) CreateComment(
+	context.Context,
+	*model2.Comment,
+	outboxx.Event,
+	model2.IdempotencyRecord,
+) (int64, bool, error) {
+	return 0, false, model2.ErrIdempotencyConflict
+}
 
 // ─── CreateComment ────────────────────────────────────────────────────────────
 
@@ -78,13 +92,13 @@ func TestCreateCommentLogic(t *testing.T) {
 			errCode: errx.ContentNotFound,
 		},
 		{
-			name: "已删除帖子不能评论",
+			name: "已删除帖子不能评论（统一不存在）",
 			req:  &pb.CreateCommentReq{PostId: 1001, UserId: 200, Content: "评论"},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1001)).Return(deletedPost, nil)
 			},
 			wantErr: true,
-			errCode: errx.PostAlreadyDeleted,
+			errCode: errx.ContentNotFound,
 		},
 		{
 			name: "查询帖子数据库错误",
@@ -142,6 +156,21 @@ func TestCreateCommentLogic(t *testing.T) {
 			cm.AssertExpectations(t)
 		})
 	}
+}
+
+func TestCreateCommentLogicMapsIdempotencyConflict(t *testing.T) {
+	pm := new(MockPostModel)
+	pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, AuthorId: 100, Status: 1}, nil)
+	svcCtx := newUnitSvcCtx(pm, new(MockCommentModel), nil, nil)
+	svcCtx.CommentCommandModel = conflictCommentCommandModel{}
+
+	resp, err := NewCreateCommentLogic(context.Background(), svcCtx).CreateComment(&pb.CreateCommentReq{
+		PostId: 1000, UserId: 200, Content: "评论", IdempotencyKey: "key-1",
+	})
+
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.IdempotencyConflict), "期望幂等冲突码，实际: %v", err)
 }
 
 // ─── DeleteComment ────────────────────────────────────────────────────────────

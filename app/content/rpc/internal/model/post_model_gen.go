@@ -49,6 +49,7 @@ type (
 		VideoUrl      sql.NullString `db:"video_url"`      // 视频URL,未使用
 		CoverUrl      sql.NullString `db:"cover_url"`      // 封面URL,未使用
 		Status        int64          `db:"status"`         // 状态 0:草稿 1:已发布 2:已删除 3:审核中
+		Revision      int64          `db:"revision"`       // 内容版本，每次成功变更单调递增
 		ViewCount     int64          `db:"view_count"`     // 浏览数
 		LikeCount     int64          `db:"like_count"`     // 点赞数
 		CommentCount  int64          `db:"comment_count"`  // 评论数
@@ -100,8 +101,8 @@ func (m *defaultPostModel) FindOne(ctx context.Context, id int64) (*Post, error)
 func (m *defaultPostModel) Insert(ctx context.Context, data *Post) (sql.Result, error) {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, postRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.Id, data.AuthorId, data.Title, data.Content, data.Images, data.VideoUrl, data.CoverUrl, data.Status, data.ViewCount, data.LikeCount, data.CommentCount, data.FavoriteCount, data.ShareCount, data.IsTop, data.IsHot, data.IsEssence, data.CategoryId, data.PublishedAt)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, postRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.Id, data.AuthorId, data.Title, data.Content, data.Images, data.VideoUrl, data.CoverUrl, data.Status, data.Revision, data.ViewCount, data.LikeCount, data.CommentCount, data.FavoriteCount, data.ShareCount, data.IsTop, data.IsHot, data.IsEssence, data.CategoryId, data.PublishedAt)
 	}, postIdKey)
 	return ret, err
 }
@@ -110,7 +111,7 @@ func (m *defaultPostModel) Update(ctx context.Context, data *Post) error {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, postRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.AuthorId, data.Title, data.Content, data.Images, data.VideoUrl, data.CoverUrl, data.Status, data.ViewCount, data.LikeCount, data.CommentCount, data.FavoriteCount, data.ShareCount, data.IsTop, data.IsHot, data.IsEssence, data.CategoryId, data.PublishedAt, data.Id)
+		return conn.ExecCtx(ctx, query, data.AuthorId, data.Title, data.Content, data.Images, data.VideoUrl, data.CoverUrl, data.Status, data.Revision, data.ViewCount, data.LikeCount, data.CommentCount, data.FavoriteCount, data.ShareCount, data.IsTop, data.IsHot, data.IsEssence, data.CategoryId, data.PublishedAt, data.Id)
 	}, postIdKey)
 	return err
 }

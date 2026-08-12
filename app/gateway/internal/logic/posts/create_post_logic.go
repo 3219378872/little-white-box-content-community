@@ -36,18 +36,21 @@ func (l *CreatePostLogic) CreatePost(req *types.CreatePostReq) (resp *types.Crea
 	}
 
 	result, err := l.svcCtx.ContentService.CreatePost(l.ctx, &contentservice.CreatePostReq{
-		AuthorId: userId,
-		Title:    req.Title,
-		Content:  req.Content,
-		Images:   req.Images,
-		Tags:     req.Tags,
-		Status:   req.Status,
+		AuthorId:       userId,
+		Title:          req.Title,
+		Content:        req.Content,
+		Images:         req.Images,
+		Tags:           req.Tags,
+		Status:         req.Status,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &types.CreatePostResp{
-		PostId: result.PostId,
+		PostId:   result.PostId,
+		Status:   result.Status,
+		Revision: result.Revision,
 	}, nil
 }

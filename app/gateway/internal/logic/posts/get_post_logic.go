@@ -44,7 +44,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	post := result.Post
@@ -65,6 +65,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		FavoriteCount: post.FavoriteCount,
 		IsLiked:       result.IsLiked,
 		IsFavorited:   result.IsFavorited,
+		Revision:      post.Revision,
 		CreatedAt:     post.CreatedAt,
 	}, nil
 }

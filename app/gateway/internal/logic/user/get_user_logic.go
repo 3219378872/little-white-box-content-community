@@ -37,7 +37,7 @@ func (l *GetUserLogic) GetUser(req *types.GetUserReq) (resp *types.GetUserResp, 
 			logx.Field("userId", req.UserId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 	if result.User == nil {
 		return nil, errx.NewWithCode(errx.UserNotFound)

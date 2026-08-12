@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS `post` (
     `video_url` VARCHAR(255) DEFAULT NULL COMMENT '视频URL,未使用',
     `cover_url` VARCHAR(255) DEFAULT NULL COMMENT '封面URL,未使用',
     `status` TINYINT DEFAULT 1 COMMENT '状态 0:草稿 1:已发布 2:已删除 3:审核中',
+    `revision` BIGINT NOT NULL DEFAULT 0 COMMENT '内容版本，每次成功变更单调递增',
     `view_count` BIGINT DEFAULT 0 COMMENT '浏览数',
     `like_count` BIGINT DEFAULT 0 COMMENT '点赞数',
     `comment_count` BIGINT DEFAULT 0 COMMENT '评论数',
@@ -136,3 +137,17 @@ CREATE TABLE IF NOT EXISTS `event_outbox` (
     KEY `idx_event_outbox_lease` (`status`, `locked_until`, `id`),
     KEY `idx_event_outbox_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事务事件发件箱';
+
+-- 命令幂等表：为创建帖子、评论、媒体等提供客户端幂等键，防止重试产生重复资源。
+-- 同一 (scope, user_id, key) 只允许绑定一个命令；命令参数指纹用于区分同键异命令冲突。
+CREATE TABLE IF NOT EXISTS `idempotency` (
+    `id` BIGINT NOT NULL COMMENT '幂等记录ID',
+    `scope` VARCHAR(64) NOT NULL COMMENT '命令作用域，如 post:create/comment:create/media:upload',
+    `user_id` BIGINT NOT NULL COMMENT '调用者用户ID',
+    `key` VARCHAR(128) NOT NULL COMMENT '客户端幂等键',
+    `command_hash` CHAR(64) NOT NULL COMMENT '命令参数指纹 sha256 hex',
+    `resource_id` BIGINT NOT NULL COMMENT '命令成功产生的资源ID',
+    `created_at` BIGINT NOT NULL COMMENT '创建 Unix 毫秒',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_scope_user_key` (`scope`, `user_id`, `key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='命令幂等表';

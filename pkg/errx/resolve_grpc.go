@@ -1,6 +1,7 @@
 package errx
 
 import (
+	"errors"
 	"net/http"
 
 	"google.golang.org/grpc/codes"
@@ -99,4 +100,20 @@ func grpcCodeToBizCode(c codes.Code) int {
 	default:
 		return SystemError
 	}
+}
+
+// FromRPCError converts a client-side RPC error back to its business error.
+// The gateway's zrpc client interceptor already converts gRPC status errors to
+// *BizError via FromGRPCError; this helper preserves that code. Non-business
+// errors (timeouts, breakers, connection failures) are wrapped as SystemError so
+// callers never leak raw internal details (CORE-054).
+func FromRPCError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var bizErr *BizError
+	if errors.As(err, &bizErr) {
+		return bizErr
+	}
+	return Wrap(err, SystemError)
 }

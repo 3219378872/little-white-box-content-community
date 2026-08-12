@@ -27,6 +27,7 @@ func PostToPostInfo(post *model2.Post, tags []string) *pb.PostInfo {
 		Images:        images,
 		Tags:          tags,
 		Status:        int32(post.Status),
+		Revision:      post.Revision,
 		ViewCount:     post.ViewCount,
 		LikeCount:     post.LikeCount,
 		CommentCount:  post.CommentCount,

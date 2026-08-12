@@ -32,6 +32,9 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if in.ExpectedRevision <= 0 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
 
 	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
 	if err != nil {
@@ -51,6 +54,9 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	if post.AuthorId != in.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
+	if post.Revision != in.ExpectedRevision {
+		return nil, errx.NewWithCode(errx.ContentVersionConflict)
+	}
 
 	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostDelete, event.PostEvent{
 		Type:     event.PostEventDeleted,
@@ -65,7 +71,10 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent); err != nil {
+	if err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent, in.ExpectedRevision); err != nil {
+		if errors.Is(err, model.ErrVersionConflict) {
+			return nil, errx.NewWithCode(errx.ContentVersionConflict)
+		}
 		l.Errorw("delete post transaction failed",
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

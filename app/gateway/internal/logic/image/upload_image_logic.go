@@ -89,7 +89,7 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 	mediaResp, err := stream.CloseAndRecv()
 	if err != nil {
 		l.Errorw("stream.CloseAndRecv failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.UploadFailed)
+		return nil, errx.FromGRPCError(err)
 	}
 	if mediaResp == nil || mediaResp.Media == nil {
 		return nil, errx.NewWithCode(errx.UploadFailed)

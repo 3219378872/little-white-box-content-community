@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"errx"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
@@ -11,6 +12,7 @@ import (
 	"mqx"
 	"strings"
 	"time"
+	"unicode/utf8"
 	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -36,17 +38,53 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if in.Title == "" {
+	titleRunes := utf8.RuneCountInString(in.GetTitle())
+	if titleRunes < 1 {
 		return nil, errx.NewWithCode(errx.TitleEmpty)
 	}
-	if in.Content == "" {
+	if titleRunes > 120 {
+		return nil, errx.NewWithCode(errx.ContentTooLong)
+	}
+	contentRunes := utf8.RuneCountInString(in.GetContent())
+	if contentRunes < 1 {
 		return nil, errx.NewWithCode(errx.ContentEmpty)
+	}
+	if contentRunes > 20000 {
+		return nil, errx.NewWithCode(errx.ContentTooLong)
+	}
+	if in.GetStatus() != 0 && in.GetStatus() != 1 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if len(in.Images) > 9 {
+		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	// 校验图片url（不得含','，因为我们用逗号分隔存储）
 	for _, image := range in.Images {
 		if strings.ContainsRune(image, ',') {
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
+	}
+	if len(in.Tags) > 10 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	for _, tag := range in.Tags {
+		if tag == "" {
+			continue
+		}
+		tagRunes := utf8.RuneCountInString(tag)
+		if tagRunes < 1 || tagRunes > 32 {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+	}
+	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
+	idem := model.IdempotencyRecord{
+		Scope:       "post:create",
+		UserID:      in.AuthorId,
+		Key:         idempotencyKey,
+		CommandHash: model.CommandHash(in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ",")),
+	}
+	if !idem.Valid() {
+		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	// 生成分布式id
 	id, err := util.NextID()
@@ -65,6 +103,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		Title:    in.GetTitle(),
 		Content:  in.GetContent(),
 		Status:   int64(in.GetStatus()),
+		Revision: 1,
 		Images: sql.NullString{
 			String: imageJsonString,
 			Valid:  len(in.Images) > 0,
@@ -110,15 +149,23 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		l.Errorw("build post-created event failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent); err != nil {
+	postID, created, err := l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent, idem)
+	if err != nil {
+		if errors.Is(err, model.ErrIdempotencyConflict) {
+			return nil, errx.NewWithCode(errx.IdempotencyConflict)
+		}
 		l.Errorw("create post transaction failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, id); err != nil {
-		l.Errorw("invalidate post cache after create failed", logx.Field("postId", id), logx.Field("err", err.Error()))
+	if created {
+		if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, id); err != nil {
+			l.Errorw("invalidate post cache after create failed", logx.Field("postId", id), logx.Field("err", err.Error()))
+		}
 	}
 
 	return &pb.CreatePostResp{
-		PostId: id,
+		PostId:   postID,
+		Status:   in.GetStatus(),
+		Revision: 1,
 	}, nil
 }

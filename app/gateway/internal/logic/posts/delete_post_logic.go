@@ -38,15 +38,16 @@ func (l *DeletePostLogic) DeletePost(req *types.DeletePostReq) (resp *types.Dele
 	}
 
 	_, err = l.svcCtx.ContentService.DeletePost(l.ctx, &contentservice.DeletePostReq{
-		PostId:   req.PostId,
-		AuthorId: userId,
+		PostId:           req.PostId,
+		AuthorId:         userId,
+		ExpectedRevision: req.ExpectedRevision,
 	})
 	if err != nil {
 		l.Errorw("ContentService.DeletePost RPC failed",
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.DeletePostResp{}, nil

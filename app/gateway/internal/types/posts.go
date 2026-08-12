@@ -4,19 +4,23 @@
 package types
 
 type CreatePostReq struct {
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Images  []string `json:"images,optional"`
-	Tags    []string `json:"tags,optional"`
-	Status  int32    `json:"status,optional"` // 0:草稿 1:发布
+	Title          string   `json:"title"`
+	Content        string   `json:"content"`
+	Images         []string `json:"images,optional"`
+	Tags           []string `json:"tags,optional"`
+	Status         int32    `json:"status,optional"` // 0:草稿 1:发布
+	IdempotencyKey string   `json:"idempotencyKey,optional"`
 }
 
 type CreatePostResp struct {
-	PostId int64 `json:"postId"`
+	PostId   int64 `json:"postId"`
+	Status   int32 `json:"status"`
+	Revision int64 `json:"revision"`
 }
 
 type DeletePostReq struct {
-	PostId int64 `path:"postId"`
+	PostId           int64 `path:"postId"`
+	ExpectedRevision int64 `json:"expectedRevision"`
 }
 
 type DeletePostResp struct {
@@ -47,16 +51,21 @@ type GetPostResp struct {
 	FavoriteCount int64    `json:"favoriteCount"`
 	IsLiked       bool     `json:"isLiked"`
 	IsFavorited   bool     `json:"isFavorited"`
+	Revision      int64    `json:"revision"`
 	CreatedAt     int64    `json:"createdAt"`
 }
 
 type UpdatePostReq struct {
-	PostId  int64    `path:"postId"`
-	Title   string   `json:"title,optional"`
-	Content string   `json:"content,optional"`
-	Images  []string `json:"images,optional"`
-	Tags    []string `json:"tags,optional"`
+	PostId           int64    `path:"postId"`
+	Title            string   `json:"title,optional"`
+	Content          string   `json:"content,optional"`
+	Images           []string `json:"images,optional"`
+	Tags             []string `json:"tags,optional"`
+	Status           *int32   `json:"status,optional"` // 显式状态变更；0:草稿 1:发布
+	ExpectedRevision int64    `json:"expectedRevision"`
 }
 
 type UpdatePostResp struct {
+	Status   int32 `json:"status"`
+	Revision int64 `json:"revision"`
 }

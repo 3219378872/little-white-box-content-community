@@ -43,13 +43,9 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	switch post.Status {
-	case 2:
-		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
-	case 1:
-		// 已发布，继续
-	default:
-		// 草稿（0）、审核中（3）等非公开状态
+	// CORE-012/016：草稿仅作者可读；已删除或非公开状态对非作者统一返回不存在。
+	// 已发布内容对所有人可见。
+	if post.Status != 1 && in.GetUserId() != post.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 

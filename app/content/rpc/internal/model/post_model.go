@@ -85,14 +85,14 @@ func (m *customPostModel) InsertPost(ctx context.Context, post *Post) error {
 	// 校验post中images是否为空
 	if !post.Images.Valid {
 		_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
-			query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`status`) values (?,?,?,?,?)", m.table)
-			return conn.ExecCtx(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Status)
+			query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`status`,`revision`) values (?,?,?,?,?,?)", m.table)
+			return conn.ExecCtx(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Status, post.Revision)
 		}, postIdKey)
 		return err
 	}
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
-		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`) values (?,?,?,?,?,?)", m.table)
-		return conn.ExecCtx(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status)
+		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`,`revision`) values (?,?,?,?,?,?,?)", m.table)
+		return conn.ExecCtx(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status, post.Revision)
 	}, postIdKey)
 	return err
 }
@@ -102,12 +102,12 @@ func (m *customPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, post *Po
 		return fmt.Errorf("nil sql transaction")
 	}
 	if !post.Images.Valid {
-		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`status`) values (?,?,?,?,?)", m.table)
-		_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Status)
+		query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`status`,`revision`) values (?,?,?,?,?,?)", m.table)
+		_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Status, post.Revision)
 		return err
 	}
-	query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`) values (?,?,?,?,?,?)", m.table)
-	_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status)
+	query := fmt.Sprintf("insert into %s (`id`,`author_id`,`title`,`content`,`images`,`status`,`revision`) values (?,?,?,?,?,?,?)", m.table)
+	_, err := tx.ExecContext(ctx, query, post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status, post.Revision)
 	return err
 }
 

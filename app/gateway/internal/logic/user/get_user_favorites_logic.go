@@ -42,7 +42,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 			logx.Field("userId", req.UserId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 	if userResp.User == nil {
 		return nil, errx.NewWithCode(errx.UserNotFound)
@@ -65,7 +65,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 			logx.Field("userId", req.UserId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	if len(favoriteResp.PostIds) == 0 {
@@ -85,7 +85,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 			logx.Field("postIds", favoriteResp.PostIds),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	list := make([]types.PostItem, 0, len(postsResp.Posts))

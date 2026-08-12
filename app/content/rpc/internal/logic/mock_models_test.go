@@ -285,11 +285,15 @@ func (m legacyCommentCommandModel) CreateComment(
 	ctx context.Context,
 	comment *model2.Comment,
 	_ outboxx.Event,
-) error {
+	_ model2.IdempotencyRecord,
+) (int64, bool, error) {
 	if err := m.comments.InsertComment(ctx, comment); err != nil {
-		return err
+		return 0, false, err
 	}
-	return m.post.IncrCommentCount(ctx, comment.PostId)
+	if err := m.post.IncrCommentCount(ctx, comment.PostId); err != nil {
+		return 0, false, err
+	}
+	return comment.Id, true, nil
 }
 
 func (m legacyCommentCommandModel) DeleteComment(ctx context.Context, commentID, postID int64) error {
@@ -310,11 +314,15 @@ func (m legacyPostCommandModel) CreatePost(
 	tags []string,
 	tagIDs []int64,
 	_ outboxx.Event,
-) error {
+	_ model2.IdempotencyRecord,
+) (int64, bool, error) {
 	if err := m.post.InsertPostTx(ctx, nil, post); err != nil {
-		return err
+		return 0, false, err
 	}
-	return m.tags.BatchInsertTagsByPostIdTx(ctx, nil, post.Id, tags, tagIDs)
+	if err := m.tags.BatchInsertTagsByPostIdTx(ctx, nil, post.Id, tags, tagIDs); err != nil {
+		return 0, false, err
+	}
+	return post.Id, true, nil
 }
 
 func (m legacyPostCommandModel) UpdatePost(
@@ -324,6 +332,7 @@ func (m legacyPostCommandModel) UpdatePost(
 	tags []string,
 	tagIDs []int64,
 	_ outboxx.Event,
+	_ int64,
 ) error {
 	if err := m.post.UpdateFields(ctx, postID, fields); err != nil {
 		return err
@@ -331,6 +340,6 @@ func (m legacyPostCommandModel) UpdatePost(
 	return m.tags.TransactReplaceTagsByPostId(ctx, nil, postID, tags, tagIDs)
 }
 
-func (m legacyPostCommandModel) DeletePost(ctx context.Context, postID int64, _ outboxx.Event) error {
+func (m legacyPostCommandModel) DeletePost(ctx context.Context, postID int64, _ outboxx.Event, _ int64) error {
 	return m.post.UpdateStatus(ctx, postID, 2)
 }

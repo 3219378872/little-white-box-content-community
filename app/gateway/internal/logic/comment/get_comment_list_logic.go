@@ -42,7 +42,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 			logx.Field("postId", req.PostId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, errx.FromRPCError(err)
 	}
 
 	list := make([]types.CommentItem, 0, len(result.Comments))
