@@ -594,6 +594,7 @@ services:
         SERVICE_CONFIG: app/content/mq/cleanup/etc/content-cleanup.yaml
     environment:
       <<: [*redis-env, *mq-env]
+      DB_CONTENT: ${DB_CONTENT:?DB_CONTENT is required}
     healthcheck: *process-healthcheck
     depends_on:
       redis:

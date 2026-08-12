@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
-	MQ    mqx.ConsumerConfig
-	Redis redis.RedisConf
+	MQ         mqx.ConsumerConfig
+	Redis      redis.RedisConf
+	DataSource string
 }

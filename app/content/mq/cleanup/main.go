@@ -32,6 +32,18 @@ func main() {
 	}
 	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "content-cleanup consumer", cleanupConsumer.Shutdown)
 
-	fmt.Println("Content cleanup MQ consumer started, subscribing post-delete...")
+	if svcCtx.CountSyncStore != nil {
+		countSyncConsumer, err := mqs.NewCountSyncConsumer(svcCtx)
+		if err != nil {
+			logx.Must(err)
+		}
+		if err := countSyncConsumer.Start(); err != nil {
+			logx.Must(err)
+		}
+		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "count-sync consumer", countSyncConsumer.Shutdown)
+		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "content cleanup database", svcCtx.Close)
+	}
+
+	fmt.Println("Content cleanup MQ consumer started, subscribing post-delete and behavior counts...")
 	select {}
 }

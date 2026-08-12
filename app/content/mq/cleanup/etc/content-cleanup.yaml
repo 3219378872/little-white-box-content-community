@@ -6,6 +6,8 @@ MQ:
   ConsumeOrder: false
   MaxReconsumeTimes: 8
 
+DataSource: "${DB_CONTENT}"
+
 Redis:
   Host: "${REDIS_HOST}"
   Type: node

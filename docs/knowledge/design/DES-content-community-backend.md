@@ -52,7 +52,7 @@ upstream:
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 命令模型 no-op 返回同状态 |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
-| CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数 30s 内收敛依赖 outbox |
+| CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数经 count-sync 消费者 30s 内收敛到内容表 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
 | CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体 |
