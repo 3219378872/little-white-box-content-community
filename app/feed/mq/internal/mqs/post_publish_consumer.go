@@ -44,15 +44,18 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logx.WithContext(ctx).Errorw("feed-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			feedConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
 			logx.WithContext(ctx).Errorw("feed-consumer: invalid event, skipping",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			feedConsumerMessages.Inc("invalid")
 			continue
 		}
 		if e.Status != 1 {
 			// CORE-015：草稿、取消发布（status != 1）不进入关注流。
+			feedConsumerMessages.Inc("skipped")
 			continue
 		}
 		_, err := logic.HandlePostPublished(ctx,
@@ -65,8 +68,11 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 			logx.WithContext(ctx).Errorw("feed-consumer: fanout failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 				logx.Field("err", err.Error()))
+			feedConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
+		feedConsumerMessages.Inc("processed")
+		observeFeedLag(e.EventTime, time.Now())
 	}
 	return consumer.ConsumeSuccess
 }

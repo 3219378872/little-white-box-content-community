@@ -40,27 +40,32 @@ func consumeCleanupBatch(ctx context.Context, cs store.CleanupStore, msgs ...*pr
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logx.WithContext(ctx).Errorw("cleanup-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			cleanupConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
 			logx.WithContext(ctx).Errorw("cleanup-consumer: invalid event, skipping",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			cleanupConsumerMessages.Inc("invalid")
 			continue
 		}
 		if e.Type != event.PostEventDeleted {
 			// Topic 订阅决定了只该收到 deleted 事件；其他类型直接跳过
+			cleanupConsumerMessages.Inc("skipped")
 			continue
 		}
 		if err := cs.DeletePostState(ctx, e.PostID); err != nil {
 			logx.WithContext(ctx).Errorw("cleanup-consumer: delete post state failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 				logx.Field("err", err.Error()))
+			cleanupConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if err := cs.RemoveFromHotZSets(ctx, e.PostID); err != nil {
 			logx.WithContext(ctx).Errorw("cleanup-consumer: remove from hot zsets failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 				logx.Field("err", err.Error()))
+			cleanupConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if len(e.Tags) > 0 {
@@ -68,9 +73,11 @@ func consumeCleanupBatch(ctx context.Context, cs store.CleanupStore, msgs ...*pr
 				logx.WithContext(ctx).Errorw("cleanup-consumer: remove from tag zsets failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))
+				cleanupConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 		}
+		cleanupConsumerMessages.Inc("processed")
 		logx.WithContext(ctx).Infow("cleanup-consumer: post cleaned",
 			logx.Field("post_id", e.PostID), logx.Field("tag_count", len(e.Tags)))
 	}

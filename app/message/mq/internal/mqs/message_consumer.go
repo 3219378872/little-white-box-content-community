@@ -50,16 +50,19 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 		if err := json.Unmarshal(msg.Body, &event); err != nil {
 			logx.WithContext(ctx).Errorw("message-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			messageConsumerMessages.Inc("invalid")
 			continue
 		}
 		if event.TargetUserID <= 0 {
 			logx.WithContext(ctx).Errorw("message-consumer: missing target_user_id",
 				logx.Field("msg_id", msg.MsgId))
+			messageConsumerMessages.Inc("invalid")
 			continue
 		}
 		if event.ActionType <= 0 {
 			logx.WithContext(ctx).Errorw("message-consumer: missing action_type",
 				logx.Field("msg_id", msg.MsgId))
+			messageConsumerMessages.Inc("invalid")
 			continue
 		}
 		title, content := logic.RenderNotification(logic.UserActionEvent{
@@ -74,11 +77,13 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 		if title == "" {
 			logx.WithContext(ctx).Errorw("message-consumer: unsupported action_type",
 				logx.Field("msg_id", msg.MsgId), logx.Field("action_type", event.ActionType))
+			messageConsumerMessages.Inc("invalid")
 			continue
 		}
 		if strings.TrimSpace(content) == "" {
 			logx.WithContext(ctx).Errorw("message-consumer: empty notification content",
 				logx.Field("msg_id", msg.MsgId))
+			messageConsumerMessages.Inc("invalid")
 			continue
 		}
 		_, err := svcCtx.NotificationModel.Insert(ctx, &model.Notification{
@@ -94,6 +99,7 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 		if err != nil {
 			logx.WithContext(ctx).Errorw("message-consumer: insert notification failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			messageConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if svcCtx.UnreadStore != nil {
@@ -103,6 +109,8 @@ func consumeNotificationBatch(ctx context.Context, svcCtx *svc.ServiceContext, m
 					logx.Field("err", err.Error()))
 			}
 		}
+		messageConsumerMessages.Inc("processed")
+		observeMessageLag(time.Now().UnixMilli(), time.Now())
 	}
 	return consumer.ConsumeSuccess
 }

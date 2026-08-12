@@ -43,20 +43,25 @@ func consumeCountSyncBatch(ctx context.Context, cs store.CountSyncStore, msgs ..
 		if err := json.Unmarshal(msg.Body, &behavior); err != nil {
 			logx.WithContext(ctx).Errorw("count-sync-consumer: unmarshal failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			countSyncConsumerMessages.Inc("invalid")
 			// 结构化损坏的事件无法恢复，转入死信语义由 MQ 重试上限兜底。
 			continue
 		}
 		if err := behavior.Validate(); err != nil {
 			logx.WithContext(ctx).Errorw("count-sync-consumer: invalid event, skipping",
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			countSyncConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := cs.ApplyBehaviorCount(ctx, behavior); err != nil {
 			logx.WithContext(ctx).Errorw("count-sync-consumer: apply count failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("event_id", behavior.EventID),
 				logx.Field("action", behavior.Action), logx.Field("err", err.Error()))
+			countSyncConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
+		countSyncConsumerMessages.Inc("processed")
+		observeCountSyncLag(behavior.EventTime, time.Now())
 		logx.WithContext(ctx).Infow("count-sync-consumer: count applied",
 			logx.Field("event_id", behavior.EventID),
 			logx.Field("action", behavior.Action),
