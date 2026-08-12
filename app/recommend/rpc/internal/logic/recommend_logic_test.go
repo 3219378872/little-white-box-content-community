@@ -237,7 +237,7 @@ func TestGetRecommendPostsMarksPartialRecallDegradation(t *testing.T) {
 		}},
 	}
 	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
-		AnonymousId: "device-1", RequestId: "request-1", PageSize: 2,
+		UserId: 1, RequestId: "request-1", PageSize: 2,
 	})
 	if err != nil {
 		t.Fatalf("GetRecommendPosts() error = %v", err)
@@ -332,6 +332,42 @@ func TestGetRecommendPostsFallsBackWhenInferenceTimesOut(t *testing.T) {
 	}
 	if len(response.Posts) != 1 || !strings.Contains(response.Posts[0].ModelVersion, "infer-timeout") {
 		t.Fatalf("timeout fallback was not explicit: %+v", response.Posts)
+	}
+}
+
+func TestGetRecommendPostsAnonymousUsesRuleOnlySources(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	var itemcfCalled atomic.Bool
+	var followCalled atomic.Bool
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(1, 10, "tech", 0.7)}, nil
+		}},
+		fakePostSource{name: "itemcf", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			itemcfCalled.Store(true)
+			return nil, nil
+		}},
+		fakePostSource{name: "follow", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			followCalled.Store(true)
+			return nil, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		posts: map[int64]model.PostFeatures{
+			1: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Category: "tech", Quality: 0.7},
+		},
+	}
+	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		AnonymousId: "device-1", RequestId: "request-1", PageSize: 5,
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendPosts() error = %v", err)
+	}
+	if itemcfCalled.Load() || followCalled.Load() {
+		t.Fatal("personalized recall sources must not be used for anonymous users (DISC-031)")
+	}
+	if len(response.Posts) != 1 || response.Posts[0].PostId != 1 {
+		t.Fatalf("anonymous cold-start should return only rule-based posts: %+v", response.Posts)
 	}
 }
 

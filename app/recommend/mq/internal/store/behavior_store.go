@@ -51,18 +51,21 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	if identity == "" {
 		return fmt.Errorf("behavior feature identity is required")
 	}
-	if behavior.UserID > 0 {
-		optedOut, err := s.personalizationOptedOut(ctx, behavior.UserID)
-		if err != nil {
-			return fmt.Errorf("check personalization opt-out: %w", err)
+	// DISC-031：匿名行为不得建立跨会话匿名画像。匿名事件仍会写入行为分析
+	// （ClickHouse），但不进入推荐在线特征，匿名推荐只使用非持久化冷启动来源。
+	if behavior.UserID <= 0 {
+		return nil
+	}
+	optedOut, err := s.personalizationOptedOut(ctx, behavior.UserID)
+	if err != nil {
+		return fmt.Errorf("check personalization opt-out: %w", err)
+	}
+	if optedOut {
+		// REL-023：关闭个性化后立即停止新行为用于个性化，并清理在线特征。
+		if err := s.purgeIdentityFeatures(ctx, identity); err != nil {
+			return fmt.Errorf("purge opted-out features: %w", err)
 		}
-		if optedOut {
-			// REL-023：关闭个性化后立即停止新行为用于个性化，并清理在线特征。
-			if err := s.purgeIdentityFeatures(ctx, identity); err != nil {
-				return fmt.Errorf("purge opted-out features: %w", err)
-			}
-			return nil
-		}
+		return nil
 	}
 	prefix := "feature:" + s.featureVersion + ":" + identity
 	targetID := strconv.FormatInt(behavior.TargetID, 10)

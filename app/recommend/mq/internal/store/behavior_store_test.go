@@ -67,15 +67,15 @@ func TestRedisBehaviorStoreUsesVersionedAtomicKeys(t *testing.T) {
 	assert.Equal(t, "request-1", recent["request_id"])
 }
 
-func TestRedisBehaviorStoreHashesAnonymousIdentity(t *testing.T) {
+func TestRedisBehaviorStoreSkipsAnonymousFeatureRecording(t *testing.T) {
 	redis := &fakeEvaler{}
 	behavior := featureBehavior()
 	behavior.UserID = 0
 	behavior.AnonymousID = "device/unsafe:key"
 
 	require.NoError(t, NewRedisBehaviorStore(redis, "v2", "recommend", 3600).Record(context.Background(), behavior))
-	assert.Contains(t, redis.keys[1], "feature:v2:a:")
-	assert.NotContains(t, redis.keys[1], behavior.AnonymousID)
+	// DISC-031：匿名事件不进入推荐在线特征，不建立跨会话匿名画像。
+	assert.Empty(t, redis.keys, "anonymous events must not write feature keys")
 }
 
 func TestRedisBehaviorStorePropagatesRedisFailure(t *testing.T) {

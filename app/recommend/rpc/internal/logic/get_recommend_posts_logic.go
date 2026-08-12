@@ -64,7 +64,8 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		Limit:        candidateLimit(pageSize, l.svcCtx.Config),
 	}
 	sources := l.svcCtx.PostRecallSources
-	if privacyOptOut {
+	// DISC-031：匿名用户只使用热门/最新/标签等非持久化冷启动来源。
+	if privacyOptOut || in.GetUserId() <= 0 {
 		sources = ruleOnlyPostSources(sources)
 	}
 	batches, recallDegraded, err := recallPosts(l.ctx, sources, recallReq)

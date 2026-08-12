@@ -84,7 +84,7 @@ upstream:
 | DISC-022 无匹配空结果、索引不可用 503 | aligned | 搜索 RPC 区分空与不可用 |
 | DISC-023 部分失败返回 degraded+unavailableTypes | aligned | 用户/标签搜索失败时降级并列出 unavailableTypes |
 | DISC-030 认证用户个性化 | aligned | recommend 按身份特征召回 |
-| DISC-031 匿名冷启动、不建立画像 | aligned | 匿名只走规则召回；身份不持久化 |
+| DISC-031 匿名冷启动、不建立画像 | aligned | 匿名事件不写入推荐特征；匿名推荐只使用规则冷启动来源，不建立/不合并画像 |
 | DISC-032 推荐响应含请求/位置/来源/版本/实验 | aligned | RecommendPost 字段齐全 |
 | DISC-033 游标绑定+10 分钟有效期 | aligned | cursor codec HMAC + 600s TTL |
 | DISC-034 作者配额 | aligned | ≥10 个作者时滑窗硬性保证任意 20 条内同一作者 ≤2 |
