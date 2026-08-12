@@ -86,6 +86,18 @@ func (m *MockUserService) SendVerifyCode(ctx context.Context, in *userservice.Se
 	return v, args.Error(1)
 }
 
+func (m *MockUserService) GetPersonalizationPreference(ctx context.Context, in *userservice.GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.GetPersonalizationPreferenceResp)
+	return v, args.Error(1)
+}
+
+func (m *MockUserService) SetPersonalizationPreference(ctx context.Context, in *userservice.SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*userservice.SetPersonalizationPreferenceResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.SetPersonalizationPreferenceResp)
+	return v, args.Error(1)
+}
+
 func newUnitSvcCtx(userSvc userservice.UserService) *svc.ServiceContext {
 	return &svc.ServiceContext{
 		UserService: userSvc,

@@ -5,10 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"esx/pkg/event"
+
+	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type BehaviorStore interface {
@@ -26,6 +29,13 @@ type RedisBehaviorStore struct {
 	ttlSeconds     int
 }
 
+// personalizationOptOutKeyPrefix 与 user 服务写入的关闭标记保持一致（REL-023）。
+const personalizationOptOutKeyPrefix = "personalization:optout:"
+
+type RedisGetter interface {
+	GetCtx(ctx context.Context, key string) (string, error)
+}
+
 func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int) *RedisBehaviorStore {
 	return &RedisBehaviorStore{
 		redis: redis, featureVersion: featureVersion,
@@ -40,6 +50,19 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	identity := behaviorIdentity(behavior)
 	if identity == "" {
 		return fmt.Errorf("behavior feature identity is required")
+	}
+	if behavior.UserID > 0 {
+		optedOut, err := s.personalizationOptedOut(ctx, behavior.UserID)
+		if err != nil {
+			return fmt.Errorf("check personalization opt-out: %w", err)
+		}
+		if optedOut {
+			// REL-023：关闭个性化后立即停止新行为用于个性化，并清理在线特征。
+			if err := s.purgeIdentityFeatures(ctx, identity); err != nil {
+				return fmt.Errorf("purge opted-out features: %w", err)
+			}
+			return nil
+		}
 	}
 	prefix := "feature:" + s.featureVersion + ":" + identity
 	targetID := strconv.FormatInt(behavior.TargetID, 10)
@@ -77,6 +100,48 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	}
 	return nil
 }
+
+func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
+	getter, ok := s.redis.(RedisGetter)
+	if !ok {
+		return false, nil
+	}
+	value, err := getter.GetCtx(ctx, personalizationOptOutKeyPrefix+strconv.FormatInt(userID, 10))
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return false, nil
+		}
+		return false, err
+	}
+	return value != "", nil
+}
+
+// purgeIdentityFeatures 删除该身份的全部在线个性化特征与个性化召回键。
+func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity string) error {
+	prefix := "feature:" + s.featureVersion + ":" + identity
+	purger, ok := s.redis.(interface {
+		EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
+	})
+	if !ok {
+		return nil
+	}
+	_, err := purger.EvalCtx(ctx, purgeIdentityFeaturesScript, []string{
+		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
+		prefix + ":state", prefix + ":blocked_authors",
+		s.recallPrefix + ":recall:post:itemcf:" + identity,
+		s.recallPrefix + ":recall:post:follow:" + identity,
+		s.recallPrefix + ":recall:user:interest:" + identity,
+		s.recallPrefix + ":recall:user:mutual:" + identity,
+	}, 0)
+	return err
+}
+
+const purgeIdentityFeaturesScript = `
+for index = 1, #KEYS do
+  redis.call('DEL', KEYS[index])
+end
+return 1
+`
 
 func behaviorIdentity(behavior event.BehaviorEvent) string {
 	if behavior.UserID > 0 {

@@ -54,7 +54,7 @@ func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.G
 		return nil, recommendationRPCError(fmt.Errorf("no similar post candidates remain after partial recall failure"))
 	}
 	candidates, featureDegraded, err := enrichAndFilterPosts(
-		l.ctx, l.svcCtx.FeatureRepository, "", candidates, in.GetPostId(),
+		l.ctx, l.svcCtx.FeatureRepository, "", candidates, in.GetPostId(), false,
 	)
 	if err != nil {
 		recommendPipelineTotal.Inc("similar_posts", "features", "unavailable")

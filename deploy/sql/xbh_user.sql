@@ -90,3 +90,12 @@ CREATE TABLE IF NOT EXISTS `event_outbox` (
     KEY `idx_event_outbox_lease` (`status`, `locked_until`, `id`),
     KEY `idx_event_outbox_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='事务事件发件箱';
+
+-- 个性化偏好（REL-023）：用户可关闭个性化；关闭后停止新行为用于个性化并在 24h 内删除在线特征。
+CREATE TABLE IF NOT EXISTS `personalization_preference` (
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `enabled` TINYINT NOT NULL DEFAULT 1 COMMENT '1:开启 0:关闭',
+    `opted_out_at` BIGINT DEFAULT NULL COMMENT '关闭时间 Unix 毫秒（enabled=0 时有效）',
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='个性化偏好表';

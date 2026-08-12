@@ -19,18 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_GetUser_FullMethodName        = "/user.UserService/GetUser"
-	UserService_BatchGetUsers_FullMethodName  = "/user.UserService/BatchGetUsers"
-	UserService_SearchUsers_FullMethodName    = "/user.UserService/SearchUsers"
-	UserService_UpdateProfile_FullMethodName  = "/user.UserService/UpdateProfile"
-	UserService_Follow_FullMethodName         = "/user.UserService/Follow"
-	UserService_Unfollow_FullMethodName       = "/user.UserService/Unfollow"
-	UserService_GetFollowers_FullMethodName   = "/user.UserService/GetFollowers"
-	UserService_GetFollowing_FullMethodName   = "/user.UserService/GetFollowing"
-	UserService_GetUserTags_FullMethodName    = "/user.UserService/GetUserTags"
-	UserService_Register_FullMethodName       = "/user.UserService/Register"
-	UserService_Login_FullMethodName          = "/user.UserService/Login"
-	UserService_SendVerifyCode_FullMethodName = "/user.UserService/SendVerifyCode"
+	UserService_GetUser_FullMethodName                      = "/user.UserService/GetUser"
+	UserService_BatchGetUsers_FullMethodName                = "/user.UserService/BatchGetUsers"
+	UserService_SearchUsers_FullMethodName                  = "/user.UserService/SearchUsers"
+	UserService_UpdateProfile_FullMethodName                = "/user.UserService/UpdateProfile"
+	UserService_Follow_FullMethodName                       = "/user.UserService/Follow"
+	UserService_Unfollow_FullMethodName                     = "/user.UserService/Unfollow"
+	UserService_GetFollowers_FullMethodName                 = "/user.UserService/GetFollowers"
+	UserService_GetFollowing_FullMethodName                 = "/user.UserService/GetFollowing"
+	UserService_GetUserTags_FullMethodName                  = "/user.UserService/GetUserTags"
+	UserService_Register_FullMethodName                     = "/user.UserService/Register"
+	UserService_Login_FullMethodName                        = "/user.UserService/Login"
+	UserService_SendVerifyCode_FullMethodName               = "/user.UserService/SendVerifyCode"
+	UserService_GetPersonalizationPreference_FullMethodName = "/user.UserService/GetPersonalizationPreference"
+	UserService_SetPersonalizationPreference_FullMethodName = "/user.UserService/SetPersonalizationPreference"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -63,6 +65,10 @@ type UserServiceClient interface {
 	Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginResp, error)
 	// 发送验证码
 	SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error)
+	// 获取个性化偏好（REL-023）
+	GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error)
+	// 设置个性化偏好（REL-023）
+	SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error)
 }
 
 type userServiceClient struct {
@@ -193,6 +199,26 @@ func (c *userServiceClient) SendVerifyCode(ctx context.Context, in *SendVerifyCo
 	return out, nil
 }
 
+func (c *userServiceClient) GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPersonalizationPreferenceResp)
+	err := c.cc.Invoke(ctx, UserService_GetPersonalizationPreference_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetPersonalizationPreferenceResp)
+	err := c.cc.Invoke(ctx, UserService_SetPersonalizationPreference_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -223,6 +249,10 @@ type UserServiceServer interface {
 	Login(context.Context, *LoginReq) (*LoginResp, error)
 	// 发送验证码
 	SendVerifyCode(context.Context, *SendVerifyCodeReq) (*SendVerifyCodeResp, error)
+	// 获取个性化偏好（REL-023）
+	GetPersonalizationPreference(context.Context, *GetPersonalizationPreferenceReq) (*GetPersonalizationPreferenceResp, error)
+	// 设置个性化偏好（REL-023）
+	SetPersonalizationPreference(context.Context, *SetPersonalizationPreferenceReq) (*SetPersonalizationPreferenceResp, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -268,6 +298,12 @@ func (UnimplementedUserServiceServer) Login(context.Context, *LoginReq) (*LoginR
 }
 func (UnimplementedUserServiceServer) SendVerifyCode(context.Context, *SendVerifyCodeReq) (*SendVerifyCodeResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendVerifyCode not implemented")
+}
+func (UnimplementedUserServiceServer) GetPersonalizationPreference(context.Context, *GetPersonalizationPreferenceReq) (*GetPersonalizationPreferenceResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPersonalizationPreference not implemented")
+}
+func (UnimplementedUserServiceServer) SetPersonalizationPreference(context.Context, *SetPersonalizationPreferenceReq) (*SetPersonalizationPreferenceResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetPersonalizationPreference not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -506,6 +542,42 @@ func _UserService_SendVerifyCode_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetPersonalizationPreference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPersonalizationPreferenceReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetPersonalizationPreference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetPersonalizationPreference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetPersonalizationPreference(ctx, req.(*GetPersonalizationPreferenceReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_SetPersonalizationPreference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetPersonalizationPreferenceReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).SetPersonalizationPreference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_SetPersonalizationPreference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).SetPersonalizationPreference(ctx, req.(*SetPersonalizationPreferenceReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -560,6 +632,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendVerifyCode",
 			Handler:    _UserService_SendVerifyCode_Handler,
+		},
+		{
+			MethodName: "GetPersonalizationPreference",
+			Handler:    _UserService_GetPersonalizationPreference_Handler,
+		},
+		{
+			MethodName: "SetPersonalizationPreference",
+			Handler:    _UserService_SetPersonalizationPreference_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

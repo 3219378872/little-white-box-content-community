@@ -75,6 +75,14 @@ func (contractUserService) SendVerifyCode(context.Context, *userservice.SendVeri
 	return &userservice.SendVerifyCodeResp{}, nil
 }
 
+func (contractUserService) GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+	return &userservice.GetPersonalizationPreferenceResp{Enabled: true}, nil
+}
+
+func (contractUserService) SetPersonalizationPreference(context.Context, *userservice.SetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.SetPersonalizationPreferenceResp, error) {
+	return &userservice.SetPersonalizationPreferenceResp{}, nil
+}
+
 type contractContentService struct{ contentservice.ContentService }
 
 func contractPost() *contentpb.PostInfo {
@@ -412,6 +420,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "MESSAGE-SEND-VALID", method: http.MethodPost, path: "/api/v2/messages", body: jsonBody(`{"receiverId":2,"content":"hello","msgType":1,"idempotencyKey":"send-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageId"}},
 		{id: "MESSAGE-MARK-READ-VALID", method: http.MethodPost, path: "/api/v2/messages/conversations/41/read", routePath: "/api/v2/messages/conversations/:id/read", auth: true, wantStatus: http.StatusOK},
 		{id: "MESSAGE-UNREAD-VALID", method: http.MethodGet, path: "/api/v2/messages/unread", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageUnread", "notificationUnread"}},
+		{id: "PERSONALIZATION-GET-VALID", method: http.MethodGet, path: "/api/v2/me/personalization", auth: true, wantStatus: http.StatusOK, wantFields: []string{"enabled", "optedOutAt"}},
+		{id: "PERSONALIZATION-PUT-VALID", method: http.MethodPut, path: "/api/v2/me/personalization", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
 	}
 
@@ -556,8 +566,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 35 {
-		t.Fatalf("route inventory drift: got %d success rules, want 35", len(successes))
+	if len(successes) != 37 {
+		t.Fatalf("route inventory drift: got %d success rules, want 37", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

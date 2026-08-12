@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
     client_version  LowCardinality(String) DEFAULT ''
 ) ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY toYYYYMMDD(event_time)
-ORDER BY event_id;
+ORDER BY event_id
+TTL received_at + INTERVAL 90 DAY DELETE;
 
 -- Regular views aggregate the deduplicated raw facts at query time. An
 -- insert-triggered materialized view would overcount at-least-once delivery.
@@ -63,4 +64,5 @@ CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_dead_letters (
     received_at DateTime64(3)
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMMDD(received_at)
-ORDER BY (received_at, message_id);
+ORDER BY (received_at, message_id)
+TTL received_at + INTERVAL 7 DAY DELETE;

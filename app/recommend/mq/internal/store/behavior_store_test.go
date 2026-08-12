@@ -24,6 +24,19 @@ func (f *fakeEvaler) EvalCtx(_ context.Context, _ string, keys []string, args ..
 	return int64(1), f.err
 }
 
+type fakeGetterEvaler struct {
+	*fakeEvaler
+	getValues map[string]string
+	getErrs   map[string]error
+}
+
+func (f *fakeGetterEvaler) GetCtx(_ context.Context, key string) (string, error) {
+	if err := f.getErrs[key]; err != nil {
+		return "", err
+	}
+	return f.getValues[key], nil
+}
+
 func featureBehavior() event.BehaviorEvent {
 	return event.BehaviorEvent{
 		EventID: 1, ClientEventID: "client-1", SchemaVersion: event.BehaviorSchemaVersion,
@@ -69,4 +82,30 @@ func TestRedisBehaviorStorePropagatesRedisFailure(t *testing.T) {
 	err := NewRedisBehaviorStore(&fakeEvaler{err: errors.New("redis down")}, "v2", "recommend", 3600).
 		Record(context.Background(), featureBehavior())
 	assert.ErrorContains(t, err, "redis down")
+}
+
+func TestRedisBehaviorStoreSkipsAndPurgesFeaturesWhenOptedOut(t *testing.T) {
+	evaler := &fakeEvaler{}
+	store := NewRedisBehaviorStore(&fakeGetterEvaler{
+		fakeEvaler: evaler,
+		getValues:  map[string]string{"personalization:optout:42": "1"},
+	}, "v2", "recommend", 3600)
+
+	require.NoError(t, store.Record(context.Background(), featureBehavior()))
+
+	// 只执行一次 purge DEL 脚本，不再记录行为特征
+	require.Len(t, evaler.keys, 10)
+	assert.Equal(t, "feature:v2:u:42:recent", evaler.keys[0])
+	assert.Equal(t, "recommend:v2:recall:post:itemcf:u:42", evaler.keys[6])
+}
+
+func TestRedisBehaviorStoreStillRecordsWhenOptIn(t *testing.T) {
+	evaler := &fakeEvaler{}
+	store := NewRedisBehaviorStore(&fakeGetterEvaler{
+		fakeEvaler: evaler,
+		getValues:  map[string]string{"personalization:optout:42": ""},
+	}, "v2", "recommend", 3600)
+
+	require.NoError(t, store.Record(context.Background(), featureBehavior()))
+	require.Len(t, evaler.keys, 15)
 }

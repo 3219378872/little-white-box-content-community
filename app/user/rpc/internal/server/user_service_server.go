@@ -94,3 +94,15 @@ func (s *UserServiceServer) SendVerifyCode(ctx context.Context, in *pb.SendVerif
 	l := logic.NewSendVerifyCodeLogic(ctx, s.svcCtx)
 	return l.SendVerifyCode(in)
 }
+
+// 获取个性化偏好（REL-023）
+func (s *UserServiceServer) GetPersonalizationPreference(ctx context.Context, in *pb.GetPersonalizationPreferenceReq) (*pb.GetPersonalizationPreferenceResp, error) {
+	l := logic.NewGetPersonalizationPreferenceLogic(ctx, s.svcCtx)
+	return l.GetPersonalizationPreference(in)
+}
+
+// 设置个性化偏好（REL-023）
+func (s *UserServiceServer) SetPersonalizationPreference(ctx context.Context, in *pb.SetPersonalizationPreferenceReq) (*pb.SetPersonalizationPreferenceResp, error) {
+	l := logic.NewSetPersonalizationPreferenceLogic(ctx, s.svcCtx)
+	return l.SetPersonalizationPreference(in)
+}

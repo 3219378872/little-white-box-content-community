@@ -226,12 +226,13 @@ func enrichAndFilterPosts(
 	identity string,
 	candidates []model.PostCandidate,
 	excludedPostID int64,
+	skipViewer bool,
 ) ([]model.PostCandidate, bool, error) {
 	viewer := emptyViewerFeatures()
 	degraded := false
 	if repository == nil {
 		degraded = true
-	} else {
+	} else if !skipViewer {
 		loadedViewer, err := repository.LoadViewerFeatures(ctx, identity)
 		if err != nil {
 			degraded = true
@@ -658,6 +659,27 @@ func emptyViewerFeatures() model.ViewerFeatures {
 		SeenPostIDs:     make(map[int64]struct{}),
 		BlockedAuthors:  make(map[int64]struct{}),
 	}
+}
+
+// ruleOnlyPostSources 过滤出非个性化的规则召回源（REL-023）。
+// 关闭个性化后只使用热门/探索/内容冷启动，不使用行为或关系个性化召回。
+func ruleOnlyPostSources(sources []model.PostRecallSource) []model.PostRecallSource {
+	ruleOnly := map[string]struct{}{
+		"hot":           {},
+		"explore":       {},
+		"content_hot":   {},
+		"content_fresh": {},
+	}
+	result := make([]model.PostRecallSource, 0, len(sources))
+	for _, source := range sources {
+		if source == nil {
+			continue
+		}
+		if _, ok := ruleOnly[source.Name()]; ok {
+			result = append(result, source)
+		}
+	}
+	return result
 }
 
 func containsID(ids map[int64]struct{}, id int64) bool {

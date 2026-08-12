@@ -3,6 +3,11 @@
 
 package types
 
+type GetPersonalizationPreferenceResp struct {
+	Enabled    bool  `json:"enabled"`
+	OptedOutAt int64 `json:"optedOutAt"`
+}
+
 type FollowReq struct {
 	TargetUserId int64 `json:"targetUserId"`
 }
@@ -54,4 +59,11 @@ type UpdateProfileReq struct {
 }
 
 type UpdateProfileResp struct {
+}
+
+type SetPersonalizationPreferenceReq struct {
+	Enabled bool `json:"enabled"`
+}
+
+type SetPersonalizationPreferenceResp struct {
 }

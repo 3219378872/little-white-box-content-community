@@ -340,4 +340,23 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/api/v1"),
 	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				// 获取个性化偏好
+				Method:  http.MethodGet,
+				Path:    "/me/personalization",
+				Handler: user.GetPersonalizationPreferenceHandler(serverCtx),
+			},
+			{
+				// 设置个性化偏好
+				Method:  http.MethodPut,
+				Path:    "/me/personalization",
+				Handler: user.SetPersonalizationPreferenceHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/api/v2"),
+	)
 }

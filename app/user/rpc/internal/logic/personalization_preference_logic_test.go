@@ -1,0 +1,129 @@
+package logic
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"testing"
+
+	"errx"
+	"user/internal/model"
+	"user/internal/svc"
+	"user/pb/xiaobaihe/user/pb"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/zeromicro/go-zero/core/stores/redis"
+)
+
+type memoryPersonalizationStore struct {
+	items map[int64]*model.PersonalizationPreference
+	err   error
+}
+
+func (s *memoryPersonalizationStore) Get(_ context.Context, userID int64) (*model.PersonalizationPreference, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	pref, ok := s.items[userID]
+	if !ok {
+		return nil, model.ErrPersonalizationPreferenceNotFound
+	}
+	return pref, nil
+}
+
+func (s *memoryPersonalizationStore) Upsert(_ context.Context, pref *model.PersonalizationPreference) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.items[pref.UserID] = pref
+	return nil
+}
+
+type memoryRedis struct {
+	*redis.Redis
+	values map[string]string
+}
+
+func (r *memoryRedis) SetexCtx(_ context.Context, key, value string, seconds int) error {
+	r.values[key] = value
+	return nil
+}
+
+func (r *memoryRedis) DelCtx(_ context.Context, keys ...string) (int, error) {
+	for _, key := range keys {
+		delete(r.values, key)
+	}
+	return len(keys), nil
+}
+
+func TestGetPersonalizationPreference(t *testing.T) {
+	t.Run("默认开启", func(t *testing.T) {
+		store := &memoryPersonalizationStore{items: map[int64]*model.PersonalizationPreference{}}
+		svcCtx := &svc.ServiceContext{Personalization: store}
+		resp, err := NewGetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			GetPersonalizationPreference(&pb.GetPersonalizationPreferenceReq{UserId: 1})
+		require.NoError(t, err)
+		assert.True(t, resp.Enabled)
+	})
+
+	t.Run("已关闭返回关闭时间", func(t *testing.T) {
+		store := &memoryPersonalizationStore{items: map[int64]*model.PersonalizationPreference{
+			1: {UserID: 1, Enabled: false, OptedOutAt: sql.NullInt64{Int64: 12345, Valid: true}},
+		}}
+		svcCtx := &svc.ServiceContext{Personalization: store}
+		resp, err := NewGetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			GetPersonalizationPreference(&pb.GetPersonalizationPreferenceReq{UserId: 1})
+		require.NoError(t, err)
+		assert.False(t, resp.Enabled)
+		assert.Equal(t, int64(12345), resp.OptedOutAt)
+	})
+
+	t.Run("参数错误", func(t *testing.T) {
+		svcCtx := &svc.ServiceContext{Personalization: &memoryPersonalizationStore{}}
+		_, err := NewGetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			GetPersonalizationPreference(&pb.GetPersonalizationPreferenceReq{UserId: 0})
+		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.ParamError))
+	})
+}
+
+func TestSetPersonalizationPreference(t *testing.T) {
+	t.Run("关闭时写入标记并记录时间", func(t *testing.T) {
+		store := &memoryPersonalizationStore{items: map[int64]*model.PersonalizationPreference{}}
+		memRedis := &memoryRedis{values: map[string]string{}}
+		svcCtx := &svc.ServiceContext{Personalization: store, RedisClient: memRedis}
+
+		_, err := NewSetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			SetPersonalizationPreference(&pb.SetPersonalizationPreferenceReq{UserId: 7, Enabled: false})
+		require.NoError(t, err)
+		pref := store.items[7]
+		require.NotNil(t, pref)
+		assert.False(t, pref.Enabled)
+		assert.NotZero(t, pref.OptedOutAt.Int64)
+		assert.Equal(t, "1", memRedis.values["personalization:optout:7"])
+	})
+
+	t.Run("重新开启时清除标记", func(t *testing.T) {
+		store := &memoryPersonalizationStore{items: map[int64]*model.PersonalizationPreference{
+			7: {UserID: 7, Enabled: false, OptedOutAt: sql.NullInt64{Int64: 123, Valid: true}},
+		}}
+		memRedis := &memoryRedis{values: map[string]string{"personalization:optout:7": "1"}}
+		svcCtx := &svc.ServiceContext{Personalization: store, RedisClient: memRedis}
+
+		_, err := NewSetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			SetPersonalizationPreference(&pb.SetPersonalizationPreferenceReq{UserId: 7, Enabled: true})
+		require.NoError(t, err)
+		assert.NotContains(t, memRedis.values, "personalization:optout:7")
+	})
+
+	t.Run("存储失败返回系统错误", func(t *testing.T) {
+		svcCtx := &svc.ServiceContext{Personalization: &memoryPersonalizationStore{
+			items: map[int64]*model.PersonalizationPreference{}, err: errors.New("db down"),
+		}}
+		_, err := NewSetPersonalizationPreferenceLogic(context.Background(), svcCtx).
+			SetPersonalizationPreference(&pb.SetPersonalizationPreferenceReq{UserId: 7, Enabled: false})
+		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.SystemError))
+	})
+}

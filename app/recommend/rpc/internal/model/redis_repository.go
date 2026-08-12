@@ -290,6 +290,20 @@ func (r *RedisFeatureRepository) LoadUserFeatures(ctx context.Context, userIDs [
 	return result, nil
 }
 
+// IsPersonalizationOptedOut 检查用户是否关闭了个性化（REL-023）。
+// 标记由 user 服务在关闭时写入 `personalization:optout:<userID>`。
+func (r *RedisFeatureRepository) IsPersonalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
+	if userID <= 0 {
+		return false, nil
+	}
+	key := fmt.Sprintf("personalization:optout:%d", userID)
+	value, err := r.redis.GetCtx(ctx, key)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return false, fmt.Errorf("check personalization opt-out: %w", err)
+	}
+	return value != "", nil
+}
+
 type RedisSnapshotStore struct {
 	redis  redisClient
 	prefix string

@@ -39,6 +39,13 @@ type UserFollowCommandStore interface {
 	Unfollow(ctx context.Context, userID, targetUserID int64, event outboxx.Event) error
 }
 
+// RedisStore 是 user 服务使用的 Redis 能力子集，便于测试注入。
+type RedisStore interface {
+	GetCtx(ctx context.Context, key string) (string, error)
+	DelCtx(ctx context.Context, keys ...string) (int, error)
+	SetexCtx(ctx context.Context, key, value string, seconds int) error
+}
+
 type ServiceContext struct {
 	Config             config.Config
 	DB                 sqlx.SqlConn
@@ -47,7 +54,8 @@ type ServiceContext struct {
 	UserProfileModel   UserProfileStore
 	UserFollowModel    UserFollowStore
 	UserFollowCommands UserFollowCommandStore
-	RedisClient        *redis.Redis
+	Personalization    model.PersonalizationPreferenceStore
+	RedisClient        RedisStore
 	OutboxStore        *outboxx.SQLStore
 	OutboxRelay        *outboxx.Relay
 	MQProducer         *mqx.Producer
@@ -104,6 +112,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserProfileModel:   model.NewUserProfileModel(conn),
 		UserFollowModel:    followModel,
 		UserFollowCommands: model.NewUserFollowCommandModel(conn, outboxStore),
+		Personalization:    model.NewPersonalizationPreferenceModel(conn),
 		RedisClient:        newRedis,
 		OutboxStore:        outboxStore,
 		OutboxRelay:        outboxRelay,

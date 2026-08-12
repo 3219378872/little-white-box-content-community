@@ -29,6 +29,10 @@ service UserService {
   rpc Login(LoginReq) returns (LoginResp);
   // 发送验证码
   rpc SendVerifyCode(SendVerifyCodeReq) returns (SendVerifyCodeResp);
+  // 获取个性化偏好（REL-023）
+  rpc GetPersonalizationPreference(GetPersonalizationPreferenceReq) returns (GetPersonalizationPreferenceResp);
+  // 设置个性化偏好（REL-023）
+  rpc SetPersonalizationPreference(SetPersonalizationPreferenceReq) returns (SetPersonalizationPreferenceResp);
 }
 
 // 用户信息
@@ -183,3 +187,23 @@ message SendVerifyCodeReq {
 
 // 发送验证码响应
 message SendVerifyCodeResp {}
+
+// 获取个性化偏好请求
+message GetPersonalizationPreferenceReq {
+  int64 user_id = 1;
+}
+
+// 获取个性化偏好响应
+message GetPersonalizationPreferenceResp {
+  bool  enabled       = 1; // 个性化是否开启
+  int64 opted_out_at  = 2; // 关闭时间 Unix 毫秒（enabled=false 时有效）
+}
+
+// 设置个性化偏好请求
+message SetPersonalizationPreferenceReq {
+  int64 user_id = 1;
+  bool  enabled = 2;
+}
+
+// 设置个性化偏好响应
+message SetPersonalizationPreferenceResp {}

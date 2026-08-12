@@ -14,31 +14,35 @@ import (
 )
 
 type (
-	BatchGetUsersReq   = pb.BatchGetUsersReq
-	BatchGetUsersResp  = pb.BatchGetUsersResp
-	FollowReq          = pb.FollowReq
-	FollowResp         = pb.FollowResp
-	GetFollowersReq    = pb.GetFollowersReq
-	GetFollowersResp   = pb.GetFollowersResp
-	GetFollowingReq    = pb.GetFollowingReq
-	GetFollowingResp   = pb.GetFollowingResp
-	GetUserReq         = pb.GetUserReq
-	GetUserResp        = pb.GetUserResp
-	GetUserTagsReq     = pb.GetUserTagsReq
-	GetUserTagsResp    = pb.GetUserTagsResp
-	LoginReq           = pb.LoginReq
-	LoginResp          = pb.LoginResp
-	RegisterReq        = pb.RegisterReq
-	RegisterResp       = pb.RegisterResp
-	SearchUsersReq     = pb.SearchUsersReq
-	SearchUsersResp    = pb.SearchUsersResp
-	SendVerifyCodeReq  = pb.SendVerifyCodeReq
-	SendVerifyCodeResp = pb.SendVerifyCodeResp
-	UnfollowReq        = pb.UnfollowReq
-	UnfollowResp       = pb.UnfollowResp
-	UpdateProfileReq   = pb.UpdateProfileReq
-	UpdateProfileResp  = pb.UpdateProfileResp
-	UserInfo           = pb.UserInfo
+	BatchGetUsersReq                 = pb.BatchGetUsersReq
+	BatchGetUsersResp                = pb.BatchGetUsersResp
+	FollowReq                        = pb.FollowReq
+	FollowResp                       = pb.FollowResp
+	GetFollowersReq                  = pb.GetFollowersReq
+	GetFollowersResp                 = pb.GetFollowersResp
+	GetFollowingReq                  = pb.GetFollowingReq
+	GetFollowingResp                 = pb.GetFollowingResp
+	GetPersonalizationPreferenceReq  = pb.GetPersonalizationPreferenceReq
+	GetPersonalizationPreferenceResp = pb.GetPersonalizationPreferenceResp
+	GetUserReq                       = pb.GetUserReq
+	GetUserResp                      = pb.GetUserResp
+	GetUserTagsReq                   = pb.GetUserTagsReq
+	GetUserTagsResp                  = pb.GetUserTagsResp
+	LoginReq                         = pb.LoginReq
+	LoginResp                        = pb.LoginResp
+	RegisterReq                      = pb.RegisterReq
+	RegisterResp                     = pb.RegisterResp
+	SearchUsersReq                   = pb.SearchUsersReq
+	SearchUsersResp                  = pb.SearchUsersResp
+	SendVerifyCodeReq                = pb.SendVerifyCodeReq
+	SendVerifyCodeResp               = pb.SendVerifyCodeResp
+	SetPersonalizationPreferenceReq  = pb.SetPersonalizationPreferenceReq
+	SetPersonalizationPreferenceResp = pb.SetPersonalizationPreferenceResp
+	UnfollowReq                      = pb.UnfollowReq
+	UnfollowResp                     = pb.UnfollowResp
+	UpdateProfileReq                 = pb.UpdateProfileReq
+	UpdateProfileResp                = pb.UpdateProfileResp
+	UserInfo                         = pb.UserInfo
 
 	UserService interface {
 		// 获取用户信息
@@ -65,6 +69,10 @@ type (
 		Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginResp, error)
 		// 发送验证码
 		SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error)
+		// 获取个性化偏好（REL-023）
+		GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error)
+		// 设置个性化偏好（REL-023）
+		SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error)
 	}
 
 	defaultUserService struct {
@@ -148,4 +156,16 @@ func (m *defaultUserService) Login(ctx context.Context, in *LoginReq, opts ...gr
 func (m *defaultUserService) SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error) {
 	client := pb.NewUserServiceClient(m.cli.Conn())
 	return client.SendVerifyCode(ctx, in, opts...)
+}
+
+// 获取个性化偏好（REL-023）
+func (m *defaultUserService) GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.GetPersonalizationPreference(ctx, in, opts...)
+}
+
+// 设置个性化偏好（REL-023）
+func (m *defaultUserService) SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.SetPersonalizationPreference(ctx, in, opts...)
 }

@@ -1402,6 +1402,194 @@ func (*SendVerifyCodeResp) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{24}
 }
 
+// 获取个性化偏好请求
+type GetPersonalizationPreferenceReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPersonalizationPreferenceReq) Reset() {
+	*x = GetPersonalizationPreferenceReq{}
+	mi := &file_user_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPersonalizationPreferenceReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPersonalizationPreferenceReq) ProtoMessage() {}
+
+func (x *GetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPersonalizationPreferenceReq.ProtoReflect.Descriptor instead.
+func (*GetPersonalizationPreferenceReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetPersonalizationPreferenceReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// 获取个性化偏好响应
+type GetPersonalizationPreferenceResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`                           // 个性化是否开启
+	OptedOutAt    int64                  `protobuf:"varint,2,opt,name=opted_out_at,json=optedOutAt,proto3" json:"opted_out_at,omitempty"` // 关闭时间 Unix 毫秒（enabled=false 时有效）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPersonalizationPreferenceResp) Reset() {
+	*x = GetPersonalizationPreferenceResp{}
+	mi := &file_user_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPersonalizationPreferenceResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPersonalizationPreferenceResp) ProtoMessage() {}
+
+func (x *GetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPersonalizationPreferenceResp.ProtoReflect.Descriptor instead.
+func (*GetPersonalizationPreferenceResp) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetPersonalizationPreferenceResp) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *GetPersonalizationPreferenceResp) GetOptedOutAt() int64 {
+	if x != nil {
+		return x.OptedOutAt
+	}
+	return 0
+}
+
+// 设置个性化偏好请求
+type SetPersonalizationPreferenceReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPersonalizationPreferenceReq) Reset() {
+	*x = SetPersonalizationPreferenceReq{}
+	mi := &file_user_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPersonalizationPreferenceReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPersonalizationPreferenceReq) ProtoMessage() {}
+
+func (x *SetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPersonalizationPreferenceReq.ProtoReflect.Descriptor instead.
+func (*SetPersonalizationPreferenceReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SetPersonalizationPreferenceReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SetPersonalizationPreferenceReq) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+// 设置个性化偏好响应
+type SetPersonalizationPreferenceResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPersonalizationPreferenceResp) Reset() {
+	*x = SetPersonalizationPreferenceResp{}
+	mi := &file_user_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPersonalizationPreferenceResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPersonalizationPreferenceResp) ProtoMessage() {}
+
+func (x *SetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPersonalizationPreferenceResp.ProtoReflect.Descriptor instead.
+func (*SetPersonalizationPreferenceResp) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{28}
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -1500,7 +1688,17 @@ const file_user_proto_rawDesc = "" +
 	"\x11SendVerifyCodeReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\x05R\x04type\"\x14\n" +
-	"\x12SendVerifyCodeResp2\xb9\x05\n" +
+	"\x12SendVerifyCodeResp\":\n" +
+	"\x1fGetPersonalizationPreferenceReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"^\n" +
+	" GetPersonalizationPreferenceResp\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12 \n" +
+	"\fopted_out_at\x18\x02 \x01(\x03R\n" +
+	"optedOutAt\"T\n" +
+	"\x1fSetPersonalizationPreferenceReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\"\"\n" +
+	" SetPersonalizationPreferenceResp2\x97\a\n" +
 	"\vUserService\x12.\n" +
 	"\aGetUser\x12\x10.user.GetUserReq\x1a\x11.user.GetUserResp\x12@\n" +
 	"\rBatchGetUsers\x12\x16.user.BatchGetUsersReq\x1a\x17.user.BatchGetUsersResp\x12:\n" +
@@ -1513,7 +1711,9 @@ const file_user_proto_rawDesc = "" +
 	"\vGetUserTags\x12\x14.user.GetUserTagsReq\x1a\x15.user.GetUserTagsResp\x121\n" +
 	"\bRegister\x12\x11.user.RegisterReq\x1a\x12.user.RegisterResp\x12(\n" +
 	"\x05Login\x12\x0e.user.LoginReq\x1a\x0f.user.LoginResp\x12C\n" +
-	"\x0eSendVerifyCode\x12\x17.user.SendVerifyCodeReq\x1a\x18.user.SendVerifyCodeRespB\x13Z\x11xiaobaihe/user/pbb\x06proto3"
+	"\x0eSendVerifyCode\x12\x17.user.SendVerifyCodeReq\x1a\x18.user.SendVerifyCodeResp\x12m\n" +
+	"\x1cGetPersonalizationPreference\x12%.user.GetPersonalizationPreferenceReq\x1a&.user.GetPersonalizationPreferenceResp\x12m\n" +
+	"\x1cSetPersonalizationPreference\x12%.user.SetPersonalizationPreferenceReq\x1a&.user.SetPersonalizationPreferenceRespB\x13Z\x11xiaobaihe/user/pbb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -1527,33 +1727,37 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_user_proto_goTypes = []any{
-	(*UserInfo)(nil),           // 0: user.UserInfo
-	(*GetUserReq)(nil),         // 1: user.GetUserReq
-	(*GetUserResp)(nil),        // 2: user.GetUserResp
-	(*BatchGetUsersReq)(nil),   // 3: user.BatchGetUsersReq
-	(*BatchGetUsersResp)(nil),  // 4: user.BatchGetUsersResp
-	(*SearchUsersReq)(nil),     // 5: user.SearchUsersReq
-	(*SearchUsersResp)(nil),    // 6: user.SearchUsersResp
-	(*UpdateProfileReq)(nil),   // 7: user.UpdateProfileReq
-	(*UpdateProfileResp)(nil),  // 8: user.UpdateProfileResp
-	(*FollowReq)(nil),          // 9: user.FollowReq
-	(*FollowResp)(nil),         // 10: user.FollowResp
-	(*UnfollowReq)(nil),        // 11: user.UnfollowReq
-	(*UnfollowResp)(nil),       // 12: user.UnfollowResp
-	(*GetFollowersReq)(nil),    // 13: user.GetFollowersReq
-	(*GetFollowersResp)(nil),   // 14: user.GetFollowersResp
-	(*GetFollowingReq)(nil),    // 15: user.GetFollowingReq
-	(*GetFollowingResp)(nil),   // 16: user.GetFollowingResp
-	(*GetUserTagsReq)(nil),     // 17: user.GetUserTagsReq
-	(*GetUserTagsResp)(nil),    // 18: user.GetUserTagsResp
-	(*RegisterReq)(nil),        // 19: user.RegisterReq
-	(*RegisterResp)(nil),       // 20: user.RegisterResp
-	(*LoginReq)(nil),           // 21: user.LoginReq
-	(*LoginResp)(nil),          // 22: user.LoginResp
-	(*SendVerifyCodeReq)(nil),  // 23: user.SendVerifyCodeReq
-	(*SendVerifyCodeResp)(nil), // 24: user.SendVerifyCodeResp
+	(*UserInfo)(nil),                         // 0: user.UserInfo
+	(*GetUserReq)(nil),                       // 1: user.GetUserReq
+	(*GetUserResp)(nil),                      // 2: user.GetUserResp
+	(*BatchGetUsersReq)(nil),                 // 3: user.BatchGetUsersReq
+	(*BatchGetUsersResp)(nil),                // 4: user.BatchGetUsersResp
+	(*SearchUsersReq)(nil),                   // 5: user.SearchUsersReq
+	(*SearchUsersResp)(nil),                  // 6: user.SearchUsersResp
+	(*UpdateProfileReq)(nil),                 // 7: user.UpdateProfileReq
+	(*UpdateProfileResp)(nil),                // 8: user.UpdateProfileResp
+	(*FollowReq)(nil),                        // 9: user.FollowReq
+	(*FollowResp)(nil),                       // 10: user.FollowResp
+	(*UnfollowReq)(nil),                      // 11: user.UnfollowReq
+	(*UnfollowResp)(nil),                     // 12: user.UnfollowResp
+	(*GetFollowersReq)(nil),                  // 13: user.GetFollowersReq
+	(*GetFollowersResp)(nil),                 // 14: user.GetFollowersResp
+	(*GetFollowingReq)(nil),                  // 15: user.GetFollowingReq
+	(*GetFollowingResp)(nil),                 // 16: user.GetFollowingResp
+	(*GetUserTagsReq)(nil),                   // 17: user.GetUserTagsReq
+	(*GetUserTagsResp)(nil),                  // 18: user.GetUserTagsResp
+	(*RegisterReq)(nil),                      // 19: user.RegisterReq
+	(*RegisterResp)(nil),                     // 20: user.RegisterResp
+	(*LoginReq)(nil),                         // 21: user.LoginReq
+	(*LoginResp)(nil),                        // 22: user.LoginResp
+	(*SendVerifyCodeReq)(nil),                // 23: user.SendVerifyCodeReq
+	(*SendVerifyCodeResp)(nil),               // 24: user.SendVerifyCodeResp
+	(*GetPersonalizationPreferenceReq)(nil),  // 25: user.GetPersonalizationPreferenceReq
+	(*GetPersonalizationPreferenceResp)(nil), // 26: user.GetPersonalizationPreferenceResp
+	(*SetPersonalizationPreferenceReq)(nil),  // 27: user.SetPersonalizationPreferenceReq
+	(*SetPersonalizationPreferenceResp)(nil), // 28: user.SetPersonalizationPreferenceResp
 }
 var file_user_proto_depIdxs = []int32{
 	0,  // 0: user.GetUserResp.user:type_name -> user.UserInfo
@@ -1574,20 +1778,24 @@ var file_user_proto_depIdxs = []int32{
 	19, // 15: user.UserService.Register:input_type -> user.RegisterReq
 	21, // 16: user.UserService.Login:input_type -> user.LoginReq
 	23, // 17: user.UserService.SendVerifyCode:input_type -> user.SendVerifyCodeReq
-	2,  // 18: user.UserService.GetUser:output_type -> user.GetUserResp
-	4,  // 19: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
-	6,  // 20: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
-	8,  // 21: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
-	10, // 22: user.UserService.Follow:output_type -> user.FollowResp
-	12, // 23: user.UserService.Unfollow:output_type -> user.UnfollowResp
-	14, // 24: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
-	16, // 25: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
-	18, // 26: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
-	20, // 27: user.UserService.Register:output_type -> user.RegisterResp
-	22, // 28: user.UserService.Login:output_type -> user.LoginResp
-	24, // 29: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
-	18, // [18:30] is the sub-list for method output_type
-	6,  // [6:18] is the sub-list for method input_type
+	25, // 18: user.UserService.GetPersonalizationPreference:input_type -> user.GetPersonalizationPreferenceReq
+	27, // 19: user.UserService.SetPersonalizationPreference:input_type -> user.SetPersonalizationPreferenceReq
+	2,  // 20: user.UserService.GetUser:output_type -> user.GetUserResp
+	4,  // 21: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
+	6,  // 22: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
+	8,  // 23: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
+	10, // 24: user.UserService.Follow:output_type -> user.FollowResp
+	12, // 25: user.UserService.Unfollow:output_type -> user.UnfollowResp
+	14, // 26: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
+	16, // 27: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
+	18, // 28: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
+	20, // 29: user.UserService.Register:output_type -> user.RegisterResp
+	22, // 30: user.UserService.Login:output_type -> user.LoginResp
+	24, // 31: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
+	26, // 32: user.UserService.GetPersonalizationPreference:output_type -> user.GetPersonalizationPreferenceResp
+	28, // 33: user.UserService.SetPersonalizationPreference:output_type -> user.SetPersonalizationPreferenceResp
+	20, // [20:34] is the sub-list for method output_type
+	6,  // [6:20] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -1604,7 +1812,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

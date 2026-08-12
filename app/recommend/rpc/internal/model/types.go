@@ -114,6 +114,8 @@ type FeatureRepository interface {
 	LoadViewerFeatures(ctx context.Context, identity string) (ViewerFeatures, error)
 	LoadPostFeatures(ctx context.Context, postIDs []int64) (map[int64]PostFeatures, error)
 	LoadUserFeatures(ctx context.Context, userIDs []int64) (map[int64]UserFeatures, error)
+	// IsPersonalizationOptedOut 返回认证用户是否关闭了个性化（REL-023）。
+	IsPersonalizationOptedOut(ctx context.Context, userID int64) (bool, error)
 }
 
 type SnapshotStore interface {

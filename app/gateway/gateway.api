@@ -520,6 +520,17 @@ type (
 )
 
 type (
+	GetPersonalizationPreferenceResp {
+		Enabled    bool  `json:"enabled"`
+		OptedOutAt int64 `json:"optedOutAt"`
+	}
+	SetPersonalizationPreferenceReq {
+		Enabled bool `json:"enabled"`
+	}
+	SetPersonalizationPreferenceResp  {}
+)
+
+type (
 	AssistantChatReq {
 		ConversationId string `json:"conversationId,optional"`
 		Message        string `json:"message"`
@@ -792,5 +803,20 @@ service gateway {
 	@doc "Assistant SSE 对话"
 	@handler AssistantChat
 	post /assistant/chat (AssistantChatReq) returns (AssistantChatEvent)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  user
+)
+service gateway {
+	@doc "获取个性化偏好"
+	@handler GetPersonalizationPreference
+	get /me/personalization returns (GetPersonalizationPreferenceResp)
+
+	@doc "设置个性化偏好"
+	@handler SetPersonalizationPreference
+	put /me/personalization (SetPersonalizationPreferenceReq) returns (SetPersonalizationPreferenceResp)
 }
 

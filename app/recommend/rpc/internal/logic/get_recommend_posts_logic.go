@@ -52,6 +52,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		return l.pageFromCursor(in.GetCursor(), pageSize, binding)
 	}
 
+	privacyOptOut := l.personalizationOptedOut(in.GetUserId())
 	recallReq := model.RecallRequest{
 		UserID:       in.GetUserId(),
 		AnonymousID:  strings.TrimSpace(in.GetAnonymousId()),
@@ -62,7 +63,11 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		ExperimentID: binding.ExperimentID,
 		Limit:        candidateLimit(pageSize, l.svcCtx.Config),
 	}
-	batches, recallDegraded, err := recallPosts(l.ctx, l.svcCtx.PostRecallSources, recallReq)
+	sources := l.svcCtx.PostRecallSources
+	if privacyOptOut {
+		sources = ruleOnlyPostSources(sources)
+	}
+	batches, recallDegraded, err := recallPosts(l.ctx, sources, recallReq)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "recall", "unavailable")
 		l.Errorw("post recall unavailable", logx.Field("err", err.Error()))
@@ -76,7 +81,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		return nil, recommendationRPCError(fmt.Errorf("no post candidates remain after partial recall failure"))
 	}
 	candidates, featureDegraded, err := enrichAndFilterPosts(
-		l.ctx, l.svcCtx.FeatureRepository, identity, candidates, 0,
+		l.ctx, l.svcCtx.FeatureRepository, identity, candidates, 0, privacyOptOut,
 	)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "features", "unavailable")
@@ -109,6 +114,9 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		markPostDegradation(candidates, "feature-degraded")
 		l.Error("recommendation features degraded; serving verified candidates only")
 	}
+	if privacyOptOut {
+		markPostDegradation(candidates, "personalization-disabled")
+	}
 	ranked := make([]model.RankedPost, 0, len(candidates))
 	for index, candidate := range candidates {
 		ranked = append(ranked, model.RankedPost{
@@ -127,6 +135,20 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 	}
 	recordRecommendationResult("posts", len(response.Posts))
 	return response, nil
+}
+
+// personalizationOptedOut 返回认证用户是否关闭了个性化（REL-023）。
+// 读取失败时 fail-open 返回 false，交由既有降级路径处理。
+func (l *GetRecommendPostsLogic) personalizationOptedOut(userID int64) bool {
+	if userID <= 0 || l.svcCtx == nil || l.svcCtx.FeatureRepository == nil {
+		return false
+	}
+	optedOut, err := l.svcCtx.FeatureRepository.IsPersonalizationOptedOut(l.ctx, userID)
+	if err != nil {
+		l.Errorw("check personalization opt-out failed", logx.Field("user_id", userID), logx.Field("err", err.Error()))
+		return false
+	}
+	return optedOut
 }
 
 func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize int, binding cursor.Binding) (*pb.GetRecommendPostsResp, error) {

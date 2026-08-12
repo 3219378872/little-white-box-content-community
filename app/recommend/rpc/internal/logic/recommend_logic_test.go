@@ -48,6 +48,7 @@ type fakeFeatureRepository struct {
 	viewerErr error
 	postsErr  error
 	usersErr  error
+	optedOut  bool
 }
 
 func (r *fakeFeatureRepository) LoadViewerFeatures(context.Context, string) (model.ViewerFeatures, error) {
@@ -60,6 +61,10 @@ func (r *fakeFeatureRepository) LoadPostFeatures(context.Context, []int64) (map[
 
 func (r *fakeFeatureRepository) LoadUserFeatures(context.Context, []int64) (map[int64]model.UserFeatures, error) {
 	return r.users, r.usersErr
+}
+
+func (r *fakeFeatureRepository) IsPersonalizationOptedOut(context.Context, int64) (bool, error) {
+	return r.optedOut, nil
 }
 
 type memorySnapshotStore struct {
@@ -258,6 +263,52 @@ func TestGetRecommendPostsReturnsUnavailableWhenAllRecallSourcesFail(t *testing.
 	})
 	if !errx.Is(err, errx.ServiceUnavailable) {
 		t.Fatalf("error = %v, want ServiceUnavailable", err)
+	}
+}
+
+func TestGetRecommendPostsSkipsPersonalizationWhenOptedOut(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	var itemcfCalled atomic.Bool
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(7, 10, "tech", 0.7)}, nil
+		}},
+		fakePostSource{name: "itemcf", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			itemcfCalled.Store(true)
+			return []model.PostCandidate{knownPost(8, 20, "tech", 0.9)}, nil
+		}},
+		fakePostSource{name: "content_hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(9, 30, "news", 0.5)}, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		optedOut: true,
+		viewer: model.ViewerFeatures{
+			NegativePostIDs: map[int64]struct{}{7: {}},
+			SeenPostIDs:     map[int64]struct{}{9: {}},
+		},
+		posts: map[int64]model.PostFeatures{
+			7: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Category: "tech", Quality: 0.7},
+			9: {Known: true, Available: true, Visibility: "public", AuthorID: 30, Category: "news", Quality: 0.5},
+		},
+	}
+
+	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 42, RequestId: "request-1", PageSize: 5,
+	})
+	if err != nil {
+		t.Fatalf("GetRecommendPosts() error = %v", err)
+	}
+	if itemcfCalled.Load() {
+		t.Fatal("personalized recall source was called after opt-out")
+	}
+	if len(response.Posts) != 2 {
+		t.Fatalf("expected both rule-based candidates regardless of viewer features, got %+v", response.Posts)
+	}
+	for _, post := range response.Posts {
+		if !strings.Contains(post.ModelVersion, "personalization-disabled") {
+			t.Fatalf("opt-out was not marked: %+v", post)
+		}
 	}
 }
 
