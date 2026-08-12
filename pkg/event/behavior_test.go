@@ -65,6 +65,45 @@ func TestBehaviorEventValidate(t *testing.T) {
 	}
 }
 
+func TestBehaviorEventValidateClientSubmitted(t *testing.T) {
+	base := validBehaviorEvent()
+	for _, action := range []string{
+		BehaviorActionExposure, BehaviorActionClick, BehaviorActionDwell,
+		BehaviorActionPlay, BehaviorActionView, BehaviorActionShare,
+		BehaviorActionHide, BehaviorActionDislike,
+	} {
+		t.Run("client-allowed-"+action, func(t *testing.T) {
+			e := base
+			e.Action = action
+			if _, ok := map[string]struct{}{
+				BehaviorActionDwell: {}, BehaviorActionPlay: {}, BehaviorActionView: {},
+			}[action]; ok {
+				e.DurationMs = int64Ptr(1000)
+			}
+			require.NoError(t, e.ValidateClientSubmitted())
+		})
+	}
+
+	for _, action := range []string{
+		BehaviorActionLike, BehaviorActionUnlike, BehaviorActionFavorite,
+		BehaviorActionUnfavorite, BehaviorActionComment, BehaviorActionFollow,
+		BehaviorActionUnfollow,
+	} {
+		t.Run("client-rejected-"+action, func(t *testing.T) {
+			e := base
+			e.Action = action
+			assert.ErrorContains(t, e.ValidateClientSubmitted(), "not allowed from clients")
+		})
+	}
+}
+
+func TestBehaviorEventExposurePositionMustStartFromOne(t *testing.T) {
+	e := validBehaviorEvent()
+	zero := int32(0)
+	e.Position = &zero
+	assert.ErrorContains(t, e.Validate(), "position must start from 1")
+}
+
 func TestDeterministicBehaviorEventID(t *testing.T) {
 	first := DeterministicBehaviorEventID("client-1")
 	assert.Positive(t, first)

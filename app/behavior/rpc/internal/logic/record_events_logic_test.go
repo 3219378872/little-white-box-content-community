@@ -147,3 +147,23 @@ func TestRecordEventsRejectsClockSkewWithoutPublishing(t *testing.T) {
 	assert.Equal(t, int32(1), resp.RejectedCount)
 	assert.Empty(t, p.events)
 }
+
+func TestRecordEventsRejectsAuthoritativeActionsFromClients(t *testing.T) {
+	p := &fakePublisher{}
+	logic := NewRecordEventsLogic(context.Background(), behaviorTestContext(p))
+
+	for _, action := range []string{
+		event.BehaviorActionLike, event.BehaviorActionFollow, event.BehaviorActionComment,
+		event.BehaviorActionFavorite, event.BehaviorActionUnlike,
+	} {
+		e := exposure("client-" + action)
+		e.Action = action
+		resp, err := logic.RecordEvents(&pb.RecordEventsReq{UserId: 42, Events: []*pb.ClientBehaviorEvent{e}})
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		assert.False(t, resp.Results[0].Accepted, "action %s must be rejected from clients", action)
+		assert.Equal(t, int32(errx.ParamError), resp.Results[0].Code)
+		assert.Contains(t, resp.Results[0].Reason, "not allowed from clients")
+	}
+	assert.Empty(t, p.events)
+}

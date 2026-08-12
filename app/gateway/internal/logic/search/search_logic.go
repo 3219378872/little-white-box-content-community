@@ -53,8 +53,10 @@ func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err 
 	}
 
 	return &types.SearchResp{
-		Posts: searchPosts(result.Posts),
-		Users: searchUsers(result.Users),
-		Tags:  searchTags(result.Tags),
+		Posts:            searchPosts(result.Posts),
+		Users:            searchUsers(result.Users),
+		Tags:             searchTags(result.Tags),
+		Degraded:         result.Degraded,
+		UnavailableTypes: append([]string(nil), result.UnavailableTypes...),
 	}, nil
 }

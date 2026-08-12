@@ -96,6 +96,8 @@ message SearchResp {
   repeated PostSearchResult posts = 1;
   repeated UserSearchResult users = 2;
   repeated TagSearchResult  tags  = 3;
+  bool   degraded = 4; // 部分类型搜索失败时标记降级（DISC-023）
+  repeated string unavailable_types = 5;
 }
 
 // 获取热门搜索请求

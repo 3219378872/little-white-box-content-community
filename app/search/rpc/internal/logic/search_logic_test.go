@@ -206,9 +206,57 @@ func TestCombinedSearchSuccessAndTagFailure(t *testing.T) {
 	fake.tagsFn = func(context.Context, string, int32) ([]store.Tag, error) {
 		return nil, errors.New("aggregation failed")
 	}
-	_, err = NewSearchLogic(ctx, serviceContextWithUser(fake, userService)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
+	resp, err = NewSearchLogic(ctx, serviceContextWithUser(fake, userService)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.NoError(t, err)
+	assert.True(t, resp.Degraded)
+	assert.Equal(t, []string{"tag"}, resp.UnavailableTypes)
+	assert.Len(t, resp.Posts, 1)
+	assert.Len(t, resp.Users, 1)
+	assert.Empty(t, resp.Tags)
+}
+
+func TestCombinedSearchUserFailureDegrades(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) {
+			return []store.Tag{{Name: "go", PostCount: 3}}, nil
+		},
+	}
+	userService := &fakeUserService{searchUsersFn: func(context.Context, *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error) {
+		return nil, errors.New("user rpc unavailable")
+	}}
+
+	resp, err := NewSearchLogic(ctx, serviceContextWithUser(fake, userService)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.NoError(t, err)
+	assert.True(t, resp.Degraded)
+	assert.Equal(t, []string{"user"}, resp.UnavailableTypes)
+	assert.Len(t, resp.Posts, 1)
+	assert.Len(t, resp.Tags, 1)
+	assert.Empty(t, resp.Users)
+}
+
+func TestCombinedSearchUserAndTagFailureDegrades(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) {
+			return nil, errors.New("tags unavailable")
+		},
+	}
+	userService := &fakeUserService{searchUsersFn: func(context.Context, *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error) {
+		return nil, errors.New("users unavailable")
+	}}
+
+	resp, err := NewSearchLogic(ctx, serviceContextWithUser(fake, userService)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.NoError(t, err)
+	assert.True(t, resp.Degraded)
+	assert.ElementsMatch(t, []string{"user", "tag"}, resp.UnavailableTypes)
+	assert.Len(t, resp.Posts, 1)
 }
 
 func TestSearchUsersUserRPCFailureIsUnavailable(t *testing.T) {

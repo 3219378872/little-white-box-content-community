@@ -657,12 +657,14 @@ func (x *SearchReq) GetPageSize() int32 {
 
 // 综合搜索响应
 type SearchResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Posts         []*PostSearchResult    `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
-	Users         []*UserSearchResult    `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
-	Tags          []*TagSearchResult     `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Posts            []*PostSearchResult    `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
+	Users            []*UserSearchResult    `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
+	Tags             []*TagSearchResult     `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	Degraded         bool                   `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"` // 部分类型搜索失败时标记降级（DISC-023）
+	UnavailableTypes []string               `protobuf:"bytes,5,rep,name=unavailable_types,json=unavailableTypes,proto3" json:"unavailable_types,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SearchResp) Reset() {
@@ -712,6 +714,20 @@ func (x *SearchResp) GetUsers() []*UserSearchResult {
 func (x *SearchResp) GetTags() []*TagSearchResult {
 	if x != nil {
 		return x.Tags
+	}
+	return nil
+}
+
+func (x *SearchResp) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *SearchResp) GetUnavailableTypes() []string {
+	if x != nil {
+		return x.UnavailableTypes
 	}
 	return nil
 }
@@ -858,12 +874,14 @@ const file_proto_search_search_proto_rawDesc = "" +
 	"\tSearchReq\x12\x18\n" +
 	"\akeyword\x18\x01 \x01(\tR\akeyword\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"\x99\x01\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"\xe2\x01\n" +
 	"\n" +
 	"SearchResp\x12.\n" +
 	"\x05posts\x18\x01 \x03(\v2\x18.search.PostSearchResultR\x05posts\x12.\n" +
 	"\x05users\x18\x02 \x03(\v2\x18.search.UserSearchResultR\x05users\x12+\n" +
-	"\x04tags\x18\x03 \x03(\v2\x17.search.TagSearchResultR\x04tags\")\n" +
+	"\x04tags\x18\x03 \x03(\v2\x17.search.TagSearchResultR\x04tags\x12\x1a\n" +
+	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12+\n" +
+	"\x11unavailable_types\x18\x05 \x03(\tR\x10unavailableTypes\")\n" +
 	"\x11GetHotSearchesReq\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\"0\n" +
 	"\x12GetHotSearchesResp\x12\x1a\n" +

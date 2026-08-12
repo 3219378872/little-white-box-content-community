@@ -26,7 +26,7 @@ const (
 	defaultMaxMessageRunes  = 2000
 	defaultTokenChunkRunes  = 64
 	defaultToolTimeout      = 1500 * time.Millisecond
-	defaultMaxResponseRunes = 10000
+	defaultMaxResponseRunes = 8000
 )
 
 var blockedDirectives = []string{
@@ -432,8 +432,8 @@ func (l *ChatLogic) toolTimeout() time.Duration {
 }
 
 func (l *ChatLogic) maxResponseRunes() int {
-	if l.svcCtx != nil && l.svcCtx.Config.Safety.MaxScanRunes > 0 {
-		return l.svcCtx.Config.Safety.MaxScanRunes
+	if l.svcCtx != nil && l.svcCtx.Config.LLM.MaxOutputRunes > 0 {
+		return l.svcCtx.Config.LLM.MaxOutputRunes
 	}
 	return defaultMaxResponseRunes
 }

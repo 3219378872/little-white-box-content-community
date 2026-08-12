@@ -37,6 +37,20 @@ var supportedBehaviorActions = map[string]struct{}{
 	BehaviorActionShare: {}, BehaviorActionHide: {}, BehaviorActionDislike: {},
 }
 
+// clientAllowedBehaviorActions 是客户端可提交的动作白名单（REL-001）。
+// like/unlike/favorite/unfavorite/comment/follow/unfollow 只允许由权威业务事务
+// 经 outbox 生成，客户端直接提交时必须拒绝。
+var clientAllowedBehaviorActions = map[string]struct{}{
+	BehaviorActionExposure: {},
+	BehaviorActionClick:    {},
+	BehaviorActionDwell:    {},
+	BehaviorActionPlay:     {},
+	BehaviorActionView:     {},
+	BehaviorActionShare:    {},
+	BehaviorActionHide:     {},
+	BehaviorActionDislike:  {},
+}
+
 var durationBehaviorActions = map[string]struct{}{
 	BehaviorActionDwell: {},
 	BehaviorActionPlay:  {},
@@ -115,6 +129,9 @@ func (e BehaviorEvent) Validate() error {
 		if e.Position == nil {
 			return fmt.Errorf("position is required for exposure")
 		}
+		if *e.Position < 1 {
+			return fmt.Errorf("position must start from 1 for exposure")
+		}
 	}
 	if e.DurationMs != nil {
 		if *e.DurationMs < 0 {
@@ -126,6 +143,18 @@ func (e BehaviorEvent) Validate() error {
 	}
 	if _, ok := durationBehaviorActions[e.Action]; ok && e.DurationMs == nil {
 		return fmt.Errorf("duration_ms is required for action %s", e.Action)
+	}
+	return nil
+}
+
+// ValidateClientSubmitted 校验客户端提交的事件（REL-001）：先执行通用校验，
+// 再强制动作白名单。权威业务动作只能由服务端 outbox 生成。
+func (e BehaviorEvent) ValidateClientSubmitted() error {
+	if err := e.Validate(); err != nil {
+		return err
+	}
+	if _, ok := clientAllowedBehaviorActions[e.Action]; !ok {
+		return fmt.Errorf("action %s is not allowed from clients", e.Action)
 	}
 	return nil
 }

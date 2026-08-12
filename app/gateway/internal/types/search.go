@@ -10,9 +10,11 @@ type SearchReq struct {
 }
 
 type SearchResp struct {
-	Posts []SearchPostItem `json:"posts"`
-	Users []SearchUserItem `json:"users"`
-	Tags  []SearchTagItem  `json:"tags"`
+	Posts            []SearchPostItem `json:"posts"`
+	Users            []SearchUserItem `json:"users"`
+	Tags             []SearchTagItem  `json:"tags"`
+	Degraded         bool             `json:"degraded"`
+	UnavailableTypes []string         `json:"unavailableTypes,optional"`
 }
 
 type SearchTagsReq struct {

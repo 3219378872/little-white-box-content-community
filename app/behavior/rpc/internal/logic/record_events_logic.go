@@ -97,7 +97,7 @@ func (l *RecordEventsLogic) recordOne(
 		ClientIP:      request.ClientIp,
 		ClientVersion: request.ClientVersion,
 	}
-	if err := behavior.Validate(); err != nil {
+	if err := behavior.ValidateClientSubmitted(); err != nil {
 		return rejected(input.ClientEventId, behavior.EventID, errx.ParamError, err.Error())
 	}
 	eventTime := time.UnixMilli(behavior.EventTime)

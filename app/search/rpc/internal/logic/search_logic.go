@@ -42,23 +42,29 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 		l.Errorw("combined search posts failed", logx.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
+	degraded := false
+	unavailableTypes := make([]string, 0, 2)
+	users := &userservice.SearchUsersResp{Users: []*userservice.UserInfo{}}
 	if l.svcCtx.UserService == nil {
-		return nil, errx.NewWithCode(errx.ServiceUnavailable)
-	}
-	users, err := l.svcCtx.UserService.SearchUsers(l.ctx, &userservice.SearchUsersReq{
-		Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
-	})
-	if err != nil {
-		l.Errorw("combined search users RPC failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
-	}
-	if users == nil {
-		return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		degraded = true
+		unavailableTypes = append(unavailableTypes, "user")
+	} else {
+		users, err = l.svcCtx.UserService.SearchUsers(l.ctx, &userservice.SearchUsersReq{
+			Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
+		})
+		if err != nil || users == nil {
+			l.Errorw("combined search users RPC failed", logx.Field("err", err))
+			degraded = true
+			unavailableTypes = append(unavailableTypes, "user")
+			users = &userservice.SearchUsersResp{Users: []*userservice.UserInfo{}}
+		}
 	}
 	tags, err := l.svcCtx.Store.SearchTags(l.ctx, searchKeyword, in.PageSize)
 	if err != nil {
 		l.Errorw("combined search tags failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
+		degraded = true
+		unavailableTypes = append(unavailableTypes, "tag")
+		tags = []store.Tag{}
 	}
 	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, posts.Posts)
 	if err != nil {
@@ -66,6 +72,10 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 		return nil, storeError(err)
 	}
 	return &pb.SearchResp{
-		Posts: postResults(posts.Posts, profiles), Users: userResults(users.Users), Tags: tagResults(tags),
+		Posts:            postResults(posts.Posts, profiles),
+		Users:            userResults(users.Users),
+		Tags:             tagResults(tags),
+		Degraded:         degraded,
+		UnavailableTypes: unavailableTypes,
 	}, nil
 }
