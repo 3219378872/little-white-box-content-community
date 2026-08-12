@@ -23,7 +23,7 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 .PHONY: help generate fmt-check engineering-lint vet lint check test coverage coverage-target \
 	coverage-no-gate integration-critical integration-init integration-run \
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
-	algorithm-test model-pipeline-integration performance-gateway \
+	algorithm-test spec-evals-test model-pipeline-integration performance-gateway \
 	fault-injection-recommend production-config production-build \
 	production-up production-down
 
@@ -93,6 +93,9 @@ quality: check test ## Run the standard local quality gates
 
 algorithm-test: ## Run dependency-light Python algorithm unit tests
 	python3 -m unittest discover -s algorithm -p 'test*.py' -v
+
+spec-evals-test: ## Run the frozen spec-quality gate evaluator unit tests
+	cd scripts && python3 -m unittest -v test_spec_evals.py
 
 model-pipeline-integration: ## Verify ClickHouse, LightGBM, MinIO, and OnlineInfer end to end
 	algorithm/integration/run.sh

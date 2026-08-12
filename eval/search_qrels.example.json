@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "note": "示例结构，非正式门禁。正式集需人类双评标注（DISC-060）",
+  "queries": [
+    {
+      "id": "q-example-1",
+      "query": "golang 并发",
+      "relevant": [{"post_id": 1, "grade": 3}, {"post_id": 2, "grade": 2}],
+      "hidden": []
+    }
+  ]
+}

@@ -96,7 +96,7 @@ upstream:
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | n/a | 需冻结评测集与脚本（见验收） |
+| DISC-060~063 离线评测门禁 | partial | 评测脚本已就绪（scripts/spec_evals.py）；200 条双评标注冻结集待人类评审 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -129,7 +129,7 @@ upstream:
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | n/a | 需评测集与脚本（见验收） |
+| ASST-050~051 离线评测门禁 | partial | 评测脚本已就绪；200 案例冻结集待人类评审 |
 
 ## SPEC-feedback-reliability 追踪
 
