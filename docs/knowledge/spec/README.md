@@ -1,6 +1,6 @@
 # 规范层
 
-本目录当前只有占位说明，不包含任何正式项目规范。
+本目录收录由人类开发者决定语义的项目规范。当前规范均为草案，不约束设计或实现。
 
 - `owner: human` 表示语义决定权属于人类；agent 默认可以编辑和维护。
 - 修改前只需获得当前对话中的人类自然语言授权，不需要授权文件、签名或额外审批记录。
@@ -11,3 +11,15 @@
 - 未获授权的 agent 建议必须写入 `../proposals/`。
 
 创建页面时使用 `../templates/spec.md`，并在本页维护索引。
+
+## 当前草案
+
+| 规范 | 覆盖范围 | 状态 |
+| --- | --- | --- |
+| [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | draft |
+| [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | draft |
+| [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 基于已发布内容的可追溯回答 | draft |
+| [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | draft |
+
+四份草案均引用 `INT-content-community-backend`，可以分别评审和批准。批准前，设计层不得把它们作为
+正式上游；各页“待人类确认”中的问题也不构成要求。
