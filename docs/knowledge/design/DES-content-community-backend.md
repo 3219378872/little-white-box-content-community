@@ -158,7 +158,7 @@ upstream:
 | REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要观测数据 |
 | REL-043 RPO 0/RTO 30m | n/a | 运维目标 |
 | REL-044 有界恢复不重试风暴 | aligned | relay 退避与租约 |
-| REL-050~053 可观测与健康检查 | aligned | metrics + /health 存活 + /health/ready 就绪（列出依赖；可选发现能力故障仅 degraded） |
+| REL-050~053 可观测与健康检查 | aligned | metrics + /health 存活 + /health/ready 就绪（列出依赖；可选发现能力故障仅 degraded）；网关 trace_id 经 gRPC metadata 透传下游 |
 | REL-060 行为契约带版本 | aligned | schema_version=2 |
 | REL-061 语义保持 | aligned | 契约稳定 |
 

@@ -10,6 +10,7 @@ import (
 	"gateway/internal/config"
 	"gateway/internal/handler"
 	"gateway/internal/httpxconfig"
+	gatewaymiddleware "gateway/internal/middleware"
 	"gateway/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -30,6 +31,7 @@ func main() {
 	httpxconfig.ConfigureErrors()
 
 	ctx := svc.NewServiceContext(c)
+	server.Use(gatewaymiddleware.NewTraceMiddleware().Handle)
 	handler.RegisterHandlers(server, ctx)
 
 	fmt.Printf("Starting server at %s:%d...\n", c.RestConf.Host, c.RestConf.Port)
