@@ -112,8 +112,8 @@ upstream:
 | ASST-010 段落必须含 [post:id]、1~5 来源 | aligned | 事实回答强制至少一个 [post:id]；来源 1~5 上限；缺失引用时降级 |
 | ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
 | ASST-012 仅服务端验证来源可返回 | aligned | 模型生成引用标记不提升为来源 |
-| ASST-013 区分事实/观点/无法确认 | partial | 依赖提示词，无强制结构 |
-| ASST-014 证据冲突呈现双方 | partial | 依赖提示词，无强制结构 |
+| ASST-013 区分事实/观点/无法确认 | partial | 系统指令强制区分作者观点与平台事实；终验依赖 ASST-050 评测 |
+| ASST-014 证据冲突呈现双方 | partial | 系统指令强制呈现冲突及各自来源；所有来源均提供给模型；终验依赖 ASST-050 评测 |
 | ASST-015 来源不授额外权限 | aligned | 打开来源走正常权限 |
 | ASST-020 输入≤2000/回答≤8000 | aligned | 输入 2000、回答 8000（LLM MaxOutputRunes） |
 | ASST-021 限流 20/60s、会话 100 条/30 天 | aligned | Redis 原子限流 20/60s；会话 100 条 LTRIM；30 天 TTL；均有测试 |
