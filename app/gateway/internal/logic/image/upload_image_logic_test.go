@@ -15,6 +15,7 @@ import (
 	"gateway/internal/svc"
 	"jwtx"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
@@ -106,7 +107,7 @@ func TestUploadImageMultipart_Unauthenticated_ReturnsLoginRequired(t *testing.T)
 	file, header := makeFile(t, "a.png", []byte("hello"))
 	defer file.Close()
 	l := buildUploadLogic(0, &fakeMediaService{})
-	_, err := l.UploadImageMultipart(file, header)
+	_, err := l.UploadImageMultipart(file, header, "")
 	if !errx.Is(err, errx.LoginRequired) {
 		t.Fatalf("expected LoginRequired, got: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestUploadImageMultipart_Success_SendsMetaAndChunks(t *testing.T) {
 	}
 	l := buildUploadLogic(42, ms)
 
-	resp, err := l.UploadImageMultipart(file, header)
+	resp, err := l.UploadImageMultipart(file, header, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -157,6 +158,32 @@ func TestUploadImageMultipart_Success_SendsMetaAndChunks(t *testing.T) {
 	}
 }
 
+func TestUploadImageMultipart_PassesIdempotencyKey(t *testing.T) {
+	file, header := makeFile(t, "a.png", []byte("payload"))
+	defer file.Close()
+
+	stream := &fakeUploadStream{
+		closeResp: &mediapb.UploadImageResp{
+			Media: &mediapb.MediaInfo{Id: 7, Url: "https://cdn/a.png"},
+		},
+	}
+	ms := &fakeMediaService{
+		uploadFn: func(context.Context) (mediapb.MediaService_UploadImageClient, error) {
+			return stream, nil
+		},
+	}
+	l := buildUploadLogic(42, ms)
+
+	_, err := l.UploadImageMultipart(file, header, "idem-media-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	require.Len(t, stream.sentMetas, 1)
+	if stream.sentMetas[0].IdempotencyKey != "idem-media-1" {
+		t.Fatalf("expected idempotency key in meta, got %q", stream.sentMetas[0].IdempotencyKey)
+	}
+}
+
 func TestUploadImageMultipart_StreamSetupError_WrapsError(t *testing.T) {
 	file, header := makeFile(t, "a.png", []byte("hi"))
 	defer file.Close()
@@ -166,7 +193,7 @@ func TestUploadImageMultipart_StreamSetupError_WrapsError(t *testing.T) {
 		},
 	}
 	l := buildUploadLogic(7, ms)
-	_, err := l.UploadImageMultipart(file, header)
+	_, err := l.UploadImageMultipart(file, header, "")
 	if !errx.Is(err, errx.SystemError) {
 		t.Fatalf("expected SystemError, got: %v", err)
 	}
@@ -182,7 +209,7 @@ func TestUploadImageMultipart_SendMetaError_WrapsError(t *testing.T) {
 		},
 	}
 	l := buildUploadLogic(7, ms)
-	_, err := l.UploadImageMultipart(file, header)
+	_, err := l.UploadImageMultipart(file, header, "")
 	if !errx.Is(err, errx.UploadFailed) {
 		t.Fatalf("expected UploadFailed, got: %v", err)
 	}
@@ -198,7 +225,7 @@ func TestUploadImageMultipart_NilMediaInResponse_ReturnsUploadFailed(t *testing.
 		},
 	}
 	l := buildUploadLogic(7, ms)
-	_, err := l.UploadImageMultipart(file, header)
+	_, err := l.UploadImageMultipart(file, header, "")
 	if !errx.Is(err, errx.UploadFailed) {
 		t.Fatalf("expected UploadFailed, got: %v", err)
 	}

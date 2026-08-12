@@ -24,6 +24,7 @@ message UploadMeta {
   int32  quality    = 3; // 图片压缩质量 1-100，视频忽略此字段
   int32  max_width  = 4;
   int32  max_height = 5;
+  string idempotency_key = 6; // 客户端幂等键，同一调用者范围内唯一，最长 128 字符
 }
 
 // 上传图片请求（streaming）

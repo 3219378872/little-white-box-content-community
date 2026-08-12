@@ -44,7 +44,7 @@ func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := image.NewUploadImageLogic(r.Context(), svcCtx)
-		resp, err := l.UploadImageMultipart(file, header)
+		resp, err := l.UploadImageMultipart(file, header, r.FormValue("idempotencyKey"))
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

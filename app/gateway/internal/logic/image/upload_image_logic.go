@@ -39,7 +39,8 @@ func (l *UploadImageLogic) UploadImage(_ *types.UploadImageReq) (*types.UploadIm
 }
 
 // UploadImageMultipart 从 handler 接收 multipart 文件，分块 streaming 到 Media RPC。
-func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *multipart.FileHeader) (*types.UploadImageResp, error) {
+// idempotencyKey 为可选的客户端幂等键（CORE-050）。
+func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *multipart.FileHeader, idempotencyKey string) (*types.UploadImageResp, error) {
 	userId, _ := jwtx.GetUserIdFromContext(l.ctx)
 	if userId == 0 {
 		return nil, errx.NewWithCode(errx.LoginRequired)
@@ -54,9 +55,10 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 	if err := stream.Send(&mediapb.UploadImageReq{
 		Data: &mediapb.UploadImageReq_Meta{
 			Meta: &mediapb.UploadMeta{
-				UserId:   userId,
-				FileName: header.Filename,
-				Quality:  85,
+				UserId:         userId,
+				FileName:       header.Filename,
+				Quality:        85,
+				IdempotencyKey: idempotencyKey,
 			},
 		},
 	}); err != nil {

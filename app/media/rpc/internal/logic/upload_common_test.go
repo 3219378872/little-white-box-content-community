@@ -67,6 +67,27 @@ func TestBuildObjectKey_UniqueAcrossCalls(t *testing.T) {
 	}
 }
 
+func TestMediaIdempotencyRecord(t *testing.T) {
+	meta := &pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: " idem-1 "}
+	rec := mediaIdempotencyRecord(meta)
+	if rec.Scope != "media:upload" || rec.UserID != 7 || rec.Key != "idem-1" {
+		t.Fatalf("unexpected record: %+v", rec)
+	}
+	if rec.CommandHash == "" {
+		t.Fatal("expected command hash")
+	}
+
+	// 同参数同键 → 相同 hash；不同参数 → 不同 hash
+	other := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"})
+	if other.CommandHash != rec.CommandHash {
+		t.Fatal("expected identical command hash for identical command")
+	}
+	different := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "b.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"})
+	if different.CommandHash == rec.CommandHash {
+		t.Fatal("expected different command hash for different command")
+	}
+}
+
 // --- receiveUploadStream tests ---
 
 // fakeReq 最小化 pb.UploadImageReq 两个 getter 所需的能力。

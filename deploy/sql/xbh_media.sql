@@ -46,3 +46,16 @@ CREATE TABLE IF NOT EXISTS `media_task` (
     KEY `idx_media_id` (`media_id`),
     KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='媒体处理任务表';
+
+-- 命令幂等表：媒体上传幂等键（CORE-050）
+CREATE TABLE IF NOT EXISTS `idempotency` (
+    `id` BIGINT NOT NULL COMMENT '幂等记录ID',
+    `scope` VARCHAR(64) NOT NULL COMMENT '命令作用域，如 media:upload',
+    `user_id` BIGINT NOT NULL COMMENT '调用者用户ID',
+    `key` VARCHAR(128) NOT NULL COMMENT '客户端幂等键',
+    `command_hash` CHAR(64) NOT NULL COMMENT '命令参数指纹 sha256 hex',
+    `resource_id` BIGINT NOT NULL COMMENT '命令成功产生的媒体ID',
+    `created_at` BIGINT NOT NULL COMMENT '创建 Unix 毫秒',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_scope_user_key` (`scope`, `user_id`, `key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='命令幂等表';

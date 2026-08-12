@@ -13,11 +13,12 @@ import (
 )
 
 type ServiceContext struct {
-	Config     config.Config
-	Conn       sqlx.SqlConn
-	MediaModel model.MediaModel
-	Storage    storage.ObjectStorage
-	MQProducer *mqx.Producer
+	Config            config.Config
+	Conn              sqlx.SqlConn
+	MediaModel        model.MediaModel
+	MediaCommandModel model.MediaCommandModel
+	Storage           storage.ObjectStorage
+	MQProducer        *mqx.Producer
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -45,10 +46,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config:     c,
-		Conn:       conn,
-		MediaModel: model.NewMediaModel(conn, cacheConf),
-		Storage:    s3Client,
-		MQProducer: mqProducer,
+		Config:            c,
+		Conn:              conn,
+		MediaModel:        model.NewMediaModel(conn, cacheConf),
+		MediaCommandModel: model.NewMediaCommandModel(conn),
+		Storage:           s3Client,
+		MQProducer:        mqProducer,
 	}
 }

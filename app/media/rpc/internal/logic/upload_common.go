@@ -5,15 +5,36 @@ import (
 	"errors"
 	"errx"
 	"esx/app/media/rpc/internal/mediautil"
+	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 const storageTypeSeaweedFS = 3
+
+// mediaIdempotencyRecord 从上传元数据构造幂等记录（CORE-050）。
+func mediaIdempotencyRecord(meta *pb.UploadMeta) model.IdempotencyRecord {
+	if meta == nil {
+		return model.IdempotencyRecord{}
+	}
+	return model.IdempotencyRecord{
+		Scope:  "media:upload",
+		UserID: meta.GetUserId(),
+		Key:    strings.TrimSpace(meta.GetIdempotencyKey()),
+		CommandHash: model.CommandHash(
+			meta.GetFileName(),
+			strconv.Itoa(int(meta.GetQuality())),
+			strconv.Itoa(int(meta.GetMaxWidth())),
+			strconv.Itoa(int(meta.GetMaxHeight())),
+		),
+	}
+}
 
 // receiveUploadStream 从 streaming 接收首包 meta + 后续 chunk，写入 sink。
 func receiveUploadStream[Req any](

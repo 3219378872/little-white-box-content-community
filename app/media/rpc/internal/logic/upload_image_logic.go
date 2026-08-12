@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"errx"
 	mediautil2 "esx/app/media/rpc/internal/mediautil"
 	"esx/app/media/rpc/internal/model"
@@ -49,6 +50,10 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		return err
 	}
 	if meta.GetUserId() <= 0 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	idem := mediaIdempotencyRecord(meta)
+	if !idem.Valid() {
 		return errx.NewWithCode(errx.ParamError)
 	}
 
@@ -136,14 +141,29 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		Height:       nullInt(height),
 		Status:       1,
 	}
-	_, err = l.svcCtx.MediaModel.Insert(l.ctx, row)
+	if l.svcCtx.MediaCommandModel == nil {
+		return errx.NewWithCode(errx.SystemError)
+	}
+	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
 	if err != nil {
+		if errors.Is(err, model.ErrIdempotencyConflict) {
+			return errx.NewWithCode(errx.IdempotencyConflict)
+		}
 		l.Errorw("insert media row failed",
 			logx.Field("user_id", meta.GetUserId()),
 			logx.Field("object_key", objKey),
 			logx.Field("err", err.Error()),
 		)
 		return errx.NewWithCode(errx.SystemError)
+	}
+	if !result.Created {
+		existing, findErr := l.svcCtx.MediaModel.FindOne(l.ctx, result.MediaID)
+		if findErr != nil {
+			l.Errorw("find existing media on idempotent retry failed",
+				logx.Field("media_id", result.MediaID), logx.Field("err", findErr.Error()))
+			return errx.NewWithCode(errx.SystemError)
+		}
+		return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(existing)})
 	}
 
 	l.Infow("upload image success",
