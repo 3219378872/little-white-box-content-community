@@ -1,6 +1,17 @@
 # Agent 文档入口
 
-这是 agent 的按需路由表，不是要求全文阅读的目录。先判断任务类型，再只打开对应的一个或两个文档。
+这是 agent 的按需路由表，不是要求全文阅读的目录。先沿正式知识链确认上层要求，再只打开与任务相关的页面。
+
+## 正式知识链
+
+| 层 | 入口 | 权限与作用 |
+| --- | --- | --- |
+| 意图 | [knowledge/intent/README.md](knowledge/intent/README.md) | 人类维护，定义目标、成功标准和非目标 |
+| 规范 | [knowledge/spec/README.md](knowledge/spec/README.md) | 人类维护，定义行为、约束和验收标准 |
+| 设计 | [knowledge/design/README.md](knowledge/design/README.md) | agent 维护，说明如何满足已批准规范 |
+| 实现 | [knowledge/implementation/README.md](knowledge/implementation/README.md) | agent 维护，映射源码、状态和验证证据 |
+
+所有权、状态、引用方向和提案流程以 [knowledge/README.md](knowledge/README.md) 为准。
 
 ## 任务路由
 
@@ -16,13 +27,14 @@
 
 ## 文档层级
 
-- `docs/active/`：当前实现的短规范，允许作为任务上下文加载。
-- `docs/generated/`：由代码生成的模块和流程事实，只在定位具体模块时加载。
-- 历史设计和已完成计划不属于当前文档面，必要时通过 Git 历史追溯，不作为默认规则来源。
+- `docs/knowledge/`：正式四层知识、非权威提案和过渡登记。
+- `docs/active/` 与顶层规范文档：迁移期只读的人类基线。
+- `docs/generated/`：可能漂移的旧实现快照，只在定位具体模块时加载。
+- 历史设计和已完成计划不属于当前知识链，必要时通过 Git 历史追溯。
 
 ## 来源优先级
 
-1. 代码、配置、API/proto 定义和测试结果。
-2. `docs/generated/` 的当前快照。
-3. `docs/active/` 的约束和操作说明。
-4. 历史设计仅用于解释决策，不得覆盖当前实现。
+1. “应该做什么”由已批准意图、已批准规范和活跃设计依次约束。
+2. “当前做了什么”以代码、配置、API/proto 定义和测试结果为准。
+3. 实现文档和证据记录对齐或偏离状态，但不能覆盖上层要求或源码事实。
+4. 提案、旧实现快照和历史材料均不具有正式约束力。

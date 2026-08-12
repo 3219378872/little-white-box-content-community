@@ -47,7 +47,8 @@ fmt-check: ## Check formatting of handwritten Go files
 		exit 1; \
 	fi
 
-engineering-lint: ## Validate active docs, links, and repository policy
+engineering-lint: ## Validate active docs, layered knowledge, links, and repository policy
+	python3 -m unittest discover -s scripts -p 'test_engineering_lint.py'
 	python3 scripts/engineering-lint.py
 
 vet: ## Run go vet across all workspace modules

@@ -1,7 +1,8 @@
 # AGENTS.md
 
 这是 esx（little-white-box）社交内容平台仓库。`AGENTS.md` 是唯一的项目规则入口；
-任务资料按 [docs/INDEX.md](docs/INDEX.md) 路由，禁止默认读取整个 `docs/`。
+知识与任务资料分别按 [docs/knowledge/README.md](docs/knowledge/README.md) 和
+[docs/INDEX.md](docs/INDEX.md) 路由，禁止默认读取整个 `docs/`。
 
 ## 项目事实
 
@@ -21,9 +22,21 @@
 - 不为通过测试修改测试；修复实现并覆盖至少一个失败路径。
 - 不引入新依赖，除非用户明确批准。
 
-## 文档知识与地址
+## 知识权限与加载顺序
 
-先通过 [docs/INDEX.md](docs/INDEX.md) 判断任务类型，只打开对应的 1～2 个 active 文档：
+- 正式知识链为“意图 → 规范 → 设计 → 实现”；先从知识总路由按需读取，不遍历目录。
+- 意图、规范和治理入口由人类维护。引导提交完成后，agent 不得新增、修改、删除或移动
+  [知识总路由](docs/knowledge/README.md) 中列出的受保护路径。
+- agent 对意图或规范的建议只能写入 `docs/knowledge/proposals/`，提案不是正式要求；只有人类
+  创建或修改的 `INT-*`、`SPEC-*` 文档才可成为上游。
+- 设计必须引用已批准规范或登记的过渡基线，实现必须引用设计。上层缺失、冲突或含糊时停止
+  设计/实现并请求人类决定，禁止从代码反推并写入正式意图或规范。
+- 当前行为以代码、配置、`.api`、`.proto` 和测试为准；偏离上层时在实现层标记 `diverged`，
+  不得反向改写设计、规范或意图。
+
+## 任务资料与地址
+
+先通过 [docs/INDEX.md](docs/INDEX.md) 判断任务类型，只打开相关页面：
 
 | 任务知识 | 文档地址 | 内容范围 |
 | --- | --- | --- |
@@ -36,7 +49,8 @@
 | 整体架构 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 服务、存储和主要数据流概览 |
 | 模块与流程事实 | [docs/generated/INDEX.md](docs/generated/INDEX.md) | 按代码生成的模块页和链路快照 |
 
-`docs/active/` 是当前短规范，`docs/generated/` 是定位具体模块时使用的代码事实快照。运行时判断仍以代码、配置、API/proto 定义和测试结果为先；历史计划和日期设计文档仅在明确追溯时读取。
+现有 `docs/active/` 和顶层规范文档是只读过渡基线；`docs/generated/` 是可能漂移的旧实现快照。
+分类和迁移状态见 [docs/knowledge/TRANSITION.md](docs/knowledge/TRANSITION.md)。
 
 ## 命令入口
 
