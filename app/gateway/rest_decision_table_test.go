@@ -401,6 +401,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "POST-GET-VALID", method: http.MethodGet, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"id", "authorId", "title", "content"}},
 		{id: "POST-UPDATE-VALID", method: http.MethodPut, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "POST-DELETE-VALID", method: http.MethodDelete, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
+		{id: "POST-UPDATE-LEGACY-CLIENT", method: http.MethodPut, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"title":"legacy update"}`), auth: true, wantStatus: http.StatusOK},
+		{id: "POST-DELETE-LEGACY-CLIENT", method: http.MethodDelete, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", auth: true, wantStatus: http.StatusOK},
 		{id: "COMMENT-CREATE-VALID", method: http.MethodPost, path: "/api/v1/comment", body: jsonBody(`{"postId":11,"content":"comment"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"commentId"}},
 		{id: "COMMENT-DELETE-VALID", method: http.MethodDelete, path: "/api/v1/comment/21", routePath: "/api/v1/comment/:commentId", auth: true, wantStatus: http.StatusOK},
 		{id: "COMMENT-LIST-VALID", method: http.MethodGet, path: "/api/v1/comments/11?page=1&pageSize=20&sortBy=1", routePath: "/api/v1/comments/:postId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}},
@@ -566,8 +568,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 37 {
-		t.Fatalf("route inventory drift: got %d success rules, want 37", len(successes))
+	if len(successes) != 39 {
+		t.Fatalf("route inventory drift: got %d success rules, want 39", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

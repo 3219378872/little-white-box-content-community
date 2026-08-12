@@ -100,9 +100,18 @@ func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event o
 		return fmt.Errorf("content command model is not configured")
 	}
 	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-		result, err := session.ExecCtx(ctx,
-			"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
-			postID, expectedRevision)
+		// expectedRevision=0 表示迁移期旧客户端（CORE-062），不做版本检查。
+		var result interface{ RowsAffected() (int64, error) }
+		var err error
+		if expectedRevision > 0 {
+			result, err = session.ExecCtx(ctx,
+				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
+				postID, expectedRevision)
+		} else {
+			result, err = session.ExecCtx(ctx,
+				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2",
+				postID)
+		}
 		if err != nil {
 			return err
 		}
@@ -173,11 +182,12 @@ func updatePostFieldsSession(
 	}
 	clauses = append(clauses, "`revision` = `revision` + 1")
 	args = append(args, postID)
-	args = append(args, expectedRevision)
-	result, err := session.ExecCtx(ctx,
-		fmt.Sprintf("UPDATE `post` SET %s WHERE `id` = ? AND `revision` = ?", strings.Join(clauses, ", ")),
-		args...,
-	)
+	query := fmt.Sprintf("UPDATE `post` SET %s WHERE `id` = ?", strings.Join(clauses, ", "))
+	if expectedRevision > 0 {
+		query += " AND `revision` = ?"
+		args = append(args, expectedRevision)
+	}
+	result, err := session.ExecCtx(ctx, query, args...)
 	if err != nil {
 		return err
 	}

@@ -32,9 +32,6 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if in.ExpectedRevision <= 0 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
 
 	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
 	if err != nil {
@@ -54,7 +51,8 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	if post.AuthorId != in.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
-	if post.Revision != in.ExpectedRevision {
+	// CORE-013/062：迁移期允许 expected_revision=0（旧客户端），不做版本检查。
+	if in.ExpectedRevision > 0 && post.Revision != in.ExpectedRevision {
 		return nil, errx.NewWithCode(errx.ContentVersionConflict)
 	}
 

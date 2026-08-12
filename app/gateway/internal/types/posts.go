@@ -21,7 +21,7 @@ type CreatePostResp struct {
 
 type DeletePostReq struct {
 	PostId           int64 `path:"postId"`
-	ExpectedRevision int64 `json:"expectedRevision"`
+	ExpectedRevision int64 `json:"expectedRevision,optional"`
 }
 
 type DeletePostResp struct {
@@ -63,7 +63,7 @@ type UpdatePostReq struct {
 	Images           []string `json:"images,optional"`
 	Tags             []string `json:"tags,optional"`
 	Status           *int32   `json:"status,optional"` // 显式状态变更；0:草稿 1:发布
-	ExpectedRevision int64    `json:"expectedRevision"`
+	ExpectedRevision int64    `json:"expectedRevision,optional"`
 	MediaIds         []int64  `json:"mediaIds,optional"`
 }
 

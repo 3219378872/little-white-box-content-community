@@ -98,6 +98,27 @@ func TestPostRevisionConflict(t *testing.T) {
 		})
 		assertBizError(t, err, errx.ContentVersionConflict)
 	})
+
+	t.Run("迁移期旧客户端不带revision可更新并递增revision", func(t *testing.T) {
+		postId := createTestPost(t, 9109, "迁移版本", "内容", nil)
+
+		l := NewUpdatePostLogic(ctx, testSvcCtx)
+		resp, err := l.UpdatePost(&pb.UpdatePostReq{
+			PostId: postId, AuthorId: 9109,
+			Title: "新标题", Content: "新内容",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), resp.Revision)
+	})
+
+	t.Run("迁移期旧客户端不带revision可删除", func(t *testing.T) {
+		postId := createTestPost(t, 9110, "迁移删除", "内容", nil)
+
+		_, err := NewDeletePostLogic(ctx, testSvcCtx).DeletePost(&pb.DeletePostReq{
+			PostId: postId, AuthorId: 9110,
+		})
+		require.NoError(t, err)
+	})
 }
 
 func TestPostStatusTransitions(t *testing.T) {

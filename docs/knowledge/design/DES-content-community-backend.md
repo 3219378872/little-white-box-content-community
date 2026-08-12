@@ -41,7 +41,7 @@ upstream:
 | CORE-010 状态机 | aligned | draft⇄published 双向 + 均→deleted 终态；Update 显式 status 支持取消发布 |
 | CORE-011 创建返回 id/status/revision | aligned | CreatePostResp 返回 postId/status/revision=1 |
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
-| CORE-013 变更携带预期 revision | aligned | Update/Delete 携带 expected_revision；冲突返回 409 |
+| CORE-013 变更携带预期 revision | aligned | Update/Delete 携带 expected_revision；冲突返回 409；迁移期 0 值跳过检查（CORE-062） |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
 | CORE-015 取消发布/删除不再出现 | aligned | 列表/发现只收录 published；取消发布即草稿 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404 |
@@ -65,7 +65,7 @@ upstream:
 | CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；日志按隐私规则 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
-| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约未做破坏性变更（新增字段） |
+| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约仅新增可选字段；expected_revision 为可选迁移期字段，旧客户端不带也成功 |
 | CORE-063 不依赖内部结构 | aligned | 契约层不暴露内部结构 |
 
 ## SPEC-content-discovery 追踪

@@ -35,9 +35,6 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if in.ExpectedRevision <= 0 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
 	titleRunes := utf8.RuneCountInString(in.GetTitle())
 	if titleRunes < 1 {
 		return nil, errx.NewWithCode(errx.TitleEmpty)
@@ -95,7 +92,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if post.AuthorId != in.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
-	if post.Revision != in.ExpectedRevision {
+	// CORE-013：提供 expected_revision 时做乐观并发检测；0 表示旧客户端
+	// 迁移期（CORE-062），跳过版本检查以保持 /api/v1 向后兼容。
+	if in.ExpectedRevision > 0 && post.Revision != in.ExpectedRevision {
 		return nil, errx.NewWithCode(errx.ContentVersionConflict)
 	}
 
