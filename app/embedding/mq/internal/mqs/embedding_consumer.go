@@ -54,6 +54,20 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 		}
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
+			// CORE-015：草稿/取消发布的内容不进入向量库；如已存在则删除。
+			if e.Status != 1 {
+				if err := vs.Delete(ctx, e.PostID); err != nil {
+					logx.WithContext(ctx).Errorw("embedding-consumer: delete non-published failed",
+						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
+						logx.Field("err", err.Error()))
+					embeddingConsumerMessages.Inc("retry")
+					return consumer.ConsumeRetryLater
+				}
+				logx.WithContext(ctx).Infow("embedding-consumer: non-published embedding removed",
+					logx.Field("post_id", e.PostID), logx.Field("status", e.Status))
+				embeddingConsumerMessages.Inc("processed")
+				continue
+			}
 			text := e.Title + "\n" + e.BodyExcerpt
 			result, err := emb.Embed(ctx, text)
 			if err != nil {

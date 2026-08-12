@@ -150,6 +150,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		Title:       in.GetTitle(),
 		BodyExcerpt: bodyExcerpt,
 		Tags:        validTags,
+		Status:      in.GetStatus(),
 	})
 	if err != nil {
 		l.Errorw("build post-created event failed", logx.Field("err", err.Error()))

@@ -23,6 +23,7 @@ type PostEvent struct {
 	BodyExcerpt string        `json:"body_excerpt,omitempty"`
 	CategoryID  int64         `json:"category_id,omitempty"`
 	Tags        []string      `json:"tags,omitempty"`
+	Status      int32         `json:"status,omitempty"` // 0:草稿 1:已发布 2:已删除（CORE-015）
 }
 
 func (e *PostEvent) Validate() error {

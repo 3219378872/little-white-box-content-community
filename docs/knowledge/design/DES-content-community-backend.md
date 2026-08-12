@@ -43,7 +43,7 @@ upstream:
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | aligned | Update/Delete 携带 expected_revision；冲突返回 409；迁移期 0 值跳过检查（CORE-062） |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | aligned | 列表/发现只收录 published；取消发布即草稿 |
+| CORE-015 取消发布/删除不再出现 | aligned | 列表/发现只收录 published；搜索/向量/关注流按 status 移除或跳过取消发布内容 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |

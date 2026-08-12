@@ -54,6 +54,22 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 		}
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
+			// CORE-015：草稿/取消发布的内容不得进入搜索索引。
+			if e.Status != 1 {
+				docID := strconv.FormatInt(e.PostID, 10)
+				if err := idx.Delete(ctx, docID); err != nil {
+					logx.WithContext(ctx).Errorw("search-consumer: delete non-published doc failed",
+						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
+						logx.Field("err", err.Error()))
+					searchConsumerMessages.Inc("retry")
+					return consumer.ConsumeRetryLater
+				}
+				logx.WithContext(ctx).Infow("search-consumer: non-published doc removed",
+					logx.Field("post_id", e.PostID), logx.Field("status", e.Status))
+				searchConsumerMessages.Inc("processed")
+				observeSearchIndexLag(e.EventTime, time.Now())
+				continue
+			}
 			doc := indexer.PostEventToIndexDoc(e)
 			if err := idx.Index(ctx, doc); err != nil {
 				logx.WithContext(ctx).Errorw("search-consumer: index failed",

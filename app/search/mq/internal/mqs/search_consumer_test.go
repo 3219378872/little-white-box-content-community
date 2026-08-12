@@ -57,7 +57,8 @@ func TestSearchConsumer_PostCreated_IndexesDocument(t *testing.T) {
 	e := event.PostEvent{
 		EventID: 1, EventTime: 100, Type: event.PostEventCreated,
 		PostID: 999, AuthorID: 42, Title: "hello", BodyExcerpt: "world",
-		Tags: []string{"tag-1"},
+		Tags:   []string{"tag-1"},
+		Status: 1,
 	}
 	result := consumeSearchBatch(context.Background(), rec, msg("m2", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -71,11 +72,37 @@ func TestSearchConsumer_PostUpdated_IndexesDocument(t *testing.T) {
 	e := event.PostEvent{
 		EventID: 2, EventTime: 200, Type: event.PostEventUpdated,
 		PostID: 1000, AuthorID: 42, Title: "updated",
+		Status: 1,
 	}
 	result := consumeSearchBatch(context.Background(), rec, msg("m3", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	require.Len(t, rec.indexed, 1)
 	assert.Equal(t, "1000", rec.indexed[0].DocID)
+}
+
+func TestSearchConsumer_PostUnpublished_RemovesDocument(t *testing.T) {
+	rec := &recordingIndexer{}
+	e := event.PostEvent{
+		EventID: 8, EventTime: 300, Type: event.PostEventUpdated,
+		PostID: 1005, AuthorID: 42, Title: "unpublished", Status: 0,
+	}
+	result := consumeSearchBatch(context.Background(), rec, msg("m7", mustMarshal(t, e)))
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	require.Len(t, rec.deleted, 1)
+	assert.Equal(t, "1005", rec.deleted[0])
+	assert.Empty(t, rec.indexed, "unpublished post must not be indexed")
+}
+
+func TestSearchConsumer_DraftCreated_NotIndexed(t *testing.T) {
+	rec := &recordingIndexer{}
+	e := event.PostEvent{
+		EventID: 9, EventTime: 300, Type: event.PostEventCreated,
+		PostID: 1006, AuthorID: 42, Title: "draft", Status: 0,
+	}
+	result := consumeSearchBatch(context.Background(), rec, msg("m8", mustMarshal(t, e)))
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	require.Len(t, rec.deleted, 1)
+	assert.Empty(t, rec.indexed)
 }
 
 func TestSearchConsumer_PostDeleted_DeletesDocument(t *testing.T) {

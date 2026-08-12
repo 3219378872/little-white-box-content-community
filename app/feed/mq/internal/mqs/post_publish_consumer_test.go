@@ -23,7 +23,27 @@ func postCreatedBody(t *testing.T, postID, authorID, ts int64) []byte {
 	t.Helper()
 	b, err := json.Marshal(event.PostEvent{
 		EventID: postID, EventTime: ts, Type: event.PostEventCreated,
-		PostID: postID, AuthorID: authorID,
+		PostID: postID, AuthorID: authorID, Status: 1,
+	})
+	require.NoError(t, err)
+	return b
+}
+
+func draftCreatedBody(t *testing.T, postID, authorID, ts int64) []byte {
+	t.Helper()
+	b, err := json.Marshal(event.PostEvent{
+		EventID: postID, EventTime: ts, Type: event.PostEventCreated,
+		PostID: postID, AuthorID: authorID, Status: 0,
+	})
+	require.NoError(t, err)
+	return b
+}
+
+func publishedUpdateBody(t *testing.T, postID, authorID, ts int64) []byte {
+	t.Helper()
+	b, err := json.Marshal(event.PostEvent{
+		EventID: postID + 1_000_000, EventTime: ts, Type: event.PostEventUpdated,
+		PostID: postID, AuthorID: authorID, Status: 1,
 	})
 	require.NoError(t, err)
 	return b
@@ -160,4 +180,37 @@ func TestPostPublishConsumer_ValidMessage_Success(t *testing.T) {
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Len(t, outbox.inserted, 1)
 	assert.Len(t, inbox.inserted, 2)
+}
+
+func TestPostPublishConsumer_DraftCreate_Skipped(t *testing.T) {
+	outbox := &fakeOutboxModel{}
+	inbox := &fakeInboxModel{}
+	svcCtx := &svc.ServiceContext{
+		OutboxModel: outbox, InboxModel: inbox, UserService: &fakeUserService{followers: []*userservice.UserInfo{{Id: 1}}},
+		BigVThreshold: 10000, FanoutBatchSize: 500,
+	}
+
+	result := consumeMessageBatch(context.Background(), svcCtx,
+		&primitive.MessageExt{Message: primitive.Message{Body: draftCreatedBody(t, 50, 9, 1710000000000)}, MsgId: "msg-draft"},
+	)
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	assert.Empty(t, outbox.inserted, "draft must not fan out")
+	assert.Empty(t, inbox.inserted)
+}
+
+func TestPostPublishConsumer_PublishTransition_FansOut(t *testing.T) {
+	outbox := &fakeOutboxModel{}
+	inbox := &fakeInboxModel{}
+	svcCtx := &svc.ServiceContext{
+		OutboxModel: outbox, InboxModel: inbox, UserService: &fakeUserService{followers: []*userservice.UserInfo{{Id: 1}}},
+		BigVThreshold: 10000, FanoutBatchSize: 500,
+	}
+
+	// 草稿→发布（post-update status=1）必须进入关注流
+	result := consumeMessageBatch(context.Background(), svcCtx,
+		&primitive.MessageExt{Message: primitive.Message{Body: publishedUpdateBody(t, 60, 9, 1710000000000)}, MsgId: "msg-publish"},
+	)
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	assert.Len(t, outbox.inserted, 1)
+	assert.Len(t, inbox.inserted, 1)
 }

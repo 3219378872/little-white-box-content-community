@@ -117,6 +117,11 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if in.Status != nil && int64(*in.Status) != post.Status {
 		fields["status"] = int64(*in.Status)
 	}
+	// 计算更新后的状态，供下游（搜索索引等）判断是否仍可发现（CORE-015）。
+	newStatus := post.Status
+	if in.Status != nil {
+		newStatus = int64(*in.Status)
+	}
 
 	// 收集有效标签并预生成 ID
 	validTags := make([]string, 0, len(in.Tags))
@@ -146,6 +151,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		Title:       in.GetTitle(),
 		BodyExcerpt: bodyExcerpt,
 		Tags:        validTags,
+		Status:      int32(newStatus),
 	})
 	if err != nil {
 		l.Errorw("build post-updated event failed", logx.Field("err", err.Error()))
@@ -168,10 +174,6 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
 	}
 
-	newStatus := post.Status
-	if in.Status != nil {
-		newStatus = int64(*in.Status)
-	}
 	return &pb.UpdatePostResp{
 		Status:   int32(newStatus),
 		Revision: post.Revision + 1,

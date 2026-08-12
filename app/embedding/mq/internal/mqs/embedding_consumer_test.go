@@ -85,7 +85,7 @@ func TestEmbeddingConsumer_PostCreated_UpsertsVector(t *testing.T) {
 	store := newRecordingStore()
 	e := event.PostEvent{
 		EventID: 1, EventTime: 1, Type: event.PostEventCreated,
-		PostID: 999, AuthorID: 42, Title: "hello",
+		PostID: 999, AuthorID: 42, Title: "hello", Status: 1,
 	}
 	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, mq("m1", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeSuccess, res)
@@ -99,7 +99,7 @@ func TestEmbeddingConsumer_PostUpdated_UpsertsVector(t *testing.T) {
 	store := newRecordingStore()
 	e := event.PostEvent{
 		EventID: 2, EventTime: 2, Type: event.PostEventUpdated,
-		PostID: 1000, AuthorID: 42, Title: "world",
+		PostID: 1000, AuthorID: 42, Title: "world", Status: 1,
 	}
 	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, mq("m2", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeSuccess, res)
@@ -127,7 +127,7 @@ func TestEmbeddingConsumer_EmbedError_ReturnsRetry(t *testing.T) {
 	store := newRecordingStore()
 	e := event.PostEvent{
 		EventID: 5, EventTime: 5, Type: event.PostEventCreated,
-		PostID: 1002, AuthorID: 42,
+		PostID: 1002, AuthorID: 42, Status: 1,
 	}
 	res := consumeEmbeddingBatch(context.Background(),
 		errorEmbedder{err: errors.New("model unavailable")}, store, mq("m5", mustMarshal(t, e)))
@@ -139,7 +139,7 @@ func TestEmbeddingConsumer_UpsertError_ReturnsRetry(t *testing.T) {
 	store.upErr = errors.New("milvus down")
 	e := event.PostEvent{
 		EventID: 6, EventTime: 6, Type: event.PostEventCreated,
-		PostID: 1003, AuthorID: 42,
+		PostID: 1003, AuthorID: 42, Status: 1,
 	}
 	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, mq("m6", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeRetryLater, res)
@@ -147,10 +147,23 @@ func TestEmbeddingConsumer_UpsertError_ReturnsRetry(t *testing.T) {
 
 func TestEmbeddingConsumer_DeleteError_ReturnsRetry(t *testing.T) {
 	store := newRecordingStore()
-	store.delErr = errors.New("milvus timeout")
+	store.delErr = errors.New("milvus down")
 	e := event.PostEvent{
-		EventID: 7, EventTime: 7, Type: event.PostEventDeleted, PostID: 1004,
+		EventID: 7, EventTime: 7, Type: event.PostEventCreated,
+		PostID: 1004, AuthorID: 42, Status: 0,
 	}
 	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, mq("m7", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeRetryLater, res)
+}
+
+func TestEmbeddingConsumer_NonPublished_RemovesVector(t *testing.T) {
+	store := newRecordingStore()
+	e := event.PostEvent{
+		EventID: 8, EventTime: 8, Type: event.PostEventUpdated,
+		PostID: 1005, AuthorID: 42, Status: 0,
+	}
+	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, mq("m8", mustMarshal(t, e)))
+	assert.Equal(t, consumer.ConsumeSuccess, res)
+	assert.Contains(t, store.deleted, int64(1005))
+	assert.NotContains(t, store.upserted, int64(1005))
 }

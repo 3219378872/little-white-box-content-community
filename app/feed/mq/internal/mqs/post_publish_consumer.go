@@ -29,6 +29,10 @@ func NewPostPublishConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	if err := c.SubscribeWithTopic(mqx.TopicPostCreate, mqx.TagDefault, handler); err != nil {
 		return nil, fmt.Errorf("feed-consumer: subscribe %s: %w", mqx.TopicPostCreate, err)
 	}
+	// CORE-015：草稿→发布转换（post-update 且 status=1）也需要 fanout。
+	if err := c.SubscribeWithTopic(mqx.TopicPostUpdate, mqx.TagDefault, handler); err != nil {
+		return nil, fmt.Errorf("feed-consumer: subscribe %s: %w", mqx.TopicPostUpdate, err)
+	}
 	return c, nil
 }
 
@@ -47,8 +51,8 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
 			continue
 		}
-		if e.Type != event.PostEventCreated {
-			// 只处理新发布；编辑/删除有其他消费者负责
+		if e.Status != 1 {
+			// CORE-015：草稿、取消发布（status != 1）不进入关注流。
 			continue
 		}
 		_, err := logic.HandlePostPublished(ctx,
