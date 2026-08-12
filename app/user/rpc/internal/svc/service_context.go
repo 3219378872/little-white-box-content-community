@@ -39,6 +39,11 @@ type UserFollowCommandStore interface {
 	Unfollow(ctx context.Context, userID, targetUserID int64, event outboxx.Event) error
 }
 
+// UserTagStore 是 GetUserTags 逻辑依赖的标签读取能力。
+type UserTagStore interface {
+	FindByUserId(ctx context.Context, userID int64) ([]*model.UserTag, error)
+}
+
 // RedisStore 是 user 服务使用的 Redis 能力子集，便于测试注入。
 type RedisStore interface {
 	GetCtx(ctx context.Context, key string) (string, error)
@@ -54,6 +59,7 @@ type ServiceContext struct {
 	UserProfileModel   UserProfileStore
 	UserFollowModel    UserFollowStore
 	UserFollowCommands UserFollowCommandStore
+	UserTagModel       UserTagStore
 	Personalization    model.PersonalizationPreferenceStore
 	RedisClient        RedisStore
 	OutboxStore        *outboxx.SQLStore
@@ -112,6 +118,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserProfileModel:   model.NewUserProfileModel(conn),
 		UserFollowModel:    followModel,
 		UserFollowCommands: model.NewUserFollowCommandModel(conn, outboxStore),
+		UserTagModel:       model.NewUserTagModel(conn),
 		Personalization:    model.NewPersonalizationPreferenceModel(conn),
 		RedisClient:        newRedis,
 		OutboxStore:        outboxStore,

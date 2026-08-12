@@ -33,6 +33,7 @@ func buildSvcCtx(env *testutil.TestEnv) *svc.ServiceContext {
 		UserProfileModel:  model.NewUserProfileModel(conn),
 		UserFollowModel:   model.NewUserFollowModel(conn),
 		UserLoginLogModel: model.NewUserLoginLogModel(conn),
+		UserTagModel:      model.NewUserTagModel(conn),
 		Personalization:   model.NewPersonalizationPreferenceModel(conn),
 		RedisClient:       env.Redis,
 	}
