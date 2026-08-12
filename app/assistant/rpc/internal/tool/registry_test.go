@@ -426,3 +426,24 @@ func TestRegistryContentRequiresPublishedBodyAndEncodesCommunityFields(t *testin
 		})
 	}
 }
+
+func TestRegistryContentSourceIncludesRevision(t *testing.T) {
+	t.Parallel()
+	registry, err := NewRegistry([]string{"content"}, Clients{Content: fakeContentService{
+		getPost: func(context.Context, *contentservice.GetPostReq) (*contentservice.GetPostResp, error) {
+			return &contentservice.GetPostResp{Post: &contentservice.PostInfo{
+				Id: 11, Status: 1, Title: "title", Content: "published body", Revision: 4,
+			}}, nil
+		},
+	}}, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Execute(context.Background(), Content, Request{PostID: 11})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Sources) != 1 || result.Sources[0].Revision != 4 {
+		t.Fatalf("source revision was not captured: %+v", result.Sources)
+	}
+}

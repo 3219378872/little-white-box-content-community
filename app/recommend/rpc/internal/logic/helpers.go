@@ -500,6 +500,47 @@ func rerankPosts(candidates []model.PostCandidate, ratio float64, maxPerAuthor i
 	return result
 }
 
+// enforceAuthorQuota 在候选池至少包含 10 个不同作者时，保证任意连续 20 条结果中
+// 同一作者最多出现 maxPerAuthor 条（DISC-034）。通过滑窗跳过超限候选实现，保持排序稳定。
+func enforceAuthorQuota(posts []model.PostCandidate, maxPerAuthor int) []model.PostCandidate {
+	distinctAuthors := make(map[int64]struct{}, len(posts))
+	for _, post := range posts {
+		if post.AuthorID > 0 {
+			distinctAuthors[post.AuthorID] = struct{}{}
+		}
+	}
+	if len(distinctAuthors) < 10 || maxPerAuthor <= 0 {
+		return posts
+	}
+	result := make([]model.PostCandidate, 0, len(posts))
+	window := make([]int64, 0, 20)
+	for _, post := range posts {
+		if post.AuthorID <= 0 {
+			result = append(result, post)
+			window = append(window, 0)
+			if len(window) > 20 {
+				window = window[len(window)-20:]
+			}
+			continue
+		}
+		authorCount := 0
+		for _, authorID := range window {
+			if authorID == post.AuthorID {
+				authorCount++
+			}
+		}
+		if authorCount >= maxPerAuthor {
+			continue
+		}
+		result = append(result, post)
+		window = append(window, post.AuthorID)
+		if len(window) > 20 {
+			window = window[len(window)-20:]
+		}
+	}
+	return result
+}
+
 func rerankUsers(candidates []model.UserCandidate, ratio float64, seed string) []model.UserCandidate {
 	if len(candidates) < 2 {
 		return candidates

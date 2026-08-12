@@ -26,6 +26,7 @@ message SourceReference {
   string source_type = 1;
   string source_id = 2;
   string title = 3;
+  int64  revision = 4;
 }
 
 message ChatEvent {

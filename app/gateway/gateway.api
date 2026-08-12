@@ -540,6 +540,7 @@ type (
 		SourceType string `json:"sourceType"`
 		SourceId   string `json:"sourceId"`
 		Title      string `json:"title"`
+		Revision   int64  `json:"revision"`
 	}
 	AssistantChatEvent {
 		Type           string                    `json:"type"`

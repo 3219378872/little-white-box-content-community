@@ -159,6 +159,28 @@ func TestChatPersistsUserAndAssistantMessagesWithSources(t *testing.T) {
 	}
 }
 
+func TestChatPersistsSourceRevision(t *testing.T) {
+	t.Parallel()
+	state := &fakeAssistantState{allowed: true}
+	serviceContext := &svc.ServiceContext{
+		Conversations: state,
+		Quota:         state,
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return &tool.Result{Text: "answer", Sources: []tool.Source{{Type: "post", ID: "9", Title: "source", Revision: 7}}}, nil
+		}},
+	}
+	stream := &collectingChatStream{ctx: context.Background()}
+	err := NewChatLogic(context.Background(), serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1", Message: "question", RequestId: "request-1",
+	}, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.messages[1].Sources) != 1 || state.messages[1].Sources[0].Revision != 7 {
+		t.Fatalf("source revision was not persisted: %#v", state.messages[1].Sources)
+	}
+}
+
 func TestChatNoEvidenceSkipsGeneratorAndReturnsGroundedUnknown(t *testing.T) {
 	t.Parallel()
 	state := &fakeAssistantState{allowed: true}

@@ -402,3 +402,33 @@ func TestGetRecommendUsersDeduplicatesAndFiltersCurrentUser(t *testing.T) {
 		t.Fatalf("user recall sources not merged: %+v", response.Users[0])
 	}
 }
+
+func TestEnforceAuthorQuotaEvery20Window(t *testing.T) {
+	posts := make([]model.PostCandidate, 0, 25)
+	for i := int64(1); i <= 20; i++ {
+		posts = append(posts, model.PostCandidate{PostID: i, AuthorID: i + 100})
+	}
+	for i := int64(0); i < 5; i++ {
+		posts = append(posts, model.PostCandidate{PostID: 1000 + i, AuthorID: 999})
+	}
+
+	quota := enforceAuthorQuota(posts, 2)
+	windowCounts := map[int64]int{}
+	for _, post := range quota[:20] {
+		windowCounts[post.AuthorID]++
+	}
+	for author, count := range windowCounts {
+		if count > 2 {
+			t.Fatalf("author %d appears %d times in first 20 window", author, count)
+		}
+	}
+}
+
+func TestEnforceAuthorQuotaSkippedBelowTenAuthors(t *testing.T) {
+	posts := []model.PostCandidate{
+		{PostID: 1, AuthorID: 10}, {PostID: 2, AuthorID: 10}, {PostID: 3, AuthorID: 10},
+	}
+	if got := enforceAuthorQuota(posts, 2); len(got) != 3 {
+		t.Fatalf("quota should not apply below 10 distinct authors, got %d", len(got))
+	}
+}

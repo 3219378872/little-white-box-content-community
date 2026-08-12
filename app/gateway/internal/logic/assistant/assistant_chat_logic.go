@@ -133,6 +133,7 @@ func mapChatEvent(event *assistantpb.ChatEvent, conversationID string) (*types.A
 			SourceType: event.Source.SourceType,
 			SourceId:   event.Source.SourceId,
 			Title:      event.Source.Title,
+			Revision:   event.Source.Revision,
 		}
 	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_DONE:
 		mapped.Type = "done"

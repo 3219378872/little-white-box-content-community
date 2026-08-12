@@ -149,6 +149,7 @@ type SourceReference struct {
 	SourceType    string                 `protobuf:"bytes,1,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
 	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Revision      int64                  `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -202,6 +203,13 @@ func (x *SourceReference) GetTitle() string {
 		return x.Title
 	}
 	return ""
+}
+
+func (x *SourceReference) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 type ChatEvent struct {
@@ -298,12 +306,13 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x04 \x01(\tR\trequestId\"e\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId\"\x81\x01\n" +
 	"\x0fSourceReference\x12\x1f\n" +
 	"\vsource_type\x18\x01 \x01(\tR\n" +
 	"sourceType\x12\x1b\n" +
 	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\"\xe5\x01\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x03R\brevision\"\xe5\x01\n" +
 	"\tChatEvent\x12,\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x18.assistant.ChatEventTypeR\x04type\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x122\n" +

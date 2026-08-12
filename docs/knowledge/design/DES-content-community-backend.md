@@ -87,7 +87,7 @@ upstream:
 | DISC-031 匿名冷启动、不建立画像 | aligned | 匿名只走规则召回；身份不持久化 |
 | DISC-032 推荐响应含请求/位置/来源/版本/实验 | aligned | RecommendPost 字段齐全 |
 | DISC-033 游标绑定+10 分钟有效期 | aligned | cursor codec HMAC + 600s TTL |
-| DISC-034 作者配额 | partial | rerank 软惩罚，不严格保证 20 条内 ≤2 |
+| DISC-034 作者配额 | aligned | ≥10 个作者时滑窗硬性保证任意 20 条内同一作者 ≤2 |
 | DISC-035 负反馈 30 天/曝光 7 天 | partial | 负反馈 30 天 TTL；曝光去重用 recent 50 条，无 7 天窗口与重入标记 |
 | DISC-036 个性化不可用规则降级 | aligned | recall/feature/inference 降级并标记 |
 | DISC-040 无效页大小/游标/身份拒绝 | aligned | 参数校验 + 游标校验 |
@@ -110,7 +110,7 @@ upstream:
 | ASST-006 内容指令不可信 | aligned | safety filter + 注入防护 |
 | ASST-007 证据不足拒答 | aligned | 无证据返回拒答/降级 |
 | ASST-010 段落必须含 [post:id]、1~5 来源 | partial | 生成式回答依赖 LLM 输出校验，未强制每个段落引用 |
-| ASST-011 结构化来源含 id/标题/片段/revision | partial | 来源含 id/标题/片段；无 revision/hash |
+| ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
 | ASST-012 仅服务端验证来源可返回 | aligned | 模型生成引用标记不提升为来源 |
 | ASST-013 区分事实/观点/无法确认 | partial | 依赖提示词，无强制结构 |
 | ASST-014 证据冲突呈现双方 | partial | 依赖提示词，无强制结构 |

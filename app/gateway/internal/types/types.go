@@ -7,6 +7,7 @@ type AssistantSourceReference struct {
 	SourceType string `json:"sourceType"`
 	SourceId   string `json:"sourceId"`
 	Title      string `json:"title"`
+	Revision   int64  `json:"revision"`
 }
 
 type BehaviorEvent struct {

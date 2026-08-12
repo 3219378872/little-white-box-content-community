@@ -41,10 +41,11 @@ type Request struct {
 }
 
 type Source struct {
-	Type    string
-	ID      string
-	Title   string
-	Snippet string
+	Type     string
+	ID       string
+	Title    string
+	Snippet  string
+	Revision int64
 }
 
 type Result struct {
@@ -201,6 +202,7 @@ func searchHandler(searchClient searchservice.SearchService, contentClient conte
 				if sources[index].Type == "post" && sources[index].ID == postIDText {
 					sources[index].Title = title
 					sources[index].Snippet = snippet
+					sources[index].Revision = post.Revision
 				}
 			}
 		}
@@ -323,6 +325,7 @@ func contentHandler(client contentservice.ContentService) handler {
 			ContextKind: "community_evidence", EvidenceRequired: true, HasEvidence: true,
 			Sources: []Source{{
 				Type: "post", ID: strconv.FormatInt(post.Id, 10), Title: title, Snippet: snippet,
+				Revision: post.Revision,
 			}},
 		}, nil
 	}

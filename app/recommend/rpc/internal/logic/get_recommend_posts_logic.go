@@ -106,6 +106,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		candidates, l.svcCtx.Config.ExploreRatio, l.svcCtx.Config.MaxPerAuthor,
 		binding.RequestID+":"+identity,
 	)
+	candidates = enforceAuthorQuota(candidates, l.svcCtx.Config.MaxPerAuthor)
 	if recallDegraded {
 		markPostDegradation(candidates, "recall-degraded")
 		l.Error("one or more post recall sources failed; serving remaining sources")

@@ -13,10 +13,11 @@ import (
 var ErrConversationOwnedByAnother = errors.New("assistant conversation belongs to another user")
 
 type Reference struct {
-	Type    string `json:"type"`
-	ID      string `json:"id"`
-	Title   string `json:"title,omitempty"`
-	Snippet string `json:"snippet,omitempty"`
+	Type     string `json:"type"`
+	ID       string `json:"id"`
+	Title    string `json:"title,omitempty"`
+	Snippet  string `json:"snippet,omitempty"`
+	Revision int64  `json:"revision,omitempty"`
 }
 
 type Message struct {

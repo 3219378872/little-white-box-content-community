@@ -160,6 +160,7 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 				SourceType: source.Type,
 				SourceId:   source.ID,
 				Title:      source.Title,
+				Revision:   source.Revision,
 			},
 			ConversationId: conversationID,
 		}); err != nil {
@@ -216,6 +217,7 @@ func (l *ChatLogic) persistAssistant(
 		}
 		references = append(references, store.Reference{
 			Type: source.Type, ID: source.ID, Title: source.Title, Snippet: source.Snippet,
+			Revision: source.Revision,
 		})
 	}
 	return l.svcCtx.Conversations.Append(l.ctx, request.UserID, conversationID, store.Message{
