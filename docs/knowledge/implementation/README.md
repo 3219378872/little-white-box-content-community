@@ -1,6 +1,6 @@
 # 实现层
 
-本目录由 agent 维护，当前尚无正式实现页面。
+本目录由 agent 维护，登记设计到代码的映射与验证证据。
 
 - 源码、配置、`.api`、`.proto` 和测试是当前行为的权威事实。
 - 实现页只记录设计到代码的映射、`aligned/diverged/unknown` 状态和最后验证点。
@@ -10,4 +10,6 @@
 
 ## 当前实现映射
 
-暂无。
+| 实现页 | 上游设计 | 状态 | 证据 |
+| --- | --- | --- | --- |
+| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | aligned | [2026-08-12](evidence/2026-08-12-content-community.md) |
