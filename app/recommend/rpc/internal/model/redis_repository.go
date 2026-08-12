@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
@@ -112,6 +113,7 @@ func (s *RedisUserRecallSource) Recall(ctx context.Context, req RecallRequest) (
 type RedisFeatureRepository struct {
 	redis          redisClient
 	featureVersion string
+	now            func() time.Time
 }
 
 const featureLoadWorkers = 16
@@ -153,16 +155,23 @@ func (r *RedisFeatureRepository) LoadViewerFeatures(ctx context.Context, identit
 	if err := addTargetPostIDs(features.NegativePostIDs, negative); err != nil {
 		return ViewerFeatures{}, fmt.Errorf("parse negative features: %w", err)
 	}
+	// DISC-035：已曝光内容只排除最近 7 天；更早的曝光不作为排除依据。
+	seenWindow := time.Now().Add(-7 * 24 * time.Hour).UnixMilli()
+	if r.now != nil {
+		seenWindow = r.now().Add(-7 * 24 * time.Hour).UnixMilli()
+	}
 	for _, item := range recent {
 		var event struct {
 			Action     string `json:"action"`
 			TargetID   int64  `json:"target_id"`
 			TargetType string `json:"target_type"`
+			EventTime  int64  `json:"event_time"`
 		}
 		if err := json.Unmarshal([]byte(item), &event); err != nil {
 			return ViewerFeatures{}, fmt.Errorf("parse recent feature: %w", err)
 		}
-		if event.TargetType == "post" && event.TargetID > 0 && event.Action == "exposure" {
+		if event.TargetType == "post" && event.TargetID > 0 && event.Action == "exposure" &&
+			event.EventTime >= seenWindow {
 			features.SeenPostIDs[event.TargetID] = struct{}{}
 		}
 	}

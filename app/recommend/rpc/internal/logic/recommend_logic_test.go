@@ -432,3 +432,50 @@ func TestEnforceAuthorQuotaSkippedBelowTenAuthors(t *testing.T) {
 		t.Fatalf("quota should not apply below 10 distinct authors, got %d", len(got))
 	}
 }
+
+func TestSeenPostsReenterWhenCandidatesInsufficient(t *testing.T) {
+	candidates := []model.PostCandidate{
+		{PostID: 1, Features: model.PostFeatures{Known: true, Available: true, Visibility: "public", AuthorID: 10}},
+		{PostID: 2, Features: model.PostFeatures{Known: true, Available: true, Visibility: "public", AuthorID: 20}},
+	}
+	viewer := model.ViewerFeatures{
+		SeenPostIDs:     map[int64]struct{}{1: {}},
+		PositivePostIDs: map[int64]struct{}{},
+		NegativePostIDs: map[int64]struct{}{},
+		BlockedAuthors:  map[int64]struct{}{},
+	}
+	result, degraded, err := enrichAndFilterPosts(context.Background(), &fakeFeatureRepository{
+		viewer: viewer,
+		posts: map[int64]model.PostFeatures{
+			1: {Known: true, Available: true, Visibility: "public", AuthorID: 10},
+			2: {Known: true, Available: true, Visibility: "public", AuthorID: 20},
+		},
+	}, "u:42", candidates, 0, false)
+	if err != nil {
+		t.Fatalf("enrichAndFilterPosts() error = %v", err)
+	}
+	if len(result) != 1 || result[0].PostID != 2 {
+		t.Fatalf("expected only unseen post without re-entry, got %+v", result)
+	}
+
+	// 全部候选都被曝光 → 候选不足，允许重新进入并标记原因
+	onlySeen := []model.PostCandidate{
+		{PostID: 1, Features: model.PostFeatures{Known: true, Available: true, Visibility: "public", AuthorID: 10}},
+	}
+	result, _, err = enrichAndFilterPosts(context.Background(), &fakeFeatureRepository{
+		viewer: viewer,
+		posts: map[int64]model.PostFeatures{
+			1: {Known: true, Available: true, Visibility: "public", AuthorID: 10},
+		},
+	}, "u:42", onlySeen, 0, false)
+	if err != nil {
+		t.Fatalf("enrichAndFilterPosts() error = %v", err)
+	}
+	if len(result) != 1 || result[0].PostID != 1 ||
+		!strings.Contains(result[0].Reason, "re-entered after exposure window") {
+		t.Fatalf("seen post did not re-enter with reason: %+v", result)
+	}
+	if degraded {
+		t.Fatal("seen re-entry should not mark feature repository degraded")
+	}
+}

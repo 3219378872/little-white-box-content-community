@@ -261,9 +261,10 @@ func enrichAndFilterPosts(
 	}
 
 	result := make([]model.PostCandidate, 0, len(candidates))
+	var seenExcluded []model.PostCandidate
 	for _, candidate := range candidates {
 		if candidate.PostID == excludedPostID || containsID(viewer.PositivePostIDs, candidate.PostID) ||
-			containsID(viewer.NegativePostIDs, candidate.PostID) || containsID(viewer.SeenPostIDs, candidate.PostID) {
+			containsID(viewer.NegativePostIDs, candidate.PostID) {
 			continue
 		}
 		features := candidate.Features
@@ -279,7 +280,19 @@ func enrichAndFilterPosts(
 		candidate.Features = features
 		candidate.AuthorID = features.AuthorID
 		candidate.Category = features.Category
+		if containsID(viewer.SeenPostIDs, candidate.PostID) {
+			// DISC-035：已曝光内容优先排除；保留用于候选不足时重新进入。
+			seenExcluded = append(seenExcluded, candidate)
+			continue
+		}
 		result = append(result, candidate)
+	}
+	// DISC-035：排除后候选不足时允许已曝光内容重新进入，并标记原因。
+	if len(result) == 0 && len(seenExcluded) > 0 {
+		for index := range seenExcluded {
+			seenExcluded[index].Reason = appendSource(seenExcluded[index].Reason, "re-entered after exposure window")
+		}
+		result = seenExcluded
 	}
 	if len(result) == 0 && len(candidates) > 0 && degraded {
 		return nil, true, fmt.Errorf("feature repository unavailable and no verified post candidates remain")

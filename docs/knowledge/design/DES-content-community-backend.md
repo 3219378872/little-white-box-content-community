@@ -88,7 +88,7 @@ upstream:
 | DISC-032 推荐响应含请求/位置/来源/版本/实验 | aligned | RecommendPost 字段齐全 |
 | DISC-033 游标绑定+10 分钟有效期 | aligned | cursor codec HMAC + 600s TTL |
 | DISC-034 作者配额 | aligned | ≥10 个作者时滑窗硬性保证任意 20 条内同一作者 ≤2 |
-| DISC-035 负反馈 30 天/曝光 7 天 | partial | 负反馈 30 天 TTL；曝光去重用 recent 50 条，无 7 天窗口与重入标记 |
+| DISC-035 负反馈 30 天/曝光 7 天 | aligned | 负反馈 30 天 TTL；曝光按 7 天窗口排除，候选不足时重入并标记原因 |
 | DISC-036 个性化不可用规则降级 | aligned | recall/feature/inference 降级并标记 |
 | DISC-040 无效页大小/游标/身份拒绝 | aligned | 参数校验 + 游标校验 |
 | DISC-041 部分召回失败只返回验证结果 | aligned | enrichAndFilter 只留可见候选，不可验证则整体失败 |
@@ -147,7 +147,7 @@ upstream:
 | REL-011 拒绝/未去重不入特征 | aligned | 消费端去重后写特征 |
 | REL-012 接受只表示进入消息边界 | aligned | 接口即发布 |
 | REL-013 异步可观察 | aligned | 指标覆盖延迟/失败/重试/死信/积压 |
-| REL-020 保留期限自动删除 | partial | 清理任务存在（content/mq/cleanup 等），需核对 90/30/90/7/365/30 |
+| REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | 日志策略与脱敏 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | /api/v2/me/personalization 接口；关闭后停止新行为入特征、purge 在线特征；DB+Redis 标记 |

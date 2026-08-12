@@ -2,7 +2,9 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
@@ -62,7 +64,7 @@ func TestRedisFeatureRepositoryUsesVersionedFeatureKeys(t *testing.T) {
 			},
 		},
 		lists: map[string][]string{
-			"feature:v2:u:42:recent": {`{"action":"exposure","target_id":3,"target_type":"post"}`},
+			"feature:v2:u:42:recent": {fmt.Sprintf(`{"action":"exposure","target_id":3,"target_type":"post","event_time":%d}`, time.Now().UnixMilli())},
 		},
 		sets: map[string][]string{"feature:v2:u:42:blocked_authors": {"7"}},
 	}
@@ -89,6 +91,30 @@ func TestRedisFeatureRepositoryUsesVersionedFeatureKeys(t *testing.T) {
 	}
 	if !posts[9].Known || posts[9].AuthorID != 5 || posts[9].Category != "tech" || posts[9].Quality != 0.8 {
 		t.Fatalf("unexpected post features: %+v", posts[9])
+	}
+}
+
+func TestRedisFeatureRepositorySeenWindowIsSevenDays(t *testing.T) {
+	now := time.Now()
+	client := &fakeRedisClient{
+		lists: map[string][]string{
+			"feature:v2:u:42:recent": {
+				fmt.Sprintf(`{"action":"exposure","target_id":3,"target_type":"post","event_time":%d}`, now.Add(-6*24*time.Hour).UnixMilli()),
+				fmt.Sprintf(`{"action":"exposure","target_id":4,"target_type":"post","event_time":%d}`, now.Add(-8*24*time.Hour).UnixMilli()),
+			},
+		},
+	}
+	repository := NewRedisFeatureRepository(client, "v2")
+	repository.now = func() time.Time { return now }
+	viewer, err := repository.LoadViewerFeatures(context.Background(), "u:42")
+	if err != nil {
+		t.Fatalf("LoadViewerFeatures() error = %v", err)
+	}
+	if _, ok := viewer.SeenPostIDs[3]; !ok {
+		t.Fatal("exposure within 7 days should be seen")
+	}
+	if _, ok := viewer.SeenPostIDs[4]; ok {
+		t.Fatal("exposure older than 7 days should not be seen")
 	}
 }
 
