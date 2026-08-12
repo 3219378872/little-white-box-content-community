@@ -43,8 +43,8 @@ upstream:
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | aligned | Update/Delete 携带 expected_revision；冲突返回 409；迁移期 0 值跳过检查（CORE-062） |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | aligned | 列表/发现只收录 published；搜索/向量/关注流按 status 移除或跳过取消发布内容 |
-| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404 |
+| CORE-015 取消发布/删除不再出现 | aligned | 列表/发现/评论列表只收录 published；搜索/向量/关注流按 status 移除或跳过取消发布内容 |
+| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404，含评论线程 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
@@ -146,7 +146,7 @@ upstream:
 | REL-010 事件关联字段 | aligned | BehaviorEvent 携带请求/身份/位置/来源/版本/实验 |
 | REL-011 拒绝/未去重不入特征 | aligned | 消费端去重后写特征 |
 | REL-012 接受只表示进入消息边界 | aligned | 接口即发布 |
-| REL-013 异步可观察 | aligned | 指标覆盖延迟/失败/重试/死信/积压 |
+| REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | 日志策略与脱敏 |

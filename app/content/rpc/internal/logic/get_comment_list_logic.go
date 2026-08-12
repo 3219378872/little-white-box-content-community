@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"errx"
+	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 
@@ -32,6 +34,23 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 	}
 	if pageSize <= 0 || pageSize > 50 {
 		pageSize = 20
+	}
+
+	// CORE-015/016：只有已发布内容的评论可公开读取；草稿/删除/不可用内容
+	// 的评论线程统一返回不存在，不泄露历史状态。
+	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
+	if err != nil {
+		if errors.Is(err, model2.ErrNotFound) {
+			return nil, errx.NewWithCode(errx.ContentNotFound)
+		}
+		l.Errorw("PostModel.FindPostById failed",
+			logx.Field("postId", in.PostId),
+			logx.Field("err", err.Error()),
+		)
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if post.Status != 1 {
+		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 
 	comments, total, err := l.svcCtx.CommentModel.FindByPostId(l.ctx, in.PostId, page, pageSize, int(in.SortBy))

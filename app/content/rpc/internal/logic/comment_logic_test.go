@@ -287,14 +287,16 @@ func TestGetCommentListLogic(t *testing.T) {
 	tests := []struct {
 		name      string
 		req       *pb.GetCommentListReq
-		setupMock func(*MockCommentModel)
+		setupMock func(*MockPostModel, *MockCommentModel)
 		wantErr   bool
+		errCode   int
 		check     func(t *testing.T, resp *pb.GetCommentListResp)
 	}{
 		{
 			name: "成功获取评论列表",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 10},
-			setupMock: func(cm *MockCommentModel) {
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 10, 0).Return(comments, int64(2), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
@@ -305,7 +307,8 @@ func TestGetCommentListLogic(t *testing.T) {
 		{
 			name: "页码/页大小默认值修正",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 0, PageSize: 0},
-			setupMock: func(cm *MockCommentModel) {
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 20, 0).Return([]*model2.Comment{}, int64(0), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
@@ -315,7 +318,8 @@ func TestGetCommentListLogic(t *testing.T) {
 		{
 			name: "页大小超限修正为20",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 200},
-			setupMock: func(cm *MockCommentModel) {
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 20, 0).Return([]*model2.Comment{}, int64(0), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
@@ -325,26 +329,49 @@ func TestGetCommentListLogic(t *testing.T) {
 		{
 			name: "数据库错误",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 10},
-			setupMock: func(cm *MockCommentModel) {
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*model2.Comment{}, int64(0), fmt.Errorf("db error"))
 			},
 			wantErr: true,
+		},
+		{
+			name: "已删除帖子的评论统一不存在",
+			req:  &pb.GetCommentListReq{PostId: 1001, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1001)).Return(&model2.Post{Id: 1001, Status: 2}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
+		},
+		{
+			name: "草稿帖子的评论统一不存在",
+			req:  &pb.GetCommentListReq{PostId: 1002, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1002)).Return(&model2.Post{Id: 1002, Status: 0}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			pm := new(MockPostModel)
 			cm := new(MockCommentModel)
 			if tt.setupMock != nil {
-				tt.setupMock(cm)
+				tt.setupMock(pm, cm)
 			}
-			svcCtx := newUnitSvcCtx(nil, cm, nil, nil)
+			svcCtx := newUnitSvcCtx(pm, cm, nil, nil)
 			l := NewGetCommentListLogic(context.Background(), svcCtx)
 
 			resp, err := l.GetCommentList(tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.errCode != 0 {
+					assert.True(t, errx.Is(err, tt.errCode), "期望错误码 %d，实际: %v", tt.errCode, err)
+				}
 				return
 			}
 			require.NoError(t, err)
