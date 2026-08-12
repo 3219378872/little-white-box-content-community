@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
     model_version   LowCardinality(String) DEFAULT '',
     experiment_id   LowCardinality(String) DEFAULT '',
     producer        LowCardinality(String),
-    client_ip       String DEFAULT '',
+    client_ip       String DEFAULT '' COMMENT 'IP 的 SHA-256 哈希，不存完整 IP（REL-021）',
     client_version  LowCardinality(String) DEFAULT ''
 ) ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY toYYYYMMDD(event_time)

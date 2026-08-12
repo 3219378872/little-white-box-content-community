@@ -628,6 +628,14 @@ services:
         target: /srv/www
         read_only: true
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/rotate-access-log.sh:/usr/local/bin/rotate-access-log.sh:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "0 0 * * * /usr/local/bin/rotate-access-log.sh" > /etc/crontabs/root
+        crond -b
+        exec /docker-entrypoint.sh nginx -g "daemon off;"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 10s

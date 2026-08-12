@@ -44,6 +44,14 @@ func TestClickHouseStoreInsertSingleEvent(t *testing.T) {
 		"SELECT count() FROM xbh_analytics.behavior_events WHERE event_id = 10001").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
+
+	// REL-021：行为分析表不得保存完整客户端 IP。
+	var storedIP string
+	err = chEnv.DB.QueryRowContext(context.Background(),
+		"SELECT client_ip FROM xbh_analytics.behavior_events WHERE event_id = 10001").Scan(&storedIP)
+	require.NoError(t, err)
+	assert.NotEqual(t, "10.0.0.1", storedIP)
+	assert.Len(t, storedIP, 64, "client_ip must be a SHA-256 hex digest")
 }
 
 func TestClickHouseStoreDuplicateEventIDConverges(t *testing.T) {

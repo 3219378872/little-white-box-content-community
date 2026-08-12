@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"esx/pkg/event"
@@ -24,6 +27,8 @@ func (s *ClickHouseStore) Insert(ctx context.Context, behavior event.BehaviorEve
 		err = fmt.Errorf("validate behavior event: %w", validationErr)
 		return err
 	}
+	// REL-021：完整客户端 IP 不得写入行为分析表；只存 SHA-256 单向哈希。
+	behavior.ClientIP = anonymizeIP(behavior.ClientIP)
 
 	query := `INSERT INTO xbh_analytics.behavior_events (
 		event_id, client_event_id, schema_version, event_time, received_at,
@@ -45,6 +50,17 @@ func (s *ClickHouseStore) Insert(ctx context.Context, behavior event.BehaviorEve
 		return fmt.Errorf("insert behavior_events: %w", err)
 	}
 	return nil
+}
+
+// anonymizeIP 将客户端 IP 转成 SHA-256 十六进制摘要；空值保持为空。
+// 摘要不可逆，且不会将完整 IP 持久化到行为分析表（REL-021）。
+func anonymizeIP(ip string) string {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return ""
+	}
+	digest := sha256.Sum256([]byte(ip))
+	return hex.EncodeToString(digest[:])
 }
 
 type DeadLetter struct {
