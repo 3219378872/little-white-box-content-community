@@ -120,8 +120,8 @@ upstream:
 | ASST-022 流事件结构 | aligned | token/source/done/error 事件 |
 | ASST-023 不得先完成再失败 | aligned | 完成事件为终态 |
 | ASST-024 截断不混入他人、一次性降级 | aligned | 会话按用户隔离 |
-| ASST-030 来源变化标记 | missing | 无来源版本跟踪 |
-| ASST-031 来源不可用清理 | missing | 无删除/取消发布联动 |
+| ASST-030 来源变化标记 | aligned | 续接会话时按保存的 revision 重验来源，变化时输出 source-changed 警告 |
+| ASST-031 来源不可用清理 | aligned | 续接会话时删除/取消发布来源标记 source-unavailable 并移除标题片段 |
 | ASST-032 LLM 不可用返回证据摘要 | aligned | sendPersistedDegraded 返回证据摘要 |
 | ASST-033 检索失败关闭 | aligned | 检索失败返回错误，不自由生成 |
 | ASST-034 安全策略拒绝、不泄露 | aligned | safety filter + 错误包装 |

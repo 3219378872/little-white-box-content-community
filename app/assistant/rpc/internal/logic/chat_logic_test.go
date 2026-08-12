@@ -15,6 +15,7 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/content/rpc/contentservice"
 
 	"google.golang.org/grpc"
 )
@@ -48,6 +49,10 @@ func (f *fakeAssistantState) Append(_ context.Context, _ int64, _ string, messag
 	}
 	f.messages = append(f.messages, message)
 	return nil
+}
+
+func (f *fakeAssistantState) Messages(context.Context, int64, string) ([]assistantstore.Message, error) {
+	return append([]assistantstore.Message(nil), f.messages...), nil
 }
 
 func (f fakeToolExecutor) Execute(ctx context.Context, name tool.Name, request tool.Request) (*tool.Result, error) {
@@ -414,6 +419,61 @@ func TestChatExplicitPostUsesContentTool(t *testing.T) {
 	}
 	if gotName != tool.Content || gotPostID != 99 {
 		t.Fatalf("tool=%q postID=%d", gotName, gotPostID)
+	}
+}
+
+type fakeAssistantContentService struct {
+	contentservice.ContentService
+	posts map[int64]*contentservice.PostInfo
+}
+
+func (f *fakeAssistantContentService) GetPostsByIds(_ context.Context, in *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	posts := make([]*contentservice.PostInfo, 0, len(in.PostIds))
+	for _, id := range in.PostIds {
+		if post, ok := f.posts[id]; ok {
+			posts = append(posts, post)
+		}
+	}
+	return &contentservice.GetPostsByIdsResp{Posts: posts}, nil
+}
+
+func TestChatWarnsWhenHistoricalSourcesChangedOrUnavailable(t *testing.T) {
+	t.Parallel()
+	state := &fakeAssistantState{allowed: true}
+	state.messages = append(state.messages, assistantstore.Message{
+		Role: "assistant", Content: "old answer", RequestID: "req-old",
+		Sources: []assistantstore.Reference{
+			{Type: "post", ID: "10", Title: "t", Revision: 3},
+			{Type: "post", ID: "11", Title: "t2", Revision: 1},
+		},
+	})
+	serviceContext := &svc.ServiceContext{
+		Conversations: state,
+		Quota:         state,
+		ContentService: &fakeAssistantContentService{posts: map[int64]*contentservice.PostInfo{
+			10: {Id: 10, Status: 1, Revision: 5},
+			// 11 缺失 → 不可用
+		}},
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return &tool.Result{Text: "answer"}, nil
+		}},
+	}
+	stream := &collectingChatStream{ctx: context.Background()}
+	err := NewChatLogic(context.Background(), serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1", Message: "follow up", RequestId: "request-2",
+	}, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var streamed strings.Builder
+	for _, event := range stream.events {
+		streamed.WriteString(event.Text)
+	}
+	if !strings.Contains(streamed.String(), "source-changed") || !strings.Contains(streamed.String(), "10") {
+		t.Fatalf("missing source-changed warning: %q", streamed.String())
+	}
+	if !strings.Contains(streamed.String(), "source-unavailable") || !strings.Contains(streamed.String(), "11") {
+		t.Fatalf("missing source-unavailable warning: %q", streamed.String())
 	}
 }
 

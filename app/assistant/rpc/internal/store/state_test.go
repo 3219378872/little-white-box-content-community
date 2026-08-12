@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -57,6 +58,40 @@ func TestRedisStateRejectsConversationOwnedByAnotherUser(t *testing.T) {
 	err = state.Append(context.Background(), 42, "conversation-1", Message{
 		Role: "user", Content: "hello", RequestID: "request-1",
 	})
+	if !errors.Is(err, ErrConversationOwnedByAnother) {
+		t.Fatalf("error=%v want ownership error", err)
+	}
+}
+
+func TestRedisStateMessagesReturnsPersistedHistory(t *testing.T) {
+	message := Message{Role: "assistant", Content: "answer", RequestID: "req-1", Sources: []Reference{
+		{Type: "post", ID: "9", Revision: 3},
+	}}
+	payload, err := json.Marshal(message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	redis := &fakeRedis{results: []any{[]any{[]byte(payload)}}}
+	state, err := NewRedisState(redis, "assistant:v2", 3600, 10, 60, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages, err := state.Messages(context.Background(), 42, "conversation-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || messages[0].RequestID != "req-1" ||
+		len(messages[0].Sources) != 1 || messages[0].Sources[0].Revision != 3 {
+		t.Fatalf("unexpected messages: %#v", messages)
+	}
+}
+
+func TestRedisStateMessagesRejectsForeignOwner(t *testing.T) {
+	state, err := NewRedisState(&fakeRedis{results: []any{int64(-1)}}, "assistant:v2", 3600, 10, 60, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = state.Messages(context.Background(), 42, "conversation-1")
 	if !errors.Is(err, ErrConversationOwnedByAnother) {
 		t.Fatalf("error=%v want ownership error", err)
 	}

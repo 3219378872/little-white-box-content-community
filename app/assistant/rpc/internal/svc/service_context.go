@@ -18,12 +18,13 @@ import (
 )
 
 type ServiceContext struct {
-	Config        config.Config
-	Tools         tool.Executor
-	Conversations store.ConversationStore
-	Quota         store.QuotaLimiter
-	Generator     llm.Generator
-	Safety        safety.Filter
+	Config         config.Config
+	Tools          tool.Executor
+	Conversations  store.ConversationStore
+	Quota          store.QuotaLimiter
+	Generator      llm.Generator
+	Safety         safety.Filter
+	ContentService contentservice.ContentService
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -71,6 +72,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	return &ServiceContext{
-		Config: c, Tools: tools, Conversations: state, Quota: state, Generator: generator, Safety: safetyFilter,
+		Config: c, Tools: tools, Conversations: state, Quota: state,
+		Generator: generator, Safety: safetyFilter,
+		ContentService: contentservice.NewContentService(contentClient),
 	}
 }

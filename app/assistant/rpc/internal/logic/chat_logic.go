@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/content/rpc/contentservice"
 
 	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -61,6 +64,7 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	if err != nil {
 		return err
 	}
+	isContinuation := strings.TrimSpace(in.GetConversationId()) != ""
 	if stream == nil {
 		return errx.NewWithCode(errx.ServiceUnavailable)
 	}
@@ -82,6 +86,22 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	}
 	if err := l.beginRequest(request, conversationID); err != nil {
 		return err
+	}
+	if isContinuation {
+		warnings, warnErr := l.verifyHistoricalSources(request.UserID, conversationID)
+		if warnErr != nil {
+			l.Errorw("assistant historical source verification failed", logx.Field("err", warnErr.Error()))
+		} else {
+			for _, warning := range warnings {
+				if err := l.send(stream, &pb.ChatEvent{
+					Type:           pb.ChatEventType_CHAT_EVENT_TYPE_TOKEN,
+					Text:           warning,
+					ConversationId: conversationID,
+				}); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	toolCtx, cancel := context.WithTimeout(l.ctx, l.toolTimeout())
 	defer cancel()
@@ -223,6 +243,78 @@ func (l *ChatLogic) persistAssistant(
 	return l.svcCtx.Conversations.Append(l.ctx, request.UserID, conversationID, store.Message{
 		Role: "assistant", Content: text, RequestID: request.RequestID, Sources: references,
 	})
+}
+
+// verifyHistoricalSources 校验历史回答引用的帖子来源（ASST-030/031）。
+// 来源内容在历史回答后被修改时返回"来源已变化"；来源删除/取消发布/受限时
+// 返回"来源不可用"。校验失败（内容服务不可用等）时 fail-open 返回空，不阻断对话。
+func (l *ChatLogic) verifyHistoricalSources(userID int64, conversationID string) ([]string, error) {
+	if l.svcCtx == nil || l.svcCtx.Conversations == nil || l.svcCtx.ContentService == nil {
+		return nil, nil
+	}
+	messages, err := l.svcCtx.Conversations.Messages(l.ctx, userID, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	type trackedSource struct {
+		postID   int64
+		revision int64
+	}
+	tracked := make(map[string]trackedSource)
+	for _, message := range messages {
+		if message.Role != "assistant" {
+			continue
+		}
+		for _, source := range message.Sources {
+			if source.Type != "post" || source.Revision <= 0 {
+				continue
+			}
+			postID, parseErr := strconv.ParseInt(source.ID, 10, 64)
+			if parseErr != nil || postID <= 0 {
+				continue
+			}
+			tracked[source.ID] = trackedSource{postID: postID, revision: source.Revision}
+		}
+	}
+	if len(tracked) == 0 {
+		return nil, nil
+	}
+	postIDs := make([]int64, 0, len(tracked))
+	for _, source := range tracked {
+		postIDs = append(postIDs, source.postID)
+	}
+	response, err := l.svcCtx.ContentService.GetPostsByIds(l.ctx, &contentservice.GetPostsByIdsReq{PostIds: postIDs})
+	if err != nil {
+		return nil, err
+	}
+	currentByID := make(map[int64]*contentservice.PostInfo, len(response.GetPosts()))
+	for _, post := range response.GetPosts() {
+		if post != nil && post.Id > 0 {
+			currentByID[post.Id] = post
+		}
+	}
+	changed := make([]string, 0, len(tracked))
+	unavailable := make([]string, 0, len(tracked))
+	for _, source := range tracked {
+		current := currentByID[source.postID]
+		if current == nil || current.Status != 1 {
+			unavailable = append(unavailable, strconv.FormatInt(source.postID, 10))
+			continue
+		}
+		if current.Revision != source.revision {
+			changed = append(changed, strconv.FormatInt(source.postID, 10))
+		}
+	}
+	warnings := make([]string, 0, len(changed)+len(unavailable))
+	if len(changed) > 0 {
+		sort.Strings(changed)
+		warnings = append(warnings, fmt.Sprintf("[source-changed] 以下来源内容已更新，历史回答不再由当前版本验证: %s", strings.Join(changed, ", ")))
+	}
+	if len(unavailable) > 0 {
+		sort.Strings(unavailable)
+		warnings = append(warnings, fmt.Sprintf("[source-unavailable] 以下来源已不可用，相关历史回答的标题与片段已移除: %s", strings.Join(unavailable, ", ")))
+	}
+	return warnings, nil
 }
 
 func (l *ChatLogic) sendPersistedDegraded(

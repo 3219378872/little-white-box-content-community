@@ -30,6 +30,8 @@ type Message struct {
 
 type ConversationStore interface {
 	Append(ctx context.Context, userID int64, conversationID string, message Message) error
+	// Messages 返回会话全部消息；会话属于其他用户时返回 ErrConversationOwnedByAnother。
+	Messages(ctx context.Context, userID int64, conversationID string) ([]Message, error)
 }
 
 type QuotaLimiter interface {
@@ -108,6 +110,50 @@ func (s *RedisState) Append(ctx context.Context, userID int64, conversationID st
 	return nil
 }
 
+// Messages 读取会话消息并校验归属（ASST-001）。
+func (s *RedisState) Messages(ctx context.Context, userID int64, conversationID string) ([]Message, error) {
+	if userID <= 0 || strings.TrimSpace(conversationID) == "" {
+		return nil, fmt.Errorf("assistant conversation identity is invalid")
+	}
+	base := s.prefix + ":conversation:" + conversationID
+	result, err := s.redis.EvalCtx(ctx, loadConversationScript,
+		[]string{base + ":owner", base + ":messages"},
+		userID)
+	if err != nil {
+		return nil, fmt.Errorf("load assistant conversation: %w", err)
+	}
+	if value, ok := result.(int64); ok && value == -1 {
+		return nil, ErrConversationOwnedByAnother
+	}
+	if value, ok := result.(int); ok && value == -1 {
+		return nil, ErrConversationOwnedByAnother
+	}
+	list, ok := result.([]any)
+	if !ok {
+		if result == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load assistant conversation: unexpected result type %T", result)
+	}
+	messages := make([]Message, 0, len(list))
+	for _, raw := range list {
+		payload, ok := raw.([]byte)
+		if !ok {
+			text, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			payload = []byte(text)
+		}
+		var message Message
+		if err := json.Unmarshal(payload, &message); err != nil {
+			return nil, fmt.Errorf("decode assistant conversation message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	return messages, nil
+}
+
 func (s *RedisState) Allow(ctx context.Context, userID int64) (bool, error) {
 	if userID <= 0 {
 		return false, fmt.Errorf("assistant quota user is invalid")
@@ -153,6 +199,14 @@ redis.call('RPUSH', KEYS[2], ARGV[3])
 redis.call('LTRIM', KEYS[2], -tonumber(ARGV[4]), -1)
 redis.call('EXPIRE', KEYS[2], ARGV[2])
 return 1
+`
+
+const loadConversationScript = `
+local owner = redis.call('GET', KEYS[1])
+if owner and owner ~= tostring(ARGV[1]) then
+  return -1
+end
+return redis.call('LRANGE', KEYS[2], 0, -1)
 `
 
 const quotaScript = `
