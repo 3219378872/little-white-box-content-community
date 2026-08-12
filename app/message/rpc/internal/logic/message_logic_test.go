@@ -98,6 +98,7 @@ type fakeMessageCommandModel struct {
 	createdReceiverID int64
 	createdContent    string
 	createdMsgType    int64
+	createdMediaID    int64
 	createdKey        string
 	createdMessageID  int64
 	createCalls       int64
@@ -109,12 +110,13 @@ type fakeMessageCommandModel struct {
 	markErr           error
 }
 
-func (m *fakeMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, idempotencyKey string) (model2.MessageCommandResult, error) {
+func (m *fakeMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (model2.MessageCommandResult, error) {
 	m.createCalls++
 	m.createdSenderID = senderID
 	m.createdReceiverID = receiverID
 	m.createdContent = content
 	m.createdMsgType = msgType
+	m.createdMediaID = mediaID
 	m.createdKey = idempotencyKey
 	if m.createErr != nil {
 		return model2.MessageCommandResult{}, m.createErr

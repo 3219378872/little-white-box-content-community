@@ -19,7 +19,7 @@ type (
 	IdempotencyConflictError struct{}
 
 	MessageCommandModel interface {
-		CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, idempotencyKey string) (MessageCommandResult, error)
+		CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (MessageCommandResult, error)
 		MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 	}
 
@@ -41,12 +41,12 @@ func NewMessageCommandModel(conn sqlx.SqlConn) MessageCommandModel {
 	return &customMessageCommandModel{conn: conn}
 }
 
-func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, idempotencyKey string) (MessageCommandResult, error) {
+func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (MessageCommandResult, error) {
 	var commandResult MessageCommandResult
 	err := m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
 		existing, err := findMessageCommand(ctx, session, senderID, idempotencyKey)
 		if err == nil {
-			if !existing.matches(receiverID, content, msgType) {
+			if !existing.matches(receiverID, content, msgType, mediaID) {
 				return &IdempotencyConflictError{}
 			}
 			commandResult.MessageID = existing.ID
@@ -71,8 +71,8 @@ func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.C
 		}
 
 		result, err := session.ExecCtx(ctx,
-			"insert into `message` (`conversation_id`, `sender_id`, `receiver_id`, `content`, `msg_type`, `idempotency_key`, `status`) values (?, ?, ?, ?, ?, ?, 0)",
-			receiverConversationID, senderID, receiverID, content, msgType, idempotencyKey)
+			"insert into `message` (`conversation_id`, `sender_id`, `receiver_id`, `content`, `msg_type`, `media_id`, `idempotency_key`, `status`) values (?, ?, ?, ?, ?, ?, ?, 0)",
+			receiverConversationID, senderID, receiverID, content, msgType, mediaID, idempotencyKey)
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.C
 	// safe to resolve the winner and return the original message id.
 	existing, lookupErr := findMessageCommand(ctx, m.conn, senderID, idempotencyKey)
 	if lookupErr == nil {
-		if !existing.matches(receiverID, content, msgType) {
+		if !existing.matches(receiverID, content, msgType, mediaID) {
 			return MessageCommandResult{}, &IdempotencyConflictError{}
 		}
 		return MessageCommandResult{MessageID: existing.ID}, nil
@@ -106,12 +106,13 @@ type storedMessageCommand struct {
 	ReceiverID int64  `db:"receiver_id"`
 	Content    string `db:"content"`
 	MsgType    int64  `db:"msg_type"`
+	MediaID    int64  `db:"media_id"`
 }
 
 func findMessageCommand(ctx context.Context, querier messageCommandQuerier, senderID int64, idempotencyKey string) (*storedMessageCommand, error) {
 	var command storedMessageCommand
 	err := querier.QueryRowCtx(ctx, &command,
-		"select `id`, `receiver_id`, `content`, `msg_type` from `message` where `sender_id` = ? and `idempotency_key` = ? limit 1",
+		"select `id`, `receiver_id`, `content`, `msg_type`, `media_id` from `message` where `sender_id` = ? and `idempotency_key` = ? limit 1",
 		senderID, idempotencyKey)
 	if err != nil {
 		return nil, err
@@ -119,8 +120,8 @@ func findMessageCommand(ctx context.Context, querier messageCommandQuerier, send
 	return &command, nil
 }
 
-func (c *storedMessageCommand) matches(receiverID int64, content string, msgType int64) bool {
-	return c.ReceiverID == receiverID && c.Content == content && c.MsgType == msgType
+func (c *storedMessageCommand) matches(receiverID int64, content string, msgType int64, mediaID int64) bool {
+	return c.ReceiverID == receiverID && c.Content == content && c.MsgType == msgType && c.MediaID == mediaID
 }
 
 func upsertConversationForMessage(ctx context.Context, session sqlx.Session, userID int64, targetUserID int64, content string, unreadIncrement int64) error {

@@ -72,7 +72,7 @@ func TestMessageCommandModelCreateMessageWithConversationsCommitsAllRows(t *test
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	result, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
+	result, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, 0, "message-1")
 	require.NoError(t, err)
 	require.True(t, result.Created)
 	require.Positive(t, result.MessageID)
@@ -105,11 +105,11 @@ func TestMessageCommandModelCreateMessageIsIdempotentAndRejectsConflicts(t *test
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	first, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
+	first, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, 0, "message-1")
 	require.NoError(t, err)
 	require.True(t, first.Created)
 
-	replay, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, "message-1")
+	replay, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 1, 0, "message-1")
 	require.NoError(t, err)
 	require.False(t, replay.Created)
 	require.Equal(t, first.MessageID, replay.MessageID)
@@ -120,10 +120,27 @@ func TestMessageCommandModelCreateMessageIsIdempotentAndRejectsConflicts(t *test
 		"select unread_count from conversation where user_id = ? and target_user_id = ?", 2, 1))
 	require.Equal(t, int64(1), unread)
 
-	_, err = command.CreateMessageWithConversations(context.Background(), 1, 2, "different", 1, "message-1")
+	_, err = command.CreateMessageWithConversations(context.Background(), 1, 2, "different", 1, 0, "message-1")
 	require.Error(t, err)
 	require.True(t, IsIdempotencyConflict(err))
 	require.Equal(t, int64(1), countMessageRows(t, conn, "select count(*) from message"))
+
+	// CORE-042：同一幂等键绑定不同媒体（media_id 不同）必须冲突，且不得静默返回原消息。
+	// 使用独立的收发对，避免影响后续会话计数断言。
+	_, err = command.CreateMessageWithConversations(context.Background(), 3, 4, "img", 2, 55, "message-media")
+	require.NoError(t, err)
+	mediaReplay, err := command.CreateMessageWithConversations(context.Background(), 3, 4, "img", 2, 55, "message-media")
+	require.NoError(t, err)
+	require.False(t, mediaReplay.Created)
+	_, err = command.CreateMessageWithConversations(context.Background(), 3, 4, "img", 2, 99, "message-media")
+	require.Error(t, err)
+	require.True(t, IsIdempotencyConflict(err), "same key with a different media_id must conflict")
+	require.Equal(t, int64(2), countMessageRows(t, conn, "select count(*) from message"))
+
+	var storedMediaID int64
+	require.NoError(t, conn.QueryRowCtx(context.Background(), &storedMediaID,
+		"select media_id from message where idempotency_key = ?", "message-media"))
+	require.Equal(t, int64(55), storedMediaID, "media message must persist its media_id (CORE-041)")
 
 	var lastMessage string
 	require.NoError(t, conn.QueryRowCtx(context.Background(), &lastMessage,
@@ -143,7 +160,7 @@ func TestMessageCommandModelCreateMessageIsIdempotentAndRejectsConflicts(t *test
 			defer wg.Done()
 			<-start
 			results[index], errs[index] = command.CreateMessageWithConversations(
-				context.Background(), 1, 2, "concurrent", 1, "message-concurrent",
+				context.Background(), 1, 2, "concurrent", 1, 0, "message-concurrent",
 			)
 		}(i)
 	}
@@ -166,7 +183,7 @@ func TestMessageCommandModelCreateMessageRollsBackWhenMessageInsertFails(t *test
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	_, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 256, "message-1")
+	_, err := command.CreateMessageWithConversations(context.Background(), 1, 2, "hello", 256, 0, "message-1")
 	require.Error(t, err)
 
 	require.Equal(t, int64(0), countMessageRows(t, conn, "select count(*) from conversation"))
@@ -178,9 +195,9 @@ func TestMessageCommandModelMarkConversationReadDecrementsUnreadByAffectedRows(t
 	defer cleanup()
 
 	command := NewMessageCommandModel(conn)
-	_, err := command.CreateMessageWithConversations(context.Background(), 8, 7, "first", 1, "message-1")
+	_, err := command.CreateMessageWithConversations(context.Background(), 8, 7, "first", 1, 0, "message-1")
 	require.NoError(t, err)
-	_, err = command.CreateMessageWithConversations(context.Background(), 8, 7, "second", 1, "message-2")
+	_, err = command.CreateMessageWithConversations(context.Background(), 8, 7, "second", 1, 0, "message-2")
 	require.NoError(t, err)
 
 	var beforeUnread int64

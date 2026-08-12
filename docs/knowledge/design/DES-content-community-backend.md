@@ -55,8 +55,8 @@ upstream:
 | CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数经 count-sync 消费者 30s 内收敛到内容表 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
-| CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体 |
-| CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令冲突 |
+| CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体并持久化 media_id |
+| CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令（含不同 media_id）冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
 | CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409 |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError |

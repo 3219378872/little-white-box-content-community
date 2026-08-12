@@ -29,7 +29,7 @@ type MessageModel interface {
 }
 
 type MessageCommandModel interface {
-	CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, idempotencyKey string) (model2.MessageCommandResult, error)
+	CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (model2.MessageCommandResult, error)
 	MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
