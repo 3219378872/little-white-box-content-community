@@ -54,6 +54,7 @@ func (l *SendMessageLogic) SendMessage(req *types.SendMessageReq) (resp *types.S
 		Content:        content,
 		MsgType:        req.MsgType,
 		IdempotencyKey: idempotencyKey,
+		MediaId:        req.MediaId,
 	})
 	if err != nil {
 		l.Errorw("MessageService.SendMessage RPC failed", logx.Field("err", err.Error()))

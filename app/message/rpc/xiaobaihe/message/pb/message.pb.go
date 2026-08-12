@@ -332,6 +332,7 @@ type SendMessageReq struct {
 	Content        string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	MsgType        int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"` // 客户端生成；同一发送者范围内唯一
+	MediaId        int64                  `protobuf:"varint,6,opt,name=media_id,json=mediaId,proto3" json:"media_id,omitempty"`                     // 媒体消息引用的已上传媒体标识（CORE-041）
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -399,6 +400,13 @@ func (x *SendMessageReq) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *SendMessageReq) GetMediaId() int64 {
+	if x != nil {
+		return x.MediaId
+	}
+	return 0
 }
 
 // 发送私信响应
@@ -1148,14 +1156,15 @@ const file_proto_message_message_proto_rawDesc = "" +
 	"\ttarget_id\x18\x06 \x01(\x03R\btargetId\x12\x16\n" +
 	"\x06status\x18\a \x01(\x05R\x06status\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\b \x01(\x03R\tcreatedAt\"\xac\x01\n" +
+	"created_at\x18\b \x01(\x03R\tcreatedAt\"\xc7\x01\n" +
 	"\x0eSendMessageReq\x12\x1b\n" +
 	"\tsender_id\x18\x01 \x01(\x03R\bsenderId\x12\x1f\n" +
 	"\vreceiver_id\x18\x02 \x01(\x03R\n" +
 	"receiverId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x19\n" +
 	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\x12'\n" +
-	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\"0\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\bmedia_id\x18\x06 \x01(\x03R\amediaId\"0\n" +
 	"\x0fSendMessageResp\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\x03R\tmessageId\"_\n" +

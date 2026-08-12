@@ -75,6 +75,7 @@ message CreatePostReq {
   repeated string tags      = 5;
   int32           status    = 6;
   string          idempotency_key = 7; // 客户端幂等键，同一调用者范围内唯一，最长 128 字符
+  repeated int64  media_ids = 8; // 引用的已上传媒体标识（CORE-024）
 }
 
 // 创建帖子响应
@@ -107,6 +108,7 @@ message UpdatePostReq {
   repeated string tags      = 6;
   optional int32  status    = 7; // 显式状态变更；draft(0) ⇄ published(1)
   int64           expected_revision = 8; // 调用者最后读取的预期 revision，冲突返回 409
+  repeated int64  media_ids = 9; // 引用的已上传媒体标识（CORE-024）
 }
 
 // 更新帖子响应

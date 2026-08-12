@@ -67,6 +67,9 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if len(in.Tags) > 10 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if len(in.MediaIds) > 9 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
 	for _, tag := range in.Tags {
 		if tag == "" {
 			continue
@@ -85,6 +88,9 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	}
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
+		return nil, err
 	}
 	// 生成分布式id
 	id, err := util.NextID()

@@ -3,6 +3,7 @@ package svc
 import (
 	"context"
 	"database/sql"
+	"esx/app/media/rpc/mediaservice"
 	"esx/app/message/rpc/internal/config"
 	model2 "esx/app/message/rpc/internal/model"
 	"interceptor"
@@ -53,6 +54,7 @@ type ServiceContext struct {
 	NotificationModel   NotificationModel
 	UnreadStore         UnreadStore
 	UserService         UserService
+	MediaService        mediaservice.MediaService
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -62,6 +64,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+	var mediaService mediaservice.MediaService
+	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
+		mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		mediaService = mediaservice.NewMediaService(mediaClient)
+	}
 
 	return &ServiceContext{
 		Config:              c,
@@ -73,5 +80,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		NotificationModel:   model2.NewNotificationModel(conn, cacheConf),
 		UnreadStore:         NewRedisUnreadStore(redisClient),
 		UserService:         userservice.NewUserService(userClient),
+		MediaService:        mediaService,
 	}
 }

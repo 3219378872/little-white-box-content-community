@@ -46,6 +46,7 @@ func (l *UpdatePostLogic) UpdatePost(req *types.UpdatePostReq) (resp *types.Upda
 		Tags:             req.Tags,
 		Status:           req.Status,
 		ExpectedRevision: req.ExpectedRevision,
+		MediaIds:         req.MediaIds,
 	})
 	if err != nil {
 		l.Errorw("ContentService.UpdatePost RPC failed",

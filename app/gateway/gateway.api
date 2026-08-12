@@ -100,6 +100,7 @@ type (
 		Tags           []string `json:"tags,optional"`
 		Status         int32    `json:"status,optional"` // 0:草稿 1:发布
 		IdempotencyKey string   `json:"idempotencyKey,optional"`
+		MediaIds       []int64  `json:"mediaIds,optional"`
 	}
 	CreatePostResp {
 		PostId   int64 `json:"postId"`
@@ -141,6 +142,7 @@ type (
 		Tags             []string `json:"tags,optional"`
 		Status           *int32   `json:"status,optional"` // 显式状态变更；0:草稿 1:发布
 		ExpectedRevision int64    `json:"expectedRevision"`
+		MediaIds         []int64  `json:"mediaIds,optional"`
 	}
 	UpdatePostResp {
 		Status   int32 `json:"status"`
@@ -505,6 +507,7 @@ type (
 		Content        string `json:"content"`
 		MsgType        int32  `json:"msgType"`
 		IdempotencyKey string `json:"idempotencyKey"`
+		MediaId        int64  `json:"mediaId,optional"`
 	}
 	SendMessageResp {
 		MessageId int64 `json:"messageId"`

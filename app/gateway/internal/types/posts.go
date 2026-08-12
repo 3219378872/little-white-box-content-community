@@ -10,6 +10,7 @@ type CreatePostReq struct {
 	Tags           []string `json:"tags,optional"`
 	Status         int32    `json:"status,optional"` // 0:草稿 1:发布
 	IdempotencyKey string   `json:"idempotencyKey,optional"`
+	MediaIds       []int64  `json:"mediaIds,optional"`
 }
 
 type CreatePostResp struct {
@@ -63,6 +64,7 @@ type UpdatePostReq struct {
 	Tags             []string `json:"tags,optional"`
 	Status           *int32   `json:"status,optional"` // 显式状态变更；0:草稿 1:发布
 	ExpectedRevision int64    `json:"expectedRevision"`
+	MediaIds         []int64  `json:"mediaIds,optional"`
 }
 
 type UpdatePostResp struct {

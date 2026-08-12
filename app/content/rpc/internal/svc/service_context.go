@@ -6,8 +6,10 @@ import (
 	"errors"
 	"esx/app/content/rpc/internal/config"
 	model2 "esx/app/content/rpc/internal/model"
+	"esx/app/media/rpc/mediaservice"
 	"esx/pkg/outboxx"
 	"fmt"
+	"interceptor"
 	"mqx"
 	"os"
 	"strconv"
@@ -16,6 +18,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type ServiceContext struct {
@@ -28,6 +31,7 @@ type ServiceContext struct {
 	TagModel             model2.TagModel
 	PostTagModel         model2.PostTagModel
 	PostCommandModel     model2.PostCommandModel
+	MediaService         mediaservice.MediaService
 	OutboxStore          *outboxx.SQLStore
 	OutboxRelay          *outboxx.Relay
 	MQProducer           *mqx.Producer
@@ -96,6 +100,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		}
 	}
 	postModel := model2.NewPostModel(conn, cacheConf)
+	var mediaService mediaservice.MediaService
+	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
+		mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		mediaService = mediaservice.NewMediaService(mediaClient)
+	}
 
 	return &ServiceContext{
 		Config:              c,
@@ -107,6 +116,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		TagModel:            model2.NewTagModel(conn, cacheConf),
 		PostTagModel:        model2.NewPostTagModel(conn, cacheConf),
 		PostCommandModel:    model2.NewPostCommandModel(conn, outboxStore),
+		MediaService:        mediaService,
 		OutboxStore:         outboxStore,
 		OutboxRelay:         outboxRelay,
 		MQProducer:          producer,

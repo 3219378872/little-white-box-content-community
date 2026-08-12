@@ -43,6 +43,7 @@ func (l *CreatePostLogic) CreatePost(req *types.CreatePostReq) (resp *types.Crea
 		Tags:           req.Tags,
 		Status:         req.Status,
 		IdempotencyKey: req.IdempotencyKey,
+		MediaIds:       req.MediaIds,
 	})
 	if err != nil {
 		return nil, err

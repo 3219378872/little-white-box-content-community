@@ -13,6 +13,7 @@ type Config struct {
 	DtmServer         string
 	ContentBusiServer string
 	FeedBusiServer    string
+	MediaRpc          zrpc.RpcClientConf
 	MQ                mqx.ProducerConfig
 	Outbox            outboxx.Config
 }

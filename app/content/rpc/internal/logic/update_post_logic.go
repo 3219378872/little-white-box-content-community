@@ -58,6 +58,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if len(in.Tags) > 10 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if len(in.MediaIds) > 9 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
 	for _, tag := range in.Tags {
 		if tag == "" {
 			continue
@@ -69,6 +72,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	}
 	if in.Status != nil && *in.Status != 0 && *in.Status != 1 {
 		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
+		return nil, err
 	}
 
 	// 鉴权：查帖子仅用于身份校验，不用于写回（防止 Lost Update）

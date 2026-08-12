@@ -19,6 +19,11 @@ DataSource: "${DB_CONTENT}"
 DtmServer: "etcd://127.0.0.1:2379/dtmservice"
 ContentBusiServer: "etcd://127.0.0.1:2379/content"
 FeedBusiServer: "etcd://127.0.0.1:2379/feed.rpc"
+MediaRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: media.rpc
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "content-producer-group"

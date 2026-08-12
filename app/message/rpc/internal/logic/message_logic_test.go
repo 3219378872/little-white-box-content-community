@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"esx/app/media/rpc/mediaservice"
+	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
@@ -394,6 +396,67 @@ func TestSendMessageMapsStorageFailureToSystemError(t *testing.T) {
 
 	require.Error(t, err)
 	require.True(t, errx.Is(err, errx.SystemError))
+}
+
+type fakeMediaMessageValidator struct {
+	mediaservice.MediaService
+	response *mediapb.BatchGetMediaResp
+	err      error
+}
+
+func (f *fakeMediaMessageValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGetMediaReq, _ ...grpc.CallOption) (*mediapb.BatchGetMediaResp, error) {
+	return f.response, f.err
+}
+
+func TestSendMessageMediaMessageRequiresOwnedCompletedMedia(t *testing.T) {
+	commands := &fakeMessageCommandModel{createdMessageID: 401}
+	valid := func() *svc.ServiceContext {
+		return &svc.ServiceContext{
+			MessageCommandModel: commands,
+			MediaService: &fakeMediaMessageValidator{response: &mediapb.BatchGetMediaResp{
+				Medias: []*mediapb.MediaInfo{{Id: 55, UserId: 1, Status: 1}},
+			}},
+		}
+	}
+
+	t.Run("图片消息引用本人已完成媒体通过", func(t *testing.T) {
+		resp, err := NewSendMessageLogic(context.Background(), valid()).SendMessage(&pb.SendMessageReq{
+			SenderId: 1, ReceiverId: 2, Content: "img", MsgType: 2, IdempotencyKey: "k-1", MediaId: 55,
+		})
+		require.NoError(t, err)
+		require.Equal(t, int64(401), resp.MessageId)
+	})
+
+	t.Run("媒体消息缺少媒体ID被拒绝", func(t *testing.T) {
+		_, err := NewSendMessageLogic(context.Background(), valid()).SendMessage(&pb.SendMessageReq{
+			SenderId: 1, ReceiverId: 2, Content: "img", MsgType: 2, IdempotencyKey: "k-2",
+		})
+		require.Error(t, err)
+		require.True(t, errx.Is(err, errx.ParamError))
+	})
+
+	t.Run("引用他人媒体被拒绝", func(t *testing.T) {
+		ctx := &svc.ServiceContext{
+			MessageCommandModel: commands,
+			MediaService: &fakeMediaMessageValidator{response: &mediapb.BatchGetMediaResp{
+				Medias: []*mediapb.MediaInfo{{Id: 55, UserId: 99, Status: 1}},
+			}},
+		}
+		_, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+			SenderId: 1, ReceiverId: 2, Content: "img", MsgType: 2, IdempotencyKey: "k-3", MediaId: 55,
+		})
+		require.Error(t, err)
+		require.True(t, errx.Is(err, errx.ParamError))
+	})
+
+	t.Run("媒体服务不可用时返回不可用", func(t *testing.T) {
+		ctx := &svc.ServiceContext{MessageCommandModel: commands}
+		_, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
+			SenderId: 1, ReceiverId: 2, Content: "img", MsgType: 2, IdempotencyKey: "k-4", MediaId: 55,
+		})
+		require.Error(t, err)
+		require.True(t, errx.Is(err, errx.ServiceUnavailable))
+	})
 }
 
 func TestGetConversationsReturnsPagedItems(t *testing.T) {

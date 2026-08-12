@@ -41,6 +41,7 @@ type SendMessageReq struct {
 	Content        string `json:"content"`
 	MsgType        int32  `json:"msgType"`
 	IdempotencyKey string `json:"idempotencyKey"`
+	MediaId        int64  `json:"mediaId,optional"`
 }
 
 type SendMessageResp struct {

@@ -65,6 +65,7 @@ message SendMessageReq {
   string content         = 3;
   int32  msg_type        = 4;
   string idempotency_key = 5; // 客户端生成；同一发送者范围内唯一
+  int64  media_id        = 6; // 媒体消息引用的已上传媒体标识（CORE-041）
 }
 
 // 发送私信响应

@@ -49,13 +49,13 @@ upstream:
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
 | CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | mediautil 内容嗅探白名单 + 10MiB 上限 |
-| CORE-024 媒体引用校验 | partial | 上传返回稳定 id；帖子/消息未校验媒体归属与完成态 |
+| CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 命令模型 no-op 返回同状态 |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
 | CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数 30s 内收敛依赖 outbox |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
-| CORE-041 消息正文/媒体消息 | partial | 文本 1~1000 已校验；媒体消息未校验媒体引用 |
+| CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体 |
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
 | CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409 |

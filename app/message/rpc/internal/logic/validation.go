@@ -5,6 +5,11 @@ const (
 	maxMessageIdempotencyKeySize = 128
 	maxNotificationTitleLength   = 100
 	maxNotificationContentLength = 500
+
+	messageTypeText  = 1
+	messageTypeImage = 2
+	messageTypeVideo = 3
+	messageTypeAudio = 4
 )
 
 func validMessageType(msgType int32) bool {

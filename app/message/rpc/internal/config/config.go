@@ -10,5 +10,6 @@ type Config struct {
 	zrpc.RpcServerConf
 	DataSource string
 	UserRpc    zrpc.RpcClientConf
+	MediaRpc   zrpc.RpcClientConf
 	MQ         mqx.ConsumerConfig
 }

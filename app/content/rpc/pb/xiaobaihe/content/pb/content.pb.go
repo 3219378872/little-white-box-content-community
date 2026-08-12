@@ -289,6 +289,7 @@ type CreatePostReq struct {
 	Tags           []string               `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
 	Status         int32                  `protobuf:"varint,6,opt,name=status,proto3" json:"status,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"` // 客户端幂等键，同一调用者范围内唯一，最长 128 字符
+	MediaIds       []int64                `protobuf:"varint,8,rep,packed,name=media_ids,json=mediaIds,proto3" json:"media_ids,omitempty"`           // 引用的已上传媒体标识（CORE-024）
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -370,6 +371,13 @@ func (x *CreatePostReq) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *CreatePostReq) GetMediaIds() []int64 {
+	if x != nil {
+		return x.MediaIds
+	}
+	return nil
 }
 
 // 创建帖子响应
@@ -558,6 +566,7 @@ type UpdatePostReq struct {
 	Tags             []string               `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty"`
 	Status           *int32                 `protobuf:"varint,7,opt,name=status,proto3,oneof" json:"status,omitempty"`                                       // 显式状态变更；draft(0) ⇄ published(1)
 	ExpectedRevision int64                  `protobuf:"varint,8,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"` // 调用者最后读取的预期 revision，冲突返回 409
+	MediaIds         []int64                `protobuf:"varint,9,rep,packed,name=media_ids,json=mediaIds,proto3" json:"media_ids,omitempty"`                  // 引用的已上传媒体标识（CORE-024）
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -646,6 +655,13 @@ func (x *UpdatePostReq) GetExpectedRevision() int64 {
 		return x.ExpectedRevision
 	}
 	return 0
+}
+
+func (x *UpdatePostReq) GetMediaIds() []int64 {
+	if x != nil {
+		return x.MediaIds
+	}
+	return nil
 }
 
 // 更新帖子响应
@@ -1848,7 +1864,7 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\n" +
 	"like_count\x18\b \x01(\x03R\tlikeCount\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\x03R\tcreatedAt\"\xc9\x01\n" +
+	"created_at\x18\t \x01(\x03R\tcreatedAt\"\xe6\x01\n" +
 	"\rCreatePostReq\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\x03R\bauthorId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -1856,7 +1872,8 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\x06images\x18\x04 \x03(\tR\x06images\x12\x12\n" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\x05R\x06status\x12'\n" +
-	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\"]\n" +
+	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\x12\x1b\n" +
+	"\tmedia_ids\x18\b \x03(\x03R\bmediaIds\"]\n" +
 	"\x0eCreatePostResp\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\x05R\x06status\x12\x1a\n" +
@@ -1868,7 +1885,7 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\vGetPostResp\x12%\n" +
 	"\x04post\x18\x01 \x01(\v2\x11.content.PostInfoR\x04post\x12\x19\n" +
 	"\bis_liked\x18\x02 \x01(\bR\aisLiked\x12!\n" +
-	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\xf6\x01\n" +
+	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\x93\x02\n" +
 	"\rUpdatePostReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12\x14\n" +
@@ -1877,7 +1894,8 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\x06images\x18\x05 \x03(\tR\x06images\x12\x12\n" +
 	"\x04tags\x18\x06 \x03(\tR\x04tags\x12\x1b\n" +
 	"\x06status\x18\a \x01(\x05H\x00R\x06status\x88\x01\x01\x12+\n" +
-	"\x11expected_revision\x18\b \x01(\x03R\x10expectedRevisionB\t\n" +
+	"\x11expected_revision\x18\b \x01(\x03R\x10expectedRevision\x12\x1b\n" +
+	"\tmedia_ids\x18\t \x03(\x03R\bmediaIdsB\t\n" +
 	"\a_status\"D\n" +
 	"\x0eUpdatePostResp\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x1a\n" +

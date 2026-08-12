@@ -2,12 +2,11 @@ package logic
 
 import (
 	"context"
+	"errx"
 	"esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"strings"
-
-	"errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -38,6 +37,12 @@ func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageRe
 		idempotencyKey == "" ||
 		len(idempotencyKey) > maxMessageIdempotencyKeySize {
 		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	// CORE-041：媒体消息必须引用已成功上传且属于发送者的媒体。
+	if in.MsgType != messageTypeText {
+		if err := validateMessageMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.SenderId, in.MediaId); err != nil {
+			return nil, err
+		}
 	}
 	result, err := l.svcCtx.MessageCommandModel.CreateMessageWithConversations(l.ctx, in.SenderId, in.ReceiverId, content, int64(in.MsgType), idempotencyKey)
 	if err != nil {
