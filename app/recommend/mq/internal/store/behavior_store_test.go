@@ -52,12 +52,13 @@ func TestRedisBehaviorStoreUsesVersionedAtomicKeys(t *testing.T) {
 	behavior.RequestID = "request-1"
 
 	require.NoError(t, store.Record(context.Background(), behavior))
-	require.Len(t, redis.keys, 15)
+	require.Len(t, redis.keys, 16)
 	assert.Equal(t, "feature:v2:dedup:1", redis.keys[0])
-	assert.Equal(t, "feature:v2:u:42:recent", redis.keys[1])
-	assert.Equal(t, "recommend:v2:recall:post:hot:home", redis.keys[5])
-	assert.Equal(t, "recommend:v2:recall:post:itemcf:u:42:home", redis.keys[6])
-	assert.Equal(t, "feature:v2:u:42:state", redis.keys[14])
+	assert.Equal(t, "", redis.keys[1], "non-exposure event has no exposure dedup key")
+	assert.Equal(t, "feature:v2:u:42:recent", redis.keys[2])
+	assert.Equal(t, "recommend:v2:recall:post:hot:home", redis.keys[6])
+	assert.Equal(t, "recommend:v2:recall:post:itemcf:u:42:home", redis.keys[7])
+	assert.Equal(t, "feature:v2:u:42:state", redis.keys[15])
 	assert.Equal(t, 3600, redis.args[0])
 	assert.Equal(t, int64(100), redis.args[9])
 	assert.Equal(t, "client-1", redis.args[10])
@@ -107,5 +108,21 @@ func TestRedisBehaviorStoreStillRecordsWhenOptIn(t *testing.T) {
 	}, "v2", "recommend", 3600)
 
 	require.NoError(t, store.Record(context.Background(), featureBehavior()))
-	require.Len(t, evaler.keys, 15)
+	require.Len(t, evaler.keys, 16)
 }
+
+func TestRedisBehaviorStoreExposureCarriesRequestPostDedupKey(t *testing.T) {
+	redis := &fakeEvaler{}
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	behavior := featureBehavior()
+	behavior.Action = event.BehaviorActionExposure
+	behavior.RequestID = "request-1"
+	behavior.Position = int32Ptr(3)
+
+	require.NoError(t, store.Record(context.Background(), behavior))
+	require.Len(t, redis.keys, 16)
+	// REL-004：同一 (requestId, postId) 最多记录一次曝光。
+	assert.Equal(t, "feature:v2:u:42:exposure:dedup:request-1:9", redis.keys[1])
+}
+
+func int32Ptr(value int32) *int32 { return &value }

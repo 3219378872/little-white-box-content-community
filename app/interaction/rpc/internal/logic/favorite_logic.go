@@ -54,8 +54,8 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	}
 
 	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
+		// CORE-053：权威写入已提交，缓存失效失败只告警。
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	return &pb.FavoriteResp{}, nil

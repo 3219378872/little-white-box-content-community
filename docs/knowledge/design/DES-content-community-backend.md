@@ -61,7 +61,7 @@ upstream:
 | CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409 |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError |
 | CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务 |
-| CORE-053 异步效果失败不改成功 | aligned | 缓存/索引/通知失败只告警不改变响应 |
+| CORE-053 异步效果失败不改成功 | aligned | 互动/评论/帖子缓存失效失败只告警不改变已提交成功的响应 |
 | CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；框架 gRPC 错误只保留业务码，不暴露原始消息 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
@@ -138,7 +138,7 @@ upstream:
 | REL-001 客户端动作白名单 | aligned | 客户端仅可提交 exposure/click/dwell/view/play/share/hide/dislike |
 | REL-002 事件 id ≤128 全局唯一、批 ≤100 | aligned | client_event_id ≤128、批量上限配置 |
 | REL-003 事件关联身份、位置从 1 开始 | aligned | exposure 位置必须 ≥1 |
-| REL-004 曝光定义与去重 | aligned | 去重事件 id；(requestId,postId) 去重需验证 |
+| REL-004 曝光定义与去重 | aligned | 去重事件 id + 同一 (requestId, postId) 独立曝光去重键 |
 | REL-005 停留时长非负、未曝光不作负反馈 | aligned | duration 校验 + 负反馈来源 |
 | REL-006 补报 30 天/超前 5 分钟 | aligned | MaxPastAgeHours/MaxFutureSkewSeconds |
 | REL-007 批量逐项接受/拒绝 | aligned | RecordEvents 逐项结果 |

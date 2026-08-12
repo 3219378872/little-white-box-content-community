@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"esx/pkg/event"
 
@@ -82,8 +83,15 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	if err != nil {
 		return fmt.Errorf("marshal recent behavior: %w", err)
 	}
+	// REL-004：同一 (requestId, postId) 最多记录一次曝光。给曝光事件附加
+	// 独立的去重键，避免客户端用不同 event id 重复上报同一曝光。
+	exposureDedupKey := ""
+	if behavior.Action == event.BehaviorActionExposure && strings.TrimSpace(behavior.RequestID) != "" {
+		exposureDedupKey = prefix + ":exposure:dedup:" + behavior.RequestID + ":" + targetID
+	}
 	_, err = s.redis.EvalCtx(ctx, recordFeatureScript, []string{
 		"feature:" + s.featureVersion + ":dedup:" + behavior.EventIDString(),
+		exposureDedupKey,
 		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
 		s.recallPrefix + ":recall:post:hot:" + scene,
 		s.recallPrefix + ":recall:post:itemcf:" + identity + ":" + scene,
@@ -162,7 +170,16 @@ if redis.call('EXISTS', KEYS[1]) == 1 then
   return 0
 end
 redis.call('SETEX', KEYS[1], ARGV[1], '1')
-local recent = redis.call('LRANGE', KEYS[2], 0, 49)
+-- REL-004：同一 (requestId, postId) 最多记录一次曝光；KEYS[2] 为曝光去重键，
+-- 非曝光事件为空字符串且不会在此分支被引用。
+local action = ARGV[3]
+if action == 'exposure' and KEYS[2] ~= '' then
+  if redis.call('EXISTS', KEYS[2]) == 1 then
+    return 0
+  end
+  redis.call('SETEX', KEYS[2], ARGV[1], '1')
+end
+local recent = redis.call('LRANGE', KEYS[3], 0, 49)
 table.insert(recent, ARGV[2])
 table.sort(recent, function(left, right)
   local left_event = cjson.decode(left)
@@ -174,13 +191,12 @@ table.sort(recent, function(left, right)
   end
   return left_time > right_time
 end)
-redis.call('DEL', KEYS[2])
+redis.call('DEL', KEYS[3])
 for index = 1, math.min(#recent, 50) do
-  redis.call('RPUSH', KEYS[2], recent[index])
+  redis.call('RPUSH', KEYS[3], recent[index])
 end
-redis.call('EXPIRE', KEYS[2], ARGV[1])
+redis.call('EXPIRE', KEYS[3], ARGV[1])
 
-local action = ARGV[3]
 local target = ARGV[4]
 local scene = ARGV[5]
 local target_id = ARGV[6]
@@ -189,18 +205,18 @@ local identity = ARGV[8]
 local recall_prefix = ARGV[9]
 local event_time = tonumber(ARGV[10]) or 0
 local client_event_id = ARGV[11]
-local prior_positive = redis.call('HKEYS', KEYS[3])
+local prior_positive = redis.call('HKEYS', KEYS[4])
 if action == 'like' or action == 'favorite' or action == 'comment' or action == 'share' or action == 'click' or action == 'dwell' then
-  redis.call('HINCRBY', KEYS[3], target, 1)
-  redis.call('EXPIRE', KEYS[3], ARGV[1])
-elseif action == 'unlike' or action == 'unfavorite' or action == 'hide' or action == 'dislike' then
   redis.call('HINCRBY', KEYS[4], target, 1)
   redis.call('EXPIRE', KEYS[4], ARGV[1])
+elseif action == 'unlike' or action == 'unfavorite' or action == 'hide' or action == 'dislike' then
+  redis.call('HINCRBY', KEYS[5], target, 1)
+  redis.call('EXPIRE', KEYS[5], ARGV[1])
 end
 
 if scene ~= '' then
-  redis.call('HINCRBY', KEYS[5], scene, 1)
-  redis.call('EXPIRE', KEYS[5], ARGV[1])
+  redis.call('HINCRBY', KEYS[6], scene, 1)
+  redis.call('EXPIRE', KEYS[6], ARGV[1])
 end
 
 if target_type == 'post' then
@@ -211,47 +227,47 @@ if target_type == 'post' then
   elseif action == 'hide' or action == 'dislike' then weight = -5
   end
   if weight ~= 0 then
-    redis.call('ZINCRBY', KEYS[6], weight, target_id)
-    redis.call('EXPIRE', KEYS[6], ARGV[1])
+    redis.call('ZINCRBY', KEYS[7], weight, target_id)
+    redis.call('EXPIRE', KEYS[7], ARGV[1])
   end
 
   if action == 'like' or action == 'favorite' or action == 'comment' or action == 'share' or action == 'click' or action == 'dwell' then
-    local neighbors = redis.call('ZREVRANGE', KEYS[8], 0, 99, 'WITHSCORES')
+    local neighbors = redis.call('ZREVRANGE', KEYS[9], 0, 99, 'WITHSCORES')
     for i = 1, #neighbors, 2 do
       if neighbors[i] ~= target_id then
-        redis.call('ZINCRBY', KEYS[7], tonumber(neighbors[i + 1]), neighbors[i])
+        redis.call('ZINCRBY', KEYS[8], tonumber(neighbors[i + 1]), neighbors[i])
       end
     end
     for _, previous in ipairs(prior_positive) do
       local previous_id = string.match(previous, '^post:(%d+)$')
       if previous_id and previous_id ~= target_id then
-        redis.call('ZINCRBY', KEYS[8], 1, previous_id)
+        redis.call('ZINCRBY', KEYS[9], 1, previous_id)
         local reverse_key = recall_prefix .. ':recall:post:itemcf:seed:' .. previous_id .. ':' .. scene
         redis.call('ZINCRBY', reverse_key, 1, target_id)
         redis.call('EXPIRE', reverse_key, ARGV[1])
       end
     end
-    redis.call('EXPIRE', KEYS[7], ARGV[1])
     redis.call('EXPIRE', KEYS[8], ARGV[1])
+    redis.call('EXPIRE', KEYS[9], ARGV[1])
   end
 
-  if redis.call('EXISTS', KEYS[14]) == 1 then
-    if action == 'exposure' then redis.call('HINCRBY', KEYS[14], 'impressions', 1) end
-    if action == 'click' then redis.call('HINCRBY', KEYS[14], 'clicks', 1) end
-    redis.call('HINCRBY', KEYS[14], 'popularity', weight)
-    local impressions = tonumber(redis.call('HGET', KEYS[14], 'impressions') or '0')
-    local clicks = tonumber(redis.call('HGET', KEYS[14], 'clicks') or '0')
-    if impressions > 0 then redis.call('HSET', KEYS[14], 'ctr', clicks / impressions) end
+  if redis.call('EXISTS', KEYS[15]) == 1 then
+    if action == 'exposure' then redis.call('HINCRBY', KEYS[15], 'impressions', 1) end
+    if action == 'click' then redis.call('HINCRBY', KEYS[15], 'clicks', 1) end
+    redis.call('HINCRBY', KEYS[15], 'popularity', weight)
+    local impressions = tonumber(redis.call('HGET', KEYS[15], 'impressions') or '0')
+    local clicks = tonumber(redis.call('HGET', KEYS[15], 'clicks') or '0')
+    if impressions > 0 then redis.call('HSET', KEYS[15], 'ctr', clicks / impressions) end
   end
 elseif target_type == 'user' and (action == 'follow' or action == 'unfollow') then
   local delta = 1
   if action == 'unfollow' then delta = -1 end
-  redis.call('ZINCRBY', KEYS[9], delta, target_id)
-  redis.call('EXPIRE', KEYS[9], ARGV[1])
-  redis.call('HSET', KEYS[10], 'status', 'active', 'visibility', 'public')
-  redis.call('HINCRBY', KEYS[10], 'quality_score', delta)
+  redis.call('ZINCRBY', KEYS[10], delta, target_id)
+  redis.call('EXPIRE', KEYS[10], ARGV[1])
+  redis.call('HSET', KEYS[11], 'status', 'active', 'visibility', 'public')
+  redis.call('HINCRBY', KEYS[11], 'quality_score', delta)
   local state_field = 'follow:user:' .. target_id
-  local previous_state = redis.call('HGET', KEYS[15], state_field)
+  local previous_state = redis.call('HGET', KEYS[16], state_field)
   local apply_state = true
   if previous_state then
     local decoded_state = cjson.decode(previous_state)
@@ -263,28 +279,28 @@ elseif target_type == 'user' and (action == 'follow' or action == 'unfollow') th
     end
   end
   if apply_state then
-    redis.call('HSET', KEYS[15], state_field, cjson.encode({
+    redis.call('HSET', KEYS[16], state_field, cjson.encode({
       event_time = event_time,
       client_event_id = client_event_id,
       action = action
     }))
-    redis.call('EXPIRE', KEYS[15], ARGV[1])
-    local author_posts = redis.call('ZREVRANGE', KEYS[12], 0, 99, 'WITHSCORES')
+    redis.call('EXPIRE', KEYS[16], ARGV[1])
+    local author_posts = redis.call('ZREVRANGE', KEYS[13], 0, 99, 'WITHSCORES')
     if action == 'follow' then
-      redis.call('SADD', KEYS[11], identity)
+      redis.call('SADD', KEYS[12], identity)
       for i = 1, #author_posts, 2 do
-        redis.call('ZADD', KEYS[13], author_posts[i + 1], author_posts[i])
+        redis.call('ZADD', KEYS[14], author_posts[i + 1], author_posts[i])
       end
     else
-      redis.call('SREM', KEYS[11], identity)
+      redis.call('SREM', KEYS[12], identity)
       for i = 1, #author_posts, 2 do
-        redis.call('ZREM', KEYS[13], author_posts[i])
+        redis.call('ZREM', KEYS[14], author_posts[i])
       end
     end
   end
-  redis.call('EXPIRE', KEYS[11], ARGV[1])
   redis.call('EXPIRE', KEYS[12], ARGV[1])
   redis.call('EXPIRE', KEYS[13], ARGV[1])
+  redis.call('EXPIRE', KEYS[14], ARGV[1])
 end
 return 1
 `

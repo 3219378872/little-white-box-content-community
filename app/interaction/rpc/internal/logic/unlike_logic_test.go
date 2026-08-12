@@ -168,9 +168,9 @@ func TestUnlikeLogic_Unlike_CacheInvalidationError(t *testing.T) {
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.Nil(t, resp)
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.SystemError))
+	// CORE-053：权威写入已提交，缓存失效失败不得把响应改成可重试失败。
+	require.NotNil(t, resp)
+	require.NoError(t, err)
 	likeModel.AssertExpectations(t)
 }
 
