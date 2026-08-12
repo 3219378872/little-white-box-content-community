@@ -46,6 +46,8 @@ class KnowledgeLayerLintTest(unittest.TestCase):
             "title: Test policy\n"
             "owner: human\n"
             "status: approved\n"
+            "agent_write_policy: human-authorized\n"
+            "authorization_mode: conversation\n"
             "protected_paths:\n"
             f"{protected}\n"
             "legacy_upstream:\n"
@@ -137,6 +139,18 @@ result: passed
     def test_valid_chain_and_evidence(self):
         self._add_valid_chain()
         self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_governance_requires_conversation_authorization_policy(self):
+        policy = self.root / "docs" / "knowledge" / "README.md"
+        policy.write_text(
+            policy.read_text(encoding="utf-8").replace(
+                "authorization_mode: conversation",
+                "authorization_mode: repository-file",
+            ),
+            encoding="utf-8",
+        )
+        errors = engineering_lint.check_knowledge_layers(self.root)
+        self.assert_error(errors, "authorization_mode must be conversation")
 
     def test_duplicate_id_wrong_owner_and_status(self):
         self._write(

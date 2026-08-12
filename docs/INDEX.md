@@ -6,8 +6,8 @@
 
 | 层 | 入口 | 权限与作用 |
 | --- | --- | --- |
-| 意图 | [knowledge/intent/README.md](knowledge/intent/README.md) | 人类维护，定义目标、成功标准和非目标 |
-| 规范 | [knowledge/spec/README.md](knowledge/spec/README.md) | 人类维护，定义行为、约束和验收标准 |
+| 意图 | [knowledge/intent/README.md](knowledge/intent/README.md) | 人类决定语义，agent 经对话授权可维护 |
+| 规范 | [knowledge/spec/README.md](knowledge/spec/README.md) | 人类决定语义，agent 经对话授权可维护 |
 | 设计 | [knowledge/design/README.md](knowledge/design/README.md) | agent 维护，说明如何满足已批准规范 |
 | 实现 | [knowledge/implementation/README.md](knowledge/implementation/README.md) | agent 维护，映射源码、状态和验证证据 |
 
@@ -28,7 +28,7 @@
 ## 文档层级
 
 - `docs/knowledge/`：正式四层知识、非权威提案和过渡登记。
-- `docs/active/` 与顶层规范文档：迁移期只读的人类基线。
+- `docs/active/` 与顶层规范文档：迁移期由人类授权维护的基线。
 - `docs/generated/`：可能漂移的旧实现快照，只在定位具体模块时加载。
 - 历史设计和已完成计划不属于当前知识链，必要时通过 Git 历史追溯。
 

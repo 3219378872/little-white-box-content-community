@@ -82,6 +82,9 @@ REQUIRED_PROTECTED_PATHS = {
     "docs/QUALITY_SCORE.md",
 }
 
+REQUIRED_AGENT_WRITE_POLICY = "human-authorized"
+REQUIRED_AUTHORIZATION_MODE = "conversation"
+
 LAYER_DIRS = {
     "intent": "intent",
     "spec": "spec",
@@ -213,6 +216,22 @@ def _load_knowledge_governance(root: Path, errors: list[str]) -> set[str]:
         errors.append(_knowledge_error(policy_path, root, "owner must be human"))
     if policy.get("status") != "approved":
         errors.append(_knowledge_error(policy_path, root, "status must be approved"))
+    if policy.get("agent_write_policy") != REQUIRED_AGENT_WRITE_POLICY:
+        errors.append(
+            _knowledge_error(
+                policy_path,
+                root,
+                f"agent_write_policy must be {REQUIRED_AGENT_WRITE_POLICY}",
+            )
+        )
+    if policy.get("authorization_mode") != REQUIRED_AUTHORIZATION_MODE:
+        errors.append(
+            _knowledge_error(
+                policy_path,
+                root,
+                f"authorization_mode must be {REQUIRED_AUTHORIZATION_MODE}",
+            )
+        )
 
     protected = _string_list(policy, "protected_paths")
     if protected is None:
