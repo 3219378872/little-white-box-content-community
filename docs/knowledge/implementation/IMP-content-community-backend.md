@@ -33,7 +33,7 @@ tracks:
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
 verified_at: 2026-08-12
-verified_commit: 59ed402
+verified_commit: 0031d91
 ---
 
 # 小白盒内容社区后端实现映射
@@ -71,11 +71,12 @@ verified_commit: 59ed402
 
 ## 证据
 
-验证于 2026-08-12（提交 59ed402）：
+验证于 2026-08-12（提交 0031d91）：
 - `make check`：fmt、engineering-lint、vet、golangci-lint 全部通过。
 - `make test`：全部模块 race 测试通过。
 - `go test -tags integration ./app/content/rpc/internal/logic/` 与
   `./app/user/rpc/internal/logic/`：通过（含 revision/idempotency/状态机/隐私偏好）。
+- `make integration-critical` 通过；count-sync 与 message 命令模型集成测试通过。
 - 各服务单元测试覆盖新增失败路径（版本冲突、幂等冲突、媒体归属、来源变化等）。
 
 未覆盖边界：媒体与消息的媒体校验依赖真实 media RPC（本地无 SeaweedFS），通过单元测试
