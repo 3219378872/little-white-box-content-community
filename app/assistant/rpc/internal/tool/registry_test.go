@@ -56,7 +56,7 @@ func TestRegistryRejectsUnknownConfiguredTool(t *testing.T) {
 func TestRegistryEnforcesAllowlistBeforeCallingTool(t *testing.T) {
 	t.Parallel()
 	called := false
-	registry, err := NewRegistry([]string{"user"}, Clients{Search: fakeSearchService{search: func(context.Context, *searchservice.SearchReq) (*searchservice.SearchResp, error) {
+	registry, err := NewRegistry([]string{"content"}, Clients{Search: fakeSearchService{search: func(context.Context, *searchservice.SearchReq) (*searchservice.SearchResp, error) {
 		called = true
 		return &searchservice.SearchResp{}, nil
 	}}}, 5)

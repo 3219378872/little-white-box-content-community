@@ -387,9 +387,6 @@ func (l *ChatLogic) validate(in *pb.ChatReq) (tool.Request, string, error) {
 
 func planTool(message string, request *tool.Request) (tool.Name, error) {
 	normalized := strings.ToLower(strings.TrimSpace(message))
-	if normalized == "profile" || normalized == "my profile" || normalized == "我的资料" || normalized == "我是谁" {
-		return tool.User, nil
-	}
 	if strings.Contains(normalized, "recommend") || strings.Contains(normalized, "推荐") {
 		return tool.Recommend, nil
 	}

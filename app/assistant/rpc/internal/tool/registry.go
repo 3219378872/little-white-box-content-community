@@ -13,7 +13,6 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
-	"user/userservice"
 )
 
 type Name string
@@ -64,7 +63,6 @@ type Clients struct {
 	Search    searchservice.SearchService
 	Content   contentservice.ContentService
 	Recommend recommendservice.RecommendService
-	User      userservice.UserService
 }
 
 type handler func(context.Context, Request) (*Result, error)
@@ -85,7 +83,6 @@ func NewRegistry(allowed []string, clients Clients, maxSources int) (*Registry, 
 			Search:    searchHandler(clients.Search, clients.Content, maxSources),
 			Content:   contentHandler(clients.Content),
 			Recommend: recommendHandler(clients.Recommend, maxSources),
-			User:      userHandler(clients.User),
 		},
 	}
 	for _, configured := range allowed {
@@ -364,34 +361,6 @@ func recommendHandler(client recommendservice.RecommendService, maxSources int) 
 			return &Result{Text: "There are no recommendations available right now."}, nil
 		}
 		return &Result{Text: fmt.Sprintf("Found %d recommendations for you.", len(sources)), Sources: sources}, nil
-	}
-}
-
-func userHandler(client userservice.UserService) handler {
-	return func(ctx context.Context, request Request) (*Result, error) {
-		if client == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		response, err := client.GetUser(ctx, &userservice.GetUserReq{UserId: request.UserID})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil || response.User == nil {
-			return nil, errx.NewWithCode(errx.UserNotFound)
-		}
-		profile := response.User
-		name := strings.TrimSpace(profile.Nickname)
-		if name == "" {
-			name = profile.Username
-		}
-		return &Result{
-			Text: fmt.Sprintf("Your profile is %s. You have %d followers and follow %d users.", truncate(name, 120), profile.FollowerCount, profile.FollowingCount),
-			Sources: []Source{{
-				Type:  "user",
-				ID:    strconv.FormatInt(profile.Id, 10),
-				Title: truncate(name, 120),
-			}},
-		}, nil
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"interceptor"
 	"time"
-	"user/userservice"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -32,13 +31,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	searchClient := zrpc.MustNewClient(c.SearchRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 	recommendClient := zrpc.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
-	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
 
 	tools, err := tool.NewRegistry(c.AllowedTools, tool.Clients{
 		Search:    searchservice.NewSearchService(searchClient),
 		Content:   contentservice.NewContentService(contentClient),
 		Recommend: recommendservice.NewRecommendService(recommendClient),
-		User:      userservice.NewUserService(userClient),
 	}, c.MaxSources)
 	if err != nil {
 		panic(err)

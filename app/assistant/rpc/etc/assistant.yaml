@@ -40,7 +40,6 @@ AllowedTools:
 - search
 - content
 - recommend
-- user
 ToolTimeoutMs: 1500
 MaxMessageRunes: 2000
 MaxSources: 5

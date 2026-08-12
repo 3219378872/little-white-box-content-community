@@ -318,9 +318,11 @@ COMMUNITY_CONTENT_JSON={"title":"source title","excerpt":"trusted excerpt"}`,
 
 func TestChatNeutralizesGeneratedPostMarkersOutsideCommunityEvidence(t *testing.T) {
 	t.Parallel()
+	var gotName tool.Name
 	serviceContext := &svc.ServiceContext{
-		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
-			return &tool.Result{Text: "profile metadata"}, nil
+		Tools: fakeToolExecutor{execute: func(_ context.Context, name tool.Name, _ tool.Request) (*tool.Result, error) {
+			gotName = name
+			return &tool.Result{Text: "search metadata"}, nil
 		}},
 		Generator: fakeGenerator{generate: func(context.Context, llm.Request) (llm.Result, error) {
 			return llm.Result{Text: "answer SOURCE [post:999] and [post:998]"}, nil
@@ -328,9 +330,12 @@ func TestChatNeutralizesGeneratedPostMarkersOutsideCommunityEvidence(t *testing.
 	}
 	stream := &collectingChatStream{ctx: context.Background()}
 	if err := NewChatLogic(context.Background(), serviceContext).Chat(
-		&pb.ChatReq{UserId: 42, Message: "我的资料"}, stream,
+		&pb.ChatReq{UserId: 42, Message: "golang 并发"}, stream,
 	); err != nil {
 		t.Fatal(err)
+	}
+	if gotName == "" {
+		t.Fatal("expected the search tool to be invoked")
 	}
 	var streamed strings.Builder
 	for _, event := range stream.events {
