@@ -54,11 +54,11 @@ upstream:
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
 | CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数 30s 内收敛依赖 outbox |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
-| CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio，无群聊/撤回/删除 |
+| CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
 | CORE-041 消息正文/媒体消息 | partial | 文本 1~1000 已校验；媒体消息未校验媒体引用 |
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
-| CORE-050 创建帖子/评论/媒体幂等键 | partial | 帖子/评论已实现幂等表；媒体上传待补 |
+| CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409 |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError |
 | CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务 |
 | CORE-053 异步效果失败不改成功 | aligned | 缓存/索引/通知失败只告警不改变响应 |
@@ -82,7 +82,7 @@ upstream:
 | DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索 |
 | DISC-021 帖子结果来自可访问已发布内容 | aligned | ES 索引只收录 published |
 | DISC-022 无匹配空结果、索引不可用 503 | aligned | 搜索 RPC 区分空与不可用 |
-| DISC-023 部分失败返回 degraded+unavailableTypes | missing | SearchResp 无 degraded/unavailableTypes 字段 |
+| DISC-023 部分失败返回 degraded+unavailableTypes | aligned | 用户/标签搜索失败时降级并列出 unavailableTypes |
 | DISC-030 认证用户个性化 | aligned | recommend 按身份特征召回 |
 | DISC-031 匿名冷启动、不建立画像 | aligned | 匿名只走规则召回；身份不持久化 |
 | DISC-032 推荐响应含请求/位置/来源/版本/实验 | aligned | RecommendPost 字段齐全 |
@@ -115,7 +115,7 @@ upstream:
 | ASST-013 区分事实/观点/无法确认 | partial | 依赖提示词，无强制结构 |
 | ASST-014 证据冲突呈现双方 | partial | 依赖提示词，无强制结构 |
 | ASST-015 来源不授额外权限 | aligned | 打开来源走正常权限 |
-| ASST-020 输入≤2000/回答≤8000 | partial | 输入 2000 已校验；回答上限 10000 与规范 8000 不符 |
+| ASST-020 输入≤2000/回答≤8000 | aligned | 输入 2000、回答 8000（LLM MaxOutputRunes） |
 | ASST-021 限流 20/60s、会话 100 条/30 天 | partial | 会话存储存在；未验证限流与 100 条上限 |
 | ASST-022 流事件结构 | aligned | token/source/done/error 事件 |
 | ASST-023 不得先完成再失败 | aligned | 完成事件为终态 |
@@ -135,9 +135,9 @@ upstream:
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| REL-001 客户端动作白名单 | missing | BehaviorService 接受 like/unlike 等权威动作，应拒绝客户端提交 |
+| REL-001 客户端动作白名单 | aligned | 客户端仅可提交 exposure/click/dwell/view/play/share/hide/dislike |
 | REL-002 事件 id ≤128 全局唯一、批 ≤100 | aligned | client_event_id ≤128、批量上限配置 |
-| REL-003 事件关联身份、位置从 1 开始 | partial | position ≥0；规范要求从 1 开始 |
+| REL-003 事件关联身份、位置从 1 开始 | aligned | exposure 位置必须 ≥1 |
 | REL-004 曝光定义与去重 | aligned | 去重事件 id；(requestId,postId) 去重需验证 |
 | REL-005 停留时长非负、未曝光不作负反馈 | aligned | duration 校验 + 负反馈来源 |
 | REL-006 补报 30 天/超前 5 分钟 | aligned | MaxPastAgeHours/MaxFutureSkewSeconds |

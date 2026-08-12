@@ -32,7 +32,7 @@ func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendM
 }
 
 func (l *SendMessageLogic) SendMessage(req *types.SendMessageReq) (resp *types.SendMessageResp, err error) {
-	if req == nil || req.ReceiverId <= 0 || req.MsgType < 1 || req.MsgType > 3 {
+	if req == nil || req.ReceiverId <= 0 || req.MsgType < 1 || req.MsgType > 4 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	content := strings.TrimSpace(req.Content)
