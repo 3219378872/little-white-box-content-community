@@ -142,6 +142,8 @@ func (r *Relay) ProcessBatch(ctx context.Context) (int, error) {
 		}
 		if err := r.store.MarkSent(ctx, record.ID, r.config.Owner, r.now()); err != nil {
 			failures = append(failures, fmt.Errorf("event %d mark sent: %w", record.ID, err))
+		} else {
+			observeDeliveryLatency(r.config.Service, record.CreatedAt, now.UnixMilli())
 		}
 	}
 	return len(records), errors.Join(failures...)

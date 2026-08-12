@@ -11,6 +11,7 @@ import (
 func TestOutboxBacklogMetricsAreExported(t *testing.T) {
 	zeroprometheus.Enable()
 	observeBacklogMetrics("content", Backlog{Count: 7, OldestCreatedAt: 5_000}, time.UnixMilli(10_000))
+	observeDeliveryLatency("content", 5_000, 10_000)
 	outboxBacklogCollectionsTotal.Inc("content", "success")
 
 	families, err := clientprometheus.DefaultGatherer.Gather()
@@ -25,9 +26,15 @@ func TestOutboxBacklogMetricsAreExported(t *testing.T) {
 		"esx_outbox_backlog_count",
 		"esx_outbox_oldest_age_seconds",
 		"esx_outbox_backlog_collections_total",
+		"esx_outbox_delivery_latency_seconds",
 	} {
 		if _, ok := found[name]; !ok {
 			t.Errorf("metric family %q was not exported", name)
 		}
 	}
+}
+
+func TestObserveDeliveryLatencyIgnoresZeroAndBackdatedCreatedAt(t *testing.T) {
+	observeDeliveryLatency("content", 0, 10_000)
+	observeDeliveryLatency("content", 20_000, 10_000)
 }

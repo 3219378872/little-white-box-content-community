@@ -47,19 +47,21 @@ func (e Event) Validate() error {
 // Record is an event leased by a relay worker.
 type Record struct {
 	Event
-	Attempts int    `db:"attempts"`
-	LockedBy string `db:"locked_by"`
+	Attempts  int    `db:"attempts"`
+	LockedBy  string `db:"locked_by"`
+	CreatedAt int64  `db:"created_at"`
 }
 
 // sqlRecord stays flat because go-zero's SQL mapper does not populate fields
 // nested in an embedded struct.
 type sqlRecord struct {
-	ID       int64  `db:"id"`
-	Topic    string `db:"topic"`
-	Tag      string `db:"tag"`
-	Key      string `db:"message_key"`
-	Payload  []byte `db:"payload"`
-	Attempts int    `db:"attempts"`
+	ID        int64  `db:"id"`
+	Topic     string `db:"topic"`
+	Tag       string `db:"tag"`
+	Key       string `db:"message_key"`
+	Payload   []byte `db:"payload"`
+	Attempts  int    `db:"attempts"`
+	CreatedAt int64  `db:"created_at"`
 }
 
 type Backlog struct {
@@ -141,7 +143,7 @@ func (s *SQLStore) Claim(
 	nowMillis := now.UnixMilli()
 	var rows []sqlRecord
 	err := s.conn.QueryRowsCtx(ctx, &rows, `SELECT
-        id, topic, tag, message_key, payload, attempts
+        id, topic, tag, message_key, payload, attempts, created_at
     FROM event_outbox
     WHERE ((status IN (?, ?) AND next_attempt_at <= ?)
         OR (status = ? AND locked_until <= ?))
@@ -175,8 +177,9 @@ func (s *SQLStore) Claim(
 			Event: Event{
 				ID: row.ID, Topic: row.Topic, Tag: row.Tag, Key: row.Key, Payload: row.Payload,
 			},
-			Attempts: row.Attempts + 1,
-			LockedBy: owner,
+			Attempts:  row.Attempts + 1,
+			LockedBy:  owner,
+			CreatedAt: row.CreatedAt,
 		})
 	}
 	return claimed, nil
