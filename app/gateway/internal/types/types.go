@@ -80,16 +80,16 @@ type GetPostListResp struct {
 	PageSize int32      `json:"pageSize"`
 }
 
+type HealthReadyResp struct {
+	Status       string            `json:"status"`       // ready | degraded | unavailable
+	Dependencies map[string]string `json:"dependencies"` // name -> ok | down
+}
+
 type HealthReq struct {
 }
 
 type HealthResp struct {
 	Status string `json:"status"`
-}
-
-type HealthReadyResp struct {
-	Status       string            `json:"status"`       // ready | degraded | unavailable
-	Dependencies map[string]string `json:"dependencies"` // name -> ok | down
 }
 
 type MessageItem struct {
