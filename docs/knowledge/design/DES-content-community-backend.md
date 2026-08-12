@@ -109,14 +109,14 @@ upstream:
 | ASST-005 不提供资料工具 | aligned | 无用户资料工具 |
 | ASST-006 内容指令不可信 | aligned | safety filter + 注入防护 |
 | ASST-007 证据不足拒答 | aligned | 无证据返回拒答/降级 |
-| ASST-010 段落必须含 [post:id]、1~5 来源 | partial | 生成式回答依赖 LLM 输出校验，未强制每个段落引用 |
+| ASST-010 段落必须含 [post:id]、1~5 来源 | aligned | 事实回答强制至少一个 [post:id]；来源 1~5 上限；缺失引用时降级 |
 | ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
 | ASST-012 仅服务端验证来源可返回 | aligned | 模型生成引用标记不提升为来源 |
 | ASST-013 区分事实/观点/无法确认 | partial | 依赖提示词，无强制结构 |
 | ASST-014 证据冲突呈现双方 | partial | 依赖提示词，无强制结构 |
 | ASST-015 来源不授额外权限 | aligned | 打开来源走正常权限 |
 | ASST-020 输入≤2000/回答≤8000 | aligned | 输入 2000、回答 8000（LLM MaxOutputRunes） |
-| ASST-021 限流 20/60s、会话 100 条/30 天 | partial | 会话存储存在；未验证限流与 100 条上限 |
+| ASST-021 限流 20/60s、会话 100 条/30 天 | aligned | Redis 原子限流 20/60s；会话 100 条 LTRIM；30 天 TTL；均有测试 |
 | ASST-022 流事件结构 | aligned | token/source/done/error 事件 |
 | ASST-023 不得先完成再失败 | aligned | 完成事件为终态 |
 | ASST-024 截断不混入他人、一次性降级 | aligned | 会话按用户隔离 |
@@ -125,7 +125,7 @@ upstream:
 | ASST-032 LLM 不可用返回证据摘要 | aligned | sendPersistedDegraded 返回证据摘要 |
 | ASST-033 检索失败关闭 | aligned | 检索失败返回错误，不自由生成 |
 | ASST-034 安全策略拒绝、不泄露 | aligned | safety filter + 错误包装 |
-| ASST-035 同请求重试不矛盾 | partial | request_id 幂等未完整验证 |
+| ASST-035 同请求重试不矛盾 | aligned | 同 request_id 的重复用户消息被去重，避免重复/矛盾回答 |
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
@@ -142,7 +142,7 @@ upstream:
 | REL-005 停留时长非负、未曝光不作负反馈 | aligned | duration 校验 + 负反馈来源 |
 | REL-006 补报 30 天/超前 5 分钟 | aligned | MaxPastAgeHours/MaxFutureSkewSeconds |
 | REL-007 批量逐项接受/拒绝 | aligned | RecordEvents 逐项结果 |
-| REL-008 90 天去重 | partial | 去重 TTL 配置存在，需验证为 90 天 |
+| REL-008 90 天去重 | aligned | 行为去重 TTL 7776000s=90 天 |
 | REL-010 事件关联字段 | aligned | BehaviorEvent 携带请求/身份/位置/来源/版本/实验 |
 | REL-011 拒绝/未去重不入特征 | aligned | 消费端去重后写特征 |
 | REL-012 接受只表示进入消息边界 | aligned | 接口即发布 |

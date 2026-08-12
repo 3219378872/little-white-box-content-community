@@ -617,6 +617,42 @@ func TestChatLLMFailureIsPersistedStructuredDegradedEvent(t *testing.T) {
 	}
 }
 
+func TestChatRejectsEvidenceAnswerWithoutCitation(t *testing.T) {
+	t.Parallel()
+	state := &fakeAssistantState{allowed: true}
+	serviceContext := &svc.ServiceContext{
+		Conversations: state,
+		Quota:         state,
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return &tool.Result{
+				Text: "claim without citation", ContextKind: "community_evidence",
+				EvidenceRequired: true, HasEvidence: true,
+			}, nil
+		}},
+		Generator: fakeGenerator{generate: func(context.Context, llm.Request) (llm.Result, error) {
+			return llm.Result{Text: "an answer with no source markers"}, nil
+		}},
+	}
+	stream := &collectingChatStream{ctx: context.Background()}
+	err := NewChatLogic(context.Background(), serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1", Message: "question", RequestId: "request-1",
+	}, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var degraded bool
+	var errorCode string
+	for _, event := range stream.events {
+		if event.Type == pb.ChatEventType_CHAT_EVENT_TYPE_ERROR {
+			degraded = true
+			errorCode = event.ErrorCode
+		}
+	}
+	if !degraded || errorCode != "EVIDENCE_CITATION_MISSING" {
+		t.Fatalf("expected degraded event with EVIDENCE_CITATION_MISSING, got code=%q degraded=%v", errorCode, degraded)
+	}
+}
+
 func TestChatToolTimeoutIsStructuredDegradedEvent(t *testing.T) {
 	t.Parallel()
 	serviceContext := &svc.ServiceContext{

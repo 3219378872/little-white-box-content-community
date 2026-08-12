@@ -93,7 +93,7 @@ func (s *RedisState) Append(ctx context.Context, userID int64, conversationID st
 	base := s.prefix + ":conversation:" + conversationID
 	result, err := s.redis.EvalCtx(ctx, appendConversationScript,
 		[]string{base + ":owner", base + ":messages"},
-		userID, s.ttlSeconds, string(payload), s.maxMessages)
+		userID, s.ttlSeconds, string(payload), s.maxMessages, message.RequestID)
 	if err != nil {
 		return fmt.Errorf("append assistant conversation: %w", err)
 	}
@@ -194,6 +194,14 @@ if not owner then
   redis.call('SETEX', KEYS[1], ARGV[2], ARGV[1])
 else
   redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+local last = redis.call('LINDEX', KEYS[2], -1)
+if last then
+  local decoded = cjson.decode(last)
+  if decoded and decoded.request_id == ARGV[5] then
+    redis.call('EXPIRE', KEYS[2], ARGV[2])
+    return 1
+  end
 end
 redis.call('RPUSH', KEYS[2], ARGV[3])
 redis.call('LTRIM', KEYS[2], -tonumber(ARGV[4]), -1)

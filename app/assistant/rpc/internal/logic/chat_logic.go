@@ -144,6 +144,14 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	}
 	if generatedResponse && result.ContextKind == "community_evidence" {
 		responseText = appendSourceEvidence(responseText, result.Sources, l.maxResponseRunes())
+		// ASST-010：成功事实回答必须包含至少一个 [post:id] 引用；
+		// 缺少引用说明证据结构被破坏，降级为结构化证据摘要。
+		if !generatedPostSourceMarker.MatchString(responseText) {
+			l.Errorw("assistant evidence answer missing source citation",
+				logx.Field("conversation_id", conversationID),
+				logx.Field("request_id", request.RequestID))
+			return l.sendPersistedDegraded(stream, request, conversationID, "EVIDENCE_CITATION_MISSING")
+		}
 	}
 	if l.svcCtx.Safety != nil {
 		if err := l.svcCtx.Safety.Check(l.ctx, responseText); err != nil {
