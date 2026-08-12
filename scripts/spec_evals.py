@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 import sys
 import urllib.request
 from collections.abc import Callable, Sequence
@@ -127,6 +128,182 @@ def evaluate_assistant(cases: Sequence[dict], run_case: Callable[[dict], dict]) 
 
 
 # ---------------------------------------------------------------------------
+# Recommendation gate (DISC-061/062/063)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RecommendationEvalResult:
+    case_count: int
+    model_ndcg_at_20_values: list[float] = field(default_factory=list)
+    baseline_ndcg_at_20_values: list[float] = field(default_factory=list)
+
+    @property
+    def model_ndcg_at_20(self) -> float:
+        return _mean(self.model_ndcg_at_20_values)
+
+    @property
+    def baseline_ndcg_at_20(self) -> float:
+        return _mean(self.baseline_ndcg_at_20_values)
+
+    @property
+    def relative_improvement(self) -> float:
+        if self.baseline_ndcg_at_20 <= 0.0:
+            return 0.0
+        return (self.model_ndcg_at_20 - self.baseline_ndcg_at_20) / self.baseline_ndcg_at_20
+
+    def bootstrap_ci(self, seed: int, samples: int = 1000, alpha: float = 0.05) -> tuple[float, float]:
+        """Bootstrap 95% CI on the per-case NDCG@20 difference."""
+        deltas = [
+            model - baseline
+            for model, baseline in zip(self.model_ndcg_at_20_values, self.baseline_ndcg_at_20_values)
+        ]
+        if not deltas:
+            return (0.0, 0.0)
+        rng = random.Random(seed)
+        means = []
+        for _ in range(samples):
+            picked = [deltas[rng.randrange(len(deltas))] for _ in deltas]
+            means.append(_mean(picked))
+        means.sort()
+        lower = means[int((alpha / 2) * len(means))]
+        upper = means[int((1 - alpha / 2) * len(means)) - 1]
+        return (lower, upper)
+
+
+def _mean(values: Sequence[float]) -> float:
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def evaluate_recommendation(
+    samples: Sequence[dict],
+    run_ranker: Callable[[dict], tuple[list[int], list[int]]],
+) -> RecommendationEvalResult:
+    """DISC-063: evaluate a learning model against a rule baseline on the same
+    time-ordered holdout; each sample is one identity's session."""
+    result = RecommendationEvalResult(case_count=len(samples))
+    for sample in samples:
+        if "model_ranked" in sample and "baseline_ranked" in sample:
+            model_ranked, baseline_ranked = sample["model_ranked"], sample["baseline_ranked"]
+        else:
+            model_ranked, baseline_ranked = run_ranker(sample)
+        grades = {int(item["post_id"]): float(item["grade"]) for item in sample.get("grades", [])}
+        result.model_ndcg_at_20_values.append(ndcg_at_k(model_ranked, grades, 20))
+        result.baseline_ndcg_at_20_values.append(ndcg_at_k(baseline_ranked, grades, 20))
+    return result
+
+
+def time_ordered_holdout(samples: Sequence[dict], ratio: float = 0.8) -> tuple[list[dict], list[dict]]:
+    """Split recommendation samples into train/holdout preserving chronological order."""
+    ordered = sorted(samples, key=lambda sample: sample.get("session_time", 0))
+    split = int(len(ordered) * ratio)
+    return ordered[:split], ordered[split:]
+
+
+def report_recommendation(result: RecommendationEvalResult) -> int:
+    lower, upper = result.bootstrap_ci(seed=2026)
+    passed = (
+        result.relative_improvement >= 0.05
+        and lower >= 0.0
+    )
+    print(
+        f"recommend: cases={result.case_count} model_ndcg@20={result.model_ndcg_at_20:.4f} "
+        f"baseline_ndcg@20={result.baseline_ndcg_at_20:.4f} relative_improvement={result.relative_improvement:.4f} "
+        f"(require>=0.05) bootstrap95={lower:.4f}..{upper:.4f}"
+    )
+    return 0 if passed else 1
+
+
+# ---------------------------------------------------------------------------
+# Monthly SLO report (REL-030~033)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SLOThreshold:
+    capability: str
+    availability: float  # e.g. 0.999
+    p95_ms: float
+
+
+SLO_THRESHOLDS = [
+    SLOThreshold("community_core_read", 0.999, 300),
+    SLOThreshold("community_core_write", 0.999, 500),
+    SLOThreshold("behavior_ingest", 0.999, 300),
+    SLOThreshold("discovery", 0.995, 800),
+    SLOThreshold("assistant_first_event", 0.990, 2000),
+    SLOThreshold("assistant_completion", 0.990, 12000),
+]
+
+
+@dataclass
+class SLOReport:
+    capability: str
+    total: int
+    available: int
+    p95_ms: float
+    threshold: SLOThreshold
+
+    @property
+    def availability(self) -> float:
+        if self.total == 0:
+            return 1.0
+        return self.available / self.total
+
+    @property
+    def met(self) -> bool:
+        return self.availability >= self.threshold.availability and self.p95_ms <= self.threshold.p95_ms
+
+
+def percentile(values: Sequence[float], p: float) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    index = min(len(ordered) - 1, int(math.ceil(p / 100 * len(ordered))) - 1)
+    return ordered[index]
+
+
+def monthly_slo_report(
+    capability: str,
+    requests: Sequence[dict],
+    thresholds: Sequence[SLOThreshold] = SLO_THRESHOLDS,
+) -> SLOReport:
+    """REL-030/031: monthly window; unavailable = error-success, privilege breach,
+    ungrounded answer, or invisible-content leakage; correct refusals and
+    explicitly marked degradation count as available."""
+    threshold = next((item for item in thresholds if item.capability == capability), SLO_THRESHOLDS[0])
+    # REL-030：分母只统计满足公开契约的请求；参数错误、未认证、无权限、限流、
+    # 客户端取消和正确拒答不计为不可用（也不进入分母）。
+    valid = [request for request in requests if not request.get("excluded", False)]
+    total = len(valid)
+    available = 0
+    latencies: list[float] = []
+    for request in valid:
+        latencies.append(float(request.get("latency_ms", 0)))
+        if request.get("unavailable", False):
+            continue
+        available += 1
+    return SLOReport(
+        capability=capability,
+        total=total,
+        available=available,
+        p95_ms=percentile(latencies, 95) if latencies else 0.0,
+        threshold=threshold,
+    )
+
+
+def report_slo(report: SLOReport) -> int:
+    print(
+        f"slo {report.capability}: availability={report.availability:.5f} "
+        f"(require>={report.threshold.availability}) p95={report.p95_ms:.1f}ms "
+        f"(require<={report.threshold.p95_ms}ms) met={report.met}"
+    )
+    return 0 if report.met else 1
+
+
+# ---------------------------------------------------------------------------
 # Live Gateway client
 # ---------------------------------------------------------------------------
 
@@ -209,15 +386,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     assistant.add_argument("--base-url", default="http://127.0.0.1:8888")
     assistant.add_argument("--token", required=True)
 
+    recommend = sub.add_parser("recommend")
+    recommend.add_argument("--samples", required=True)
+
+    slo = sub.add_parser("slo")
+    slo.add_argument("--requests", required=True)
+    slo.add_argument("--capability", required=True)
+
     args = parser.parse_args(argv)
     if args.command == "search":
         with open(args.qrels, encoding="utf-8") as handle:
             queries = json.load(handle)["queries"]
         return report_search(evaluate_search(queries, live_search(args.base_url)), args.require_ndcg)
 
-    with open(args.cases, encoding="utf-8") as handle:
-        cases = json.load(handle)["cases"]
-    return report_assistant(evaluate_assistant(cases, live_assistant(args.base_url, args.token)))
+    if args.command == "assistant":
+        with open(args.cases, encoding="utf-8") as handle:
+            cases = json.load(handle)["cases"]
+        return report_assistant(evaluate_assistant(cases, live_assistant(args.base_url, args.token)))
+
+    with open(args.samples, encoding="utf-8") as handle:
+        samples = json.load(handle)["samples"]
+    _, holdout = time_ordered_holdout(samples)
+    return report_recommendation(
+        evaluate_recommendation(holdout, lambda _s: ([], []))
+    )
+
+    with open(args.requests, encoding="utf-8") as handle:
+        requests = json.load(handle)["requests"]
+    return report_slo(monthly_slo_report(args.capability, requests))
 
 
 if __name__ == "__main__":

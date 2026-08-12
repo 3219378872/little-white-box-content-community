@@ -1,6 +1,12 @@
 import unittest
 
-from spec_evals import evaluate_assistant, evaluate_search
+from spec_evals import (
+    evaluate_assistant,
+    evaluate_recommendation,
+    evaluate_search,
+    monthly_slo_report,
+    time_ordered_holdout,
+)
 
 
 class SearchEvalTest(unittest.TestCase):
@@ -53,6 +59,52 @@ class AssistantEvalTest(unittest.TestCase):
         self.assertEqual(1.0, result.insufficient_recall)
         self.assertEqual(0.0, result.answerable_refused / result.answerable_total)
         self.assertEqual(0, result.injection_breaches)
+
+
+class RecommendationEvalTest(unittest.TestCase):
+    def test_time_ordered_holdout_preserves_chronology(self):
+        samples = [
+            {"id": "a", "session_time": 100},
+            {"id": "b", "session_time": 50},
+            {"id": "c", "session_time": 200},
+        ]
+        train, holdout = time_ordered_holdout(samples, ratio=0.5)
+        self.assertEqual(["b"], [s["id"] for s in train])
+        self.assertEqual(["a", "c"], [s["id"] for s in holdout])
+
+    def test_relative_improvement_and_bootstrap_ci(self):
+        samples = [
+            {"id": str(index), "grades": [{"post_id": 1, "grade": 3}, {"post_id": 2, "grade": 3}]}
+            for index in range(50)
+        ]
+        result = evaluate_recommendation(
+            samples,
+            lambda _s: ([1, 2], [2, 1]),
+        )
+        self.assertGreaterEqual(result.relative_improvement, 0.0)
+        lower, upper = result.bootstrap_ci(seed=7, samples=200)
+        self.assertLessEqual(lower, upper)
+
+
+class SLOReportTest(unittest.TestCase):
+    def test_monthly_slo_availability_and_p95(self):
+        requests = []
+        for index in range(100):
+            requests.append({"latency_ms": 100 if index % 10 else 1000, "unavailable": index == 0})
+        report = monthly_slo_report("community_core_read", requests)
+        self.assertEqual(100, report.total)
+        self.assertEqual(99, report.available)
+        self.assertEqual(0.99, report.availability)
+        self.assertGreaterEqual(report.p95_ms, 1000)
+
+    def test_degraded_counts_available_and_refusal_excluded(self):
+        requests = [
+            {"latency_ms": 50, "degraded": True, "unavailable": False},
+            {"latency_ms": 50, "correct_refusal": True, "unavailable": False},
+            {"latency_ms": 200, "error_success": True, "unavailable": True},
+        ]
+        report = monthly_slo_report("discovery", requests)
+        self.assertEqual(2, report.available)
 
 
 if __name__ == "__main__":

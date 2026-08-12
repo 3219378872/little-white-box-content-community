@@ -152,7 +152,7 @@ upstream:
 | REL-022 业务日志 30 天不泄密 | aligned | 日志策略与脱敏 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | /api/v2/me/personalization 接口；关闭后停止新行为入特征、purge 在线特征；DB+Redis 标记 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
-| REL-030~033 SLO 口径 | n/a | 观测口径文档 |
+| REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 命令落地；生产观测数据待月度报告 |
 | REL-040 outbox p95 30s/p99 5m | n/a | 需要观测数据 |
 | REL-041 行为到特征 p95 60s/p99 5m | n/a | 需要观测数据 |
 | REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要观测数据 |
