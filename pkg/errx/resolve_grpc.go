@@ -71,9 +71,12 @@ func FromGRPCError(err error) error {
 		}
 	}
 
+	// CORE-054：框架错误只保留业务码，不把原始 gRPC 消息（可能是内部 panic、
+	// 地址或连接细节）暴露给客户端。
+	code := grpcCodeToBizCode(s.Code())
 	return &BizError{
-		Code:    grpcCodeToBizCode(s.Code()),
-		Message: s.Message(),
+		Code:    code,
+		Message: GetMsg(code),
 	}
 }
 

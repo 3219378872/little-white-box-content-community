@@ -2,6 +2,7 @@ package errx
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"google.golang.org/grpc/codes"
@@ -122,12 +123,13 @@ func TestFromGRPCError_FrameworkErrors(t *testing.T) {
 		grpcCode codes.Code
 		grpcMsg  string
 		wantBiz  int
+		wantMsg  string
 	}{
-		{"DeadlineExceeded → SystemError", codes.DeadlineExceeded, "context deadline exceeded", SystemError},
-		{"Unavailable → ServiceUnavailable", codes.Unavailable, "service unavailable", ServiceUnavailable},
-		{"Internal → SystemError", codes.Internal, "panic: something", SystemError},
-		{"ResourceExhausted → TooManyReq", codes.ResourceExhausted, "cpu overloaded", TooManyReq},
-		{"Unknown → SystemError", codes.Unknown, "unexpected", SystemError},
+		{"DeadlineExceeded → SystemError", codes.DeadlineExceeded, "context deadline exceeded", SystemError, GetMsg(SystemError)},
+		{"Unavailable → ServiceUnavailable", codes.Unavailable, "service unavailable", ServiceUnavailable, GetMsg(ServiceUnavailable)},
+		{"Internal → SystemError", codes.Internal, "panic: something", SystemError, GetMsg(SystemError)},
+		{"ResourceExhausted → TooManyReq", codes.ResourceExhausted, "cpu overloaded", TooManyReq, GetMsg(TooManyReq)},
+		{"Unknown → SystemError", codes.Unknown, "unexpected", SystemError, GetMsg(SystemError)},
 	}
 
 	for _, tt := range tests {
@@ -142,8 +144,11 @@ func TestFromGRPCError_FrameworkErrors(t *testing.T) {
 			if bizErr.Code != tt.wantBiz {
 				t.Errorf("Code = %d, want %d", bizErr.Code, tt.wantBiz)
 			}
-			if bizErr.Message != tt.grpcMsg {
-				t.Errorf("Message = %q, want %q", bizErr.Message, tt.grpcMsg)
+			if bizErr.Message != tt.wantMsg {
+				t.Errorf("Message = %q, want %q (raw gRPC message must not leak)", bizErr.Message, tt.wantMsg)
+			}
+			if strings.Contains(bizErr.Message, tt.grpcMsg) && tt.grpcMsg != tt.wantMsg {
+				t.Errorf("Message %q leaks raw gRPC message %q", bizErr.Message, tt.grpcMsg)
 			}
 		})
 	}

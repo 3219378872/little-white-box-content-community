@@ -62,7 +62,7 @@ upstream:
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError |
 | CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务 |
 | CORE-053 异步效果失败不改成功 | aligned | 缓存/索引/通知失败只告警不改变响应 |
-| CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；日志按隐私规则 |
+| CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；框架 gRPC 错误只保留业务码，不暴露原始消息 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
 | CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约仅新增可选字段；expected_revision 为可选迁移期字段，旧客户端不带也成功 |
