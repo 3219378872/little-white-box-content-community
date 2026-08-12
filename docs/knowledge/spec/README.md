@@ -1,6 +1,6 @@
 # 规范层
 
-本目录收录由人类开发者决定语义的项目规范。当前规范均为草案，不约束设计或实现。
+本目录收录由人类开发者决定语义的项目规范。
 
 - `owner: human` 表示语义决定权属于人类；agent 默认可以编辑和维护。
 - 修改前只需获得当前对话中的人类自然语言授权，不需要授权文件、签名或额外审批记录。
@@ -12,14 +12,13 @@
 
 创建页面时使用 `../templates/spec.md`，并在本页维护索引。
 
-## 当前草案
+## 已批准规范
 
 | 规范 | 覆盖范围 | 状态 |
 | --- | --- | --- |
-| [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | draft |
-| [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | draft |
-| [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 基于已发布内容的可追溯回答 | draft |
-| [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | draft |
+| [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | approved |
+| [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | approved |
+| [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 基于已发布内容的可追溯回答 | approved |
+| [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
 
-四份草案均引用 `INT-content-community-backend`，可以分别评审和批准。批准前，设计层不得把它们作为
-正式上游；各页“待人类确认”中的问题也不构成要求。
+四份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
