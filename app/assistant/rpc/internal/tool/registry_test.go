@@ -10,6 +10,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
 
 	"google.golang.org/grpc"
@@ -18,6 +19,19 @@ import (
 type fakeSearchService struct {
 	searchservice.SearchService
 	search func(context.Context, *searchservice.SearchReq) (*searchservice.SearchResp, error)
+}
+
+type fakeRecommendService struct {
+	recommendservice.RecommendService
+	posts []*recommendservice.RecommendPost
+	err   error
+}
+
+func (f fakeRecommendService) GetRecommendPosts(context.Context, *recommendservice.GetRecommendPostsReq, ...grpc.CallOption) (*recommendservice.GetRecommendPostsResp, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &recommendservice.GetRecommendPostsResp{Posts: f.posts, RequestId: "req-1"}, nil
 }
 
 type fakeContentService struct {
@@ -445,5 +459,55 @@ func TestRegistryContentSourceIncludesRevision(t *testing.T) {
 	}
 	if len(result.Sources) != 1 || result.Sources[0].Revision != 4 {
 		t.Fatalf("source revision was not captured: %+v", result.Sources)
+	}
+}
+
+func TestRegistryRecommendRereadsAndVerifiesPostsBeforeEvidence(t *testing.T) {
+	t.Parallel()
+	recommend := fakeRecommendService{posts: []*recommendservice.RecommendPost{
+		{PostId: 21, Reason: "similar to your interests"},
+		{PostId: 22, Reason: "trending"},
+	}}
+	content := fakeContentService{getPostsByIDs: func(_ context.Context, req *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
+			{Id: 21, Status: 1, Title: "published", Content: "verified body", Revision: 2},
+			// 22 缺失 → 不可用，不得成为证据
+		}}, nil
+	}}
+	registry, err := NewRegistry([]string{"recommend"}, Clients{Recommend: recommend, Content: content}, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Execute(context.Background(), Recommend, Request{UserID: 1, RequestID: "req-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.HasEvidence || !result.EvidenceRequired {
+		t.Fatalf("recommend must require evidence after re-read: %+v", result)
+	}
+	if len(result.Sources) != 1 || result.Sources[0].ID != "21" || result.Sources[0].Revision != 2 {
+		t.Fatalf("only the verified published post should be evidence: %+v", result.Sources)
+	}
+	if !strings.Contains(result.Text, "SOURCE [post:21]") || strings.Contains(result.Text, "post:22") {
+		t.Fatalf("evidence must reference only verified posts: %q", result.Text)
+	}
+}
+
+func TestRegistryRecommendMetadataOnlyWhenContentUnavailable(t *testing.T) {
+	t.Parallel()
+	recommend := fakeRecommendService{posts: []*recommendservice.RecommendPost{{PostId: 21, Reason: "x"}}}
+	content := fakeContentService{getPostsByIDs: func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return nil, errors.New("content unavailable")
+	}}
+	registry, err := NewRegistry([]string{"recommend"}, Clients{Recommend: recommend, Content: content}, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Execute(context.Background(), Recommend, Request{UserID: 1, RequestID: "req-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.HasEvidence || result.EvidenceRequired {
+		t.Fatalf("metadata-only recommend must not be evidence: %+v", result)
 	}
 }

@@ -105,7 +105,7 @@ upstream:
 | ASST-001 仅认证用户、会话本人 | aligned | /assistant/chat 挂 jwt；会话按用户隔离 |
 | ASST-002 只用已发布帖子证据 | aligned | tool 只检索 published 帖子 |
 | ASST-003 仅元数据不构成证据 | aligned | 证据要求真实正文片段 |
-| ASST-004 推荐候选需重读验证 | aligned | 检索 tool 重读正文与状态 |
+| ASST-004 推荐候选需重读验证 | aligned | 推荐候选经 content 重读正文并验证 published 后才成为证据 |
 | ASST-005 不提供资料工具 | aligned | 无用户资料工具 |
 | ASST-006 内容指令不可信 | aligned | safety filter + 注入防护 |
 | ASST-007 证据不足拒答 | aligned | 无证据返回拒答/降级 |
