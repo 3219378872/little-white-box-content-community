@@ -146,6 +146,14 @@ func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interac
 	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
 }
 
+func (contractInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckFavoritedResp, error) {
+	results := make(map[int64]bool, len(in.PostIds))
+	for _, postID := range in.PostIds {
+		results[postID] = true
+	}
+	return &interactionservice.BatchCheckFavoritedResp{Results: results}, nil
+}
+
 type contractUploadStream struct{ grpc.ClientStream }
 
 func (*contractUploadStream) Send(*mediapb.UploadImageReq) error { return nil }

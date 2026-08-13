@@ -8,9 +8,11 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"gateway/internal/logic/viewerstate"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
+	"jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -45,6 +47,19 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		return nil, errx.FromRPCError(err)
 	}
 
+	postIDs := make([]int64, 0, len(result.Posts))
+	for _, post := range result.Posts {
+		if post != nil && post.Id > 0 {
+			postIDs = append(postIDs, post.Id)
+		}
+	}
+	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
+	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
+	if err != nil {
+		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		return nil, err
+	}
+
 	list := make([]types.PostItem, 0, len(result.Posts))
 	for _, post := range result.Posts {
 		list = append(list, types.PostItem{
@@ -58,8 +73,8 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 			LikeCount:     post.LikeCount,
 			CommentCount:  post.CommentCount,
 			FavoriteCount: post.FavoriteCount,
-			IsLiked:       false, // TODO: Interaction 服务实现后填充
-			IsFavorited:   false, // TODO: Interaction 服务实现后填充
+			IsLiked:       liked[post.Id],
+			IsFavorited:   favorited[post.Id],
 			CreatedAt:     post.CreatedAt,
 		})
 	}

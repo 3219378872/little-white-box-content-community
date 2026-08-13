@@ -108,10 +108,32 @@ func TestGetUserFavorites_PublicAndNotOwner_ReturnsEmptyList(t *testing.T) {
 type fakeInteractionServiceFavorites struct {
 	interactionservice.InteractionService
 	getFavoriteListFn func(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error)
+	liked             map[int64]bool
+	favorited         map[int64]bool
 }
 
 func (f *fakeInteractionServiceFavorites) GetFavoriteList(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
 	return f.getFavoriteListFn(ctx, in, opts...)
+}
+
+func (f *fakeInteractionServiceFavorites) BatchCheckLiked(_ context.Context, in *interactionpb.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionpb.BatchCheckLikedResp, error) {
+	result := make(map[int64]bool, len(in.TargetIds))
+	for _, id := range in.TargetIds {
+		if f.liked != nil && f.liked[id] {
+			result[id] = true
+		}
+	}
+	return &interactionpb.BatchCheckLikedResp{Results: result}, nil
+}
+
+func (f *fakeInteractionServiceFavorites) BatchCheckFavorited(_ context.Context, in *interactionpb.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionpb.BatchCheckFavoritedResp, error) {
+	result := make(map[int64]bool, len(in.PostIds))
+	for _, id := range in.PostIds {
+		if f.favorited != nil && f.favorited[id] {
+			result[id] = true
+		}
+	}
+	return &interactionpb.BatchCheckFavoritedResp{Results: result}, nil
 }
 
 type fakeContentServiceFavorites struct {
@@ -140,6 +162,7 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 					Total:   2,
 				}, nil
 			},
+			liked: map[int64]bool{100: true},
 		},
 		ContentService: &fakeContentServiceFavorites{
 			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
@@ -171,6 +194,13 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 	}
 	if resp.Total != 2 {
 		t.Fatalf("expected Total=2, got %d", resp.Total)
+	}
+	// CORE-032：列表应回填当前访问者的互动状态。
+	if !resp.List[0].IsLiked || resp.List[0].IsFavorited != true {
+		t.Fatalf("expected post 100 liked+favorited, got %+v", resp.List[0])
+	}
+	if resp.List[1].IsLiked || !resp.List[1].IsFavorited {
+		t.Fatalf("expected post 200 not-liked but favorited, got %+v", resp.List[1])
 	}
 }
 

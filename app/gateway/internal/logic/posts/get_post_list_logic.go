@@ -8,6 +8,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"gateway/internal/logic/viewerstate"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -47,6 +48,19 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 		return nil, errx.FromRPCError(err)
 	}
 
+	postIDs := make([]int64, 0, len(result.Posts))
+	for _, post := range result.Posts {
+		if post != nil && post.Id > 0 {
+			postIDs = append(postIDs, post.Id)
+		}
+	}
+	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
+	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
+	if err != nil {
+		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		return nil, err
+	}
+
 	list := make([]types.PostItem, 0, len(result.Posts))
 	for _, post := range result.Posts {
 		list = append(list, types.PostItem{
@@ -59,6 +73,8 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 			ViewCount:    post.ViewCount,
 			LikeCount:    post.LikeCount,
 			CommentCount: post.CommentCount,
+			IsLiked:      liked[post.Id],
+			IsFavorited:  favorited[post.Id],
 			Revision:     post.Revision,
 			CreatedAt:    post.CreatedAt,
 		})

@@ -9,6 +9,7 @@ import (
 	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/interactionservice"
+	"gateway/internal/logic/viewerstate"
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"jwtx"
@@ -88,6 +89,19 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, errx.FromRPCError(err)
 	}
 
+	postIDs := make([]int64, 0, len(postsResp.Posts))
+	for _, post := range postsResp.Posts {
+		if post != nil && post.Id > 0 {
+			postIDs = append(postIDs, post.Id)
+		}
+	}
+	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
+	liked, _, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
+	if err != nil {
+		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		return nil, err
+	}
+
 	list := make([]types.PostItem, 0, len(postsResp.Posts))
 	for _, post := range postsResp.Posts {
 		list = append(list, types.PostItem{
@@ -101,7 +115,10 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 			LikeCount:     post.LikeCount,
 			CommentCount:  post.CommentCount,
 			FavoriteCount: post.FavoriteCount,
-			CreatedAt:     post.CreatedAt,
+			IsLiked:       liked[post.Id],
+			// 收藏列表本身即表示当前访问者已收藏该帖子。
+			IsFavorited: true,
+			CreatedAt:   post.CreatedAt,
 		})
 	}
 
