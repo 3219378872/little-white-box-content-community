@@ -298,9 +298,9 @@ func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
-	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.AlreadyLiked))
+	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
 }
 

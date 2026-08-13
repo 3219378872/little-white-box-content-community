@@ -46,7 +46,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	)
 	if err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
-			return nil, errx.NewWithCode(errx.AlreadyLiked)
+			return &pb.LikeResp{}, nil
 		}
 		l.Errorw("local like transaction failed",
 			logx.Field("userId", in.UserId),

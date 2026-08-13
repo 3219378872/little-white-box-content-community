@@ -33,14 +33,14 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 
 	record, err := l.svcCtx.LikeRecordModel.FindOneByUserIdTargetIdTargetType(l.ctx, in.UserId, in.TargetId, int64(in.TargetType))
 	if errors.Is(err, model.ErrNotFound) {
-		return nil, errx.NewWithCode(errx.NotLikedYet)
+		return &pb.UnlikeResp{}, nil
 	}
 	if err != nil {
 		l.Errorw("FindOneByUserIdTargetIdTargetType failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
-		return nil, errx.NewWithCode(errx.NotLikedYet)
+		return &pb.UnlikeResp{}, nil
 	}
 
 	if l.svcCtx.InteractionCommands == nil {
@@ -58,7 +58,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		l.ctx, record.Id, in.TargetId, int64(in.TargetType), outboxEvent,
 	); err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
-			return nil, errx.NewWithCode(errx.NotLikedYet)
+			return &pb.UnlikeResp{}, nil
 		}
 		l.Errorw("unlike transaction failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

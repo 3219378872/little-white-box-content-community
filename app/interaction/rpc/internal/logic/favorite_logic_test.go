@@ -112,9 +112,9 @@ func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
-	_, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.AlreadyFavorited))
+	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	favoriteModel.AssertExpectations(t)
 }
 

@@ -94,7 +94,7 @@ ES 只索引 published，并在取消发布时尽力删文档，但这是异步�
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
 | CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | Handler 只限制 10MiB；类型由 mediautil 按文件内容嗅探 |
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
-| CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 命令模型 no-op 返回同状态 |
+| CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 重复请求返回成功且不重复累计；命令层 no-op 不写 outbox |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
 | CORE-032 互动状态立即可查 | partial | liked/favorited 状态即时回填；计数走 count-sync，30s 收敛未经生产观测证明 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |

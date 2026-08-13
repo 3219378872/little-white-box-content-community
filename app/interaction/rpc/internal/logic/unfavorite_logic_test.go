@@ -59,9 +59,9 @@ func TestUnfavoriteLogic_Unfavorite_NotFavorited(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
-	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.NotFavoritedYet))
+	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	favoriteModel.AssertExpectations(t)
 }
 
@@ -79,9 +79,9 @@ func TestUnfavoriteLogic_Unfavorite_AlreadyUnfavorited(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnfavoriteLogic(context.Background(), svcCtx)
-	_, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.NotFavoritedYet))
+	resp, err := logic.Unfavorite(&pb.UnfavoriteReq{UserId: 1, PostId: 100})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	favoriteModel.AssertExpectations(t)
 }
 

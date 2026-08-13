@@ -62,9 +62,9 @@ func TestUnlikeLogic_Unlike_NotLiked(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
-	_, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.NotLikedYet))
+	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
 }
 
@@ -82,9 +82,9 @@ func TestUnlikeLogic_Unlike_AlreadyUnliked(t *testing.T) {
 	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
-	_, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.NotLikedYet))
+	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
 }
 

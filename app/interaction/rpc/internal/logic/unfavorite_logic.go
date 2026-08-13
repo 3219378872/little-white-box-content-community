@@ -33,14 +33,14 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 
 	record, err := l.svcCtx.FavoriteModel.FindOneByUserIdPostId(l.ctx, in.UserId, in.PostId)
 	if errors.Is(err, model.ErrNotFound) {
-		return nil, errx.NewWithCode(errx.NotFavoritedYet)
+		return &pb.UnfavoriteResp{}, nil
 	}
 	if err != nil {
 		l.Errorw("FindOneByUserIdPostId failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
-		return nil, errx.NewWithCode(errx.NotFavoritedYet)
+		return &pb.UnfavoriteResp{}, nil
 	}
 
 	if l.svcCtx.InteractionCommands == nil {
@@ -54,7 +54,7 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 	}
 	if err = l.svcCtx.InteractionCommands.Unfavorite(l.ctx, record.Id, in.PostId, outboxEvent); err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
-			return nil, errx.NewWithCode(errx.NotFavoritedYet)
+			return &pb.UnfavoriteResp{}, nil
 		}
 		l.Errorw("unfavorite transaction failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

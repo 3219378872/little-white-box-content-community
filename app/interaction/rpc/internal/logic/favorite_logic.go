@@ -43,7 +43,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	_, err = l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
 	if err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
-			return nil, errx.NewWithCode(errx.AlreadyFavorited)
+			return &pb.FavoriteResp{}, nil
 		}
 		l.Errorw("favorite transaction failed",
 			logx.Field("userId", in.UserId),
