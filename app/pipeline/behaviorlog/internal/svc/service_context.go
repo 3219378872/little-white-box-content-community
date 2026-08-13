@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 
@@ -18,6 +19,8 @@ import (
 
 type BehaviorStore interface {
 	Insert(ctx context.Context, behavior event.BehaviorEvent) error
+	// AggregateDaily 把 [from,to) 窗口内的原始行为聚合进 daily_aggregates（REL-020）。
+	AggregateDaily(ctx context.Context, from, to time.Time) (int64, error)
 }
 
 type EventDeduper interface {

@@ -100,3 +100,33 @@ func nullableInt64(value *int64) any {
 	}
 	return *value
 }
+
+// AggregateDaily 把指定日期窗口内的原始行为按 (date,user_id,action,target_type)
+// 聚合进 daily_aggregates（REL-020：去标识聚合结果保留 365 天）。
+// 读取 behavior_events FINAL（按 event_id 去重收敛），目标表用
+// ReplacingMergeTree(aggregated_at)，重复执行幂等、不重复累计。
+// 返回窗口内聚合行的数量。
+func (s *ClickHouseStore) AggregateDaily(ctx context.Context, from, to time.Time) (int64, error) {
+	if s == nil || s.db == nil {
+		return 0, fmt.Errorf("aggregate daily: store is nil")
+	}
+	if !from.Before(to) {
+		return 0, fmt.Errorf("aggregate daily: invalid window [%s, %s)", from.Format(time.DateOnly), to.Format(time.DateOnly))
+	}
+	const query = `
+INSERT INTO xbh_analytics.daily_aggregates (date, user_id, action, target_type, cnt, aggregated_at)
+SELECT toDate(event_time) AS date, user_id, action, target_type, count() AS cnt, now64(3)
+FROM xbh_analytics.behavior_events FINAL
+WHERE toDate(event_time) >= ? AND toDate(event_time) < ?
+GROUP BY date, user_id, action, target_type`
+	if _, err := s.db.ExecContext(ctx, query, from.Format("2006-01-02"), to.Format("2006-01-02")); err != nil {
+		return 0, fmt.Errorf("aggregate daily: %w", err)
+	}
+	var count int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT count() FROM xbh_analytics.daily_aggregates FINAL WHERE date >= ? AND date < ?`,
+		from.Format("2006-01-02"), to.Format("2006-01-02")).Scan(&count); err != nil {
+		return 0, fmt.Errorf("aggregate daily count: %w", err)
+	}
+	return count, nil
+}

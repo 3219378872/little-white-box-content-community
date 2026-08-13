@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"time"
 
 	"esx/pkg/event"
 
@@ -10,6 +11,10 @@ import (
 
 type MockBehaviorStore struct {
 	mock.Mock
+}
+
+func (m *MockBehaviorStore) AggregateDaily(context.Context, time.Time, time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (m *MockBehaviorStore) Insert(ctx context.Context, e event.BehaviorEvent) error {

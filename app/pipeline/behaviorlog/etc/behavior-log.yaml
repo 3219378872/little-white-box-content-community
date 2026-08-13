@@ -20,3 +20,6 @@ Redis:
   Pass: "${REDIS_PASSWORD}"
 
 DedupTTL: 7776000
+# REL-020：每日聚合去标识结果到 daily_aggregates（保留 365 天）。
+AggregateIntervalSeconds: 86400
+AggregateBackfillDays: 1

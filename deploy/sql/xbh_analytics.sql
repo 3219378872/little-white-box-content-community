@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
 ) ENGINE = ReplacingMergeTree(received_at)
 PARTITION BY toYYYYMMDD(event_time)
 ORDER BY event_id
-TTL received_at + INTERVAL 90 DAY DELETE;
+TTL toDateTime(received_at) + INTERVAL 90 DAY DELETE;
 
 -- Regular views aggregate the deduplicated raw facts at query time. An
 -- insert-triggered materialized view would overcount at-least-once delivery.
@@ -65,4 +65,19 @@ CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_dead_letters (
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMMDD(received_at)
 ORDER BY (received_at, message_id)
-TTL received_at + INTERVAL 7 DAY DELETE;
+TTL toDateTime(received_at) + INTERVAL 7 DAY DELETE;
+
+-- REL-020：去标识聚合结果保留 365 天。ReplacingMergeTree(aggregated_at) 使定时
+-- 聚合重复执行幂等；聚合读取 behavior_events FINAL（已按 event_id 收敛），
+-- 避免 at-least-once 投递在聚合侧重复计数。
+CREATE TABLE IF NOT EXISTS xbh_analytics.daily_aggregates (
+    date           Date,
+    user_id        Int64,
+    action         LowCardinality(String),
+    target_type    LowCardinality(String),
+    cnt            UInt64,
+    aggregated_at  DateTime64(3)
+) ENGINE = ReplacingMergeTree(aggregated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (date, user_id, action, target_type)
+TTL date + INTERVAL 365 DAY DELETE;

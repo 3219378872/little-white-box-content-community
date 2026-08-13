@@ -148,3 +148,55 @@ func TestClickHouseStoreQueryByUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), count)
 }
+
+// REL-020：去标识聚合写入 daily_aggregates，按 event_id 收敛后不重复累计，
+// 重复执行幂等，目标表 TTL 为 365 天。
+func TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent(t *testing.T) {
+	s := NewClickHouseStore(chEnv.DB)
+	ctx := context.Background()
+
+	dayA := time.Now().AddDate(0, 0, -10) // 窗口内：10 天前
+	dayB := time.Now().AddDate(0, 0, -9)  // 窗口内：9 天前
+
+	ev1 := canonicalEvent(30001, 42, 999, "like")
+	ev1.EventTime = dayA.UnixMilli()
+	ev1.ReceivedAt = dayA.UnixMilli()
+	dup1 := ev1
+	dup1.ReceivedAt = dayA.UnixMilli() + 1000 // 同 event_id 的 at-least-once 重投
+
+	ev2 := canonicalEvent(30002, 42, 999, "click")
+	ev2.EventTime = dayA.UnixMilli()
+	ev2.ReceivedAt = dayA.UnixMilli()
+
+	ev3 := canonicalEvent(30003, 7, 111, "like")
+	ev3.EventTime = dayB.UnixMilli()
+	ev3.ReceivedAt = dayB.UnixMilli()
+
+	// 窗口外事件（今天）：不应进入聚合窗口。
+	outside := canonicalEvent(30004, 99, 555, "like")
+
+	for _, e := range []event.BehaviorEvent{ev1, dup1, ev2, ev3, outside} {
+		require.NoError(t, s.Insert(ctx, e))
+	}
+
+	from := time.Date(dayA.Year(), dayA.Month(), dayA.Day(), 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 0, 2) // 覆盖 dayA、dayB
+
+	count, err := s.AggregateDaily(ctx, from, to)
+	require.NoError(t, err)
+	// 去重后唯一事件：dayA like(1) + dayA click(1) + dayB like(1) = 3
+	assert.Equal(t, int64(3), count, "aggregate must dedupe by event_id and exclude window outside")
+
+	// 幂等：重复执行不重复累计（ReplacingMergeTree(aggregated_at)）
+	count2, err := s.AggregateDaily(ctx, from, to)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), count2, "re-running the aggregate must stay idempotent")
+
+	// REL-020：365 天自动删除由表 TTL 承担（用 create_table_query 断言，跨版本稳定）
+	var createQuery string
+	err = chEnv.DB.QueryRowContext(ctx,
+		`SELECT create_table_query FROM system.tables WHERE database = 'xbh_analytics' AND name = 'daily_aggregates'`,
+	).Scan(&createQuery)
+	require.NoError(t, err)
+	assert.Contains(t, createQuery, "toIntervalDay(365)", "daily_aggregates TTL must retain 365 days")
+}
