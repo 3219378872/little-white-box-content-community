@@ -38,9 +38,10 @@ upstream:
 ### 可见性
 
 Content 持有帖子状态机与正文。普通读取走 `FindPostById`/`FindByIds` 且不读缓存，避免
-CORE-053 允许的失效失败把已取消发布内容继续当成 published。发现与 Assistant 只把 ES、
-向量库、inbox/outbox 当候选，返回前必须用 `GetPostsByIds` 验证 `status=1`；验证失败则
-整次请求失败关闭，不得降级成“空结果成功”。
+CORE-053 允许的失效失败把已取消发布内容继续当成 published。公开列表在 SQL `status=1`
+之后再次丢弃非 published 行。发现与 Assistant 只把 ES、向量库、inbox/outbox 当候选，
+返回前必须经 `pkg/visibilityx` 回源 `GetPostsByIds` 验证 `status=1`；验证失败则整次请求
+失败关闭，不得降级成“空结果成功”。
 
 ### 关注流
 
@@ -81,13 +82,13 @@ ES 只索引 published，并在取消发布时尽力删文档，但这是异步�
 | CORE-002 只能改自己内容 | aligned | update/delete 校验 author_id |
 | CORE-003 会话参与者才可读私信 | aligned | GetMessages/MarkRead 按 user_id 归属校验 |
 | CORE-004 注册登录资料维护 | aligned | user rpc；注销/申诉/后台不在范围 |
-| CORE-005 一致的可见性结果 | aligned | GetPost/列表/发现统一只暴露 published；公开详情与评论列表对匿名开放 |
+| CORE-005 一致的可见性结果 | aligned | GetPost/公开列表/标签/发现统一只暴露 published；列表回源后再滤；公开详情与评论列表对匿名开放 |
 | CORE-010 状态机 | aligned | draft⇄published 双向 + 均→deleted 终态；Update 显式 status 支持取消发布 |
 | CORE-011 创建返回 id/status/revision | aligned | CreatePostResp 返回 postId/status/revision=1 |
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
-| CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/标签列表回源后只保留 published；搜索/标签 Total 只按本页回减 |
+| CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update 返回 status/revision；HTTP GetPost 回传权威 status 与 revision |
+| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/公开列表/标签回源后只保留 published；搜索/列表/标签/收藏 Total 只按本页回减 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |

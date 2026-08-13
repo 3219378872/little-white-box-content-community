@@ -10,7 +10,7 @@ tracks:
   - app/
   - pkg/
 verified_at: 2026-08-13
-verified_commit: 21737e7
+verified_commit: 290b353
 ---
 
 # 服务架构与模块清单
@@ -74,7 +74,7 @@ internal/model/    → 数据访问层
 - `mqx` — RocketMQ 生产者/消费者封装与主题常量。
 - `outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
 - `event` — 跨服务事件载荷定义（PostEvent / InteractionEvent / BehaviorEvent）。
-- `cachex` / `cleanupx` / `clickhousex` / `testutil` / `util` / `validator` — 通用辅助。
+- `cachex` / `cleanupx` / `clickhousex` / `testutil` / `util` / `validator` / `visibilityx` — 通用辅助。
 
 ## 服务间通信
 

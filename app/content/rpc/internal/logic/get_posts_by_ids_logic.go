@@ -41,11 +41,10 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 		return &pb.GetPostsByIdsResp{Posts: []*pb.PostInfo{}}, nil
 	}
 
-	validIds := make([]int64, 0, len(posts))
-	for _, p := range posts {
-		if p.Status == 1 {
-			validIds = append(validIds, p.Id)
-		}
+	published := keepPublishedPosts(posts)
+	validIds := make([]int64, 0, len(published))
+	for _, post := range published {
+		validIds = append(validIds, post.Id)
 	}
 
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
@@ -54,12 +53,9 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 		tagsMap = map[int64][]string{}
 	}
 
-	result := make([]*pb.PostInfo, 0, len(validIds))
-	for _, p := range posts {
-		if p.Status != 1 {
-			continue
-		}
-		result = append(result, PostToPostInfo(p, tagsMap[p.Id]))
+	result := make([]*pb.PostInfo, 0, len(published))
+	for _, post := range published {
+		result = append(result, PostToPostInfo(post, tagsMap[post.Id]))
 	}
 	return &pb.GetPostsByIdsResp{Posts: result}, nil
 }

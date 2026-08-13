@@ -172,8 +172,8 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 				}
 				return &contentpb.GetPostsByIdsResp{
 					Posts: []*contentpb.PostInfo{
-						{Id: 100, AuthorId: 1, Title: "Post A", Content: "Content A", ViewCount: 10, LikeCount: 5, CommentCount: 2, FavoriteCount: 3, CreatedAt: 1000},
-						{Id: 200, AuthorId: 2, Title: "Post B", Content: "Content B", ViewCount: 20, LikeCount: 10, CommentCount: 4, FavoriteCount: 6, CreatedAt: 2000},
+						{Id: 100, AuthorId: 1, Title: "Post A", Content: "Content A", Status: 1, ViewCount: 10, LikeCount: 5, CommentCount: 2, FavoriteCount: 3, CreatedAt: 1000},
+						{Id: 200, AuthorId: 2, Title: "Post B", Content: "Content B", Status: 1, ViewCount: 20, LikeCount: 10, CommentCount: 4, FavoriteCount: 6, CreatedAt: 2000},
 					},
 				}, nil
 			},
@@ -225,8 +225,8 @@ func TestGetUserFavorites_NonOwnerUsesViewerFavoriteState(t *testing.T) {
 		ContentService: &fakeContentServiceFavorites{
 			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
 				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
-					{Id: 100, AuthorId: 1, Title: "Post A"},
-					{Id: 200, AuthorId: 2, Title: "Post B"},
+					{Id: 100, AuthorId: 1, Title: "Post A", Status: 1},
+					{Id: 200, AuthorId: 2, Title: "Post B", Status: 1},
 				}}, nil
 			},
 		},
@@ -264,7 +264,7 @@ func TestGetUserFavorites_DropsUnavailablePostsAndReducesTotal(t *testing.T) {
 		ContentService: &fakeContentServiceFavorites{
 			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
 				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
-					{Id: 100, AuthorId: 1, Title: "live"},
+					{Id: 100, AuthorId: 1, Title: "live", Status: 1},
 				}}, nil
 			},
 		},

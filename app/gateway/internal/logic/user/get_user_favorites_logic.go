@@ -9,6 +9,7 @@ import (
 	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/interactionservice"
+	"esx/pkg/visibilityx"
 	"gateway/internal/logic/viewerstate"
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -78,9 +79,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		}, nil
 	}
 
-	postsResp, err := l.svcCtx.ContentService.GetPostsByIds(l.ctx, &contentservice.GetPostsByIdsReq{
-		PostIds: favoriteResp.PostIds,
-	})
+	published, err := visibilityx.PublishedByIDs(l.ctx, fetchFavoritePosts(l.svcCtx.ContentService), favoriteResp.PostIds)
 	if err != nil {
 		l.Errorw("ContentService.GetPostsByIds RPC failed",
 			logx.Field("postIds", favoriteResp.PostIds),
@@ -89,10 +88,11 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, errx.FromRPCError(err)
 	}
 
-	visible := make([]*contentservice.PostInfo, 0, len(postsResp.Posts))
-	postIDs := make([]int64, 0, len(postsResp.Posts))
-	for _, post := range postsResp.Posts {
-		if post == nil || post.Id <= 0 {
+	visible := make([]*contentservice.PostInfo, 0, len(favoriteResp.PostIds))
+	postIDs := make([]int64, 0, len(favoriteResp.PostIds))
+	for _, postID := range favoriteResp.PostIds {
+		post := published[postID]
+		if post == nil {
 			continue
 		}
 		visible = append(visible, post)
@@ -124,15 +124,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		})
 	}
 
-	total := favoriteResp.Total
-	removed := int64(len(favoriteResp.PostIds) - len(visible))
-	if removed > 0 {
-		if total < removed {
-			total = int64(len(visible))
-		} else {
-			total -= removed
-		}
-	}
+	total := visibilityx.AdjustPageTotal(favoriteResp.Total, len(favoriteResp.PostIds), len(visible))
 
 	return &types.GetPostListResp{
 		List:     list,
@@ -140,4 +132,20 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, nil
+}
+
+func fetchFavoritePosts(client contentservice.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
+	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
+		if client == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		resp, err := client.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		return resp.Posts, nil
+	}
 }

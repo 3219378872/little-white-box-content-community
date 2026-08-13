@@ -19,7 +19,6 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
-	"esx/app/content/rpc/contentservice"
 
 	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -291,21 +290,15 @@ func (l *ChatLogic) verifyHistoricalSources(userID int64, conversationID string)
 	for _, source := range tracked {
 		postIDs = append(postIDs, source.postID)
 	}
-	response, err := l.svcCtx.ContentService.GetPostsByIds(l.ctx, &contentservice.GetPostsByIdsReq{PostIds: postIDs})
+	currentByID, err := tool.PublishedPosts(l.ctx, l.svcCtx.ContentService, postIDs)
 	if err != nil {
 		return nil, err
-	}
-	currentByID := make(map[int64]*contentservice.PostInfo, len(response.GetPosts()))
-	for _, post := range response.GetPosts() {
-		if post != nil && post.Id > 0 {
-			currentByID[post.Id] = post
-		}
 	}
 	changed := make([]string, 0, len(tracked))
 	unavailable := make([]string, 0, len(tracked))
 	for _, source := range tracked {
 		current := currentByID[source.postID]
-		if current == nil || current.Status != 1 {
+		if current == nil {
 			unavailable = append(unavailable, strconv.FormatInt(source.postID, 10))
 			continue
 		}

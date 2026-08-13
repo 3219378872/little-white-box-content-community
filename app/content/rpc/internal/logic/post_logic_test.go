@@ -557,6 +557,22 @@ func TestGetPostListLogic(t *testing.T) {
 			},
 		},
 		{
+			name: "回源后丢弃已取消发布帖并回减本页 Total",
+			req:  &pb.GetPostListReq{Page: 1, PageSize: 10, SortBy: 1},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindList", mock.Anything, 1, 10, 1).Return([]*model2.Post{
+					{Id: 1, AuthorId: 100, Title: "live", Content: "ok", Status: 1},
+					{Id: 2, AuthorId: 101, Title: "gone", Content: "old", Status: 0},
+				}, int64(5), nil)
+				ptm.On("FindTagNamesByPostIds", mock.Anything, []int64{1}).Return(map[int64][]string{1: {"go"}}, nil)
+			},
+			check: func(t *testing.T, resp *pb.GetPostListResp) {
+				assert.Len(t, resp.Posts, 1)
+				assert.Equal(t, int64(1), resp.Posts[0].Id)
+				assert.Equal(t, int64(4), resp.Total)
+			},
+		},
+		{
 			name: "数据库错误",
 			req:  &pb.GetPostListReq{Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
@@ -628,6 +644,22 @@ func TestGetUserPostsLogic(t *testing.T) {
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
 				assert.Len(t, resp.Posts, 0)
 				assert.Equal(t, int64(0), resp.Total)
+			},
+		},
+		{
+			name: "回源后丢弃已取消发布帖并回减本页 Total",
+			req:  &pb.GetUserPostsReq{UserId: 5001, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindByAuthorId", mock.Anything, int64(5001), 1, 10, model2.SortByLatest).Return([]*model2.Post{
+					{Id: 10, AuthorId: 5001, Title: "live", Content: "ok", Status: 1},
+					{Id: 11, AuthorId: 5001, Title: "draft", Content: "old", Status: 0},
+				}, int64(3), nil)
+				ptm.On("FindTagNamesByPostIds", mock.Anything, []int64{10}).Return(map[int64][]string{10: {"go"}}, nil)
+			},
+			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
+				assert.Len(t, resp.Posts, 1)
+				assert.Equal(t, int64(10), resp.Posts[0].Id)
+				assert.Equal(t, int64(2), resp.Total)
 			},
 		},
 		{

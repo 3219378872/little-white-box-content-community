@@ -7,7 +7,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
-	"esx/pkg/validator"
+	"esx/pkg/visibilityx"
 )
 
 const (
@@ -16,47 +16,33 @@ const (
 	feedTypeRecommend = 2
 )
 
-func enrichFeedItems(ctx context.Context, contentService svc.ContentService, baseItems []*pb.FeedItem) ([]*pb.FeedItem, error) {
-	postIDs := make([]int64, 0, len(baseItems))
-	requested := make(map[int64]struct{}, len(baseItems))
-	for _, item := range baseItems {
-		if item == nil || item.PostId <= 0 {
-			continue
+func fetchContentPosts(contentService svc.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
+	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
+		if contentService == nil {
+			return nil, errx.NewWithCode(errx.SystemError)
 		}
-		if _, exists := requested[item.PostId]; exists {
-			continue
-		}
-		requested[item.PostId] = struct{}{}
-		postIDs = append(postIDs, item.PostId)
-	}
-	if len(postIDs) == 0 {
-		return []*pb.FeedItem{}, nil
-	}
-	if contentService == nil {
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-
-	postsByID := make(map[int64]*contentservice.PostInfo, len(postIDs))
-	for start := 0; start < len(postIDs); start += validator.MaxBatchQueryIds {
-		end := min(start+validator.MaxBatchQueryIds, len(postIDs))
-		response, err := contentService.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{
-			PostIds: postIDs[start:end],
-		})
+		response, err := contentService.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
 		if err != nil {
 			return nil, err
 		}
 		if response == nil {
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
-		for _, post := range response.Posts {
-			if post == nil || post.Id <= 0 || post.Status != 1 {
-				continue
-			}
-			if _, exists := requested[post.Id]; !exists {
-				continue
-			}
-			postsByID[post.Id] = post
+		return response.Posts, nil
+	}
+}
+
+func enrichFeedItems(ctx context.Context, contentService svc.ContentService, baseItems []*pb.FeedItem) ([]*pb.FeedItem, error) {
+	postIDs := make([]int64, 0, len(baseItems))
+	for _, item := range baseItems {
+		if item == nil {
+			continue
 		}
+		postIDs = append(postIDs, item.PostId)
+	}
+	postsByID, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(contentService), postIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	items := make([]*pb.FeedItem, 0, len(baseItems))

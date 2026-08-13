@@ -11,7 +11,7 @@ import (
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
-	"esx/pkg/validator"
+	"esx/pkg/visibilityx"
 	"user/userservice"
 )
 
@@ -123,42 +123,35 @@ func tagResults(tags []store.Tag) []*pb.TagSearchResult {
 	return result
 }
 
-// publishedSearchPosts 用 Content 权威状态过滤不可见帖子，并回填标题/摘要。
-// 可见性无法验证时整体失败（DISC-001 / DISC-021 / DISC-041）。
-func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts []store.Post) ([]store.Post, error) {
-	if len(posts) == 0 {
-		return posts, nil
-	}
-	if content == nil {
-		return nil, errx.NewWithCode(errx.ServiceUnavailable)
-	}
-	ids := make([]int64, 0, len(posts))
-	seen := make(map[int64]struct{}, len(posts))
-	for _, post := range posts {
-		if post.ID <= 0 {
-			continue
+func fetchContentPosts(content svc.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
+	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
+		if content == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		if _, exists := seen[post.ID]; exists {
-			continue
-		}
-		seen[post.ID] = struct{}{}
-		ids = append(ids, post.ID)
-	}
-	published := make(map[int64]*contentservice.PostInfo, len(ids))
-	for start := 0; start < len(ids); start += validator.MaxBatchQueryIds {
-		end := min(start+validator.MaxBatchQueryIds, len(ids))
-		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids[start:end]})
+		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
 		if err != nil {
 			return nil, err
 		}
 		if response == nil {
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		for _, post := range response.Posts {
-			if post != nil && post.Id > 0 && post.Status == 1 {
-				published[post.Id] = post
-			}
-		}
+		return response.Posts, nil
+	}
+}
+
+// publishedSearchPosts 用 Content 权威状态过滤不可见帖子，并回填标题/摘要。
+// 可见性无法验证时整体失败（DISC-001 / DISC-021 / DISC-041）。
+func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts []store.Post) ([]store.Post, error) {
+	if len(posts) == 0 {
+		return posts, nil
+	}
+	ids := make([]int64, 0, len(posts))
+	for _, post := range posts {
+		ids = append(ids, post.ID)
+	}
+	published, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(content), ids)
+	if err != nil {
+		return nil, err
 	}
 	filtered := make([]store.Post, 0, len(posts))
 	emitted := make(map[int64]struct{}, len(published))
@@ -218,12 +211,5 @@ func truncateRunes(value string, limit int) string {
 }
 
 func searchTotalAfterVisibility(total int64, fetched, visible int) int64 {
-	removed := int64(fetched - visible)
-	if removed <= 0 {
-		return total
-	}
-	if total < removed {
-		return int64(visible)
-	}
-	return total - removed
+	return visibilityx.AdjustPageTotal(total, fetched, visible)
 }

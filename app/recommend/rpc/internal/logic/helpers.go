@@ -16,7 +16,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/model"
-	"esx/pkg/validator"
+	"esx/pkg/visibilityx"
 )
 
 const (
@@ -778,40 +778,30 @@ func deterministicJitter(seed string, id int64) float64 {
 	return float64(value%1000) / 1_000_000
 }
 
-func publishedPostIDs(ctx context.Context, content contentservice.ContentService, ids []int64) (map[int64]struct{}, error) {
-	if content == nil {
-		return nil, fmt.Errorf("content visibility service is unavailable")
-	}
-	unique := make([]int64, 0, len(ids))
-	seen := make(map[int64]struct{}, len(ids))
-	for _, id := range ids {
-		if id <= 0 {
-			continue
+func fetchContentPosts(content contentservice.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
+	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
+		if content == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		unique = append(unique, id)
-	}
-	published := make(map[int64]struct{}, len(unique))
-	if len(unique) == 0 {
-		return published, nil
-	}
-	for start := 0; start < len(unique); start += validator.MaxBatchQueryIds {
-		end := min(start+validator.MaxBatchQueryIds, len(unique))
-		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: unique[start:end]})
+		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
 		if err != nil {
 			return nil, err
 		}
 		if response == nil {
-			return nil, fmt.Errorf("content visibility response is empty")
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		for _, post := range response.Posts {
-			if post != nil && post.Id > 0 && post.Status == 1 {
-				published[post.Id] = struct{}{}
-			}
-		}
+		return response.Posts, nil
+	}
+}
+
+func publishedPostIDs(ctx context.Context, content contentservice.ContentService, ids []int64) (map[int64]struct{}, error) {
+	live, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(content), ids)
+	if err != nil {
+		return nil, err
+	}
+	published := make(map[int64]struct{}, len(live))
+	for id := range live {
+		published[id] = struct{}{}
 	}
 	return published, nil
 }

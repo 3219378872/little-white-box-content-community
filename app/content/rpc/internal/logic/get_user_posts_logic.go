@@ -6,6 +6,7 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -51,6 +52,13 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
+	if len(posts) == 0 {
+		return &pb.GetUserPostsResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+	}
+
+	fetched := len(posts)
+	posts = keepPublishedPosts(posts)
+	total = visibilityx.AdjustPageTotal(total, fetched, len(posts))
 	if len(posts) == 0 {
 		return &pb.GetUserPostsResp{Posts: []*pb.PostInfo{}, Total: total}, nil
 	}

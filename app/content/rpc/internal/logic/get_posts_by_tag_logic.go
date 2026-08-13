@@ -3,9 +3,9 @@ package logic
 import (
 	"context"
 	"errx"
-	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -58,14 +58,12 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	postsByID := make(map[int64]*model.Post, len(posts))
-	publishedIDs := make([]int64, 0, len(posts))
-	for _, post := range posts {
-		if post == nil || post.Id <= 0 || post.Status != 1 {
-			continue
+	postsByID := indexPublishedPosts(posts)
+	publishedIDs := make([]int64, 0, len(postsByID))
+	for _, postID := range postIds {
+		if _, ok := postsByID[postID]; ok {
+			publishedIDs = append(publishedIDs, postID)
 		}
-		postsByID[post.Id] = post
-		publishedIDs = append(publishedIDs, post.Id)
 	}
 
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, publishedIDs)
@@ -81,14 +79,7 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 		}
 		postInfos = append(postInfos, PostToPostInfo(post, tagsMap[post.Id]))
 	}
-	removed := int64(len(postIds) - len(postInfos))
-	if removed > 0 {
-		if total < removed {
-			total = int64(len(postInfos))
-		} else {
-			total -= removed
-		}
-	}
+	total = visibilityx.AdjustPageTotal(total, len(postIds), len(postInfos))
 
 	return &pb.GetPostsByTagResp{
 		Posts: postInfos,
