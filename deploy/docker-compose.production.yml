@@ -150,10 +150,6 @@ services:
     volumes:
       - ./seaweedfs/render-config.sh:/opt/xbh/render-config.sh:ro
 
-  dtm:
-    environment:
-      STORE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
-
   grafana:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
@@ -223,8 +219,6 @@ services:
       start_period: 15s
     depends_on:
       <<: *core-dependencies
-      dtm:
-        condition: service_started
 
   media-rpc:
     <<: *go-service

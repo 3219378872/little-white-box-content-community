@@ -48,7 +48,7 @@ verified_commit: 21737e7
 ## 运行与可靠性
 
 - 本地中间件由 `deploy/docker-compose.middleware.yml` 管理（MySQL、Redis、etcd、
-  RocketMQ、Elasticsearch、Milvus、MinIO/SeaweedFS、DTM、ClickHouse、观测组件）。
+  RocketMQ、Elasticsearch、Milvus、MinIO/SeaweedFS、ClickHouse、观测组件）。
 - RocketMQ 消费者必须处理重试、幂等与不可恢复错误；不静默吞错。
 - 超时/取消/下游错误沿 ctx 传播；日志使用 `logx.WithContext(ctx)`。
 - 排查入口：先日志与配置，再验证依赖健康、注册发现与消息主题，最后定位消费者/RPC。

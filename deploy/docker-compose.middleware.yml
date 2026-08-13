@@ -283,27 +283,6 @@ services:
     networks:
       - xbh-network
 
-  # DTM 分布式事务
-  dtm:
-    image: yedf/dtm:latest
-    container_name: xbh-dtm
-    environment:
-      IS_DOCKER: "1"
-      STORE_DRIVER: mysql
-      STORE_HOST: 'mysql'
-      STORE_USER: 'root'
-      STORE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-Xbh@MySQL2024!}"
-      STORE_PORT: 3306
-      STORE_DB: 'dtm'
-    ports:
-      - "36789:36789"
-      - "36790:36790"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    networks:
-      - xbh-network
-
   # Jaeger 链路追踪
   jaeger:
     image: jaegertracing/all-in-one:1.47

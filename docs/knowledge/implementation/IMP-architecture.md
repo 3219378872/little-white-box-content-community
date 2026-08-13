@@ -82,7 +82,8 @@ internal/model/    → 数据访问层
 - **RPC → RPC**：Content 聚合 User（作者）与 Interaction（点赞/收藏状态）；Assistant 经
   Content 重读正文并验证 published 状态。
 - **RPC → MQ**：权威业务事务与 outbox 同事务提交，relay 投递 RocketMQ。
-- **DTM 二阶段消息**：Content 发帖（QueryPrepared 屏障）等保留补偿/重入路径。
+- **DTM 兼容**：Content 保留 QueryPrepared 屏障 RPC 契约（供外部 DTM 协调器回调），
+  权威写入本身走 outbox，不依赖仓库内 DTM 服务。
 
 ## 注意事项
 
