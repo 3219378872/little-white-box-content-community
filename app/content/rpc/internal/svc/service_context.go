@@ -22,20 +22,19 @@ import (
 )
 
 type ServiceContext struct {
-	Config               config.Config
-	DB                   *sql.DB
-	Conn                 sqlx.SqlConn
-	PostModel            model2.PostModel
-	CommentModel         model2.CommentModel
-	CommentCommandModel  model2.CommentCommandModel
-	TagModel             model2.TagModel
-	PostTagModel         model2.PostTagModel
-	PostCommandModel     model2.PostCommandModel
-	MediaService         mediaservice.MediaService
-	OutboxStore          *outboxx.SQLStore
-	OutboxRelay          *outboxx.Relay
-	MQProducer           *mqx.Producer
-	PostCreateMsgFactory PostCreateMsgFactory
+	Config              config.Config
+	DB                  *sql.DB
+	Conn                sqlx.SqlConn
+	PostModel           model2.PostModel
+	CommentModel        model2.CommentModel
+	CommentCommandModel model2.CommentCommandModel
+	TagModel            model2.TagModel
+	PostTagModel        model2.PostTagModel
+	PostCommandModel    model2.PostCommandModel
+	MediaService        mediaservice.MediaService
+	OutboxStore         *outboxx.SQLStore
+	OutboxRelay         *outboxx.Relay
+	MQProducer          *mqx.Producer
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {

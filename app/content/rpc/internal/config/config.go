@@ -9,11 +9,8 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	DataSource        string
-	DtmServer         string
-	ContentBusiServer string
-	FeedBusiServer    string
-	MediaRpc          zrpc.RpcClientConf
-	MQ                mqx.ProducerConfig
-	Outbox            outboxx.Config
+	DataSource string
+	MediaRpc   zrpc.RpcClientConf
+	MQ         mqx.ProducerConfig
+	Outbox     outboxx.Config
 }

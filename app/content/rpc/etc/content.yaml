@@ -31,9 +31,6 @@ Redis:
   Type: node
   Key: content
 DataSource: "${DB_CONTENT}"
-DtmServer: "etcd://127.0.0.1:2379/dtmservice"
-ContentBusiServer: "etcd://127.0.0.1:2379/content"
-FeedBusiServer: "etcd://127.0.0.1:2379/feed.rpc"
 MediaRpc:
   Etcd:
     Hosts:

@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# Manage the isolated DTM and SeaweedFS services used by integration tests.
+# Manage the isolated SeaweedFS service used by media integration tests.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCKER_BIN="${INTEGRATION_DOCKER_BIN:-docker}"
 ENV_NAME="${INTEGRATION_ENV_NAME:-xbh-test}"
 NETWORK_NAME="${ENV_NAME}-network"
-DTM_CONTAINER="${ENV_NAME}-dtm"
 SEAWEEDFS_CONTAINER="${ENV_NAME}-seaweedfs"
-DTM_PORT="${INTEGRATION_DTM_PORT:-36790}"
 S3_PORT="${INTEGRATION_S3_PORT:-8333}"
 WAIT_SECONDS="${INTEGRATION_WAIT_SECONDS:-120}"
 WAIT_INTERVAL="${INTEGRATION_WAIT_INTERVAL:-2}"
@@ -55,7 +53,7 @@ network_owned() {
 
 clear_environment() {
   local status=0 container
-  for container in "$DTM_CONTAINER" "$SEAWEEDFS_CONTAINER"; do
+  for container in "$SEAWEEDFS_CONTAINER"; do
     if container_exists "$container"; then
       if container_owned "$container"; then
         docker_cmd rm --force "$container" >/dev/null || status=1
@@ -78,7 +76,7 @@ clear_environment() {
 
 print_logs() {
   local container
-  for container in "$DTM_CONTAINER" "$SEAWEEDFS_CONTAINER"; do
+  for container in "$SEAWEEDFS_CONTAINER"; do
     if container_exists "$container"; then
       echo "==> $container logs" >&2
       docker_cmd logs "$container" >&2 || true
@@ -96,7 +94,7 @@ wait_for_services() {
   attempts=$(((WAIT_SECONDS + WAIT_INTERVAL - 1) / WAIT_INTERVAL))
   ((attempts > 0)) || attempts=1
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if port_reachable 127.0.0.1 "$DTM_PORT" && port_reachable 127.0.0.1 "$S3_PORT"; then
+    if port_reachable 127.0.0.1 "$S3_PORT"; then
       return 0
     fi
     sleep "$WAIT_INTERVAL"
@@ -109,12 +107,6 @@ init_environment() (
   set -e
   clear_environment
   docker_cmd network create --label "$ENV_LABEL" "$NETWORK_NAME" >/dev/null
-  docker_cmd run --detach \
-    --name "$DTM_CONTAINER" \
-    --label "$ENV_LABEL" \
-    --network "$NETWORK_NAME" \
-    --publish "127.0.0.1:${DTM_PORT}:36790" \
-    yedf/dtm:latest >/dev/null
   docker_cmd run --detach \
     --name "$SEAWEEDFS_CONTAINER" \
     --label "$ENV_LABEL" \
@@ -139,7 +131,7 @@ case "${1:-}" in
       clear_environment || true
       exit "$status"
     fi
-    echo "Integration services are ready: DTM=127.0.0.1:$DTM_PORT S3=127.0.0.1:$S3_PORT"
+    echo "Integration services are ready: S3=127.0.0.1:$S3_PORT"
     ;;
   clear)
     require_docker

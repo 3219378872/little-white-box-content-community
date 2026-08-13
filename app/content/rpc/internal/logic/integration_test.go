@@ -25,17 +25,10 @@ var testSvcCtx *svc.ServiceContext
 
 func TestMain(m *testing.M) {
 	testEnv = testutil.SetupTestEnvM("xbh_content", testutil.SchemaPath("xbh_content.sql"))
-	dtmEndpoint := os.Getenv("TEST_DTM_ENDPOINT")
-	if dtmEndpoint == "" {
-		dtmEndpoint = "127.0.0.1:36790"
-	}
 
 	cfg := config.Config{
-		RpcServerConf:     zrpc.RpcServerConf{},
-		DataSource:        testEnv.MySQLDSN,
-		DtmServer:         dtmEndpoint,
-		ContentBusiServer: "http://127.0.0.1:0",
-		FeedBusiServer:    "http://127.0.0.1:0",
+		RpcServerConf: zrpc.RpcServerConf{},
+		DataSource:    testEnv.MySQLDSN,
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
 		Host: testEnv.RedisAddr,

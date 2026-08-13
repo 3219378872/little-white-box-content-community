@@ -11,8 +11,6 @@ import (
 )
 
 func TestIntegrationAllClearsEnvironmentAfterTestFailure(t *testing.T) {
-	dtmListener := listenLocal(t)
-	defer dtmListener.Close()
 	s3Listener := listenLocal(t)
 	defer s3Listener.Close()
 
@@ -39,7 +37,6 @@ exit 23
 		"INTEGRATION_TEST_RUNNER="+runnerPath,
 		"INTEGRATION_TEST_LOG="+logPath,
 		"INTEGRATION_ENV_NAME="+envName,
-		fmt.Sprintf("INTEGRATION_DTM_PORT=%d", dtmListener.Addr().(*net.TCPAddr).Port),
 		fmt.Sprintf("INTEGRATION_S3_PORT=%d", s3Listener.Addr().(*net.TCPAddr).Port),
 		"INTEGRATION_WAIT_SECONDS=1",
 		"INTEGRATION_WAIT_INTERVAL=1",
@@ -62,7 +59,6 @@ exit 23
 		t.Fatalf("runner marker not found in lifecycle log:\n%s", logBody)
 	}
 	for _, command := range []string{
-		"docker rm --force " + envName + "-dtm",
 		"docker rm --force " + envName + "-seaweedfs",
 		"docker network rm " + envName + "-network",
 	} {

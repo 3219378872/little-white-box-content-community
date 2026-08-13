@@ -74,7 +74,7 @@ coverage-no-gate: ## Generate coverage reports without enforcing a gate
 integration-critical: ## Run the self-contained critical integration tests
 	scripts/integration-test.sh --critical
 
-integration-init: ## Start isolated DTM and SeaweedFS integration dependencies
+integration-init: ## Start isolated SeaweedFS integration dependency
 	scripts/integration-env.sh init
 
 integration-run: ## Run all integration tests against prepared dependencies

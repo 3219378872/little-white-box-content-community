@@ -25,7 +25,8 @@ upstream:
   assistant / behavior，各自持有 Model 与事务。
 - MQ 消费（`app/*/mq`）：search 索引、embedding、feed fanout、message 通知、行为链路、
   推荐特征、清理任务。
-- 可靠写入：权威业务写入与 outbox 同事务提交（DTM + event_outbox），异步效果经 relay 投递。
+- 可靠写入：权威业务写入与 outbox 同事务提交，异步效果经 relay 投递；
+  DTM 屏障表仅保留 QueryPrepared 兼容 RPC 契约。
 - 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog pipeline
   （去重+ClickHouse 存储）→ recommend-mq 特征更新。
 

@@ -55,13 +55,9 @@ if [[ "$mode" != "--all" ]]; then
   exit 2
 fi
 
-# Content's reliable-message integration uses a real DTM coordinator. Media's
-# upload integration uses the repository's SeaweedFS S3 configuration.
-dtm_endpoint="${TEST_DTM_ENDPOINT:-127.0.0.1:${INTEGRATION_DTM_PORT:-36790}}"
+# Media's upload integration uses the repository's SeaweedFS S3 configuration.
 s3_endpoint="${TEST_S3_ENDPOINT:-127.0.0.1:${INTEGRATION_S3_PORT:-8333}}"
-require_port "DTM gRPC" "${dtm_endpoint%:*}" "${dtm_endpoint##*:}"
 require_port "SeaweedFS S3" "${s3_endpoint%:*}" "${s3_endpoint##*:}"
-export TEST_DTM_ENDPOINT="$dtm_endpoint"
 export TEST_S3_ENDPOINT="$s3_endpoint"
 
 mapfile -t modules < <(
