@@ -8,6 +8,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
@@ -123,22 +124,6 @@ func tagResults(tags []store.Tag) []*pb.TagSearchResult {
 	return result
 }
 
-func fetchContentPosts(content svc.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
-	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
-		if content == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		return response.Posts, nil
-	}
-}
-
 // publishedSearchPosts 用 Content 权威状态过滤不可见帖子，并回填标题/摘要。
 // 可见性无法验证时整体失败（DISC-001 / DISC-021 / DISC-041）。
 func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts []store.Post) ([]store.Post, error) {
@@ -149,7 +134,7 @@ func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts
 	for _, post := range posts {
 		ids = append(ids, post.ID)
 	}
-	published, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(content), ids)
+	published, err := visibility.PublishedByIDs(ctx, content, ids)
 	if err != nil {
 		return nil, err
 	}

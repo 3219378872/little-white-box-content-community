@@ -14,9 +14,9 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/model"
-	"esx/pkg/visibilityx"
 )
 
 const (
@@ -778,24 +778,8 @@ func deterministicJitter(seed string, id int64) float64 {
 	return float64(value%1000) / 1_000_000
 }
 
-func fetchContentPosts(content contentservice.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
-	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
-		if content == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		return response.Posts, nil
-	}
-}
-
 func publishedPostIDs(ctx context.Context, content contentservice.ContentService, ids []int64) (map[int64]struct{}, error) {
-	live, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(content), ids)
+	live, err := visibility.PublishedByIDs(ctx, content, ids)
 	if err != nil {
 		return nil, err
 	}

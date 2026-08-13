@@ -26,3 +26,16 @@ func keepPublishedPosts(posts []*model.Post) []*model.Post {
 	}
 	return out
 }
+
+const commentActiveStatus int64 = 1
+
+func keepActiveComments(comments []*model.Comment) []*model.Comment {
+	out := make([]*model.Comment, 0, len(comments))
+	for _, comment := range comments {
+		if comment == nil || comment.Id <= 0 || comment.Status != commentActiveStatus {
+			continue
+		}
+		out = append(out, comment)
+	}
+	return out
+}

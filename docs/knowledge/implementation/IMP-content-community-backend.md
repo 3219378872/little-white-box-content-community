@@ -23,6 +23,7 @@ tracks:
   - app/feed/rpc/internal/logic
   - app/gateway
   - pkg/visibilityx
+  - app/content/visibility
   - proto/content/content.proto
   - proto/message/message.proto
   - proto/media/media.proto
@@ -74,7 +75,7 @@ verified_commit: 314aa67
 | CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update 返回 status/revision；HTTP GetPost 与公开列表 PostItem 回传权威 status 与 revision |
 | CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/公开列表/标签回源后只保留 published；搜索/列表/标签/收藏 Total 只按本页回减 |
-| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
+| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取；评论列表 SQL 过滤 status=1 后再内存二次过滤并回减 Total（纵深防御） |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
@@ -126,7 +127,7 @@ verified_commit: 314aa67
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 条查询；双评标注冻结集待人类评审 |
+| DISC-060~063 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 条查询；官方数据集校验器已落地（frozen=true + 双评审 + dev 集拒绝）；双评标注冻结集待人类评审 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -159,7 +160,7 @@ verified_commit: 314aa67
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 案例；冻结集待人类评审 |
+| ASST-050~051 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 案例与类型混合；官方数据集校验器已落地（frozen=true + 双评审 + dev 集拒绝）；冻结集待人类评审 |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -242,6 +243,7 @@ verified_commit: 314aa67
   `app/assistant/rpc/internal/tool/registry.go`、`app/assistant/rpc/internal/store/state.go`。
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
 - 搜索：`app/search/rpc/internal/logic/search_logic.go`。
+- 共享回源：`app/content/visibility`（把 Content `GetPostsByIds` 适配为 `visibilityx.Fetcher`，Assistant/Feed/Recommend/Search/Gateway 统一复用）。
 - 网关：`app/gateway/internal/logic/**` 与 `app/gateway/gateway.api`。
 
 ## 证据

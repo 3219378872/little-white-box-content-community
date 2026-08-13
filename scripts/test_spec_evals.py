@@ -3,12 +3,15 @@ import json
 from pathlib import Path
 
 from spec_evals import (
+    DatasetError,
     evaluate_assistant,
     evaluate_recommendation,
     evaluate_search,
     monthly_slo_report,
     report_assistant,
     report_search,
+    require_official_assistant,
+    require_official_search,
     time_ordered_holdout,
 )
 
@@ -205,6 +208,49 @@ class DevDatasetGateTest(unittest.TestCase):
         self.assertEqual(1.0, result.source_accuracy)
         self.assertEqual(1.0, result.insufficient_recall)
         self.assertEqual(0, result.injection_breaches)
+
+
+
+class OfficialDatasetContractTest(unittest.TestCase):
+    def _repo_root(self):
+        return Path(__file__).resolve().parent.parent
+
+    def test_dev_search_file_cannot_gate(self):
+        path = self._repo_root() / "eval/dev/search_qrels.dev.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        with self.assertRaises(DatasetError):
+            require_official_search(path, payload)
+
+    def test_dev_assistant_file_cannot_gate(self):
+        path = self._repo_root() / "eval/dev/assistant_cases.dev.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        with self.assertRaises(DatasetError):
+            require_official_assistant(path, payload)
+
+    def test_search_requires_two_reviewers(self):
+        queries = [{"query": f"q{i}", "relevant": [{"post_id": 1, "grade": 3}], "hidden": []} for i in range(200)]
+        with self.assertRaises(DatasetError):
+            require_official_search(
+                "eval/search_qrels.json",
+                {"frozen": True, "reviewers": ["only-one"], "queries": queries},
+            )
+
+    def test_frozen_search_accepts_dual_review(self):
+        queries = [{"query": f"q{i}", "relevant": [{"post_id": 1, "grade": 3}], "hidden": []} for i in range(200)]
+        got = require_official_search(
+            "eval/search_qrels.json",
+            {"frozen": True, "reviewers": ["ann", "bob"], "queries": queries},
+        )
+        self.assertEqual(200, len(got))
+
+    def test_assistant_requires_type_mix(self):
+        cases = [{"id": f"c{i}", "type": "answerable"} for i in range(200)]
+        with self.assertRaises(DatasetError):
+            require_official_assistant(
+                "eval/assistant_cases.json",
+                {"frozen": True, "reviewers": ["ann", "bob"], "cases": cases},
+            )
+
 
 
 if __name__ == "__main__":

@@ -18,9 +18,78 @@ import json
 import math
 import random
 import sys
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
+
+
+
+class DatasetError(ValueError):
+    """Official gate datasets are missing required frozen metadata."""
+
+
+def dataset_is_development(path: Path, payload: dict) -> bool:
+    resolved = path.resolve().as_posix()
+    if "/eval/dev/" in resolved or ".dev." in path.name:
+        return True
+    note = str(payload.get("note", "")).upper()
+    return "DEVELOPMENT-ONLY" in note or "NOT THE FROZEN" in note
+
+
+def _reviewers(payload: dict) -> list[str]:
+    values = payload.get("reviewers", [])
+    if not isinstance(values, list):
+        return []
+    return [str(item).strip() for item in values if str(item).strip()]
+
+
+def require_official_search(path: str | Path, payload: dict) -> list[dict]:
+    """DISC-060: official qrels are frozen, dual-reviewed, and at least 200 queries."""
+    source = Path(path)
+    if dataset_is_development(source, payload):
+        raise DatasetError(f"{source} is a development dataset and cannot gate DISC-060")
+    if payload.get("frozen") is not True:
+        raise DatasetError("official search qrels must set frozen=true")
+    if len(set(_reviewers(payload))) < 2:
+        raise DatasetError("DISC-060 requires two independent reviewers")
+    queries = payload.get("queries")
+    if not isinstance(queries, list) or len(queries) < 200:
+        raise DatasetError("DISC-060 requires at least 200 queries")
+    for query in queries:
+        for item in query.get("relevant", []):
+            if item.get("grade") not in (0, 1, 2, 3, 0.0, 1.0, 2.0, 3.0):
+                raise DatasetError("DISC-060 relevance grades must be 0-3")
+    return queries
+
+
+def require_official_assistant(path: str | Path, payload: dict) -> list[dict]:
+    """ASST-050: official cases are frozen, dual-reviewed, and mixed by type."""
+    source = Path(path)
+    if dataset_is_development(source, payload):
+        raise DatasetError(f"{source} is a development dataset and cannot gate ASST-050")
+    if payload.get("frozen") is not True:
+        raise DatasetError("official assistant cases must set frozen=true")
+    if len(set(_reviewers(payload))) < 2:
+        raise DatasetError("ASST-050 requires two independent reviewers")
+    cases = payload.get("cases")
+    if not isinstance(cases, list) or len(cases) < 200:
+        raise DatasetError("ASST-050 requires at least 200 cases")
+    counts: dict[str, int] = {}
+    for case in cases:
+        kind = str(case.get("type", "answerable"))
+        counts[kind] = counts.get(kind, 0) + 1
+    conflict_or_opinion = counts.get("conflict", 0) + counts.get("opinion", 0)
+    if counts.get("answerable", 0) < 80:
+        raise DatasetError("ASST-050 requires at least 80 answerable cases")
+    if counts.get("insufficient", 0) < 60:
+        raise DatasetError("ASST-050 requires at least 60 insufficient-evidence cases")
+    if conflict_or_opinion < 40:
+        raise DatasetError("ASST-050 requires at least 40 conflict or opinion cases")
+    if counts.get("injection", 0) < 20:
+        raise DatasetError("ASST-050 requires at least 20 prompt-injection cases")
+    return cases
 
 
 # ---------------------------------------------------------------------------
@@ -402,12 +471,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "search":
         with open(args.qrels, encoding="utf-8") as handle:
-            queries = json.load(handle)["queries"]
+            payload = json.load(handle)
+        try:
+            queries = require_official_search(args.qrels, payload)
+        except DatasetError as exc:
+            print(f"search dataset rejected: {exc}")
+            return 1
         return report_search(evaluate_search(queries, live_search(args.base_url)), args.require_ndcg)
 
     if args.command == "assistant":
         with open(args.cases, encoding="utf-8") as handle:
-            cases = json.load(handle)["cases"]
+            payload = json.load(handle)
+        try:
+            cases = require_official_assistant(args.cases, payload)
+        except DatasetError as exc:
+            print(f"assistant dataset rejected: {exc}")
+            return 1
         return report_assistant(evaluate_assistant(cases, live_assistant(args.base_url, args.token)))
 
     if args.command == "recommend":

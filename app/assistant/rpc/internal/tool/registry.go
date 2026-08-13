@@ -11,6 +11,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/visibilityx"
@@ -149,7 +150,7 @@ func searchHandler(searchClient searchservice.SearchService, contentClient conte
 			return noEvidenceResult(), nil
 		}
 
-		postsByID, err := PublishedPosts(ctx, contentClient, postIDs)
+		postsByID, err := visibility.PublishedByIDs(ctx, contentClient, postIDs)
 		if ctxErr := ctx.Err(); errors.Is(ctxErr, context.Canceled) || errors.Is(ctxErr, context.DeadlineExceeded) {
 			return nil, ctxErr
 		}
@@ -305,7 +306,7 @@ func recommendHandler(client recommendservice.RecommendService, contentClient co
 			}
 			postIDs = append(postIDs, postID)
 		}
-		postsByID, err := PublishedPosts(ctx, contentClient, postIDs)
+		postsByID, err := visibility.PublishedByIDs(ctx, contentClient, postIDs)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, ctxErr
@@ -456,21 +457,5 @@ func snippetCandidates(query string) []string {
 }
 
 func PublishedPosts(ctx context.Context, client contentservice.ContentService, ids []int64) (map[int64]*contentservice.PostInfo, error) {
-	return visibilityx.PublishedByIDs(ctx, fetchContentPosts(client), ids)
-}
-
-func fetchContentPosts(client contentservice.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
-	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
-		if client == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		response, err := client.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		return response.Posts, nil
-	}
+	return visibility.PublishedByIDs(ctx, client, ids)
 }

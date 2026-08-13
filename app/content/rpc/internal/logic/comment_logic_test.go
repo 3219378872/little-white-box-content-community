@@ -353,6 +353,22 @@ func TestGetCommentListLogic(t *testing.T) {
 			},
 		},
 		{
+			name: "内存二次过滤非 active 评论并保持 Total 与可见行一致（纵深防御 CORE-016）",
+			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
+				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 10, 0).Return([]*model2.Comment{
+					{Id: 3000, PostId: 1000, UserId: 400, Content: "live", Status: 1},
+					{Id: 3001, PostId: 1000, UserId: 401, Content: "gone", Status: 0},
+				}, int64(4), nil)
+			},
+			check: func(t *testing.T, resp *pb.GetCommentListResp) {
+				assert.Len(t, resp.Comments, 1)
+				assert.Equal(t, int64(3000), resp.Comments[0].Id)
+				assert.Equal(t, int64(3), resp.Total)
+			},
+		},
+		{
 			name: "数据库错误",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {

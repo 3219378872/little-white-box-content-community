@@ -63,9 +63,14 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
+	// CORE-016 纵深防御：SQL 已过滤 status=1，这里再按内存状态二次过滤，
+	// 与帖子列表“SQL 过滤后再次丢弃非 published 行”的模式一致；Total 随可见行回减。
+	fetched := len(comments)
+	comments = keepActiveComments(comments)
+	total = visibilityx.AdjustPageTotal(total, fetched, len(comments))
 	commentInfos := make([]*pb.CommentInfo, 0, len(comments))
-	for _, c := range comments {
-		commentInfos = append(commentInfos, CommentToCommentInfo(c))
+	for _, comment := range comments {
+		commentInfos = append(commentInfos, CommentToCommentInfo(comment))
 	}
 
 	return &pb.GetCommentListResp{

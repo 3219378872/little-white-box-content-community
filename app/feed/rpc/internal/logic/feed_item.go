@@ -3,8 +3,8 @@ package logic
 import (
 	"context"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/pkg/visibilityx"
@@ -16,22 +16,6 @@ const (
 	feedTypeRecommend = 2
 )
 
-func fetchContentPosts(contentService svc.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
-	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
-		if contentService == nil {
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		response, err := contentService.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
-		if err != nil {
-			return nil, err
-		}
-		if response == nil {
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		return response.Posts, nil
-	}
-}
-
 func enrichFeedItems(ctx context.Context, contentService svc.ContentService, baseItems []*pb.FeedItem) ([]*pb.FeedItem, error) {
 	postIDs := make([]int64, 0, len(baseItems))
 	for _, item := range baseItems {
@@ -40,7 +24,7 @@ func enrichFeedItems(ctx context.Context, contentService svc.ContentService, bas
 		}
 		postIDs = append(postIDs, item.PostId)
 	}
-	postsByID, err := visibilityx.PublishedByIDs(ctx, fetchContentPosts(contentService), postIDs)
+	postsByID, err := visibility.PublishedByIDs(ctx, contentService, postIDs)
 	if err != nil {
 		return nil, err
 	}

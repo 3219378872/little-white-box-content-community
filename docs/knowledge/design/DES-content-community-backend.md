@@ -39,7 +39,7 @@ upstream:
 Content 持有帖子状态机与正文。普通读取走 `FindPostById`/`FindByIds` 且不读缓存，避免
 CORE-053 允许的失效失败把已取消发布内容继续当成 published。公开列表在 SQL `status=1`
 之后再次丢弃非 published 行。发现与 Assistant 只把 ES、向量库、inbox/outbox 当候选，
-返回前必须经 `pkg/visibilityx` 回源 `GetPostsByIds` 验证 `status=1`；验证失败则整次请求
+返回前必须经 `app/content/visibility` 回源 `GetPostsByIds`，由 `pkg/visibilityx` 验证 published；验证失败则整次请求
 失败关闭，不得降级成“空结果成功”。
 
 ### 关注流

@@ -8,6 +8,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/pkg/visibilityx"
 	"gateway/internal/logic/viewerstate"
@@ -79,7 +80,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		}, nil
 	}
 
-	published, err := visibilityx.PublishedByIDs(l.ctx, fetchFavoritePosts(l.svcCtx.ContentService), favoriteResp.PostIds)
+	published, err := visibility.PublishedByIDs(l.ctx, l.svcCtx.ContentService, favoriteResp.PostIds)
 	if err != nil {
 		l.Errorw("ContentService.GetPostsByIds RPC failed",
 			logx.Field("postIds", favoriteResp.PostIds),
@@ -134,20 +135,4 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, nil
-}
-
-func fetchFavoritePosts(client contentservice.ContentService) visibilityx.Fetcher[*contentservice.PostInfo] {
-	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
-		if client == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		resp, err := client.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
-		if err != nil {
-			return nil, err
-		}
-		if resp == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		return resp.Posts, nil
-	}
 }
