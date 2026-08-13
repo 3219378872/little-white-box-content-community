@@ -13,3 +13,5 @@
   实现验证（make check / make test / 集成测试），提交 9179b45。
 - [2026-08-13-content-community-spec-alignment.md](2026-08-13-content-community-spec-alignment.md)：
   规格对齐批次验证（门禁恢复 + REL-023 主动清理），提交 314aa67。
+- [2026-08-13-content-community-visibility-shared.md](2026-08-13-content-community-visibility-shared.md)：
+  共享可见性适配与官方评测集守卫验证，提交 dd77473。
