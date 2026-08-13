@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-13
-verified_commit: <SHA>
+verified_commit: f7beca9
 commands:
   - make check
   - make test

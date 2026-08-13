@@ -19,3 +19,5 @@
   代码质量批次验证（helpers 拆分 / register 默认值 / 覆盖率基线），提交 4408326。
 - [2026-08-13-content-community-core-v2-revision.md](2026-08-13-content-community-core-v2-revision.md)：
   CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
+- [2026-08-13-content-community-rel020-aggregates.md](2026-08-13-content-community-rel020-aggregates.md)：
+  REL-020 去标识聚合 365 天留存实现与 ClickHouse schema TTL 修复，提交 f7beca9。
