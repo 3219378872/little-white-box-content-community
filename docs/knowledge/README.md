@@ -11,23 +11,8 @@ protected_paths:
   - docs/knowledge/templates/
   - docs/knowledge/intent/
   - docs/knowledge/spec/
-  - docs/active/
-  - docs/DESIGN.md
-  - docs/SECURITY.md
-  - docs/RELIABILITY.md
-  - docs/QUALITY_SCORE.md
 legacy_upstream:
   - AGENTS.md
-  - docs/active/api.md
-  - docs/active/data.md
-  - docs/active/operations.md
-  - docs/active/rpc.md
-  - docs/active/security.md
-  - docs/active/testing.md
-  - docs/DESIGN.md
-  - docs/SECURITY.md
-  - docs/RELIABILITY.md
-  - docs/QUALITY_SCORE.md
 ---
 
 # 四层知识总路由

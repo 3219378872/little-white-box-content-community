@@ -10,7 +10,7 @@
 - `app/` 包含 gateway、用户/内容/媒体/互动/feed/message 等 RPC 或 MQ 模块。
 - `pkg/` 包含错误、鉴权、中间件、事件、MQ、缓存和测试工具等共享库。
 - `deploy/docker-compose.middleware.yml` 提供本地 MySQL、Redis、etcd、RocketMQ、搜索、对象存储和观测组件。
-- 运行时事实以代码、配置、`.api`、`.proto` 和 `docs/generated/` 为准；设计文档不能覆盖代码行为。
+- 运行时事实以代码、配置、`.api`、`.proto` 和测试为准；设计文档不能覆盖代码行为。
 
 ## 不可违反的规则
 
@@ -43,17 +43,16 @@
 
 | 任务知识 | 文档地址 | 内容范围 |
 | --- | --- | --- |
-| REST API | [docs/active/api.md](docs/active/api.md) | Handler、参数校验和 `.api` 修改流程 |
-| RPC | [docs/active/rpc.md](docs/active/rpc.md) | proto、服务间调用和代码生成要求 |
-| 数据 | [docs/active/data.md](docs/active/data.md) | MySQL、Redis、事务和缓存边界 |
-| 安全 | [docs/active/security.md](docs/active/security.md) | 鉴权、业务错误和 secret 约束 |
-| 运维 | [docs/active/operations.md](docs/active/operations.md) | MQ、重试、降级和部署排查 |
-| 测试 | [docs/active/testing.md](docs/active/testing.md) | 测试分层、覆盖率和质量门禁 |
-| 整体架构 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 服务、存储和主要数据流概览 |
-| 模块与流程事实 | [docs/generated/INDEX.md](docs/generated/INDEX.md) | 按代码生成的模块页和链路快照 |
+| REST API | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | Handler、参数校验和 `.api` 修改流程 |
+| RPC | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | proto、服务间调用和代码生成要求 |
+| 数据 | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | MySQL、Redis、事务和缓存边界 |
+| 安全 | [docs/knowledge/implementation/IMP-engineering-conventions.md](docs/knowledge/implementation/IMP-engineering-conventions.md) | 鉴权、业务错误和 secret 约束 |
+| 运维 | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | MQ、重试、降级和部署排查 |
+| 测试 | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | 测试分层、覆盖率和质量门禁 |
+| 整体架构 | [docs/knowledge/implementation/IMP-architecture.md](docs/knowledge/implementation/IMP-architecture.md) | 服务、存储和主要数据流概览 |
+| 实现映射 | [docs/knowledge/implementation/IMP-content-community-backend.md](docs/knowledge/implementation/IMP-content-community-backend.md) | 设计到代码的逐条追踪与状态 |
 
-现有 `docs/active/` 和顶层规范文档是人类授权维护的过渡基线；`docs/generated/` 是可能漂移的旧实现快照。
-分类和迁移状态见 [docs/knowledge/TRANSITION.md](docs/knowledge/TRANSITION.md)。
+迁移状态见 [docs/knowledge/TRANSITION.md](docs/knowledge/TRANSITION.md)。
 
 ## 命令入口
 

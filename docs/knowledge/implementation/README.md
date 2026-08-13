@@ -13,6 +13,13 @@
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
 | [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | aligned | [2026-08-12](evidence/2026-08-12-content-community.md) |
+| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
+| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
+| [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
+
+> 迁移说明：docs/active 速查、顶层 DESIGN/SECURITY/RELIABILITY/QUALITY_SCORE
+> 规范文档、ARCHITECTURE 服务架构文档与 generated 旧快照的内容已并入上述实现页
+> 并从仓库移除；路由见 `docs/INDEX.md`。
 
 ## 待办（需外部输入）
 

@@ -11,7 +11,6 @@ KNOWLEDGE_DIR = DOCS_DIR / "knowledge"
 
 # Only scan current agent-facing docs for broken references.
 ACTIVE_DIRS = [
-    DOCS_DIR / "active",
     KNOWLEDGE_DIR,
 ]
 
@@ -19,21 +18,6 @@ ACTIVE_FILES = {
     ROOT / "AGENTS.md",
     ROOT / "CLAUDE.md",
     DOCS_DIR / "INDEX.md",
-    DOCS_DIR / "ARCHITECTURE.md",
-    DOCS_DIR / "DESIGN.md",
-    DOCS_DIR / "SECURITY.md",
-    DOCS_DIR / "RELIABILITY.md",
-    DOCS_DIR / "QUALITY_SCORE.md",
-    DOCS_DIR / "generated" / "INDEX.md",
-}
-
-EXPECTED_ACTIVE_DOCS = {
-    "api.md",
-    "data.md",
-    "operations.md",
-    "rpc.md",
-    "security.md",
-    "testing.md",
 }
 
 LEGACY_DOC_DIRS = (
@@ -75,11 +59,6 @@ REQUIRED_PROTECTED_PATHS = {
     "docs/knowledge/templates/",
     "docs/knowledge/intent/",
     "docs/knowledge/spec/",
-    "docs/active/",
-    "docs/DESIGN.md",
-    "docs/SECURITY.md",
-    "docs/RELIABILITY.md",
-    "docs/QUALITY_SCORE.md",
 }
 
 REQUIRED_AGENT_WRITE_POLICY = "human-authorized"
@@ -640,9 +619,6 @@ def is_checkable_reference(ref: str) -> bool:
 def resolve_reference(md_file: Path, ref: str) -> Path:
     """Resolve a markdown file reference relative to the document or repo root."""
     candidates = [(md_file.parent / ref).resolve(), (ROOT / ref).resolve()]
-    parts = Path(ref).parts
-    if parts and parts[0] in {"flows", "modules"}:
-        candidates.append((ROOT / "docs" / "generated" / ref).resolve())
     for candidate in candidates:
         if candidate.exists():
             return candidate
@@ -684,21 +660,6 @@ def check_doc_policy():
     if "AGENTS.md" not in claude.read_text(encoding="utf-8"):
         errors.append("[DOC-POLICY] CLAUDE.md must point to AGENTS.md")
 
-    active_dir = DOCS_DIR / "active"
-    actual = {path.name for path in active_dir.glob("*.md")}
-    missing = EXPECTED_ACTIVE_DOCS - actual
-    extra = actual - EXPECTED_ACTIVE_DOCS
-    if missing:
-        errors.append(f"[DOC-POLICY] missing active docs: {', '.join(sorted(missing))}")
-    if extra:
-        errors.append(f"[DOC-POLICY] unexpected active docs: {', '.join(sorted(extra))}")
-
-    for path in active_dir.glob("*.md"):
-        if len(path.read_text(encoding="utf-8").splitlines()) > 300:
-            errors.append(
-                f"[DOC-POLICY] active doc exceeds 300 lines: {path.relative_to(ROOT)}"
-            )
-
     for directory in LEGACY_DOC_DIRS:
         if directory.exists():
             errors.append(
@@ -706,7 +667,6 @@ def check_doc_policy():
             )
 
     scan_files = [agents, claude, DOCS_DIR / "INDEX.md", KNOWLEDGE_DIR / "README.md"]
-    scan_files.extend(active_dir.glob("*.md"))
     for path in scan_files:
         content = path.read_text(encoding="utf-8", errors="ignore")
         for term in LEGACY_TERMS:

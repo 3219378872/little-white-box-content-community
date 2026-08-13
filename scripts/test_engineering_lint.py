@@ -29,9 +29,7 @@ class KnowledgeLayerLintTest(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 if not path.exists():
                     path.write_text("# Rule\n", encoding="utf-8")
-        legacy = self.root / "docs" / "active" / "rpc.md"
-        legacy.write_text("# Rule\n", encoding="utf-8")
-        self._write_policy(["docs/active/rpc.md"])
+        self._write_policy([])
 
     def tearDown(self):
         self.tempdir.cleanup()
@@ -290,6 +288,7 @@ upstream:
         self.assert_error(errors, "design requires SPEC/legacy upstream")
 
     def test_allowlisted_legacy_heading_is_valid(self):
+        self._write_policy(["AGENTS.md"])
         self._write(
             "design/service.md",
             """
@@ -300,7 +299,7 @@ status: active
 owner: agent
 upstream:
 legacy_upstream:
-  - legacy:docs/active/rpc.md#Rule
+  - legacy:AGENTS.md#Rule
 """,
         )
         self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
@@ -320,6 +319,7 @@ legacy_upstream:
 """,
         )
         errors = engineering_lint.check_knowledge_layers(self.root)
+        # 旧 ARCHITECTURE 已迁移删除，legacy_upstream 白名单不再登记它。
         self.assert_error(errors, "legacy path is not allowlisted")
 
     def test_evidence_requires_commands(self):

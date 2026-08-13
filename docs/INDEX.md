@@ -17,19 +17,19 @@
 
 | 任务 | 先读 | 需要时再读 |
 | --- | --- | --- |
-| REST API、Handler、参数校验 | [active/api.md](active/api.md) | `app/gateway/*.api` |
-| RPC、proto、服务间调用 | [active/rpc.md](active/rpc.md) | `proto/**/*.proto`、对应 `app/` 代码 |
-| MySQL、Redis、事务、缓存 | [active/data.md](active/data.md) | 对应 Model 和迁移文件 |
-| 鉴权、错误、安全边界 | [active/security.md](active/security.md) | `pkg/jwtx/`、`pkg/middleware/`、`pkg/errx/` |
-| MQ、重试、降级、部署排查 | [active/operations.md](active/operations.md) | `deploy/` 和对应消费者 |
-| 测试、质量、发布前验证 | [active/testing.md](active/testing.md) | 相关测试文件和 CI |
-| 需要了解整体结构 | [ARCHITECTURE.md](ARCHITECTURE.md) | [generated/INDEX.md](generated/INDEX.md) |
+| REST API、Handler、参数校验 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | `app/gateway/*.api` |
+| RPC、proto、服务间调用 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | `proto/**/*.proto`、对应 `app/` 代码 |
+| MySQL、Redis、事务、缓存 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | 对应 Model 和迁移文件 |
+| 鉴权、错误、安全边界 | [implementation/IMP-engineering-conventions.md](knowledge/implementation/IMP-engineering-conventions.md) | `pkg/jwtx/`、`pkg/middleware/`、`pkg/errx/` |
+| MQ、重试、降级、部署排查 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | `deploy/` 和对应消费者 |
+| 测试、质量、发布前验证 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | 相关测试文件和 CI |
+| 需要了解整体结构 | [implementation/IMP-architecture.md](knowledge/implementation/IMP-architecture.md) | 对应 `app/`、`pkg/` 代码 |
 
 ## 文档层级
 
 - `docs/knowledge/`：正式四层知识、非权威提案和过渡登记。
-- `docs/active/` 与顶层规范文档：迁移期由人类授权维护的基线。
-- `docs/generated/`：可能漂移的旧实现快照，只在定位具体模块时加载。
+- 旧 `docs/active/` 速查、顶层规范文档、服务架构文档与 generated 旧快照的内容
+  已并入实现层页面并从仓库移除。
 - 历史设计和已完成计划不属于当前知识链，必要时通过 Git 历史追溯。
 
 ## 来源优先级
