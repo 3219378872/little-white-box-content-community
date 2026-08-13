@@ -5,11 +5,21 @@ from spec_evals import (
     evaluate_recommendation,
     evaluate_search,
     monthly_slo_report,
+    report_assistant,
+    report_search,
     time_ordered_holdout,
 )
 
 
 class SearchEvalTest(unittest.TestCase):
+    def test_report_fails_below_200_queries(self):
+        # DISC-060：不足 200 条查询时门禁必须失败，即使指标达标。
+        result = evaluate_search(
+            [{"id": "q1", "query": "go", "relevant": [], "hidden": []}] * 199,
+            lambda _query: [1],
+        )
+        self.assertEqual(1, report_search(result, 0.70))
+
     def test_ndcg_at_10_ranks_relevant_first(self):
         result = evaluate_search(
             [
@@ -41,6 +51,14 @@ class SearchEvalTest(unittest.TestCase):
 
 
 class AssistantEvalTest(unittest.TestCase):
+    def test_report_fails_below_200_cases(self):
+        # ASST-050：不足 200 个案例时门禁必须失败，即使指标达标。
+        result = evaluate_assistant(
+            [{"id": f"a{i}", "type": "answerable", "message": "q", "expected_sources": [1]} for i in range(199)],
+            lambda _case: {"sources": [1], "refused": False, "breach": False},
+        )
+        self.assertEqual(1, report_assistant(result))
+
     def test_metrics_for_mixed_cases(self):
         result = evaluate_assistant(
             [
