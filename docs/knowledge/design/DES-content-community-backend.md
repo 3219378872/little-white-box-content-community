@@ -87,7 +87,7 @@ ES 只索引 published，并在取消发布时尽力删文档，但这是异步�
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量读取不走缓存；发现回源过滤。搜索 Total 只减去本页过滤数，未重算全库 |
+| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/标签列表回源后只保留 published；搜索/标签 Total 只按本页回减 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |

@@ -45,7 +45,7 @@ verified_commit: d269b62
 
 ## 总体状态
 
-`diverged`：互动写操作已按 CORE-030 幂等成功；收藏列表按访问者回填。
+`diverged`：标签列表回源后丢弃不可见帖；互动写操作按 CORE-030 幂等成功。
 仍偏离处：
 - `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0` 跳过乐观锁。
 - 搜索 `Total` 未重算全库，其他页仍可能计入已取消发布文档。

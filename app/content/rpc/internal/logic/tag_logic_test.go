@@ -133,7 +133,6 @@ func TestGetPostsByTagLogic(t *testing.T) {
 			req:  &pb.GetPostsByTagReq{TagName: "nonexistent", Page: 1, PageSize: 10},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				ptm.On("FindPostIdsByTagName", mock.Anything, "nonexistent", 1, 10).Return([]int64{}, int64(0), nil)
-				pm.On("FindByIds", mock.Anything, []int64{}).Return([]*model2.Post{}, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetPostsByTagResp) {
 				assert.Len(t, resp.Posts, 0)
@@ -158,11 +157,29 @@ func TestGetPostsByTagLogic(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "回源后丢弃已取消发布帖并回减 Total",
+			req:  &pb.GetPostsByTagReq{TagName: "golang", Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				ptm.On("FindPostIdsByTagName", mock.Anything, "golang", 1, 10).Return([]int64{100, 101}, int64(5), nil)
+				pm.On("FindByIds", mock.Anything, []int64{100, 101}).Return([]*model2.Post{
+					{Id: 100, AuthorId: 1, Title: "live", Content: "body", Status: 1},
+					{Id: 101, AuthorId: 2, Title: "gone", Content: "old", Status: 0},
+				}, nil)
+				ptm.On("FindTagNamesByPostIds", mock.Anything, []int64{100}).Return(
+					map[int64][]string{100: {"golang"}}, nil,
+				)
+			},
+			check: func(t *testing.T, resp *pb.GetPostsByTagResp) {
+				assert.Len(t, resp.Posts, 1)
+				assert.Equal(t, int64(100), resp.Posts[0].Id)
+				assert.Equal(t, int64(4), resp.Total)
+			},
+		},
+		{
 			name: "页码/页大小默认值修正",
 			req:  &pb.GetPostsByTagReq{TagName: "golang", Page: 0, PageSize: 0},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				ptm.On("FindPostIdsByTagName", mock.Anything, "golang", 1, 20).Return([]int64{}, int64(0), nil)
-				pm.On("FindByIds", mock.Anything, []int64{}).Return([]*model2.Post{}, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetPostsByTagResp) {
 				assert.Len(t, resp.Posts, 0)
