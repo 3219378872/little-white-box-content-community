@@ -1,0 +1,3406 @@
+{
+  "version": 1,
+  "note": "DEVELOPMENT-ONLY synthetic dataset. NOT the frozen human-annotated gate set required by DISC-060; do not use for official gating.",
+  "queries": [
+    {
+      "id": "dev-q-001",
+      "query": "synthetic dev query 1",
+      "relevant": [
+        {
+          "post_id": 96,
+          "grade": 3
+        },
+        {
+          "post_id": 774,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1007
+      ]
+    },
+    {
+      "id": "dev-q-002",
+      "query": "synthetic dev query 2",
+      "relevant": [
+        {
+          "post_id": 70,
+          "grade": 2
+        },
+        {
+          "post_id": 556,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1070
+      ]
+    },
+    {
+      "id": "dev-q-003",
+      "query": "synthetic dev query 3",
+      "relevant": [
+        {
+          "post_id": 487,
+          "grade": 2
+        },
+        {
+          "post_id": 824,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-004",
+      "query": "synthetic dev query 4",
+      "relevant": [
+        {
+          "post_id": 281,
+          "grade": 2
+        },
+        {
+          "post_id": 905,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1048
+      ]
+    },
+    {
+      "id": "dev-q-005",
+      "query": "synthetic dev query 5",
+      "relevant": [
+        {
+          "post_id": 420,
+          "grade": 3
+        },
+        {
+          "post_id": 626,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1006
+      ]
+    },
+    {
+      "id": "dev-q-006",
+      "query": "synthetic dev query 6",
+      "relevant": [
+        {
+          "post_id": 159,
+          "grade": 2
+        },
+        {
+          "post_id": 840,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1020
+      ]
+    },
+    {
+      "id": "dev-q-007",
+      "query": "synthetic dev query 7",
+      "relevant": [
+        {
+          "post_id": 365,
+          "grade": 3
+        },
+        {
+          "post_id": 659,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1046
+      ]
+    },
+    {
+      "id": "dev-q-008",
+      "query": "synthetic dev query 8",
+      "relevant": [
+        {
+          "post_id": 479,
+          "grade": 3
+        },
+        {
+          "post_id": 896,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1048
+      ]
+    },
+    {
+      "id": "dev-q-009",
+      "query": "synthetic dev query 9",
+      "relevant": [
+        {
+          "post_id": 465,
+          "grade": 3
+        },
+        {
+          "post_id": 574,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1091
+      ]
+    },
+    {
+      "id": "dev-q-010",
+      "query": "synthetic dev query 10",
+      "relevant": [
+        {
+          "post_id": 468,
+          "grade": 2
+        },
+        {
+          "post_id": 975,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1040
+      ]
+    },
+    {
+      "id": "dev-q-011",
+      "query": "synthetic dev query 11",
+      "relevant": [
+        {
+          "post_id": 395,
+          "grade": 2
+        },
+        {
+          "post_id": 619,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1047
+      ]
+    },
+    {
+      "id": "dev-q-012",
+      "query": "synthetic dev query 12",
+      "relevant": [
+        {
+          "post_id": 276,
+          "grade": 3
+        },
+        {
+          "post_id": 512,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1048
+      ]
+    },
+    {
+      "id": "dev-q-013",
+      "query": "synthetic dev query 13",
+      "relevant": [
+        {
+          "post_id": 358,
+          "grade": 3
+        },
+        {
+          "post_id": 573,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1040
+      ]
+    },
+    {
+      "id": "dev-q-014",
+      "query": "synthetic dev query 14",
+      "relevant": [
+        {
+          "post_id": 150,
+          "grade": 2
+        },
+        {
+          "post_id": 929,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1063
+      ]
+    },
+    {
+      "id": "dev-q-015",
+      "query": "synthetic dev query 15",
+      "relevant": [
+        {
+          "post_id": 293,
+          "grade": 2
+        },
+        {
+          "post_id": 606,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1002
+      ]
+    },
+    {
+      "id": "dev-q-016",
+      "query": "synthetic dev query 16",
+      "relevant": [
+        {
+          "post_id": 454,
+          "grade": 2
+        },
+        {
+          "post_id": 689,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1053
+      ]
+    },
+    {
+      "id": "dev-q-017",
+      "query": "synthetic dev query 17",
+      "relevant": [
+        {
+          "post_id": 379,
+          "grade": 2
+        },
+        {
+          "post_id": 505,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1029
+      ]
+    },
+    {
+      "id": "dev-q-018",
+      "query": "synthetic dev query 18",
+      "relevant": [
+        {
+          "post_id": 332,
+          "grade": 2
+        },
+        {
+          "post_id": 531,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1090
+      ]
+    },
+    {
+      "id": "dev-q-019",
+      "query": "synthetic dev query 19",
+      "relevant": [
+        {
+          "post_id": 276,
+          "grade": 3
+        },
+        {
+          "post_id": 642,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1046
+      ]
+    },
+    {
+      "id": "dev-q-020",
+      "query": "synthetic dev query 20",
+      "relevant": [
+        {
+          "post_id": 278,
+          "grade": 3
+        },
+        {
+          "post_id": 900,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1082
+      ]
+    },
+    {
+      "id": "dev-q-021",
+      "query": "synthetic dev query 21",
+      "relevant": [
+        {
+          "post_id": 202,
+          "grade": 3
+        },
+        {
+          "post_id": 773,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1068
+      ]
+    },
+    {
+      "id": "dev-q-022",
+      "query": "synthetic dev query 22",
+      "relevant": [
+        {
+          "post_id": 253,
+          "grade": 2
+        },
+        {
+          "post_id": 507,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-023",
+      "query": "synthetic dev query 23",
+      "relevant": [
+        {
+          "post_id": 224,
+          "grade": 2
+        },
+        {
+          "post_id": 533,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1086
+      ]
+    },
+    {
+      "id": "dev-q-024",
+      "query": "synthetic dev query 24",
+      "relevant": [
+        {
+          "post_id": 372,
+          "grade": 2
+        },
+        {
+          "post_id": 752,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-025",
+      "query": "synthetic dev query 25",
+      "relevant": [
+        {
+          "post_id": 142,
+          "grade": 2
+        },
+        {
+          "post_id": 535,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1061
+      ]
+    },
+    {
+      "id": "dev-q-026",
+      "query": "synthetic dev query 26",
+      "relevant": [
+        {
+          "post_id": 397,
+          "grade": 3
+        },
+        {
+          "post_id": 546,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1034
+      ]
+    },
+    {
+      "id": "dev-q-027",
+      "query": "synthetic dev query 27",
+      "relevant": [
+        {
+          "post_id": 25,
+          "grade": 3
+        },
+        {
+          "post_id": 582,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1061
+      ]
+    },
+    {
+      "id": "dev-q-028",
+      "query": "synthetic dev query 28",
+      "relevant": [
+        {
+          "post_id": 89,
+          "grade": 2
+        },
+        {
+          "post_id": 893,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-029",
+      "query": "synthetic dev query 29",
+      "relevant": [
+        {
+          "post_id": 407,
+          "grade": 3
+        },
+        {
+          "post_id": 769,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1056
+      ]
+    },
+    {
+      "id": "dev-q-030",
+      "query": "synthetic dev query 30",
+      "relevant": [
+        {
+          "post_id": 269,
+          "grade": 2
+        },
+        {
+          "post_id": 555,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1075
+      ]
+    },
+    {
+      "id": "dev-q-031",
+      "query": "synthetic dev query 31",
+      "relevant": [
+        {
+          "post_id": 191,
+          "grade": 3
+        },
+        {
+          "post_id": 509,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1079
+      ]
+    },
+    {
+      "id": "dev-q-032",
+      "query": "synthetic dev query 32",
+      "relevant": [
+        {
+          "post_id": 148,
+          "grade": 3
+        },
+        {
+          "post_id": 803,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1010
+      ]
+    },
+    {
+      "id": "dev-q-033",
+      "query": "synthetic dev query 33",
+      "relevant": [
+        {
+          "post_id": 416,
+          "grade": 2
+        },
+        {
+          "post_id": 603,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1035
+      ]
+    },
+    {
+      "id": "dev-q-034",
+      "query": "synthetic dev query 34",
+      "relevant": [
+        {
+          "post_id": 342,
+          "grade": 3
+        },
+        {
+          "post_id": 914,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1061
+      ]
+    },
+    {
+      "id": "dev-q-035",
+      "query": "synthetic dev query 35",
+      "relevant": [
+        {
+          "post_id": 35,
+          "grade": 3
+        },
+        {
+          "post_id": 884,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1065
+      ]
+    },
+    {
+      "id": "dev-q-036",
+      "query": "synthetic dev query 36",
+      "relevant": [
+        {
+          "post_id": 450,
+          "grade": 2
+        },
+        {
+          "post_id": 896,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1021
+      ]
+    },
+    {
+      "id": "dev-q-037",
+      "query": "synthetic dev query 37",
+      "relevant": [
+        {
+          "post_id": 155,
+          "grade": 2
+        },
+        {
+          "post_id": 710,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1046
+      ]
+    },
+    {
+      "id": "dev-q-038",
+      "query": "synthetic dev query 38",
+      "relevant": [
+        {
+          "post_id": 235,
+          "grade": 3
+        },
+        {
+          "post_id": 884,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1018
+      ]
+    },
+    {
+      "id": "dev-q-039",
+      "query": "synthetic dev query 39",
+      "relevant": [
+        {
+          "post_id": 312,
+          "grade": 3
+        },
+        {
+          "post_id": 692,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1050
+      ]
+    },
+    {
+      "id": "dev-q-040",
+      "query": "synthetic dev query 40",
+      "relevant": [
+        {
+          "post_id": 458,
+          "grade": 2
+        },
+        {
+          "post_id": 890,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-041",
+      "query": "synthetic dev query 41",
+      "relevant": [
+        {
+          "post_id": 327,
+          "grade": 3
+        },
+        {
+          "post_id": 571,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1063
+      ]
+    },
+    {
+      "id": "dev-q-042",
+      "query": "synthetic dev query 42",
+      "relevant": [
+        {
+          "post_id": 168,
+          "grade": 2
+        },
+        {
+          "post_id": 682,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1084
+      ]
+    },
+    {
+      "id": "dev-q-043",
+      "query": "synthetic dev query 43",
+      "relevant": [
+        {
+          "post_id": 451,
+          "grade": 2
+        },
+        {
+          "post_id": 911,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1096
+      ]
+    },
+    {
+      "id": "dev-q-044",
+      "query": "synthetic dev query 44",
+      "relevant": [
+        {
+          "post_id": 458,
+          "grade": 2
+        },
+        {
+          "post_id": 604,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1091
+      ]
+    },
+    {
+      "id": "dev-q-045",
+      "query": "synthetic dev query 45",
+      "relevant": [
+        {
+          "post_id": 500,
+          "grade": 3
+        },
+        {
+          "post_id": 550,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1024
+      ]
+    },
+    {
+      "id": "dev-q-046",
+      "query": "synthetic dev query 46",
+      "relevant": [
+        {
+          "post_id": 35,
+          "grade": 2
+        },
+        {
+          "post_id": 716,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1088
+      ]
+    },
+    {
+      "id": "dev-q-047",
+      "query": "synthetic dev query 47",
+      "relevant": [
+        {
+          "post_id": 195,
+          "grade": 3
+        },
+        {
+          "post_id": 835,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1001
+      ]
+    },
+    {
+      "id": "dev-q-048",
+      "query": "synthetic dev query 48",
+      "relevant": [
+        {
+          "post_id": 343,
+          "grade": 2
+        },
+        {
+          "post_id": 930,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1096
+      ]
+    },
+    {
+      "id": "dev-q-049",
+      "query": "synthetic dev query 49",
+      "relevant": [
+        {
+          "post_id": 310,
+          "grade": 3
+        },
+        {
+          "post_id": 840,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1052
+      ]
+    },
+    {
+      "id": "dev-q-050",
+      "query": "synthetic dev query 50",
+      "relevant": [
+        {
+          "post_id": 196,
+          "grade": 2
+        },
+        {
+          "post_id": 542,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-051",
+      "query": "synthetic dev query 51",
+      "relevant": [
+        {
+          "post_id": 53,
+          "grade": 2
+        },
+        {
+          "post_id": 706,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1095
+      ]
+    },
+    {
+      "id": "dev-q-052",
+      "query": "synthetic dev query 52",
+      "relevant": [
+        {
+          "post_id": 440,
+          "grade": 3
+        },
+        {
+          "post_id": 984,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-053",
+      "query": "synthetic dev query 53",
+      "relevant": [
+        {
+          "post_id": 161,
+          "grade": 3
+        },
+        {
+          "post_id": 570,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1019
+      ]
+    },
+    {
+      "id": "dev-q-054",
+      "query": "synthetic dev query 54",
+      "relevant": [
+        {
+          "post_id": 476,
+          "grade": 2
+        },
+        {
+          "post_id": 761,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1089
+      ]
+    },
+    {
+      "id": "dev-q-055",
+      "query": "synthetic dev query 55",
+      "relevant": [
+        {
+          "post_id": 304,
+          "grade": 2
+        },
+        {
+          "post_id": 622,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1065
+      ]
+    },
+    {
+      "id": "dev-q-056",
+      "query": "synthetic dev query 56",
+      "relevant": [
+        {
+          "post_id": 87,
+          "grade": 2
+        },
+        {
+          "post_id": 959,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-057",
+      "query": "synthetic dev query 57",
+      "relevant": [
+        {
+          "post_id": 237,
+          "grade": 3
+        },
+        {
+          "post_id": 926,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1082
+      ]
+    },
+    {
+      "id": "dev-q-058",
+      "query": "synthetic dev query 58",
+      "relevant": [
+        {
+          "post_id": 199,
+          "grade": 3
+        },
+        {
+          "post_id": 724,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1083
+      ]
+    },
+    {
+      "id": "dev-q-059",
+      "query": "synthetic dev query 59",
+      "relevant": [
+        {
+          "post_id": 466,
+          "grade": 3
+        },
+        {
+          "post_id": 579,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1054
+      ]
+    },
+    {
+      "id": "dev-q-060",
+      "query": "synthetic dev query 60",
+      "relevant": [
+        {
+          "post_id": 183,
+          "grade": 3
+        },
+        {
+          "post_id": 790,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1002
+      ]
+    },
+    {
+      "id": "dev-q-061",
+      "query": "synthetic dev query 61",
+      "relevant": [
+        {
+          "post_id": 49,
+          "grade": 2
+        },
+        {
+          "post_id": 676,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1071
+      ]
+    },
+    {
+      "id": "dev-q-062",
+      "query": "synthetic dev query 62",
+      "relevant": [
+        {
+          "post_id": 256,
+          "grade": 2
+        },
+        {
+          "post_id": 708,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-063",
+      "query": "synthetic dev query 63",
+      "relevant": [
+        {
+          "post_id": 187,
+          "grade": 3
+        },
+        {
+          "post_id": 971,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1018
+      ]
+    },
+    {
+      "id": "dev-q-064",
+      "query": "synthetic dev query 64",
+      "relevant": [
+        {
+          "post_id": 52,
+          "grade": 3
+        },
+        {
+          "post_id": 520,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1091
+      ]
+    },
+    {
+      "id": "dev-q-065",
+      "query": "synthetic dev query 65",
+      "relevant": [
+        {
+          "post_id": 366,
+          "grade": 3
+        },
+        {
+          "post_id": 594,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1037
+      ]
+    },
+    {
+      "id": "dev-q-066",
+      "query": "synthetic dev query 66",
+      "relevant": [
+        {
+          "post_id": 50,
+          "grade": 3
+        },
+        {
+          "post_id": 939,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-067",
+      "query": "synthetic dev query 67",
+      "relevant": [
+        {
+          "post_id": 415,
+          "grade": 2
+        },
+        {
+          "post_id": 515,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1043
+      ]
+    },
+    {
+      "id": "dev-q-068",
+      "query": "synthetic dev query 68",
+      "relevant": [
+        {
+          "post_id": 492,
+          "grade": 2
+        },
+        {
+          "post_id": 930,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-069",
+      "query": "synthetic dev query 69",
+      "relevant": [
+        {
+          "post_id": 399,
+          "grade": 2
+        },
+        {
+          "post_id": 758,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1086
+      ]
+    },
+    {
+      "id": "dev-q-070",
+      "query": "synthetic dev query 70",
+      "relevant": [
+        {
+          "post_id": 336,
+          "grade": 3
+        },
+        {
+          "post_id": 676,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1066
+      ]
+    },
+    {
+      "id": "dev-q-071",
+      "query": "synthetic dev query 71",
+      "relevant": [
+        {
+          "post_id": 207,
+          "grade": 2
+        },
+        {
+          "post_id": 850,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-072",
+      "query": "synthetic dev query 72",
+      "relevant": [
+        {
+          "post_id": 404,
+          "grade": 2
+        },
+        {
+          "post_id": 734,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1006
+      ]
+    },
+    {
+      "id": "dev-q-073",
+      "query": "synthetic dev query 73",
+      "relevant": [
+        {
+          "post_id": 161,
+          "grade": 3
+        },
+        {
+          "post_id": 517,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1040
+      ]
+    },
+    {
+      "id": "dev-q-074",
+      "query": "synthetic dev query 74",
+      "relevant": [
+        {
+          "post_id": 373,
+          "grade": 2
+        },
+        {
+          "post_id": 936,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-075",
+      "query": "synthetic dev query 75",
+      "relevant": [
+        {
+          "post_id": 279,
+          "grade": 3
+        },
+        {
+          "post_id": 526,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1038
+      ]
+    },
+    {
+      "id": "dev-q-076",
+      "query": "synthetic dev query 76",
+      "relevant": [
+        {
+          "post_id": 368,
+          "grade": 2
+        },
+        {
+          "post_id": 774,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1090
+      ]
+    },
+    {
+      "id": "dev-q-077",
+      "query": "synthetic dev query 77",
+      "relevant": [
+        {
+          "post_id": 466,
+          "grade": 2
+        },
+        {
+          "post_id": 505,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1019
+      ]
+    },
+    {
+      "id": "dev-q-078",
+      "query": "synthetic dev query 78",
+      "relevant": [
+        {
+          "post_id": 467,
+          "grade": 2
+        },
+        {
+          "post_id": 834,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-079",
+      "query": "synthetic dev query 79",
+      "relevant": [
+        {
+          "post_id": 151,
+          "grade": 2
+        },
+        {
+          "post_id": 856,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1033
+      ]
+    },
+    {
+      "id": "dev-q-080",
+      "query": "synthetic dev query 80",
+      "relevant": [
+        {
+          "post_id": 334,
+          "grade": 3
+        },
+        {
+          "post_id": 955,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1003
+      ]
+    },
+    {
+      "id": "dev-q-081",
+      "query": "synthetic dev query 81",
+      "relevant": [
+        {
+          "post_id": 325,
+          "grade": 2
+        },
+        {
+          "post_id": 832,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1095
+      ]
+    },
+    {
+      "id": "dev-q-082",
+      "query": "synthetic dev query 82",
+      "relevant": [
+        {
+          "post_id": 287,
+          "grade": 2
+        },
+        {
+          "post_id": 873,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1068
+      ]
+    },
+    {
+      "id": "dev-q-083",
+      "query": "synthetic dev query 83",
+      "relevant": [
+        {
+          "post_id": 10,
+          "grade": 3
+        },
+        {
+          "post_id": 646,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1026
+      ]
+    },
+    {
+      "id": "dev-q-084",
+      "query": "synthetic dev query 84",
+      "relevant": [
+        {
+          "post_id": 221,
+          "grade": 3
+        },
+        {
+          "post_id": 928,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1054
+      ]
+    },
+    {
+      "id": "dev-q-085",
+      "query": "synthetic dev query 85",
+      "relevant": [
+        {
+          "post_id": 394,
+          "grade": 2
+        },
+        {
+          "post_id": 988,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1007
+      ]
+    },
+    {
+      "id": "dev-q-086",
+      "query": "synthetic dev query 86",
+      "relevant": [
+        {
+          "post_id": 7,
+          "grade": 3
+        },
+        {
+          "post_id": 534,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1021
+      ]
+    },
+    {
+      "id": "dev-q-087",
+      "query": "synthetic dev query 87",
+      "relevant": [
+        {
+          "post_id": 95,
+          "grade": 2
+        },
+        {
+          "post_id": 861,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1050
+      ]
+    },
+    {
+      "id": "dev-q-088",
+      "query": "synthetic dev query 88",
+      "relevant": [
+        {
+          "post_id": 386,
+          "grade": 2
+        },
+        {
+          "post_id": 806,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1032
+      ]
+    },
+    {
+      "id": "dev-q-089",
+      "query": "synthetic dev query 89",
+      "relevant": [
+        {
+          "post_id": 103,
+          "grade": 3
+        },
+        {
+          "post_id": 882,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1067
+      ]
+    },
+    {
+      "id": "dev-q-090",
+      "query": "synthetic dev query 90",
+      "relevant": [
+        {
+          "post_id": 137,
+          "grade": 3
+        },
+        {
+          "post_id": 508,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1090
+      ]
+    },
+    {
+      "id": "dev-q-091",
+      "query": "synthetic dev query 91",
+      "relevant": [
+        {
+          "post_id": 353,
+          "grade": 2
+        },
+        {
+          "post_id": 757,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1018
+      ]
+    },
+    {
+      "id": "dev-q-092",
+      "query": "synthetic dev query 92",
+      "relevant": [
+        {
+          "post_id": 6,
+          "grade": 2
+        },
+        {
+          "post_id": 908,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1098
+      ]
+    },
+    {
+      "id": "dev-q-093",
+      "query": "synthetic dev query 93",
+      "relevant": [
+        {
+          "post_id": 377,
+          "grade": 3
+        },
+        {
+          "post_id": 964,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1083
+      ]
+    },
+    {
+      "id": "dev-q-094",
+      "query": "synthetic dev query 94",
+      "relevant": [
+        {
+          "post_id": 116,
+          "grade": 2
+        },
+        {
+          "post_id": 536,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1015
+      ]
+    },
+    {
+      "id": "dev-q-095",
+      "query": "synthetic dev query 95",
+      "relevant": [
+        {
+          "post_id": 232,
+          "grade": 3
+        },
+        {
+          "post_id": 882,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1053
+      ]
+    },
+    {
+      "id": "dev-q-096",
+      "query": "synthetic dev query 96",
+      "relevant": [
+        {
+          "post_id": 357,
+          "grade": 3
+        },
+        {
+          "post_id": 565,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1056
+      ]
+    },
+    {
+      "id": "dev-q-097",
+      "query": "synthetic dev query 97",
+      "relevant": [
+        {
+          "post_id": 171,
+          "grade": 3
+        },
+        {
+          "post_id": 868,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1048
+      ]
+    },
+    {
+      "id": "dev-q-098",
+      "query": "synthetic dev query 98",
+      "relevant": [
+        {
+          "post_id": 184,
+          "grade": 3
+        },
+        {
+          "post_id": 596,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1018
+      ]
+    },
+    {
+      "id": "dev-q-099",
+      "query": "synthetic dev query 99",
+      "relevant": [
+        {
+          "post_id": 227,
+          "grade": 3
+        },
+        {
+          "post_id": 636,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1022
+      ]
+    },
+    {
+      "id": "dev-q-100",
+      "query": "synthetic dev query 100",
+      "relevant": [
+        {
+          "post_id": 313,
+          "grade": 2
+        },
+        {
+          "post_id": 826,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1010
+      ]
+    },
+    {
+      "id": "dev-q-101",
+      "query": "synthetic dev query 101",
+      "relevant": [
+        {
+          "post_id": 329,
+          "grade": 2
+        },
+        {
+          "post_id": 859,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1003
+      ]
+    },
+    {
+      "id": "dev-q-102",
+      "query": "synthetic dev query 102",
+      "relevant": [
+        {
+          "post_id": 310,
+          "grade": 2
+        },
+        {
+          "post_id": 759,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1006
+      ]
+    },
+    {
+      "id": "dev-q-103",
+      "query": "synthetic dev query 103",
+      "relevant": [
+        {
+          "post_id": 208,
+          "grade": 2
+        },
+        {
+          "post_id": 996,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-104",
+      "query": "synthetic dev query 104",
+      "relevant": [
+        {
+          "post_id": 228,
+          "grade": 2
+        },
+        {
+          "post_id": 772,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-105",
+      "query": "synthetic dev query 105",
+      "relevant": [
+        {
+          "post_id": 129,
+          "grade": 2
+        },
+        {
+          "post_id": 700,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1029
+      ]
+    },
+    {
+      "id": "dev-q-106",
+      "query": "synthetic dev query 106",
+      "relevant": [
+        {
+          "post_id": 278,
+          "grade": 2
+        },
+        {
+          "post_id": 900,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-107",
+      "query": "synthetic dev query 107",
+      "relevant": [
+        {
+          "post_id": 7,
+          "grade": 2
+        },
+        {
+          "post_id": 714,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1043
+      ]
+    },
+    {
+      "id": "dev-q-108",
+      "query": "synthetic dev query 108",
+      "relevant": [
+        {
+          "post_id": 336,
+          "grade": 3
+        },
+        {
+          "post_id": 973,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1037
+      ]
+    },
+    {
+      "id": "dev-q-109",
+      "query": "synthetic dev query 109",
+      "relevant": [
+        {
+          "post_id": 128,
+          "grade": 2
+        },
+        {
+          "post_id": 951,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1030
+      ]
+    },
+    {
+      "id": "dev-q-110",
+      "query": "synthetic dev query 110",
+      "relevant": [
+        {
+          "post_id": 403,
+          "grade": 3
+        },
+        {
+          "post_id": 518,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1066
+      ]
+    },
+    {
+      "id": "dev-q-111",
+      "query": "synthetic dev query 111",
+      "relevant": [
+        {
+          "post_id": 141,
+          "grade": 3
+        },
+        {
+          "post_id": 718,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1077
+      ]
+    },
+    {
+      "id": "dev-q-112",
+      "query": "synthetic dev query 112",
+      "relevant": [
+        {
+          "post_id": 407,
+          "grade": 3
+        },
+        {
+          "post_id": 785,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1010
+      ]
+    },
+    {
+      "id": "dev-q-113",
+      "query": "synthetic dev query 113",
+      "relevant": [
+        {
+          "post_id": 264,
+          "grade": 2
+        },
+        {
+          "post_id": 946,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1013
+      ]
+    },
+    {
+      "id": "dev-q-114",
+      "query": "synthetic dev query 114",
+      "relevant": [
+        {
+          "post_id": 361,
+          "grade": 2
+        },
+        {
+          "post_id": 655,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1032
+      ]
+    },
+    {
+      "id": "dev-q-115",
+      "query": "synthetic dev query 115",
+      "relevant": [
+        {
+          "post_id": 93,
+          "grade": 2
+        },
+        {
+          "post_id": 693,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1060
+      ]
+    },
+    {
+      "id": "dev-q-116",
+      "query": "synthetic dev query 116",
+      "relevant": [
+        {
+          "post_id": 237,
+          "grade": 3
+        },
+        {
+          "post_id": 693,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1022
+      ]
+    },
+    {
+      "id": "dev-q-117",
+      "query": "synthetic dev query 117",
+      "relevant": [
+        {
+          "post_id": 342,
+          "grade": 3
+        },
+        {
+          "post_id": 801,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1037
+      ]
+    },
+    {
+      "id": "dev-q-118",
+      "query": "synthetic dev query 118",
+      "relevant": [
+        {
+          "post_id": 437,
+          "grade": 3
+        },
+        {
+          "post_id": 661,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1006
+      ]
+    },
+    {
+      "id": "dev-q-119",
+      "query": "synthetic dev query 119",
+      "relevant": [
+        {
+          "post_id": 485,
+          "grade": 2
+        },
+        {
+          "post_id": 651,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1038
+      ]
+    },
+    {
+      "id": "dev-q-120",
+      "query": "synthetic dev query 120",
+      "relevant": [
+        {
+          "post_id": 250,
+          "grade": 3
+        },
+        {
+          "post_id": 643,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1060
+      ]
+    },
+    {
+      "id": "dev-q-121",
+      "query": "synthetic dev query 121",
+      "relevant": [
+        {
+          "post_id": 328,
+          "grade": 2
+        },
+        {
+          "post_id": 682,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1077
+      ]
+    },
+    {
+      "id": "dev-q-122",
+      "query": "synthetic dev query 122",
+      "relevant": [
+        {
+          "post_id": 259,
+          "grade": 2
+        },
+        {
+          "post_id": 576,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1011
+      ]
+    },
+    {
+      "id": "dev-q-123",
+      "query": "synthetic dev query 123",
+      "relevant": [
+        {
+          "post_id": 381,
+          "grade": 3
+        },
+        {
+          "post_id": 862,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1007
+      ]
+    },
+    {
+      "id": "dev-q-124",
+      "query": "synthetic dev query 124",
+      "relevant": [
+        {
+          "post_id": 58,
+          "grade": 2
+        },
+        {
+          "post_id": 775,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1028
+      ]
+    },
+    {
+      "id": "dev-q-125",
+      "query": "synthetic dev query 125",
+      "relevant": [
+        {
+          "post_id": 98,
+          "grade": 2
+        },
+        {
+          "post_id": 786,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1078
+      ]
+    },
+    {
+      "id": "dev-q-126",
+      "query": "synthetic dev query 126",
+      "relevant": [
+        {
+          "post_id": 124,
+          "grade": 2
+        },
+        {
+          "post_id": 779,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1034
+      ]
+    },
+    {
+      "id": "dev-q-127",
+      "query": "synthetic dev query 127",
+      "relevant": [
+        {
+          "post_id": 390,
+          "grade": 3
+        },
+        {
+          "post_id": 950,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1034
+      ]
+    },
+    {
+      "id": "dev-q-128",
+      "query": "synthetic dev query 128",
+      "relevant": [
+        {
+          "post_id": 330,
+          "grade": 2
+        },
+        {
+          "post_id": 789,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-129",
+      "query": "synthetic dev query 129",
+      "relevant": [
+        {
+          "post_id": 389,
+          "grade": 3
+        },
+        {
+          "post_id": 705,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1085
+      ]
+    },
+    {
+      "id": "dev-q-130",
+      "query": "synthetic dev query 130",
+      "relevant": [
+        {
+          "post_id": 151,
+          "grade": 2
+        },
+        {
+          "post_id": 548,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1064
+      ]
+    },
+    {
+      "id": "dev-q-131",
+      "query": "synthetic dev query 131",
+      "relevant": [
+        {
+          "post_id": 309,
+          "grade": 3
+        },
+        {
+          "post_id": 673,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1057
+      ]
+    },
+    {
+      "id": "dev-q-132",
+      "query": "synthetic dev query 132",
+      "relevant": [
+        {
+          "post_id": 20,
+          "grade": 2
+        },
+        {
+          "post_id": 899,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1015
+      ]
+    },
+    {
+      "id": "dev-q-133",
+      "query": "synthetic dev query 133",
+      "relevant": [
+        {
+          "post_id": 38,
+          "grade": 2
+        },
+        {
+          "post_id": 874,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1041
+      ]
+    },
+    {
+      "id": "dev-q-134",
+      "query": "synthetic dev query 134",
+      "relevant": [
+        {
+          "post_id": 287,
+          "grade": 3
+        },
+        {
+          "post_id": 954,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1073
+      ]
+    },
+    {
+      "id": "dev-q-135",
+      "query": "synthetic dev query 135",
+      "relevant": [
+        {
+          "post_id": 182,
+          "grade": 2
+        },
+        {
+          "post_id": 960,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1100
+      ]
+    },
+    {
+      "id": "dev-q-136",
+      "query": "synthetic dev query 136",
+      "relevant": [
+        {
+          "post_id": 326,
+          "grade": 3
+        },
+        {
+          "post_id": 928,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1053
+      ]
+    },
+    {
+      "id": "dev-q-137",
+      "query": "synthetic dev query 137",
+      "relevant": [
+        {
+          "post_id": 497,
+          "grade": 3
+        },
+        {
+          "post_id": 701,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1063
+      ]
+    },
+    {
+      "id": "dev-q-138",
+      "query": "synthetic dev query 138",
+      "relevant": [
+        {
+          "post_id": 375,
+          "grade": 3
+        },
+        {
+          "post_id": 949,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1049
+      ]
+    },
+    {
+      "id": "dev-q-139",
+      "query": "synthetic dev query 139",
+      "relevant": [
+        {
+          "post_id": 319,
+          "grade": 3
+        },
+        {
+          "post_id": 670,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1033
+      ]
+    },
+    {
+      "id": "dev-q-140",
+      "query": "synthetic dev query 140",
+      "relevant": [
+        {
+          "post_id": 358,
+          "grade": 3
+        },
+        {
+          "post_id": 841,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1020
+      ]
+    },
+    {
+      "id": "dev-q-141",
+      "query": "synthetic dev query 141",
+      "relevant": [
+        {
+          "post_id": 168,
+          "grade": 3
+        },
+        {
+          "post_id": 963,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1078
+      ]
+    },
+    {
+      "id": "dev-q-142",
+      "query": "synthetic dev query 142",
+      "relevant": [
+        {
+          "post_id": 162,
+          "grade": 2
+        },
+        {
+          "post_id": 792,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1023
+      ]
+    },
+    {
+      "id": "dev-q-143",
+      "query": "synthetic dev query 143",
+      "relevant": [
+        {
+          "post_id": 403,
+          "grade": 3
+        },
+        {
+          "post_id": 990,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1084
+      ]
+    },
+    {
+      "id": "dev-q-144",
+      "query": "synthetic dev query 144",
+      "relevant": [
+        {
+          "post_id": 287,
+          "grade": 3
+        },
+        {
+          "post_id": 613,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1034
+      ]
+    },
+    {
+      "id": "dev-q-145",
+      "query": "synthetic dev query 145",
+      "relevant": [
+        {
+          "post_id": 448,
+          "grade": 3
+        },
+        {
+          "post_id": 613,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1058
+      ]
+    },
+    {
+      "id": "dev-q-146",
+      "query": "synthetic dev query 146",
+      "relevant": [
+        {
+          "post_id": 36,
+          "grade": 2
+        },
+        {
+          "post_id": 819,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1068
+      ]
+    },
+    {
+      "id": "dev-q-147",
+      "query": "synthetic dev query 147",
+      "relevant": [
+        {
+          "post_id": 263,
+          "grade": 2
+        },
+        {
+          "post_id": 877,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-148",
+      "query": "synthetic dev query 148",
+      "relevant": [
+        {
+          "post_id": 479,
+          "grade": 2
+        },
+        {
+          "post_id": 777,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1073
+      ]
+    },
+    {
+      "id": "dev-q-149",
+      "query": "synthetic dev query 149",
+      "relevant": [
+        {
+          "post_id": 213,
+          "grade": 3
+        },
+        {
+          "post_id": 791,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1059
+      ]
+    },
+    {
+      "id": "dev-q-150",
+      "query": "synthetic dev query 150",
+      "relevant": [
+        {
+          "post_id": 406,
+          "grade": 2
+        },
+        {
+          "post_id": 771,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1093
+      ]
+    },
+    {
+      "id": "dev-q-151",
+      "query": "synthetic dev query 151",
+      "relevant": [
+        {
+          "post_id": 33,
+          "grade": 2
+        },
+        {
+          "post_id": 893,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1060
+      ]
+    },
+    {
+      "id": "dev-q-152",
+      "query": "synthetic dev query 152",
+      "relevant": [
+        {
+          "post_id": 194,
+          "grade": 3
+        },
+        {
+          "post_id": 943,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1037
+      ]
+    },
+    {
+      "id": "dev-q-153",
+      "query": "synthetic dev query 153",
+      "relevant": [
+        {
+          "post_id": 257,
+          "grade": 3
+        },
+        {
+          "post_id": 602,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-154",
+      "query": "synthetic dev query 154",
+      "relevant": [
+        {
+          "post_id": 109,
+          "grade": 3
+        },
+        {
+          "post_id": 558,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1008
+      ]
+    },
+    {
+      "id": "dev-q-155",
+      "query": "synthetic dev query 155",
+      "relevant": [
+        {
+          "post_id": 159,
+          "grade": 3
+        },
+        {
+          "post_id": 529,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-156",
+      "query": "synthetic dev query 156",
+      "relevant": [
+        {
+          "post_id": 314,
+          "grade": 3
+        },
+        {
+          "post_id": 545,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1023
+      ]
+    },
+    {
+      "id": "dev-q-157",
+      "query": "synthetic dev query 157",
+      "relevant": [
+        {
+          "post_id": 217,
+          "grade": 3
+        },
+        {
+          "post_id": 693,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1021
+      ]
+    },
+    {
+      "id": "dev-q-158",
+      "query": "synthetic dev query 158",
+      "relevant": [
+        {
+          "post_id": 120,
+          "grade": 2
+        },
+        {
+          "post_id": 805,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1038
+      ]
+    },
+    {
+      "id": "dev-q-159",
+      "query": "synthetic dev query 159",
+      "relevant": [
+        {
+          "post_id": 188,
+          "grade": 2
+        },
+        {
+          "post_id": 587,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1033
+      ]
+    },
+    {
+      "id": "dev-q-160",
+      "query": "synthetic dev query 160",
+      "relevant": [
+        {
+          "post_id": 237,
+          "grade": 2
+        },
+        {
+          "post_id": 624,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1076
+      ]
+    },
+    {
+      "id": "dev-q-161",
+      "query": "synthetic dev query 161",
+      "relevant": [
+        {
+          "post_id": 198,
+          "grade": 2
+        },
+        {
+          "post_id": 921,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1002
+      ]
+    },
+    {
+      "id": "dev-q-162",
+      "query": "synthetic dev query 162",
+      "relevant": [
+        {
+          "post_id": 254,
+          "grade": 3
+        },
+        {
+          "post_id": 801,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1033
+      ]
+    },
+    {
+      "id": "dev-q-163",
+      "query": "synthetic dev query 163",
+      "relevant": [
+        {
+          "post_id": 328,
+          "grade": 3
+        },
+        {
+          "post_id": 503,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1098
+      ]
+    },
+    {
+      "id": "dev-q-164",
+      "query": "synthetic dev query 164",
+      "relevant": [
+        {
+          "post_id": 219,
+          "grade": 2
+        },
+        {
+          "post_id": 822,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1013
+      ]
+    },
+    {
+      "id": "dev-q-165",
+      "query": "synthetic dev query 165",
+      "relevant": [
+        {
+          "post_id": 478,
+          "grade": 3
+        },
+        {
+          "post_id": 763,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1025
+      ]
+    },
+    {
+      "id": "dev-q-166",
+      "query": "synthetic dev query 166",
+      "relevant": [
+        {
+          "post_id": 309,
+          "grade": 2
+        },
+        {
+          "post_id": 856,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1098
+      ]
+    },
+    {
+      "id": "dev-q-167",
+      "query": "synthetic dev query 167",
+      "relevant": [
+        {
+          "post_id": 13,
+          "grade": 3
+        },
+        {
+          "post_id": 520,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1003
+      ]
+    },
+    {
+      "id": "dev-q-168",
+      "query": "synthetic dev query 168",
+      "relevant": [
+        {
+          "post_id": 214,
+          "grade": 2
+        },
+        {
+          "post_id": 702,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1028
+      ]
+    },
+    {
+      "id": "dev-q-169",
+      "query": "synthetic dev query 169",
+      "relevant": [
+        {
+          "post_id": 59,
+          "grade": 3
+        },
+        {
+          "post_id": 814,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1078
+      ]
+    },
+    {
+      "id": "dev-q-170",
+      "query": "synthetic dev query 170",
+      "relevant": [
+        {
+          "post_id": 453,
+          "grade": 3
+        },
+        {
+          "post_id": 786,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1095
+      ]
+    },
+    {
+      "id": "dev-q-171",
+      "query": "synthetic dev query 171",
+      "relevant": [
+        {
+          "post_id": 311,
+          "grade": 2
+        },
+        {
+          "post_id": 888,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1021
+      ]
+    },
+    {
+      "id": "dev-q-172",
+      "query": "synthetic dev query 172",
+      "relevant": [
+        {
+          "post_id": 390,
+          "grade": 3
+        },
+        {
+          "post_id": 763,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1049
+      ]
+    },
+    {
+      "id": "dev-q-173",
+      "query": "synthetic dev query 173",
+      "relevant": [
+        {
+          "post_id": 353,
+          "grade": 3
+        },
+        {
+          "post_id": 572,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1030
+      ]
+    },
+    {
+      "id": "dev-q-174",
+      "query": "synthetic dev query 174",
+      "relevant": [
+        {
+          "post_id": 496,
+          "grade": 2
+        },
+        {
+          "post_id": 514,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1070
+      ]
+    },
+    {
+      "id": "dev-q-175",
+      "query": "synthetic dev query 175",
+      "relevant": [
+        {
+          "post_id": 159,
+          "grade": 3
+        },
+        {
+          "post_id": 652,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1034
+      ]
+    },
+    {
+      "id": "dev-q-176",
+      "query": "synthetic dev query 176",
+      "relevant": [
+        {
+          "post_id": 354,
+          "grade": 3
+        },
+        {
+          "post_id": 701,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1099
+      ]
+    },
+    {
+      "id": "dev-q-177",
+      "query": "synthetic dev query 177",
+      "relevant": [
+        {
+          "post_id": 481,
+          "grade": 2
+        },
+        {
+          "post_id": 549,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1070
+      ]
+    },
+    {
+      "id": "dev-q-178",
+      "query": "synthetic dev query 178",
+      "relevant": [
+        {
+          "post_id": 488,
+          "grade": 2
+        },
+        {
+          "post_id": 871,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1007
+      ]
+    },
+    {
+      "id": "dev-q-179",
+      "query": "synthetic dev query 179",
+      "relevant": [
+        {
+          "post_id": 63,
+          "grade": 2
+        },
+        {
+          "post_id": 600,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-180",
+      "query": "synthetic dev query 180",
+      "relevant": [
+        {
+          "post_id": 188,
+          "grade": 3
+        },
+        {
+          "post_id": 809,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1062
+      ]
+    },
+    {
+      "id": "dev-q-181",
+      "query": "synthetic dev query 181",
+      "relevant": [
+        {
+          "post_id": 203,
+          "grade": 3
+        },
+        {
+          "post_id": 507,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1097
+      ]
+    },
+    {
+      "id": "dev-q-182",
+      "query": "synthetic dev query 182",
+      "relevant": [
+        {
+          "post_id": 480,
+          "grade": 2
+        },
+        {
+          "post_id": 566,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1063
+      ]
+    },
+    {
+      "id": "dev-q-183",
+      "query": "synthetic dev query 183",
+      "relevant": [
+        {
+          "post_id": 330,
+          "grade": 2
+        },
+        {
+          "post_id": 926,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1054
+      ]
+    },
+    {
+      "id": "dev-q-184",
+      "query": "synthetic dev query 184",
+      "relevant": [
+        {
+          "post_id": 457,
+          "grade": 2
+        },
+        {
+          "post_id": 752,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1092
+      ]
+    },
+    {
+      "id": "dev-q-185",
+      "query": "synthetic dev query 185",
+      "relevant": [
+        {
+          "post_id": 214,
+          "grade": 2
+        },
+        {
+          "post_id": 717,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1082
+      ]
+    },
+    {
+      "id": "dev-q-186",
+      "query": "synthetic dev query 186",
+      "relevant": [
+        {
+          "post_id": 447,
+          "grade": 3
+        },
+        {
+          "post_id": 926,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1017
+      ]
+    },
+    {
+      "id": "dev-q-187",
+      "query": "synthetic dev query 187",
+      "relevant": [
+        {
+          "post_id": 58,
+          "grade": 3
+        },
+        {
+          "post_id": 947,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1004
+      ]
+    },
+    {
+      "id": "dev-q-188",
+      "query": "synthetic dev query 188",
+      "relevant": [
+        {
+          "post_id": 47,
+          "grade": 3
+        },
+        {
+          "post_id": 920,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1100
+      ]
+    },
+    {
+      "id": "dev-q-189",
+      "query": "synthetic dev query 189",
+      "relevant": [
+        {
+          "post_id": 197,
+          "grade": 2
+        },
+        {
+          "post_id": 878,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1036
+      ]
+    },
+    {
+      "id": "dev-q-190",
+      "query": "synthetic dev query 190",
+      "relevant": [
+        {
+          "post_id": 7,
+          "grade": 2
+        },
+        {
+          "post_id": 958,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1093
+      ]
+    },
+    {
+      "id": "dev-q-191",
+      "query": "synthetic dev query 191",
+      "relevant": [
+        {
+          "post_id": 192,
+          "grade": 3
+        },
+        {
+          "post_id": 590,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1073
+      ]
+    },
+    {
+      "id": "dev-q-192",
+      "query": "synthetic dev query 192",
+      "relevant": [
+        {
+          "post_id": 270,
+          "grade": 2
+        },
+        {
+          "post_id": 678,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1085
+      ]
+    },
+    {
+      "id": "dev-q-193",
+      "query": "synthetic dev query 193",
+      "relevant": [
+        {
+          "post_id": 271,
+          "grade": 2
+        },
+        {
+          "post_id": 814,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1099
+      ]
+    },
+    {
+      "id": "dev-q-194",
+      "query": "synthetic dev query 194",
+      "relevant": [
+        {
+          "post_id": 207,
+          "grade": 2
+        },
+        {
+          "post_id": 534,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1097
+      ]
+    },
+    {
+      "id": "dev-q-195",
+      "query": "synthetic dev query 195",
+      "relevant": [
+        {
+          "post_id": 254,
+          "grade": 2
+        },
+        {
+          "post_id": 845,
+          "grade": 2
+        }
+      ],
+      "hidden": [
+        1087
+      ]
+    },
+    {
+      "id": "dev-q-196",
+      "query": "synthetic dev query 196",
+      "relevant": [
+        {
+          "post_id": 250,
+          "grade": 3
+        },
+        {
+          "post_id": 919,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1044
+      ]
+    },
+    {
+      "id": "dev-q-197",
+      "query": "synthetic dev query 197",
+      "relevant": [
+        {
+          "post_id": 393,
+          "grade": 2
+        },
+        {
+          "post_id": 778,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1081
+      ]
+    },
+    {
+      "id": "dev-q-198",
+      "query": "synthetic dev query 198",
+      "relevant": [
+        {
+          "post_id": 261,
+          "grade": 3
+        },
+        {
+          "post_id": 549,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1016
+      ]
+    },
+    {
+      "id": "dev-q-199",
+      "query": "synthetic dev query 199",
+      "relevant": [
+        {
+          "post_id": 407,
+          "grade": 2
+        },
+        {
+          "post_id": 544,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1001
+      ]
+    },
+    {
+      "id": "dev-q-200",
+      "query": "synthetic dev query 200",
+      "relevant": [
+        {
+          "post_id": 328,
+          "grade": 2
+        },
+        {
+          "post_id": 948,
+          "grade": 1
+        }
+      ],
+      "hidden": [
+        1084
+      ]
+    }
+  ]
+}

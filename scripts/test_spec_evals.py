@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 
 from spec_evals import (
     evaluate_assistant,
@@ -158,6 +160,51 @@ class CLIDispatchTest(unittest.TestCase):
             from spec_evals import main
             code = main(["slo", "--requests", str(requests), "--capability", "community_core_read"])
             self.assertIsInstance(code, int)
+
+
+class DevDatasetGateTest(unittest.TestCase):
+    """The synthetic dev datasets exercise the gate machinery at the required
+    200-item scale. They are NOT the frozen human-annotated sets (DISC-060 /
+    ASST-050) and must never be used for official gating."""
+
+    def _repo_root(self):
+        return Path(__file__).resolve().parent.parent
+
+    def test_search_dev_dataset_reaches_required_scale(self):
+        path = self._repo_root() / "eval/dev/search_qrels.dev.json"
+        queries = json.loads(
+            path.read_text(encoding="utf-8")
+        )["queries"]
+        self.assertGreaterEqual(len(queries), 200)
+        by_query = {q["query"]: q for q in queries}
+        result = evaluate_search(
+            queries,
+            lambda query: [r["post_id"] for r in by_query[query]["relevant"]]
+            + by_query[query]["hidden"],
+        )
+        # 200 条查询满足规模门禁；故意注入 hidden 泄漏应使门禁失败。
+        self.assertGreaterEqual(result.query_count, 200)
+        self.assertGreater(result.leakage, 0)
+        self.assertEqual(1, report_search(result, 0.70))
+
+    def test_assistant_dev_dataset_reaches_required_scale(self):
+        path = self._repo_root() / "eval/dev/assistant_cases.dev.json"
+        cases = json.loads(
+            path.read_text(encoding="utf-8")
+        )["cases"]
+        self.assertGreaterEqual(len(cases), 200)
+        result = evaluate_assistant(
+            cases,
+            lambda case: {
+                "sources": case.get("expected_sources", []),
+                "refused": case["type"] == "insufficient",
+                "breach": False,
+            },
+        )
+        self.assertGreaterEqual(result.cases_total, 200)
+        self.assertEqual(1.0, result.source_accuracy)
+        self.assertEqual(1.0, result.insufficient_recall)
+        self.assertEqual(0, result.injection_breaches)
 
 
 if __name__ == "__main__":
