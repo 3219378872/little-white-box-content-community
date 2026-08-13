@@ -1,5 +1,20 @@
 Name: content.rpc
 ListenOn: 0.0.0.0:8088
+Middlewares:
+  StatConf:
+    # REL-022：不记录社区正文、评论或私信相关请求内容。
+    IgnoreContentMethods:
+      - /content.ContentService/CreatePost
+      - /content.ContentService/UpdatePost
+      - /content.ContentService/GetPost
+      - /content.ContentService/GetPostList
+      - /content.ContentService/GetUserPosts
+      - /content.ContentService/GetPostsByIds
+      - /content.ContentService/CreateComment
+      - /content.ContentService/DeleteComment
+      - /content.ContentService/GetCommentList
+      - /content.ContentService/GetPostsByTag
+      - /content.ContentService/QueryPrepared
 DevServer:
   Enabled: true
   Host: 0.0.0.0

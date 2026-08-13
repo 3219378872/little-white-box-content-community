@@ -36,3 +36,24 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 		t.Fatalf("unexpected LLM protocol config: %+v", c.LLM)
 	}
 }
+
+// REL-022：assistant 必须抑制框架自动内容日志（Chat 携带全量用户输入）。
+func TestAssistantConfigSuppressesChatContentLogging(t *testing.T) {
+	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")
+	t.Setenv("ASSISTANT_LLM_ENDPOINT", "http://127.0.0.1:18080/v1/responses")
+	t.Setenv("ASSISTANT_LLM_API_KEY", "")
+	t.Setenv("ASSISTANT_LLM_MODEL", "test-model")
+	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
+	t.Setenv("ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS", "1.25")
+	t.Setenv("ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS", "5")
+	var c Config
+	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
+		t.Fatal(err)
+	}
+	methods := c.Middlewares.StatConf.IgnoreContentMethods
+	if len(methods) != 1 || methods[0] != "/assistant.AssistantService/Chat" {
+		t.Fatalf("expected Chat to be ignored from content logging, got %v", methods)
+	}
+}

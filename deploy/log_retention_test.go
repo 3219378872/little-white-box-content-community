@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -64,5 +65,54 @@ func TestBehaviorAnalyticsNeverStoresFullClientIP(t *testing.T) {
 	}
 	if !strings.Contains(string(schema), "SHA-256") {
 		t.Error("analytics schema must document that client_ip stores a hash, not the full IP")
+	}
+}
+
+// REL-022：每个 RPC 服务必须抑制框架自动的请求/回复内容日志，
+// 避免私信正文、Assistant 输入、社区正文与认证字段进入业务日志。
+func TestEveryRPCSuppressesContentLogging(t *testing.T) {
+	dirs, err := filepath.Glob("../app/*/rpc/etc/*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(dirs) != 10 {
+		t.Fatalf("expected 10 RPC service configs, found %d", len(dirs))
+	}
+	for _, configPath := range dirs {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		config := string(data)
+		if !strings.Contains(config, "IgnoreContentMethods:") {
+			t.Errorf("%s must set Middlewares.StatConf.IgnoreContentMethods (REL-022)", configPath)
+			continue
+		}
+		if !strings.Contains(config, "Middlewares:") {
+			t.Errorf("%s must declare Middlewares block", configPath)
+		}
+	}
+}
+
+// REL-022：关键敏感方法必须显式列入忽略列表。
+func TestContentSensitiveMethodsAreIgnored(t *testing.T) {
+	checks := []struct {
+		config string
+		method string
+	}{
+		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/Chat"},
+		{"../app/message/rpc/etc/message.yaml", "/message.MessageService/SendMessage"},
+		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreatePost"},
+		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreateComment"},
+		{"../app/user/rpc/etc/user.yaml", "/user.UserService/Login"},
+	}
+	for _, check := range checks {
+		data, err := os.ReadFile(check.config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), check.method) {
+			t.Errorf("%s must ignore content for %s", check.config, check.method)
+		}
 	}
 }

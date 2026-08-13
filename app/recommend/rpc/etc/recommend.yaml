@@ -1,6 +1,12 @@
 Name: recommend.rpc
 ListenOn: 0.0.0.0:9023
 Health: true
+Middlewares:
+  StatConf:
+    IgnoreContentMethods:
+      - /recommend.RecommendService/GetRecommendPosts
+      - /recommend.RecommendService/GetSimilarPosts
+      - /recommend.RecommendService/GetRecommendUsers
 DevServer:
   Enabled: true
   Host: 0.0.0.0

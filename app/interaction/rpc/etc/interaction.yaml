@@ -1,5 +1,17 @@
 Name: interaction.rpc
 ListenOn: 0.0.0.0:9003
+Middlewares:
+  StatConf:
+    IgnoreContentMethods:
+      - /interaction.InteractionService/Like
+      - /interaction.InteractionService/Unlike
+      - /interaction.InteractionService/CheckLiked
+      - /interaction.InteractionService/BatchCheckLiked
+      - /interaction.InteractionService/Favorite
+      - /interaction.InteractionService/Unfavorite
+      - /interaction.InteractionService/CheckFavorited
+      - /interaction.InteractionService/BatchCheckFavorited
+      - /interaction.InteractionService/GetFavoriteList
 DevServer:
   Enabled: true
   Host: 0.0.0.0

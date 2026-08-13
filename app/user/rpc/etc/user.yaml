@@ -1,5 +1,14 @@
 Name: user.rpc
 ListenOn: 0.0.0.0:9090
+Middlewares:
+  StatConf:
+    # REL-022：不记录密码、手机号、验证码等敏感认证/资料字段。
+    IgnoreContentMethods:
+      - /user.UserService/Register
+      - /user.UserService/Login
+      - /user.UserService/SendVerifyCode
+      - /user.UserService/UpdateProfile
+      - /user.UserService/SetPersonalizationPreference
 DevServer:
   Enabled: true
   Host: 0.0.0.0

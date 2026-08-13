@@ -1,6 +1,14 @@
 Name: search.rpc
 ListenOn: 0.0.0.0:9022
 Health: true
+Middlewares:
+  StatConf:
+    # REL-022：不记录用户查询关键词。
+    IgnoreContentMethods:
+      - /search.SearchService/Search
+      - /search.SearchService/SearchPosts
+      - /search.SearchService/SearchUsers
+      - /search.SearchService/SearchTags
 DevServer:
   Enabled: true
   Host: 0.0.0.0

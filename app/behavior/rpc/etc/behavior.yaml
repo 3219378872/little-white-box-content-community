@@ -1,6 +1,10 @@
 Name: behavior.rpc
 ListenOn: 0.0.0.0:9021
 Health: true
+Middlewares:
+  StatConf:
+    IgnoreContentMethods:
+      - /behavior.BehaviorService/RecordEvents
 DevServer:
   Enabled: true
   Host: 0.0.0.0

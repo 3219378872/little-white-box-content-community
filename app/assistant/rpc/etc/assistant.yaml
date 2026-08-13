@@ -1,6 +1,11 @@
 Name: assistant.rpc
 ListenOn: 0.0.0.0:9024
 Health: true
+Middlewares:
+  StatConf:
+    # REL-022：不记录 Assistant 全量输入/回答内容，避免社区正文与用户输入进入业务日志。
+    IgnoreContentMethods:
+      - /assistant.AssistantService/Chat
 DevServer:
   Enabled: true
   Host: 0.0.0.0

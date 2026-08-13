@@ -1,5 +1,14 @@
 Name: message.rpc
 ListenOn: 0.0.0.0:9092
+Middlewares:
+  StatConf:
+    # REL-022：不记录私信正文与通知内容。
+    IgnoreContentMethods:
+      - /message.MessageService/SendMessage
+      - /message.MessageService/GetMessages
+      - /message.MessageService/GetConversations
+      - /message.MessageService/SendNotification
+      - /message.MessageService/GetNotifications
 Etcd:
   Hosts:
     - 127.0.0.1:2379

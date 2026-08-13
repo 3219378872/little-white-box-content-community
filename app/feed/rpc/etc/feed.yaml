@@ -1,5 +1,12 @@
 Name: feed.rpc
 ListenOn: 0.0.0.0:9093
+Middlewares:
+  StatConf:
+    IgnoreContentMethods:
+      - /feed.FeedService/GetFollowFeed
+      - /feed.FeedService/GetRecommendFeed
+      - /feed.FeedService/PushToInbox
+      - /feed.FeedService/FanoutPost
 Etcd:
   Hosts:
     - 127.0.0.1:2379

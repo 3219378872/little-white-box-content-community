@@ -149,7 +149,7 @@ upstream:
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
-| REL-022 业务日志 30 天不泄密 | aligned | 日志策略与脱敏 |
+| REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | /api/v2/me/personalization 接口；关闭后停止新行为入特征、purge 在线特征；DB+Redis 标记 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 命令落地；生产观测数据待月度报告 |
