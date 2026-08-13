@@ -126,3 +126,70 @@ func TestRedisBehaviorStoreExposureCarriesRequestPostDedupKey(t *testing.T) {
 }
 
 func int32Ptr(value int32) *int32 { return &value }
+
+// fakePurgeRedis 同时实现 RedisEvaler 与 RedisKeyLister，记录每次 purge 的键。
+type fakePurgeRedis struct {
+	keys    []string
+	keysErr error
+	purges  [][]string
+	err     error
+}
+
+func (f *fakePurgeRedis) KeysCtx(_ context.Context, _ string) ([]string, error) {
+	return f.keys, f.keysErr
+}
+
+func (f *fakePurgeRedis) EvalCtx(_ context.Context, _ string, keys []string, _ ...any) (any, error) {
+	f.purges = append(f.purges, keys)
+	return int64(1), f.err
+}
+
+func TestPurgeOptedOutFeaturesDeletesFeatureKeys(t *testing.T) {
+	redis := &fakePurgeRedis{keys: []string{"personalization:optout:42", "personalization:optout:7"}}
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+
+	purged, err := store.PurgeOptedOutFeatures(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 2, purged)
+	require.Len(t, redis.purges, 2)
+	// 每次 purge 覆盖该身份的在线特征与召回键（REL-023 24h 删除）。
+	assert.Contains(t, redis.purges[0], "feature:v2:u:42:recent")
+	assert.Contains(t, redis.purges[0], "feature:v2:u:42:state")
+	assert.Contains(t, redis.purges[0], "recommend:v2:recall:user:interest:u:42")
+	assert.Contains(t, redis.purges[1], "feature:v2:u:7:recent")
+	assert.Contains(t, redis.purges[1], "recommend:v2:recall:user:interest:u:7")
+}
+
+func TestPurgeOptedOutFeaturesSkipsInvalidMarkers(t *testing.T) {
+	redis := &fakePurgeRedis{keys: []string{
+		"personalization:optout:42",
+		"personalization:optout:not-a-number",
+		"personalization:optout:0",
+		"unrelated:key",
+	}}
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+
+	purged, err := store.PurgeOptedOutFeatures(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 1, purged, "only the valid user marker should be purged")
+	require.Len(t, redis.purges, 1)
+	assert.Contains(t, redis.purges[0], "feature:v2:u:42:recent")
+}
+
+func TestPurgeOptedOutFeaturesListFailure(t *testing.T) {
+	redis := &fakePurgeRedis{keysErr: errors.New("redis down")}
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+
+	_, err := store.PurgeOptedOutFeatures(context.Background())
+	assert.ErrorContains(t, err, "redis down")
+	assert.Empty(t, redis.purges)
+}
+
+func TestPurgeOptedOutFeaturesWithoutKeyLister(t *testing.T) {
+	// 仅实现 EvalCtx 的存储不支持键枚举：返回 0,nil，不视为故障。
+	store := NewRedisBehaviorStore(&fakeEvaler{}, "v2", "recommend", 3600)
+
+	purged, err := store.PurgeOptedOutFeatures(context.Background())
+	require.NoError(t, err)
+	assert.Zero(t, purged)
+}

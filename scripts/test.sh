@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 mapfile -t MODULES < <(
-  find . -name go.mod -not -path './.worktrees/*' -not -path './vendor/*' \
+  find . -name go.mod -not -path './.worktree/*' -not -path './vendor/*' \
     -exec dirname {} \; | sort
 )
 

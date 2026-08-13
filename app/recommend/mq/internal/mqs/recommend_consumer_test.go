@@ -22,9 +22,13 @@ func (r *recordingStore) Record(_ context.Context, behavior event.BehaviorEvent)
 	return nil
 }
 
+func (r *recordingStore) PurgeOptedOutFeatures(context.Context) (int, error) { return 0, nil }
+
 type errorStore struct{ err error }
 
 func (e *errorStore) Record(_ context.Context, _ event.BehaviorEvent) error { return e.err }
+
+func (e *errorStore) PurgeOptedOutFeatures(context.Context) (int, error) { return 0, e.err }
 
 type recordingDeadLetters struct {
 	count int

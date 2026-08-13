@@ -180,7 +180,7 @@ verified_commit: 290b353
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
-| REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；偏好读取失败时 fail-closed 只走规则冷启动 |
+| REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 命令落地；生产观测数据待月度报告 |
 | REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；p95/p99 达标需月度观测数据 |
@@ -191,6 +191,37 @@ verified_commit: 290b353
 | REL-050~053 可观测与健康检查 | aligned | metrics + /health 存活 + /health/ready 就绪（列出依赖；可选发现能力故障仅 degraded）；网关 trace_id 经 gRPC metadata 透传下游 |
 | REL-060 行为契约带版本 | aligned | schema_version=2 |
 | REL-061 语义保持 | aligned | 契约稳定 |
+
+## 验收标准追踪
+
+四份规范共 21 条验收标准（CORE/DISC/ASST/REL-A*）。代码行为类以 Go 测试落地，
+离线评测/观测类由 `scripts/spec_evals.py` 与冻结数据集承担（后者待人类输入，见
+[IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)）。
+
+| 验收标准 | 状态 | 测试/证据位置 |
+| --- | --- | --- |
+| CORE-A01 状态机与 revision 冲突 | aligned | `app/content/rpc/internal/logic/post_logic_test.go`、`idempotency_revision_integration_test.go`、`post_integration_test.go` |
+| CORE-A02 匿名读取/草稿删除不可见 | aligned | `app/gateway/rest_decision_table_test.go`（POST-LIST-ANON / POST-GET-ANON / COMMENT-LIST-ANON）、`app/content/rpc/internal/logic/post_logic_test.go` |
+| CORE-A03 输入边界 | aligned | `app/content/rpc/internal/logic/post_logic_test.go`、`comment_logic_test.go`、`app/media/rpc/internal/mediautil` |
+| CORE-A04 幂等收敛 | aligned | `app/content/rpc/internal/logic/idempotency_revision_integration_test.go`、`app/interaction/rpc/internal/logic/interaction_integration_test.go`、`app/message/rpc/internal/model/message_command_model_integration_test.go` |
+| CORE-A05 会话参与者权限 | aligned | `app/message/rpc/internal/logic/message_logic_test.go` |
+| CORE-A06 权威写与异步失败 | aligned | `app/content/rpc/internal/logic/post_integration_test.go`、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go`、`pkg/outboxx/relay_test.go` |
+| DISC-A01 三能力只返回可见内容 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/search/rpc/internal/logic/search_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
+| DISC-A02 关注变化/空流/匿名冷启动 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
+| DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
+| DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
+| DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
+| DISC-A06 冻结集复现门禁 | partial | `scripts/spec_evals.py`（search/recommend 子命令）；冻结集待人类双评标注 |
+| ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go` |
+| ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
+| ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
+| ASST-A04 完成/取消/降级/越权 | aligned | `app/gateway/internal/logic/assistant/assistant_chat_logic_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
+| REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
+| REL-A02 链路归因 | aligned | `integration/behavior_pipeline_integration_test.go`、`app/pipeline/behaviorlog` |
+| REL-A03 故障降级矩阵 | aligned | `app/gateway/rest_decision_table_test.go`（RPC-FAIL 系列）、`app/recommend/rpc/internal/logic/inference_fault_injection_test.go` |
+| REL-A04 保留期与 24h 清理 | aligned | `app/recommend/mq/internal/store/behavior_store_test.go`（PurgeOptedOutFeatures）、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go` |
+| REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
+
 
 ## 代码入口
 

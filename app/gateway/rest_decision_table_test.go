@@ -71,15 +71,24 @@ func (contractUserService) Register(context.Context, *userservice.RegisterReq, .
 func (contractUserService) Login(context.Context, *userservice.LoginReq, ...grpc.CallOption) (*userservice.LoginResp, error) {
 	return &userservice.LoginResp{UserId: 1, Token: "token"}, nil
 }
-func (contractUserService) SendVerifyCode(context.Context, *userservice.SendVerifyCodeReq, ...grpc.CallOption) (*userservice.SendVerifyCodeResp, error) {
+func (contractUserService) SendVerifyCode(_ context.Context, in *userservice.SendVerifyCodeReq, _ ...grpc.CallOption) (*userservice.SendVerifyCodeResp, error) {
+	if in.Phone == "13999999999" {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &userservice.SendVerifyCodeResp{}, nil
 }
 
-func (contractUserService) GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+func (contractUserService) GetPersonalizationPreference(_ context.Context, in *userservice.GetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+	if in.UserId == 999 {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &userservice.GetPersonalizationPreferenceResp{Enabled: true}, nil
 }
 
-func (contractUserService) SetPersonalizationPreference(context.Context, *userservice.SetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.SetPersonalizationPreferenceResp, error) {
+func (contractUserService) SetPersonalizationPreference(_ context.Context, in *userservice.SetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.SetPersonalizationPreferenceResp, error) {
+	if in.UserId == 999 {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &userservice.SetPersonalizationPreferenceResp{}, nil
 }
 
@@ -88,7 +97,11 @@ type contractContentService struct{ contentservice.ContentService }
 func contractPost() *contentpb.PostInfo {
 	return &contentpb.PostInfo{Id: 11, AuthorId: 1, Title: "title", Content: "content", Status: 1}
 }
-func (contractContentService) CreatePost(context.Context, *contentservice.CreatePostReq, ...grpc.CallOption) (*contentservice.CreatePostResp, error) {
+func (contractContentService) CreatePost(_ context.Context, in *contentservice.CreatePostReq, _ ...grpc.CallOption) (*contentservice.CreatePostResp, error) {
+	if in.Title == "conflict-title" {
+		// CORE-051：版本冲突必须可区分（REST 409 + 业务码）。
+		return nil, errx.NewWithCode(errx.ContentVersionConflict)
+	}
 	return &contentservice.CreatePostResp{PostId: 11}, nil
 }
 func (contractContentService) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
@@ -100,7 +113,10 @@ func (contractContentService) UpdatePost(context.Context, *contentservice.Update
 func (contractContentService) DeletePost(context.Context, *contentservice.DeletePostReq, ...grpc.CallOption) (*contentservice.DeletePostResp, error) {
 	return &contentservice.DeletePostResp{}, nil
 }
-func (contractContentService) GetPostList(context.Context, *contentservice.GetPostListReq, ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (contractContentService) GetPostList(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+	if in.Page == 999 {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &contentservice.GetPostListResp{Posts: []*contentpb.PostInfo{contractPost()}, Total: 1}, nil
 }
 func (contractContentService) GetUserPosts(context.Context, *contentservice.GetUserPostsReq, ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
@@ -154,17 +170,28 @@ func (contractInteractionService) BatchCheckFavorited(_ context.Context, in *int
 	return &interactionservice.BatchCheckFavoritedResp{Results: results}, nil
 }
 
-type contractUploadStream struct{ grpc.ClientStream }
+type contractUploadStream struct {
+	grpc.ClientStream
+	failUserID int64
+}
 
-func (*contractUploadStream) Send(*mediapb.UploadImageReq) error { return nil }
-func (*contractUploadStream) CloseAndRecv() (*mediapb.UploadImageResp, error) {
+func (s *contractUploadStream) Send(in *mediapb.UploadImageReq) error {
+	if meta := in.GetMeta(); meta != nil && meta.UserId == s.failUserID {
+		s.failUserID = -1 // 已触发失败，CloseAndRecv 返回错误
+	}
+	return nil
+}
+func (s *contractUploadStream) CloseAndRecv() (*mediapb.UploadImageResp, error) {
+	if s.failUserID == -1 {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &mediapb.UploadImageResp{Media: &mediapb.MediaInfo{Id: 31, Url: "https://media/image.png"}}, nil
 }
 
 type contractMediaService struct{ mediaservice.MediaService }
 
 func (contractMediaService) UploadImage(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadImageClient, error) {
-	return &contractUploadStream{}, nil
+	return &contractUploadStream{failUserID: 999}, nil
 }
 
 type contractBehaviorService struct {
@@ -241,7 +268,10 @@ func (contractMessageService) SendMessage(context.Context, *messageservice.SendM
 func (contractMessageService) MarkRead(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
 	return &messageservice.MarkReadResp{}, nil
 }
-func (contractMessageService) GetUnreadCount(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+func (contractMessageService) GetUnreadCount(_ context.Context, in *messageservice.GetUnreadCountReq, _ ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+	if in.UserId == 999 {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
 	return &messageservice.GetUnreadCountResp{MessageUnread: 3, NotificationUnread: 4}, nil
 }
 
@@ -388,6 +418,10 @@ func TestRESTDecisionTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	failToken, err := jwtx.GenerateToken(999, "fail-user", jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	feedItemFields := []string{
 		"postId", "authorId", "authorName", "authorAvatar", "createdAt", "feedType", "title", "content", "images", "tags",
@@ -484,6 +518,13 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "FEED-FOLLOW-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/follow?pageSize=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "FEED-RECOMMEND-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "FEED-RECOMMEND-RPC-FAILURE", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=rpc-fail&pageSize=20", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "AUTH-CODE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/auth/verify-code", body: jsonBody(`{"phone":"13999999999","type":1}`), wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "PERSONALIZATION-GET-RPC-FAIL", method: http.MethodGet, path: "/api/v2/me/personalization", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "PERSONALIZATION-PUT-RPC-FAIL", method: http.MethodPut, path: "/api/v2/me/personalization", body: jsonBody(`{"enabled":false}`), headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "MESSAGE-UNREAD-RPC-FAIL", method: http.MethodGet, path: "/api/v2/messages/unread", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?page=999", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "POST-CREATE-VERSION-CONFLICT", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"conflict-title","content":"content","status":1}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},
 		restDecision{id: "SEARCH-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search?keyword=go&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "SEARCH-USERS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/users?keyword=user&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "SEARCH-TAGS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/tags?keyword=tag&limit=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},

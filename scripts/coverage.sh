@@ -19,7 +19,7 @@ rm -rf "$output_dir"
 mkdir -p "$output_dir/profiles"
 
 mapfile -t modules < <(
-  find . -name go.mod -not -path './.worktrees/*' -not -path './vendor/*' \
+  find . -name go.mod -not -path './.worktree/*' -not -path './vendor/*' \
     -exec dirname {} \; | sort
 )
 

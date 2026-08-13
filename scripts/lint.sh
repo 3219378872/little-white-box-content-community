@@ -26,7 +26,7 @@ MSG
 fi
 
 mapfile -t MODULES < <(
-  find . -name go.mod -not -path './.worktrees/*' -not -path './vendor/*' \
+  find . -name go.mod -not -path './.worktree/*' -not -path './vendor/*' \
     -exec dirname {} \; | sort
 )
 

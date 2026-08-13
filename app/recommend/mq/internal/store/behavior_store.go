@@ -17,6 +17,9 @@ import (
 
 type BehaviorStore interface {
 	Record(ctx context.Context, behavior event.BehaviorEvent) error
+	// PurgeOptedOutFeatures 主动删除已关闭个性化用户的在线特征（REL-023），
+	// 返回清理的用户数；不支持键枚举的存储返回 0,nil。
+	PurgeOptedOutFeatures(ctx context.Context) (int, error)
 }
 
 type RedisEvaler interface {
@@ -304,3 +307,39 @@ elseif target_type == 'user' and (action == 'follow' or action == 'unfollow') th
 end
 return 1
 `
+
+// RedisKeyLister 枚举 Redis 键（go-zero *redis.Redis 的 KeysCtx 满足该接口）。
+type RedisKeyLister interface {
+	KeysCtx(ctx context.Context, pattern string) ([]string, error)
+}
+
+// PurgeOptedOutFeatures 主动清理已关闭个性化用户的在线特征（REL-023）。
+// 由 recommend-mq 定时任务周期调用：枚举 `personalization:optout:<userID>`
+// 关闭标记并删除对应身份的全部特征键，确保关闭后 24 小时内删除在线特征，
+// 不依赖用户后续是否再产生行为事件。
+func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, error) {
+	if s == nil || s.redis == nil {
+		return 0, nil
+	}
+	lister, ok := s.redis.(RedisKeyLister)
+	if !ok {
+		return 0, nil
+	}
+	keys, err := lister.KeysCtx(ctx, personalizationOptOutKeyPrefix+"*")
+	if err != nil {
+		return 0, fmt.Errorf("list personalization opt-out markers: %w", err)
+	}
+	purged := 0
+	for _, key := range keys {
+		userID, err := strconv.ParseInt(strings.TrimPrefix(key, personalizationOptOutKeyPrefix), 10, 64)
+		if err != nil || userID <= 0 {
+			// 非用户 ID 形式的标记不属于 REL-023 清理范围，跳过不视为失败。
+			continue
+		}
+		if err := s.purgeIdentityFeatures(ctx, "u:"+strconv.FormatInt(userID, 10)); err != nil {
+			return purged, fmt.Errorf("purge opted-out features for user %d: %w", userID, err)
+		}
+		purged++
+	}
+	return purged, nil
+}

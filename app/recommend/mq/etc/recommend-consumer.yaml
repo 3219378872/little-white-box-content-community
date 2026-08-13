@@ -23,3 +23,5 @@ RecallKeyPrefix: recommend
 CandidateTTL: 2592000
 DeadLetterTTL: 604800
 DeadLetterMaxLength: 1000
+# REL-023：周期性主动清理已关闭个性化用户的在线特征（小时级，保证 24h 内删除）。
+OptOutCleanupInterval: 3600
