@@ -50,6 +50,9 @@ verified_commit: 6d2c41e
 `diverged`：公开列表与发现回源后只保留 published；GetPost/列表对外返回 status。评论按主键读取不再走缓存。
 仍偏离处：
 - 搜索/列表/标签/收藏 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
+- `REL-020` 的“去标识聚合结果保留 365 天”未实现：当前聚合为查询期视图（受原始表
+  90 天 TTL 限制）；因 at-least-once 去重刻意不用 insert-triggered 物化视图（见
+  `deploy/sql/xbh_analytics.sql` 注释），需设计决策（定时聚合任务或等效方案）。
 - `CORE-032` 计数 30s 收敛缺少生产观测。
 - `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
 - `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
@@ -177,7 +180,7 @@ verified_commit: 6d2c41e
 | REL-011 拒绝/未去重不入特征 | aligned | 消费端去重后写特征 |
 | REL-012 接受只表示进入消息边界 | aligned | 接口即发布 |
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
-| REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
+| REL-020 保留期限自动删除 | partial | 已落地：原始行为 90 天（ClickHouse TTL）、在线特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天；“去标识聚合结果保留 365 天”未实现——当前聚合是查询期视图，受原始表 90 天 TTL 限制，需定时聚合任务等设计决策 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
@@ -219,7 +222,7 @@ verified_commit: 6d2c41e
 | REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | REL-A02 链路归因 | aligned | `integration/behavior_pipeline_integration_test.go`、`app/pipeline/behaviorlog` |
 | REL-A03 故障降级矩阵 | aligned | `app/gateway/rest_decision_table_test.go`（RPC-FAIL 系列）、`app/recommend/rpc/internal/logic/inference_fault_injection_test.go` |
-| REL-A04 保留期与 24h 清理 | aligned | `app/recommend/mq/internal/store/behavior_store_test.go`（PurgeOptedOutFeatures）、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go` |
+| REL-A04 保留期与 24h 清理 | partial | 24h 特征清理已测（`behavior_store_test.go`）、count-sync 集成测试在；聚合 365 天留存无实现，见 REL-020 |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
 
 
