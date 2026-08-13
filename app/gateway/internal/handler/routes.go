@@ -261,31 +261,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
-				// 创建帖子（v1 迁移期）
-				Method:  http.MethodPost,
-				Path:    "/post",
-				Handler: posts.CreatePostHandler(serverCtx),
-			},
-			{
-				// 更新帖子（v1 迁移期）
-				Method:  http.MethodPut,
-				Path:    "/post/:postId",
-				Handler: posts.UpdatePostHandler(serverCtx),
-			},
-			{
-				// 删除帖子（v1 迁移期）
-				Method:  http.MethodDelete,
-				Path:    "/post/:postId",
-				Handler: posts.DeletePostHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
-		rest.WithPrefix("/api/v1"),
-	)
-
-	server.AddRoutes(
-		[]rest.Route{
-			{
 				// 创建帖子（v2）
 				Method:  http.MethodPost,
 				Path:    "/post",

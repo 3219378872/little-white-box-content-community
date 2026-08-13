@@ -71,7 +71,7 @@ verified_commit: f7beca9
 | CORE-010 状态机 | aligned | draft⇄published 双向 + 均→deleted 终态；Update 显式 status 支持取消发布 |
 | CORE-011 创建返回 id/status/revision | aligned | CreatePostResp 返回 postId/status/revision=1 |
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
-| CORE-013 变更携带预期 revision | aligned | /api/v2/post 写接口强制 expected_revision（缺失/0 → 400，冲突 → 409），人类已采纳选项 B（PROP-20260813-core-revision-contract）；/api/v1 处于 CORE-062 迁移期，见 DES 废弃计划 |
+| CORE-013 变更携带预期 revision | aligned | /api/v2/post 是唯一写路径，强制 expected_revision（缺失/0 → 400，冲突 → 409）；人类 2026-08-13 决定“直接废弃并迁移”，/api/v1 帖子写接口已移除（PROP-20260813-core-revision-contract 选项 B + 废弃决定） |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update 返回 status/revision；HTTP GetPost 与公开列表 PostItem 回传权威 status 与 revision |
 | CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/公开列表/标签回源后只保留 published；搜索/列表/标签/收藏 Total 只按本页回减 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取；评论列表 SQL 过滤 status=1 后再内存二次过滤并回减 Total（纵深防御） |
@@ -95,7 +95,7 @@ verified_commit: f7beca9
 | CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；框架 gRPC 错误只保留业务码，不暴露原始消息 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
-| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约仅新增可选字段；expected_revision 为可选迁移期字段，旧客户端不带也成功；/api/v1 帖子写接口登记迁移期与废弃计划（新客户端用 /api/v2/post*） |
+| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 消息契约仅新增可选字段；帖子写接口已按人类决定直接废弃并迁移到 /api/v2/post*，无迁移期跳过语义 |
 | CORE-063 不依赖内部结构 | aligned | 契约层不暴露内部结构 |
 
 ## SPEC-content-discovery 追踪
@@ -244,7 +244,8 @@ verified_commit: f7beca9
 - 搜索：`app/search/rpc/internal/logic/search_logic.go`。
 - 共享回源：`app/content/visibility`（把 Content `GetPostsByIds` 适配为 `visibilityx.Fetcher`，Assistant/Feed/Recommend/Search/Gateway 统一复用）。
 - 网关：`app/gateway/internal/logic/**` 与 `app/gateway/gateway.api`；
-  v2 写接口 `CreatePostV2/UpdatePostV2/DeletePostV2`（`internal/logic/posts/*_v2_logic.go`）。
+  写接口仅 `CreatePostV2/UpdatePostV2/DeletePostV2`（`internal/logic/posts/*_v2_logic.go`），
+  `/api/v1` 帖子写路由已废弃移除。
 
 ## 证据
 

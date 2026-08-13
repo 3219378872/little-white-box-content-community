@@ -135,26 +135,9 @@ type (
 )
 
 type (
-	UpdatePostReq {
-		PostId           int64    `path:"postId"`
-		Title            string   `json:"title,optional"`
-		Content          string   `json:"content,optional"`
-		Images           []string `json:"images,optional"`
-		Tags             []string `json:"tags,optional"`
-		Status           *int32   `json:"status,optional"` // 显式状态变更；0:草稿 1:发布
-		ExpectedRevision int64    `json:"expectedRevision,optional"` // 迁移期可选；提供时做版本冲突检测
-		MediaIds         []int64  `json:"mediaIds,optional"`
-	}
 	UpdatePostResp {
 		Status   int32 `json:"status"`
 		Revision int64 `json:"revision"`
-	}
-)
-
-type (
-	DeletePostReq {
-		PostId           int64 `path:"postId"`
-		ExpectedRevision int64 `json:"expectedRevision,optional"` // 迁移期可选；提供时做版本冲突检测
 	}
 	DeletePostResp  {}
 )
@@ -673,27 +656,6 @@ service gateway {
 	@doc "取消关注"
 	@handler Unfollow
 	delete /user/follow (UnfollowReq) returns (UnfollowResp)
-}
-
-@server (
-	prefix: /api/v1
-	jwt:    Auth
-	group:  posts
-)
-service gateway {
-	// 迁移期（CORE-062）：/api/v1 写接口的 expectedRevision 为可选，缺失时跳过乐观锁。
-	// 新客户端请使用 /api/v2/post*（CORE-013 强制 revision）；/api/v1 废弃计划见 DES。
-	@doc "创建帖子（v1 迁移期）"
-	@handler CreatePost
-	post /post (CreatePostReq) returns (CreatePostResp)
-
-	@doc "更新帖子（v1 迁移期）"
-	@handler UpdatePost
-	put /post/:postId (UpdatePostReq) returns (UpdatePostResp)
-
-	@doc "删除帖子（v1 迁移期）"
-	@handler DeletePost
-	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
 }
 
 @server (

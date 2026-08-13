@@ -444,12 +444,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "USER-PROFILE-VALID", method: http.MethodPut, path: "/api/v1/user/profile", body: jsonBody(`{"nickname":"Alice"}`), auth: true, wantStatus: http.StatusOK},
 		{id: "USER-FOLLOW-VALID", method: http.MethodPost, path: "/api/v1/user/follow", body: jsonBody(`{"targetUserId":2}`), auth: true, wantStatus: http.StatusOK},
 		{id: "USER-UNFOLLOW-VALID", method: http.MethodDelete, path: "/api/v1/user/follow", body: jsonBody(`{"targetUserId":2}`), auth: true, wantStatus: http.StatusOK},
-		{id: "POST-CREATE-VALID", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"title","content":"content","status":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"postId"}},
 		{id: "POST-GET-ANON", method: http.MethodGet, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", wantStatus: http.StatusOK, wantFields: []string{"id", "authorId", "title", "content"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
-		{id: "POST-UPDATE-VALID", method: http.MethodPut, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
-		{id: "POST-DELETE-VALID", method: http.MethodDelete, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
-		{id: "POST-UPDATE-LEGACY-CLIENT", method: http.MethodPut, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", body: jsonBody(`{"title":"legacy update"}`), auth: true, wantStatus: http.StatusOK},
-		{id: "POST-DELETE-LEGACY-CLIENT", method: http.MethodDelete, path: "/api/v1/post/11", routePath: "/api/v1/post/:postId", auth: true, wantStatus: http.StatusOK},
 		{id: "COMMENT-CREATE-VALID", method: http.MethodPost, path: "/api/v1/comment", body: jsonBody(`{"postId":11,"content":"comment"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"commentId"}},
 		{id: "COMMENT-DELETE-VALID", method: http.MethodDelete, path: "/api/v1/comment/21", routePath: "/api/v1/comment/:commentId", auth: true, wantStatus: http.StatusOK},
 		{id: "COMMENT-LIST-ANON", method: http.MethodGet, path: "/api/v1/comments/11?page=1&pageSize=20&sortBy=1", routePath: "/api/v1/comments/:postId", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
@@ -500,8 +495,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "POST-GET-INVALID-TOKEN", method: http.MethodGet, path: "/api/v1/post/11", headerToken: "invalid", wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateInvalid}},
 		restDecision{id: "COMMENT-LIST-AUTHENTICATED", method: http.MethodGet, path: "/api/v1/comments/11?page=1&pageSize=20&sortBy=1", auth: true, wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAuthenticated}},
 		restDecision{id: "COMMENT-LIST-EXPIRED-TOKEN", method: http.MethodGet, path: "/api/v1/comments/11?page=1&pageSize=20&sortBy=1", headerToken: expiredToken, wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateExpired}},
-		restDecision{id: "POST-CREATE-INVALID-TOKEN", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"title","content":"content"}`), headerToken: "invalid", wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
-		restDecision{id: "POST-CREATE-EXPIRED-TOKEN", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"title","content":"content"}`), headerToken: expiredToken, wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
 		restDecision{id: "USER-GET-BAD-PATH", method: http.MethodGet, path: "/api/v1/user/not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-LIST-BAD-QUERY", method: http.MethodGet, path: "/api/v1/posts?page=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-POSTS-BAD-QUERY", method: http.MethodGet, path: "/api/v1/users/2/posts?page=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -509,10 +502,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "USER-PROFILE-MALFORMED", method: http.MethodPut, path: "/api/v1/user/profile", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-FOLLOW-MALFORMED", method: http.MethodPost, path: "/api/v1/user/follow", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-UNFOLLOW-MALFORMED", method: http.MethodDelete, path: "/api/v1/user/follow", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "POST-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-GET-BAD-PATH", method: http.MethodGet, path: "/api/v1/post/not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "POST-UPDATE-BAD-PATH", method: http.MethodPut, path: "/api/v1/post/not-a-number", body: jsonBody(`{}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "POST-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v1/post/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "COMMENT-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v1/comment", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "COMMENT-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v1/comment/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "COMMENT-LIST-BAD-PATH", method: http.MethodGet, path: "/api/v1/comments/not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -531,7 +521,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MESSAGE-UNREAD-RPC-FAIL", method: http.MethodGet, path: "/api/v2/messages/unread", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?page=999", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
-		restDecision{id: "POST-CREATE-VERSION-CONFLICT", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"conflict-title","content":"content","status":1}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},
 		restDecision{id: "POST-UPDATE-V2-MISSING-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated"}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-UPDATE-V2-ZERO-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":0}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-UPDATE-V2-CONFLICT", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":999}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},
@@ -634,8 +623,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 43 {
-		t.Fatalf("route inventory drift: got %d success rules, want 43", len(successes))
+	if len(successes) != 38 {
+		t.Fatalf("route inventory drift: got %d success rules, want 38", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {
