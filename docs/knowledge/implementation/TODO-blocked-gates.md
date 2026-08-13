@@ -1,8 +1,11 @@
 ---
+id: TODO-blocked-gates
 layer: implementation
 title: 待外部输入的规范门禁 TODO
 owner: agent
 status: active
+upstream:
+  - DES-content-community-backend
 ---
 
 # 待外部输入的规范门禁 TODO
@@ -29,6 +32,9 @@ status: active
 （各 ≥200 条/个），随后运行 `python3 scripts/spec_evals.py search --qrels ...` 与
 `assistant --cases ...` 完成门禁；推荐门禁还需冻结样本集
 （DISC-061/062/063：时间切分留出集 + bootstrap 95% 置信区间，相对规则基线提升 ≥5%）。
+
+> 说明：`eval/` 目前只有示例结构（`search_qrels.example.json`、
+> `assistant_cases.example.json`），正式冻结集路径为上述两个文件名，待人类评审产出。
 
 ## 2. 月度生产观测数据（REL-030~043）
 
