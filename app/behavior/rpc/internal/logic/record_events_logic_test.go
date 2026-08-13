@@ -138,14 +138,28 @@ func TestRecordEventsRejectsInvalidRequestShape(t *testing.T) {
 func TestRecordEventsRejectsClockSkewWithoutPublishing(t *testing.T) {
 	p := &fakePublisher{}
 	logic := NewRecordEventsLogic(context.Background(), behaviorTestContext(p))
-	stale := exposure("stale")
-	stale.OccurredAt = time.UnixMilli(1720000000000).Add(-31 * 24 * time.Hour).UnixMilli()
 
-	resp, err := logic.RecordEvents(&pb.RecordEventsReq{UserId: 42, Events: []*pb.ClientBehaviorEvent{stale}})
+	t.Run("超过30天回补窗口拒绝", func(t *testing.T) {
+		stale := exposure("stale")
+		stale.OccurredAt = time.UnixMilli(1720000000000).Add(-31 * 24 * time.Hour).UnixMilli()
 
-	require.NoError(t, err)
-	assert.Equal(t, int32(1), resp.RejectedCount)
-	assert.Empty(t, p.events)
+		resp, err := logic.RecordEvents(&pb.RecordEventsReq{UserId: 42, Events: []*pb.ClientBehaviorEvent{stale}})
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(1), resp.RejectedCount)
+		assert.Empty(t, p.events)
+	})
+
+	t.Run("超过5分钟超前窗口拒绝", func(t *testing.T) {
+		future := exposure("future")
+		future.OccurredAt = time.UnixMilli(1720000000000).Add(6 * time.Minute).UnixMilli()
+
+		resp, err := logic.RecordEvents(&pb.RecordEventsReq{UserId: 42, Events: []*pb.ClientBehaviorEvent{future}})
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(1), resp.RejectedCount)
+		assert.Empty(t, p.events)
+	})
 }
 
 func TestRecordEventsRejectsAuthoritativeActionsFromClients(t *testing.T) {
