@@ -2,13 +2,14 @@ package logic
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"errx"
 	"esx/pkg/validator"
 	"fmt"
 	"jwtx"
-	"math/rand"
 	"user/internal/model"
 	"util"
 
@@ -132,17 +133,22 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	// 处理空用户名
+	// 处理空用户名：直接用本函数生成的雪花 ID，天然全局唯一，
+	// 避免 rand 撞名导致唯一索引冲突被误报为 UserAlreadyExist。
 	if req.GetUsername() == "" {
-		// TODO:此处采用rand简化流程，可采用redis分布式id设计
-		req.Username = fmt.Sprintf("小白盒用户%d", rand.Intn(1000000))
+		req.Username = fmt.Sprintf("小白盒用户%d", id)
 	}
 
 	// 处理密码，采用bcrypt算法
 	var password string // 填充用户的密码
 	if req.GetPassword() == "" {
-		// 未提供密码时生成随机密码，不再使用硬编码默认值
-		rawPass := fmt.Sprintf("rp_%d", rand.Intn(100000000))
+		// 未提供密码时用 crypto/rand 生成 24 位十六进制随机密码，
+		// 不再使用低熵 math/rand。
+		randomBytes := make([]byte, 12)
+		if _, randErr := rand.Read(randomBytes); randErr != nil {
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		rawPass := "rp_" + hex.EncodeToString(randomBytes)
 		password, err = util.HashPassword(rawPass)
 		if err != nil {
 			l.Errorw("util.HashPassword failed", logx.Field("err", err.Error()))

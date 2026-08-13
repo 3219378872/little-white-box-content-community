@@ -2,7 +2,7 @@
   "baseline": {
     "handler": 88.0,
     "logic": 76.0,
-    "model": 0.2,
+    "model": 10.0,
     "mq_consumer": 72.0,
     "shared": 42.0
   },
