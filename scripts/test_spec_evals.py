@@ -107,5 +107,40 @@ class SLOReportTest(unittest.TestCase):
         self.assertEqual(2, report.available)
 
 
+class CLIDispatchTest(unittest.TestCase):
+    """recommend/slo subcommands must dispatch to their own file inputs."""
+
+    def test_recommend_subcommand_dispatches_to_samples(self):
+        import json
+        import os
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            samples = Path(tmp) / "samples.json"
+            samples.write_text(
+                json.dumps({"samples": [{"id": "s1", "session_time": 100, "grades": []}]}),
+                encoding="utf-8",
+            )
+            from spec_evals import main
+            code = main(["recommend", "--samples", str(samples)])
+            self.assertIsInstance(code, int)
+
+    def test_slo_subcommand_dispatches_to_requests(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            requests = Path(tmp) / "requests.json"
+            requests.write_text(
+                json.dumps({"requests": [{"latency_ms": 100, "unavailable": False}]}),
+                encoding="utf-8",
+            )
+            from spec_evals import main
+            code = main(["slo", "--requests", str(requests), "--capability", "community_core_read"])
+            self.assertIsInstance(code, int)
+
+
 if __name__ == "__main__":
     unittest.main()

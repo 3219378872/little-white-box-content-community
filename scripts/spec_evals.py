@@ -404,12 +404,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             cases = json.load(handle)["cases"]
         return report_assistant(evaluate_assistant(cases, live_assistant(args.base_url, args.token)))
 
-    with open(args.samples, encoding="utf-8") as handle:
-        samples = json.load(handle)["samples"]
-    _, holdout = time_ordered_holdout(samples)
-    return report_recommendation(
-        evaluate_recommendation(holdout, lambda _s: ([], []))
-    )
+    if args.command == "recommend":
+        with open(args.samples, encoding="utf-8") as handle:
+            samples = json.load(handle)["samples"]
+        _, holdout = time_ordered_holdout(samples)
+        return report_recommendation(
+            evaluate_recommendation(holdout, lambda _s: ([], []))
+        )
 
     with open(args.requests, encoding="utf-8") as handle:
         requests = json.load(handle)["requests"]
