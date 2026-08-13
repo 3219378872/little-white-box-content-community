@@ -419,13 +419,13 @@ class SpecTrackingLintTest(unittest.TestCase):
             imp_text=(
                 "# Impl\n"
                 + headings
-                + "\n| CORE-013 revision | aligned | skipped |\n"
-                + "| REL-030~033 SLO | aligned | no data |\n"
+                + "\n| REL-030~033 SLO | aligned | no data |\n"
+                + "| ASST-050~051 eval | aligned | no frozen set |\n"
             ),
         )
         errors = engineering_lint.check_spec_tracking(self.root)
-        self.assertTrue(any("CORE-013 cannot be marked aligned" in error for error in errors), errors)
         self.assertTrue(any("REL-030 cannot be marked aligned" in error for error in errors), errors)
+        self.assertTrue(any("ASST-050 cannot be marked aligned" in error for error in errors), errors)
 
     def test_partial_blocked_rows_pass(self):
         headings = "\n".join(f"## {name}\n" for name in engineering_lint.SPEC_TRACKING_HEADINGS)

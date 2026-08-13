@@ -49,7 +49,6 @@ verified_commit: 314aa67
 
 `diverged`：公开列表与发现回源后只保留 published；GetPost/列表对外返回 status。评论按主键读取不再走缓存。
 仍偏离处：
-- `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0` 跳过乐观锁。
 - 搜索/列表/标签/收藏 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
 - `CORE-032` 计数 30s 收敛缺少生产观测。
 - `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
@@ -58,7 +57,7 @@ verified_commit: 314aa67
 ## 规格追踪
 
 下表是实现层台账。`aligned` 表示当前代码与测试覆盖该条；`partial`/`n/a` 不得写成设计已完成。
-人类未关闭的评测集、月度 SLO 与 `CORE-013`/`CORE-062` 冲突禁止标 `aligned`。
+人类未关闭的评测集、月度 SLO 禁止标 `aligned`。
 
 ## SPEC-community-core 追踪
 
@@ -72,7 +71,7 @@ verified_commit: 314aa67
 | CORE-010 状态机 | aligned | draft⇄published 双向 + 均→deleted 终态；Update 显式 status 支持取消发布 |
 | CORE-011 创建返回 id/status/revision | aligned | CreatePostResp 返回 postId/status/revision=1 |
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
-| CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
+| CORE-013 变更携带预期 revision | aligned | /api/v2/post 写接口强制 expected_revision（缺失/0 → 400，冲突 → 409），人类已采纳选项 B（PROP-20260813-core-revision-contract）；/api/v1 处于 CORE-062 迁移期，见 DES 废弃计划 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update 返回 status/revision；HTTP GetPost 与公开列表 PostItem 回传权威 status 与 revision |
 | CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/公开列表/标签回源后只保留 published；搜索/列表/标签/收藏 Total 只按本页回减 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取；评论列表 SQL 过滤 status=1 后再内存二次过滤并回减 Total（纵深防御） |
@@ -96,7 +95,7 @@ verified_commit: 314aa67
 | CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；框架 gRPC 错误只保留业务码，不暴露原始消息 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
-| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约仅新增可选字段；expected_revision 为可选迁移期字段，旧客户端不带也成功 |
+| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 契约仅新增可选字段；expected_revision 为可选迁移期字段，旧客户端不带也成功；/api/v1 帖子写接口登记迁移期与废弃计划（新客户端用 /api/v2/post*） |
 | CORE-063 不依赖内部结构 | aligned | 契约层不暴露内部结构 |
 
 ## SPEC-content-discovery 追踪
@@ -244,7 +243,8 @@ verified_commit: 314aa67
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
 - 搜索：`app/search/rpc/internal/logic/search_logic.go`。
 - 共享回源：`app/content/visibility`（把 Content `GetPostsByIds` 适配为 `visibilityx.Fetcher`，Assistant/Feed/Recommend/Search/Gateway 统一复用）。
-- 网关：`app/gateway/internal/logic/**` 与 `app/gateway/gateway.api`。
+- 网关：`app/gateway/internal/logic/**` 与 `app/gateway/gateway.api`；
+  v2 写接口 `CreatePostV2/UpdatePostV2/DeletePostV2`（`internal/logic/posts/*_v2_logic.go`）。
 
 ## 证据
 

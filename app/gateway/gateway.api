@@ -159,6 +159,24 @@ type (
 	DeletePostResp  {}
 )
 
+// v2 写接口类型：expectedRevision 必填（CORE-013 强制乐观锁）。
+type (
+	UpdatePostV2Req {
+		PostId           int64    `path:"postId"`
+		Title            string   `json:"title,optional"`
+		Content          string   `json:"content,optional"`
+		Images           []string `json:"images,optional"`
+		Tags             []string `json:"tags,optional"`
+		Status           *int32   `json:"status,optional"`
+		ExpectedRevision int64    `json:"expectedRevision"` // 必填；缺失/0 → 参数错误
+		MediaIds         []int64  `json:"mediaIds,optional"`
+	}
+	DeletePostV2Req {
+		PostId           int64 `path:"postId"`
+		ExpectedRevision int64 `json:"expectedRevision"` // 必填；缺失/0 → 参数错误
+	}
+)
+
 type (
 	GetPostListReq {
 		Page     int32 `form:"page,default=1"`
@@ -663,17 +681,40 @@ service gateway {
 	group:  posts
 )
 service gateway {
-	@doc "创建帖子"
+	// 迁移期（CORE-062）：/api/v1 写接口的 expectedRevision 为可选，缺失时跳过乐观锁。
+	// 新客户端请使用 /api/v2/post*（CORE-013 强制 revision）；/api/v1 废弃计划见 DES。
+	@doc "创建帖子（v1 迁移期）"
 	@handler CreatePost
 	post /post (CreatePostReq) returns (CreatePostResp)
 
-	@doc "更新帖子"
+	@doc "更新帖子（v1 迁移期）"
 	@handler UpdatePost
 	put /post/:postId (UpdatePostReq) returns (UpdatePostResp)
 
-	@doc "删除帖子"
+	@doc "删除帖子（v1 迁移期）"
 	@handler DeletePost
 	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  posts
+)
+service gateway {
+	// CORE-013：v2 写接口强制乐观锁，Update/Delete 必须携带 expectedRevision，
+	// 缺失或为 0 时按参数错误拒绝；版本冲突返回 409。
+	@doc "创建帖子（v2）"
+	@handler CreatePostV2
+	post /post (CreatePostReq) returns (CreatePostResp)
+
+	@doc "更新帖子（v2，强制 expectedRevision）"
+	@handler UpdatePostV2
+	put /post/:postId (UpdatePostV2Req) returns (UpdatePostResp)
+
+	@doc "删除帖子（v2，强制 expectedRevision）"
+	@handler DeletePostV2
+	delete /post/:postId (DeletePostV2Req) returns (DeletePostResp)
 }
 
 @server (

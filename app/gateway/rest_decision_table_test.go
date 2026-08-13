@@ -107,7 +107,11 @@ func (contractContentService) CreatePost(_ context.Context, in *contentservice.C
 func (contractContentService) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
 	return &contentservice.GetPostResp{Post: contractPost()}, nil
 }
-func (contractContentService) UpdatePost(context.Context, *contentservice.UpdatePostReq, ...grpc.CallOption) (*contentservice.UpdatePostResp, error) {
+func (contractContentService) UpdatePost(_ context.Context, in *contentservice.UpdatePostReq, _ ...grpc.CallOption) (*contentservice.UpdatePostResp, error) {
+	if in.ExpectedRevision == 999 {
+		// CORE-013：版本冲突必须返回 409 与 ContentVersionConflict。
+		return nil, errx.NewWithCode(errx.ContentVersionConflict)
+	}
 	return &contentservice.UpdatePostResp{}, nil
 }
 func (contractContentService) DeletePost(context.Context, *contentservice.DeletePostReq, ...grpc.CallOption) (*contentservice.DeletePostResp, error) {
@@ -467,6 +471,9 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "MESSAGE-UNREAD-VALID", method: http.MethodGet, path: "/api/v2/messages/unread", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageUnread", "notificationUnread"}},
 		{id: "PERSONALIZATION-GET-VALID", method: http.MethodGet, path: "/api/v2/me/personalization", auth: true, wantStatus: http.StatusOK, wantFields: []string{"enabled", "optedOutAt"}},
 		{id: "PERSONALIZATION-PUT-VALID", method: http.MethodPut, path: "/api/v2/me/personalization", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusOK},
+		{id: "POST-CREATE-V2-VALID", method: http.MethodPost, path: "/api/v2/post", body: jsonBody(`{"title":"title","content":"content","status":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"postId"}},
+		{id: "POST-UPDATE-V2-VALID", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
+		{id: "POST-DELETE-V2-VALID", method: http.MethodDelete, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
 	}
 
@@ -525,6 +532,11 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?page=999", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-CREATE-VERSION-CONFLICT", method: http.MethodPost, path: "/api/v1/post", body: jsonBody(`{"title":"conflict-title","content":"content","status":1}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},
+		restDecision{id: "POST-UPDATE-V2-MISSING-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated"}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "POST-UPDATE-V2-ZERO-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":0}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "POST-UPDATE-V2-CONFLICT", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":999}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},
+		restDecision{id: "POST-DELETE-V2-MISSING-REVISION", method: http.MethodDelete, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "POST-DELETE-V2-ZERO-REVISION", method: http.MethodDelete, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"expectedRevision":0}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "SEARCH-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search?keyword=go&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "SEARCH-USERS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/users?keyword=user&page=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "SEARCH-TAGS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/search/tags?keyword=tag&limit=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -622,8 +634,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 40 {
-		t.Fatalf("route inventory drift: got %d success rules, want 40", len(successes))
+	if len(successes) != 43 {
+		t.Fatalf("route inventory drift: got %d success rules, want 43", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

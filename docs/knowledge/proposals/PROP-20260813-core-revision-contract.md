@@ -2,9 +2,10 @@
 id: PROP-20260813-core-revision-contract
 layer: proposal
 title: CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项
-status: open
+status: closed
 owner: agent
 target_layer: spec
+decision: 2026-08-13 人类采纳选项 B（/api/v2 强制 expected_revision，/api/v1 迁移期+废弃计划）
 upstream:
   - SPEC-community-core
 ---
@@ -38,12 +39,12 @@ upstream:
 实现范围清晰（gateway `.api`、content proto/Logic、幂等与冲突测试），可独立批次验证。
 若短期资源受限，可先取**选项 A** 并登记截止日期。
 
-# 需要人类决定的事项
+# 决策结果（2026-08-13，人类采纳）
 
-1. 选择 A / B / C（或提出其他方案）。
-2. 若选 B：确认 `/api/v2` 写接口的 revision 缺失按 `ParamError` 拒绝，且 `/api/v1`
-   废弃时间表。
-3. 若选 A：确认迁移截止日期与客户端升级责任方。
+采纳**选项 B**：新增 `/api/v2/post` 写接口（create/update/delete），Update/Delete 强制
+`expectedRevision`（缺失或 0 → `ParamError`，版本冲突 → `409 ContentVersionConflict`）；
+`/api/v1` 维持现状并登记迁移期与废弃计划。`SPEC-community-core` 文本无需修改（CORE-013
+本就要求携带 revision，CORE-062 允许新版本）。
 
 # 影响
 

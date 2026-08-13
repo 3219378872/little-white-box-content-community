@@ -13,4 +13,4 @@
 ## 当前提案
 
 - [PROP-20260813-core-revision-contract](PROP-20260813-core-revision-contract.md)：
-  CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项（open，待人类决定）。
+  CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项（closed：2026-08-13 采纳选项 B）。

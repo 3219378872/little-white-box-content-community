@@ -27,6 +27,11 @@ type DeletePostReq struct {
 type DeletePostResp struct {
 }
 
+type DeletePostV2Req struct {
+	PostId           int64 `path:"postId"`
+	ExpectedRevision int64 `json:"expectedRevision"` // 必填；缺失/0 → 参数错误
+}
+
 type GetPostListReq struct {
 	Page     int32 `form:"page,default=1"`
 	PageSize int32 `form:"pageSize,default=20"`
@@ -71,4 +76,15 @@ type UpdatePostReq struct {
 type UpdatePostResp struct {
 	Status   int32 `json:"status"`
 	Revision int64 `json:"revision"`
+}
+
+type UpdatePostV2Req struct {
+	PostId           int64    `path:"postId"`
+	Title            string   `json:"title,optional"`
+	Content          string   `json:"content,optional"`
+	Images           []string `json:"images,optional"`
+	Tags             []string `json:"tags,optional"`
+	Status           *int32   `json:"status,optional"`
+	ExpectedRevision int64    `json:"expectedRevision"` // 必填；缺失/0 → 参数错误
+	MediaIds         []int64  `json:"mediaIds,optional"`
 }
