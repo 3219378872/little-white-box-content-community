@@ -13,3 +13,8 @@
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
 | [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | aligned | [2026-08-12](evidence/2026-08-12-content-community.md) |
+
+## 待办（需外部输入）
+
+- [TODO-blocked-gates](TODO-blocked-gates.md)：冻结评测集（DISC-060~063 / ASST-050~051）
+  与月度生产观测数据（REL-030~043）两项收尾门禁。
