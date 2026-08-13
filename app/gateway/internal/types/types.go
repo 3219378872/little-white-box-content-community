@@ -112,6 +112,7 @@ type PostItem struct {
 	Content       string   `json:"content"`
 	Images        []string `json:"images"`
 	Tags          []string `json:"tags"`
+	Status        int32    `json:"status"`
 	ViewCount     int64    `json:"viewCount"`
 	LikeCount     int64    `json:"likeCount"`
 	CommentCount  int64    `json:"commentCount"`

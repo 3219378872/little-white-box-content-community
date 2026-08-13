@@ -88,7 +88,7 @@ func renderFeedItem(base *pb.FeedItem, post *contentservice.PostInfo) *pb.FeedIt
 }
 
 func fallbackFeedItem(post *contentservice.PostInfo, source string) *pb.FeedItem {
-	if post == nil || post.Id <= 0 || post.Status != 1 {
+	if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
 		return nil
 	}
 	return renderFeedItem(&pb.FeedItem{

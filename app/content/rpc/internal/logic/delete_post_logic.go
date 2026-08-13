@@ -8,6 +8,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -45,7 +46,7 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	if post.Status == 2 {
+	if visibilityx.IsDeleted(int32(post.Status)) {
 		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
 	}
 	if post.AuthorId != in.AuthorId {

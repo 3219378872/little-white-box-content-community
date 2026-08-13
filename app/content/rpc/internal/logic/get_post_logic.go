@@ -7,6 +7,7 @@ import (
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -45,7 +46,7 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 
 	// CORE-012/016：草稿仅作者可读；已删除或非公开状态对非作者统一返回不存在。
 	// 已发布内容对所有人可见。
-	if post.Status != 1 && in.GetUserId() != post.AuthorId {
+	if !visibilityx.IsPublished(int32(post.Status)) && in.GetUserId() != post.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 

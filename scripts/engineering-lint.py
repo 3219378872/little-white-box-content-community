@@ -754,10 +754,110 @@ def check_proto_generation(root: Path = ROOT) -> list[str]:
     return errors
 
 
+
+SPEC_TRACKING_IMP = Path("docs/knowledge/implementation/IMP-content-community-backend.md")
+SPEC_TRACKING_DES = Path("docs/knowledge/design/DES-content-community-backend.md")
+SPEC_TRACKING_HEADINGS = (
+    "SPEC-community-core 追踪",
+    "SPEC-content-discovery 追踪",
+    "SPEC-grounded-assistant 追踪",
+    "SPEC-feedback-reliability 追踪",
+)
+FORBIDDEN_ALIGNED_REQUIREMENTS = {
+    "CORE-013",
+    "CORE-015",
+    "CORE-032",
+    "DISC-001",
+    "DISC-060",
+    "DISC-061",
+    "DISC-062",
+    "DISC-063",
+    "ASST-013",
+    "ASST-014",
+    "ASST-050",
+    "ASST-051",
+    "REL-030",
+    "REL-031",
+    "REL-032",
+    "REL-033",
+    "REL-040",
+    "REL-041",
+    "REL-042",
+    "REL-043",
+}
+_TRACK_ROW = re.compile(
+    r"^\|\s*(?P<req>(?:CORE|DISC|ASST|REL)-\d+(?:~\d+)?)\b[^|]*\|\s*(?P<status>aligned|partial|missing|n/a)\s\|",
+    re.IGNORECASE,
+)
+
+
+def _expand_requirement_id(raw: str) -> list[str]:
+    match = re.fullmatch(r"(CORE|DISC|ASST|REL)-(\d+)(?:~(\d+))?", raw)
+    if not match:
+        return [raw]
+    prefix, start_raw, end_raw = match.group(1), match.group(2), match.group(3)
+    start = int(start_raw)
+    end = int(end_raw) if end_raw is not None else start
+    width = len(start_raw)
+    return [f"{prefix}-{value:0{width}d}" for value in range(start, end + 1)]
+
+
+def _parse_tracking_rows(text: str) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+    for line in text.splitlines():
+        match = _TRACK_ROW.match(line)
+        if not match:
+            continue
+        status = match.group("status").lower()
+        for req_id in _expand_requirement_id(match.group("req")):
+            rows.append((req_id, status))
+    return rows
+
+
+def check_spec_tracking(root: Path = ROOT) -> list[str]:
+    """Keep requirement status in IMP and stop blocked items from being marked aligned."""
+    errors: list[str] = []
+    imp = root / SPEC_TRACKING_IMP
+    des = root / SPEC_TRACKING_DES
+    if not imp.is_file() or not des.is_file():
+        return errors
+    des_text = des.read_text(encoding="utf-8")
+    for heading in SPEC_TRACKING_HEADINGS:
+        if re.search(r"^## " + re.escape(heading) + r"\s*$", des_text, re.MULTILINE):
+            errors.append(
+                _knowledge_error(
+                    des,
+                    root,
+                    f"design must not contain implementation tracking heading {heading!r}",
+                )
+            )
+    imp_text = imp.read_text(encoding="utf-8")
+    for heading in SPEC_TRACKING_HEADINGS:
+        if not re.search(r"^## " + re.escape(heading) + r"\s*$", imp_text, re.MULTILINE):
+            errors.append(
+                _knowledge_error(
+                    imp,
+                    root,
+                    f"implementation tracking heading {heading!r} is required",
+                )
+            )
+    for req_id, status in _parse_tracking_rows(imp_text):
+        if status == "aligned" and req_id in FORBIDDEN_ALIGNED_REQUIREMENTS:
+            errors.append(
+                _knowledge_error(
+                    imp,
+                    root,
+                    f"{req_id} cannot be marked aligned until the human-owned gap is closed",
+                )
+            )
+    return errors
+
+
 def main():
     errors = []
     errors.extend(check_doc_policy())
     errors.extend(check_knowledge_layers())
+    errors.extend(check_spec_tracking())
     errors.extend(check_md_file_links())
     errors.extend(check_proto_generation())
 

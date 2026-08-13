@@ -9,6 +9,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -67,7 +68,7 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	// CORE-022：评论只能附着在当前可互动的已发布内容上。
-	if post.Status != 1 {
+	if !visibilityx.IsPublished(int32(post.Status)) {
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 

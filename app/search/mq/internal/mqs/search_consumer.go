@@ -10,6 +10,7 @@ import (
 	"esx/app/search/mq/internal/indexer"
 	"esx/app/search/mq/internal/svc"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -55,7 +56,7 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
 			// CORE-015：草稿/取消发布的内容不得进入搜索索引。
-			if e.Status != 1 {
+			if !visibilityx.IsPublished(int32(e.Status)) {
 				docID := strconv.FormatInt(e.PostID, 10)
 				if err := idx.Delete(ctx, docID); err != nil {
 					logx.WithContext(ctx).Errorw("search-consumer: delete non-published doc failed",

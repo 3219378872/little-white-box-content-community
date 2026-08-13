@@ -7,8 +7,14 @@ import (
 	"esx/pkg/validator"
 )
 
-// PublishedStatus is the authoritative content status for ordinary public reads.
-const PublishedStatus int32 = 1
+const (
+	// DraftStatus is author-only content.
+	DraftStatus int32 = 0
+	// PublishedStatus is the authoritative status for ordinary public reads.
+	PublishedStatus int32 = 1
+	// DeletedStatus is the terminal content state.
+	DeletedStatus int32 = 2
+)
 
 // Post is the minimum content view needed to decide public visibility.
 type Post interface {
@@ -20,9 +26,16 @@ type Post interface {
 // fetch error, or a nil batch is a fail-closed visibility failure.
 type Fetcher[T Post] func(ctx context.Context, ids []int64) ([]T, error)
 
-// IsPublished reports whether status is ordinary published content.
+func IsDraft(status int32) bool {
+	return status == DraftStatus
+}
+
 func IsPublished(status int32) bool {
 	return status == PublishedStatus
+}
+
+func IsDeleted(status int32) bool {
+	return status == DeletedStatus
 }
 
 // PublishedByIDs returns currently published posts keyed by ID.

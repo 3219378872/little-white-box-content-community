@@ -8,6 +8,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"mqx"
 	"strings"
 	"unicode/utf8"
@@ -67,7 +68,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
 	}
-	if in.Status != nil && *in.Status != 0 && *in.Status != 1 {
+	if in.Status != nil && !visibilityx.IsDraft(*in.Status) && !visibilityx.IsPublished(*in.Status) {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
@@ -86,7 +87,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if post.Status == 2 {
+	if visibilityx.IsDeleted(int32(post.Status)) {
 		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
 	}
 	if post.AuthorId != in.AuthorId {

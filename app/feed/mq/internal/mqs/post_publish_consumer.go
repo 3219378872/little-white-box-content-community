@@ -9,6 +9,7 @@ import (
 	"esx/app/feed/mq/internal/logic"
 	"esx/app/feed/mq/internal/svc"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -53,7 +54,7 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 			feedConsumerMessages.Inc("invalid")
 			continue
 		}
-		if e.Status != 1 {
+		if !visibilityx.IsPublished(int32(e.Status)) {
 			// CORE-015：草稿、取消发布（status != 1）不进入关注流。
 			feedConsumerMessages.Inc("skipped")
 			continue

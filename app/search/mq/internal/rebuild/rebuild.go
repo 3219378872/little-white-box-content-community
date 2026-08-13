@@ -7,6 +7,7 @@ import (
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/mq/internal/indexer"
+	"esx/pkg/visibilityx"
 
 	"google.golang.org/grpc"
 )
@@ -46,7 +47,7 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 		}
 
 		for _, post := range resp.Posts {
-			if post == nil || post.Id <= 0 || post.Status != 1 {
+			if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
 				continue
 			}
 			doc := indexer.IndexDoc{

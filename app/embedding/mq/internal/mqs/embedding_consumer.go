@@ -10,6 +10,7 @@ import (
 	"esx/app/embedding/mq/internal/svc"
 	"esx/app/embedding/mq/internal/vectorstore"
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -55,7 +56,7 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
 			// CORE-015：草稿/取消发布的内容不进入向量库；如已存在则删除。
-			if e.Status != 1 {
+			if !visibilityx.IsPublished(int32(e.Status)) {
 				if err := vs.Delete(ctx, e.PostID); err != nil {
 					logx.WithContext(ctx).Errorw("embedding-consumer: delete non-published failed",
 						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),

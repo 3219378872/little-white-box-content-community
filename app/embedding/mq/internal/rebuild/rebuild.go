@@ -10,6 +10,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/vectorstore"
+	"esx/pkg/visibilityx"
 
 	"google.golang.org/grpc"
 )
@@ -162,7 +163,7 @@ func validateOptions(options Options) error {
 func publishedPosts(posts []*contentservice.PostInfo) []*contentservice.PostInfo {
 	result := make([]*contentservice.PostInfo, 0, len(posts))
 	for _, post := range posts {
-		if post == nil || post.Id <= 0 || post.Status != 1 {
+		if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
 			continue
 		}
 		result = append(result, post)

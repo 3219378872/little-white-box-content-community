@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"esx/app/content/rpc/contentservice"
+	"esx/pkg/visibilityx"
 	"user/userservice"
 )
 
@@ -45,7 +46,7 @@ func (s *ContentPostRecallSource) Recall(ctx context.Context, req RecallRequest)
 	}
 	result := make([]PostCandidate, 0, len(response.Posts))
 	for index, post := range response.Posts {
-		if post == nil || post.Id <= 0 || post.Status != 1 {
+		if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
 			continue
 		}
 		category := ""

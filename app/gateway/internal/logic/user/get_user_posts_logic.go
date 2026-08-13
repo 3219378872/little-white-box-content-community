@@ -69,12 +69,14 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 			Content:       post.Content,
 			Images:        post.Images,
 			Tags:          post.Tags,
+			Status:        post.Status,
 			ViewCount:     post.ViewCount,
 			LikeCount:     post.LikeCount,
 			CommentCount:  post.CommentCount,
 			FavoriteCount: post.FavoriteCount,
 			IsLiked:       liked[post.Id],
 			IsFavorited:   favorited[post.Id],
+			Revision:      post.Revision,
 			CreatedAt:     post.CreatedAt,
 		})
 	}

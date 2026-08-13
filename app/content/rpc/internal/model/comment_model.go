@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -35,18 +36,15 @@ func NewCommentModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	}
 }
 
-// FindCommentById 按主键查询评论（业务专用，显式 SQL）
+// FindCommentById 按主键读取评论，不走缓存，避免删除后仍读到旧 status。
 func (m *customCommentModel) FindCommentById(ctx context.Context, id int64) (*Comment, error) {
-	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, id)
 	var comment Comment
-	err := m.QueryRowCtx(ctx, &comment, commentIdKey, func(ctx context.Context, conn sqlx.SqlConn, v interface{}) error {
-		query := fmt.Sprintf("select %s from %s where `id`=? limit 1", commentRows, m.table)
-		return conn.QueryRowCtx(ctx, v, query, id)
-	})
-	switch err {
-	case nil:
+	query := fmt.Sprintf("select %s from %s where `id`=? limit 1", commentRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &comment, query, id)
+	switch {
+	case err == nil:
 		return &comment, nil
-	case sqlx.ErrNotFound:
+	case errors.Is(err, sqlx.ErrNotFound):
 		return nil, ErrNotFound
 	default:
 		return nil, err

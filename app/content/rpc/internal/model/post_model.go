@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"esx/pkg/visibilityx"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -118,14 +120,14 @@ func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, pa
 	}
 
 	var posts []*Post
-	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = 1 order by %s limit ?,?", postRows, m.table, orderBy)
+	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = %d order by %s limit ?,?", postRows, m.table, visibilityx.PublishedStatus, orderBy)
 	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, authorId, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
-	countQuery := fmt.Sprintf("select count(*) from %s where `author_id` = ? and `status` = 1", m.table)
+	countQuery := fmt.Sprintf("select count(*) from %s where `author_id` = ? and `status` = %d", m.table, visibilityx.PublishedStatus)
 	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, authorId)
 	if err != nil {
 		return nil, 0, err
@@ -146,14 +148,14 @@ func (m *customPostModel) FindList(ctx context.Context, page, pageSize int, sort
 	}
 
 	var posts []*Post
-	query := fmt.Sprintf("select %s from %s where `status` = 1 order by %s limit ?,?", postRows, m.table, orderBy)
+	query := fmt.Sprintf("select %s from %s where `status` = %d order by %s limit ?,?", postRows, m.table, visibilityx.PublishedStatus, orderBy)
 	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, offset, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int64
-	countQuery := fmt.Sprintf("select count(*) from %s where `status` = 1", m.table)
+	countQuery := fmt.Sprintf("select count(*) from %s where `status` = %d", m.table, visibilityx.PublishedStatus)
 	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery)
 	if err != nil {
 		return nil, 0, err

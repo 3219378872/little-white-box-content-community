@@ -385,5 +385,62 @@ class ProtoGenerationLintTest(unittest.TestCase):
         self.assertTrue(any("proto/extra/extra.proto" in error for error in errors), errors)
 
 
+
+class SpecTrackingLintTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.des = self.root / engineering_lint.SPEC_TRACKING_DES
+        self.imp = self.root / engineering_lint.SPEC_TRACKING_IMP
+        self.des.parent.mkdir(parents=True, exist_ok=True)
+        self.imp.parent.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def _write_pages(self, *, des_text: str, imp_text: str):
+        self.des.write_text(des_text, encoding="utf-8")
+        self.imp.write_text(imp_text, encoding="utf-8")
+
+    def test_missing_files_are_skipped(self):
+        self.assertEqual(engineering_lint.check_spec_tracking(self.root), [])
+
+    def test_tracking_must_live_in_implementation(self):
+        headings = "\n".join(f"## {name}\n" for name in engineering_lint.SPEC_TRACKING_HEADINGS)
+        self._write_pages(des_text="# Design\n\n" + headings, imp_text="# Impl\n")
+        errors = engineering_lint.check_spec_tracking(self.root)
+        self.assertTrue(any("must not contain implementation tracking heading" in error for error in errors), errors)
+        self.assertTrue(any("implementation tracking heading" in error and "is required" in error for error in errors), errors)
+
+    def test_forbidden_aligned_rows_fail(self):
+        headings = "\n".join(f"## {name}\n" for name in engineering_lint.SPEC_TRACKING_HEADINGS)
+        self._write_pages(
+            des_text="# Design\n",
+            imp_text=(
+                "# Impl\n"
+                + headings
+                + "\n| CORE-013 revision | aligned | skipped |\n"
+                + "| REL-030~033 SLO | aligned | no data |\n"
+            ),
+        )
+        errors = engineering_lint.check_spec_tracking(self.root)
+        self.assertTrue(any("CORE-013 cannot be marked aligned" in error for error in errors), errors)
+        self.assertTrue(any("REL-030 cannot be marked aligned" in error for error in errors), errors)
+
+    def test_partial_blocked_rows_pass(self):
+        headings = "\n".join(f"## {name}\n" for name in engineering_lint.SPEC_TRACKING_HEADINGS)
+        self._write_pages(
+            des_text="# Design\n",
+            imp_text=(
+                "# Impl\n"
+                + headings
+                + "\n| CORE-013 revision | partial | v1 skip |\n"
+                + "| CORE-014 read | aligned | status returned |\n"
+            ),
+        )
+        self.assertEqual(engineering_lint.check_spec_tracking(self.root), [])
+
+
+
 if __name__ == "__main__":
     unittest.main()

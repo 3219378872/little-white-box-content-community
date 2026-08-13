@@ -7,6 +7,7 @@ import (
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -49,7 +50,7 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if post.Status != 1 {
+	if !visibilityx.IsPublished(int32(post.Status)) {
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 

@@ -70,6 +70,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 			Content:      post.Content,
 			Images:       post.Images,
 			Tags:         post.Tags,
+			Status:       post.Status,
 			ViewCount:    post.ViewCount,
 			LikeCount:    post.LikeCount,
 			CommentCount: post.CommentCount,

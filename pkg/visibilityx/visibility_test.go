@@ -125,9 +125,15 @@ func TestAdjustPageTotal(t *testing.T) {
 	}
 }
 
-func TestIsPublished(t *testing.T) {
+func TestContentStatus(t *testing.T) {
 	t.Parallel()
-	if !IsPublished(PublishedStatus) || IsPublished(0) || IsPublished(2) {
+	if !IsDraft(DraftStatus) || IsDraft(PublishedStatus) {
+		t.Fatal("draft status mapping is wrong")
+	}
+	if !IsPublished(PublishedStatus) || IsPublished(DraftStatus) || IsPublished(DeletedStatus) {
 		t.Fatal("published status mapping is wrong")
+	}
+	if !IsDeleted(DeletedStatus) || IsDeleted(PublishedStatus) {
+		t.Fatal("deleted status mapping is wrong")
 	}
 }
