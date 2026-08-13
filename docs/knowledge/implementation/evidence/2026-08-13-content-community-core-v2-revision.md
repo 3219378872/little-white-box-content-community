@@ -20,7 +20,7 @@ result: passed
 
 ## 背景
 
-人类于 2026-08-13 采纳 `proposals/PROP-20260813-core-revision-contract.md` 选项 B：
+人类于 2026-08-13 采纳 `../../proposals/PROP-20260813-core-revision-contract.md` 选项 B：
 `/api/v2/post` 写接口强制 `expectedRevision`，`/api/v1` 维持迁移期语义并登记废弃计划。
 
 ## 本批次改动
