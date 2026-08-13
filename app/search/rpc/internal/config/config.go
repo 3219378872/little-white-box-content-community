@@ -4,8 +4,9 @@ import "github.com/zeromicro/go-zero/zrpc"
 
 type Config struct {
 	zrpc.RpcServerConf
-	ES      ESConfig
-	UserRpc zrpc.RpcClientConf
+	ES         ESConfig
+	UserRpc    zrpc.RpcClientConf
+	ContentRpc zrpc.RpcClientConf
 }
 
 type ESConfig struct {

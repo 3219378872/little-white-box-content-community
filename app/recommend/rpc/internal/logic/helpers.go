@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"errx"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/model"
+	"esx/pkg/validator"
 )
 
 const (
@@ -774,4 +776,78 @@ func deterministicJitter(seed string, id int64) float64 {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", seed, id)))
 	value := binary.BigEndian.Uint64(digest[:8])
 	return float64(value%1000) / 1_000_000
+}
+
+func publishedPostIDs(ctx context.Context, content contentservice.ContentService, ids []int64) (map[int64]struct{}, error) {
+	if content == nil {
+		return nil, fmt.Errorf("content visibility service is unavailable")
+	}
+	unique := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	published := make(map[int64]struct{}, len(unique))
+	if len(unique) == 0 {
+		return published, nil
+	}
+	for start := 0; start < len(unique); start += validator.MaxBatchQueryIds {
+		end := min(start+validator.MaxBatchQueryIds, len(unique))
+		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: unique[start:end]})
+		if err != nil {
+			return nil, err
+		}
+		if response == nil {
+			return nil, fmt.Errorf("content visibility response is empty")
+		}
+		for _, post := range response.Posts {
+			if post != nil && post.Id > 0 && post.Status == 1 {
+				published[post.Id] = struct{}{}
+			}
+		}
+	}
+	return published, nil
+}
+
+func filterPublishedPostCandidates(ctx context.Context, content contentservice.ContentService, candidates []model.PostCandidate) ([]model.PostCandidate, error) {
+	ids := make([]int64, 0, len(candidates))
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.PostID)
+	}
+	published, err := publishedPostIDs(ctx, content, ids)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]model.PostCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if _, ok := published[candidate.PostID]; ok {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered, nil
+}
+
+func filterPublishedRankedPosts(ctx context.Context, content contentservice.ContentService, posts []model.RankedPost) ([]model.RankedPost, error) {
+	ids := make([]int64, 0, len(posts))
+	for _, post := range posts {
+		ids = append(ids, post.PostID)
+	}
+	published, err := publishedPostIDs(ctx, content, ids)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]model.RankedPost, 0, len(posts))
+	for _, post := range posts {
+		if _, ok := published[post.PostID]; ok {
+			filtered = append(filtered, post)
+		}
+	}
+	return filtered, nil
 }

@@ -31,3 +31,9 @@ UserRpc:
     Hosts:
       - 127.0.0.1:2379
     Key: user.rpc
+
+ContentRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: content.rpc

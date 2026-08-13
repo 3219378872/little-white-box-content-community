@@ -68,6 +68,12 @@ func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.G
 		return nil, recommendationRPCError(err)
 	}
 	candidates = rerankPosts(candidates, l.svcCtx.Config.ExploreRatio, l.svcCtx.Config.MaxPerAuthor, requestID)
+	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
+	if err != nil {
+		recommendPipelineTotal.Inc("similar_posts", "visibility", "unavailable")
+		l.Errorw("similar post visibility check unavailable", logx.Field("err", err.Error()))
+		return nil, recommendationRPCError(err)
+	}
 	if recallDegraded {
 		markPostDegradation(candidates, "recall-degraded")
 	}

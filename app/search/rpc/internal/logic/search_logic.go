@@ -42,6 +42,12 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 		l.Errorw("combined search posts failed", logx.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
+	visiblePosts, err := publishedSearchPosts(l.ctx, l.svcCtx.ContentService, posts.Posts)
+	if err != nil {
+		l.Errorw("combined search visibility check failed", logx.Field("err", err.Error()))
+		return nil, storeError(err)
+	}
+	posts.Posts = visiblePosts
 	degraded := false
 	unavailableTypes := make([]string, 0, 2)
 	users := &userservice.SearchUsersResp{Users: []*userservice.UserInfo{}}
@@ -68,8 +74,8 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 	}
 	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, posts.Posts)
 	if err != nil {
-		l.Errorw("hydrate combined search users failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
+		l.Errorw("hydrate combined search authors failed", logx.Field("err", err.Error()))
+		profiles = map[int64]*userservice.UserInfo{}
 	}
 	return &pb.SearchResp{
 		Posts:            postResults(posts.Posts, profiles),

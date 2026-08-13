@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
 	"interceptor"
@@ -20,10 +21,15 @@ type UserService interface {
 	SearchUsers(ctx context.Context, in *userservice.SearchUsersReq, opts ...grpc.CallOption) (*userservice.SearchUsersResp, error)
 }
 
+type ContentService interface {
+	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error)
+}
+
 type ServiceContext struct {
-	Config      config.Config
-	Store       store.Store
-	UserService UserService
+	Config         config.Config
+	Store          store.Store
+	UserService    UserService
+	ContentService ContentService
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -41,10 +47,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(fmt.Errorf("search-rpc: Elasticsearch health check: %w", err))
 	}
 	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
 	return &ServiceContext{
-		Config:      c,
-		Store:       esStore,
-		UserService: userservice.NewUserService(userClient),
+		Config:         c,
+		Store:          esStore,
+		UserService:    userservice.NewUserService(userClient),
+		ContentService: contentservice.NewContentService(contentClient),
 	}
 }
 

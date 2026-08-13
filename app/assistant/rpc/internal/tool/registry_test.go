@@ -126,16 +126,15 @@ func TestRegistrySearchUsesOriginalContextAndReturnsSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !result.HasEvidence || !result.EvidenceRequired || result.ContextKind != "community_evidence" ||
-		!strings.Contains(result.Text, "Go contexts carry cancellation") || len(result.Sources) != 3 ||
+		!strings.Contains(result.Text, "Go contexts carry cancellation") || len(result.Sources) != 1 ||
 		result.Sources[0].ID != "11" || result.Sources[0].Title != "Current Go post" ||
-		result.Sources[0].Snippet != "Go contexts carry cancellation across RPC boundaries." ||
-		result.Sources[1].Type != "user" || result.Sources[1].ID != "12" ||
-		result.Sources[2].Type != "tag" || result.Sources[2].ID != "golang" {
+		result.Sources[0].Type != "post" ||
+		result.Sources[0].Snippet != "Go contexts carry cancellation across RPC boundaries." {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 }
 
-func TestRegistrySearchReturnsMetadataWithoutPublishedPosts(t *testing.T) {
+func TestRegistrySearchRefusesWithoutPublishedPosts(t *testing.T) {
 	t.Parallel()
 	contentCalled := false
 	registry, err := NewRegistry([]string{"search"}, Clients{
@@ -155,33 +154,26 @@ func TestRegistrySearchReturnsMetadataWithoutPublishedPosts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if contentCalled || result.HasEvidence || !result.EvidenceRequired ||
-		result.Text != `Found 0 posts, 1 users, and 0 tags for "go".` || len(result.Sources) != 1 ||
-		result.Sources[0].Type != "user" || result.Sources[0].ID != "9" {
-		t.Fatalf("unexpected metadata-only result: called=%v result=%+v", contentCalled, result)
+		result.Text != insufficientEvidenceText || len(result.Sources) != 0 {
+		t.Fatalf("unexpected refusal: called=%v result=%+v", contentCalled, result)
 	}
 }
 
-func TestRegistrySearchWorksWithoutContentClient(t *testing.T) {
+func TestRegistrySearchFailsClosedWithoutContentClient(t *testing.T) {
 	t.Parallel()
 	registry, err := NewRegistry([]string{"search"}, Clients{
 		Search: fakeSearchService{search: func(context.Context, *searchservice.SearchReq) (*searchservice.SearchResp, error) {
 			return &searchservice.SearchResp{
 				Posts: []*searchservice.PostSearchResult{{Id: 11, Title: "search-only post"}},
-				Users: []*searchservice.UserSearchResult{{Id: 12, Nickname: "Gopher"}},
-				Tags:  []*searchservice.TagSearchResult{{Name: "golang"}},
 			}, nil
 		}},
 	}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := registry.Execute(context.Background(), Search, Request{Message: "go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.HasEvidence || !result.EvidenceRequired || result.ContextKind == "community_evidence" ||
-		result.Text != `Found 1 posts, 1 users, and 1 tags for "go".` || len(result.Sources) != 3 {
-		t.Fatalf("unexpected compatible search result: %+v", result)
+	_, err = registry.Execute(context.Background(), Search, Request{Message: "go"})
+	if err == nil || !errx.Is(err, errx.ServiceUnavailable) {
+		t.Fatalf("want content unavailable, got %v", err)
 	}
 }
 
@@ -241,15 +233,13 @@ func TestRegistrySearchEncodesMaliciousCommunityEvidence(t *testing.T) {
 	}
 }
 
-func TestRegistrySearchDegradesToMetadataWhenContentFails(t *testing.T) {
+func TestRegistrySearchFailsClosedWhenContentFails(t *testing.T) {
 	t.Parallel()
 	wantErr := errors.New("content timeout")
 	registry, err := NewRegistry([]string{"search"}, Clients{
 		Search: fakeSearchService{search: func(context.Context, *searchservice.SearchReq) (*searchservice.SearchResp, error) {
 			return &searchservice.SearchResp{
 				Posts: []*searchservice.PostSearchResult{{Id: 11, Title: "search title"}},
-				Users: []*searchservice.UserSearchResult{{Id: 12, Username: "go-user"}},
-				Tags:  []*searchservice.TagSearchResult{{Name: "golang"}},
 			}, nil
 		}},
 		Content: fakeContentService{getPostsByIDs: func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
@@ -259,13 +249,9 @@ func TestRegistrySearchDegradesToMetadataWhenContentFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := registry.Execute(context.Background(), Search, Request{Message: "go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.HasEvidence || !result.EvidenceRequired || result.ContextKind == "community_evidence" ||
-		result.Text != `Found 1 posts, 1 users, and 1 tags for "go".` || len(result.Sources) != 3 {
-		t.Fatalf("content error %v should degrade to metadata: %+v", wantErr, result)
+	_, err = registry.Execute(context.Background(), Search, Request{Message: "go"})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("content error %v should fail closed, got %v", wantErr, err)
 	}
 }
 
@@ -350,10 +336,7 @@ func TestRegistrySearchUsesOneFilteredPostCandidateSet(t *testing.T) {
 	if len(hydratedIDs) != 2 || hydratedIDs[0] != 11 || hydratedIDs[1] != 12 {
 		t.Fatalf("unexpected hydration candidates: %v", hydratedIDs)
 	}
-	wantSources := []Source{
-		{Type: "post", ID: "11"}, {Type: "post", ID: "12"},
-		{Type: "user", ID: "9"}, {Type: "tag", ID: "golang"},
-	}
+	wantSources := []Source{{Type: "post", ID: "11", Title: "current first", Snippet: "published evidence"}}
 	if len(result.Sources) != len(wantSources) {
 		t.Fatalf("sources=%+v want=%+v", result.Sources, wantSources)
 	}
@@ -397,8 +380,7 @@ func TestRegistrySearchDoesNotTreatUnpublishedPostAsEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.HasEvidence || result.ContextKind == "community_evidence" || len(result.Sources) != 1 ||
-		result.Sources[0].Snippet != "" || result.Text != `Found 1 posts, 0 users, and 0 tags for "draft".` {
+	if result.HasEvidence || result.Text != insufficientEvidenceText || len(result.Sources) != 0 {
 		t.Fatalf("unpublished post was treated as evidence: %+v", result)
 	}
 }
@@ -493,21 +475,19 @@ func TestRegistryRecommendRereadsAndVerifiesPostsBeforeEvidence(t *testing.T) {
 	}
 }
 
-func TestRegistryRecommendMetadataOnlyWhenContentUnavailable(t *testing.T) {
+func TestRegistryRecommendFailsClosedWhenContentUnavailable(t *testing.T) {
 	t.Parallel()
+	wantErr := errors.New("content unavailable")
 	recommend := fakeRecommendService{posts: []*recommendservice.RecommendPost{{PostId: 21, Reason: "x"}}}
 	content := fakeContentService{getPostsByIDs: func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
-		return nil, errors.New("content unavailable")
+		return nil, wantErr
 	}}
 	registry, err := NewRegistry([]string{"recommend"}, Clients{Recommend: recommend, Content: content}, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := registry.Execute(context.Background(), Recommend, Request{UserID: 1, RequestID: "req-1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.HasEvidence || result.EvidenceRequired {
-		t.Fatalf("metadata-only recommend must not be evidence: %+v", result)
+	_, err = registry.Execute(context.Background(), Recommend, Request{UserID: 1, RequestID: "req-1"})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("recommend content failure should fail closed, got %v", err)
 	}
 }

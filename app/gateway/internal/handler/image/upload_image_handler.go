@@ -15,12 +15,6 @@ import (
 
 const maxUploadSize = 10 << 20 // 10 MB
 
-var allowedImageTypes = map[string]struct{}{
-	"image/jpeg": {},
-	"image/png":  {},
-	"image/webp": {},
-}
-
 // UploadImageHandler 上传图片（multipart/form-data，字段名 file）
 func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -37,12 +31,7 @@ func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 		defer file.Close()
 
-		ct := header.Header.Get("Content-Type")
-		if _, ok := allowedImageTypes[ct]; !ok {
-			httpx.ErrorCtx(r.Context(), w, errx.NewWithCode(errx.FileTypeNotAllowed))
-			return
-		}
-
+		// CORE-023：按文件内容识别类型，不在 Handler 用 Content-Type 头拦截。
 		l := image.NewUploadImageLogic(r.Context(), svcCtx)
 		resp, err := l.UploadImageMultipart(file, header, r.FormValue("idempotencyKey"))
 		if err != nil {

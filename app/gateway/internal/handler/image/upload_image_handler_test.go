@@ -121,15 +121,16 @@ func TestUploadImageHandler_MissingFileField_ReturnsParamError(t *testing.T) {
 	}
 }
 
-func TestUploadImageHandler_DisallowedContentType_ReturnsFileTypeNotAllowed(t *testing.T) {
-	req := makeMultipartRequest(t, "file", "x.gif", "image/gif", []byte("hi"), 1)
+func TestUploadImageHandler_IgnoredDeclaredContentType_StillUploads(t *testing.T) {
+	req := makeMultipartRequest(t, "file", "x.bin", "application/octet-stream", []byte("hello"), 42)
 	w := httptest.NewRecorder()
 
 	UploadImageHandler(newSvcCtx())(w, req)
 
-	body, _ := io.ReadAll(w.Result().Body)
-	if got := extractBizCode(t, body); got != errx.FileTypeNotAllowed {
-		t.Fatalf("expected code=%d FileTypeNotAllowed, got %d (body=%s)", errx.FileTypeNotAllowed, got, string(body))
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("handler must not reject by Content-Type header, got %d body=%s", resp.StatusCode, string(body))
 	}
 }
 

@@ -29,6 +29,9 @@ upstream:
   DTM 屏障表仅保留 QueryPrepared 兼容 RPC 契约。
 - 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog pipeline
   （去重+ClickHouse 存储）→ recommend-mq 特征更新。
+- 权威可见性：Content 是帖子状态的唯一权威。Feed、Search、Recommend 和 Assistant 对外返回前
+  必须回源 `GetPostsByIds`/`GetPost`。特征库与搜索索引只提供候选；状态验证失败时发现和
+  Assistant 失败关闭。
 
 ## SPEC-community-core 追踪
 
@@ -38,18 +41,18 @@ upstream:
 | CORE-002 只能改自己内容 | aligned | update/delete 校验 author_id |
 | CORE-003 会话参与者才可读私信 | aligned | GetMessages/MarkRead 按 user_id 归属校验 |
 | CORE-004 注册登录资料维护 | aligned | user rpc；注销/申诉/后台不在范围 |
-| CORE-005 一致的可见性结果 | aligned | GetPost/列表/发现统一只暴露 published |
+| CORE-005 一致的可见性结果 | aligned | GetPost/列表/发现统一只暴露 published；公开详情与评论列表对匿名开放 |
 | CORE-010 状态机 | aligned | draft⇄published 双向 + 均→deleted 终态；Update 显式 status 支持取消发布 |
 | CORE-011 创建返回 id/status/revision | aligned | CreatePostResp 返回 postId/status/revision=1 |
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
-| CORE-013 变更携带预期 revision | aligned | Update/Delete 携带 expected_revision；冲突返回 409；迁移期 0 值跳过检查（CORE-062） |
+| CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
 | CORE-015 取消发布/删除不再出现 | aligned | 列表/发现/评论列表只收录 published；搜索/向量/关注流按 status 移除或跳过取消发布内容 |
-| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404，含评论线程 |
+| CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
-| CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | mediautil 内容嗅探白名单 + 10MiB 上限 |
+| CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | Handler 只限制 10MiB；类型由 mediautil 按文件内容嗅探 |
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 命令模型 no-op 返回同状态 |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
@@ -73,7 +76,7 @@ upstream:
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| DISC-001 只返回可见已发布内容 | aligned | feed/search/recommend 均做可见性校验 |
+| DISC-001 只返回可见已发布内容 | aligned | feed/search/recommend 返回前均用 Content GetPostsByIds 回源；可见性不可验证则失败关闭 |
 | DISC-002 稳定内容标识 | aligned | post_id 稳定 |
 | DISC-003 游标不重复、绑定上下文 | aligned | recommend 游标 HMAC+绑定；feed 游标按创建时间+id |
 | DISC-004 未曝光不得解释为负反馈 | aligned | 负反馈只来自 hide/dislike 等明确动作 |
@@ -81,7 +84,7 @@ upstream:
 | DISC-011 关系变化按当前关系生成 | aligned | feed 按 follower 关系查询 |
 | DISC-012 空关注流返回空 | aligned | 不混入推荐 |
 | DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索 |
-| DISC-021 帖子结果来自可访问已发布内容 | aligned | ES 索引只收录 published |
+| DISC-021 帖子结果来自可访问已发布内容 | aligned | ES 只收录 published，查询时再按 Content 权威状态过滤 |
 | DISC-022 无匹配空结果、索引不可用 503 | aligned | 搜索 RPC 区分空与不可用 |
 | DISC-023 部分失败返回 degraded+unavailableTypes | aligned | 用户/标签搜索失败时降级并列出 unavailableTypes |
 | DISC-030 认证用户个性化 | aligned | recommend 按身份特征召回 |
@@ -109,10 +112,10 @@ upstream:
 | ASST-004 推荐候选需重读验证 | aligned | 推荐候选经 content 重读正文并验证 published 后才成为证据 |
 | ASST-005 不提供资料工具 | aligned | 无用户资料工具 |
 | ASST-006 内容指令不可信 | aligned | safety filter + 注入防护 |
-| ASST-007 证据不足拒答 | aligned | 无证据返回拒答/降级 |
+| ASST-007 证据不足拒答 | aligned | 无已发布正文证据时返回固定拒答，不返回搜索/推荐元数据摘要 |
 | ASST-010 段落必须含 [post:id]、1~5 来源 | aligned | 事实回答强制至少一个 [post:id]；来源 1~5 上限；缺失引用时降级 |
 | ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
-| ASST-012 仅服务端验证来源可返回 | aligned | 模型生成引用标记不提升为来源 |
+| ASST-012 仅服务端验证来源可返回 | aligned | 对外 SOURCE 只含回源验证过的帖子；user/tag 元数据不再提升为来源 |
 | ASST-013 区分事实/观点/无法确认 | partial | 系统指令强制区分作者观点与平台事实；终验依赖 ASST-050 评测 |
 | ASST-014 证据冲突呈现双方 | partial | 系统指令强制呈现冲突及各自来源；所有来源均提供给模型；终验依赖 ASST-050 评测 |
 | ASST-015 来源不授额外权限 | aligned | 打开来源走正常权限 |
@@ -124,7 +127,7 @@ upstream:
 | ASST-030 来源变化标记 | aligned | 续接会话时按保存的 revision 重验来源，变化时输出 source-changed 警告 |
 | ASST-031 来源不可用清理 | aligned | 续接会话时删除/取消发布来源标记 source-unavailable 并移除标题片段 |
 | ASST-032 LLM 不可用返回证据摘要 | aligned | sendPersistedDegraded 返回证据摘要 |
-| ASST-033 检索失败关闭 | aligned | 检索失败返回错误，不自由生成 |
+| ASST-033 检索失败关闭 | aligned | 检索或 Content 回源失败返回错误，不降级成无证据自由生成 |
 | ASST-034 安全策略拒绝、不泄露 | aligned | safety filter + 错误包装 |
 | ASST-035 同请求重试不矛盾 | aligned | 同 request_id 的重复用户消息被去重，避免重复/矛盾回答 |
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
@@ -151,7 +154,7 @@ upstream:
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
-| REL-023 关闭个性化 24h 删除特征 | aligned | /api/v2/me/personalization 接口；关闭后停止新行为入特征、purge 在线特征；DB+Redis 标记 |
+| REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；偏好读取失败时 fail-closed 只走规则冷启动 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 命令落地；生产观测数据待月度报告 |
 | REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；p95/p99 达标需月度观测数据 |

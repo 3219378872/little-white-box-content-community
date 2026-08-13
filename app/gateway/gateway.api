@@ -594,6 +594,10 @@ service gateway {
 	@doc "获取帖子列表"
 	@handler GetPostList
 	get /posts (GetPostListReq) returns (GetPostListResp)
+
+	@doc "获取帖子详情"
+	@handler GetPost
+	get /post/:postId (GetPostReq) returns (GetPostResp)
 }
 
 @server (
@@ -661,10 +665,6 @@ service gateway {
 	@handler CreatePost
 	post /post (CreatePostReq) returns (CreatePostResp)
 
-	@doc "获取帖子详情"
-	@handler GetPost
-	get /post/:postId (GetPostReq) returns (GetPostResp)
-
 	@doc "更新帖子"
 	@handler UpdatePost
 	put /post/:postId (UpdatePostReq) returns (UpdatePostResp)
@@ -672,6 +672,17 @@ service gateway {
 	@doc "删除帖子"
 	@handler DeletePost
 	delete /post/:postId (DeletePostReq) returns (DeletePostResp)
+}
+
+@server (
+	prefix:     /api/v1
+	group:      comment
+	middleware: OptionalAuth
+)
+service gateway {
+	@doc "获取评论列表"
+	@handler GetCommentList
+	get /comments/:postId (GetCommentListReq) returns (GetCommentListResp)
 }
 
 @server (
@@ -687,10 +698,6 @@ service gateway {
 	@doc "删除评论"
 	@handler DeleteComment
 	delete /comment/:commentId (DeleteCommentReq) returns (DeleteCommentResp)
-
-	@doc "获取评论列表"
-	@handler GetCommentList
-	get /comments/:postId (GetCommentListReq) returns (GetCommentListResp)
 }
 
 @server (

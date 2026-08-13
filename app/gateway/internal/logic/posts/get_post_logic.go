@@ -32,8 +32,8 @@ func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLo
 }
 
 func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, err error) {
-	// 未登录用户 userId 为 0，RPC 层根据 userId 判断互动状态
-	userId, _ := jwtx.GetUserIdFromContext(l.ctx)
+	// CORE：已发布帖子允许匿名读取；登录用户才回填互动状态。
+	userId, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 
 	result, err := l.svcCtx.ContentService.GetPost(l.ctx, &contentservice.GetPostReq{
 		PostId: req.PostId,

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"errx"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
@@ -68,12 +69,35 @@ func (f *fakeUserService) BatchGetUsers(
 	return &userservice.BatchGetUsersResp{Users: users}, nil
 }
 
+type fakeContentService struct {
+	getPostsByIDs func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error)
+}
+
+func (f *fakeContentService) GetPostsByIds(
+	ctx context.Context,
+	in *contentservice.GetPostsByIdsReq,
+	_ ...grpc.CallOption,
+) (*contentservice.GetPostsByIdsResp, error) {
+	if f != nil && f.getPostsByIDs != nil {
+		return f.getPostsByIDs(ctx, in)
+	}
+	posts := make([]*contentservice.PostInfo, 0, len(in.PostIds))
+	for _, id := range in.PostIds {
+		posts = append(posts, &contentservice.PostInfo{Id: id, Status: 1, Title: "published"})
+	}
+	return &contentservice.GetPostsByIdsResp{Posts: posts}, nil
+}
+
 func serviceContext(searchStore store.Store) *svc.ServiceContext {
 	return serviceContextWithUser(searchStore, &fakeUserService{})
 }
 
 func serviceContextWithUser(searchStore store.Store, userService svc.UserService) *svc.ServiceContext {
-	return &svc.ServiceContext{Config: config.Config{}, Store: searchStore, UserService: userService}
+	return serviceContextWithDeps(searchStore, userService, &fakeContentService{})
+}
+
+func serviceContextWithDeps(searchStore store.Store, userService svc.UserService, content svc.ContentService) *svc.ServiceContext {
+	return &svc.ServiceContext{Config: config.Config{}, Store: searchStore, UserService: userService, ContentService: content}
 }
 
 func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
@@ -280,4 +304,47 @@ func TestSearchValidation(t *testing.T) {
 	assert.True(t, errx.Is(err, errx.ParamError))
 	_, err = NewSearchTagsLogic(context.Background(), serviceContext(fake)).SearchTags(&pb.SearchTagsReq{Keyword: "go", Limit: 101})
 	assert.True(t, errx.Is(err, errx.ParamError))
+}
+
+func TestSearchDropsUnpublishedPosts(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1, Title: "live"}, {ID: 2, Title: "gone"}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) { return nil, nil },
+	}
+	content := &fakeContentService{getPostsByIDs: func(_ context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 1, Status: 1, Title: "live"}}}, nil
+	}}
+	resp, err := NewSearchLogic(ctx, serviceContextWithDeps(fake, &fakeUserService{}, content)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.NoError(t, err)
+	require.Len(t, resp.Posts, 1)
+	assert.Equal(t, int64(1), resp.Posts[0].Id)
+}
+
+func TestSearchVisibilityUnavailableFailsClosed(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) { return nil, nil },
+	}
+	content := &fakeContentService{getPostsByIDs: func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return nil, errors.New("content down")
+	}}
+	_, err := NewSearchLogic(ctx, serviceContextWithDeps(fake, &fakeUserService{}, content)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
+}
+
+func TestSearchPostsVisibilityUnavailableFailsClosed(t *testing.T) {
+	ctx := context.Background()
+	fake := &fakeStore{postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+		return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+	}}
+	_, err := NewSearchPostsLogic(ctx, serviceContextWithDeps(fake, &fakeUserService{}, nil)).SearchPosts(&pb.SearchPostsReq{Keyword: "go", Page: 1, PageSize: 10})
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
 }

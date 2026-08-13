@@ -71,6 +71,21 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.OptionalAuth},
+			[]rest.Route{
+				{
+					// 获取评论列表
+					Method:  http.MethodGet,
+					Path:    "/comments/:postId",
+					Handler: comment.GetCommentListHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
 		[]rest.Route{
 			{
 				// 创建评论
@@ -83,12 +98,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodDelete,
 				Path:    "/comment/:commentId",
 				Handler: comment.DeleteCommentHandler(serverCtx),
-			},
-			{
-				// 获取评论列表
-				Method:  http.MethodGet,
-				Path:    "/comments/:postId",
-				Handler: comment.GetCommentListHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
@@ -233,6 +242,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.OptionalAuth},
 			[]rest.Route{
 				{
+					// 获取帖子详情
+					Method:  http.MethodGet,
+					Path:    "/post/:postId",
+					Handler: posts.GetPostHandler(serverCtx),
+				},
+				{
 					// 获取帖子列表
 					Method:  http.MethodGet,
 					Path:    "/posts",
@@ -250,12 +265,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/post",
 				Handler: posts.CreatePostHandler(serverCtx),
-			},
-			{
-				// 获取帖子详情
-				Method:  http.MethodGet,
-				Path:    "/post/:postId",
-				Handler: posts.GetPostHandler(serverCtx),
 			},
 			{
 				// 更新帖子

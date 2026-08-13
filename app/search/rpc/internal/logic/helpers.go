@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"errx"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
+	"esx/pkg/validator"
 	"user/userservice"
 )
 
@@ -119,4 +121,56 @@ func tagResults(tags []store.Tag) []*pb.TagSearchResult {
 		result = append(result, &pb.TagSearchResult{Name: tag.Name, PostCount: tag.PostCount})
 	}
 	return result
+}
+
+// publishedSearchPosts 在返回搜索结果前用 Content 权威状态过滤不可见帖子。
+// 可见性无法验证时整体失败（DISC-001 / DISC-041 / REL-042）。
+func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts []store.Post) ([]store.Post, error) {
+	if len(posts) == 0 {
+		return posts, nil
+	}
+	if content == nil {
+		return nil, errx.NewWithCode(errx.ServiceUnavailable)
+	}
+	ids := make([]int64, 0, len(posts))
+	seen := make(map[int64]struct{}, len(posts))
+	for _, post := range posts {
+		if post.ID <= 0 {
+			continue
+		}
+		if _, exists := seen[post.ID]; exists {
+			continue
+		}
+		seen[post.ID] = struct{}{}
+		ids = append(ids, post.ID)
+	}
+	published := make(map[int64]struct{}, len(ids))
+	for start := 0; start < len(ids); start += validator.MaxBatchQueryIds {
+		end := min(start+validator.MaxBatchQueryIds, len(ids))
+		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids[start:end]})
+		if err != nil {
+			return nil, err
+		}
+		if response == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		for _, post := range response.Posts {
+			if post != nil && post.Id > 0 && post.Status == 1 {
+				published[post.Id] = struct{}{}
+			}
+		}
+	}
+	filtered := make([]store.Post, 0, len(posts))
+	emitted := make(map[int64]struct{}, len(published))
+	for _, post := range posts {
+		if _, ok := published[post.ID]; !ok {
+			continue
+		}
+		if _, exists := emitted[post.ID]; exists {
+			continue
+		}
+		filtered = append(filtered, post)
+		emitted[post.ID] = struct{}{}
+	}
+	return filtered, nil
 }

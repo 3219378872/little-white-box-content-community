@@ -2,7 +2,7 @@
 id: IMP-content-community-backend
 layer: implementation
 title: 小白盒内容社区后端实现映射
-status: aligned
+status: diverged
 owner: agent
 upstream:
   - DES-content-community-backend
@@ -32,8 +32,8 @@ tracks:
   - deploy/sql/xbh_user.sql
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
-verified_at: 2026-08-12
-verified_commit: 0031d91
+verified_at: 2026-08-13
+verified_commit: f089c0d
 ---
 
 # 小白盒内容社区后端实现映射
@@ -44,9 +44,11 @@ verified_commit: 0031d91
 
 ## 总体状态
 
-`aligned`：`make check`、`make test` 与内容/用户集成测试通过；规范逐条追踪见设计页。
-`n/a` 项（DISC-060~063、ASST-050~051、REL-030~043 观测口径）属于离线评测/观测工程，
-不在代码行为验收范围，保留在验收策略中。
+`diverged`：本次已按规格修复匿名公开读取、搜索/推荐查询时回源、Assistant 无证据拒答、
+以及个性化偏好读取失败 fail-closed。仍偏离处：
+- `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0` 跳过乐观锁。
+- `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
+- `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
 
 ## 代码入口
 

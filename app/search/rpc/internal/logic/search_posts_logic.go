@@ -9,6 +9,8 @@ import (
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
 
+	"user/userservice"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -48,10 +50,16 @@ func (l *SearchPostsLogic) SearchPosts(in *pb.SearchPostsReq) (*pb.SearchPostsRe
 		l.Errorw("search posts failed", logx.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
+	visiblePosts, err := publishedSearchPosts(l.ctx, l.svcCtx.ContentService, result.Posts)
+	if err != nil {
+		l.Errorw("search posts visibility check failed", logx.Field("err", err.Error()))
+		return nil, storeError(err)
+	}
+	result.Posts = visiblePosts
 	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, result.Posts)
 	if err != nil {
 		l.Errorw("hydrate search post authors failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
+		profiles = map[int64]*userservice.UserInfo{}
 	}
 	return &pb.SearchPostsResp{Posts: postResults(result.Posts, profiles), Total: result.Total}, nil
 }

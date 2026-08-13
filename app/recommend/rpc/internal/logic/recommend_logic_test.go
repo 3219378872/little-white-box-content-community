@@ -7,9 +7,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"google.golang.org/grpc"
 	"time"
 
 	"errx"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
@@ -41,14 +44,37 @@ func (s fakeUserSource) Recall(ctx context.Context, req model.RecallRequest) ([]
 	return s.recall(ctx, req)
 }
 
+type fakeRecommendContentService struct {
+	contentservice.ContentService
+	unpublished map[int64]struct{}
+	err         error
+}
+
+func (f *fakeRecommendContentService) GetPostsByIds(_ context.Context, in *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	if f != nil && f.err != nil {
+		return nil, f.err
+	}
+	posts := make([]*contentservice.PostInfo, 0, len(in.GetPostIds()))
+	for _, id := range in.GetPostIds() {
+		if f != nil {
+			if _, blocked := f.unpublished[id]; blocked {
+				continue
+			}
+		}
+		posts = append(posts, &contentservice.PostInfo{Id: id, Status: 1})
+	}
+	return &contentservice.GetPostsByIdsResp{Posts: posts}, nil
+}
+
 type fakeFeatureRepository struct {
-	viewer    model.ViewerFeatures
-	posts     map[int64]model.PostFeatures
-	users     map[int64]model.UserFeatures
-	viewerErr error
-	postsErr  error
-	usersErr  error
-	optedOut  bool
+	viewer      model.ViewerFeatures
+	posts       map[int64]model.PostFeatures
+	users       map[int64]model.UserFeatures
+	viewerErr   error
+	postsErr    error
+	usersErr    error
+	optedOut    bool
+	optedOutErr error
 }
 
 func (r *fakeFeatureRepository) LoadViewerFeatures(context.Context, string) (model.ViewerFeatures, error) {
@@ -64,7 +90,7 @@ func (r *fakeFeatureRepository) LoadUserFeatures(context.Context, []int64) (map[
 }
 
 func (r *fakeFeatureRepository) IsPersonalizationOptedOut(context.Context, int64) (bool, error) {
-	return r.optedOut, nil
+	return r.optedOut, r.optedOutErr
 }
 
 type memorySnapshotStore struct {
@@ -118,10 +144,11 @@ func newTestServiceContext(t *testing.T, now time.Time) *svc.ServiceContext {
 			DefaultPageSize: 2, MaxPageSize: 20, CandidateMultiplier: 4,
 			CursorTTLSeconds: 600, RuleModelVersion: "rules-test", MaxPerAuthor: 2,
 		},
-		CursorCodec:   codec,
-		SnapshotStore: &memorySnapshotStore{items: make(map[string]model.PostSnapshot)},
-		Now:           func() time.Time { return now },
-		NewSnapshotID: func() (string, error) { return "snapshot-1", nil },
+		CursorCodec:    codec,
+		SnapshotStore:  &memorySnapshotStore{items: make(map[string]model.PostSnapshot)},
+		Now:            func() time.Time { return now },
+		NewSnapshotID:  func() (string, error) { return "snapshot-1", nil },
+		ContentService: &fakeRecommendContentService{},
 	}
 }
 
@@ -235,6 +262,10 @@ func TestGetRecommendPostsMarksPartialRecallDegradation(t *testing.T) {
 		fakePostSource{name: "milvus", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
 			return nil, errors.New("milvus unavailable")
 		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		postsErr: errors.New("features down"),
+		posts:    map[int64]model.PostFeatures{7: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Quality: 0.7}},
 	}
 	response, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
 		UserId: 1, RequestId: "request-1", PageSize: 2,
@@ -513,5 +544,79 @@ func TestSeenPostsReenterWhenCandidatesInsufficient(t *testing.T) {
 	}
 	if degraded {
 		t.Fatal("seen re-entry should not mark feature repository degraded")
+	}
+}
+
+func TestGetRecommendPostsDropsUnpublishedContent(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(1, 10, "tech", 0.9), knownPost(2, 20, "tech", 0.8)}, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		posts: map[int64]model.PostFeatures{
+			1: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Quality: 0.9},
+			2: {Known: true, Available: true, Visibility: "public", AuthorID: 20, Quality: 0.8},
+		},
+	}
+	serviceContext.ContentService = &fakeRecommendContentService{unpublished: map[int64]struct{}{2: {}}}
+	resp, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 7, Scene: "home", RequestId: "req-vis", SessionId: "sess-vis", PageSize: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Posts) != 1 || resp.Posts[0].PostId != 1 {
+		t.Fatalf("unpublished post leaked: %+v", resp.Posts)
+	}
+}
+
+func TestGetRecommendPostsVisibilityUnavailableFailsClosed(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(1, 10, "tech", 0.9)}, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		posts: map[int64]model.PostFeatures{1: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Quality: 0.9}},
+	}
+	serviceContext.ContentService = &fakeRecommendContentService{err: errors.New("content down")}
+	_, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 7, Scene: "home", RequestId: "req-vis-fail", SessionId: "sess-vis-fail", PageSize: 10,
+	})
+	if err == nil || !errx.Is(err, errx.ServiceUnavailable) {
+		t.Fatalf("want visibility fail-closed, got %v", err)
+	}
+}
+
+func TestGetRecommendPostsTreatsOptOutReadFailureAsDisabled(t *testing.T) {
+	serviceContext := newTestServiceContext(t, time.Unix(1_800_000_000, 0))
+	personalizedCalled := false
+	serviceContext.PostRecallSources = []model.PostRecallSource{
+		fakePostSource{name: "hot", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			return []model.PostCandidate{knownPost(1, 10, "tech", 0.9)}, nil
+		}},
+		fakePostSource{name: "personalized", recall: func(context.Context, model.RecallRequest) ([]model.PostCandidate, error) {
+			personalizedCalled = true
+			return []model.PostCandidate{knownPost(99, 99, "tech", 0.9)}, nil
+		}},
+	}
+	serviceContext.FeatureRepository = &fakeFeatureRepository{
+		optedOutErr: errors.New("redis down"),
+		posts:       map[int64]model.PostFeatures{1: {Known: true, Available: true, Visibility: "public", AuthorID: 10, Quality: 0.9}},
+	}
+	resp, err := NewGetRecommendPostsLogic(context.Background(), serviceContext).GetRecommendPosts(&pb.GetRecommendPostsReq{
+		UserId: 7, Scene: "home", RequestId: "req-opt", SessionId: "sess-opt", PageSize: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if personalizedCalled {
+		t.Fatal("personalized recall ran after opt-out read failure")
+	}
+	if len(resp.Posts) != 1 || !strings.Contains(resp.Posts[0].ModelVersion, "personalization-disabled") {
+		t.Fatalf("opt-out failure was not marked: %+v", resp.Posts)
 	}
 }

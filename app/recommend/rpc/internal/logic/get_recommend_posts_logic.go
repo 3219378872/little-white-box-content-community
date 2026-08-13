@@ -108,6 +108,12 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		binding.RequestID+":"+identity,
 	)
 	candidates = enforceAuthorQuota(candidates, l.svcCtx.Config.MaxPerAuthor)
+	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
+	if err != nil {
+		recommendPipelineTotal.Inc("posts", "visibility", "unavailable")
+		l.Errorw("post visibility check unavailable", logx.Field("err", err.Error()))
+		return nil, recommendationRPCError(err)
+	}
 	if recallDegraded {
 		markPostDegradation(candidates, "recall-degraded")
 		l.Error("one or more post recall sources failed; serving remaining sources")
@@ -140,20 +146,27 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 }
 
 // personalizationOptedOut 返回认证用户是否关闭了个性化（REL-023）。
-// 读取失败时 fail-open 返回 false，交由既有降级路径处理。
+// 偏好无法读取时 fail-closed，只走规则冷启动，避免继续个性化。
 func (l *GetRecommendPostsLogic) personalizationOptedOut(userID int64) bool {
-	if userID <= 0 || l.svcCtx == nil || l.svcCtx.FeatureRepository == nil {
+	if userID <= 0 {
 		return false
+	}
+	if l.svcCtx == nil || l.svcCtx.FeatureRepository == nil {
+		return true
 	}
 	optedOut, err := l.svcCtx.FeatureRepository.IsPersonalizationOptedOut(l.ctx, userID)
 	if err != nil {
 		l.Errorw("check personalization opt-out failed", logx.Field("user_id", userID), logx.Field("err", err.Error()))
-		return false
+		return true
 	}
 	return optedOut
 }
 
 func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize int, binding cursor.Binding) (*pb.GetRecommendPostsResp, error) {
+	posts, err := filterPublishedRankedPosts(l.ctx, l.svcCtx.ContentService, posts)
+	if err != nil {
+		return nil, recommendationRPCError(err)
+	}
 	end := min(pageSize, len(posts))
 	response := &pb.GetRecommendPostsResp{
 		Posts:     recommendPostsToPB(posts[:end]),
@@ -218,14 +231,18 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 	if payload.Offset >= len(snapshot.Posts) {
 		return nil, errx.New(errx.ParamError, "invalid or expired recommendation cursor")
 	}
-	end := min(payload.Offset+pageSize, len(snapshot.Posts))
+	visible, err := filterPublishedRankedPosts(l.ctx, l.svcCtx.ContentService, snapshot.Posts[payload.Offset:])
+	if err != nil {
+		return nil, recommendationRPCError(err)
+	}
+	end := min(pageSize, len(visible))
 	response := &pb.GetRecommendPostsResp{
-		Posts:     recommendPostsToPB(snapshot.Posts[payload.Offset:end]),
-		HasMore:   end < len(snapshot.Posts),
+		Posts:     recommendPostsToPB(visible[:end]),
+		HasMore:   end < len(visible),
 		RequestId: binding.RequestID,
 	}
 	if response.HasMore {
-		response.NextCursor, err = l.svcCtx.CursorCodec.Encode(payload.SnapshotID, end, payload.ExpiresAt, binding)
+		response.NextCursor, err = l.svcCtx.CursorCodec.Encode(payload.SnapshotID, payload.Offset+end, payload.ExpiresAt, binding)
 		if err != nil {
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
