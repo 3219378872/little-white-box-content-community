@@ -8,4 +8,9 @@
   移动文件或修改提案状态不会自动提升权威。
 - 提案关闭后可保留为非权威历史，不能覆盖已批准文档。
 
-新提案使用 `../templates/proposal.md`。当前暂无提案。
+新提案使用 `../templates/proposal.md`。
+
+## 当前提案
+
+- [PROP-20260813-core-revision-contract](PROP-20260813-core-revision-contract.md)：
+  CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项（open，待人类决定）。
