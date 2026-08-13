@@ -33,6 +33,46 @@ upstream:
   必须回源 `GetPostsByIds`/`GetPost`。特征库与搜索索引只提供候选；状态验证失败时发现和
   Assistant 失败关闭。
 
+## 方案
+
+### 可见性
+
+Content 持有帖子状态机与正文。普通读取走 `FindPostById`/`FindByIds` 且不读缓存，避免
+CORE-053 允许的失效失败把已取消发布内容继续当成 published。发现与 Assistant 只把 ES、
+向量库、inbox/outbox 当候选，返回前必须用 `GetPostsByIds` 验证 `status=1`；验证失败则
+整次请求失败关闭，不得降级成“空结果成功”。
+
+### 关注流
+
+`/api/v2/feed/follow` 只对认证用户开放。读路径先分页拉取当前 following（页大小 100），
+空关注立即返回空列表，不混入推荐。inbox 只保留当前关注作者；outbox 按作者分批
+`IN` 查询后归并。这样取关后的新请求不会再露出旧 inbox，也覆盖 BigV 只写 outbox 的路径。
+
+### 搜索
+
+ES 只索引 published，并在取消发布时尽力删文档，但这是异步效果。查询时再次回源 Content：
+丢掉不可见 ID，标题与摘要改用权威正文，`Total` 减去本页被过滤的条数。用户/标签子搜索
+失败可以降级，帖子可见性失败不能降级。
+
+### 写入
+
+权威写入与事务 outbox 同提交，relay 投递 MQ。不再使用 DTM。Content `QueryPrepared` 仍
+留在 proto 中，实现失败关闭；`scripts/generate.sh` 尚未生成 content/interaction/media。
+
+## 失败模式
+
+- 内容权威不可用：发现/Assistant/公开回源读取失败关闭。
+- 关注关系不可用：关注流失败关闭，避免按过期关系越权。
+- 搜索引擎不可用：帖子搜索返回暂时不可用，不用空列表冒充无匹配。
+- 缓存/索引/通知失败：不改变已提交的权威写成功（CORE-053）。
+
+## 取舍
+
+- 关注流用当前关系拉 outbox，而不是信任 inbox。读放大换正确性。
+- 搜索 `Total` 只按本页过滤值回减，不重扫 ES。全库精确计数需要索引与权威完全同步，
+  目前做不到，因此 DISC-001/CORE-015 仍标 partial。
+- `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0`。未获人类决定前不改契约。
+
 ## SPEC-community-core 追踪
 
 | 要求 | 状态 | 实现位置与偏离说明 |
@@ -47,7 +87,7 @@ upstream:
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | partial | 单帖 FindPostById 与批量 FindByIds 均不读缓存；列表/发现/评论回源 published。搜索 Total 仍可能反映过滤前 ES 计数 |
+| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量读取不走缓存；发现回源过滤。搜索 Total 只减去本页过滤数，未重算全库 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
@@ -56,7 +96,7 @@ upstream:
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 命令模型 no-op 返回同状态 |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
-| CORE-032 互动状态立即可查 | aligned | 写入同事务失效缓存；计数经 count-sync 消费者 30s 内收敛；列表/收藏页批量回填当前访问者 liked/favorited 状态 |
+| CORE-032 互动状态立即可查 | partial | liked/favorited 状态即时回填；计数走 count-sync，30s 收敛未经生产观测证明 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
 | CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体并持久化 media_id |
@@ -76,7 +116,7 @@ upstream:
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| DISC-001 只返回可见已发布内容 | partial | feed/search/recommend 返回前均用 Content GetPostsByIds 回源并失败关闭；搜索 Total 仍可能包含过滤前计数 |
+| DISC-001 只返回可见已发布内容 | partial | 条目经 Content 回源过滤；搜索标题/摘要回填权威正文；Total 只按本页回减 |
 | DISC-002 稳定内容标识 | aligned | post_id 稳定 |
 | DISC-003 游标不重复、绑定上下文 | aligned | recommend 游标 HMAC+绑定；feed 游标按创建时间+id |
 | DISC-004 未曝光不得解释为负反馈 | aligned | 负反馈只来自 hide/dislike 等明确动作 |
@@ -84,7 +124,7 @@ upstream:
 | DISC-011 关系变化按当前关系生成 | aligned | 关注流先分页拉取当前 following，inbox 按当前关系过滤，outbox 按作者分批回源 |
 | DISC-012 空关注流返回空 | aligned | 不混入推荐 |
 | DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索 |
-| DISC-021 帖子结果来自可访问已发布内容 | aligned | ES 只收录 published，查询时再按 Content 权威状态过滤 |
+| DISC-021 帖子结果来自可访问已发布内容 | aligned | 查询时回源 Content，标题/摘要来自仍 published 的正文，不可见项丢弃 |
 | DISC-022 无匹配空结果、索引不可用 503 | aligned | 搜索 RPC 区分空与不可用 |
 | DISC-023 部分失败返回 degraded+unavailableTypes | aligned | 用户/标签搜索失败时降级并列出 unavailableTypes |
 | DISC-030 认证用户个性化 | aligned | recommend 按身份特征召回 |

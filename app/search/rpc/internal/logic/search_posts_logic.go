@@ -50,12 +50,14 @@ func (l *SearchPostsLogic) SearchPosts(in *pb.SearchPostsReq) (*pb.SearchPostsRe
 		l.Errorw("search posts failed", logx.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
+	fetched := len(result.Posts)
 	visiblePosts, err := publishedSearchPosts(l.ctx, l.svcCtx.ContentService, result.Posts)
 	if err != nil {
 		l.Errorw("search posts visibility check failed", logx.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	result.Posts = visiblePosts
+	result.Total = searchTotalAfterVisibility(result.Total, fetched, len(visiblePosts))
 	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, result.Posts)
 	if err != nil {
 		l.Errorw("hydrate search post authors failed", logx.Field("err", err.Error()))

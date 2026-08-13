@@ -337,5 +337,53 @@ result: passed
         self.assert_error(errors, "missing frontmatter keys: commands")
 
 
+class ProtoGenerationLintTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        (self.root / "scripts").mkdir(parents=True)
+        (self.root / "proto" / "search").mkdir(parents=True)
+        (self.root / "proto" / "content").mkdir(parents=True)
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def test_allowlisted_ungenerated_proto_is_ok(self):
+        (self.root / "scripts" / "generate.sh").write_text(
+            "goctl rpc protoc proto/search/search.proto\n", encoding="utf-8"
+        )
+        (self.root / "proto" / "search" / "search.proto").write_text(
+            "service Search { rpc Search(Req) returns (Resp); }\n", encoding="utf-8"
+        )
+        for rel in engineering_lint.UNGENERATED_RPC_PROTOS:
+            path = self.root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "service X { rpc Ping(Req) returns (Resp); }\n", encoding="utf-8"
+            )
+        self.assertEqual(engineering_lint.check_proto_generation(self.root), [])
+
+    def test_new_rpc_proto_must_be_generated(self):
+        (self.root / "scripts" / "generate.sh").write_text(
+            "goctl rpc protoc proto/search/search.proto\n", encoding="utf-8"
+        )
+        (self.root / "proto" / "search" / "search.proto").write_text(
+            "service Search { rpc Search(Req) returns (Resp); }\n", encoding="utf-8"
+        )
+        for rel in engineering_lint.UNGENERATED_RPC_PROTOS:
+            path = self.root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "service X { rpc Ping(Req) returns (Resp); }\n", encoding="utf-8"
+            )
+        extra = self.root / "proto" / "extra"
+        extra.mkdir()
+        (extra / "extra.proto").write_text(
+            "service Extra { rpc Ping(Req) returns (Resp); }\n", encoding="utf-8"
+        )
+        errors = engineering_lint.check_proto_generation(self.root)
+        self.assertTrue(any("proto/extra/extra.proto" in error for error in errors), errors)
+
+
 if __name__ == "__main__":
     unittest.main()

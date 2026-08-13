@@ -123,8 +123,8 @@ func tagResults(tags []store.Tag) []*pb.TagSearchResult {
 	return result
 }
 
-// publishedSearchPosts 在返回搜索结果前用 Content 权威状态过滤不可见帖子。
-// 可见性无法验证时整体失败（DISC-001 / DISC-041 / REL-042）。
+// publishedSearchPosts 用 Content 权威状态过滤不可见帖子，并回填标题/摘要。
+// 可见性无法验证时整体失败（DISC-001 / DISC-021 / DISC-041）。
 func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts []store.Post) ([]store.Post, error) {
 	if len(posts) == 0 {
 		return posts, nil
@@ -144,7 +144,7 @@ func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts
 		seen[post.ID] = struct{}{}
 		ids = append(ids, post.ID)
 	}
-	published := make(map[int64]struct{}, len(ids))
+	published := make(map[int64]*contentservice.PostInfo, len(ids))
 	for start := 0; start < len(ids); start += validator.MaxBatchQueryIds {
 		end := min(start+validator.MaxBatchQueryIds, len(ids))
 		response, err := content.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids[start:end]})
@@ -156,21 +156,74 @@ func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts
 		}
 		for _, post := range response.Posts {
 			if post != nil && post.Id > 0 && post.Status == 1 {
-				published[post.Id] = struct{}{}
+				published[post.Id] = post
 			}
 		}
 	}
 	filtered := make([]store.Post, 0, len(posts))
 	emitted := make(map[int64]struct{}, len(published))
 	for _, post := range posts {
-		if _, ok := published[post.ID]; !ok {
+		live, ok := published[post.ID]
+		if !ok {
 			continue
 		}
 		if _, exists := emitted[post.ID]; exists {
 			continue
 		}
-		filtered = append(filtered, post)
+		filtered = append(filtered, hydrateSearchPost(post, live))
 		emitted[post.ID] = struct{}{}
 	}
 	return filtered, nil
+}
+
+func hydrateSearchPost(candidate store.Post, live *contentservice.PostInfo) store.Post {
+	hydrated := candidate
+	hydrated.Title = strings.TrimSpace(live.Title)
+	if live.AuthorId > 0 {
+		hydrated.AuthorID = live.AuthorId
+	}
+	if live.CreatedAt > 0 {
+		hydrated.CreatedAt = live.CreatedAt
+	}
+	hydrated.LikeCount = live.LikeCount
+	hydrated.CommentCount = live.CommentCount
+	hydrated.ContentHighlight = publishedSearchSummary(live.Content, candidate.ContentHighlight)
+	return hydrated
+}
+
+func publishedSearchSummary(body, highlight string) string {
+	body = strings.TrimSpace(body)
+	plain := stripSearchMarkup(highlight)
+	if body != "" && plain != "" && strings.Contains(body, plain) {
+		return highlight
+	}
+	if body == "" {
+		return ""
+	}
+	return truncateRunes(body, 120)
+}
+
+func stripSearchMarkup(value string) string {
+	value = strings.ReplaceAll(value, "<em>", "")
+	value = strings.ReplaceAll(value, "</em>", "")
+	return strings.TrimSpace(value)
+}
+
+func truncateRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
+}
+
+func searchTotalAfterVisibility(total int64, fetched, visible int) int64 {
+	removed := int64(fetched - visible)
+	if removed <= 0 {
+		return total
+	}
+	if total < removed {
+		return int64(visible)
+	}
+	return total - removed
 }

@@ -108,7 +108,7 @@ func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
 		assert.Equal(t, "go zero", query.Keyword)
 		assert.Equal(t, []string{"go"}, query.Tags)
 		return store.PostResult{Posts: []store.Post{{
-			ID: 7, AuthorID: 9, Title: "Go Zero", ContentHighlight: "<em>go</em>", CreatedAt: 123,
+			ID: 7, AuthorID: 9, Title: "stale title", ContentHighlight: "<em>go</em>", CreatedAt: 123,
 		}}, Total: 1}, nil
 	}}
 	userService := &fakeUserService{batchGetUsersFn: func(got context.Context, in *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error) {
@@ -116,13 +116,21 @@ func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
 		assert.Equal(t, []int64{9}, in.UserIds)
 		return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{Id: 9, Nickname: "Go Author"}}}, nil
 	}}
+	content := &fakeContentService{getPostsByIDs: func(got context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		assert.Equal(t, ctx, got)
+		assert.Equal(t, []int64{7}, in.PostIds)
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{
+			Id: 7, AuthorId: 9, Status: 1, Title: "Go Zero", Content: "learn go zero", CreatedAt: 123,
+		}}}, nil
+	}}
 
-	resp, err := NewSearchPostsLogic(ctx, serviceContextWithUser(fake, userService)).SearchPosts(&pb.SearchPostsReq{
+	resp, err := NewSearchPostsLogic(ctx, serviceContextWithDeps(fake, userService, content)).SearchPosts(&pb.SearchPostsReq{
 		Keyword: " go zero ", Page: 1, PageSize: 20, Tags: []string{" go ", ""},
 	})
 	require.NoError(t, err)
 	require.Len(t, resp.Posts, 1)
 	assert.Equal(t, int64(7), resp.Posts[0].Id)
+	assert.Equal(t, "Go Zero", resp.Posts[0].Title)
 	assert.Equal(t, "<em>go</em>", resp.Posts[0].ContentHighlight)
 	assert.Equal(t, "Go Author", resp.Posts[0].AuthorName)
 	assert.Equal(t, int64(1), resp.Total)
@@ -337,6 +345,31 @@ func TestSearchVisibilityUnavailableFailsClosed(t *testing.T) {
 	_, err := NewSearchLogic(ctx, serviceContextWithDeps(fake, &fakeUserService{}, content)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
+}
+
+func TestSearchPostsUsesAuthoritativeTitleAndReducesTotal(t *testing.T) {
+	fake := &fakeStore{postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+		return store.PostResult{Posts: []store.Post{
+			{ID: 1, Title: "stale live", ContentHighlight: "old snippet"},
+			{ID: 2, Title: "gone"},
+		}, Total: 5}, nil
+	}}
+	content := &fakeContentService{getPostsByIDs: func(_ context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
+			{Id: 1, Status: 1, Title: "live title", Content: "current published body"},
+			{Id: 2, Status: 2, Title: "unpublished"},
+		}}, nil
+	}}
+
+	resp, err := NewSearchPostsLogic(context.Background(), serviceContextWithDeps(fake, &fakeUserService{}, content)).SearchPosts(
+		&pb.SearchPostsReq{Keyword: "go", Page: 1, PageSize: 10},
+	)
+	require.NoError(t, err)
+	require.Len(t, resp.Posts, 1)
+	assert.Equal(t, int64(1), resp.Posts[0].Id)
+	assert.Equal(t, "live title", resp.Posts[0].Title)
+	assert.Equal(t, "current published body", resp.Posts[0].ContentHighlight)
+	assert.Equal(t, int64(4), resp.Total)
 }
 
 func TestSearchPostsVisibilityUnavailableFailsClosed(t *testing.T) {
