@@ -15,6 +15,7 @@ import (
 	"mqx"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -147,4 +148,36 @@ func TestCreatePostLogicRejectsTooManyImagesAndTags(t *testing.T) {
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.ParamError))
+}
+
+func TestCreatePostLogicRejectsOversizedContentAndTag(t *testing.T) {
+	svcCtx := newUnitSvcCtx(new(MockPostModel), nil, nil, new(MockPostTagModel))
+
+	// CORE-020：正文上限 20,000 Unicode 字符。
+	resp, err := NewCreatePostLogic(context.Background(), svcCtx).CreatePost(&pb.CreatePostReq{
+		AuthorId: 9, Title: "title", Content: strings.Repeat("长", 20001),
+	})
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ContentTooLong), "期望内容过长码，实际: %v", err)
+
+	// CORE-021：标签上限 32 Unicode 字符。
+	resp, err = NewCreatePostLogic(context.Background(), svcCtx).CreatePost(&pb.CreatePostReq{
+		AuthorId: 9, Title: "title", Content: "content", Tags: []string{strings.Repeat("长", 33)},
+	})
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ParamError), "期望参数错误码，实际: %v", err)
+
+	// 边界值 20,000 与 32 应通过。
+	pm := new(MockPostModel)
+	ptm := new(MockPostTagModel)
+	pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+	ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
+	boundarySvcCtx := newUnitSvcCtx(pm, nil, nil, ptm)
+	resp, err = NewCreatePostLogic(context.Background(), boundarySvcCtx).CreatePost(&pb.CreatePostReq{
+		AuthorId: 9, Title: "title", Content: strings.Repeat("长", 20000), Tags: []string{strings.Repeat("长", 32)},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }

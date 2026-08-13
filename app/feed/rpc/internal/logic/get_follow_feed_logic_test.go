@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 
 	"errx"
@@ -125,6 +126,25 @@ func TestGetFollowFeedLogic_InvalidInput(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, errx.ParamError, errx.GetCode(err))
 	}
+}
+
+// DISC-012：无关注内容时返回合法空结果，不混入推荐或热门内容。
+func TestGetFollowFeedLogic_EmptyFollowingReturnsEmpty(t *testing.T) {
+	inbox := new(mockInboxModel)
+	userSvc := new(mockUserService)
+	inbox.On("FindByUserBefore", mock.Anything, int64(7), int64(math.MaxInt64), int64(math.MaxInt64), int64(21)).Return([]*model.FeedInbox{}, nil).Once()
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 7, Page: 1, PageSize: 1000}).
+		Return(&userservice.GetFollowingResp{Users: []*userservice.UserInfo{}}, nil).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
+		InboxModel: inbox, UserService: userSvc,
+	})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 7, PageSize: 20})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Empty(t, resp.Items, "关注流为空时必须返回空结果，不混入推荐内容")
+	assert.False(t, resp.HasMore)
 }
 
 func TestGetFollowFeedLogic_FiltersUnavailablePostsAndAdvancesScannedCursor(t *testing.T) {

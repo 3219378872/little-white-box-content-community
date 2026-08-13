@@ -6,6 +6,7 @@ import (
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/outboxx"
 	"fmt"
+	"strings"
 	"testing"
 
 	"errx"
@@ -156,6 +157,31 @@ func TestCreateCommentLogic(t *testing.T) {
 			cm.AssertExpectations(t)
 		})
 	}
+}
+
+func TestCreateCommentLogicRejectsOversizedContent(t *testing.T) {
+	pm := new(MockPostModel)
+	pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, AuthorId: 100, Status: 1}, nil)
+	svcCtx := newUnitSvcCtx(pm, new(MockCommentModel), nil, nil)
+
+	// CORE-022：评论正文上限 2,000 Unicode 字符；越界在写库前被拒绝。
+	resp, err := NewCreateCommentLogic(context.Background(), svcCtx).CreateComment(&pb.CreateCommentReq{
+		PostId: 1000, UserId: 200, Content: strings.Repeat("长", 2001),
+	})
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ContentTooLong), "期望内容过长码，实际: %v", err)
+
+	// 边界值 2,000 应通过（进入命令模型路径前已完成校验）。
+	cm := new(MockCommentModel)
+	cm.On("InsertComment", mock.Anything, mock.AnythingOfType("*model.Comment")).Return(nil)
+	pm.On("IncrCommentCount", mock.Anything, int64(1000)).Return(nil)
+	okSvcCtx := newUnitSvcCtx(pm, cm, nil, nil)
+	okResp, err := NewCreateCommentLogic(context.Background(), okSvcCtx).CreateComment(&pb.CreateCommentReq{
+		PostId: 1000, UserId: 200, Content: strings.Repeat("长", 2000),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, okResp)
 }
 
 func TestCreateCommentLogicMapsIdempotencyConflict(t *testing.T) {
