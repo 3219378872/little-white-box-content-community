@@ -17,3 +17,5 @@
   共享可见性适配与官方评测集守卫验证，提交 dd77473。
 - [2026-08-13-content-community-code-quality.md](2026-08-13-content-community-code-quality.md)：
   代码质量批次验证（helpers 拆分 / register 默认值 / 覆盖率基线），提交 4408326。
+- [2026-08-13-content-community-core-v2-revision.md](2026-08-13-content-community-core-v2-revision.md)：
+  CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
