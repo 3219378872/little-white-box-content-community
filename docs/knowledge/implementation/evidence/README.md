@@ -11,3 +11,5 @@
 
 - [2026-08-12-content-community.md](2026-08-12-content-community.md)：内容社区后端
   实现验证（make check / make test / 集成测试），提交 9179b45。
+- [2026-08-13-content-community-spec-alignment.md](2026-08-13-content-community-spec-alignment.md)：
+  规格对齐批次验证（门禁恢复 + REL-023 主动清理），提交 314aa67。

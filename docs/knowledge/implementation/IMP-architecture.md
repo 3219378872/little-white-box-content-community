@@ -10,7 +10,7 @@ tracks:
   - app/
   - pkg/
 verified_at: 2026-08-13
-verified_commit: 290b353
+verified_commit: 314aa67
 ---
 
 # 服务架构与模块清单

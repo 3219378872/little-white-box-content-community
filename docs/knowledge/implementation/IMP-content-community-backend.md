@@ -35,7 +35,7 @@ tracks:
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
 verified_at: 2026-08-13
-verified_commit: 290b353
+verified_commit: 314aa67
 ---
 
 # 小白盒内容社区后端实现映射
