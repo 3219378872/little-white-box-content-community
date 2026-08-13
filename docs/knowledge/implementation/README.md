@@ -16,5 +16,5 @@
 
 ## 待办（需外部输入）
 
-- [TODO-blocked-gates](TODO-blocked-gates.md)：冻结评测集（DISC-060~063 / ASST-050~051）
+- [IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)：冻结评测集（DISC-060~063 / ASST-050~051）
   与月度生产观测数据（REL-030~043）两项收尾门禁。

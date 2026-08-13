@@ -1,14 +1,21 @@
 ---
-id: TODO-blocked-gates
+id: IMP-todo-blocked-gates
 layer: implementation
-title: 待外部输入的规范门禁 TODO
+title: 待外部输入的规范门禁登记
 owner: agent
-status: active
+status: unknown
 upstream:
   - DES-content-community-backend
+tracks:
+  - scripts/spec_evals.py
+  - eval/search_qrels.example.json
+  - eval/assistant_cases.example.json
+  - pkg/outboxx/metrics.go
+verified_at: 2026-08-13
+verified_commit: c9e350d
 ---
 
-# 待外部输入的规范门禁 TODO
+# 待外部输入的规范门禁登记
 
 以下两项是「基于固定意图层与规范层重构直至全部满足」目标剩余的收尾项。二者均依赖
 **人类或生产环境的输入**，agent 无法自行生成（伪造评测集或观测数据会违反规范对
@@ -28,13 +35,14 @@ upstream:
 **已就绪**：`scripts/spec_evals.py`（search/assistant/recommend/slo 四个子命令）、
 `eval/` 目录下的示例数据集结构、`make spec-evals-test`。
 
-**待办**：人类评审产出 `eval/search_qrels.json` 与 `eval/assistant_cases.json`
-（各 ≥200 条/个），随后运行 `python3 scripts/spec_evals.py search --qrels ...` 与
+**待办**：人类评审按 `eval/search_qrels.example.json` 与
+`eval/assistant_cases.example.json` 的结构产出正式冻结集（各 ≥200 条/个），随后运行
+`python3 scripts/spec_evals.py search --qrels ...` 与
 `assistant --cases ...` 完成门禁；推荐门禁还需冻结样本集
 （DISC-061/062/063：时间切分留出集 + bootstrap 95% 置信区间，相对规则基线提升 ≥5%）。
 
-> 说明：`eval/` 目前只有示例结构（`search_qrels.example.json`、
-> `assistant_cases.example.json`），正式冻结集路径为上述两个文件名，待人类评审产出。
+> 说明：正式冻结集建议命名 `search_qrels.json` 与 `assistant_cases.json`（不含
+> `.example`），路径固定在 `eval/` 下，待人类评审产出后回填。
 
 ## 2. 月度生产观测数据（REL-030~043）
 
