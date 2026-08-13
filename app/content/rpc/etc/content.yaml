@@ -14,7 +14,6 @@ Middlewares:
       - /content.ContentService/DeleteComment
       - /content.ContentService/GetCommentList
       - /content.ContentService/GetPostsByTag
-      - /content.ContentService/QueryPrepared
 DevServer:
   Enabled: true
   Host: 0.0.0.0

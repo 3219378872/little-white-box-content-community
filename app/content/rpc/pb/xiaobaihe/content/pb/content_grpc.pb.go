@@ -31,7 +31,6 @@ const (
 	ContentService_GetCommentList_FullMethodName = "/content.ContentService/GetCommentList"
 	ContentService_GetTags_FullMethodName        = "/content.ContentService/GetTags"
 	ContentService_GetPostsByTag_FullMethodName  = "/content.ContentService/GetPostsByTag"
-	ContentService_QueryPrepared_FullMethodName  = "/content.ContentService/QueryPrepared"
 )
 
 // ContentServiceClient is the client API for ContentService service.
@@ -64,8 +63,6 @@ type ContentServiceClient interface {
 	GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error)
 	// 获取标签下的帖子
 	GetPostsByTag(ctx context.Context, in *GetPostsByTagReq, opts ...grpc.CallOption) (*GetPostsByTagResp, error)
-	// DTM reliable message query-prepared checkback
-	QueryPrepared(ctx context.Context, in *QueryPreparedReq, opts ...grpc.CallOption) (*QueryPreparedResp, error)
 }
 
 type contentServiceClient struct {
@@ -196,16 +193,6 @@ func (c *contentServiceClient) GetPostsByTag(ctx context.Context, in *GetPostsBy
 	return out, nil
 }
 
-func (c *contentServiceClient) QueryPrepared(ctx context.Context, in *QueryPreparedReq, opts ...grpc.CallOption) (*QueryPreparedResp, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(QueryPreparedResp)
-	err := c.cc.Invoke(ctx, ContentService_QueryPrepared_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ContentServiceServer is the server API for ContentService service.
 // All implementations must embed UnimplementedContentServiceServer
 // for forward compatibility.
@@ -236,8 +223,6 @@ type ContentServiceServer interface {
 	GetTags(context.Context, *GetTagsReq) (*GetTagsResp, error)
 	// 获取标签下的帖子
 	GetPostsByTag(context.Context, *GetPostsByTagReq) (*GetPostsByTagResp, error)
-	// DTM reliable message query-prepared checkback
-	QueryPrepared(context.Context, *QueryPreparedReq) (*QueryPreparedResp, error)
 	mustEmbedUnimplementedContentServiceServer()
 }
 
@@ -283,9 +268,6 @@ func (UnimplementedContentServiceServer) GetTags(context.Context, *GetTagsReq) (
 }
 func (UnimplementedContentServiceServer) GetPostsByTag(context.Context, *GetPostsByTagReq) (*GetPostsByTagResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPostsByTag not implemented")
-}
-func (UnimplementedContentServiceServer) QueryPrepared(context.Context, *QueryPreparedReq) (*QueryPreparedResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method QueryPrepared not implemented")
 }
 func (UnimplementedContentServiceServer) mustEmbedUnimplementedContentServiceServer() {}
 func (UnimplementedContentServiceServer) testEmbeddedByValue()                        {}
@@ -524,24 +506,6 @@ func _ContentService_GetPostsByTag_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ContentService_QueryPrepared_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryPreparedReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ContentServiceServer).QueryPrepared(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ContentService_QueryPrepared_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentServiceServer).QueryPrepared(ctx, req.(*QueryPreparedReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ContentService_ServiceDesc is the grpc.ServiceDesc for ContentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -596,10 +560,6 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPostsByTag",
 			Handler:    _ContentService_GetPostsByTag_Handler,
-		},
-		{
-			MethodName: "QueryPrepared",
-			Handler:    _ContentService_QueryPrepared_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

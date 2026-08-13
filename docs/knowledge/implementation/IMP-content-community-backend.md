@@ -45,11 +45,10 @@ verified_commit: d269b62
 
 ## 总体状态
 
-`diverged`：搜索标题/摘要已回源权威正文，`Total` 按本页可见性回减；关注流按当前关系过滤。
+`diverged`：收藏列表已按当前访问者回填互动状态；Content 已删除 QueryPrepared 并接入生成脚本。
 仍偏离处：
 - `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0` 跳过乐观锁。
 - 搜索 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
-- Content/interaction/media proto 尚未接入 `scripts/generate.sh`。
 - `CORE-032` 计数 30s 收敛缺少生产观测。
 - `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
 - `REL-030~043` 月度 SLO/异步延迟缺少生产观测。

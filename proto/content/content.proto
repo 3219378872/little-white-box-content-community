@@ -31,8 +31,6 @@ service ContentService {
   rpc GetTags(GetTagsReq) returns (GetTagsResp);
   // 获取标签下的帖子
   rpc GetPostsByTag(GetPostsByTagReq) returns (GetPostsByTagResp);
-  // DTM reliable message query-prepared checkback
-  rpc QueryPrepared(QueryPreparedReq) returns (QueryPreparedResp);
 }
 
 // 帖子信息
@@ -233,6 +231,3 @@ message GetPostsByIdsResp {
   repeated PostInfo posts = 1;
 }
 
-message QueryPreparedReq {}
-
-message QueryPreparedResp {}

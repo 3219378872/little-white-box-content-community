@@ -12,7 +12,7 @@
 
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
-| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-13（搜索回源标题与本页 Total 已落地；CORE-013/全库 Total/评测/SLO 仍偏离） |
+| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-13（收藏状态按访问者回填，QueryPrepared 已删除；CORE-013/评测/SLO 仍偏离） |
 | [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
 | [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
 | [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |

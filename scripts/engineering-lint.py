@@ -720,11 +720,7 @@ def check_md_file_links():
     return errors
 
 
-UNGENERATED_RPC_PROTOS = {
-    "proto/content/content.proto": "goctl rpc is not wired in generate.sh",
-    "proto/interaction/interaction.proto": "goctl rpc is not wired in generate.sh",
-    "proto/media/media.proto": "goctl rpc is not wired in generate.sh",
-}
+UNGENERATED_RPC_PROTOS = {}
 
 
 def check_proto_generation(root: Path = ROOT) -> list[str]:

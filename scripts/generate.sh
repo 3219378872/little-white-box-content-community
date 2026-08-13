@@ -64,6 +64,15 @@ goctl rpc protoc proto/message/message.proto \
 goctl rpc protoc proto/feed/feed.proto \
   --go_out=app/feed/rpc --go-grpc_out=app/feed/rpc \
   --zrpc_out=app/feed/rpc --style=go_zero
+goctl rpc protoc proto/content/content.proto \
+  --go_out=app/content/rpc/pb --go-grpc_out=app/content/rpc/pb \
+  --zrpc_out=app/content/rpc --style=go_zero
+goctl rpc protoc proto/interaction/interaction.proto \
+  --go_out=app/interaction/rpc/pb --go-grpc_out=app/interaction/rpc/pb \
+  --zrpc_out=app/interaction/rpc --style=go_zero
+goctl rpc protoc proto/media/media.proto \
+  --go_out=app/media/rpc/pb --go-grpc_out=app/media/rpc/pb \
+  --zrpc_out=app/media/rpc --style=go_zero
 
 protoc -I . --go_out=app/embedding/mq --go-grpc_out=app/embedding/mq \
   proto/embedding/embedding.proto

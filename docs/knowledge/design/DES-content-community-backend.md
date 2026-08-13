@@ -26,7 +26,7 @@ upstream:
 - MQ 消费（`app/*/mq`）：search 索引、embedding、feed fanout、message 通知、行为链路、
   推荐特征、清理任务。
 - 可靠写入：权威业务写入与 outbox 同事务提交，异步效果经 relay 投递；
-  QueryPrepared 仍留在 Content proto 中，但实现失败关闭，不再依赖 DTM。
+  不再使用 DTM，Content 契约已删除 QueryPrepared。
 - 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog pipeline
   （去重+ClickHouse 存储）→ recommend-mq 特征更新。
 - 权威可见性：Content 是帖子状态的唯一权威。Feed、Search、Recommend 和 Assistant 对外返回前
@@ -56,8 +56,8 @@ ES 只索引 published，并在取消发布时尽力删文档，但这是异步�
 
 ### 写入
 
-权威写入与事务 outbox 同提交，relay 投递 MQ。不再使用 DTM。Content `QueryPrepared` 仍
-留在 proto 中，实现失败关闭；`scripts/generate.sh` 尚未生成 content/interaction/media。
+权威写入与事务 outbox 同提交，relay 投递 MQ。不再使用 DTM。content/interaction/media
+已接入 `scripts/generate.sh`；Content 契约不再包含 `QueryPrepared`。
 
 ## 失败模式
 

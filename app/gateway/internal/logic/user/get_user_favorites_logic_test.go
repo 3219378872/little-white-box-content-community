@@ -162,7 +162,8 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 					Total:   2,
 				}, nil
 			},
-			liked: map[int64]bool{100: true},
+			liked:     map[int64]bool{100: true},
+			favorited: map[int64]bool{100: true, 200: true},
 		},
 		ContentService: &fakeContentServiceFavorites{
 			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
@@ -201,6 +202,87 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 	}
 	if resp.List[1].IsLiked || !resp.List[1].IsFavorited {
 		t.Fatalf("expected post 200 not-liked but favorited, got %+v", resp.List[1])
+	}
+}
+
+func TestGetUserFavorites_NonOwnerUsesViewerFavoriteState(t *testing.T) {
+	svcCtx := &svc.ServiceContext{
+		UserService: &fakeUserService{
+			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
+				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
+			},
+		},
+		InteractionService: &fakeInteractionServiceFavorites{
+			getFavoriteListFn: func(_ context.Context, in *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+				if in.UserId != 42 {
+					t.Fatalf("expected owner 42, got %d", in.UserId)
+				}
+				return &interactionpb.GetFavoriteListResp{PostIds: []int64{100, 200}, Total: 2}, nil
+			},
+			liked:     map[int64]bool{200: true},
+			favorited: map[int64]bool{100: true},
+		},
+		ContentService: &fakeContentServiceFavorites{
+			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
+					{Id: 100, AuthorId: 1, Title: "Post A"},
+					{Id: 200, AuthorId: 2, Title: "Post B"},
+				}}, nil
+			},
+		},
+	}
+
+	ctx := jwtx.WithUserIdContext(context.Background(), 7)
+	resp, err := NewGetUserFavoritesLogic(ctx, svcCtx).GetUserFavorites(&types.GetUserFavoritesReq{UserId: 42, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resp.List) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.List))
+	}
+	if !resp.List[0].IsFavorited || resp.List[0].IsLiked {
+		t.Fatalf("viewer should have favorited only post 100, got %+v", resp.List[0])
+	}
+	if resp.List[1].IsFavorited || !resp.List[1].IsLiked {
+		t.Fatalf("viewer should like post 200 without favoriting it, got %+v", resp.List[1])
+	}
+}
+
+func TestGetUserFavorites_DropsUnavailablePostsAndReducesTotal(t *testing.T) {
+	svcCtx := &svc.ServiceContext{
+		UserService: &fakeUserService{
+			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
+				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
+			},
+		},
+		InteractionService: &fakeInteractionServiceFavorites{
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+				return &interactionpb.GetFavoriteListResp{PostIds: []int64{100, 200}, Total: 5}, nil
+			},
+			favorited: map[int64]bool{100: true},
+		},
+		ContentService: &fakeContentServiceFavorites{
+			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
+					{Id: 100, AuthorId: 1, Title: "live"},
+				}}, nil
+			},
+		},
+	}
+
+	ctx := jwtx.WithUserIdContext(context.Background(), 42)
+	resp, err := NewGetUserFavoritesLogic(ctx, svcCtx).GetUserFavorites(&types.GetUserFavoritesReq{UserId: 42, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resp.List) != 1 || resp.List[0].Id != 100 {
+		t.Fatalf("expected only published favorite, got %+v", resp.List)
+	}
+	if resp.Total != 4 {
+		t.Fatalf("expected Total=4 after dropping unpublished, got %d", resp.Total)
+	}
+	if !resp.List[0].IsFavorited {
+		t.Fatalf("owner should still see live favorite as favorited, got %+v", resp.List[0])
 	}
 }
 

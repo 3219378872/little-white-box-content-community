@@ -89,21 +89,24 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, errx.FromRPCError(err)
 	}
 
+	visible := make([]*contentservice.PostInfo, 0, len(postsResp.Posts))
 	postIDs := make([]int64, 0, len(postsResp.Posts))
 	for _, post := range postsResp.Posts {
-		if post != nil && post.Id > 0 {
-			postIDs = append(postIDs, post.Id)
+		if post == nil || post.Id <= 0 {
+			continue
 		}
+		visible = append(visible, post)
+		postIDs = append(postIDs, post.Id)
 	}
 	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
-	liked, _, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
+	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
 	if err != nil {
 		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
 		return nil, err
 	}
 
-	list := make([]types.PostItem, 0, len(postsResp.Posts))
-	for _, post := range postsResp.Posts {
+	list := make([]types.PostItem, 0, len(visible))
+	for _, post := range visible {
 		list = append(list, types.PostItem{
 			Id:            post.Id,
 			AuthorId:      post.AuthorId,
@@ -116,15 +119,24 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 			CommentCount:  post.CommentCount,
 			FavoriteCount: post.FavoriteCount,
 			IsLiked:       liked[post.Id],
-			// 收藏列表本身即表示当前访问者已收藏该帖子。
-			IsFavorited: true,
-			CreatedAt:   post.CreatedAt,
+			IsFavorited:   favorited[post.Id],
+			CreatedAt:     post.CreatedAt,
 		})
+	}
+
+	total := favoriteResp.Total
+	removed := int64(len(favoriteResp.PostIds) - len(visible))
+	if removed > 0 {
+		if total < removed {
+			total = int64(len(visible))
+		} else {
+			total -= removed
+		}
 	}
 
 	return &types.GetPostListResp{
 		List:     list,
-		Total:    favoriteResp.Total,
+		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, nil

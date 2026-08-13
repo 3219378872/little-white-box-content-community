@@ -62,7 +62,6 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 
 - go-zero 内置防护：Load Shedding → Rate Limiting → Circuit Breaker → Timeout。
 - 事务 outbox：权威写入与 outbox 同事务提交，relay 保证投递与幂等。
-  Content `QueryPrepared` 失败关闭，不再导入 DTM 客户端。
 - RocketMQ 消费者处理重试、幂等与不可恢复错误；outbox relay 有界指数退避。
 - 权威写入已提交后，缓存失效/索引/通知等异步效果失败不改变成功响应（CORE-053）。
 
