@@ -6,7 +6,6 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.45.0
 	github.com/apache/rocketmq-client-go/v2 v2.1.2
 	github.com/disintegration/imaging v1.6.2
-	github.com/dtm-labs/dtm v1.19.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
@@ -45,8 +44,6 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dtm-labs/dtmdriver v0.0.6 // indirect
-	github.com/dtm-labs/logger v0.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.4.0 // indirect

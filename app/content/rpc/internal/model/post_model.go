@@ -54,12 +54,9 @@ func NewPostModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) Po
 
 // FindPostById 按主键查询帖子（业务专用，显式 SQL）
 func (m *customPostModel) FindPostById(ctx context.Context, id int64) (*Post, error) {
-	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, id)
 	var post Post
-	err := m.QueryRowCtx(ctx, &post, postIdKey, func(ctx context.Context, conn sqlx.SqlConn, v interface{}) error {
-		query := fmt.Sprintf("select %s from %s where `id`=? limit 1", postRows, m.table)
-		return conn.QueryRowCtx(ctx, v, query, id)
-	})
+	query := fmt.Sprintf("select %s from %s where `id`=? limit 1", postRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &post, query, id)
 	switch {
 	case err == nil:
 		if post.Images.Valid {

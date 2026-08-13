@@ -20,6 +20,7 @@ tracks:
   - app/assistant/rpc/internal/tool
   - app/behavior/rpc/internal/logic
   - app/search/rpc/internal/logic
+  - app/feed/rpc/internal/logic
   - app/gateway
   - proto/content/content.proto
   - proto/message/message.proto
@@ -33,7 +34,7 @@ tracks:
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
 verified_at: 2026-08-13
-verified_commit: f089c0d
+verified_commit: d269b62
 ---
 
 # 小白盒内容社区后端实现映射
@@ -44,9 +45,11 @@ verified_commit: f089c0d
 
 ## 总体状态
 
-`diverged`：本次已按规格修复匿名公开读取、搜索/推荐查询时回源、Assistant 无证据拒答、
-以及个性化偏好读取失败 fail-closed。仍偏离处：
+`diverged`：关注流已按当前 following 分页过滤，单帖读取不再走缓存，DTM 客户端已移除。
+仍偏离处：
 - `CORE-013` 与 `CORE-062` 冲突，v1 仍允许 `expectedRevision=0` 跳过乐观锁。
+- 搜索 `Total` 仍可能反映可见性过滤前的 ES 计数。
+- Content `QueryPrepared` proto 仍在，因 `scripts/generate.sh` 不生成 `content.proto`。
 - `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
 - `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
 

@@ -5,6 +5,6 @@ import (
 	"testing"
 )
 
-func TestContentDTMContractTypesCompile(t *testing.T) {
+func TestQueryPreparedTypesRemainOnGeneratedContract(t *testing.T) {
 	var _ = (*contentpb.QueryPreparedReq)(nil)
 }

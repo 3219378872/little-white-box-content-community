@@ -14,6 +14,12 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+const (
+	followingLookupPageSize = 100
+	outboxAuthorBatchSize   = 100
+	maxFollowingLookupPages = 100
+)
+
 type GetFollowFeedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -42,42 +48,35 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 	}
 	limit := int64(in.PageSize) + 1
 
+	authorIDs, followingSet, err := l.currentFollowingAuthorIDs(in.UserId)
+	if err != nil {
+		return nil, err
+	}
+	if len(authorIDs) == 0 {
+		return &pb.GetFollowFeedResp{Items: []*pb.FeedItem{}}, nil
+	}
+
 	inboxRows, err := l.svcCtx.InboxModel.FindByUserBefore(l.ctx, in.UserId, cursorCreatedAt, cursorPostID, limit)
 	if err != nil {
 		l.Errorw("InboxModel.FindByUserBefore failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	followingResp, err := l.svcCtx.UserService.GetFollowing(l.ctx, &userservice.GetFollowingReq{UserId: in.UserId, Page: 1, PageSize: 1000})
+	outboxRows, outboxHasMore, err := l.outboxRowsForAuthors(authorIDs, cursorCreatedAt, cursorPostID, limit)
 	if err != nil {
-		l.Errorw("UserService.GetFollowing failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	if followingResp == nil {
-		l.Error("UserService.GetFollowing returned a nil response")
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	authorIDs := make([]int64, 0, len(followingResp.Users))
-	for _, user := range followingResp.Users {
-		if user != nil && user.Id > 0 {
-			authorIDs = append(authorIDs, user.Id)
-		}
-	}
-
-	var outboxRows []*model.FeedOutbox
-	if len(authorIDs) > 0 {
-		outboxRows, err = l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs, cursorCreatedAt, cursorPostID, limit)
-		if err != nil {
-			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
+		return nil, err
 	}
 
 	itemsByPostID := make(map[int64]*pb.FeedItem, len(inboxRows)+len(outboxRows))
+	keptCurrentInbox := false
 	for _, row := range inboxRows {
 		if row == nil || row.PostId <= 0 {
 			continue
 		}
+		if _, ok := followingSet[row.AuthorId]; !ok {
+			continue
+		}
+		keptCurrentInbox = true
 		itemsByPostID[row.PostId] = &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: feedTypeFollow}
 	}
 	for _, row := range outboxRows {
@@ -123,11 +122,83 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 			items = append(items, item)
 		}
 	}
-	hasMore := hasUnscanned || len(inboxRows) == int(limit) || len(outboxRows) == int(limit)
+	inboxHasMore := keptCurrentInbox && len(inboxRows) == int(limit)
+	hasMore := hasUnscanned || inboxHasMore || outboxHasMore
 	resp := &pb.GetFollowFeedResp{Items: items, HasMore: hasMore}
 	if lastScanned != nil {
 		resp.NextCursorCreatedAt = lastScanned.CreatedAt
 		resp.NextCursorPostId = lastScanned.PostId
 	}
 	return resp, nil
+}
+
+func (l *GetFollowFeedLogic) currentFollowingAuthorIDs(userID int64) ([]int64, map[int64]struct{}, error) {
+	authorIDs := make([]int64, 0)
+	seen := make(map[int64]struct{})
+	for page := int32(1); page <= maxFollowingLookupPages; page++ {
+		followingResp, err := l.svcCtx.UserService.GetFollowing(l.ctx, &userservice.GetFollowingReq{
+			UserId:   userID,
+			Page:     page,
+			PageSize: followingLookupPageSize,
+		})
+		if err != nil {
+			l.Errorw("UserService.GetFollowing failed", logx.Field("err", err.Error()), logx.Field("page", page))
+			return nil, nil, errx.NewWithCode(errx.SystemError)
+		}
+		if followingResp == nil {
+			l.Error("UserService.GetFollowing returned a nil response")
+			return nil, nil, errx.NewWithCode(errx.SystemError)
+		}
+		for _, user := range followingResp.Users {
+			if user == nil || user.Id <= 0 {
+				continue
+			}
+			if _, exists := seen[user.Id]; exists {
+				continue
+			}
+			seen[user.Id] = struct{}{}
+			authorIDs = append(authorIDs, user.Id)
+		}
+		if len(followingResp.Users) < int(followingLookupPageSize) {
+			return authorIDs, seen, nil
+		}
+		if followingResp.Total > 0 && int64(len(authorIDs)) >= followingResp.Total {
+			return authorIDs, seen, nil
+		}
+	}
+	l.Errorw("following lookup exceeded page cap", logx.Field("userId", userID), logx.Field("loaded", len(authorIDs)))
+	return nil, nil, errx.NewWithCode(errx.SystemError)
+}
+
+func (l *GetFollowFeedLogic) outboxRowsForAuthors(authorIDs []int64, cursorCreatedAt, cursorPostID, limit int64) ([]*model.FeedOutbox, bool, error) {
+	merged := make([]*model.FeedOutbox, 0)
+	hasMore := false
+	for start := 0; start < len(authorIDs); start += outboxAuthorBatchSize {
+		end := start + outboxAuthorBatchSize
+		if end > len(authorIDs) {
+			end = len(authorIDs)
+		}
+		rows, err := l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs[start:end], cursorCreatedAt, cursorPostID, limit)
+		if err != nil {
+			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))
+			return nil, false, errx.NewWithCode(errx.SystemError)
+		}
+		if len(rows) == int(limit) {
+			hasMore = true
+		}
+		merged = append(merged, rows...)
+	}
+	if len(merged) == 0 {
+		return merged, hasMore, nil
+	}
+	sort.Slice(merged, func(i, j int) bool {
+		if merged[i] == nil || merged[j] == nil {
+			return merged[j] == nil
+		}
+		if merged[i].CreatedAt == merged[j].CreatedAt {
+			return merged[i].PostId > merged[j].PostId
+		}
+		return merged[i].CreatedAt > merged[j].CreatedAt
+	})
+	return merged, hasMore, nil
 }

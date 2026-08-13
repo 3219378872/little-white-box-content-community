@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"errors"
-	"math"
 	"testing"
 
 	"errx"
@@ -59,15 +58,24 @@ func (m *mockUserService) GetFollowing(ctx context.Context, in *userservice.GetF
 	return nil, args.Error(1)
 }
 
+func followingUsers(ids ...int64) []*userservice.UserInfo {
+	users := make([]*userservice.UserInfo, 0, len(ids))
+	for _, id := range ids {
+		users = append(users, &userservice.UserInfo{Id: id})
+	}
+	return users
+}
+
 func TestGetFollowFeedLogic_MergesInboxAndOutbox(t *testing.T) {
 	inbox := new(mockInboxModel)
 	outbox := new(mockOutboxModel)
 	userSvc := new(mockUserService)
 	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(8, 9), Total: 2}, nil).Once()
 	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(2000), int64(9999), int64(3)).Return([]*model.FeedInbox{
 		{UserId: 1, AuthorId: 9, PostId: 1001, CreatedAt: 1000},
 	}, nil).Once()
-	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: 1000}).Return(&userservice.GetFollowingResp{Users: []*userservice.UserInfo{{Id: 8}, {Id: 9}}}, nil).Once()
 	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{8, 9}, int64(2000), int64(9999), int64(3)).Return([]*model.FeedOutbox{
 		{AuthorId: 8, PostId: 1002, CreatedAt: 1001},
 		{AuthorId: 9, PostId: 1001, CreatedAt: 1000},
@@ -131,13 +139,14 @@ func TestGetFollowFeedLogic_InvalidInput(t *testing.T) {
 // DISC-012：无关注内容时返回合法空结果，不混入推荐或热门内容。
 func TestGetFollowFeedLogic_EmptyFollowingReturnsEmpty(t *testing.T) {
 	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
 	userSvc := new(mockUserService)
-	inbox.On("FindByUserBefore", mock.Anything, int64(7), int64(math.MaxInt64), int64(math.MaxInt64), int64(21)).Return([]*model.FeedInbox{}, nil).Once()
-	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 7, Page: 1, PageSize: 1000}).
-		Return(&userservice.GetFollowingResp{Users: []*userservice.UserInfo{}}, nil).Once()
+	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 7, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: []*userservice.UserInfo{}, Total: 0}, nil).Once()
 
 	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
-		InboxModel: inbox, UserService: userSvc,
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
 	})
 	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 7, PageSize: 20})
 
@@ -145,18 +154,97 @@ func TestGetFollowFeedLogic_EmptyFollowingReturnsEmpty(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Items, "关注流为空时必须返回空结果，不混入推荐内容")
 	assert.False(t, resp.HasMore)
+	inbox.AssertNotCalled(t, "FindByUserBefore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	outbox.AssertNotCalled(t, "FindByAuthorsBefore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	contentSvc.AssertNotCalled(t, "GetPostsByIds", mock.Anything, mock.Anything)
+}
+
+func TestGetFollowFeedLogic_ExcludesUnfollowedInboxAuthors(t *testing.T) {
+	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
+	userSvc := new(mockUserService)
+	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(8), Total: 1}, nil).Once()
+	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(4000), int64(9999), int64(3)).Return([]*model.FeedInbox{
+		{UserId: 1, AuthorId: 9, PostId: 300, CreatedAt: 3000},
+		{UserId: 1, AuthorId: 9, PostId: 200, CreatedAt: 2000},
+	}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{8}, int64(4000), int64(9999), int64(3)).
+		Return([]*model.FeedOutbox{}, nil).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
+	})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{
+		UserId: 1, CursorCreatedAt: 4000, CursorPostId: 9999, PageSize: 2,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Empty(t, resp.Items)
+	assert.False(t, resp.HasMore)
+	contentSvc.AssertNotCalled(t, "GetPostsByIds", mock.Anything, mock.Anything)
+	inbox.AssertExpectations(t)
+	outbox.AssertExpectations(t)
+	userSvc.AssertExpectations(t)
+}
+
+func TestGetFollowFeedLogic_PaginatesFollowingAndBatchesOutbox(t *testing.T) {
+	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
+	userSvc := new(mockUserService)
+	contentSvc := new(mockContentService)
+
+	page1 := make([]int64, 0, followingLookupPageSize)
+	for id := int64(1); id <= followingLookupPageSize; id++ {
+		page1 = append(page1, id)
+	}
+	page2 := []int64{int64(followingLookupPageSize + 1)}
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(page1...), Total: int64(followingLookupPageSize + 1)}, nil).Once()
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 2, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(page2...), Total: int64(followingLookupPageSize + 1)}, nil).Once()
+	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(2000), int64(9999), int64(3)).
+		Return([]*model.FeedInbox{}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, page1, int64(2000), int64(9999), int64(3)).
+		Return([]*model.FeedOutbox{{AuthorId: 1, PostId: 11, CreatedAt: 1100}}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, page2, int64(2000), int64(9999), int64(3)).
+		Return([]*model.FeedOutbox{{AuthorId: followingLookupPageSize + 1, PostId: 22, CreatedAt: 1200}}, nil).Once()
+	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{22, 11}}).
+		Return(&contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
+			{Id: 22, AuthorId: followingLookupPageSize + 1, Title: "newer", Status: 1, CreatedAt: 1200},
+			{Id: 11, AuthorId: 1, Title: "older", Status: 1, CreatedAt: 1100},
+		}}, nil).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
+	})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 1, CursorCreatedAt: 2000, CursorPostId: 9999, PageSize: 2})
+
+	require.NoError(t, err)
+	require.Len(t, resp.Items, 2)
+	assert.Equal(t, int64(22), resp.Items[0].PostId)
+	assert.Equal(t, int64(11), resp.Items[1].PostId)
+	userSvc.AssertExpectations(t)
+	outbox.AssertExpectations(t)
+	contentSvc.AssertExpectations(t)
 }
 
 func TestGetFollowFeedLogic_FiltersUnavailablePostsAndAdvancesScannedCursor(t *testing.T) {
 	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
 	userSvc := new(mockUserService)
 	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(9), Total: 1}, nil).Once()
 	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(4000), int64(9999), int64(3)).Return([]*model.FeedInbox{
 		{UserId: 1, AuthorId: 9, PostId: 300, CreatedAt: 3000},
 		{UserId: 1, AuthorId: 9, PostId: 200, CreatedAt: 2000},
 		{UserId: 1, AuthorId: 9, PostId: 100, CreatedAt: 1000},
 	}, nil).Once()
-	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: 1000}).Return(&userservice.GetFollowingResp{}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{9}, int64(4000), int64(9999), int64(3)).
+		Return([]*model.FeedOutbox{}, nil).Once()
 	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{300, 200, 100}}).Return(&contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
 		{Id: 300, AuthorId: 9, Title: "published", Status: 1, CreatedAt: 3000},
 		{Id: 200, AuthorId: 9, Title: "unpublished", Status: 2, CreatedAt: 2000},
@@ -164,7 +252,7 @@ func TestGetFollowFeedLogic_FiltersUnavailablePostsAndAdvancesScannedCursor(t *t
 	}}, nil).Once()
 
 	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
-		InboxModel: inbox, UserService: userSvc, ContentService: contentSvc,
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
 	})
 	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{
 		UserId: 1, CursorCreatedAt: 4000, CursorPostId: 9999, PageSize: 2,
@@ -177,22 +265,27 @@ func TestGetFollowFeedLogic_FiltersUnavailablePostsAndAdvancesScannedCursor(t *t
 	assert.Equal(t, int64(1000), resp.NextCursorCreatedAt)
 	assert.Equal(t, int64(100), resp.NextCursorPostId)
 	inbox.AssertExpectations(t)
+	outbox.AssertExpectations(t)
 	userSvc.AssertExpectations(t)
 	contentSvc.AssertExpectations(t)
 }
 
 func TestGetFollowFeedLogic_ContentFailure(t *testing.T) {
 	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
 	userSvc := new(mockUserService)
 	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(9), Total: 1}, nil).Once()
 	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(2000), int64(9999), int64(3)).Return([]*model.FeedInbox{
 		{UserId: 1, AuthorId: 9, PostId: 1001, CreatedAt: 1000},
 	}, nil).Once()
-	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: 1000}).Return(&userservice.GetFollowingResp{}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{9}, int64(2000), int64(9999), int64(3)).
+		Return([]*model.FeedOutbox{}, nil).Once()
 	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{1001}}).Return(nil, errors.New("content unavailable")).Once()
 
 	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
-		InboxModel: inbox, UserService: userSvc, ContentService: contentSvc,
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
 	})
 	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{
 		UserId: 1, CursorCreatedAt: 2000, CursorPostId: 9999, PageSize: 2,
@@ -204,11 +297,28 @@ func TestGetFollowFeedLogic_ContentFailure(t *testing.T) {
 	contentSvc.AssertExpectations(t)
 }
 
+func TestGetFollowFeedLogic_FollowingError(t *testing.T) {
+	userSvc := new(mockUserService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(nil, errors.New("user down")).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{UserService: userSvc})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 1, CursorCreatedAt: 2000, CursorPostId: 9999, PageSize: 2})
+
+	require.Nil(t, resp)
+	require.Error(t, err)
+	assert.Equal(t, errx.SystemError, errx.GetCode(err))
+	userSvc.AssertExpectations(t)
+}
+
 func TestGetFollowFeedLogic_DependencyError(t *testing.T) {
 	inbox := new(mockInboxModel)
+	userSvc := new(mockUserService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(9), Total: 1}, nil).Once()
 	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(2000), int64(9999), int64(3)).Return(nil, errors.New("db down")).Once()
 
-	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{InboxModel: inbox})
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{InboxModel: inbox, UserService: userSvc})
 	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 1, CursorCreatedAt: 2000, CursorPostId: 9999, PageSize: 2})
 
 	require.Nil(t, resp)

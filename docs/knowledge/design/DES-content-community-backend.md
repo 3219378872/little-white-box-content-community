@@ -26,7 +26,7 @@ upstream:
 - MQ 消费（`app/*/mq`）：search 索引、embedding、feed fanout、message 通知、行为链路、
   推荐特征、清理任务。
 - 可靠写入：权威业务写入与 outbox 同事务提交，异步效果经 relay 投递；
-  DTM 屏障表仅保留 QueryPrepared 兼容 RPC 契约。
+  QueryPrepared 仍留在 Content proto 中，但实现失败关闭，不再依赖 DTM。
 - 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog pipeline
   （去重+ClickHouse 存储）→ recommend-mq 特征更新。
 - 权威可见性：Content 是帖子状态的唯一权威。Feed、Search、Recommend 和 Assistant 对外返回前
@@ -47,7 +47,7 @@ upstream:
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | partial | Update/Delete 支持 expected_revision 并返回 409；为兼容 CORE-062，v1 仍允许 0 跳过检查 |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update/Get 返回新 revision |
-| CORE-015 取消发布/删除不再出现 | aligned | 列表/发现/评论列表只收录 published；搜索/向量/关注流按 status 移除或跳过取消发布内容 |
+| CORE-015 取消发布/删除不再出现 | partial | 单帖 FindPostById 与批量 FindByIds 均不读缓存；列表/发现/评论回源 published。搜索 Total 仍可能反映过滤前 ES 计数 |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取 |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
@@ -76,12 +76,12 @@ upstream:
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| DISC-001 只返回可见已发布内容 | aligned | feed/search/recommend 返回前均用 Content GetPostsByIds 回源；可见性不可验证则失败关闭 |
+| DISC-001 只返回可见已发布内容 | partial | feed/search/recommend 返回前均用 Content GetPostsByIds 回源并失败关闭；搜索 Total 仍可能包含过滤前计数 |
 | DISC-002 稳定内容标识 | aligned | post_id 稳定 |
 | DISC-003 游标不重复、绑定上下文 | aligned | recommend 游标 HMAC+绑定；feed 游标按创建时间+id |
 | DISC-004 未曝光不得解释为负反馈 | aligned | 负反馈只来自 hide/dislike 等明确动作 |
 | DISC-010 关注流仅认证用户 | aligned | `/api/v2/feed/follow` 挂 jwt |
-| DISC-011 关系变化按当前关系生成 | aligned | feed 按 follower 关系查询 |
+| DISC-011 关系变化按当前关系生成 | aligned | 关注流先分页拉取当前 following，inbox 按当前关系过滤，outbox 按作者分批回源 |
 | DISC-012 空关注流返回空 | aligned | 不混入推荐 |
 | DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索 |
 | DISC-021 帖子结果来自可访问已发布内容 | aligned | ES 只收录 published，查询时再按 Content 权威状态过滤 |

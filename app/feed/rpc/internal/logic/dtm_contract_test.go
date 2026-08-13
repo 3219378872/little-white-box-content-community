@@ -1,11 +1,10 @@
 package logic
 
 import (
-	"testing"
-
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"testing"
 )
 
-func TestFeedDTMContractTypesCompile(t *testing.T) {
+func TestFeedFanoutTypesCompile(t *testing.T) {
 	var _ = (*feedpb.FanoutPostReq)(nil)
 }
