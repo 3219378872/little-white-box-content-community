@@ -7,4 +7,7 @@
 - 历史证据保留原始结果；后续失败通过新证据和实现状态表达，不回写旧记录。
 - 新证据使用 `../../templates/evidence.md`。
 
-当前暂无证据记录。
+## 当前证据记录
+
+- [2026-08-12-content-community.md](2026-08-12-content-community.md)：内容社区后端
+  实现验证（make check / make test / 集成测试），提交 9179b45。

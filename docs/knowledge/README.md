@@ -66,4 +66,4 @@ agent 无需额外授权即可维护 `design/`、`implementation/`、`proposals/
   [implementation/evidence/](implementation/evidence/README.md)。
 - 模板位于 `templates/`。README、模板和提案都不是正式项目要求。
 
-旧文档的当前分类、已知漂移与后续迁移条件见 [TRANSITION.md](TRANSITION.md)。
+旧文档迁移状态与后续待办见 [TRANSITION.md](TRANSITION.md)。
