@@ -85,3 +85,5 @@
   spec_evals CLI 子命令 dispatch 测试补齐（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-python-unit.md](2026-08-14-content-community-python-unit.md)：
   Python 工具单测统一入口与 CI 接入（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-precommit-hooks.md](2026-08-14-content-community-precommit-hooks.md)：
+  pre-commit 钩子补齐（工具质量），提交见 frontmatter。

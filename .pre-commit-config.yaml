@@ -13,9 +13,21 @@ repos:
         language: system
         types: [go]
         pass_filenames: false
+      - id: go-vet
+        name: go vet (workspace modules)
+        entry: scripts/vet.sh
+        language: system
+        types: [go]
+        pass_filenames: false
       - id: python-compile
         name: Python compile (tooling scripts)
         entry: python3 -m compileall -q scripts
+        language: system
+        files: '^scripts/.*\.py$'
+        pass_filenames: false
+      - id: python-unit
+        name: Python tool unit tests
+        entry: make python-unit
         language: system
         files: '^scripts/.*\.py$'
         pass_filenames: false
