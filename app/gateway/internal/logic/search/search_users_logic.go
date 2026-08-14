@@ -45,7 +45,7 @@ func (l *SearchUsersLogic) SearchUsers(req *types.SearchUsersReq) (resp *types.S
 	})
 	if err != nil {
 		l.Errorw("SearchService.SearchUsers RPC failed", logx.Field("err", err.Error()))
-		return nil, searchRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("SearchService.SearchUsers returned a nil response")

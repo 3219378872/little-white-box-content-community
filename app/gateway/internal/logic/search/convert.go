@@ -1,7 +1,6 @@
 package search
 
 import (
-	"errors"
 	"strings"
 
 	"errx"
@@ -21,14 +20,6 @@ func searchKeyword(keyword string) (string, error) {
 
 func validPage(page, pageSize int32) bool {
 	return page > 0 && pageSize > 0 && pageSize <= maxPageSize
-}
-
-func searchRPCError(err error) error {
-	var bizErr *errx.BizError
-	if errors.As(err, &bizErr) {
-		return bizErr
-	}
-	return errx.Wrap(err, errx.SystemError)
 }
 
 func searchPosts(posts []*searchservice.PostSearchResult) []types.SearchPostItem {

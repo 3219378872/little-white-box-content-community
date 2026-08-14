@@ -45,7 +45,7 @@ func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err 
 	})
 	if err != nil {
 		l.Errorw("SearchService.Search RPC failed", logx.Field("err", err.Error()))
-		return nil, searchRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("SearchService.Search returned a nil response")

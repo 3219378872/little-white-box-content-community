@@ -48,7 +48,7 @@ func (l *MarkConversationReadLogic) MarkConversationRead(req *types.MarkConversa
 			logx.Field("conversationId", req.ConversationId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, messageRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("MessageService.MarkRead returned a nil response")

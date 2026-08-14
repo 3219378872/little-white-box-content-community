@@ -5,7 +5,6 @@ package behavior
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"errx"
@@ -77,7 +76,7 @@ func (l *RecordBehaviorEventsLogic) RecordBehaviorEvents(req *types.RecordBehavi
 	})
 	if err != nil {
 		l.Errorw("BehaviorService.RecordEvents RPC failed", logx.Field("err", err.Error()))
-		return nil, behaviorRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("BehaviorService.RecordEvents returned a nil response")
@@ -103,12 +102,4 @@ func (l *RecordBehaviorEventsLogic) RecordBehaviorEvents(req *types.RecordBehavi
 		AcceptedCount: result.AcceptedCount,
 		RejectedCount: result.RejectedCount,
 	}, nil
-}
-
-func behaviorRPCError(err error) error {
-	var bizErr *errx.BizError
-	if errors.As(err, &bizErr) {
-		return bizErr
-	}
-	return errx.Wrap(err, errx.SystemError)
 }

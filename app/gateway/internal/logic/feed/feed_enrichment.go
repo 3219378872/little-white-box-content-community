@@ -36,7 +36,7 @@ func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items [
 		}
 		response, err := svcCtx.UserService.BatchGetUsers(ctx, &userservice.BatchGetUsersReq{UserIds: authorIDs})
 		if err != nil {
-			return nil, feedRPCError(err)
+			return nil, errx.FromRPCError(err)
 		}
 		if response == nil {
 			return nil, errx.NewWithCode(errx.SystemError)
@@ -66,7 +66,7 @@ func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items [
 			TargetType: postTargetType,
 		})
 		if err != nil {
-			return nil, feedRPCError(err)
+			return nil, errx.FromRPCError(err)
 		}
 		if response == nil {
 			return nil, errx.NewWithCode(errx.SystemError)

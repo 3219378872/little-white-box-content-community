@@ -1,22 +1,11 @@
 package message
 
 import (
-	"errors"
-
-	"errx"
 	"esx/app/message/rpc/messageservice"
 	"gateway/internal/types"
 )
 
 const maxMessagePageSize = 100
-
-func messageRPCError(err error) error {
-	var bizErr *errx.BizError
-	if errors.As(err, &bizErr) {
-		return bizErr
-	}
-	return errx.Wrap(err, errx.SystemError)
-}
 
 func conversationItems(conversations []*messageservice.ConversationInfo) []types.ConversationItem {
 	items := make([]types.ConversationItem, 0, len(conversations))

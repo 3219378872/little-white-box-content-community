@@ -58,7 +58,7 @@ func (l *SendMessageLogic) SendMessage(req *types.SendMessageReq) (resp *types.S
 	})
 	if err != nil {
 		l.Errorw("MessageService.SendMessage RPC failed", logx.Field("err", err.Error()))
-		return nil, messageRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("MessageService.SendMessage returned a nil response")

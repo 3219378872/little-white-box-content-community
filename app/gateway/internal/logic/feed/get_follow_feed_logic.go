@@ -5,7 +5,6 @@ package feed
 
 import (
 	"context"
-	"errors"
 
 	"errx"
 	"esx/app/feed/rpc/feedservice"
@@ -48,7 +47,7 @@ func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *t
 	})
 	if err != nil {
 		l.Errorw("FeedService.GetFollowFeed RPC failed", logx.Field("err", err.Error()))
-		return nil, feedRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("FeedService.GetFollowFeed returned a nil response")
@@ -91,12 +90,4 @@ func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *t
 		NextCursorCreatedAt: result.NextCursorCreatedAt,
 		NextCursorPostId:    result.NextCursorPostId,
 	}, nil
-}
-
-func feedRPCError(err error) error {
-	var bizErr *errx.BizError
-	if errors.As(err, &bizErr) {
-		return bizErr
-	}
-	return errx.Wrap(err, errx.SystemError)
 }

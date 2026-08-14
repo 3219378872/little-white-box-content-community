@@ -46,7 +46,7 @@ func (l *GetConversationsLogic) GetConversations(req *types.GetConversationsReq)
 	})
 	if err != nil {
 		l.Errorw("MessageService.GetConversations RPC failed", logx.Field("err", err.Error()))
-		return nil, messageRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("MessageService.GetConversations returned a nil response")

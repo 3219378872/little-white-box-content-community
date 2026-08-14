@@ -39,7 +39,7 @@ func (l *GetUnreadSummaryLogic) GetUnreadSummary() (resp *types.GetUnreadSummary
 	result, err := l.svcCtx.MessageService.GetUnreadCount(l.ctx, &messageservice.GetUnreadCountReq{UserId: userID})
 	if err != nil {
 		l.Errorw("MessageService.GetUnreadCount RPC failed", logx.Field("err", err.Error()))
-		return nil, messageRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("MessageService.GetUnreadCount returned a nil response")

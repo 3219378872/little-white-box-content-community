@@ -50,7 +50,7 @@ func (l *GetMessagesLogic) GetMessages(req *types.GetMessagesReq) (resp *types.G
 			logx.Field("conversationId", req.ConversationId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, messageRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("MessageService.GetMessages returned a nil response")

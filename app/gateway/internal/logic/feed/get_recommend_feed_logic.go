@@ -63,7 +63,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 			logx.Field("err", err.Error()),
 			logx.Field("requestId", req.RequestId),
 		)
-		return nil, feedRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("FeedService.GetRecommendFeed returned a nil response")

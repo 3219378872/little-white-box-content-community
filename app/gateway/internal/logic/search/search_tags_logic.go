@@ -44,7 +44,7 @@ func (l *SearchTagsLogic) SearchTags(req *types.SearchTagsReq) (resp *types.Sear
 	})
 	if err != nil {
 		l.Errorw("SearchService.SearchTags RPC failed", logx.Field("err", err.Error()))
-		return nil, searchRPCError(err)
+		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
 		l.Error("SearchService.SearchTags returned a nil response")

@@ -89,3 +89,5 @@
   pre-commit 钩子补齐（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-idempotencyx.md](2026-08-14-content-community-idempotencyx.md)：
   幂等模型共享包提取（DRY 重构），提交见 frontmatter。
+- [2026-08-14-content-community-rpc-error-dedup.md](2026-08-14-content-community-rpc-error-dedup.md)：
+  gateway RPC 错误映射 helper 去重（DRY），提交见 frontmatter。
