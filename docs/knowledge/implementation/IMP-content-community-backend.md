@@ -127,7 +127,7 @@ verified_commit: f7beca9
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | partial | DISC-060 已 live 通过（2026-08-14 合成语料+LLM 冻结集：NDCG@10=0.816≥0.7、泄漏=0，附 120s 超时变体说明）；DISC-061~063（推荐门禁）仍待 live 执行 |
+| DISC-060~063 离线评测门禁 | partial | DISC-060 已 live 通过（NDCG@10=0.816、泄漏=0）；DISC-061/063 冻结样本集已生成并执行（2026-08-14：model=baseline=规则热榜 0.0599，相对提升 0——生产无学习模型，按 DISC-062 不宣称改善，如实未达标）；待学习模型达 1 万曝光/1 千身份门槛后重生成真实排序复评 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -212,7 +212,7 @@ verified_commit: f7beca9
 | DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
-| DISC-A06 冻结集复现门禁 | partial | search 冻结集已 live 复现（NDCG@10=0.816、泄漏 0）；recommend 门禁待 live 样本集 |
+| DISC-A06 冻结集复现门禁 | partial | search 冻结集已 live 复现（NDCG@10=0.816、泄漏 0）；recommend 冻结样本集已执行（相对提升 0，规则基线现状，DISC-062 合规） |
 | ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
 | ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |

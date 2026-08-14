@@ -27,3 +27,5 @@
   SLO 报告管线合成观测干跑验证（6 能力域 met=True），提交 ea0daa0。
 - [2026-08-14-content-community-live-gates.md](2026-08-14-content-community-live-gates.md)：
   live 门禁执行（DISC-060 通过；ASST partial）与检索/分页缺陷修复，提交见 frontmatter。
+- [2026-08-14-content-community-recommend-gate.md](2026-08-14-content-community-recommend-gate.md)：
+  推荐门禁冻结样本集与执行（规则基线现状，相对提升 0），提交见 frontmatter。

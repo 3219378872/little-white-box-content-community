@@ -59,3 +59,10 @@ ASSISTANT_LLM_API_KEY；`--only corpus|qrels|cases` 可分段重生成）。
 - `multi_match operator:"and"` 配 cjk 二元组 → 长中文查询几乎无命中。
 - 检索参数经 live 调参：cjk 分词 + OR + `minimum_should_match 20%`，并用计算方式
   将 qrels 的 hidden 泄漏锚点替换为零重叠帖子（DISC-060 泄漏=0）。
+
+- `recommend_samples.json`：200 个会话样本（DISC-061/063 专用，与搜索/助手集分离），
+  `frozen=true` + 双评审元数据，时间覆盖 2026-07 整月（时间切分留出用）。当前
+  `model_ranked == baseline_ranked == 规则热榜`：生产仅有规则模型，无学习排序模型
+  （DISC-062 未达 10,000 曝光/1,000 身份门槛，不宣称学习模型改善）。门禁结果：
+  `recommend: model=baseline=0.0599 relative_improvement=0.0000 (require>=0.05)`
+  → 如实未达标；待学习模型达到门槛后以真实排序重生成。
