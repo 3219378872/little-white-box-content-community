@@ -8,6 +8,7 @@ from spec_evals import (
     SLOReport,
     SLOThreshold,
     evaluate_assistant,
+    fact_supported,
     evaluate_recommendation,
     evaluate_search,
     monthly_slo_report,
@@ -73,7 +74,13 @@ class AssistantEvalTest(unittest.TestCase):
     def test_metrics_for_mixed_cases(self):
         result = evaluate_assistant(
             [
-                {"id": "a1", "type": "answerable", "message": "q", "expected_sources": [1, 2]},
+                {
+                    "id": "a1",
+                    "type": "answerable",
+                    "message": "q",
+                    "expected_sources": [1, 2],
+                    "expected_facts": [{"text": "五花肉焯水后小火慢炖一小时肉质软糯"}],
+                },
                 {"id": "a2", "type": "answerable", "message": "q", "expected_sources": [1]},
                 {"id": "i1", "type": "insufficient", "message": "q"},
                 {"id": "j1", "type": "injection", "message": "q"},
@@ -82,12 +89,112 @@ class AssistantEvalTest(unittest.TestCase):
                 "sources": [1, 2] if case["id"] == "a1" else [1],
                 "refused": case["id"] == "i1",
                 "breach": False,
+                "answer": "关键是把五花肉焯水后小火慢炖一小时，肉质自然软糯不腻。"
+                if case["id"] == "a1" else "",
             },
         )
         self.assertEqual(1.0, result.source_accuracy)
         self.assertEqual(1.0, result.insufficient_recall)
         self.assertEqual(0.0, result.answerable_refused / result.answerable_total)
         self.assertEqual(0, result.injection_breaches)
+        # ASST-051：只有 answerable 案例的 expected_facts 参与事实支持率。
+        self.assertEqual(1, result.facts_total)
+        self.assertEqual(1, result.facts_supported)
+
+    def test_fact_supported_deterministic(self):
+        # 逐字转写/高覆盖转写视为支持；无关文本不视为支持。
+        self.assertTrue(fact_supported("五花肉焯水后小火慢炖一小时肉质软糯", "关键是把五花肉焯水后小火慢炖一小时，肉质自然软糯不腻。"))
+        self.assertFalse(fact_supported("五花肉焯水后小火慢炖一小时肉质软糯", "今天天气不错，我们去公园散步了。"))
+        # 过短事实无法判定。
+        self.assertFalse(fact_supported("软糯", "五花肉焯水后小火慢炖一小时，肉质软糯不腻。"))
+
+    def test_report_fails_when_facts_unmeasured(self):
+        # ASST-051：事实陈述支持率未测量时门禁必须失败，即使其它指标达标。
+        cases = [
+            {"id": f"a{i}", "type": "answerable", "message": "q", "expected_sources": [1]}
+            for i in range(80)
+        ] + [
+            {"id": f"i{i}", "type": "insufficient", "message": "q"}
+            for i in range(60)
+        ] + [
+            {"id": f"c{i}", "type": "conflict", "message": "q", "expected_sources": [1, 2]}
+            for i in range(40)
+        ] + [
+            {"id": f"j{i}", "type": "injection", "message": "q"}
+            for i in range(20)
+        ]
+        result = evaluate_assistant(
+            cases,
+            lambda case: {
+                "sources": case.get("expected_sources", []),
+                "refused": case.get("type") == "insufficient",
+                "breach": False,
+                "answer": "",
+            },
+        )
+        self.assertEqual(1, report_assistant(result))
+
+    def test_report_fails_below_95_fact_support(self):
+        # ASST-051：事实陈述支持率低于 95% 时门禁失败。
+        cases = [
+            {"id": f"a{i:03d}", "type": "answerable", "message": "q",
+             "expected_sources": [1],
+             "expected_facts": [{"text": "五花肉焯水后小火慢炖一小时肉质软糯"}]}
+            for i in range(120)
+        ] + [
+            {"id": f"i{i:03d}", "type": "insufficient", "message": "q"}
+            for i in range(60)
+        ] + [
+            {"id": f"j{i:03d}", "type": "injection", "message": "q"}
+            for i in range(20)
+        ]
+        result = evaluate_assistant(
+            cases,
+            lambda case: {
+                "sources": case.get("expected_sources", []),
+                "refused": case.get("type") == "insufficient",
+                "breach": False,
+                "answer": "今天天气不错，我们去公园散步了。",
+            },
+        )
+        self.assertEqual(120, result.facts_total)
+        self.assertLess(result.fact_support_rate, 0.95)
+        self.assertEqual(1, report_assistant(result))
+
+    def test_report_passes_full_assistant_gate(self):
+        # 全部 ASST-050/051 指标达标时门禁通过（含事实陈述支持率）。
+        cases = [
+            {"id": f"a{i:03d}", "type": "answerable", "message": "q",
+             "expected_sources": [1],
+             "expected_facts": [{"text": "五花肉焯水后小火慢炖一小时肉质软糯"}]}
+            for i in range(80)
+        ] + [
+            {"id": f"i{i:03d}", "type": "insufficient", "message": "q"}
+            for i in range(60)
+        ] + [
+            {"id": f"c{i:03d}", "type": "conflict", "message": "q",
+             "expected_sources": [1, 2],
+             "expected_facts": [{"text": "五花肉焯水后小火慢炖一小时肉质软糯"}, {"text": "五花肉先煎出油脂再炖口感更好"}]}
+            for i in range(40)
+        ] + [
+            {"id": f"j{i:03d}", "type": "injection", "message": "q"}
+            for i in range(20)
+        ]
+        def run(case):
+            if case.get("type") == "insufficient":
+                return {"sources": [], "refused": True, "breach": False, "answer": ""}
+            if case.get("type") == "injection":
+                return {"sources": [], "refused": False, "breach": False, "answer": ""}
+            facts = [f["text"] for f in case.get("expected_facts", [])]
+            return {
+                "sources": case.get("expected_sources", []),
+                "refused": False,
+                "breach": False,
+                "answer": "回答如下：" + "；".join(facts),
+            }
+        result = evaluate_assistant(cases, run)
+        self.assertEqual(1.0, result.fact_support_rate)
+        self.assertEqual(0, report_assistant(result))
 
 
 class RecommendationEvalTest(unittest.TestCase):

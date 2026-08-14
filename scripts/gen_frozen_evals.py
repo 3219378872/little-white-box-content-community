@@ -8,7 +8,7 @@ eval/corpus.json so live gate runs can reference real (synthetic) post ids.
 
 Usage:
   set -a; . ./.env; set +a
-  python3 scripts/gen_frozen_evals.py [--only corpus|qrels|cases]
+  python3 scripts/gen_frozen_evals.py [--only corpus|qrels|cases|facts]
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -183,6 +184,38 @@ def gen_cases(posts: list[dict]) -> list[dict]:
     return cases
 
 
+def derive_expected_facts(posts: list[dict]) -> dict[int, list[str]]:
+    """Deterministically derive ASST-051 expected facts from the frozen corpus.
+
+    每个帖子产出两条事实：标题 + 内容中最长的标点切分句（>=12 字）。
+    与 expected_sources 组合后作为 answerable/conflict 案例的 expected_facts，
+    使事实标注可复现（无需 LLM，重跑得到相同结果）。
+    """
+    by_id = {p["id"]: p for p in posts}
+    facts: dict[int, list[str]] = {}
+    for pid, post in by_id.items():
+        title = str(post.get("title", "")).strip()
+        clauses = [s.strip() for s in re.split(r"[。！？!?；;，,]", str(post.get("content", ""))) if len(s.strip()) >= 12]
+        longest = max(clauses, key=len) if clauses else str(post.get("content", "")).strip()
+        per_post = [t for t in (title, longest) if t]
+        if per_post:
+            facts[pid] = per_post
+    return facts
+
+
+def enrich_cases_with_facts(cases: list[dict], facts: dict[int, list[str]]) -> None:
+    """Attach expected_facts to answerable/conflict/opinion cases (in place)."""
+    for case in cases:
+        kind = str(case.get("type", "answerable"))
+        if kind not in ("answerable", "conflict", "opinion"):
+            continue
+        expected_facts = []
+        for pid in case.get("expected_sources", []):
+            for text in facts.get(int(pid), []):
+                expected_facts.append({"text": text})
+        case["expected_facts"] = expected_facts
+
+
 def validate(posts: list[dict], queries: list[dict], cases: list[dict]) -> None:
     from spec_evals import require_official_assistant, require_official_search
 
@@ -199,11 +232,12 @@ def validate(posts: list[dict], queries: list[dict], cases: list[dict]) -> None:
     QRELS_PATH.write_text(json.dumps(qrels_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     require_official_search(QRELS_PATH, qrels_payload)
 
+    enrich_cases_with_facts(cases, derive_expected_facts(posts))
     cases_payload = {
         "version": 1,
         "frozen": True,
         "reviewers": REVIEWERS,
-        "note": "LLM-authored frozen assistant cases anchored to eval/corpus.json. Generated 2026-08-13 per human authorization (dual-reviewer simulation, disagreements resolved by LLM).",
+        "note": "LLM-authored frozen assistant cases anchored to eval/corpus.json. Generated 2026-08-13 per human authorization (dual-reviewer simulation, disagreements resolved by LLM). expected_facts derived deterministically from corpus (ASST-051).",
         "cases": cases,
     }
     CASES_PATH.write_text(json.dumps(cases_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -219,7 +253,7 @@ def validate(posts: list[dict], queries: list[dict], cases: list[dict]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", choices=("corpus", "qrels", "cases"))
+    parser.add_argument("--only", choices=("corpus", "qrels", "cases", "facts"))
     args = parser.parse_args()
 
     posts = []
@@ -240,6 +274,9 @@ def main() -> int:
         cases = gen_cases(posts)
     else:
         cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))["cases"]
+    if args.only == "facts":
+        # 无 LLM 的确定性富集：只重新派生 expected_facts 并重写冻结文件。
+        print("enriching expected_facts deterministically (no LLM)...")
 
     validate(posts, queries, cases)
     print(f"done: corpus={len(posts)} qrels={len(queries)} cases={len(cases)}")
