@@ -5,6 +5,7 @@ package user
 
 import (
 	"context"
+	"gateway/internal/logic/pageutil"
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
@@ -33,10 +34,12 @@ func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetU
 }
 
 func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.GetPostListResp, error) {
+	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
+	pageSize := pageutil.ClampPageSize(req.PageSize)
 	result, err := l.svcCtx.ContentService.GetUserPosts(l.ctx, &contentservice.GetUserPostsReq{
 		UserId:   req.UserId,
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 		SortBy:   req.SortBy,
 	})
 	if err != nil {
@@ -85,6 +88,6 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		List:     list,
 		Total:    result.Total,
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 	}, nil
 }

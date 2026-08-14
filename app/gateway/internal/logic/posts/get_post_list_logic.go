@@ -5,6 +5,7 @@ package posts
 
 import (
 	"context"
+	"gateway/internal/logic/pageutil"
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
@@ -33,9 +34,11 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 }
 
 func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.GetPostListResp, err error) {
+	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
+	pageSize := pageutil.ClampPageSize(req.PageSize)
 	rpcReq := &contentservice.GetPostListReq{
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 		SortBy:   req.SortBy,
 	}
 	if userId, ok := jwtx.GetOptionalUserIdFromContext(l.ctx); ok {
@@ -85,6 +88,6 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 		List:     list,
 		Total:    result.Total,
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 	}, nil
 }

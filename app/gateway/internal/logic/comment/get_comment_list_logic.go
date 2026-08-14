@@ -5,6 +5,7 @@ package comment
 
 import (
 	"context"
+	"gateway/internal/logic/pageutil"
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
@@ -31,10 +32,12 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 }
 
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp *types.GetCommentListResp, err error) {
+	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
+	pageSize := pageutil.ClampPageSize(req.PageSize)
 	result, err := l.svcCtx.ContentService.GetCommentList(l.ctx, &contentservice.GetCommentListReq{
 		PostId:   req.PostId,
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 		SortBy:   req.SortBy,
 	})
 	if err != nil {
@@ -62,6 +65,6 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 		List:     list,
 		Total:    result.Total,
 		Page:     req.Page,
-		PageSize: req.PageSize,
+		PageSize: pageSize,
 	}, nil
 }
