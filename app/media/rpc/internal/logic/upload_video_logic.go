@@ -52,7 +52,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 	if meta.GetUserId() <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	contentHash, err := sha256File(sink.Path())
+	contentHash, err := sha256File(l.ctx, sink.Path())
 	if err != nil {
 		l.Errorw("hash uploaded video failed",
 			logx.Field("user_id", meta.GetUserId()),

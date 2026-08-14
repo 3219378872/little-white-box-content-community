@@ -26,12 +26,16 @@ const storageTypeSeaweedFS = 3
 
 // sha256File 返回文件内容的 sha256 十六进制指纹。
 // 上传内容属于幂等命令的一部分（CORE-050/051）：同键不同字节必须是不同命令。
-func sha256File(path string) (string, error) {
+// 所有请求上下文透传（AGENTS.md）：提前检查取消，关闭日志使用请求 ctx。
+func sha256File(ctx context.Context, path string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	handle, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer cleanupx.Close(logx.WithContext(context.Background()), "hash upload file", handle)
+	defer cleanupx.Close(logx.WithContext(ctx), "hash upload file", handle)
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, handle); err != nil {
 		return "", err

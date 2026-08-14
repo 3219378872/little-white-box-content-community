@@ -53,7 +53,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	if meta.GetUserId() <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	contentHash, err := sha256File(sink.Path())
+	contentHash, err := sha256File(l.ctx, sink.Path())
 	if err != nil {
 		l.Errorw("hash uploaded image failed",
 			logx.Field("user_id", meta.GetUserId()),

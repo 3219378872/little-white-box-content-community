@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"context"
 	"errors"
 	"errx"
 	"esx/app/media/rpc/internal/mediautil"
@@ -98,19 +99,24 @@ func TestSHA256File(t *testing.T) {
 	if err := os.WriteFile(path, []byte("hello media"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := sha256File(path)
+	sum, err := sha256File(context.Background(), path)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
 	if sum == "" {
 		t.Fatal("expected non-empty hash")
 	}
-	again, err := sha256File(path)
+	again, err := sha256File(context.Background(), path)
 	if err != nil || again != sum {
 		t.Fatalf("expected deterministic hash, got %q then %q (err=%v)", sum, again, err)
 	}
-	if _, err := sha256File(t.TempDir() + "/missing.bin"); err == nil {
+	if _, err := sha256File(context.Background(), t.TempDir()+"/missing.bin"); err == nil {
 		t.Fatal("expected error for missing file")
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := sha256File(canceled, path); err == nil {
+		t.Fatal("expected error for canceled context")
 	}
 }
 
