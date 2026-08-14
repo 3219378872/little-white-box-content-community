@@ -23,7 +23,7 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 .PHONY: help generate fmt-check engineering-lint vet lint check test coverage coverage-target \
 	coverage-no-gate integration-critical integration-init integration-run \
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
-	algorithm-test spec-evals-test model-pipeline-integration performance-gateway \
+	algorithm-test spec-evals-test model-pipeline-integration performance-gateway python-unit \
 	fault-injection-recommend production-config production-build \
 	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic
 
@@ -99,6 +99,10 @@ gen-recommend-samples: ## Regenerate the frozen recommendation sample set via LL
 
 gen-slo-synthetic: ## Regenerate the deterministic synthetic SLO observations
 	python3 scripts/gen_slo_synthetic.py $(ARGS)
+
+python-unit: ## Run dependency-light unit tests for repo Python tools
+	python3 -m unittest -q scripts.test_coverage_report
+	python3 -m unittest -q scripts.test_gateway_performance
 
 algorithm-test: ## Run dependency-light Python algorithm unit tests
 	python3 -m unittest discover -s algorithm -p 'test*.py' -v

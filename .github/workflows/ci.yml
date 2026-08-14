@@ -62,6 +62,8 @@ jobs:
         run: make coverage
       - name: Spec-quality gate evaluator unit tests
         run: make spec-evals-test
+      - name: Python tool unit tests
+        run: make python-unit
       - name: Algorithm unit tests
         run: make algorithm-test
       - name: Upload test evidence

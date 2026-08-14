@@ -115,30 +115,35 @@ class MainGateTest(unittest.TestCase):
     def tearDown(self):
         self.tempdir.cleanup()
 
-    def _profile(self, coverage_pct: float):
+    def _profile(self, logic_covered: int, logic_total: int):
+        # logic 层：covered 与 statements 由参数决定；handler 层始终全覆盖。
+        b_stmts = logic_total - logic_covered
         (self.dir / "p.out").write_text(
             "mode: set\n"
-            f"esx/app/content/rpc/internal/logic/a.go:1.1,2.1 {int(100)} {1}\n"
-            f"esx/app/content/rpc/internal/logic/b.go:1.1,2.1 {int(100 - coverage_pct)} {0}\n",
+            f"esx/app/content/rpc/internal/logic/a.go:1.1,2.1 {logic_covered} 1\n"
+            f"esx/app/content/rpc/internal/logic/b.go:1.1,2.1 {b_stmts} 0\n"
+            "esx/app/content/rpc/internal/handler/h.go:1.1,2.1 100 1\n",
             encoding="utf-8",
         )
 
     def test_gate_none_always_passes(self):
-        self._profile(0.0)
+        self._profile(0, 220)
         self.assertEqual(
             coverage_report.main([str(self.dir), "--thresholds", str(self.thresholds), "--gate", "none"]),
             0,
         )
 
     def test_baseline_failure_returns_one(self):
-        self._profile(0.0)
+        # logic 45.5% < 50% baseline -> fail。
+        self._profile(100, 220)
         self.assertEqual(
             coverage_report.main([str(self.dir), "--thresholds", str(self.thresholds), "--gate", "baseline"]),
             1,
         )
 
     def test_baseline_pass_returns_zero(self):
-        self._profile(80.0)
+        # logic 62.5% >= 50%、handler 100% >= 80% -> pass。
+        self._profile(200, 320)
         self.assertEqual(
             coverage_report.main([str(self.dir), "--thresholds", str(self.thresholds), "--gate", "baseline"]),
             0,
