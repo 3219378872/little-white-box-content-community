@@ -61,3 +61,5 @@
   验证码发送冷却与暴力尝试限制（安全加固），提交见 frontmatter。
 - [2026-08-14-content-community-login-hardening.md](2026-08-14-content-community-login-hardening.md)：
   登录路径暴力尝试加固（共享验证码计数 + 密码锁定），提交见 frontmatter。
+- [2026-08-14-content-community-doc-refresh.md](2026-08-14-content-community-doc-refresh.md)：
+  知识层元数据刷新（8 个修复批次后的复查），提交见 frontmatter。

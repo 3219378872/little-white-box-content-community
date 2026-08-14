@@ -10,7 +10,7 @@ tracks:
   - Makefile
   - scripts/
 verified_at: 2026-08-14
-verified_commit: 07fc700
+verified_commit: bea6c09
 ---
 
 # 开发与运维速查

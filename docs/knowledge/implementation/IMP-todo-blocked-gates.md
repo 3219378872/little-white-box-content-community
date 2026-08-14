@@ -12,7 +12,7 @@ tracks:
   - eval/assistant_cases.example.json
   - pkg/outboxx/metrics.go
 verified_at: 2026-08-14
-verified_commit: 7af6c6a
+verified_commit: bea6c09
 ---
 
 # 待外部输入的规范门禁登记
