@@ -21,6 +21,8 @@
   CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
 - [2026-08-13-content-community-rel020-aggregates.md](2026-08-13-content-community-rel020-aggregates.md)：
   REL-020 去标识聚合 365 天留存实现与 ClickHouse schema TTL 修复，提交 f7beca9。
+- [2026-08-14-content-community-comment-idem-hash.md](2026-08-14-content-community-comment-idem-hash.md)：
+  评论幂等命令哈希覆盖回复目标评论与被回复用户（CORE-050/051），提交见 frontmatter。
 - [2026-08-14-content-community-media-idem-hash.md](2026-08-14-content-community-media-idem-hash.md)：
   媒体上传幂等命令哈希纳入文件内容指纹（CORE-050/051 异命令冲突），提交见 frontmatter。
 - [2026-08-14-content-community-generate-hygiene.md](2026-08-14-content-community-generate-hygiene.md)：
