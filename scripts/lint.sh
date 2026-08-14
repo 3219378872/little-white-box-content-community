@@ -11,6 +11,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+source "$ROOT_DIR/scripts/_lib.sh"
+
 if ! command -v golangci-lint >/dev/null 2>&1; then
   cat >&2 <<'MSG'
 golangci-lint is not installed or not on PATH.
@@ -25,10 +27,7 @@ MSG
   exit 127
 fi
 
-mapfile -t MODULES < <(
-  find . -name go.mod -not -path './.worktree/*' -not -path './vendor/*' \
-    -exec dirname {} \; | sort
-)
+mapfile -t MODULES < <(list_modules)
 
 fail=0
 for module in "${MODULES[@]}"; do

@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+source "$ROOT_DIR/scripts/_lib.sh"
+
 gate="baseline"
 if [[ "${1:-}" == "--target" ]]; then
   gate="target"
@@ -18,10 +20,7 @@ output_dir="$ROOT_DIR/.artifacts/coverage"
 rm -rf "$output_dir"
 mkdir -p "$output_dir/profiles"
 
-mapfile -t modules < <(
-  find . -name go.mod -not -path './.worktree/*' -not -path './vendor/*' \
-    -exec dirname {} \; | sort
-)
+mapfile -t modules < <(list_modules)
 
 for module in "${modules[@]}"; do
   module_name="$(printf '%s' "$module" | sed 's#^\./##; s#[/.]#_#g')"

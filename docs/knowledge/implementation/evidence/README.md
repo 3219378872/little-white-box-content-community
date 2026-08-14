@@ -75,3 +75,5 @@
   业务路径全局日志修复（AGENTS.md ctx 规则），提交见 frontmatter。
 - [2026-08-14-content-community-gen-make-targets.md](2026-08-14-content-community-gen-make-targets.md)：
   评测数据生成器统一 Makefile 入口（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-scripts-lib.md](2026-08-14-content-community-scripts-lib.md)：
+  门禁脚本模块枚举去重（工具质量），提交见 frontmatter。

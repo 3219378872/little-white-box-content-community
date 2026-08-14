@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+source "$ROOT_DIR/scripts/_lib.sh"
+
 mode="${1:---all}"
 parallelism="${INTEGRATION_PARALLELISM:-1}"
 
@@ -60,10 +62,7 @@ s3_endpoint="${TEST_S3_ENDPOINT:-127.0.0.1:${INTEGRATION_S3_PORT:-8333}}"
 require_port "SeaweedFS S3" "${s3_endpoint%:*}" "${s3_endpoint##*:}"
 export TEST_S3_ENDPOINT="$s3_endpoint"
 
-mapfile -t modules < <(
-  find . -name go.mod -not -path './.worktrees/*' -not -path './vendor/*' \
-    -exec dirname {} \; | sort
-)
+mapfile -t modules < <(list_modules)
 
 for module in "${modules[@]}"; do
   echo "==> integration $module/..."
