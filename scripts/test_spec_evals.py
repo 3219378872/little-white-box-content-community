@@ -4,12 +4,18 @@ from pathlib import Path
 
 from spec_evals import (
     DatasetError,
+    RecommendationEvalResult,
+    SLOReport,
+    SLOThreshold,
     evaluate_assistant,
     evaluate_recommendation,
     evaluate_search,
     monthly_slo_report,
+    percentile,
     report_assistant,
+    report_recommendation,
     report_search,
+    report_slo,
     require_official_assistant,
     require_official_search,
     time_ordered_holdout,
@@ -130,12 +136,65 @@ class SLOReportTest(unittest.TestCase):
         self.assertEqual(2, report.available)
 
 
+class ReportFunctionTest(unittest.TestCase):
+    """Direct coverage for percentile and the report return-code helpers."""
+
+    def test_percentile_empty_returns_zero(self):
+        self.assertEqual(0.0, percentile([], 95))
+
+    def test_percentile_single_value(self):
+        self.assertEqual(42.0, percentile([42.0], 95))
+
+    def test_percentile_p95_index(self):
+        values = [float(index) for index in range(100)]  # 0..99
+        # p95 的 ceil(0.95*100)-1 = 94
+        self.assertEqual(94.0, percentile(values, 95))
+
+    def test_percentile_clamps_small_lists(self):
+        self.assertEqual(3.0, percentile([1.0, 2.0, 3.0], 95))
+
+    def test_report_slo_returns_zero_when_met(self):
+        report = SLOReport(
+            capability="community_core_read",
+            total=100,
+            available=100,
+            p95_ms=50,
+            threshold=SLOThreshold("community_core_read", 0.999, 300),
+        )
+        self.assertEqual(0, report_slo(report))
+
+    def test_report_slo_returns_one_when_not_met(self):
+        report = SLOReport(
+            capability="community_core_read",
+            total=100,
+            available=99,
+            p95_ms=50,
+            threshold=SLOThreshold("community_core_read", 0.999, 300),
+        )
+        self.assertEqual(1, report_slo(report))
+
+    def test_report_recommendation_returns_zero_when_passing(self):
+        result = RecommendationEvalResult(
+            case_count=40,
+            model_ndcg_at_20_values=[0.2] * 40,
+            baseline_ndcg_at_20_values=[0.1] * 40,
+        )
+        self.assertEqual(0, report_recommendation(result))
+
+    def test_report_recommendation_returns_one_when_failing(self):
+        result = RecommendationEvalResult(
+            case_count=40,
+            model_ndcg_at_20_values=[0.05] * 40,
+            baseline_ndcg_at_20_values=[0.1] * 40,
+        )
+        self.assertEqual(1, report_recommendation(result))
+
+
 class CLIDispatchTest(unittest.TestCase):
     """recommend/slo subcommands must dispatch to their own file inputs."""
 
     def test_recommend_subcommand_dispatches_to_samples(self):
         import json
-        import os
         import tempfile
         from pathlib import Path
 
