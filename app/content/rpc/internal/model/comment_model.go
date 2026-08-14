@@ -64,9 +64,10 @@ func (m *customCommentModel) InsertComment(ctx context.Context, comment *Comment
 func (m *customCommentModel) FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error) {
 	offset := (page - 1) * pageSize
 
-	orderBy := "`created_at` desc"
+	// CORE-060：评论分页同样需要确定性二级键。
+	orderBy := "`created_at` desc, `id` desc"
 	if sortBy == 2 {
-		orderBy = "`like_count` desc"
+		orderBy = "`like_count` desc, `id` desc"
 	}
 
 	var comments []*Comment

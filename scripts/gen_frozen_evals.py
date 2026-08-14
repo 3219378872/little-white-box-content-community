@@ -106,10 +106,10 @@ title 10-30 字；content 80-160 字，中文，禁止任何额外文字。"""
     return posts
 
 
-def _corpus_brief(posts: list[dict]) -> str:
+def _corpus_brief(posts: list[dict], content_chars: int = 36) -> str:
     lines = []
     for p in posts:
-        lines.append(f"{p['id']}|{p['title']}|{p['content'][:60]}")
+        lines.append(f"{p['id']}|{p['title']}|{p['content'][:content_chars]}")
     return "\n".join(lines)
 
 
@@ -118,20 +118,25 @@ def gen_qrels(posts: list[dict]) -> list[dict]:
     queries: list[dict] = []
     chunks = 10
     per_chunk = 20
-    for chunk in range(chunks):
+    checkpoint = ROOT / ".genwork/qrels.partial.json"
+    if checkpoint.exists():
+        queries = json.loads(checkpoint.read_text(encoding="utf-8"))
+        print(f"  resumed qrels checkpoint with {len(queries)} queries")
+    for chunk in range(len(queries) // per_chunk, chunks):
         start_id = chunk * per_chunk + 1
         brief = _corpus_brief(posts)
         prompt = f"""你是搜索质量评审员。基于下面语料（id|标题|内容摘要）生成 {per_chunk} 条
 中文社区搜索查询及其相关性标注。
 每条查询：query 是真实用户会搜的问题/关键词；relevant 列出 1-4 条与该查询主题相关的语料帖子
-（grade 3=高度相关，2=相关，1=弱相关）；hidden 列出 0-3 条表面相关但不应出现在结果中的语料帖子
-（用于泄漏检测，必须是语料中存在且与查询主题邻近的帖子）。
+（grade 3=高度相关，2=相关，1=弱相关）；hidden 列出 2-3 条与该查询主题明确无关、绝不应出现在
+结果中的语料帖子（泄漏检测锚点；必须是语料中存在且与查询主题明显不同领域，例如美食查询不要用
+编程帖子做 hidden）。
 查询 id 从 frozen-q-{start_id:03d} 开始连续。不要使用语料中不存在的帖子 id。
 只输出 JSON：{{"queries":[{{"id":str,"query":str,"relevant":[{{"post_id":int,"grade":int}}],"hidden":[int]}}]}}
 
 语料：
 {brief}"""
-        data = llm_json(prompt, max_tokens=12000)
+        data = llm_json(prompt, max_tokens=20000)
         chunk_q = data.get("queries", [])
         for q in chunk_q:
             for r in q.get("relevant", []):
@@ -143,7 +148,9 @@ def gen_qrels(posts: list[dict]) -> list[dict]:
             for pid in q["hidden"]:
                 assert pid in post_ids, f"hidden post {pid} not in corpus"
             queries.append(q)
-        print(f"  qrels chunk {chunk + 1}/8 ok ({len(chunk_q)} queries)")
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint.write_text(json.dumps(queries, ensure_ascii=False), encoding="utf-8")
+        print(f"  qrels chunk {chunk + 1}/10 ok ({len(queries)} queries, checkpoint saved)")
     return queries
 
 

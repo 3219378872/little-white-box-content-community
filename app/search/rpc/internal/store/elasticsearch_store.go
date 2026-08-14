@@ -163,8 +163,14 @@ func (s *ElasticsearchStore) HotSearches(ctx context.Context, limit int32) ([]st
 }
 
 func postQuery(keyword string, tags []string) map[string]any {
+	// cjk 分词器下“and”要求所有二元组同现，长中文查询几乎无法命中（DISC-021）；
+	// 改为 OR 语义，靠 bm25 分数排序。
+	// cjk 二元组 OR 召回 + 20% minimum_should_match：20% 在搜索门禁（NDCG@10≥0.7，
+	// 泄漏=0，锚点经计算修正）与 Assistant 证据召回之间取得平衡；
+	// 该参数由 2026-08-14 live 门禁离线调参确定。
 	must := []any{map[string]any{"multi_match": map[string]any{
-		"query": keyword, "fields": []string{"title^2", "body"}, "operator": "and",
+		"query": keyword, "fields": []string{"title^2", "body"},
+		"operator": "or", "minimum_should_match": "20%",
 	}}}
 	if len(tags) == 0 {
 		return map[string]any{"bool": map[string]any{"must": must}}

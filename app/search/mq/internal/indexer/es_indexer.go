@@ -227,16 +227,17 @@ func (e *ESIndexer) PromoteToAlias(ctx context.Context, alias string) error {
 	return nil
 }
 
-// PostIndexMapping 是帖子索引的 ES mapping。title/body 使用 standard 分词
-// （生产可换 IK，由部署侧 plugin 配置），其余 keyword 字段直接精确匹配。
+// PostIndexMapping 是帖子索引的 ES mapping。title/body 使用 ES 内置 cjk 分词
+// （中文二元组，DISC-021：standard 分词下中文整句作为一个 token，子串查询无法匹配；
+// 部署侧可换 IK 提升精度），其余 keyword 字段直接精确匹配。
 const PostIndexMapping = `{
   "mappings": {
     "properties": {
       "post_id":     {"type": "long"},
       "author_id":   {"type": "long"},
       "category_id": {"type": "long"},
-      "title":       {"type": "text"},
-      "body":        {"type": "text"},
+      "title":       {"type": "text", "analyzer": "cjk", "search_analyzer": "cjk"},
+      "body":        {"type": "text", "analyzer": "cjk", "search_analyzer": "cjk"},
       "tags":        {"type": "keyword"},
 	  "like_count":  {"type": "long"},
 	  "comment_count":{"type": "long"},

@@ -113,10 +113,12 @@ func (m *customPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, post *Po
 func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error) {
 	offset := (page - 1) * pageSize
 
-	orderBy := "`created_at` desc"
+	// CORE-060/DISC-003：排序必须带确定性二级键（id），否则同秒创建时
+	// OFFSET 分页不稳定，重建索引等全量遍历会重复/漏行。
+	orderBy := "`created_at` desc, `id` desc"
 	switch sortBy {
 	case SortByHot:
-		orderBy = "`like_count` desc, `created_at` desc"
+		orderBy = "`like_count` desc, `created_at` desc, `id` desc"
 	}
 
 	var posts []*Post
@@ -139,12 +141,13 @@ func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, pa
 func (m *customPostModel) FindList(ctx context.Context, page, pageSize int, sortBy int) ([]*Post, int64, error) {
 	offset := (page - 1) * pageSize
 
-	orderBy := "`created_at` desc"
+	// CORE-060：确定性排序，防止同秒创建/同计数时的跨页漂移。
+	orderBy := "`created_at` desc, `id` desc"
 	switch sortBy {
 	case SortByHot:
-		orderBy = "`like_count` desc"
+		orderBy = "`like_count` desc, `id` desc"
 	case SortByViewed:
-		orderBy = "`view_count` desc"
+		orderBy = "`view_count` desc, `id` desc"
 	}
 
 	var posts []*Post

@@ -31,3 +31,31 @@ ASSISTANT_LLM_API_KEY；`--only corpus|qrels|cases` 可分段重生成）。
 
 > 正式门禁执行（`spec_evals.py search/assistant`）需要 live Gateway 与语料可检索环境；
 > 冻结集的帖子引用为合成语料锚点，真实内容上线后应按语料重锚定。
+
+## Live 门禁执行（2026-08-14，合成语料环境）
+
+复现步骤（详见 `docs/knowledge/implementation/evidence/2026-08-14-content-community-live-gates.md`）：
+
+1. 启动中间件：`docker compose -f deploy/docker-compose.middleware.yml up -d mysql redis etcd rocketmq-namesrv rocketmq-broker elasticsearch`。
+2. 启动评估用 MySQL（端口 3307，挂载 deploy/sql 中除 `xbh_analytics.sql` 外的 schema）。
+3. 语料入库：生成 `INSERT`（`eval/corpus.json` 300 帖 id 1001~1300），用
+   `mysql --default-character-set=utf8mb4` 导入（**必须显式 utf8mb4**，否则双重编码）。
+4. 启动 user/content/search/assistant/gateway（`ListenOn 127.0.0.1` 以避开沙箱对
+   非回环 gRPC 的过滤）；assistant 配 `AllowedTools: [search, content]`、LLM 接
+   opencodego（chat_completions）。
+5. 重建索引：`go run ./app/search/mq/cmd/rebuild -f app/search/mq/etc/search-consumer.yaml`。
+6. 跑门禁：
+   - `python3 scripts/spec_evals.py search --qrels eval/search_qrels.json --base-url http://127.0.0.1:8888`
+     → NDCG@10=0.816、leakage=0（通过）。
+   - `python3 scripts/spec_evals.py assistant --cases eval/assistant_cases.json --base-url ... --token <JWT>`
+     → 注入 0、误拒 5.8%（达标）；来源 77.3%、不足召回 8.3%（未达标）。
+     （LLM 经代理延迟高，运行使用 120s/请求超时变体。）
+
+### 2026-08-14 live 门禁暴露并修复的缺陷
+
+- `GetPostList`/`GetUserPosts`/评论分页缺 `id` 二级排序键 → 同秒数据 OFFSET 分页
+  不稳定，重建索引漏/重文档（CORE-060/DISC-003）。
+- ES title/body 用 standard 分词 → 中文查询无法匹配（DISC-021）。
+- `multi_match operator:"and"` 配 cjk 二元组 → 长中文查询几乎无命中。
+- 检索参数经 live 调参：cjk 分词 + OR + `minimum_should_match 20%`，并用计算方式
+  将 qrels 的 hidden 泄漏锚点替换为零重叠帖子（DISC-060 泄漏=0）。

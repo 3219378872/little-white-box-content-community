@@ -25,3 +25,5 @@
   LLM 生成冻结评测集（DISC-060/ASST-050，锚定合成语料），提交 ec77518。
 - [2026-08-14-content-community-slo-synthetic.md](2026-08-14-content-community-slo-synthetic.md)：
   SLO 报告管线合成观测干跑验证（6 能力域 met=True），提交 ea0daa0。
+- [2026-08-14-content-community-live-gates.md](2026-08-14-content-community-live-gates.md)：
+  live 门禁执行（DISC-060 通过；ASST partial）与检索/分页缺陷修复，提交见 frontmatter。

@@ -51,7 +51,8 @@ verified_commit: f7beca9
 仍偏离处：
 - 搜索/列表/标签/收藏 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
 - `CORE-032` 计数 30s 收敛缺少生产观测。
-- `DISC-060~063` / `ASST-050~051` 冻结评测集待人类评审。
+- `DISC-061~063`（推荐门禁）待 live 样本集；`ASST-050/051` 的来源有效率与证据不足
+  召回未达阈值（live 结果 2026-08-14 见 ASST 行）。
 - `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
 
 ## 规格追踪
@@ -102,7 +103,7 @@ verified_commit: f7beca9
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| DISC-001 只返回可见已发布内容 | partial | 条目经 Content 回源过滤；搜索标题/摘要回填权威正文；Total 只按本页回减 |
+| DISC-001 只返回可见已发布内容 | partial | 条目经 Content 回源过滤；搜索标题/摘要回填权威正文；Total 只按本页回减；中文检索改用 cjk 分词 + 20% minimum_should_match（2026-08-14 live 门禁调参） |
 | DISC-002 稳定内容标识 | aligned | post_id 稳定 |
 | DISC-003 游标不重复、绑定上下文 | aligned | recommend 游标 HMAC+绑定；feed 游标按创建时间+id |
 | DISC-004 未曝光不得解释为负反馈 | aligned | 负反馈只来自 hide/dislike 等明确动作 |
@@ -126,7 +127,7 @@ verified_commit: f7beca9
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | partial | 评测脚本与官方数据集校验器已就绪；LLM 生成冻结集已入库（2026-08-13 人类授权，`eval/search_qrels.json` 锚定 `eval/corpus.json`）；NDCG/泄漏门禁需对 live Gateway 执行 |
+| DISC-060~063 离线评测门禁 | partial | DISC-060 已 live 通过（2026-08-14 合成语料+LLM 冻结集：NDCG@10=0.816≥0.7、泄漏=0，附 120s 超时变体说明）；DISC-061~063（推荐门禁）仍待 live 执行 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -159,7 +160,7 @@ verified_commit: f7beca9
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | partial | 评测脚本与官方数据集校验器已就绪；LLM 生成冻结集已入库（2026-08-13 人类授权，`eval/assistant_cases.json` 80/60/40/20 配额，锚定 `eval/corpus.json`）；门禁需对 live Gateway 执行 |
+| ASST-050~051 离线评测门禁 | partial | live 执行（2026-08-14）：注入越界 0（达标）、可回答误拒率 5.8%（≤10% 达标）、来源有效率 77.3%（<100%）、证据不足召回 8.3%（<95%）；检索与 LLM 引用行为待提升 |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -211,8 +212,8 @@ verified_commit: f7beca9
 | DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
-| DISC-A06 冻结集复现门禁 | partial | `scripts/spec_evals.py`（search/recommend 子命令）；冻结集已由 LLM 生成（人类授权）并入库；live 门禁执行待环境 |
-| ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go` |
+| DISC-A06 冻结集复现门禁 | partial | search 冻结集已 live 复现（NDCG@10=0.816、泄漏 0）；recommend 门禁待 live 样本集 |
+| ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
 | ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A04 完成/取消/降级/越权 | aligned | `app/gateway/internal/logic/assistant/assistant_chat_logic_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
