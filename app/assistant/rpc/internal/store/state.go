@@ -222,12 +222,17 @@ if not owner then
 else
   redis.call('EXPIRE', KEYS[1], ARGV[2])
 end
-local last = redis.call('LINDEX', KEYS[2], -1)
-if last then
-  local decoded = cjson.decode(last)
-  if decoded and decoded.request_id == ARGV[5] then
-    redis.call('EXPIRE', KEYS[2], ARGV[2])
-    return 1
+-- ASST-035：同一 request_id 的重试不得重复追加（检查整个列表，
+-- 而非仅最后一条——并发交错下同请求消息可能不在末尾）。
+local count = redis.call('LLEN', KEYS[2])
+for i = 0, count - 1 do
+  local raw = redis.call('LINDEX', KEYS[2], i)
+  if raw then
+    local decoded = cjson.decode(raw)
+    if decoded and decoded.request_id == ARGV[5] then
+      redis.call('EXPIRE', KEYS[2], ARGV[2])
+      return 1
+    end
   end
 end
 redis.call('RPUSH', KEYS[2], ARGV[3])
