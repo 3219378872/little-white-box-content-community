@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-14
-verified_commit: <SHA>
+verified_commit: ea0daa0
 commands:
   - python3 scripts/gen_slo_synthetic.py
   - python3 scripts/spec_evals.py slo --requests eval/slo/2026-07-<capability>.json --capability <capability>
