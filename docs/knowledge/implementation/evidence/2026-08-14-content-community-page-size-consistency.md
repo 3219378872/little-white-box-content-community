@@ -42,8 +42,15 @@ page<=0→1，gateway 回传原始值）。追加 `pageutil.ClampPage` 并应用
 - gateway 相关包测试全过；`make check` 通过；`make test` 全部模块
   通过（含 race）。
 
+## 补充（互动收藏列表，同一缺陷模式）
+
+复查 `get_user_favorites`：互动 RPC `GetFavoriteList` 也是 clamp 语义
+（page<1→1、pageSize 非正数或 >100→20），gateway 同样透传原始值。
+新增通用 `pageutil.ClampPageSizeTo(pageSize, def, max)`（内容 20/50、
+互动 20/100 复用），`get_user_favorites` 请求与响应均使用归一值。
+
 ## 未覆盖边界
 
-- search（RPC 拒绝超大 pageSize 而非 clamp）、user favorites（拒绝
-  语义）保持各自行为，不在本次改动范围；外部输入门禁不变，见
+- search（RPC 拒绝超大 pageSize 而非 clamp）保持拒绝语义，不在本次
+  改动范围；外部输入门禁不变，见
   [IMP-todo-blocked-gates](../IMP-todo-blocked-gates.md)。

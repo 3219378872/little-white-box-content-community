@@ -5,6 +5,7 @@ package user
 
 import (
 	"context"
+	"gateway/internal/logic/pageutil"
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
@@ -36,6 +37,9 @@ func NewGetUserFavoritesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq) (*types.GetPostListResp, error) {
+	page := pageutil.ClampPage(req.Page)
+	// 互动 GetFavoriteList 为 clamp 语义：pageSize 非正数→20、>100→20。
+	pageSize := pageutil.ClampPageSizeTo(req.PageSize, 20, 100)
 	// 未登录时 requesterID 为 0，由权限判断视为非 owner
 	requesterID, _ := jwtx.GetUserIdFromContext(l.ctx)
 
@@ -60,8 +64,8 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 
 	favoriteResp, err := l.svcCtx.InteractionService.GetFavoriteList(l.ctx, &interactionservice.GetFavoriteListReq{
 		UserId:   req.UserId,
-		Page:     int32(req.Page),
-		PageSize: int32(req.PageSize),
+		Page:     page,
+		PageSize: pageSize,
 	})
 	if err != nil {
 		l.Errorw("InteractionService.GetFavoriteList RPC failed",
@@ -75,8 +79,8 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return &types.GetPostListResp{
 			List:     []types.PostItem{},
 			Total:    favoriteResp.Total,
-			Page:     req.Page,
-			PageSize: req.PageSize,
+			Page:     page,
+			PageSize: pageSize,
 		}, nil
 	}
 
@@ -132,7 +136,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 	return &types.GetPostListResp{
 		List:     list,
 		Total:    total,
-		Page:     req.Page,
-		PageSize: req.PageSize,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }

@@ -28,3 +28,15 @@ func ClampPage(page int32) int32 {
 	}
 	return page
 }
+
+// ClampPageSizeTo 通用页大小归一化：非正数取默认值，超过上限取上限。
+// 供内容 RPC（20/50）与互动 RPC（20/100）等不同 clamp 语义复用。
+func ClampPageSizeTo(pageSize, def, max int32) int32 {
+	if pageSize <= 0 {
+		return def
+	}
+	if pageSize > max {
+		return max
+	}
+	return pageSize
+}

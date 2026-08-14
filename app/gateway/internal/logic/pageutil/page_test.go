@@ -37,3 +37,21 @@ func TestClampPageSize(t *testing.T) {
 		}
 	}
 }
+
+func TestClampPageSizeTo(t *testing.T) {
+	tests := []struct {
+		pageSize, def, max, want int32
+	}{
+		{pageSize: 0, def: 20, max: 100, want: 20},
+		{pageSize: -1, def: 20, max: 100, want: 20},
+		{pageSize: 20, def: 20, max: 100, want: 20},
+		{pageSize: 100, def: 20, max: 100, want: 100},
+		{pageSize: 101, def: 20, max: 100, want: 100},
+		{pageSize: 999, def: 20, max: 100, want: 100},
+	}
+	for _, tt := range tests {
+		if got := ClampPageSizeTo(tt.pageSize, tt.def, tt.max); got != tt.want {
+			t.Fatalf("ClampPageSizeTo(%d,%d,%d) = %d, want %d", tt.pageSize, tt.def, tt.max, got, tt.want)
+		}
+	}
+}
