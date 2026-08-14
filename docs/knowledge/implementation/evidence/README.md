@@ -71,3 +71,5 @@
   production.env.example 变量补全与 DSN 可覆盖，提交 2d7165e。
 - [2026-08-14-content-community-page-size-consistency.md](2026-08-14-content-community-page-size-consistency.md)：
   gateway 页大小响应一致性修复，提交见 frontmatter。
+- [2026-08-14-content-community-ctx-log.md](2026-08-14-content-community-ctx-log.md)：
+  业务路径全局日志修复（AGENTS.md ctx 规则），提交见 frontmatter。

@@ -2,9 +2,11 @@ package logic
 
 import (
 	"context"
+
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	"github.com/zeromicro/go-zero/core/logx"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -179,9 +181,9 @@ func TestInvalidateActionCountCache(t *testing.T) {
 }
 
 func TestParseInt64_Valid(t *testing.T) {
-	assert.Equal(t, int64(42), parseInt64("42"))
+	assert.Equal(t, int64(42), parseInt64("42", logx.WithContext(context.Background())))
 }
 
 func TestParseInt64_Invalid(t *testing.T) {
-	assert.Equal(t, int64(0), parseInt64("not-a-number"))
+	assert.Equal(t, int64(0), parseInt64("not-a-number", logx.WithContext(context.Background())))
 }

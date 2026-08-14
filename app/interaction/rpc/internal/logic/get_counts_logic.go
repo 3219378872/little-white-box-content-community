@@ -104,9 +104,9 @@ func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, boo
 	}
 
 	return &pb.GetCountsResp{
-		LikeCount:     parseInt64(likeVal),
-		FavoriteCount: parseInt64(favoriteVal),
-		CommentCount:  parseInt64(commentVal),
+		LikeCount:     parseInt64(likeVal, l.Logger),
+		FavoriteCount: parseInt64(favoriteVal, l.Logger),
+		CommentCount:  parseInt64(commentVal, l.Logger),
 	}, true
 }
 
@@ -143,10 +143,10 @@ func (l *GetCountsLogic) redisStore() svc2.RedisStore {
 	return nil
 }
 
-func parseInt64(value string) int64 {
+func parseInt64(value string, logger logx.Logger) int64 {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		logx.Errorf("parseInt64 failed: value=%s, err=%v", value, err)
+		logger.Errorf("parseInt64 failed: value=%s, err=%v", value, err)
 		return 0
 	}
 	return parsed

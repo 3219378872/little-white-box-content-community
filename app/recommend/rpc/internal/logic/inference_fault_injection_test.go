@@ -49,6 +49,9 @@ func newFaultingInferenceRanker(t *testing.T, mode string) model.InferenceRanker
 	connection, err := grpc.NewClient(
 		listener.Addr().String(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// 等待连接就绪，避免并发下 Rank 在 server 启动前被调用而返回
+		// Unavailable（该 flaky 会把 grpc deadline 场景误判为 unavailable）。
+		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	)
 	if err != nil {
 		server.Stop()
