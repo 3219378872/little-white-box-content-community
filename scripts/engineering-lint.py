@@ -4,6 +4,7 @@
 import re
 import sys
 from pathlib import Path
+from typing import Sequence
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT / "docs"
@@ -652,15 +653,22 @@ def resolve_reference(md_file: Path, ref: str) -> Path:
     return candidates[0]
 
 
-def is_active_file(path: Path) -> bool:
+def is_active_file(
+    path: Path,
+    root: Path = ROOT,
+    active_files: Sequence[Path] | None = None,
+    active_dirs: Sequence[Path] | None = None,
+) -> bool:
     """Return whether a markdown file is part of the current doc surface."""
+    files = ACTIVE_FILES if active_files is None else active_files
+    dirs = ACTIVE_DIRS if active_dirs is None else active_dirs
     try:
-        path.resolve().relative_to(ROOT)
+        path.resolve().relative_to(root.resolve())
     except ValueError:
         return False
-    if path.resolve() in {p.resolve() for p in ACTIVE_FILES}:
+    if path.resolve() in {p.resolve() for p in files}:
         return True
-    for active_dir in ACTIVE_DIRS:
+    for active_dir in dirs:
         try:
             path.resolve().relative_to(active_dir.resolve())
             return True
@@ -669,11 +677,11 @@ def is_active_file(path: Path) -> bool:
     return False
 
 
-def check_doc_policy():
+def check_doc_policy(root: Path = ROOT):
     """Keep the default agent context small and single-sourced."""
     errors = []
-    agents = ROOT / "AGENTS.md"
-    claude = ROOT / "CLAUDE.md"
+    agents = root / "AGENTS.md"
+    claude = root / "CLAUDE.md"
 
     agents_text = agents.read_text(encoding="utf-8")
     if len(agents_text.splitlines()) > 80:
@@ -688,26 +696,36 @@ def check_doc_policy():
         errors.append("[DOC-POLICY] CLAUDE.md must point to AGENTS.md")
 
     for directory in LEGACY_DOC_DIRS:
-        if directory.exists():
+        if (root / directory.relative_to(ROOT)).exists():
             errors.append(
                 f"[DOC-POLICY] legacy docs directory must be absent: {directory.relative_to(ROOT)}"
             )
 
-    scan_files = [agents, claude, DOCS_DIR / "INDEX.md", KNOWLEDGE_DIR / "README.md"]
+    scan_files = [
+        agents, claude, root / "docs" / "INDEX.md", root / "docs" / "knowledge" / "README.md"
+    ]
     for path in scan_files:
         content = path.read_text(encoding="utf-8", errors="ignore")
         for term in LEGACY_TERMS:
             if term in content:
                 errors.append(
-                    f"[DOC-POLICY] legacy or broad-load instruction in {path.relative_to(ROOT)}: {term}"
+                    f"[DOC-POLICY] legacy or broad-load instruction in {path.relative_to(root)}: {term}"
                 )
 
     return errors
 
 
-def check_md_file_links():
+def check_md_file_links(root: Path = ROOT):
     """Check that Markdown file references resolve to existing files."""
     errors = []
+    docs_dir = root / "docs"
+    if not docs_dir.exists():
+        return errors
+    active_files = [
+        root / "AGENTS.md", root / "CLAUDE.md", root / "docs" / "INDEX.md",
+        root / "docs" / "knowledge" / "README.md",
+    ]
+    active_dirs = [root / "docs" / "knowledge"]
     ref_patterns = [
         re.compile(r"\[([^\]]+)\]\(([^)]+)\)"),
         re.compile(
@@ -716,10 +734,10 @@ def check_md_file_links():
         ),
     ]
 
-    for md_file in DOCS_DIR.rglob("*.md"):
-        if not is_active_file(md_file):
+    for md_file in docs_dir.rglob("*.md"):
+        if not is_active_file(md_file, root, active_files, active_dirs):
             continue
-        rel_path = md_file.relative_to(ROOT)
+        rel_path = md_file.relative_to(root)
         content = md_file.read_text(encoding="utf-8", errors="ignore")
         lines = content.split("\n")
 

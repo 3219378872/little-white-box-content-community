@@ -77,3 +77,5 @@
   评测数据生成器统一 Makefile 入口（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-scripts-lib.md](2026-08-14-content-community-scripts-lib.md)：
   门禁脚本模块枚举去重（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-lint-testable.md](2026-08-14-content-community-lint-testable.md)：
+  engineering-lint 检查函数可测试化（工具质量），提交见 frontmatter。

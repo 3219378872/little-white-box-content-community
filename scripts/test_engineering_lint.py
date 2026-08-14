@@ -483,3 +483,76 @@ class SpecTrackingLintTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DocPolicyLintTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        (self.root / "docs" / "knowledge").mkdir(parents=True, exist_ok=True)
+        self.agents = self.root / "AGENTS.md"
+        self.claude = self.root / "CLAUDE.md"
+        (self.root / "docs" / "INDEX.md").write_text("# Index\n", encoding="utf-8")
+        (self.root / "docs" / "knowledge" / "README.md").write_text(
+            "# Policy\n", encoding="utf-8"
+        )
+        self.agents.write_text(
+            "# Rules\n\nSee docs/knowledge/README.md for routing.\n", encoding="utf-8"
+        )
+        self.claude.write_text("# CLAUDE\n\nSee AGENTS.md.\n", encoding="utf-8")
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def test_valid_docs_pass(self):
+        self.assertEqual(engineering_lint.check_doc_policy(self.root), [])
+
+    def test_agents_must_route_through_knowledge_readme(self):
+        self.agents.write_text("# Rules without routing\n", encoding="utf-8")
+        errors = engineering_lint.check_doc_policy(self.root)
+        self.assertTrue(any("route through" in e for e in errors))
+
+    def test_legacy_terms_are_rejected(self):
+        self.agents.write_text(
+            "# Rules\n\nSee docs/knowledge/README.md. zero-powers is forbidden.\n",
+            encoding="utf-8",
+        )
+        errors = engineering_lint.check_doc_policy(self.root)
+        self.assertTrue(any("zero-powers" in e for e in errors))
+
+    def test_legacy_docs_directory_is_rejected(self):
+        (self.root / "docs" / "references").mkdir(parents=True, exist_ok=True)
+        errors = engineering_lint.check_doc_policy(self.root)
+        self.assertTrue(any("legacy docs directory" in e for e in errors))
+
+    def test_claude_must_point_to_agents(self):
+        self.claude.write_text("# CLAUDE without pointer\n", encoding="utf-8")
+        errors = engineering_lint.check_doc_policy(self.root)
+        self.assertTrue(any("CLAUDE.md must point to AGENTS.md" in e for e in errors))
+
+
+class MdFileLinkLintTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        (self.root / "docs" / "knowledge" / "implementation").mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def test_resolved_link_passes(self):
+        (self.root / "docs" / "knowledge" / "implementation" / "target.md").write_text(
+            "# T\n", encoding="utf-8"
+        )
+        (self.root / "docs" / "knowledge" / "implementation" / "source.md").write_text(
+            "[t](target.md)\n", encoding="utf-8"
+        )
+        self.assertEqual(engineering_lint.check_md_file_links(self.root), [])
+
+    def test_broken_link_is_reported(self):
+        # 链接检查仅覆盖 docs/knowledge/ 下的活动文档（ACTIVE_DIRS）。
+        (self.root / "docs" / "knowledge" / "implementation" / "source.md").write_text(
+            "[missing](../missing.md)\n", encoding="utf-8"
+        )
+        errors = engineering_lint.check_md_file_links(self.root)
+        self.assertTrue(any("missing.md" in e for e in errors), errors)
