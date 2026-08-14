@@ -21,6 +21,8 @@
   CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
 - [2026-08-13-content-community-rel020-aggregates.md](2026-08-13-content-community-rel020-aggregates.md)：
   REL-020 去标识聚合 365 天留存实现与 ClickHouse schema TTL 修复，提交 f7beca9。
+- [2026-08-14-content-community-generate-hygiene.md](2026-08-14-content-community-generate-hygiene.md)：
+  生成卫生：make generate 不再留下 OptionalAuth 死脚手架 + REL-A04 证据精确化，提交 305ae40。
 - [2026-08-14-content-community-media-rowsaffected.md](2026-08-14-content-community-media-rowsaffected.md)：
   media SoftDelete RowsAffected 错误不再静默吞掉（全仓唯一吞错点），提交 2f29ee3。
 - [2026-08-14-content-community-media-outbox.md](2026-08-14-content-community-media-outbox.md)：
