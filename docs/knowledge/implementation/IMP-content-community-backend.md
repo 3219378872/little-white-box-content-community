@@ -36,7 +36,7 @@ tracks:
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
 verified_at: 2026-08-14
-verified_commit: bea6c09
+verified_commit: 1d4abae
 ---
 
 # 小白盒内容社区后端实现映射
@@ -154,7 +154,7 @@ verified_commit: bea6c09
 | ASST-024 截断不混入他人、一次性降级 | aligned | 会话按用户隔离 |
 | ASST-030 来源变化标记 | aligned | 续接会话时按保存的 revision 重验来源，变化时输出 source-changed 警告 |
 | ASST-031 来源不可用清理 | aligned | 续接会话时删除/取消发布来源标记 source-unavailable 并移除标题片段 |
-| ASST-032 LLM 不可用返回证据摘要 | aligned | sendPersistedDegraded 返回证据摘要 |
+| ASST-032 LLM 不可用返回证据摘要 | aligned | sendEvidenceDegraded 持久化并流式返回证据摘要 + 来源引用，以降级错误事件结束（LLM_UNAVAILABLE） |
 | ASST-033 检索失败关闭 | aligned | 检索或 Content 回源失败返回错误，不降级成无证据自由生成 |
 | ASST-034 安全策略拒绝、不泄露 | aligned | safety filter + 错误包装 |
 | ASST-035 同请求重试不矛盾 | aligned | 同 request_id 的重复用户消息被去重，避免重复/矛盾回答 |
