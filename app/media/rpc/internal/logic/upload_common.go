@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"errx"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const storageTypeSeaweedFS = 3
@@ -94,4 +96,23 @@ func nullInt(v int) sql.NullInt64 {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{Int64: int64(v), Valid: true}
+}
+
+// removeOrphanObjects best-effort 删除幂等命中时本次上传的孤儿对象；
+// 删除失败只告警（CORE-053：不影响已提交的成功响应）。
+func removeOrphanObjects(ctx context.Context, logger logx.Logger, storage interface {
+	Delete(ctx context.Context, objectKey string) error
+}, objectKeys ...string) {
+	if logger == nil || storage == nil {
+		return
+	}
+	for _, key := range objectKeys {
+		if key == "" {
+			continue
+		}
+		if err := storage.Delete(ctx, key); err != nil {
+			logger.Errorw("delete orphan object on idempotent retry failed",
+				logx.Field("object_key", key), logx.Field("err", err.Error()))
+		}
+	}
 }

@@ -107,6 +107,9 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 	if !result.Created {
+		// 本次上传的对象键与幂等命中的已有记录无关（每次随机），删除孤儿对象，
+		// 避免同幂等键重试在对象存储中泄漏无 DB 引用的文件（best-effort）。
+		removeOrphanObjects(l.ctx, l.Logger, l.svcCtx.Storage, objKey)
 		existing, findErr := l.svcCtx.MediaModel.FindOne(l.ctx, result.MediaID)
 		if findErr != nil {
 			l.Errorw("find existing media on idempotent retry failed",
