@@ -21,6 +21,8 @@
   CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
 - [2026-08-13-content-community-rel020-aggregates.md](2026-08-13-content-community-rel020-aggregates.md)：
   REL-020 去标识聚合 365 天留存实现与 ClickHouse schema TTL 修复，提交 f7beca9。
+- [2026-08-14-content-community-full-suite-reverify.md](2026-08-14-content-community-full-suite-reverify.md)：
+  全量套件复验（integration-all 91 包 0 失败；coverage 基线通过；目标门禁预期未达），提交 1de1bf7。
 - [2026-08-14-content-community-sha256-ctx.md](2026-08-14-content-community-sha256-ctx.md)：
   上传内容哈希透传请求 ctx（AGENTS.md 上下文规则），提交 9a39976。
 - [2026-08-14-content-community-httpx-error-contract.md](2026-08-14-content-community-httpx-error-contract.md)：
