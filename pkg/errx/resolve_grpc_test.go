@@ -38,6 +38,11 @@ func TestBizError_GRPCCode(t *testing.T) {
 		{"CannotFollowSelf maps to InvalidArgument", CannotFollowSelf, codes.InvalidArgument},
 		{"NotLikedYet maps to FailedPrecondition", NotLikedYet, codes.FailedPrecondition},
 		{"NotFavoritedYet maps to FailedPrecondition", NotFavoritedYet, codes.FailedPrecondition},
+		{"PasswordError maps to Unauthenticated", PasswordError, codes.Unauthenticated},
+		{"VerifyCodeError maps to InvalidArgument", VerifyCodeError, codes.InvalidArgument},
+		{"VerifyCodeExpired maps to InvalidArgument", VerifyCodeExpired, codes.InvalidArgument},
+		{"SearchEmpty maps to InvalidArgument", SearchEmpty, codes.InvalidArgument},
+		{"SearchTimeout maps to Internal", SearchTimeout, codes.Internal},
 		{"UnknownError maps to Internal", UnknownError, codes.Internal},
 	}
 
