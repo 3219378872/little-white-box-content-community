@@ -1,0 +1,13 @@
+{
+  "note": "LLM-generated monthly SLO observation profiles (deepseek-v4-flash, 2026-08-14, human-authorized synthetic production data). Request arrays are synthesized deterministically from these profiles by scripts/gen_slo_synthetic.py.",
+  "generated_by": "llm-deepseek-v4-flash",
+  "authorization": "human 2026-08-13/14: synthetic production observation for SLO dry-run",
+  "capabilities": [
+    {"capability": "community_core_read", "monthly_requests": 3010, "latency": {"dist": "lognormal", "mu": -2.8, "sigma": 0.5}, "unavailable_rate": 0.0005, "excluded_rate": 0.022, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
+    {"capability": "community_core_write", "monthly_requests": 2985, "latency": {"dist": "lognormal", "mu": -1.8, "sigma": 0.5}, "unavailable_rate": 0.0006, "excluded_rate": 0.028, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
+    {"capability": "behavior_ingest", "monthly_requests": 3040, "latency": {"dist": "lognormal", "mu": -2.7, "sigma": 0.45}, "unavailable_rate": 0.0004, "excluded_rate": 0.045, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
+    {"capability": "discovery", "monthly_requests": 2960, "latency": {"dist": "lognormal", "mu": -1.2, "sigma": 0.5}, "unavailable_rate": 0.003, "excluded_rate": 0.032, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
+    {"capability": "assistant_first_event", "monthly_requests": 3025, "latency": {"dist": "lognormal", "mu": -0.4, "sigma": 0.5}, "unavailable_rate": 0.006, "excluded_rate": 0.048, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
+    {"capability": "assistant_completion", "monthly_requests": 2995, "latency": {"dist": "lognormal", "mu": 1.5, "sigma": 0.5}, "unavailable_rate": 0.007, "excluded_rate": 0.035, "dates": {"from": "2026-07-01", "to": "2026-07-31"}}
+  ]
+}

@@ -14,3 +14,5 @@
 
 - [PROP-20260813-core-revision-contract](PROP-20260813-core-revision-contract.md)：
   CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项（closed：2026-08-13 采纳选项 B）。
+- [PROP-20260813-slo-synthetic-observation](PROP-20260813-slo-synthetic-observation.md)：
+  LLM 生成合成生产观测进行 SLO 报告管线干跑（open，待人类决定是否作为门禁关闭依据）。

@@ -182,10 +182,10 @@ verified_commit: f7beca9
 | REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
-| REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 命令落地；生产观测数据待月度报告 |
-| REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；p95/p99 达标需月度观测数据 |
-| REL-041 行为到特征 p95 60s/p99 5m | n/a | 需要观测数据 |
-| REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要观测数据 |
+| REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 落地；2026-08-14 合成观测干跑 6 能力域全部 met=True（管线验证，人类授权 LLM 生成）；真实生产观测待月度报告 |
+| REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；真实月度观测待收集（合成干跑已验证报告管线） |
+| REL-041 行为到特征 p95 60s/p99 5m | n/a | 需要真实观测数据（指标已埋点） |
+| REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要真实观测数据（指标已埋点） |
 | REL-043 RPO 0/RTO 30m | n/a | 运维目标 |
 | REL-044 有界恢复不重试风暴 | aligned | relay 退避与租约 |
 | REL-050~053 可观测与健康检查 | aligned | metrics + /health 存活 + /health/ready 就绪（列出依赖；可选发现能力故障仅 degraded）；网关 trace_id 经 gRPC metadata 透传下游 |

@@ -51,9 +51,12 @@ verified_commit: c9e350d
   内容到搜索 p95 30s / p99 2m。
 - RPO 0 / RTO 30 分钟（REL-043）。
 
-**已就绪**：所有 MQ 消费者与 outbox relay 已埋点（outcome 计数、event-lag 直方图、
-`esx_outbox_delivery_latency_seconds`），`scripts/spec_evals.py slo` 已实现月度口径
-（分母只统计满足公开契约的请求；明确标记的降级与正确拒答计为可用）。
+**合成干跑（2026-08-14，人类授权 LLM 生成）**：`eval/slo/profiles.json`（LLM 画像）+
+`scripts/gen_slo_synthetic.py`（确定性合成）产出 `eval/slo/2026-07-*.json`；
+6 个能力域 `spec_evals.py slo` 全部 `met=True`，证明报告管线（REL-030/031 口径、
+p95、阈值判断）正确。合成数据不构成生产合规证据（见
+`docs/knowledge/proposals/PROP-20260813-slo-synthetic-observation.md`）。
 
 **待办**：收集一个自然月、按 `scripts/spec_evals.py slo --requests ...` 输入格式导出的
-观测数据，运行 `make performance-gateway` 与 SLO 报告命令核对达标情况。
+**真实**生产观测数据，运行 `make performance-gateway` 与 SLO 报告命令核对达标情况，
+并按 REL-A05 出正式报告。
