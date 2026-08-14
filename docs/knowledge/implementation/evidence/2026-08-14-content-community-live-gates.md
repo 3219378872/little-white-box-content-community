@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-14
-verified_commit: <SHA>
+verified_commit: fb007f5
 commands:
   - docker compose middleware + eval MySQL (port 3307)
   - corpus seed (mysql --default-character-set=utf8mb4)
