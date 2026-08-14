@@ -10,6 +10,7 @@ import (
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
 	"mqx"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -81,10 +82,13 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	}
 	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
 	idem := model.IdempotencyRecord{
-		Scope:       "post:create",
-		UserID:      in.AuthorId,
-		Key:         idempotencyKey,
-		CommandHash: model.CommandHash(in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ",")),
+		Scope:  "post:create",
+		UserID: in.AuthorId,
+		Key:    idempotencyKey,
+		CommandHash: model.CommandHash(
+			in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
+			strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
+		),
 	}
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)

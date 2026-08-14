@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -180,4 +181,43 @@ func TestCreatePostLogicRejectsOversizedContentAndTag(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+}
+
+func TestCreatePostCommandHashCoversStatusAndMediaIDs(t *testing.T) {
+	// CORE-050/051：幂等命令哈希必须区分 status 与媒体引用；
+	// 同键但命令不同必须产生冲突，而不是静默返回旧资源。
+	base := &pb.CreatePostReq{
+		AuthorId: 1, Title: "title", Content: "content",
+		Tags: []string{"go"}, MediaIds: []int64{3, 1}, Status: 1,
+		IdempotencyKey: "key-1",
+	}
+	baseHash := postCommandHashForTest(base)
+
+	draft := &pb.CreatePostReq{}
+	*draft = *base
+	draft.Status = 0
+	if postCommandHashForTest(draft) == baseHash {
+		t.Fatal("status change must change the idempotency command hash")
+	}
+
+	reordered := &pb.CreatePostReq{}
+	*reordered = *base
+	reordered.MediaIds = []int64{1, 3}
+	if postCommandHashForTest(reordered) != baseHash {
+		t.Fatal("media id order must not change the idempotency command hash")
+	}
+
+	withoutMedia := &pb.CreatePostReq{}
+	*withoutMedia = *base
+	withoutMedia.MediaIds = nil
+	if postCommandHashForTest(withoutMedia) == baseHash {
+		t.Fatal("media id set change must change the idempotency command hash")
+	}
+}
+
+func postCommandHashForTest(in *pb.CreatePostReq) string {
+	return model.CommandHash(
+		in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
+		strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
+	)
 }

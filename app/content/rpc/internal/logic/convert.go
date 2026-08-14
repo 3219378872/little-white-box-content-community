@@ -3,6 +3,8 @@ package logic
 import (
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -69,4 +71,27 @@ func TagToTagInfo(tag *model2.Tag) *pb.TagInfo {
 		Name:      tag.Name,
 		PostCount: tag.PostCount,
 	}
+}
+
+// sortedMediaIDs 返回排序去重后的媒体 ID 字符串列表，用于幂等命令哈希：
+// 同一批媒体顺序无关（CORE-050 同命令语义）。
+func sortedMediaIDs(ids []int64) []string {
+	unique := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	sort.Slice(unique, func(i, j int) bool { return unique[i] < unique[j] })
+	out := make([]string, 0, len(unique))
+	for _, id := range unique {
+		out = append(out, strconv.FormatInt(id, 10))
+	}
+	return out
 }
