@@ -60,5 +60,7 @@ verified_commit: bea6c09
 - 纯 SQL 断言可用 sqlmock；真实 DB/Redis/RPC 行为用仓库已有 testcontainers 工具。
 - `//go:build integration` 测试不属于默认套件，必须通过集成测试入口显式执行。
 - 测试分层：`make test`（race + 覆盖率）、`make coverage*`、`make integration-*`、
-  `make fuzz`、`make spec-evals-test`、`make algorithm-test`。
+  `make fuzz`、`make spec-evals-test`、`make algorithm-test`、`make python-unit`
+  （Python 工具单测）、`make gen-frozen-evals`/`gen-recommend-samples`/
+  `gen-slo-synthetic`（评测数据生成）。
 - 验证命令：`make check`、`make test`、`make coverage`；报告实际执行结果。

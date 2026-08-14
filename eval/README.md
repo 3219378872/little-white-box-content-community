@@ -25,9 +25,11 @@
 - `assistant_cases.json`：200 个案例（ASST-050，80 可回答 / 60 证据不足 / 40 冲突 / 20 注入），
   期望来源全部引用 `corpus.json`。
 
-由人类授权于 2026-08-13 使用 LLM（deepseek-v4-flash）生成，可复现脚本：
-`python3 scripts/gen_frozen_evals.py`（需要 `./.env` 中的 OPENAI_API_URL 与
-ASSISTANT_LLM_API_KEY；`--only corpus|qrels|cases` 可分段重生成）。
+由人类授权于 2026-08-13 使用 LLM（deepseek-v4-flash）生成，可复现命令：
+`make gen-frozen-evals`（底层 `python3 scripts/gen_frozen_evals.py`，需要
+`./.env` 中的 OPENAI_API_URL 与 ASSISTANT_LLM_API_KEY；`ARGS="--only corpus|qrels|cases"`
+可分段重生成）。推荐样本与 SLO 合成观测分别用 `make gen-recommend-samples` 与
+`make gen-slo-synthetic` 生成。
 
 > 正式门禁执行（`spec_evals.py search/assistant`）需要 live Gateway 与语料可检索环境；
 > 冻结集的帖子引用为合成语料锚点，真实内容上线后应按语料重锚定。
