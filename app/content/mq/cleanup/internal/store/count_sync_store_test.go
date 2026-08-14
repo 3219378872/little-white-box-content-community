@@ -103,3 +103,23 @@ func TestCountSyncStoreDBFailurePropagates(t *testing.T) {
 	err := store.ApplyBehaviorCount(context.Background(), likeEvent(11, 55, event.BehaviorActionLike, "post"))
 	require.Error(t, err)
 }
+
+func TestCountSyncStoreDBFailureRemovesDedupForRetry(t *testing.T) {
+	// 去重占位在增量应用前设置：应用失败时必须移除占位，否则 MQ 重投会被
+	// 去重挡住，计数永久丢失。
+	db := &fakeCountDB{err: errors.New("db down")}
+	redisClient := &fakeCountRedis{setnxResults: map[string]bool{}}
+	store := NewCountSyncStore(db, redisClient)
+	event := likeEvent(12, 55, event.BehaviorActionLike, "post")
+
+	require.Error(t, store.ApplyBehaviorCount(context.Background(), event))
+	assert.Equal(t, []string{"content:countsync:dedup:12"}, redisClient.deleted,
+		"failed apply must release the dedup key so redelivery can retry")
+
+	// 重投：DB 恢复，占位重新成功，计数正常应用。
+	db.err = nil
+	redisClient.deleted = nil
+	require.NoError(t, store.ApplyBehaviorCount(context.Background(), event))
+	require.Len(t, db.queries, 1)
+	assert.Contains(t, db.queries[0], "`like_count` = `like_count` + ?")
+}
