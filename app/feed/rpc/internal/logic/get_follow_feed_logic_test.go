@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 
 	"errx"
@@ -325,4 +326,78 @@ func TestGetFollowFeedLogic_DependencyError(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, errx.SystemError, errx.GetCode(err))
 	inbox.AssertExpectations(t)
+}
+
+func TestGetFollowFeedLogic_FullUnfollowedInboxPageStillAdvancesCursor(t *testing.T) {
+	// DISC-011：取关后旧 inbox 行残留。若本页 limit 行全部属于已取关作者，
+	// 仍必须返回 HasMore 并推进游标，否则更早的当前关注作者行被永久跳过。
+	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
+	userSvc := new(mockUserService)
+	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(8), Total: 1}, nil).Once()
+	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(math.MaxInt64), int64(math.MaxInt64), int64(3)).
+		Return([]*model.FeedInbox{
+			{UserId: 1, AuthorId: 9, PostId: 300, CreatedAt: 3000},
+			{UserId: 1, AuthorId: 9, PostId: 200, CreatedAt: 2000},
+			{UserId: 1, AuthorId: 9, PostId: 100, CreatedAt: 1000},
+		}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{8}, int64(math.MaxInt64), int64(math.MaxInt64), int64(3)).
+		Return([]*model.FeedOutbox{}, nil).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
+	})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 1, PageSize: 2})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Empty(t, resp.Items)
+	assert.True(t, resp.HasMore, "full unfollowed page must still allow paging")
+	assert.Equal(t, int64(1000), resp.NextCursorCreatedAt, "cursor must advance past scanned rows")
+	assert.Equal(t, int64(100), resp.NextCursorPostId)
+	contentSvc.AssertNotCalled(t, "GetPostsByIds", mock.Anything, mock.Anything)
+	inbox.AssertExpectations(t)
+	outbox.AssertExpectations(t)
+	userSvc.AssertExpectations(t)
+}
+
+func TestGetFollowFeedLogic_UnpublishedCandidatesStillAdvanceCursor(t *testing.T) {
+	// 候选行全部未发布（enrich 后不可见）时，本页无可见项但仍有更多行：
+	// 必须推进游标避免死路。
+	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
+	userSvc := new(mockUserService)
+	contentSvc := new(mockContentService)
+	userSvc.On("GetFollowing", mock.Anything, &userservice.GetFollowingReq{UserId: 1, Page: 1, PageSize: followingLookupPageSize}).
+		Return(&userservice.GetFollowingResp{Users: followingUsers(9), Total: 1}, nil).Once()
+	inbox.On("FindByUserBefore", mock.Anything, int64(1), int64(math.MaxInt64), int64(math.MaxInt64), int64(3)).Return([]*model.FeedInbox{
+		{UserId: 1, AuthorId: 9, PostId: 300, CreatedAt: 3000},
+		{UserId: 1, AuthorId: 9, PostId: 200, CreatedAt: 2000},
+		{UserId: 1, AuthorId: 9, PostId: 100, CreatedAt: 1000},
+	}, nil).Once()
+	outbox.On("FindByAuthorsBefore", mock.Anything, []int64{9}, int64(math.MaxInt64), int64(math.MaxInt64), int64(3)).
+		Return([]*model.FeedOutbox{}, nil).Once()
+	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{300, 200, 100}}).
+		Return(&contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
+			{Id: 300, AuthorId: 9, Status: 2},
+			{Id: 200, AuthorId: 9, Status: 0},
+			{Id: 100, AuthorId: 9, Status: 2},
+		}}, nil).Once()
+
+	logic := NewGetFollowFeedLogic(context.Background(), &svc.ServiceContext{
+		InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, ContentService: contentSvc,
+	})
+	resp, err := logic.GetFollowFeed(&pb.GetFollowFeedReq{UserId: 1, PageSize: 2})
+
+	require.NoError(t, err)
+	assert.Empty(t, resp.Items)
+	assert.True(t, resp.HasMore)
+	assert.Equal(t, int64(1000), resp.NextCursorCreatedAt)
+	assert.Equal(t, int64(100), resp.NextCursorPostId)
+	inbox.AssertExpectations(t)
+	outbox.AssertExpectations(t)
+	userSvc.AssertExpectations(t)
+	contentSvc.AssertExpectations(t)
 }

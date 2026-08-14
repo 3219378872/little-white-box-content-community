@@ -68,7 +68,6 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 	}
 
 	itemsByPostID := make(map[int64]*pb.FeedItem, len(inboxRows)+len(outboxRows))
-	keptCurrentInbox := false
 	for _, row := range inboxRows {
 		if row == nil || row.PostId <= 0 {
 			continue
@@ -76,7 +75,6 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 		if _, ok := followingSet[row.AuthorId]; !ok {
 			continue
 		}
-		keptCurrentInbox = true
 		itemsByPostID[row.PostId] = &pb.FeedItem{PostId: row.PostId, AuthorId: row.AuthorId, CreatedAt: row.CreatedAt, FeedType: feedTypeFollow}
 	}
 	for _, row := range outboxRows {
@@ -122,14 +120,41 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 			items = append(items, item)
 		}
 	}
-	inboxHasMore := keptCurrentInbox && len(inboxRows) == int(limit)
+	inboxHasMore := len(inboxRows) == int(limit)
 	hasMore := hasUnscanned || inboxHasMore || outboxHasMore
 	resp := &pb.GetFollowFeedResp{Items: items, HasMore: hasMore}
 	if lastScanned != nil {
 		resp.NextCursorCreatedAt = lastScanned.CreatedAt
 		resp.NextCursorPostId = lastScanned.PostId
+	} else if hasMore {
+		// 本页没有任何可见项（例如 inbox 前 limit 行全部属于已取关作者，
+		// 或候选全部未发布）：仍须推进游标，否则客户端无法翻页，
+		// 更早的可见行会被永久跳过。
+		fallback := oldestScannedRow(inboxRows, outboxRows)
+		if fallback != nil {
+			resp.NextCursorCreatedAt = fallback.CreatedAt
+			resp.NextCursorPostId = fallback.PostId
+		}
 	}
 	return resp, nil
+}
+
+// oldestScannedRow 返回本页已扫描的最旧行（created_at, post_id 字典序最小），
+// 用于空可见页的游标推进；inbox/outbox 均为降序返回。
+func oldestScannedRow(inboxRows []*model.FeedInbox, outboxRows []*model.FeedOutbox) *model.FeedInbox {
+	if len(inboxRows) == 0 {
+		return nil
+	}
+	oldest := inboxRows[len(inboxRows)-1]
+	if len(outboxRows) == 0 {
+		return oldest
+	}
+	lastOutbox := outboxRows[len(outboxRows)-1]
+	if lastOutbox != nil && (lastOutbox.CreatedAt < oldest.CreatedAt ||
+		(lastOutbox.CreatedAt == oldest.CreatedAt && lastOutbox.PostId < oldest.PostId)) {
+		return &model.FeedInbox{UserId: 0, AuthorId: lastOutbox.AuthorId, PostId: lastOutbox.PostId, CreatedAt: lastOutbox.CreatedAt}
+	}
+	return oldest
 }
 
 func (l *GetFollowFeedLogic) currentFollowingAuthorIDs(userID int64) ([]int64, map[int64]struct{}, error) {
