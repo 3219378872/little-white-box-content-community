@@ -73,3 +73,5 @@
   gateway 页大小响应一致性修复，提交见 frontmatter。
 - [2026-08-14-content-community-ctx-log.md](2026-08-14-content-community-ctx-log.md)：
   业务路径全局日志修复（AGENTS.md ctx 规则），提交见 frontmatter。
+- [2026-08-14-content-community-gen-make-targets.md](2026-08-14-content-community-gen-make-targets.md)：
+  评测数据生成器统一 Makefile 入口（工具质量），提交见 frontmatter。

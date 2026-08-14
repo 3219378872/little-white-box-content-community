@@ -25,7 +25,7 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
 	algorithm-test spec-evals-test model-pipeline-integration performance-gateway \
 	fault-injection-recommend production-config production-build \
-	production-up production-down
+	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic
 
 help: ## Show the available project commands
 	@printf '%s\n' 'Usage: make <target> [ARGS="..."]'
@@ -90,6 +90,15 @@ fuzz: ## Run bounded native fuzz targets (override FUZZ_TIME as needed)
 	scripts/fuzz.sh
 
 quality: check test ## Run the standard local quality gates
+
+gen-frozen-evals: ## Regenerate frozen eval datasets (corpus/qrels/cases) via LLM
+	python3 scripts/gen_frozen_evals.py $(ARGS)
+
+gen-recommend-samples: ## Regenerate the frozen recommendation sample set via LLM
+	python3 scripts/gen_recommend_samples.py $(ARGS)
+
+gen-slo-synthetic: ## Regenerate the deterministic synthetic SLO observations
+	python3 scripts/gen_slo_synthetic.py $(ARGS)
 
 algorithm-test: ## Run dependency-light Python algorithm unit tests
 	python3 -m unittest discover -s algorithm -p 'test*.py' -v
