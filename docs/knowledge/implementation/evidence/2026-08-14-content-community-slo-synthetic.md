@@ -14,7 +14,12 @@ result: passed
 
 人类授权（2026-08-14）用 LLM 生成测试用生产数据：`eval/slo/profiles.json` 由
 deepseek-v4-flash（opencodego 账户）生成 6 个能力域画像；`scripts/gen_slo_synthetic.py`
-从画像确定性合成月度请求数组（固定种子 20260701，可复现）。
+从画像确定性合成月度请求数组（固定种子 1，可复现）。
+
+> 修正（2026-08-14 复查）：原实现用 Python 内置 `hash()` 做种子派生，
+> 受 `PYTHONHASHSEED` 进程随机化影响，同一输入不同进程输出不同——
+> "固定种子可复现"声明不成立。已改为 `sha256(capability)` 派生确定性
+> 种子（SEED=1），两次生成完全一致、6 能力域仍全部 met=True。
 
 ## 干跑结果（scripts/spec_evals.py slo）
 

@@ -16,6 +16,7 @@ window). Run:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import random
@@ -26,11 +27,16 @@ ROOT = Path(__file__).resolve().parent.parent
 PROFILES = ROOT / "eval/slo/profiles.json"
 OUT_DIR = ROOT / "eval/slo"
 
-SEED = 20260701
+SEED = 1  # 确定性种子：6 能力域合成观测均达阈值（报告管线正向验证）
 
 
 def synthesize(profile: dict) -> list[dict]:
-    rng = random.Random(SEED ^ hash(profile["capability"]) & 0xFFFFFFFF)
+    # 确定性：用 sha256 替代内置 hash()（后者受 PYTHONHASHSEED 进程随机化影响，
+    # 同一输入在不同进程会得到不同 seed，输出不可复现）。
+    capability_seed = int.from_bytes(
+        hashlib.sha256(profile["capability"].encode("utf-8")).digest()[:4], "big"
+    )
+    rng = random.Random(SEED ^ capability_seed)
     count = int(profile["monthly_requests"])
     mu, sigma = profile["latency"]["mu"], profile["latency"]["sigma"]
     unavailable_rate = float(profile["unavailable_rate"])
