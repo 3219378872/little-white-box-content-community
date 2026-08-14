@@ -59,3 +59,5 @@
   标签 limit 防御性上限 + vet copylocks 修复，提交见 frontmatter。
 - [2026-08-14-content-community-verify-code.md](2026-08-14-content-community-verify-code.md)：
   验证码发送冷却与暴力尝试限制（安全加固），提交见 frontmatter。
+- [2026-08-14-content-community-login-hardening.md](2026-08-14-content-community-login-hardening.md)：
+  登录路径暴力尝试加固（共享验证码计数 + 密码锁定），提交见 frontmatter。
