@@ -55,6 +55,28 @@ func (f *fakeAssistantState) Messages(context.Context, int64, string) ([]assista
 	return append([]assistantstore.Message(nil), f.messages...), nil
 }
 
+// RemoveUnavailableSourceTitles 内存版：删除不可用来源的标题与片段（ASST-031）。
+func (f *fakeAssistantState) RemoveUnavailableSourceTitles(
+	_ context.Context, _ int64, _ string, postIDs []string,
+) error {
+	blocked := make(map[string]struct{}, len(postIDs))
+	for _, id := range postIDs {
+		blocked[id] = struct{}{}
+	}
+	for index := range f.messages {
+		sources := f.messages[index].Sources
+		for sourceIndex := range sources {
+			if sources[sourceIndex].Type == "post" {
+				if _, ok := blocked[sources[sourceIndex].ID]; ok {
+					sources[sourceIndex].Title = ""
+					sources[sourceIndex].Snippet = ""
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (f fakeToolExecutor) Execute(ctx context.Context, name tool.Name, request tool.Request) (*tool.Result, error) {
 	return f.execute(ctx, name, request)
 }
@@ -479,6 +501,32 @@ func TestChatWarnsWhenHistoricalSourcesChangedOrUnavailable(t *testing.T) {
 	}
 	if !strings.Contains(streamed.String(), "source-unavailable") || !strings.Contains(streamed.String(), "11") {
 		t.Fatalf("missing source-unavailable warning: %q", streamed.String())
+	}
+	// ASST-031：不可用来源的标题与片段必须从历史会话中删除，来源 id 保留。
+	var unavailable *assistantstore.Reference
+	for _, message := range state.messages {
+		for _, source := range message.Sources {
+			if source.ID == "11" {
+				unavailable = &source
+			}
+		}
+	}
+	if unavailable == nil {
+		t.Fatal("source 11 should remain for marking")
+	}
+	if unavailable.Title != "" || unavailable.Snippet != "" {
+		t.Fatalf("source 11 title/snippet must be removed, got %q/%q", unavailable.Title, unavailable.Snippet)
+	}
+	var changed *assistantstore.Reference
+	for _, message := range state.messages {
+		for _, source := range message.Sources {
+			if source.ID == "10" {
+				changed = &source
+			}
+		}
+	}
+	if changed == nil || changed.Title != "t" {
+		t.Fatalf("available source 10 title must be preserved, got %#v", changed)
 	}
 }
 

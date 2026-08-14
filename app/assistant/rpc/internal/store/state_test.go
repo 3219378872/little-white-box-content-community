@@ -113,3 +113,44 @@ func TestRedisStateQuotaUsesAtomicCount(t *testing.T) {
 		}
 	}
 }
+
+func TestRedisStateRemoveUnavailableSourceTitles(t *testing.T) {
+	redis := &fakeRedis{results: []any{int64(1)}}
+	state, err := NewRedisState(redis, "assistant:v2", 3600, 10, 60, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = state.RemoveUnavailableSourceTitles(context.Background(), 42, "conversation-1", []string{"11", "12"})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(redis.keys) != 1 {
+		t.Fatalf("expected one EvalCtx call, got %d", len(redis.keys))
+	}
+	gotKeys := redis.keys[0]
+	if gotKeys[0] != "assistant:v2:conversation:conversation-1:owner" ||
+		gotKeys[1] != "assistant:v2:conversation:conversation-1:messages" {
+		t.Fatalf("unexpected keys: %v", gotKeys)
+	}
+	gotArgs := redis.args[0]
+	if gotArgs[0] != int64(42) || gotArgs[1] != 3600 {
+		t.Fatalf("unexpected args head: %v", gotArgs)
+	}
+	if gotArgs[2] != "11" || gotArgs[3] != "12" {
+		t.Fatalf("unexpected post ids: %v", gotArgs)
+	}
+}
+
+func TestRedisStateRemoveUnavailableSourceTitlesEmptyIsNoop(t *testing.T) {
+	redis := &fakeRedis{}
+	state, err := NewRedisState(redis, "assistant:v2", 3600, 10, 60, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.RemoveUnavailableSourceTitles(context.Background(), 42, "c", nil); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(redis.keys) != 0 {
+		t.Fatal("empty post ids must not call Redis")
+	}
+}

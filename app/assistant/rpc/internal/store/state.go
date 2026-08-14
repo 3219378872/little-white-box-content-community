@@ -32,6 +32,9 @@ type ConversationStore interface {
 	Append(ctx context.Context, userID int64, conversationID string, message Message) error
 	// Messages 返回会话全部消息；会话属于其他用户时返回 ErrConversationOwnedByAnother。
 	Messages(ctx context.Context, userID int64, conversationID string) ([]Message, error)
+	// RemoveUnavailableSourceTitles 删除历史消息中已不可用来源的标题与片段
+	//（ASST-031），保留来源 id 以继续标记"来源不可用"。
+	RemoveUnavailableSourceTitles(ctx context.Context, userID int64, conversationID string, postIDs []string) error
 }
 
 type QuotaLimiter interface {
@@ -154,6 +157,30 @@ func (s *RedisState) Messages(ctx context.Context, userID int64, conversationID 
 	return messages, nil
 }
 
+// RemoveUnavailableSourceTitles 遍历会话消息，删除 postIDs 中已不可用来源的
+// title/snippet（ASST-031）。来源 id 保留，客户端仍可识别"来源不可用"。
+func (s *RedisState) RemoveUnavailableSourceTitles(
+	ctx context.Context, userID int64, conversationID string, postIDs []string,
+) error {
+	if userID <= 0 || strings.TrimSpace(conversationID) == "" {
+		return fmt.Errorf("assistant conversation identity is invalid")
+	}
+	if len(postIDs) == 0 {
+		return nil
+	}
+	base := s.prefix + ":conversation:" + conversationID
+	args := make([]any, 0, len(postIDs)+2)
+	args = append(args, userID, s.ttlSeconds)
+	for _, id := range postIDs {
+		args = append(args, id)
+	}
+	if _, err := s.redis.EvalCtx(ctx, removeSourceTitlesScript,
+		[]string{base + ":owner", base + ":messages"}, args...); err != nil {
+		return fmt.Errorf("remove unavailable source titles: %w", err)
+	}
+	return nil
+}
+
 func (s *RedisState) Allow(ctx context.Context, userID int64) (bool, error) {
 	if userID <= 0 {
 		return false, fmt.Errorf("assistant quota user is invalid")
@@ -215,6 +242,51 @@ if owner and owner ~= tostring(ARGV[1]) then
   return -1
 end
 return redis.call('LRANGE', KEYS[2], 0, -1)
+`
+
+// removeSourceTitlesScript 遍历会话消息，把不可用来源（postIDs）的
+// title/snippet 置空；返回修改的消息数。-1 表示会话属于其他用户。
+const removeSourceTitlesScript = `
+local owner = redis.call('GET', KEYS[1])
+if owner and owner ~= tostring(ARGV[1]) then
+  return -1
+end
+if not owner then
+  return -2
+end
+local blocked = {}
+for i = 3, #ARGV do
+  blocked[ARGV[i]] = true
+end
+local count = redis.call('LLEN', KEYS[2])
+local changed = 0
+for i = 0, count - 1 do
+  local raw = redis.call('LINDEX', KEYS[2], i)
+  if raw then
+    local msg = cjson.decode(raw)
+    local sources = msg['sources']
+    if sources and type(sources) == 'table' then
+      local modified = false
+      for _, src in ipairs(sources) do
+        if src['type'] == 'post' and blocked[tostring(src['id'])] then
+          if src['title'] ~= nil or src['snippet'] ~= nil then
+            src['title'] = cjson.null
+            src['snippet'] = cjson.null
+            modified = true
+          end
+        end
+      end
+      if modified then
+        redis.call('LSET', KEYS[2], i, cjson.encode(msg))
+        changed = changed + 1
+      end
+    end
+  end
+end
+if changed > 0 then
+  redis.call('EXPIRE', KEYS[2], ARGV[2])
+end
+return changed
 `
 
 const quotaScript = `

@@ -313,6 +313,16 @@ func (l *ChatLogic) verifyHistoricalSources(userID int64, conversationID string)
 	}
 	if len(unavailable) > 0 {
 		sort.Strings(unavailable)
+		// ASST-031：来源删除/取消发布/受限后，历史会话删除保存的标题与片段，
+		// 并标记"来源不可用"（id 保留用于标记）。
+		if err := l.svcCtx.Conversations.RemoveUnavailableSourceTitles(
+			l.ctx, userID, conversationID, unavailable,
+		); err != nil {
+			l.Errorw("remove unavailable source titles failed",
+				logx.Field("conversation_id", conversationID),
+				logx.Field("post_ids", strings.Join(unavailable, ",")),
+				logx.Field("err", err.Error()))
+		}
 		warnings = append(warnings, fmt.Sprintf("[source-unavailable] 以下来源已不可用，相关历史回答的标题与片段已移除: %s", strings.Join(unavailable, ", ")))
 	}
 	return warnings, nil
