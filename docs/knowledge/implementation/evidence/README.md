@@ -67,3 +67,5 @@
   验证码冷却语义修复（注册后立即登录回归），提交见 frontmatter。
 - [2026-08-14-content-community-model-pipeline-ttl.md](2026-08-14-content-community-model-pipeline-ttl.md)：
   模型管线集成测试 TTL 冲突修复，提交见 frontmatter。
+- [2026-08-14-content-community-env-example.md](2026-08-14-content-community-env-example.md)：
+  production.env.example 变量补全与 DSN 可覆盖，提交 2d7165e。
