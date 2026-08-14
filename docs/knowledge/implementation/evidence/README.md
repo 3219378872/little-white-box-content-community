@@ -49,3 +49,5 @@
   关注流 inbox 残留分页缺陷修复（DISC-011），提交见 frontmatter。
 - [2026-08-14-content-community-media-orphan.md](2026-08-14-content-community-media-orphan.md)：
   媒体上传幂等重试孤儿对象清理，提交见 frontmatter。
+- [2026-08-14-content-community-message-dead-method.md](2026-08-14-content-community-message-dead-method.md)：
+  message 会话死方法清理（UpsertPairForMessage），提交见 frontmatter。
