@@ -432,7 +432,8 @@ def report_assistant(result: AssistantEvalResult) -> int:
     passed = (
         size_ok
         and
-        result.source_accuracy >= 0.95
+        # ASST-051：来源有效率必须为 100%（不是 95%），证据不足召回 ≥95%。
+        result.source_accuracy >= 1.0
         and result.insufficient_recall >= 0.95
         and result.answerable_total > 0
         and result.answerable_refused / max(result.answerable_total, 1) <= 0.10

@@ -97,3 +97,5 @@
   ASST-035 同请求标识去重扩展（规格层验证），提交见 frontmatter。
 - [2026-08-14-content-community-asst032.md](2026-08-14-content-community-asst032.md)：
   ASST-032 LLM 降级返回证据摘要（规格层验证），提交见 frontmatter。
+- [2026-08-14-content-community-asst051-threshold.md](2026-08-14-content-community-asst051-threshold.md)：
+  ASST-051 来源有效率阈值修正（规格层验证），提交见 frontmatter。

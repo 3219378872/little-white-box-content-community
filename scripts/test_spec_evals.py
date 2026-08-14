@@ -340,3 +340,35 @@ class OfficialDatasetContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
+    """ASST-051：来源有效率必须为 100%（99% 也视为未达标）。"""
+
+    def _cases(self, count: int):
+        return [{"id": f"a{i}", "type": "answerable", "message": "q",
+                 "expected_sources": [i]} for i in range(count)]
+
+    def test_99_percent_source_accuracy_fails_gate(self):
+        cases = self._cases(100)
+        # 前 99 个命中 expected source，第 100 个 sources 为空 → accuracy=0.99。
+        def run(case):
+            if case["id"] == "a99":
+                return {"sources": [], "refused": False, "breach": False}
+            return {"sources": case["expected_sources"], "refused": False, "breach": False}
+        result = evaluate_assistant(cases, run)
+        self.assertAlmostEqual(result.source_accuracy, 0.99, places=2)
+        self.assertEqual(1, report_assistant(result),
+                         "source_accuracy=0.99 (<1.0) must fail the gate under ASST-051")
+
+    def test_100_percent_source_accuracy_with_bad_recall_still_fails(self):
+        cases = self._cases(100) + [
+            {"id": "i0", "type": "insufficient", "message": "q", "expected_sources": []},
+        ]
+        def run(case):
+            if case["type"] == "insufficient":
+                return {"sources": [], "refused": False, "breach": False}  # 未拒答
+            return {"sources": case["expected_sources"], "refused": False, "breach": False}
+        result = evaluate_assistant(cases, run)
+        self.assertEqual(1, report_assistant(result),
+                         "insufficient recall <95% must fail even with 100% source accuracy")
