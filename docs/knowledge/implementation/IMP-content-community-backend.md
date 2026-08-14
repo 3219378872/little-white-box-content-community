@@ -36,7 +36,7 @@ tracks:
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
 verified_at: 2026-08-14
-verified_commit: 1d4abae
+verified_commit: 3436d90
 ---
 
 # 小白盒内容社区后端实现映射
@@ -144,8 +144,8 @@ verified_commit: 1d4abae
 | ASST-010 段落必须含 [post:id]、1~5 来源 | aligned | 事实回答强制至少一个 [post:id]；来源 1~5 上限；缺失引用时降级 |
 | ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
 | ASST-012 仅服务端验证来源可返回 | aligned | 对外 SOURCE 只含回源验证过的帖子；user/tag 元数据不再提升为来源 |
-| ASST-013 区分事实/观点/无法确认 | partial | 系统指令强制区分作者观点与平台事实；终验依赖 ASST-050 评测 |
-| ASST-014 证据冲突呈现双方 | partial | 系统指令强制呈现冲突及各自来源；所有来源均提供给模型；终验依赖 ASST-050 评测 |
+| ASST-013 区分事实/观点/无法确认 | partial | 系统指令强制区分作者观点与平台事实；终验依赖 ASST-050/051 评测（来源有效率与事实支持率） |
+| ASST-014 证据冲突呈现双方 | partial | 系统指令强制呈现冲突及各自来源；所有来源均提供给模型；终验依赖 ASST-050/051 评测 |
 | ASST-015 来源不授额外权限 | aligned | 打开来源走正常权限 |
 | ASST-020 输入≤2000/回答≤8000 | aligned | 输入 2000、回答 8000（LLM MaxOutputRunes） |
 | ASST-021 限流 20/60s、会话 100 条/30 天 | aligned | Redis 原子限流 20/60s；会话 100 条 LTRIM；30 天 TTL；均有测试 |
@@ -161,7 +161,7 @@ verified_commit: 1d4abae
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | partial | live 执行（2026-08-14）：注入越界 0（达标）、可回答误拒率 5.8%（≤10% 达标）、来源有效率 77.3%（<100%）、证据不足召回 8.3%（<95%）；检索与 LLM 引用行为待提升 |
+| ASST-050~051 离线评测门禁 | partial | live 执行（2026-08-14）：注入越界 0（达标）、可回答误拒率 5.8%（≤10% 达标）、来源有效率 77.3%（<100%）、证据不足召回 8.3%（<95%）；事实陈述支持率已纳入门禁（expected_facts 由冻结语料确定性派生，bigram 覆盖代理判定，需 ≥95%）；检索与 LLM 引用行为待提升 |
 
 ## SPEC-feedback-reliability 追踪
 
