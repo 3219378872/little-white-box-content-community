@@ -39,3 +39,5 @@
   CI 补齐 Python 质量门禁（spec-evals-test / algorithm-test），提交见 frontmatter。
 - [2026-08-14-content-community-shared-dead-code.md](2026-08-14-content-community-shared-dead-code.md)：
   共享库死代码清理（cachex 模块 + util/middleware/validator 死函数），提交见 frontmatter。
+- [2026-08-14-content-community-reserved-models.md](2026-08-14-content-community-reserved-models.md)：
+  interaction 预留 Model 清理（favorite_folder/report/view_history），提交见 frontmatter。
