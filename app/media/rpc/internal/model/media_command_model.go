@@ -86,7 +86,11 @@ func (m *mediaCommandModel) SoftDelete(ctx context.Context, mediaID int64, event
 		if err != nil {
 			return err
 		}
-		rowsAffected, _ := result.RowsAffected()
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			// 无法确认删除是否发生时不静默跳过事件投递，避免事件丢失。
+			return err
+		}
 		if rowsAffected == 0 {
 			// 并发重复删除：不投递事件，保持幂等。
 			return nil
