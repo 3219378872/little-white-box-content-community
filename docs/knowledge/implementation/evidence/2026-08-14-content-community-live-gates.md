@@ -9,7 +9,7 @@ commands:
   - go run ./app/search/mq/cmd/rebuild
   - python3 scripts/spec_evals.py search --qrels eval/search_qrels.json --base-url http://127.0.0.1:8888
   - python3 scripts/spec_evals.py assistant --cases eval/assistant_cases.json ... (120s timeout variant)
-result: partial (search passed; assistant two axes failed)
+result: partial
 ---
 
 # 2026-08-14 live 门禁执行（DISC-060 通过 / ASST-050·051 partial）
