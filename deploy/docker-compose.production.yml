@@ -505,7 +505,7 @@ services:
         SERVICE_CONFIG: app/pipeline/behaviorlog/etc/behavior-log.yaml
     environment:
       <<: [*redis-env, *mq-env]
-      CLICKHOUSE_DSN: clickhouse://clickhouse:9000/xbh_analytics
+      CLICKHOUSE_DSN: ${CLICKHOUSE_DSN:-clickhouse://clickhouse:9000/xbh_analytics}
     healthcheck: *process-healthcheck
     depends_on:
       redis:
