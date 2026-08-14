@@ -21,6 +21,8 @@
   CORE-013/CORE-062 契约收敛（选项 B）验证，提交 6d2c41e。
 - [2026-08-13-content-community-rel020-aggregates.md](2026-08-13-content-community-rel020-aggregates.md)：
   REL-020 去标识聚合 365 天留存实现与 ClickHouse schema TTL 修复，提交 f7beca9。
+- [2026-08-14-content-community-httpx-error-contract.md](2026-08-14-content-community-httpx-error-contract.md)：
+  网关公开 JSON 错误契约可测试化（MapError 提取 + 4 组单测），提交 5386689。
 - [2026-08-14-content-community-errx-http-status.md](2026-08-14-content-community-errx-http-status.md)：
   业务错误 HTTP 状态映射补齐（密码错误 401、验证码 400、搜索 400/504），提交 4eef6ba。
 - [2026-08-14-content-community-comment-idem-hash.md](2026-08-14-content-community-comment-idem-hash.md)：
