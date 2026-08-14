@@ -35,8 +35,8 @@ tracks:
   - deploy/sql/xbh_user.sql
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
-verified_at: 2026-08-13
-verified_commit: f7beca9
+verified_at: 2026-08-14
+verified_commit: 7af6c6a
 ---
 
 # 小白盒内容社区后端实现映射
@@ -51,8 +51,9 @@ verified_commit: f7beca9
 仍偏离处：
 - 搜索/列表/标签/收藏 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
 - `CORE-032` 计数 30s 收敛缺少生产观测。
-- `DISC-061~063`（推荐门禁）待 live 样本集；`ASST-050/051` 的来源有效率与证据不足
-  召回未达阈值（live 结果 2026-08-14 见 ASST 行）。
+- `DISC-061/063`（推荐门禁）冻结样本集已生成并执行（2026-08-14：规则基线相对提升
+  0，生产暂无学习模型，按 DISC-062 不宣称改善）；`ASST-050/051` 的来源有效率 77.3%
+  与证据不足召回 8.3% 未达阈值（live 结果 2026-08-14 见 ASST 行）。
 - `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
 
 ## 规格追踪

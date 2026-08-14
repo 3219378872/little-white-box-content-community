@@ -2,8 +2,8 @@
 title: knowledge transition register
 owner: agent
 status: active
-observed_at: 2026-08-12
-observed_commit: 15da0d708746e096b448ce5c92b5bfde5ac96e48a
+observed_at: 2026-08-14
+observed_commit: 7af6c6a
 ---
 
 # 知识迁移登记
