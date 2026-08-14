@@ -45,3 +45,5 @@
   spec_evals 测试加固（死 import + 报告函数直接单测），提交见 frontmatter。
 - [2026-08-14-content-community-assistant-dead-const.md](2026-08-14-content-community-assistant-dead-const.md)：
   assistant 工具名死常量清理与全仓导出符号复查，提交见 frontmatter。
+- [2026-08-14-content-community-feed-inbox-cursor.md](2026-08-14-content-community-feed-inbox-cursor.md)：
+  关注流 inbox 残留分页缺陷修复（DISC-011），提交见 frontmatter。
