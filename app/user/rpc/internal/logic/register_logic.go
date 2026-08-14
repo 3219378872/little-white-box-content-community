@@ -96,8 +96,20 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 	}
 
 	if code != in.VerifyCode {
+		// 防暴力：验证码错误时递增尝试计数，超过上限立即作废验证码。
+		attemptKey := fmt.Sprintf("verify:attempts:%s", in.Phone)
+		attempts, incrErr := l.svcCtx.RedisClient.IncrCtx(l.ctx, attemptKey)
+		if incrErr == nil {
+			if attempts == 1 {
+				_ = l.svcCtx.RedisClient.ExpireCtx(l.ctx, attemptKey, verifyCodeAttemptWindowSeconds)
+			}
+			if attempts >= verifyCodeMaxAttempts {
+				_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
+			}
+		}
 		return nil, errx.NewWithCode(errx.VerifyCodeError)
 	}
+	_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, fmt.Sprintf("verify:attempts:%s", in.Phone))
 
 	user, err := l.newUser(in)
 	if err != nil {
@@ -173,3 +185,9 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 		},
 	}, nil
 }
+
+// 验证码暴力尝试限制：窗口内允许的最大错误次数；达到后验证码作废。
+const (
+	verifyCodeMaxAttempts          = 5
+	verifyCodeAttemptWindowSeconds = 600
+)

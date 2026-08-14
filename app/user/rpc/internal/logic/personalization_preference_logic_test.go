@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"testing"
 
 	"errx"
@@ -55,6 +56,35 @@ func (r *memoryRedis) DelCtx(_ context.Context, keys ...string) (int, error) {
 		delete(r.values, key)
 	}
 	return len(keys), nil
+}
+
+func (r *memoryRedis) GetCtx(_ context.Context, key string) (string, error) {
+	return r.values[key], nil
+}
+
+func (r *memoryRedis) SetnxExCtx(_ context.Context, key, value string, _ int) (bool, error) {
+	if _, exists := r.values[key]; exists {
+		return false, nil
+	}
+	r.values[key] = value
+	return true, nil
+}
+
+func (r *memoryRedis) IncrCtx(_ context.Context, key string) (int64, error) {
+	value, _ := r.values[key]
+	var current int64
+	if value != "" {
+		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil {
+			current = parsed
+		}
+	}
+	current++
+	r.values[key] = strconv.FormatInt(current, 10)
+	return current, nil
+}
+
+func (r *memoryRedis) ExpireCtx(_ context.Context, _ string, _ int) error {
+	return nil
 }
 
 func TestGetPersonalizationPreference(t *testing.T) {

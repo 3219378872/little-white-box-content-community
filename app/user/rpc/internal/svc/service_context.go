@@ -49,6 +49,9 @@ type RedisStore interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 	DelCtx(ctx context.Context, keys ...string) (int, error)
 	SetexCtx(ctx context.Context, key, value string, seconds int) error
+	SetnxExCtx(ctx context.Context, key, value string, seconds int) (bool, error)
+	IncrCtx(ctx context.Context, key string) (int64, error)
+	ExpireCtx(ctx context.Context, key string, seconds int) error
 }
 
 type ServiceContext struct {

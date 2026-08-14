@@ -7,6 +7,8 @@ import (
 
 	"errx"
 	"jwtx"
+	"user/internal/model"
+	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
 
 	"github.com/stretchr/testify/assert"
@@ -78,4 +80,40 @@ func TestRegisterLogic_ByUsername(t *testing.T) {
 			pm.AssertExpectations(t)
 		})
 	}
+}
+
+func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
+	t.Run("发送冷却：同手机号 60 秒内第二次请求被拒", func(t *testing.T) {
+		mem := &memoryRedis{values: map[string]string{}}
+		svcCtx := &svc.ServiceContext{RedisClient: mem}
+		resp, err := NewSendVerifyCodeLogic(context.Background(), svcCtx).
+			SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		_, err = NewSendVerifyCodeLogic(context.Background(), svcCtx).
+			SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
+		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.TooManyReq), "cooldown must return TooManyReq")
+	})
+
+	t.Run("错误尝试达上限后验证码作废", func(t *testing.T) {
+		mem := &memoryRedis{values: map[string]string{"13800000001": "123456"}}
+		profile := &MockUserProfileModel{}
+		profile.On("FindOneByPhone", mock.Anything, mock.Anything).
+			Return(nil, model.ErrNotFound).Maybe()
+		svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+		req := &pb.RegisterReq{
+			Phone: "13800000001", VerifyCode: "000000",
+			Username: "u1", Password: "Passw0rd!",
+		}
+		for i := 0; i < verifyCodeMaxAttempts; i++ {
+			_, err := NewRegisterLogic(context.Background(), svcCtx).Register(req)
+			require.Error(t, err, "wrong code must fail")
+			assert.True(t, errx.Is(err, errx.VerifyCodeError))
+		}
+		// 达到上限：验证码键已被删除，继续尝试应报过期而非错误码。
+		_, err := NewRegisterLogic(context.Background(), svcCtx).Register(req)
+		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.VerifyCodeExpired), "verify code must be revoked after max attempts, got %v", err)
+	})
 }
