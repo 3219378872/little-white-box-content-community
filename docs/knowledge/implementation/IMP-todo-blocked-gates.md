@@ -60,3 +60,20 @@ p95、阈值判断）正确。合成数据不构成生产合规证据（见
 **待办**：收集一个自然月、按 `scripts/spec_evals.py slo --requests ...` 输入格式导出的
 **真实**生产观测数据，运行 `make performance-gateway` 与 SLO 报告命令核对达标情况，
 并按 REL-A05 出正式报告。
+
+## 下一步（2026-08-14 登记，本轮目标结束时的待办）
+
+以下三项需要人类或生产环境输入，是下一轮恢复目标时的起点：
+
+1. **真实月度 SLO 观测（REL-030~043）**：提供自然月生产运行数据（按
+   `scripts/spec_evals.py slo --requests ...` 格式），运行 SLO 报告命令并按 REL-A05
+   出正式报告；合成干跑（`eval/slo/`）只验证了管线，不构成生产合规证据。
+2. **ASST 质量提升方向决策（ASST-050/051）**：live 结果来源有效率 77.3%、证据不足
+   召回 8.3%。可选方向：引入语义检索（embedding/Milvus 链路已存在）、调整
+   `eval/assistant_cases.json` 中 insufficient 案例的锚点策略，或按产品目标放宽阈值。
+3. **PROP-20260813-slo-synthetic-observation 决定**：是否接受 LLM 合成观测作为
+   REL-030~033/040~043 的门禁关闭依据（推荐：否，合成仅验证报告管线）。
+
+另：DISC-061/063 推荐门禁在学习模型达到 DISC-062 门槛（≥10,000 有效曝光、
+≥1,000 有效身份）后，以真实 model/baseline 排序重生成 `eval/recommend_samples.json`
+并复评。
