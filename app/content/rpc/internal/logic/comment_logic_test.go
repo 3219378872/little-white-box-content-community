@@ -425,3 +425,32 @@ func TestGetCommentListLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestCommentIdempotencyRecord(t *testing.T) {
+	base := &pb.CreateCommentReq{PostId: 1000, UserId: 200, Content: "评论", IdempotencyKey: "key-1"}
+	rec := commentIdempotencyRecord(base)
+	if rec.Scope != "comment:create" || rec.UserID != 200 || rec.Key != "key-1" {
+		t.Fatalf("unexpected record: %+v", rec)
+	}
+	if rec.CommandHash == "" {
+		t.Fatal("expected command hash")
+	}
+
+	same := commentIdempotencyRecord(&pb.CreateCommentReq{PostId: 1000, UserId: 200, Content: "评论", IdempotencyKey: "key-1"})
+	if same.CommandHash != rec.CommandHash {
+		t.Fatal("expected identical hash for identical command")
+	}
+	// CORE-051：同键异命令必须改变哈希（回复目标评论/被回复用户/帖子/内容）。
+	cases := []*pb.CreateCommentReq{
+		{PostId: 1000, UserId: 200, Content: "评论", IdempotencyKey: "key-1", ParentId: 7},
+		{PostId: 1000, UserId: 200, Content: "评论", IdempotencyKey: "key-1", ReplyUserId: 9},
+		{PostId: 1001, UserId: 200, Content: "评论", IdempotencyKey: "key-1"},
+		{PostId: 1000, UserId: 200, Content: "其它", IdempotencyKey: "key-1"},
+	}
+	for index, variant := range cases {
+		got := commentIdempotencyRecord(variant)
+		if got.CommandHash == rec.CommandHash {
+			t.Fatalf("case %d: expected different command hash for different command", index)
+		}
+	}
+}

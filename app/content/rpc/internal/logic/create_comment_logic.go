@@ -25,6 +25,23 @@ type CreateCommentLogic struct {
 	logx.Logger
 }
 
+// commentIdempotencyRecord 构造评论创建幂等记录（CORE-050/051）。
+// 哈希覆盖内容、帖子、回复目标评论与被回复用户：同键异命令返回幂等冲突，
+// 而不是静默返回旧评论。
+func commentIdempotencyRecord(in *pb.CreateCommentReq) idempotencyx.IdempotencyRecord {
+	return idempotencyx.IdempotencyRecord{
+		Scope:  "comment:create",
+		UserID: in.GetUserId(),
+		Key:    strings.TrimSpace(in.GetIdempotencyKey()),
+		CommandHash: idempotencyx.CommandHash(
+			in.GetContent(),
+			strconv.FormatInt(in.GetPostId(), 10),
+			strconv.FormatInt(in.GetParentId(), 10),
+			strconv.FormatInt(in.GetReplyUserId(), 10),
+		),
+	}
+}
+
 func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateCommentLogic {
 	return &CreateCommentLogic{
 		ctx:    ctx,
@@ -45,13 +62,7 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 	if contentRunes > 2000 {
 		return nil, errx.NewWithCode(errx.ContentTooLong)
 	}
-	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
-	idem := idempotencyx.IdempotencyRecord{
-		Scope:       "comment:create",
-		UserID:      in.UserId,
-		Key:         idempotencyKey,
-		CommandHash: idempotencyx.CommandHash(in.GetContent(), strconv.FormatInt(in.GetPostId(), 10)),
-	}
+	idem := commentIdempotencyRecord(in)
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
