@@ -37,3 +37,5 @@
   MQ 主题死代码清理与代码-部署一致性护栏，提交见 frontmatter。
 - [2026-08-14-content-community-ci-python-gates.md](2026-08-14-content-community-ci-python-gates.md)：
   CI 补齐 Python 质量门禁（spec-evals-test / algorithm-test），提交见 frontmatter。
+- [2026-08-14-content-community-shared-dead-code.md](2026-08-14-content-community-shared-dead-code.md)：
+  共享库死代码清理（cachex 模块 + util/middleware/validator 死函数），提交见 frontmatter。
