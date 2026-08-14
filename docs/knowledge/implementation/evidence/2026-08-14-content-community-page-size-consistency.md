@@ -28,8 +28,14 @@ content RPC，内容服务按 `normalizePage` 语义 clamp（非正数→20、
 
 ## 测试
 
-- `pageutil` 表驱动单测（0/-1/20/50/51/9999）。
+- `pageutil` 表驱动单测（pageSize 0/-1/20/50/51/9999；page 0/-5/1/42）。
 - 既有 posts/user/comment logic 测试不受影响。
+
+## 补充（同一缺陷的 Page 部分）
+
+初版只处理 pageSize；复查发现 `Page` 同样透传未归一（内容 RPC
+page<=0→1，gateway 回传原始值）。追加 `pageutil.ClampPage` 并应用到
+三个 content 系 logic 的请求与响应，保持页码回显一致。
 
 ## 结果
 

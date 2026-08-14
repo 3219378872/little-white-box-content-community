@@ -34,9 +34,10 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp *types.GetCommentListResp, err error) {
 	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)
+	page := pageutil.ClampPage(req.Page)
 	result, err := l.svcCtx.ContentService.GetCommentList(l.ctx, &contentservice.GetCommentListReq{
 		PostId:   req.PostId,
-		Page:     req.Page,
+		Page:     page,
 		PageSize: pageSize,
 		SortBy:   req.SortBy,
 	})
@@ -64,7 +65,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 	return &types.GetCommentListResp{
 		List:     list,
 		Total:    result.Total,
-		Page:     req.Page,
+		Page:     page,
 		PageSize: pageSize,
 	}, nil
 }

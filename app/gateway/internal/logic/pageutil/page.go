@@ -20,3 +20,11 @@ func ClampPageSize(pageSize int32) int32 {
 	}
 	return pageSize
 }
+
+// ClampPage 将请求页码归一化到内容 RPC 的 clamp 语义（非正数取 1）。
+func ClampPage(page int32) int32 {
+	if page <= 0 {
+		return 1
+	}
+	return page
+}
