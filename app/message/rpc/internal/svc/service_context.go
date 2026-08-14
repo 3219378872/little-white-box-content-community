@@ -17,7 +17,6 @@ import (
 )
 
 type ConversationModel interface {
-	UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error)
 	FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model2.Conversation, int64, error)
 	FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model2.Conversation, error)
 }

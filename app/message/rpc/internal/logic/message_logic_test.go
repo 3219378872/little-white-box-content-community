@@ -138,14 +138,12 @@ func (m *fakeMessageCommandModel) MarkConversationRead(ctx context.Context, user
 }
 
 type fakeConversationModel struct {
-	createdSender   int64
-	createdReceiver int64
-	list            []*model2.Conversation
-	total           int64
-	conversation    *model2.Conversation
-	findOneUserID   int64
-	findOneID       int64
-	findOneErr      error
+	list          []*model2.Conversation
+	total         int64
+	conversation  *model2.Conversation
+	findOneUserID int64
+	findOneID     int64
+	findOneErr    error
 }
 
 type fakeUserService struct {
@@ -161,12 +159,6 @@ func (s *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.Bat
 	s.ctx = ctx
 	s.req = in
 	return s.resp, s.err
-}
-
-func (m *fakeConversationModel) UpsertPairForMessage(ctx context.Context, senderID int64, receiverID int64, content string) (int64, int64, error) {
-	m.createdSender = senderID
-	m.createdReceiver = receiverID
-	return 11, 12, nil
 }
 
 func (m *fakeConversationModel) FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model2.Conversation, int64, error) {
