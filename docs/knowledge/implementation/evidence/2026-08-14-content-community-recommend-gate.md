@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-14
-verified_commit: <SHA>
+verified_commit: 4923ee8
 commands:
   - python3 scripts/gen_recommend_samples.py
   - python3 scripts/spec_evals.py recommend --samples eval/recommend_samples.json
