@@ -57,3 +57,5 @@
   帖子幂等命令哈希完整性修复（CORE-050/051），提交见 frontmatter。
 - [2026-08-14-content-community-tags-limit.md](2026-08-14-content-community-tags-limit.md)：
   标签 limit 防御性上限 + vet copylocks 修复，提交见 frontmatter。
+- [2026-08-14-content-community-verify-code.md](2026-08-14-content-community-verify-code.md)：
+  验证码发送冷却与暴力尝试限制（安全加固），提交见 frontmatter。
