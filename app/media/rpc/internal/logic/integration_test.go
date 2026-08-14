@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 }
 
 func truncateAll() {
-	for _, t := range []string{"media", "media_task"} {
+	for _, t := range []string{"media", "media_task", "event_outbox"} {
 		if _, err := testSvcCtx.Conn.Exec("DELETE FROM `" + t + "`"); err != nil {
 			fmt.Fprintf(os.Stderr, "truncate %s 失败: %v\n", t, err)
 			os.Exit(1)

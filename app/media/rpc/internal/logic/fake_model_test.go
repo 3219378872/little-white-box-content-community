@@ -4,21 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"esx/app/media/rpc/internal/model"
+	"esx/pkg/idempotencyx"
+	"esx/pkg/outboxx"
 )
-
-// fakeResult 为测试提供可控的 sql.Result
-type fakeResult struct {
-	lastInsertId int64
-	rowsAffected int64
-}
-
-func (f *fakeResult) LastInsertId() (int64, error) {
-	return f.lastInsertId, nil
-}
-
-func (f *fakeResult) RowsAffected() (int64, error) {
-	return f.rowsAffected, nil
-}
 
 // fakeMediaModel 提供 model.MediaModel 的可注入替身；未设置的方法调用会 panic，
 // 便于测试暴露调用了预期之外的方法。
@@ -29,6 +17,7 @@ type fakeMediaModel struct {
 	updateStatusFn func(ctx context.Context, id int64, expectedStatus, newStatus int64) (sql.Result, error)
 	insertFn       func(ctx context.Context, data *model.Media) (sql.Result, error)
 	deleteFn       func(ctx context.Context, id int64) error
+	delCacheFn     func(ctx context.Context, id int64) error
 }
 
 func (f *fakeMediaModel) FindOne(ctx context.Context, id int64) (*model.Media, error) {
@@ -71,4 +60,32 @@ func (f *fakeMediaModel) Delete(ctx context.Context, id int64) error {
 		panic("fakeMediaModel: Delete not configured")
 	}
 	return f.deleteFn(ctx, id)
+}
+
+func (f *fakeMediaModel) DelCache(ctx context.Context, id int64) error {
+	if f.delCacheFn == nil {
+		panic("fakeMediaModel: DelCache not configured")
+	}
+	return f.delCacheFn(ctx, id)
+}
+
+// fakeMediaCommandModel 提供 model.MediaCommandModel 的可注入替身；未设置的方法
+// 调用会 panic，便于测试暴露调用了预期之外的方法。
+type fakeMediaCommandModel struct {
+	createMediaFn func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error)
+	softDeleteFn  func(ctx context.Context, mediaID int64, event outboxx.Event) error
+}
+
+func (f *fakeMediaCommandModel) CreateMedia(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
+	if f.createMediaFn == nil {
+		panic("fakeMediaCommandModel: CreateMedia not configured")
+	}
+	return f.createMediaFn(ctx, media, idem)
+}
+
+func (f *fakeMediaCommandModel) SoftDelete(ctx context.Context, mediaID int64, event outboxx.Event) error {
+	if f.softDeleteFn == nil {
+		panic("fakeMediaCommandModel: SoftDelete not configured")
+	}
+	return f.softDeleteFn(ctx, mediaID, event)
 }

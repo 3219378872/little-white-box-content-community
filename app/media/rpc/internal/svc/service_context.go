@@ -1,9 +1,11 @@
 package svc
 
 import (
+	"context"
 	"esx/app/media/rpc/internal/config"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/storage"
+	"esx/pkg/outboxx"
 	"fmt"
 
 	"mqx"
@@ -19,6 +21,8 @@ type ServiceContext struct {
 	MediaCommandModel model.MediaCommandModel
 	Storage           storage.ObjectStorage
 	MQProducer        *mqx.Producer
+	OutboxStore       *outboxx.SQLStore
+	OutboxRelay       *outboxx.Relay
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -45,12 +49,35 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		mqProducer = p
 	}
 
+	outboxStore := outboxx.NewSQLStore(conn)
+	var outboxRelay *outboxx.Relay
+	if mqProducer != nil {
+		outboxRelay, err = outboxx.NewRelay(outboxStore, outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
+			_, publishErr := mqProducer.Send(ctx, mqx.Message{
+				Topic: record.Topic, Tag: record.Tag, Key: record.Key, Body: record.Payload,
+			})
+			return publishErr
+		}), c.Outbox.RelayConfig("media"))
+		if err != nil {
+			panic(fmt.Sprintf("media: outbox relay initialization failed: %v", err))
+		}
+	}
+
 	return &ServiceContext{
 		Config:            c,
 		Conn:              conn,
 		MediaModel:        model.NewMediaModel(conn, cacheConf),
-		MediaCommandModel: model.NewMediaCommandModel(conn),
+		MediaCommandModel: model.NewMediaCommandModel(conn, outboxStore),
 		Storage:           s3Client,
 		MQProducer:        mqProducer,
+		OutboxStore:       outboxStore,
+		OutboxRelay:       outboxRelay,
 	}
+}
+
+func (s *ServiceContext) RunOutboxRelay(ctx context.Context) error {
+	if s == nil || s.OutboxRelay == nil {
+		return nil
+	}
+	return s.OutboxRelay.Run(ctx)
 }

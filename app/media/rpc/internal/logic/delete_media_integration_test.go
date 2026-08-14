@@ -6,6 +6,7 @@ import (
 	"context"
 	"errx"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"mqx"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ import (
 func TestDeleteMedia_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("成功软删", func(t *testing.T) {
+	t.Run("成功软删并同事务写 outbox", func(t *testing.T) {
 		id := insertTestMedia(t, 3001, 1)
 		l := NewDeleteMediaLogic(ctx, testSvcCtx)
 		_, err := l.DeleteMedia(&pb.DeleteMediaReq{MediaId: id, UserId: 3001})
@@ -23,6 +24,12 @@ func TestDeleteMedia_Integration(t *testing.T) {
 		gl := NewGetMediaLogic(ctx, testSvcCtx)
 		_, err = gl.GetMedia(&pb.GetMediaReq{MediaId: id})
 		assertBizError(t, err, errx.MediaNotFound)
+
+		var count int
+		err = testSvcCtx.Conn.QueryRowCtx(ctx, &count, `SELECT COUNT(*) FROM event_outbox
+			WHERE topic = ? AND message_key <> ''`, mqx.TopicMediaDelete)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, count, 1, "软删必须同事务写入 event_outbox")
 	})
 
 	t.Run("user_id 不匹配返 PermissionDenied", func(t *testing.T) {

@@ -2,25 +2,21 @@ package logic
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"errx"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
-	"time"
-
+	"esx/pkg/event"
+	"esx/pkg/outboxx"
 	"mqx"
+	"strconv"
+	"strings"
+	"time"
+	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
-
-type mediaDeletedMessage struct {
-	MediaId     int64  `json:"media_id"`
-	S3ObjectKey string `json:"s3_object_key"`
-	Bucket      string `json:"bucket"`
-	DeletedAt   int64  `json:"deleted_at"`
-}
 
 type DeleteMediaLogic struct {
 	ctx    context.Context
@@ -36,7 +32,37 @@ func NewDeleteMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delet
 	}
 }
 
+// buildMediaDeletedOutboxEvent 构造与 media_cleanup_consumer 解析一致的
+// media-deleted 事件载荷，EventID 同时作为 outbox 幂等键。
+func buildMediaDeletedOutboxEvent(mediaID int64, objectKey, bucket string) (outboxx.Event, error) {
+	eventID, err := util.NextID()
+	if err != nil {
+		return outboxx.Event{}, err
+	}
+	e := event.MediaDeletedEvent{
+		EventID:     eventID,
+		EventTime:   time.Now().UnixMilli(),
+		MediaID:     mediaID,
+		S3ObjectKey: objectKey,
+		Bucket:      bucket,
+		DeletedAt:   time.Now().Unix(),
+	}
+	if err := e.Validate(); err != nil {
+		return outboxx.Event{}, err
+	}
+	body, err := e.MarshalPayload()
+	if err != nil {
+		return outboxx.Event{}, err
+	}
+	return outboxx.Event{
+		ID: eventID, Topic: mqx.TopicMediaDelete, Tag: mqx.TagDefault,
+		Key: strconv.FormatInt(eventID, 10), Payload: body,
+	}, nil
+}
+
 // DeleteMedia 软删媒体；仅归属用户可删；重复删除幂等。
+// 软删与 media-deleted 事件同事务写入 outbox，由 relay 可靠投递，避免
+// 提交后进程崩溃导致 S3 清理事件丢失（孤儿对象）。
 func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaResp, error) {
 	if in.MediaId <= 0 || in.UserId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -62,38 +88,33 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		return nil, errx.NewWithCode(errx.PermissionDenied)
 	}
 
-	result, err := l.svcCtx.MediaModel.UpdateStatus(l.ctx, in.MediaId, 1, 0)
-	if err != nil {
-		l.Errorw("MediaModel.UpdateStatus failed",
+	// 无 S3 对象（如直接写入的行）无需清理：仅软删，不投递事件。
+	var event outboxx.Event
+	if m.ObjectKey.Valid && strings.TrimSpace(m.ObjectKey.String) != "" {
+		event, err = buildMediaDeletedOutboxEvent(in.MediaId, m.ObjectKey.String, l.svcCtx.Config.S3Storage.Bucket)
+		if err != nil {
+			l.Errorw("build media_deleted outbox event failed",
+				logx.Field("media_id", in.MediaId),
+				logx.Field("err", err.Error()),
+			)
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+	}
+	if err := l.svcCtx.MediaCommandModel.SoftDelete(l.ctx, in.MediaId, event); err != nil {
+		l.Errorw("MediaCommandModel.SoftDelete failed",
 			logx.Field("media_id", in.MediaId),
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		// 可能是并发重复删除，幂等返回成功
-		l.Infow("delete media no-op (concurrent or already deleted)",
+	// 事务提交后失效读缓存（原 UpdateStatus 的 ExecCtx 语义），避免陈旧状态。
+	if err := l.svcCtx.MediaModel.DelCache(l.ctx, in.MediaId); err != nil {
+		l.Errorw("MediaModel.DelCache failed",
 			logx.Field("media_id", in.MediaId),
+			logx.Field("err", err.Error()),
 		)
-	}
-
-	// 投递异步清理事件
-	if l.svcCtx.MQProducer != nil {
-		msg := mediaDeletedMessage{
-			MediaId:     in.MediaId,
-			S3ObjectKey: m.ObjectKey.String,
-			Bucket:      l.svcCtx.Config.S3Storage.Bucket,
-			DeletedAt:   time.Now().Unix(),
-		}
-		body, _ := json.Marshal(msg)
-		if err := l.svcCtx.MQProducer.SendOneWay(l.ctx, mqx.TopicMediaDelete, body); err != nil {
-			l.Errorw("send media_deleted event failed",
-				logx.Field("media_id", in.MediaId),
-				logx.Field("err", err.Error()),
-			)
-		}
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	l.Infow("delete media success",

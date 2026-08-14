@@ -4,6 +4,7 @@ package logic
 
 import (
 	"context"
+	"database/sql"
 	"errx"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
@@ -22,6 +23,8 @@ func insertTestMedia(t *testing.T, userId, status int64) int64 {
 		Url:         "http://example.com/test.jpg",
 		StorageType: 3,
 		Status:      status,
+		ObjectKey:   sql.NullString{String: "test/obj.jpg", Valid: true},
+		Bucket:      sql.NullString{String: "xbh-media-test", Valid: true},
 	}
 	res, err := testSvcCtx.MediaModel.Insert(context.Background(), row)
 	require.NoError(t, err)

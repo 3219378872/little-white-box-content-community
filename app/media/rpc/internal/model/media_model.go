@@ -19,6 +19,7 @@ type (
 		mediaModel
 		FindByIds(ctx context.Context, ids []int64) ([]*Media, error)
 		UpdateStatus(ctx context.Context, id int64, expectedStatus, newStatus int64) (sql.Result, error)
+		DelCache(ctx context.Context, id int64) error
 	}
 
 	customMediaModel struct {
@@ -60,4 +61,11 @@ func (m *customMediaModel) UpdateStatus(ctx context.Context, id int64, expectedS
 		query := fmt.Sprintf("update %s set `status`=? where `id`=? and `status`=?", m.table)
 		return conn.ExecCtx(ctx, query, newStatus, id, expectedStatus)
 	}, mediaIDKey)
+}
+
+// DelCache 删除单条媒体的缓存键；事务写入（如 outbox 软删）提交后必须调用，
+// 否则读路径会返回陈旧状态。
+func (m *customMediaModel) DelCache(ctx context.Context, id int64) error {
+	mediaIDKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, id)
+	return m.DelCacheCtx(ctx, mediaIDKey)
 }

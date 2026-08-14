@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 
@@ -10,6 +12,7 @@ import (
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -30,6 +33,13 @@ func main() {
 	}
 
 	ctx := svc.NewServiceContext(c)
+	relayCtx, cancelRelay := context.WithCancel(context.Background())
+	defer cancelRelay()
+	go func() {
+		if err := ctx.RunOutboxRelay(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+			logx.Errorw("media outbox relay stopped", logx.Field("err", err.Error()))
+		}
+	}()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterMediaServiceServer(grpcServer, server.NewMediaServiceServer(ctx))
