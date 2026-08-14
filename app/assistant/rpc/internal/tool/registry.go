@@ -23,7 +23,6 @@ const (
 	Search    Name = "search"
 	Content   Name = "content"
 	Recommend Name = "recommend"
-	User      Name = "user"
 
 	defaultMaxSources = 5
 
