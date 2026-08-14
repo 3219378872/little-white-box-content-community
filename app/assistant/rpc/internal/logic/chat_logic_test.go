@@ -655,17 +655,25 @@ func TestChatLLMFailureIsPersistedStructuredDegradedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(stream.events) != 1 {
-		t.Fatalf("events=%d want=1", len(stream.events))
+	// ASST-032：LLM 不可用但证据有效 → 证据摘要 TOKEN + 降级 ERROR 结束事件。
+	if len(stream.events) != 2 {
+		t.Fatalf("events=%d want=2 (evidence token + degraded error)", len(stream.events))
 	}
-	event := stream.events[0]
+	if stream.events[0].Type != pb.ChatEventType_CHAT_EVENT_TYPE_TOKEN ||
+		stream.events[0].Text != "grounded tool result" {
+		t.Fatalf("expected evidence summary token, got: %+v", stream.events[0])
+	}
+	event := stream.events[1]
 	if event.Type != pb.ChatEventType_CHAT_EVENT_TYPE_ERROR || !event.Degraded || event.ErrorCode != "LLM_UNAVAILABLE" || event.Text == "" {
 		t.Fatalf("unexpected degraded event: %+v", event)
 	}
 	if len(state.messages) != 2 || state.messages[0].Role != "user" || state.messages[1].Role != "assistant" {
 		t.Fatalf("unexpected persisted messages: %#v", state.messages)
 	}
-	if state.messages[1].Content != event.Text {
+	if state.messages[1].Content != "grounded tool result" {
+		t.Fatalf("assistant message must persist the evidence summary, got %q", state.messages[1].Content)
+	}
+	if len(state.messages[1].Sources) != 0 {
 		t.Fatalf("persisted degradation=%q event=%q", state.messages[1].Content, event.Text)
 	}
 }
@@ -764,5 +772,48 @@ func TestChatEmptyToolResultCannotSucceedSilently(t *testing.T) {
 	}
 	if len(stream.events) != 1 || stream.events[0].Type != pb.ChatEventType_CHAT_EVENT_TYPE_ERROR || stream.events[0].ErrorCode != "EMPTY_TOOL_RESULT" {
 		t.Fatalf("unexpected events: %+v", stream.events)
+	}
+}
+
+func TestChatLLMFailureStreamsEvidenceSources(t *testing.T) {
+	t.Parallel()
+	state := &fakeAssistantState{allowed: true}
+	serviceContext := &svc.ServiceContext{
+		Conversations: state,
+		Quota:         state,
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return &tool.Result{
+				Text:        "published evidence text",
+				Sources:     []tool.Source{{Type: "post", ID: "21", Title: "t21", Revision: 4}},
+				ContextKind: "community_evidence", EvidenceRequired: true, HasEvidence: true,
+			}, nil
+		}},
+		Generator: fakeGenerator{generate: func(context.Context, llm.Request) (llm.Result, error) {
+			return llm.Result{}, errors.New("upstream unavailable")
+		}},
+	}
+	stream := &collectingChatStream{ctx: context.Background()}
+	if err := NewChatLogic(context.Background(), serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1", Message: "question", RequestId: "request-1",
+	}, stream); err != nil {
+		t.Fatal(err)
+	}
+	// ASST-032：证据摘要 TOKEN + SOURCE + 降级 ERROR。
+	if len(stream.events) != 3 {
+		t.Fatalf("events=%d want=3 (evidence + source + degraded error)", len(stream.events))
+	}
+	if stream.events[0].Text != "published evidence text" {
+		t.Fatalf("expected evidence summary, got %+v", stream.events[0])
+	}
+	if stream.events[1].Type != pb.ChatEventType_CHAT_EVENT_TYPE_SOURCE ||
+		stream.events[1].Source.SourceId != "21" || stream.events[1].Source.Revision != 4 {
+		t.Fatalf("expected source event, got %+v", stream.events[1])
+	}
+	if stream.events[2].Type != pb.ChatEventType_CHAT_EVENT_TYPE_ERROR || !stream.events[2].Degraded ||
+		stream.events[2].ErrorCode != "LLM_UNAVAILABLE" {
+		t.Fatalf("expected degraded error, got %+v", stream.events[2])
+	}
+	if len(state.messages) != 2 || len(state.messages[1].Sources) != 1 {
+		t.Fatalf("expected persisted assistant message with one source, got %#v", state.messages)
 	}
 }

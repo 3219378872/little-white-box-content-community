@@ -134,7 +134,9 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 		if generateErr != nil {
 			assistantLLMCallsTotal.Inc("failure")
 			l.Errorw("assistant LLM failed", logx.Field("err", generateErr.Error()))
-			return l.sendPersistedDegraded(stream, request, conversationID, "LLM_UNAVAILABLE")
+			// ASST-032：检索成功且证据有效但 LLM 不可用 → 返回结构化证据摘要
+			// 和来源并标记降级，而不是丢弃证据只发固定错误。
+			return l.sendEvidenceDegraded(stream, request, conversationID, "LLM_UNAVAILABLE", result)
 		}
 		assistantLLMCallsTotal.Inc("success")
 		observeLLMUsage(generated)
@@ -326,6 +328,56 @@ func (l *ChatLogic) verifyHistoricalSources(userID int64, conversationID string)
 		warnings = append(warnings, fmt.Sprintf("[source-unavailable] 以下来源已不可用，相关历史回答的标题与片段已移除: %s", strings.Join(unavailable, ", ")))
 	}
 	return warnings, nil
+}
+
+// sendEvidenceDegraded 在 LLM 不可用但证据有效时，持久化并发送
+// 结构化证据摘要 + 来源引用，以降级错误事件结束（ASST-032）。
+func (l *ChatLogic) sendEvidenceDegraded(
+	stream pb.AssistantService_ChatServer,
+	request tool.Request,
+	conversationID string,
+	code string,
+	result *tool.Result,
+) error {
+	const message = "The assistant could not generate an answer; below is the retrieved community evidence."
+	evidenceText := ""
+	if result != nil {
+		evidenceText = result.Text
+	}
+	if err := l.persistAssistant(request, conversationID, evidenceText, result.Sources); err != nil {
+		l.Errorw("assistant evidence degradation persistence failed",
+			logx.Field("err", err.Error()))
+		code = "STATE_UNAVAILABLE"
+	}
+	for _, chunk := range splitRunes(evidenceText, l.tokenChunkRunes()) {
+		if err := l.send(stream, &pb.ChatEvent{
+			Type:           pb.ChatEventType_CHAT_EVENT_TYPE_TOKEN,
+			Text:           chunk,
+			ConversationId: conversationID,
+		}); err != nil {
+			return err
+		}
+	}
+	if result != nil {
+		for _, source := range result.Sources {
+			if source.Type == "" || source.ID == "" {
+				continue
+			}
+			if err := l.send(stream, &pb.ChatEvent{
+				Type: pb.ChatEventType_CHAT_EVENT_TYPE_SOURCE,
+				Source: &pb.SourceReference{
+					SourceType: source.Type,
+					SourceId:   source.ID,
+					Title:      source.Title,
+					Revision:   source.Revision,
+				},
+				ConversationId: conversationID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return l.sendDegradedWithText(stream, conversationID, code, message)
 }
 
 func (l *ChatLogic) sendPersistedDegraded(
