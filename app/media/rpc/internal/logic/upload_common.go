@@ -1,8 +1,11 @@
 package logic
 
 import (
+	"cleanupx"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"errx"
 	"esx/app/media/rpc/internal/mediautil"
@@ -10,6 +13,7 @@ import (
 	"esx/pkg/idempotencyx"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -20,8 +24,25 @@ import (
 
 const storageTypeSeaweedFS = 3
 
-// mediaIdempotencyRecord 从上传元数据构造幂等记录（CORE-050）。
-func mediaIdempotencyRecord(meta *pb.UploadMeta) idempotencyx.IdempotencyRecord {
+// sha256File 返回文件内容的 sha256 十六进制指纹。
+// 上传内容属于幂等命令的一部分（CORE-050/051）：同键不同字节必须是不同命令。
+func sha256File(path string) (string, error) {
+	handle, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer cleanupx.Close(logx.WithContext(context.Background()), "hash upload file", handle)
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, handle); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+// mediaIdempotencyRecord 从上传元数据与文件内容指纹构造幂等记录（CORE-050）。
+// contentHash 为接收到的文件字节 sha256：同键不同内容视为不同命令，
+// 按 CORE-051 返回幂等冲突，而不是静默返回旧媒体。
+func mediaIdempotencyRecord(meta *pb.UploadMeta, contentHash string) idempotencyx.IdempotencyRecord {
 	if meta == nil {
 		return idempotencyx.IdempotencyRecord{}
 	}
@@ -31,6 +52,7 @@ func mediaIdempotencyRecord(meta *pb.UploadMeta) idempotencyx.IdempotencyRecord 
 		Key:    strings.TrimSpace(meta.GetIdempotencyKey()),
 		CommandHash: idempotencyx.CommandHash(
 			meta.GetFileName(),
+			contentHash,
 			strconv.Itoa(int(meta.GetQuality())),
 			strconv.Itoa(int(meta.GetMaxWidth())),
 			strconv.Itoa(int(meta.GetMaxHeight())),

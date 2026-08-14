@@ -53,7 +53,16 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	if meta.GetUserId() <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	idem := mediaIdempotencyRecord(meta)
+	contentHash, err := sha256File(sink.Path())
+	if err != nil {
+		l.Errorw("hash uploaded image failed",
+			logx.Field("user_id", meta.GetUserId()),
+			logx.Field("file_name", meta.GetFileName()),
+			logx.Field("err", err.Error()),
+		)
+		return errx.NewWithCode(errx.SystemError)
+	}
+	idem := mediaIdempotencyRecord(meta, contentHash)
 	if !idem.Valid() {
 		return errx.NewWithCode(errx.ParamError)
 	}

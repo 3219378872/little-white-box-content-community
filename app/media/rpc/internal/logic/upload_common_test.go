@@ -69,7 +69,7 @@ func TestBuildObjectKey_UniqueAcrossCalls(t *testing.T) {
 
 func TestMediaIdempotencyRecord(t *testing.T) {
 	meta := &pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: " idem-1 "}
-	rec := mediaIdempotencyRecord(meta)
+	rec := mediaIdempotencyRecord(meta, "hash-a")
 	if rec.Scope != "media:upload" || rec.UserID != 7 || rec.Key != "idem-1" {
 		t.Fatalf("unexpected record: %+v", rec)
 	}
@@ -77,14 +77,40 @@ func TestMediaIdempotencyRecord(t *testing.T) {
 		t.Fatal("expected command hash")
 	}
 
-	// 同参数同键 → 相同 hash；不同参数 → 不同 hash
-	other := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"})
+	// 同参数同内容同键 → 相同 hash；不同内容/不同参数 → 不同 hash（CORE-051 异命令冲突）
+	other := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"}, "hash-a")
 	if other.CommandHash != rec.CommandHash {
 		t.Fatal("expected identical command hash for identical command")
 	}
-	different := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "b.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"})
-	if different.CommandHash == rec.CommandHash {
-		t.Fatal("expected different command hash for different command")
+	differentContent := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "a.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"}, "hash-b")
+	if differentContent.CommandHash == rec.CommandHash {
+		t.Fatal("expected different command hash for different file content")
+	}
+	differentName := mediaIdempotencyRecord(&pb.UploadMeta{UserId: 7, FileName: "b.png", Quality: 85, MaxWidth: 1000, MaxHeight: 800, IdempotencyKey: "idem-1"}, "hash-a")
+	if differentName.CommandHash == rec.CommandHash {
+		t.Fatal("expected different command hash for different file name")
+	}
+}
+
+func TestSHA256File(t *testing.T) {
+	// 已知内容 → 确定性指纹；文件不存在 → 错误。
+	path := t.TempDir() + "/sample.bin"
+	if err := os.WriteFile(path, []byte("hello media"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := sha256File(path)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if sum == "" {
+		t.Fatal("expected non-empty hash")
+	}
+	again, err := sha256File(path)
+	if err != nil || again != sum {
+		t.Fatalf("expected deterministic hash, got %q then %q (err=%v)", sum, again, err)
+	}
+	if _, err := sha256File(t.TempDir() + "/missing.bin"); err == nil {
+		t.Fatal("expected error for missing file")
 	}
 }
 
