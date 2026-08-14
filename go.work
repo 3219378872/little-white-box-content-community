@@ -4,7 +4,6 @@ use (
 	.
 	./app/gateway
 	./app/user/rpc
-	./pkg/cachex
 	./pkg/cleanupx
 	./pkg/errx
 	./pkg/interceptor

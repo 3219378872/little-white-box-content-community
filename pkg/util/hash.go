@@ -1,8 +1,6 @@
 package util
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"math/rand"
 	"os"
 
@@ -59,9 +57,3 @@ func IsDefaultPassword(password string) bool {
 	return err == nil
 }
 
-// SHA256 SHA256 哈希
-func SHA256(s string) string {
-	h := sha256.New()
-	h.Write([]byte(s))
-	return hex.EncodeToString(h.Sum(nil))
-}
