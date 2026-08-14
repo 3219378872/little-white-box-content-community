@@ -92,7 +92,7 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusBadRequest
 	case NotFound, UserNotFound, ContentNotFound, MediaNotFound:
 		return http.StatusNotFound
-	case LoginRequired, TokenExpired, TokenInvalid:
+	case LoginRequired, TokenExpired, TokenInvalid, PasswordError:
 		return http.StatusUnauthorized
 	case PermissionDenied, ContentForbidden, FavoritesPrivate:
 		return http.StatusForbidden
@@ -106,12 +106,17 @@ func (e *BizError) HTTPStatus() int {
 		CannotLikeSelf, CannotFollowSelf:
 		return http.StatusBadRequest
 	case TitleEmpty, ContentEmpty, ContentTooLong,
-		FileTooLarge, FileTypeNotAllowed, MediaMetaMissing:
+		FileTooLarge, FileTypeNotAllowed, MediaMetaMissing,
+		VerifyCodeError, VerifyCodeExpired:
 		return http.StatusBadRequest
 	case PostAlreadyDeleted:
 		return http.StatusGone
 	case ServiceUnavailable:
 		return http.StatusServiceUnavailable
+	case SearchEmpty:
+		return http.StatusBadRequest
+	case SearchTimeout:
+		return http.StatusGatewayTimeout
 	default:
 		return http.StatusInternalServerError
 	}

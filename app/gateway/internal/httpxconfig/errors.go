@@ -17,14 +17,8 @@ func ConfigureErrors() {
 		if !ok {
 			bizErr = errx.FromHTTPError(err)
 		}
-		status := bizErr.HTTPStatus()
-		switch bizErr.Code {
-		case errx.SearchEmpty:
-			status = http.StatusBadRequest
-		case errx.SearchTimeout:
-			status = http.StatusGatewayTimeout
-		}
-		return status, map[string]any{
+		// HTTPStatus() 是业务码到 HTTP 状态的唯一映射（含 SearchEmpty/SearchTimeout）。
+		return bizErr.HTTPStatus(), map[string]any{
 			"code":    bizErr.Code,
 			"message": bizErr.Message,
 		}
