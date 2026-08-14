@@ -83,17 +83,35 @@ func TestRegisterLogic_ByUsername(t *testing.T) {
 }
 
 func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
-	t.Run("发送冷却：同手机号 60 秒内第二次请求被拒", func(t *testing.T) {
+	t.Run("未消费验证码的连续重发被冷却拦截", func(t *testing.T) {
 		mem := &memoryRedis{values: map[string]string{}}
 		svcCtx := &svc.ServiceContext{RedisClient: mem}
-		resp, err := NewSendVerifyCodeLogic(context.Background(), svcCtx).
-			SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
+		logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
+		// 首次发送：无未消费验证码，放行并设置验证码。
+		resp, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		_, err = NewSendVerifyCodeLogic(context.Background(), svcCtx).
-			SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
+		// 第二次发送：验证码未消费，冷却键首次设置，放行（允许一次重发）。
+		_, err = logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
+		require.NoError(t, err)
+		// 第三次发送：验证码仍未消费且冷却键已存在，被拦截。
+		_, err = logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000000"})
 		require.Error(t, err)
 		assert.True(t, errx.Is(err, errx.TooManyReq), "cooldown must return TooManyReq")
+	})
+
+	t.Run("验证码消费后允许立即重发", func(t *testing.T) {
+		mem := &memoryRedis{values: map[string]string{}}
+		svcCtx := &svc.ServiceContext{RedisClient: mem}
+		logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
+		_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000002"})
+		require.NoError(t, err)
+		// 模拟验证码被成功消费（注册/登录删除）。
+		_, err = mem.DelCtx(context.Background(), "13800000002")
+		require.NoError(t, err)
+		// 消费后立即重发（注册后验证码登录流程）不应被冷却阻断。
+		_, err = logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000002"})
+		require.NoError(t, err)
 	})
 
 	t.Run("错误尝试达上限后验证码作废", func(t *testing.T) {
