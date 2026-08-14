@@ -79,3 +79,5 @@
   门禁脚本模块枚举去重（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-lint-testable.md](2026-08-14-content-community-lint-testable.md)：
   engineering-lint 检查函数可测试化（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-coverage-test.md](2026-08-14-content-community-coverage-test.md)：
+  coverage_report 工具补测试（工具质量），提交见 frontmatter。

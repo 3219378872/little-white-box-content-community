@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Sequence
 
 
 GENERATED_MARKERS = (
@@ -83,13 +84,13 @@ def add_percentages(totals: dict[str, dict[str, int]]) -> None:
     }
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("profile_dir", type=Path)
     parser.add_argument("--thresholds", type=Path, required=True)
     parser.add_argument("--gate", choices=("none", "baseline", "target"), default="baseline")
     parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     totals = load_profiles(args.profile_dir)
     add_percentages(totals)
