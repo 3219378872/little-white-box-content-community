@@ -223,6 +223,32 @@ class CLIDispatchTest(unittest.TestCase):
             code = main(["slo", "--requests", str(requests), "--capability", "community_core_read"])
             self.assertIsInstance(code, int)
 
+    def test_search_subcommand_rejects_invalid_qrels(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            qrels = Path(tmp) / "qrels.json"
+            qrels.write_text(json.dumps({"queries": []}), encoding="utf-8")
+            from spec_evals import main
+            # 非法/不足规模的数据集在 live 调用前被拒（DISC-060 守卫）。
+            self.assertEqual(main(["search", "--qrels", str(qrels)]), 1)
+
+    def test_assistant_subcommand_rejects_invalid_cases(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = Path(tmp) / "cases.json"
+            cases.write_text(json.dumps({"cases": []}), encoding="utf-8")
+            from spec_evals import main
+            # 非法/不足规模的案例在 live 调用前被拒（ASST-050 守卫）。
+            self.assertEqual(
+                main(["assistant", "--cases", str(cases), "--token", "x"]), 1
+            )
+
 
 class DevDatasetGateTest(unittest.TestCase):
     """The synthetic dev datasets exercise the gate machinery at the required

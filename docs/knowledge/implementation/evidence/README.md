@@ -81,3 +81,5 @@
   engineering-lint 检查函数可测试化（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-coverage-test.md](2026-08-14-content-community-coverage-test.md)：
   coverage_report 工具补测试（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-spec-evals-cli.md](2026-08-14-content-community-spec-evals-cli.md)：
+  spec_evals CLI 子命令 dispatch 测试补齐（工具质量），提交见 frontmatter。
