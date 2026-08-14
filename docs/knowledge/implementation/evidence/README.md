@@ -35,3 +35,5 @@
   文档治理批次（证据登记检查 + 生成同步验证），提交 07fc700。
 - [2026-08-14-content-community-mqx-topics.md](2026-08-14-content-community-mqx-topics.md)：
   MQ 主题死代码清理与代码-部署一致性护栏，提交见 frontmatter。
+- [2026-08-14-content-community-ci-python-gates.md](2026-08-14-content-community-ci-python-gates.md)：
+  CI 补齐 Python 质量门禁（spec-evals-test / algorithm-test），提交见 frontmatter。
