@@ -20,11 +20,8 @@ type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
 	DB                  *sql.DB
-	FavoriteFolderModel model2.FavoriteFolderModel
 	FavoriteModel       model2.FavoriteModel
 	LikeRecordModel     model2.LikeRecordModel
-	ReportModel         model2.ReportModel
-	ViewHistoryModel    model2.ViewHistoryModel
 	ActionCountModel    model2.ActionCountModel
 	InteractionCommands model2.InteractionCommandModel
 	OutboxStore         *outboxx.SQLStore
@@ -80,11 +77,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:              c,
 		Conn:                conn,
 		DB:                  rawDB,
-		FavoriteFolderModel: model2.NewFavoriteFolderModel(conn, conf),
 		FavoriteModel:       model2.NewFavoriteModel(conn, conf),
 		LikeRecordModel:     model2.NewLikeRecordModel(conn, conf),
-		ReportModel:         model2.NewReportModel(conn, conf),
-		ViewHistoryModel:    model2.NewViewHistoryModel(conn, conf),
 		ActionCountModel:    model2.NewActionCountModel(conn),
 		InteractionCommands: model2.NewInteractionCommandModel(conn, outboxStore),
 		OutboxStore:         outboxStore,
