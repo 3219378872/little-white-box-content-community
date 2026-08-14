@@ -81,9 +81,13 @@ class ModelPipelineIntegrationTest(unittest.TestCase):
         raise RuntimeError("MinIO did not become ready") from last_error
 
     def test_clickhouse_training_registry_inference_reload_and_rollback(self):
-        feature_start = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        sample_start = datetime(2026, 1, 8, tzinfo=timezone.utc)
-        sample_end = datetime(2026, 1, 15, tzinfo=timezone.utc)
+        # 窗口使用相对当前时间：behavior_events 的 TTL 是 received_at+90 天，
+        # 固定历史时间戳（如 2026-01）会在插入后立即过期并被后台任务删除，
+        # 导致第二次训练查询无样本（两次查询间 TTL 删除已触发）。
+        now = datetime.now(timezone.utc)
+        feature_start = now - timedelta(days=14)
+        sample_start = now - timedelta(days=7)
+        sample_end = now - timedelta(days=1)
         self._seed_behavior(feature_start, sample_start)
         registry = S3ModelRegistry(
             bucket=os.environ["MODEL_REGISTRY_BUCKET"],
