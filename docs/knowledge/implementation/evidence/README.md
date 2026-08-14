@@ -99,3 +99,5 @@
   ASST-032 LLM 降级返回证据摘要（规格层验证），提交见 frontmatter。
 - [2026-08-14-content-community-asst051-threshold.md](2026-08-14-content-community-asst051-threshold.md)：
   ASST-051 来源有效率阈值修正（规格层验证），提交见 frontmatter。
+- [2026-08-14-content-community-asst051-accuracy.md](2026-08-14-content-community-asst051-accuracy.md)：
+  来源有效率计算语义修正（ASST-012/051），提交见 frontmatter。

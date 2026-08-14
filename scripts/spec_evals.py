@@ -191,8 +191,11 @@ def evaluate_assistant(cases: Sequence[dict], run_case: Callable[[dict], dict]) 
             result.answerable_refused += 1
             continue
         expected = {int(post_id) for post_id in case.get("expected_sources", [])}
-        result.source_total += max(len(expected), 1)
-        result.source_accurate += len(expected & set(sources))
+        returned = set(sources)
+        # ASST-012/051：来源有效率 = 返回来源中属于期望（服务端验证）的比例。
+        # 惩罚伪造/无关来源（模型生成的引用不得提升为真实来源）。
+        result.source_total += len(returned)
+        result.source_accurate += len(expected & returned)
     return result
 
 

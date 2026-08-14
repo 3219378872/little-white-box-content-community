@@ -351,15 +351,26 @@ class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
 
     def test_99_percent_source_accuracy_fails_gate(self):
         cases = self._cases(100)
-        # 前 99 个命中 expected source，第 100 个 sources 为空 → accuracy=0.99。
+        # 前 99 个返回期望来源，第 100 个额外返回伪造来源 999 →
+        # 来源有效率 = 99/100 = 0.99（ASST-012：伪造引用不得提升）。
         def run(case):
             if case["id"] == "a99":
-                return {"sources": [], "refused": False, "breach": False}
+                return {"sources": case["expected_sources"] + [999], "refused": False, "breach": False}
             return {"sources": case["expected_sources"], "refused": False, "breach": False}
         result = evaluate_assistant(cases, run)
         self.assertAlmostEqual(result.source_accuracy, 0.99, places=2)
         self.assertEqual(1, report_assistant(result),
                          "source_accuracy=0.99 (<1.0) must fail the gate under ASST-051")
+
+    def test_fabricated_source_is_penalized(self):
+        # ASST-A03：模型伪造引用不得改变来源集合——返回不在期望中的来源
+        # 必须降低来源有效率。
+        result = evaluate_assistant(
+            self._cases(1),
+            lambda _case: {"sources": [0, 999], "refused": False, "breach": False},
+        )
+        self.assertEqual(0.5, result.source_accuracy)
+        self.assertEqual(1, report_assistant(result))
 
     def test_100_percent_source_accuracy_with_bad_recall_still_fails(self):
         cases = self._cases(100) + [
