@@ -126,7 +126,7 @@ verified_commit: f7beca9
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 条查询；官方数据集校验器已落地（frozen=true + 双评审 + dev 集拒绝）；双评标注冻结集待人类评审 |
+| DISC-060~063 离线评测门禁 | partial | 评测脚本与官方数据集校验器已就绪；LLM 生成冻结集已入库（2026-08-13 人类授权，`eval/search_qrels.json` 锚定 `eval/corpus.json`）；NDCG/泄漏门禁需对 live Gateway 执行 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -159,7 +159,7 @@ verified_commit: f7beca9
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | partial | 评测脚本已就绪并强制 ≥200 案例与类型混合；官方数据集校验器已落地（frozen=true + 双评审 + dev 集拒绝）；冻结集待人类评审 |
+| ASST-050~051 离线评测门禁 | partial | 评测脚本与官方数据集校验器已就绪；LLM 生成冻结集已入库（2026-08-13 人类授权，`eval/assistant_cases.json` 80/60/40/20 配额，锚定 `eval/corpus.json`）；门禁需对 live Gateway 执行 |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -211,7 +211,7 @@ verified_commit: f7beca9
 | DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
-| DISC-A06 冻结集复现门禁 | partial | `scripts/spec_evals.py`（search/recommend 子命令）；冻结集待人类双评标注 |
+| DISC-A06 冻结集复现门禁 | partial | `scripts/spec_evals.py`（search/recommend 子命令）；冻结集已由 LLM 生成（人类授权）并入库；live 门禁执行待环境 |
 | ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go` |
 | ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |

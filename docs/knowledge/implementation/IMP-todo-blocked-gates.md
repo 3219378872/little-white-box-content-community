@@ -23,7 +23,10 @@ verified_commit: c9e350d
 
 ## 1. 冻结评测集（DISC-060~063 / ASST-050~051）
 
-**输入**：由两名评审者独立标注并解决分歧的冻结数据集。正式文件须声明 `frozen=true` 与两名评审者；`eval/dev` 合成集不能通过官方门禁。
+**输入（2026-08-13 已由人类授权 LLM 生成）**：`eval/search_qrels.json`（200 查询，
+`frozen=true` + 双评审元数据，锚定 `eval/corpus.json`）与 `eval/assistant_cases.json`
+（200 案例，80/60/40/20 类型配额，同锚定语料）已就绪并通过结构校验
+（`require_official_search/assistant`）；生成脚本 `scripts/gen_frozen_evals.py` 可复现。
 
 - 搜索质量集：至少 200 条查询，0~3 级相关性标注；帖子搜索要求 `NDCG@10 ≥ 0.70`、
   不可见内容泄漏数为 0（`SPEC-content-discovery` DISC-060）。
@@ -32,17 +35,11 @@ verified_commit: c9e350d
   ≥95%、证据不足召回率 ≥95%、可回答误拒率 ≤10%、注入越界 0 次
   （`SPEC-grounded-assistant` ASST-050/051）。
 
-**已就绪**：`scripts/spec_evals.py`（search/assistant/recommend/slo 四个子命令）、
-`eval/` 目录下的示例数据集结构、`make spec-evals-test`。
-
-**待办**：人类评审按 `eval/search_qrels.example.json` 与
-`eval/assistant_cases.example.json` 的结构产出正式冻结集（各 ≥200 条/个），随后运行
-`python3 scripts/spec_evals.py search --qrels ...` 与
-`assistant --cases ...` 完成门禁；推荐门禁还需冻结样本集
+**待办（剩余）**：对 live Gateway 执行
+`python3 scripts/spec_evals.py search --qrels eval/search_qrels.json` 与
+`assistant --cases eval/assistant_cases.json` 完成门禁；推荐门禁还需冻结样本集
 （DISC-061/062/063：时间切分留出集 + bootstrap 95% 置信区间，相对规则基线提升 ≥5%）。
-
-> 说明：正式冻结集建议命名 `search_qrels.json` 与 `assistant_cases.json`（不含
-> `.example`），路径固定在 `eval/` 下，待人类评审产出后回填。
+真实内容上线后，冻结集帖子引用需按真实语料重锚定（合成语料 `eval/corpus.json` 是锚点）。
 
 ## 2. 月度生产观测数据（REL-030~043）
 
