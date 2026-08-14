@@ -29,3 +29,7 @@
   live 门禁执行（DISC-060 通过；ASST partial）与检索/分页缺陷修复，提交见 frontmatter。
 - [2026-08-14-content-community-recommend-gate.md](2026-08-14-content-community-recommend-gate.md)：
   推荐门禁冻结样本集与执行（规则基线现状，相对提升 0），提交见 frontmatter。
+- [2026-08-14-content-community-quality-review.md](2026-08-14-content-community-quality-review.md)：
+  质量复查批次（分页归一化 DRY + 知识层登记刷新），提交 7af6c6a。
+- [2026-08-14-content-community-doc-governance.md](2026-08-14-content-community-doc-governance.md)：
+  文档治理批次（证据登记检查 + 生成同步验证），提交 07fc700。

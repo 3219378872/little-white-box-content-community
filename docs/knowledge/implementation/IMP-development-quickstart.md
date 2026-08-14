@@ -9,8 +9,8 @@ upstream:
 tracks:
   - Makefile
   - scripts/
-verified_at: 2026-08-13
-verified_commit: 21737e7
+verified_at: 2026-08-14
+verified_commit: 07fc700
 ---
 
 # 开发与运维速查

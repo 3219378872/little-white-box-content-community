@@ -393,9 +393,36 @@ def _check_evidence_pages(
     evidence_dir = root / "docs" / "knowledge" / "implementation" / "evidence"
     if not evidence_dir.exists():
         return errors
+    readme = evidence_dir / "README.md"
+    registered = set()
+    if readme.is_file():
+        readme_text = readme.read_text(encoding="utf-8", errors="ignore")
+        for match in re.finditer(r"\]\(([^)#]+)(?:#[^)]*)?\)", readme_text):
+            target = match.group(1)
+            if target.endswith(".md"):
+                registered.add(Path(target).name)
+        for name in sorted(registered):
+            if not (evidence_dir / name).is_file():
+                errors.append(
+                    _knowledge_error(
+                        readme, root, f"evidence README links missing file: {name}"
+                    )
+                )
+    else:
+        errors.append(
+            _knowledge_error(
+                readme, root, "evidence directory must contain a README.md index"
+            )
+        )
     for path in sorted(evidence_dir.rglob("*.md")):
         if path.name == "README.md":
             continue
+        if readme.is_file() and path.name not in registered:
+            errors.append(
+                _knowledge_error(
+                    path, root, "evidence file is not registered in evidence/README.md"
+                )
+            )
         try:
             data = parse_frontmatter(path)
         except FrontmatterError as exc:

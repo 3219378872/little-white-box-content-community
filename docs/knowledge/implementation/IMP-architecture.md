@@ -9,8 +9,8 @@ upstream:
 tracks:
   - app/
   - pkg/
-verified_at: 2026-08-13
-verified_commit: 314aa67
+verified_at: 2026-08-14
+verified_commit: 07fc700
 ---
 
 # 服务架构与模块清单

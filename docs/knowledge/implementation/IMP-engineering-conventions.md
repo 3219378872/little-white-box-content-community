@@ -13,8 +13,8 @@ tracks:
   - pkg/interceptor
   - pkg/validator
   - deploy/
-verified_at: 2026-08-13
-verified_commit: 21737e7
+verified_at: 2026-08-14
+verified_commit: 07fc700
 ---
 
 # 工程约定（分层、安全、可靠性、质量）

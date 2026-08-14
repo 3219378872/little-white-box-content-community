@@ -127,6 +127,12 @@ commands:
 result: passed
 """,
             )
+            readme = self.root / "docs" / "knowledge" / "implementation" / "evidence" / "README.md"
+            readme.write_text(
+                "# 实现证据\n\n"
+                "- [2026-08-12-service.md](2026-08-12-service.md)：样例证据。\n",
+                encoding="utf-8",
+            )
 
     def assert_error(self, errors: list[str], expected: str):
         self.assertTrue(
@@ -321,6 +327,39 @@ legacy_upstream:
         errors = engineering_lint.check_knowledge_layers(self.root)
         # 旧 ARCHITECTURE 已迁移删除，legacy_upstream 白名单不再登记它。
         self.assert_error(errors, "legacy path is not allowlisted")
+
+    def test_evidence_must_be_registered_in_readme(self):
+        self._add_valid_chain(evidence=False)
+        evidence = self.root / "docs" / "knowledge" / "implementation" / "evidence" / "2026-08-12-service.md"
+        evidence.parent.mkdir(parents=True, exist_ok=True)
+        evidence.write_text(
+            "---\n"
+            "implementation: IMP-service\n"
+            "verified_at: 2026-08-12\n"
+            "verified_commit: 1234567\n"
+            "commands:\n"
+            "  - make check\n"
+            "result: passed\n"
+            "---\n",
+            encoding="utf-8",
+        )
+        readme = evidence.parent / "README.md"
+        readme.write_text("# 实现证据\n", encoding="utf-8")
+        errors = engineering_lint.check_knowledge_layers(self.root)
+        self.assert_error(
+            errors, "evidence file is not registered in evidence/README.md"
+        )
+
+    def test_evidence_readme_dead_link_fails(self):
+        self._add_valid_chain()
+        readme = self.root / "docs" / "knowledge" / "implementation" / "evidence" / "README.md"
+        readme.write_text(
+            "# 实现证据\n\n- [2026-08-12-service.md](2026-08-12-service.md)\n"
+            "- [missing-file.md](missing-file.md)\n",
+            encoding="utf-8",
+        )
+        errors = engineering_lint.check_knowledge_layers(self.root)
+        self.assert_error(errors, "evidence README links missing file: missing-file.md")
 
     def test_evidence_requires_commands(self):
         self._add_valid_chain(evidence=False)

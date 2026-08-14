@@ -6,11 +6,11 @@ func TestNormalizePage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		page          int
-		pageSize      int
-		wantPage      int
-		wantPageSize  int
+		name         string
+		page         int
+		pageSize     int
+		wantPage     int
+		wantPageSize int
 	}{
 		{name: "valid page stays", page: 2, pageSize: 10, wantPage: 2, wantPageSize: 10},
 		{name: "zero page becomes one", page: 0, pageSize: 10, wantPage: 1, wantPageSize: 10},
