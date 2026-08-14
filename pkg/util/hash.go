@@ -56,4 +56,3 @@ func IsDefaultPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword(hashedDefaultPassword, []byte(password))
 	return err == nil
 }
-

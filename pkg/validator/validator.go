@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	phoneRegex    = regexp.MustCompile(`^1[3-9]\d{9}$`)
+	phoneRegex = regexp.MustCompile(`^1[3-9]\d{9}$`)
 )
 
 func ValidatePhone(phone string) error {
@@ -53,16 +53,3 @@ func ValidateUserName(userName string) error {
 func IsPhoneValid(phone string) bool {
 	return phoneRegex.MatchString(phone)
 }
-
-
-//// 需修改types包下的自动生成结构体，较难维护，此处仅存放示例代码
-//var validate *validator.Validate
-//
-//func init() {
-//	validate = validator.New()
-//	_ = validate.RegisterValidation("phone", validatePhoneByValidator)
-//}
-//
-//func validatePhoneByValidator(fl validator.FieldLevel) bool {
-//	return phoneRegex.MatchString(fl.Field().String())
-//}
