@@ -47,3 +47,5 @@
   assistant 工具名死常量清理与全仓导出符号复查，提交见 frontmatter。
 - [2026-08-14-content-community-feed-inbox-cursor.md](2026-08-14-content-community-feed-inbox-cursor.md)：
   关注流 inbox 残留分页缺陷修复（DISC-011），提交见 frontmatter。
+- [2026-08-14-content-community-media-orphan.md](2026-08-14-content-community-media-orphan.md)：
+  媒体上传幂等重试孤儿对象清理，提交见 frontmatter。
