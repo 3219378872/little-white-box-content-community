@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	model2 "esx/app/content/rpc/internal/model"
+	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"fmt"
 	"testing"
@@ -214,4 +215,14 @@ func TestGetPostsByTagLogic(t *testing.T) {
 			ptm.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetTagsCapsLimit(t *testing.T) {
+	tags := &MockTagModel{}
+	logic := NewGetTagsLogic(context.Background(), &svc.ServiceContext{TagModel: tags})
+	tags.On("FindList", mock.Anything, maxTagListLimit).
+		Return([]*model2.Tag{{Id: 1, Name: "go"}}, nil).Once()
+	_, err := logic.GetTags(&pb.GetTagsReq{Limit: 10_000})
+	require.NoError(t, err)
+	tags.AssertExpectations(t)
 }

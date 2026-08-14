@@ -193,23 +193,29 @@ func TestCreatePostCommandHashCoversStatusAndMediaIDs(t *testing.T) {
 	}
 	baseHash := postCommandHashForTest(base)
 
-	draft := &pb.CreatePostReq{}
-	*draft = *base
-	draft.Status = 0
+	draft := &pb.CreatePostReq{
+		AuthorId: 1, Title: "title", Content: "content",
+		Tags: []string{"go"}, MediaIds: []int64{3, 1}, Status: 0,
+		IdempotencyKey: "key-1",
+	}
 	if postCommandHashForTest(draft) == baseHash {
 		t.Fatal("status change must change the idempotency command hash")
 	}
 
-	reordered := &pb.CreatePostReq{}
-	*reordered = *base
-	reordered.MediaIds = []int64{1, 3}
+	reordered := &pb.CreatePostReq{
+		AuthorId: 1, Title: "title", Content: "content",
+		Tags: []string{"go"}, MediaIds: []int64{1, 3}, Status: 1,
+		IdempotencyKey: "key-1",
+	}
 	if postCommandHashForTest(reordered) != baseHash {
 		t.Fatal("media id order must not change the idempotency command hash")
 	}
 
-	withoutMedia := &pb.CreatePostReq{}
-	*withoutMedia = *base
-	withoutMedia.MediaIds = nil
+	withoutMedia := &pb.CreatePostReq{
+		AuthorId: 1, Title: "title", Content: "content",
+		Tags: []string{"go"}, Status: 1,
+		IdempotencyKey: "key-1",
+	}
 	if postCommandHashForTest(withoutMedia) == baseHash {
 		t.Fatal("media id set change must change the idempotency command hash")
 	}

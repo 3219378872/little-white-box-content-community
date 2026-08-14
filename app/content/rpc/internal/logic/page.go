@@ -5,6 +5,8 @@ package logic
 const (
 	defaultPageSize = 20
 	maxPageSize     = 50
+	// maxTagListLimit 标签列表返回上限（防御性：GetTags RPC 当前无外部入口）。
+	maxTagListLimit = 100
 )
 
 // normalizePage clamps request pagination to the package defaults:

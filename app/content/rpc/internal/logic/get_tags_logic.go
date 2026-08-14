@@ -29,6 +29,9 @@ func (l *GetTagsLogic) GetTags(in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > maxTagListLimit {
+		limit = maxTagListLimit
+	}
 
 	tags, err := l.svcCtx.TagModel.FindList(l.ctx, limit)
 	if err != nil {
