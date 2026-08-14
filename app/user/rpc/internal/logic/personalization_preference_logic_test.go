@@ -71,7 +71,7 @@ func (r *memoryRedis) SetnxExCtx(_ context.Context, key, value string, _ int) (b
 }
 
 func (r *memoryRedis) IncrCtx(_ context.Context, key string) (int64, error) {
-	value, _ := r.values[key]
+	value := r.values[key]
 	var current int64
 	if value != "" {
 		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil {

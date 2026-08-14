@@ -2,12 +2,14 @@ package logic
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"errx"
 	"jwtx"
 	"user/internal/model"
+	"user/internal/svc"
 	"user/pb/xiaobaihe/user/pb"
 	"util"
 
@@ -102,4 +104,40 @@ func TestLoginLogic_Password(t *testing.T) {
 			pm.AssertExpectations(t)
 		})
 	}
+}
+
+func TestLoginVerifyCodeSharesAttemptLimitWithRegister(t *testing.T) {
+	mem := &memoryRedis{values: map[string]string{"13900000000": "654321"}}
+	profile := &MockUserProfileModel{}
+	profile.On("FindOneByPhone", mock.Anything, mock.Anything).
+		Return(&model.UserProfile{Id: 1, Username: "u1", Phone: sql.NullString{String: "13900000000", Valid: true}}, nil).Maybe()
+	svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+	req := &pb.LoginReq{LoginType: 2, Phone: "13900000000", VerifyCode: "000000"}
+
+	for i := 0; i < verifyCodeMaxAttempts; i++ {
+		_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
+		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.VerifyCodeError))
+	}
+	// 达到共享上限后验证码作废：注册/登录继续尝试均报过期。
+	_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.VerifyCodeExpired), "verify code must be revoked, got %v", err)
+}
+
+func TestLoginPasswordFailureLockout(t *testing.T) {
+	mem := &memoryRedis{values: map[string]string{}}
+	profile := &MockUserProfileModel{}
+	profile.On("FindOneByUsername", mock.Anything, "attacker").
+		Return(&model.UserProfile{Id: 1, Username: "attacker", Password: "hash"}, nil).Maybe()
+	svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+	req := &pb.LoginReq{LoginType: 1, Username: "attacker", Password: "wrong"}
+
+	for i := 0; i < loginLockMaxAttempts; i++ {
+		_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
+		require.Error(t, err)
+	}
+	_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.TooManyReq), "password login must lock out after max attempts, got %v", err)
 }

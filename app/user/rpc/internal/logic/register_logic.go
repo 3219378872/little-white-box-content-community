@@ -96,20 +96,10 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 	}
 
 	if code != in.VerifyCode {
-		// 防暴力：验证码错误时递增尝试计数，超过上限立即作废验证码。
-		attemptKey := fmt.Sprintf("verify:attempts:%s", in.Phone)
-		attempts, incrErr := l.svcCtx.RedisClient.IncrCtx(l.ctx, attemptKey)
-		if incrErr == nil {
-			if attempts == 1 {
-				_ = l.svcCtx.RedisClient.ExpireCtx(l.ctx, attemptKey, verifyCodeAttemptWindowSeconds)
-			}
-			if attempts >= verifyCodeMaxAttempts {
-				_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
-			}
-		}
+		recordVerifyCodeFailure(l.ctx, l.svcCtx.RedisClient, in.Phone)
 		return nil, errx.NewWithCode(errx.VerifyCodeError)
 	}
-	_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, fmt.Sprintf("verify:attempts:%s", in.Phone))
+	clearVerifyCodeFailures(l.ctx, l.svcCtx.RedisClient, in.Phone)
 
 	user, err := l.newUser(in)
 	if err != nil {
@@ -191,3 +181,33 @@ const (
 	verifyCodeMaxAttempts          = 5
 	verifyCodeAttemptWindowSeconds = 600
 )
+
+// recordVerifyCodeFailure 记录一次验证码校验失败；达到上限后作废验证码
+// （注册与登录共享同一计数，总错误尝试受限）。Redis 故障时仅记录失败，
+// 不阻断校验（防暴力是纵深防御）。
+func recordVerifyCodeFailure(ctx context.Context, redis svc.RedisStore, phone string) {
+	if redis == nil || phone == "" {
+		return
+	}
+	attemptKey := fmt.Sprintf("verify:attempts:%s", phone)
+	attempts, err := redis.IncrCtx(ctx, attemptKey)
+	if err != nil {
+		logx.WithContext(ctx).Errorw("verify attempts incr failed",
+			logx.Field("phone", phone), logx.Field("err", err.Error()))
+		return
+	}
+	if attempts == 1 {
+		_ = redis.ExpireCtx(ctx, attemptKey, verifyCodeAttemptWindowSeconds)
+	}
+	if attempts >= verifyCodeMaxAttempts {
+		_, _ = redis.DelCtx(ctx, phone)
+	}
+}
+
+// clearVerifyCodeFailures 校验成功后清理尝试计数。
+func clearVerifyCodeFailures(ctx context.Context, redis svc.RedisStore, phone string) {
+	if redis == nil || phone == "" {
+		return
+	}
+	_, _ = redis.DelCtx(ctx, fmt.Sprintf("verify:attempts:%s", phone))
+}
