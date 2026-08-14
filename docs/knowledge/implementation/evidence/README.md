@@ -63,3 +63,5 @@
   登录路径暴力尝试加固（共享验证码计数 + 密码锁定），提交见 frontmatter。
 - [2026-08-14-content-community-doc-refresh.md](2026-08-14-content-community-doc-refresh.md)：
   知识层元数据刷新（8 个修复批次后的复查），提交见 frontmatter。
+- [2026-08-14-content-community-verify-cooldown-fix.md](2026-08-14-content-community-verify-cooldown-fix.md)：
+  验证码冷却语义修复（注册后立即登录回归），提交见 frontmatter。
