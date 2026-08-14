@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
+	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"
 
 	"github.com/stretchr/testify/mock"
@@ -285,7 +286,7 @@ func (m legacyCommentCommandModel) CreateComment(
 	ctx context.Context,
 	comment *model2.Comment,
 	_ outboxx.Event,
-	_ model2.IdempotencyRecord,
+	_ idempotencyx.IdempotencyRecord,
 ) (int64, bool, error) {
 	if err := m.comments.InsertComment(ctx, comment); err != nil {
 		return 0, false, err
@@ -314,7 +315,7 @@ func (m legacyPostCommandModel) CreatePost(
 	tags []string,
 	tagIDs []int64,
 	_ outboxx.Event,
-	_ model2.IdempotencyRecord,
+	_ idempotencyx.IdempotencyRecord,
 ) (int64, bool, error) {
 	if err := m.post.InsertPostTx(ctx, nil, post); err != nil {
 		return 0, false, err

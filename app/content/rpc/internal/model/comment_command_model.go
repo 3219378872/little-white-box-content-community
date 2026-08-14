@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"esx/pkg/idempotencyx"
 	"fmt"
 
 	"esx/pkg/outboxx"
@@ -10,7 +11,7 @@ import (
 )
 
 type CommentCommandModel interface {
-	CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem IdempotencyRecord) (commentID int64, created bool, err error)
+	CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (commentID int64, created bool, err error)
 	DeleteComment(ctx context.Context, commentID, postID int64) error
 }
 
@@ -23,12 +24,12 @@ func NewCommentCommandModel(conn sqlx.SqlConn, outbox OutboxEnqueuer) CommentCom
 	return &commentCommandModel{conn: conn, outbox: outbox}
 }
 
-func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem IdempotencyRecord) (commentID int64, created bool, err error) {
+func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (commentID int64, created bool, err error) {
 	if comment == nil || m.conn == nil || m.outbox == nil {
 		return 0, false, fmt.Errorf("comment command model is not configured")
 	}
 	err = m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-		resourceID, shouldCreate, err := resolveIdempotencySession(ctx, session, idem, comment.Id, comment.Id)
+		resourceID, shouldCreate, err := idempotencyx.ResolveIdempotencySession(ctx, session, idem, comment.Id, comment.Id)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"
 	"fmt"
 	"strings"
@@ -24,9 +25,9 @@ func (conflictCommentCommandModel) CreateComment(
 	context.Context,
 	*model2.Comment,
 	outboxx.Event,
-	model2.IdempotencyRecord,
+	idempotencyx.IdempotencyRecord,
 ) (int64, bool, error) {
-	return 0, false, model2.ErrIdempotencyConflict
+	return 0, false, idempotencyx.ErrIdempotencyConflict
 }
 
 // ─── CreateComment ────────────────────────────────────────────────────────────

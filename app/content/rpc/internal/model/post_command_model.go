@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"esx/pkg/idempotencyx"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,7 +17,7 @@ type OutboxEnqueuer interface {
 }
 
 type PostCommandModel interface {
-	CreatePost(ctx context.Context, post *Post, tags []string, tagIDs []int64, event outboxx.Event, idem IdempotencyRecord) (postID int64, created bool, err error)
+	CreatePost(ctx context.Context, post *Post, tags []string, tagIDs []int64, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (postID int64, created bool, err error)
 	UpdatePost(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64, event outboxx.Event, expectedRevision int64) error
 	DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error
 }
@@ -36,7 +37,7 @@ func (m *postCommandModel) CreatePost(
 	tags []string,
 	tagIDs []int64,
 	event outboxx.Event,
-	idem IdempotencyRecord,
+	idem idempotencyx.IdempotencyRecord,
 ) (postID int64, created bool, err error) {
 	if post == nil || m.conn == nil || m.outbox == nil {
 		return 0, false, fmt.Errorf("content command model is not configured")
@@ -45,7 +46,7 @@ func (m *postCommandModel) CreatePost(
 		return 0, false, fmt.Errorf("tags and tag ids length mismatch")
 	}
 	err = m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-		resourceID, shouldCreate, err := resolveIdempotencySession(ctx, session, idem, post.Id, post.Id)
+		resourceID, shouldCreate, err := idempotencyx.ResolveIdempotencySession(ctx, session, idem, post.Id, post.Id)
 		if err != nil {
 			return err
 		}

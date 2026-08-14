@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"esx/pkg/idempotencyx"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func (c *capturingPostCommand) CreatePost(
 	tags []string,
 	_ []int64,
 	event outboxx.Event,
-	_ model.IdempotencyRecord,
+	_ idempotencyx.IdempotencyRecord,
 ) (int64, bool, error) {
 	c.post = post
 	c.tags = append([]string(nil), tags...)
@@ -88,7 +89,7 @@ func TestCreatePostLogicRejectsWhenTransactionalOutboxWriteFails(t *testing.T) {
 }
 
 func TestCreatePostLogicMapsIdempotencyConflict(t *testing.T) {
-	command := &capturingPostCommand{result: model.ErrIdempotencyConflict}
+	command := &capturingPostCommand{result: idempotencyx.ErrIdempotencyConflict}
 	svcCtx := newUnitSvcCtx(new(MockPostModel), nil, nil, new(MockPostTagModel))
 	svcCtx.PostCommandModel = command
 
@@ -222,7 +223,7 @@ func TestCreatePostCommandHashCoversStatusAndMediaIDs(t *testing.T) {
 }
 
 func postCommandHashForTest(in *pb.CreatePostReq) string {
-	return model.CommandHash(
+	return idempotencyx.CommandHash(
 		in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
 		strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
 	)

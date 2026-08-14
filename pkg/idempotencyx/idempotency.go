@@ -1,4 +1,4 @@
-package model
+package idempotencyx
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
-// maxIdempotencyKeySize 与 CORE-050 一致：客户端幂等键最长 128 字符。
+// maxIdempotencyKeySize 与 CORE-042/050 一致：客户端幂等键最长 128 字符。
 const maxIdempotencyKeySize = 128
 
 // ErrIdempotencyConflict 表示同一幂等键已被绑定到不同命令。
@@ -36,7 +36,7 @@ func CommandHash(parts ...string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// Valid 校验幂等记录；空 Key 表示调用方未提供幂等键。
+// Valid 校验幂等记录；空 Key 表示调用方未提供幂等键（不做去重）。
 func (r IdempotencyRecord) Valid() bool {
 	if r.Key == "" {
 		return true
@@ -44,7 +44,12 @@ func (r IdempotencyRecord) Valid() bool {
 	return r.Scope != "" && r.UserID > 0 && len(r.Key) <= maxIdempotencyKeySize && r.CommandHash != ""
 }
 
-// ResolveIdempotencySession 在既有事务会话内解析幂等键。
+// resolveIdempotencySession 在既有事务会话内解析幂等键：
+//   - Key 为空：返回 created=true 与 newResourceID，调用方继续创建。
+//   - 已存在且命令一致：返回既有 resourceID 与 created=false，调用方跳过创建。
+//   - 已存在但命令不一致：返回 ErrIdempotencyConflict。
+//
+// 并发同键竞争由唯一键约束处理：重复键错误后回查胜出事务的绑定。
 func ResolveIdempotencySession(
 	ctx context.Context,
 	session sqlx.Session,
@@ -56,7 +61,7 @@ func ResolveIdempotencySession(
 		return newResourceID, true, nil
 	}
 	if !rec.Valid() {
-		return 0, false, fmt.Errorf("media idempotency: invalid idempotency record")
+		return 0, false, fmt.Errorf("idempotencyx: invalid idempotency record")
 	}
 	existing, found, err := findIdempotencySession(ctx, session, rec.Scope, rec.UserID, rec.Key)
 	if err != nil {

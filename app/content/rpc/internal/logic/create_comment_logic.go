@@ -9,6 +9,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"esx/pkg/idempotencyx"
 	"esx/pkg/visibilityx"
 	"strconv"
 	"strings"
@@ -45,11 +46,11 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		return nil, errx.NewWithCode(errx.ContentTooLong)
 	}
 	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
-	idem := model2.IdempotencyRecord{
+	idem := idempotencyx.IdempotencyRecord{
 		Scope:       "comment:create",
 		UserID:      in.UserId,
 		Key:         idempotencyKey,
-		CommandHash: model2.CommandHash(in.GetContent(), strconv.FormatInt(in.GetPostId(), 10)),
+		CommandHash: idempotencyx.CommandHash(in.GetContent(), strconv.FormatInt(in.GetPostId(), 10)),
 	}
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -105,7 +106,7 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 	}
 	commentID, created, err := l.svcCtx.CommentCommandModel.CreateComment(l.ctx, comment, outboxEvent, idem)
 	if err != nil {
-		if errors.Is(err, model2.ErrIdempotencyConflict) {
+		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("create comment transaction failed",

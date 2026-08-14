@@ -229,7 +229,7 @@ verified_commit: bea6c09
 
 - 内容生命周期与幂等：`app/content/rpc/internal/logic/{create,update,delete,get}_post_logic.go`、
   `comment_logic`、`app/content/rpc/internal/model/{post,comment}_command_model.go`、
-  `app/content/rpc/internal/model/idempotency_model.go`。
+  `pkg/idempotencyx/idempotency.go`（共享幂等，CORE-050）。
 - 互动：`app/interaction/rpc/internal/logic/{like,unlike,favorite,unfavorite}_logic.go`。
 - 用户与隐私：`app/user/rpc/internal/logic/{get,set}_personalization_preference_logic.go`、
   `app/user/rpc/internal/model/personalization_preference_model.go`。
@@ -237,7 +237,7 @@ verified_commit: bea6c09
   `app/message/rpc/internal/model/message_command_model.go`。
 - 媒体：`app/media/rpc/internal/logic/upload_{image,video}_logic.go`、
   `app/media/rpc/internal/model/media_command_model.go`、
-  `app/media/rpc/internal/model/idempotency_model.go`。
+  `pkg/idempotencyx/idempotency.go`（共享幂等，CORE-050）。
 - 推荐：`app/recommend/rpc/internal/logic/get_recommend_posts_logic.go`、`helpers.go`、
   `app/recommend/mq/internal/store/behavior_store.go`。
 - Assistant：`app/assistant/rpc/internal/logic/chat_logic.go`、

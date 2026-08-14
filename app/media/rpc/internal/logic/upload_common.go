@@ -6,8 +6,8 @@ import (
 	"errors"
 	"errx"
 	"esx/app/media/rpc/internal/mediautil"
-	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/idempotencyx"
 	"fmt"
 	"io"
 	"strconv"
@@ -21,15 +21,15 @@ import (
 const storageTypeSeaweedFS = 3
 
 // mediaIdempotencyRecord 从上传元数据构造幂等记录（CORE-050）。
-func mediaIdempotencyRecord(meta *pb.UploadMeta) model.IdempotencyRecord {
+func mediaIdempotencyRecord(meta *pb.UploadMeta) idempotencyx.IdempotencyRecord {
 	if meta == nil {
-		return model.IdempotencyRecord{}
+		return idempotencyx.IdempotencyRecord{}
 	}
-	return model.IdempotencyRecord{
+	return idempotencyx.IdempotencyRecord{
 		Scope:  "media:upload",
 		UserID: meta.GetUserId(),
 		Key:    strings.TrimSpace(meta.GetIdempotencyKey()),
-		CommandHash: model.CommandHash(
+		CommandHash: idempotencyx.CommandHash(
 			meta.GetFileName(),
 			strconv.Itoa(int(meta.GetQuality())),
 			strconv.Itoa(int(meta.GetMaxWidth())),

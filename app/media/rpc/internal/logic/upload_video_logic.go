@@ -8,6 +8,7 @@ import (
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
 	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/idempotencyx"
 
 	"cleanupx"
 	"util"
@@ -96,7 +97,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 	}
 	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
 	if err != nil {
-		if errors.Is(err, model.ErrIdempotencyConflict) {
+		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
 			return errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("insert media row failed",

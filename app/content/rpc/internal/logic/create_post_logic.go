@@ -9,6 +9,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/event"
+	"esx/pkg/idempotencyx"
 	"mqx"
 	"strconv"
 	"strings"
@@ -81,11 +82,11 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		}
 	}
 	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
-	idem := model.IdempotencyRecord{
+	idem := idempotencyx.IdempotencyRecord{
 		Scope:  "post:create",
 		UserID: in.AuthorId,
 		Key:    idempotencyKey,
-		CommandHash: model.CommandHash(
+		CommandHash: idempotencyx.CommandHash(
 			in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
 			strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
 		),
@@ -162,7 +163,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	}
 	postID, created, err := l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent, idem)
 	if err != nil {
-		if errors.Is(err, model.ErrIdempotencyConflict) {
+		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("create post transaction failed", logx.Field("err", err.Error()))

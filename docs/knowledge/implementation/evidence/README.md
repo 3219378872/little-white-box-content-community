@@ -87,3 +87,5 @@
   Python 工具单测统一入口与 CI 接入（工具质量），提交见 frontmatter。
 - [2026-08-14-content-community-precommit-hooks.md](2026-08-14-content-community-precommit-hooks.md)：
   pre-commit 钩子补齐（工具质量），提交见 frontmatter。
+- [2026-08-14-content-community-idempotencyx.md](2026-08-14-content-community-idempotencyx.md)：
+  幂等模型共享包提取（DRY 重构），提交见 frontmatter。
