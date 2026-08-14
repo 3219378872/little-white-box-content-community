@@ -51,12 +51,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Go tests (race + cover, all modules)
         env:
           TEST_JSON_DIR: ${{ github.workspace }}/.artifacts/test-json
         run: make test
       - name: Layered coverage gate
         run: make coverage
+      - name: Spec-quality gate evaluator unit tests
+        run: make spec-evals-test
+      - name: Algorithm unit tests
+        run: make algorithm-test
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
