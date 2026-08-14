@@ -27,14 +27,7 @@ func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetU
 
 // GetUserPosts 获取用户帖子列表
 func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPostsResp, error) {
-	page := int(in.Page)
-	pageSize := int(in.PageSize)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 50 {
-		pageSize = 20
-	}
+	page, pageSize := normalizePage(int(in.Page), int(in.PageSize))
 	sortBy := int(in.SortBy)
 	switch sortBy {
 	case model.SortByHot, model.SortByLatest:

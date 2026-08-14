@@ -26,14 +26,7 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 
 // GetPostList 获取帖子列表
 func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListResp, error) {
-	page := int(in.Page)
-	pageSize := int(in.PageSize)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 50 {
-		pageSize = 20
-	}
+	page, pageSize := normalizePage(int(in.Page), int(in.PageSize))
 
 	posts, total, err := l.svcCtx.PostModel.FindList(l.ctx, page, pageSize, int(in.SortBy))
 	if err != nil {

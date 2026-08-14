@@ -30,14 +30,7 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
-	page := int(in.Page)
-	pageSize := int(in.PageSize)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 50 {
-		pageSize = 20
-	}
+	page, pageSize := normalizePage(int(in.Page), int(in.PageSize))
 
 	// FindPostIdsByTagName JOIN published，回源后再丢弃状态已变的帖。
 	postIds, total, err := l.svcCtx.PostTagModel.FindPostIdsByTagName(l.ctx, in.TagName, page, pageSize)

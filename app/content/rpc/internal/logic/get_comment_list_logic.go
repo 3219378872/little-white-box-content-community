@@ -28,14 +28,7 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 
 // GetCommentList 获取评论列表（一级评论分页）
 func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetCommentListResp, error) {
-	page := int(in.Page)
-	pageSize := int(in.PageSize)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 50 {
-		pageSize = 20
-	}
+	page, pageSize := normalizePage(int(in.Page), int(in.PageSize))
 
 	// CORE-015/016：只有已发布内容的评论可公开读取；草稿/删除/不可用内容
 	// 的评论线程统一返回不存在，不泄露历史状态。
