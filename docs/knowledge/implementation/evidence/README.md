@@ -51,3 +51,5 @@
   媒体上传幂等重试孤儿对象清理，提交见 frontmatter。
 - [2026-08-14-content-community-message-dead-method.md](2026-08-14-content-community-message-dead-method.md)：
   message 会话死方法清理（UpsertPairForMessage），提交见 frontmatter。
+- [2026-08-14-content-community-countsync-retry.md](2026-08-14-content-community-countsync-retry.md)：
+  count-sync 去重占位失败重试缺陷修复（CORE-032），提交见 frontmatter。
