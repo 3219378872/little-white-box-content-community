@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
@@ -450,11 +449,25 @@ func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
 
 func TestLikeLogic_Like_UnpublishedTarget(t *testing.T) {
 	logic := NewLikeLogic(context.Background(), &svc.ServiceContext{
-		ContentService: &fakeContentService{getPost: func(_ context.Context, in *contentservice.GetPostReq) (*contentservice.GetPostResp, error) {
-			return &contentservice.GetPostResp{Post: &contentpb.PostInfo{Id: in.PostId, Status: 0}}, nil
+		ContentService: &fakeContentService{assertFn: func(_ context.Context, _ *contentservice.AssertInteractableReq) (*contentservice.AssertInteractableResp, error) {
+			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}},
 	})
 	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ContentNotFound))
+}
+
+func TestLikeLogic_Like_CommentOnUnpublishedParent(t *testing.T) {
+	logic := NewLikeLogic(context.Background(), &svc.ServiceContext{
+		ContentService: &fakeContentService{assertFn: func(_ context.Context, in *contentservice.AssertInteractableReq) (*contentservice.AssertInteractableResp, error) {
+			if in.TargetType != 2 || in.TargetId != 21 {
+				t.Fatalf("unexpected target %+v", in)
+			}
+			return nil, errx.NewWithCode(errx.ContentNotFound)
+		}},
+	})
+	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 21, TargetType: 2})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.ContentNotFound))
 }

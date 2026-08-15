@@ -14,33 +14,35 @@ import (
 )
 
 type (
-	CommentInfo        = pb.CommentInfo
-	CreateCommentReq   = pb.CreateCommentReq
-	CreateCommentResp  = pb.CreateCommentResp
-	CreatePostReq      = pb.CreatePostReq
-	CreatePostResp     = pb.CreatePostResp
-	DeleteCommentReq   = pb.DeleteCommentReq
-	DeleteCommentResp  = pb.DeleteCommentResp
-	DeletePostReq      = pb.DeletePostReq
-	DeletePostResp     = pb.DeletePostResp
-	GetCommentListReq  = pb.GetCommentListReq
-	GetCommentListResp = pb.GetCommentListResp
-	GetPostListReq     = pb.GetPostListReq
-	GetPostListResp    = pb.GetPostListResp
-	GetPostReq         = pb.GetPostReq
-	GetPostResp        = pb.GetPostResp
-	GetPostsByIdsReq   = pb.GetPostsByIdsReq
-	GetPostsByIdsResp  = pb.GetPostsByIdsResp
-	GetPostsByTagReq   = pb.GetPostsByTagReq
-	GetPostsByTagResp  = pb.GetPostsByTagResp
-	GetTagsReq         = pb.GetTagsReq
-	GetTagsResp        = pb.GetTagsResp
-	GetUserPostsReq    = pb.GetUserPostsReq
-	GetUserPostsResp   = pb.GetUserPostsResp
-	PostInfo           = pb.PostInfo
-	TagInfo            = pb.TagInfo
-	UpdatePostReq      = pb.UpdatePostReq
-	UpdatePostResp     = pb.UpdatePostResp
+	AssertInteractableReq  = pb.AssertInteractableReq
+	AssertInteractableResp = pb.AssertInteractableResp
+	CommentInfo            = pb.CommentInfo
+	CreateCommentReq       = pb.CreateCommentReq
+	CreateCommentResp      = pb.CreateCommentResp
+	CreatePostReq          = pb.CreatePostReq
+	CreatePostResp         = pb.CreatePostResp
+	DeleteCommentReq       = pb.DeleteCommentReq
+	DeleteCommentResp      = pb.DeleteCommentResp
+	DeletePostReq          = pb.DeletePostReq
+	DeletePostResp         = pb.DeletePostResp
+	GetCommentListReq      = pb.GetCommentListReq
+	GetCommentListResp     = pb.GetCommentListResp
+	GetPostListReq         = pb.GetPostListReq
+	GetPostListResp        = pb.GetPostListResp
+	GetPostReq             = pb.GetPostReq
+	GetPostResp            = pb.GetPostResp
+	GetPostsByIdsReq       = pb.GetPostsByIdsReq
+	GetPostsByIdsResp      = pb.GetPostsByIdsResp
+	GetPostsByTagReq       = pb.GetPostsByTagReq
+	GetPostsByTagResp      = pb.GetPostsByTagResp
+	GetTagsReq             = pb.GetTagsReq
+	GetTagsResp            = pb.GetTagsResp
+	GetUserPostsReq        = pb.GetUserPostsReq
+	GetUserPostsResp       = pb.GetUserPostsResp
+	PostInfo               = pb.PostInfo
+	TagInfo                = pb.TagInfo
+	UpdatePostReq          = pb.UpdatePostReq
+	UpdatePostResp         = pb.UpdatePostResp
 
 	ContentService interface {
 		// 创建帖子
@@ -63,6 +65,8 @@ type (
 		DeleteComment(ctx context.Context, in *DeleteCommentReq, opts ...grpc.CallOption) (*DeleteCommentResp, error)
 		// 获取评论列表
 		GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error)
+		// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
+		AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error)
 		// 获取标签列表
 		GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error)
 		// 获取标签下的帖子
@@ -138,6 +142,12 @@ func (m *defaultContentService) DeleteComment(ctx context.Context, in *DeleteCom
 func (m *defaultContentService) GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error) {
 	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetCommentList(ctx, in, opts...)
+}
+
+// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
+func (m *defaultContentService) AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error) {
+	client := pb.NewContentServiceClient(m.cli.Conn())
+	return client.AssertInteractable(ctx, in, opts...)
 }
 
 // 获取标签列表

@@ -5,7 +5,7 @@ verified_commit: a52eb89
 commands:
   - python3 scripts/engineering-lint.py
   - python3 -m unittest -q scripts.test_engineering_lint
-  - go test -count=1 ./pkg/jwtx/ ./pkg/errx/ ./app/gateway/ ./app/gateway/internal/httpxconfig/ ./app/gateway/internal/handler/image/ ./app/gateway/internal/logic/posts/ ./app/gateway/internal/logic/user/ ./app/interaction/rpc/internal/logic/ ./app/user/rpc/internal/logic/
+  - go test -count=1 ./pkg/jwtx/ ./pkg/errx/ ./app/gateway/ ./app/gateway/internal/httpxconfig/ ./app/gateway/internal/handler/image/ ./app/gateway/internal/logic/posts/ ./app/content/rpc/internal/logic/ ./app/interaction/rpc/internal/logic/ ./app/user/rpc/internal/logic/
 result: passed
 ---
 
@@ -26,12 +26,11 @@ result: passed
 ## 实现
 
 - GetPost 经 viewerstate 回填 isLiked/isFavorited。
-- 帖子点赞/收藏写前 GetPost 校验 published。
+- 点赞/收藏写前调 Content `AssertInteractable`（帖子 published；评论有效且父帖 published）。
 - GetUserIdFromContext → LoginRequired；FromHTTPError 消毒；上传区分超大与非法 multipart。
 - 登录/注册/验证码日志去掉手机号。
 
 ## 未覆盖
 
-- 评论点赞未回源父帖。
 - REL-054 十行未全部注入测试。
 - 人类冻结集与真实月度 SLO 仍待外部输入。

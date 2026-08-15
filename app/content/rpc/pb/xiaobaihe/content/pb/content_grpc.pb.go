@@ -19,18 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ContentService_CreatePost_FullMethodName     = "/content.ContentService/CreatePost"
-	ContentService_GetPost_FullMethodName        = "/content.ContentService/GetPost"
-	ContentService_UpdatePost_FullMethodName     = "/content.ContentService/UpdatePost"
-	ContentService_DeletePost_FullMethodName     = "/content.ContentService/DeletePost"
-	ContentService_GetPostList_FullMethodName    = "/content.ContentService/GetPostList"
-	ContentService_GetUserPosts_FullMethodName   = "/content.ContentService/GetUserPosts"
-	ContentService_GetPostsByIds_FullMethodName  = "/content.ContentService/GetPostsByIds"
-	ContentService_CreateComment_FullMethodName  = "/content.ContentService/CreateComment"
-	ContentService_DeleteComment_FullMethodName  = "/content.ContentService/DeleteComment"
-	ContentService_GetCommentList_FullMethodName = "/content.ContentService/GetCommentList"
-	ContentService_GetTags_FullMethodName        = "/content.ContentService/GetTags"
-	ContentService_GetPostsByTag_FullMethodName  = "/content.ContentService/GetPostsByTag"
+	ContentService_CreatePost_FullMethodName         = "/content.ContentService/CreatePost"
+	ContentService_GetPost_FullMethodName            = "/content.ContentService/GetPost"
+	ContentService_UpdatePost_FullMethodName         = "/content.ContentService/UpdatePost"
+	ContentService_DeletePost_FullMethodName         = "/content.ContentService/DeletePost"
+	ContentService_GetPostList_FullMethodName        = "/content.ContentService/GetPostList"
+	ContentService_GetUserPosts_FullMethodName       = "/content.ContentService/GetUserPosts"
+	ContentService_GetPostsByIds_FullMethodName      = "/content.ContentService/GetPostsByIds"
+	ContentService_CreateComment_FullMethodName      = "/content.ContentService/CreateComment"
+	ContentService_DeleteComment_FullMethodName      = "/content.ContentService/DeleteComment"
+	ContentService_GetCommentList_FullMethodName     = "/content.ContentService/GetCommentList"
+	ContentService_AssertInteractable_FullMethodName = "/content.ContentService/AssertInteractable"
+	ContentService_GetTags_FullMethodName            = "/content.ContentService/GetTags"
+	ContentService_GetPostsByTag_FullMethodName      = "/content.ContentService/GetPostsByTag"
 )
 
 // ContentServiceClient is the client API for ContentService service.
@@ -59,6 +60,8 @@ type ContentServiceClient interface {
 	DeleteComment(ctx context.Context, in *DeleteCommentReq, opts ...grpc.CallOption) (*DeleteCommentResp, error)
 	// 获取评论列表
 	GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error)
+	// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
+	AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error)
 	// 获取标签列表
 	GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error)
 	// 获取标签下的帖子
@@ -173,6 +176,16 @@ func (c *contentServiceClient) GetCommentList(ctx context.Context, in *GetCommen
 	return out, nil
 }
 
+func (c *contentServiceClient) AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssertInteractableResp)
+	err := c.cc.Invoke(ctx, ContentService_AssertInteractable_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *contentServiceClient) GetTags(ctx context.Context, in *GetTagsReq, opts ...grpc.CallOption) (*GetTagsResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetTagsResp)
@@ -219,6 +232,8 @@ type ContentServiceServer interface {
 	DeleteComment(context.Context, *DeleteCommentReq) (*DeleteCommentResp, error)
 	// 获取评论列表
 	GetCommentList(context.Context, *GetCommentListReq) (*GetCommentListResp, error)
+	// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
+	AssertInteractable(context.Context, *AssertInteractableReq) (*AssertInteractableResp, error)
 	// 获取标签列表
 	GetTags(context.Context, *GetTagsReq) (*GetTagsResp, error)
 	// 获取标签下的帖子
@@ -262,6 +277,9 @@ func (UnimplementedContentServiceServer) DeleteComment(context.Context, *DeleteC
 }
 func (UnimplementedContentServiceServer) GetCommentList(context.Context, *GetCommentListReq) (*GetCommentListResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCommentList not implemented")
+}
+func (UnimplementedContentServiceServer) AssertInteractable(context.Context, *AssertInteractableReq) (*AssertInteractableResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method AssertInteractable not implemented")
 }
 func (UnimplementedContentServiceServer) GetTags(context.Context, *GetTagsReq) (*GetTagsResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTags not implemented")
@@ -470,6 +488,24 @@ func _ContentService_GetCommentList_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContentService_AssertInteractable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssertInteractableReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).AssertInteractable(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_AssertInteractable_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).AssertInteractable(ctx, req.(*AssertInteractableReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ContentService_GetTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetTagsReq)
 	if err := dec(in); err != nil {
@@ -552,6 +588,10 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCommentList",
 			Handler:    _ContentService_GetCommentList_Handler,
+		},
+		{
+			MethodName: "AssertInteractable",
+			Handler:    _ContentService_AssertInteractable_Handler,
 		},
 		{
 			MethodName: "GetTags",

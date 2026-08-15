@@ -39,7 +39,7 @@ type ServiceContext struct {
 
 // ContentService is the subset Interaction uses to enforce CORE-034.
 type ContentService interface {
-	GetPost(ctx context.Context, in *contentservice.GetPostReq, opts ...grpc.CallOption) (*contentservice.GetPostResp, error)
+	AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, opts ...grpc.CallOption) (*contentservice.AssertInteractableResp, error)
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {

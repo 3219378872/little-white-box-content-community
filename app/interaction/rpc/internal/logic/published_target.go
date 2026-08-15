@@ -6,36 +6,33 @@ import (
 	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/pkg/visibilityx"
 )
 
-const postTargetType int32 = 1
+const (
+	postTargetType    int32 = 1
+	commentTargetType int32 = 2
+)
 
 func requirePublishedPost(ctx context.Context, content svc.ContentService, postID int64) error {
-	if postID <= 0 {
+	return requirePublishedLikeTarget(ctx, content, postID, postTargetType)
+}
+
+func requirePublishedLikeTarget(ctx context.Context, content svc.ContentService, targetID int64, targetType int32) error {
+	if targetID <= 0 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	if targetType != postTargetType && targetType != commentTargetType {
 		return errx.NewWithCode(errx.ParamError)
 	}
 	if content == nil {
 		return errx.NewWithCode(errx.ServiceUnavailable)
 	}
-	resp, err := content.GetPost(ctx, &contentservice.GetPostReq{PostId: postID})
+	_, err := content.AssertInteractable(ctx, &contentservice.AssertInteractableReq{
+		TargetId:   targetID,
+		TargetType: targetType,
+	})
 	if err != nil {
 		return errx.FromRPCError(err)
 	}
-	if resp == nil || resp.Post == nil || !visibilityx.IsPublished(resp.Post.Status) {
-		return errx.NewWithCode(errx.ContentNotFound)
-	}
 	return nil
-}
-
-func requirePublishedLikeTarget(ctx context.Context, content svc.ContentService, targetID int64, targetType int32) error {
-	if targetType == postTargetType {
-		return requirePublishedPost(ctx, content, targetID)
-	}
-	if targetType == 2 {
-		// Comment likes need the parent post to be published (CORE-034).
-		// Content has no GetComment RPC yet; do not invent a post id.
-		return nil
-	}
-	return errx.NewWithCode(errx.ParamError)
 }

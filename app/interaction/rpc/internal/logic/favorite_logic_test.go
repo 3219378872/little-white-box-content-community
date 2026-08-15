@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"database/sql"
+	"esx/app/content/rpc/contentservice"
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
@@ -196,6 +197,20 @@ func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 	assert.True(t, errx.Is(err, errx.SystemError))
 	favoriteModel.AssertExpectations(t)
 	countModel.AssertExpectations(t)
+}
+
+func TestFavoriteLogic_Favorite_UnpublishedPost(t *testing.T) {
+	logic := NewFavoriteLogic(context.Background(), &svc.ServiceContext{
+		ContentService: &fakeContentService{assertFn: func(_ context.Context, in *contentservice.AssertInteractableReq) (*contentservice.AssertInteractableResp, error) {
+			if in.TargetType != 1 || in.TargetId != 100 {
+				t.Fatalf("unexpected target %+v", in)
+			}
+			return nil, errx.NewWithCode(errx.ContentNotFound)
+		}},
+	})
+	_, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
+	require.Error(t, err)
+	assert.True(t, errx.Is(err, errx.ContentNotFound))
 }
 
 func TestFavoriteLogic_Favorite_InvalidParam(t *testing.T) {

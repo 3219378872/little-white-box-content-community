@@ -47,11 +47,9 @@ verified_commit: a52eb89
 
 ## 总体状态
 
-`diverged`：2026-08-15 已锁定规范。条目可见性与页内 `Total` 回减现与 CORE-015/DISC-001
-一致。仍偏离处：
+`diverged`：2026-08-15 已锁定规范。代码可关闭项已对齐。仍偏离处：
 - `CORE-032` 公开计数 30s 收敛缺少生产观测。
-- `CORE-034` 评论点赞尚未回源父帖（Content 无 GetComment）。
-- `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-061/063` 无学习模型、相对提升 0。
+- `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
 - `REL-A03` 未注入 `REL-054` 全部十行。
 
@@ -85,7 +83,7 @@ verified_commit: a52eb89
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
 | CORE-032 互动状态立即可查 | partial | 详情与列表经 Gateway viewerstate 回填；计数走 count-sync，30s 收敛未经生产观测 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
-| CORE-034 赞藏仅已发布 | partial | 帖子点赞/收藏写前 GetPost 校验 published；评论点赞尚无 GetComment |
+| CORE-034 赞藏仅已发布 | aligned | Interaction 写前调 Content `AssertInteractable`；帖子须 published，评论须有效且父帖 published；权威不可用失败关闭 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
 | CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体并持久化 media_id |
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令（含不同 media_id）冲突 |
@@ -208,7 +206,7 @@ verified_commit: a52eb89
 
 ## 验收标准追踪
 
-四份规范共 21 条验收标准（CORE/DISC/ASST/REL-A*）。代码行为类以 Go 测试落地，
+四份规范共 22 条验收标准（CORE-A01~A07、DISC/ASST/REL-A*）。代码行为类以 Go 测试落地，
 离线评测/观测类由 `scripts/spec_evals.py` 与冻结数据集承担（后者待人类输入，见
 [IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)）。
 
@@ -220,13 +218,13 @@ verified_commit: a52eb89
 | CORE-A04 幂等收敛 | aligned | `app/content/rpc/internal/logic/idempotency_revision_integration_test.go`、`app/interaction/rpc/internal/logic/interaction_integration_test.go`、`app/message/rpc/internal/model/message_command_model_integration_test.go` |
 | CORE-A05 会话参与者权限 | aligned | `app/message/rpc/internal/logic/message_logic_test.go` |
 | CORE-A06 权威写与异步失败 | aligned | `app/content/rpc/internal/logic/post_integration_test.go`、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go`、`pkg/outboxx/relay_test.go` |
+| CORE-A07 详情状态与不可用点赞 | aligned | `app/gateway/internal/logic/posts/get_post_logic_test.go`；`like_logic_test.go` / `assert_interactable_logic_test.go`（草稿帖与评论父帖未发布均 404） |
 | DISC-A01 三能力只返回可见内容 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/search/rpc/internal/logic/search_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A02 关注变化/空流/匿名冷启动 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | DISC-A06 冻结集复现门禁 | partial | 现有 live 结果基于 LLM 合成集，不满足人类双评审 |
-| CORE-A07 详情状态与不可用点赞 | partial | GetPost 已回填 liked/favorited；帖子点赞校验 published；评论点赞未回源 |
 | ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
 | ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
@@ -243,7 +241,8 @@ verified_commit: a52eb89
 - 内容生命周期与幂等：`app/content/rpc/internal/logic/{create,update,delete,get}_post_logic.go`、
   `comment_logic`、`app/content/rpc/internal/model/{post,comment}_command_model.go`、
   `pkg/idempotencyx/idempotency.go`（共享幂等，CORE-050）。
-- 互动：`app/interaction/rpc/internal/logic/{like,unlike,favorite,unfavorite}_logic.go`。
+- 互动：`app/interaction/rpc/internal/logic/{like,unlike,favorite,unfavorite}_logic.go`、
+  `published_target.go`；Content `assert_interactable_logic.go`（CORE-034）。
 - 用户与隐私：`app/user/rpc/internal/logic/{get,set}_personalization_preference_logic.go`、
   `app/user/rpc/internal/model/personalization_preference_model.go`。
 - 私信：`app/message/rpc/internal/logic/send_message_logic.go`、

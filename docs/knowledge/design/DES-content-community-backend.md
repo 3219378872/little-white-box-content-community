@@ -51,9 +51,9 @@ published 行。
 
 ### 互动写路径
 
-点赞/收藏在 Interaction 写入前经 Content `GetPost` 确认目标对调用者可互动且 published
-（CORE-034）。Content 不可用则失败关闭，不写入关系。对不可用目标返回 `ContentNotFound`，
-与 CORE-016 一致。关注只校验用户身份，不经 Content。
+点赞/收藏在 Interaction 写入前经 Content `AssertInteractable` 确认目标可互动
+（CORE-034）：帖子必须 published；评论必须有效且父帖 published。Content 不可用则失败关闭，
+不写入关系。对不可用目标返回 `ContentNotFound`，与 CORE-016 一致。关注只校验用户身份。
 
 公开计数：关系以 Interaction 为准；`post.like_count`/`favorite_count` 由 count-sync
 异步收敛，目标 30 秒（CORE-032）。评论计数在 Content 事务内更新。

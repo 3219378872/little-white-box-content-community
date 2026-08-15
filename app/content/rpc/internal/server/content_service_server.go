@@ -83,6 +83,12 @@ func (s *ContentServiceServer) GetCommentList(ctx context.Context, in *pb.GetCom
 	return l.GetCommentList(in)
 }
 
+// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
+func (s *ContentServiceServer) AssertInteractable(ctx context.Context, in *pb.AssertInteractableReq) (*pb.AssertInteractableResp, error) {
+	l := logic.NewAssertInteractableLogic(ctx, s.svcCtx)
+	return l.AssertInteractable(in)
+}
+
 // 获取标签列表
 func (s *ContentServiceServer) GetTags(ctx context.Context, in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
 	l := logic.NewGetTagsLogic(ctx, s.svcCtx)

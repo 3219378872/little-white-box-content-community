@@ -1279,6 +1279,96 @@ func (*DeleteCommentResp) Descriptor() ([]byte, []int) {
 	return file_proto_content_content_proto_rawDescGZIP(), []int{17}
 }
 
+// 断言互动目标请求
+type AssertInteractableReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetId      int64                  `protobuf:"varint,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	TargetType    int32                  `protobuf:"varint,2,opt,name=target_type,json=targetType,proto3" json:"target_type,omitempty"` // 1:帖子 2:评论
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssertInteractableReq) Reset() {
+	*x = AssertInteractableReq{}
+	mi := &file_proto_content_content_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssertInteractableReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssertInteractableReq) ProtoMessage() {}
+
+func (x *AssertInteractableReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_content_content_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssertInteractableReq.ProtoReflect.Descriptor instead.
+func (*AssertInteractableReq) Descriptor() ([]byte, []int) {
+	return file_proto_content_content_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AssertInteractableReq) GetTargetId() int64 {
+	if x != nil {
+		return x.TargetId
+	}
+	return 0
+}
+
+func (x *AssertInteractableReq) GetTargetType() int32 {
+	if x != nil {
+		return x.TargetType
+	}
+	return 0
+}
+
+// 断言互动目标响应（不可互动时返回业务错误，不返回成功）
+type AssertInteractableResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssertInteractableResp) Reset() {
+	*x = AssertInteractableResp{}
+	mi := &file_proto_content_content_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssertInteractableResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssertInteractableResp) ProtoMessage() {}
+
+func (x *AssertInteractableResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_content_content_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssertInteractableResp.ProtoReflect.Descriptor instead.
+func (*AssertInteractableResp) Descriptor() ([]byte, []int) {
+	return file_proto_content_content_proto_rawDescGZIP(), []int{19}
+}
+
 // 获取评论列表请求
 type GetCommentListReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1292,7 +1382,7 @@ type GetCommentListReq struct {
 
 func (x *GetCommentListReq) Reset() {
 	*x = GetCommentListReq{}
-	mi := &file_proto_content_content_proto_msgTypes[18]
+	mi := &file_proto_content_content_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1304,7 +1394,7 @@ func (x *GetCommentListReq) String() string {
 func (*GetCommentListReq) ProtoMessage() {}
 
 func (x *GetCommentListReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[18]
+	mi := &file_proto_content_content_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1317,7 +1407,7 @@ func (x *GetCommentListReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCommentListReq.ProtoReflect.Descriptor instead.
 func (*GetCommentListReq) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{18}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetCommentListReq) GetPostId() int64 {
@@ -1359,7 +1449,7 @@ type GetCommentListResp struct {
 
 func (x *GetCommentListResp) Reset() {
 	*x = GetCommentListResp{}
-	mi := &file_proto_content_content_proto_msgTypes[19]
+	mi := &file_proto_content_content_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1371,7 +1461,7 @@ func (x *GetCommentListResp) String() string {
 func (*GetCommentListResp) ProtoMessage() {}
 
 func (x *GetCommentListResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[19]
+	mi := &file_proto_content_content_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1384,7 +1474,7 @@ func (x *GetCommentListResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCommentListResp.ProtoReflect.Descriptor instead.
 func (*GetCommentListResp) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{19}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetCommentListResp) GetComments() []*CommentInfo {
@@ -1411,7 +1501,7 @@ type GetTagsReq struct {
 
 func (x *GetTagsReq) Reset() {
 	*x = GetTagsReq{}
-	mi := &file_proto_content_content_proto_msgTypes[20]
+	mi := &file_proto_content_content_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1513,7 @@ func (x *GetTagsReq) String() string {
 func (*GetTagsReq) ProtoMessage() {}
 
 func (x *GetTagsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[20]
+	mi := &file_proto_content_content_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1526,7 @@ func (x *GetTagsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTagsReq.ProtoReflect.Descriptor instead.
 func (*GetTagsReq) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{20}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetTagsReq) GetLimit() int32 {
@@ -1456,7 +1546,7 @@ type GetTagsResp struct {
 
 func (x *GetTagsResp) Reset() {
 	*x = GetTagsResp{}
-	mi := &file_proto_content_content_proto_msgTypes[21]
+	mi := &file_proto_content_content_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1468,7 +1558,7 @@ func (x *GetTagsResp) String() string {
 func (*GetTagsResp) ProtoMessage() {}
 
 func (x *GetTagsResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[21]
+	mi := &file_proto_content_content_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1481,7 +1571,7 @@ func (x *GetTagsResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTagsResp.ProtoReflect.Descriptor instead.
 func (*GetTagsResp) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{21}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetTagsResp) GetTags() []*TagInfo {
@@ -1503,7 +1593,7 @@ type TagInfo struct {
 
 func (x *TagInfo) Reset() {
 	*x = TagInfo{}
-	mi := &file_proto_content_content_proto_msgTypes[22]
+	mi := &file_proto_content_content_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1515,7 +1605,7 @@ func (x *TagInfo) String() string {
 func (*TagInfo) ProtoMessage() {}
 
 func (x *TagInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[22]
+	mi := &file_proto_content_content_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1528,7 +1618,7 @@ func (x *TagInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TagInfo.ProtoReflect.Descriptor instead.
 func (*TagInfo) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{22}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TagInfo) GetId() int64 {
@@ -1564,7 +1654,7 @@ type GetPostsByTagReq struct {
 
 func (x *GetPostsByTagReq) Reset() {
 	*x = GetPostsByTagReq{}
-	mi := &file_proto_content_content_proto_msgTypes[23]
+	mi := &file_proto_content_content_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1576,7 +1666,7 @@ func (x *GetPostsByTagReq) String() string {
 func (*GetPostsByTagReq) ProtoMessage() {}
 
 func (x *GetPostsByTagReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[23]
+	mi := &file_proto_content_content_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1589,7 +1679,7 @@ func (x *GetPostsByTagReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostsByTagReq.ProtoReflect.Descriptor instead.
 func (*GetPostsByTagReq) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{23}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetPostsByTagReq) GetTagName() string {
@@ -1624,7 +1714,7 @@ type GetPostsByTagResp struct {
 
 func (x *GetPostsByTagResp) Reset() {
 	*x = GetPostsByTagResp{}
-	mi := &file_proto_content_content_proto_msgTypes[24]
+	mi := &file_proto_content_content_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1636,7 +1726,7 @@ func (x *GetPostsByTagResp) String() string {
 func (*GetPostsByTagResp) ProtoMessage() {}
 
 func (x *GetPostsByTagResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[24]
+	mi := &file_proto_content_content_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1649,7 +1739,7 @@ func (x *GetPostsByTagResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostsByTagResp.ProtoReflect.Descriptor instead.
 func (*GetPostsByTagResp) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{24}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetPostsByTagResp) GetPosts() []*PostInfo {
@@ -1676,7 +1766,7 @@ type GetPostsByIdsReq struct {
 
 func (x *GetPostsByIdsReq) Reset() {
 	*x = GetPostsByIdsReq{}
-	mi := &file_proto_content_content_proto_msgTypes[25]
+	mi := &file_proto_content_content_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1688,7 +1778,7 @@ func (x *GetPostsByIdsReq) String() string {
 func (*GetPostsByIdsReq) ProtoMessage() {}
 
 func (x *GetPostsByIdsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[25]
+	mi := &file_proto_content_content_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1701,7 +1791,7 @@ func (x *GetPostsByIdsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostsByIdsReq.ProtoReflect.Descriptor instead.
 func (*GetPostsByIdsReq) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{25}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetPostsByIdsReq) GetPostIds() []int64 {
@@ -1721,7 +1811,7 @@ type GetPostsByIdsResp struct {
 
 func (x *GetPostsByIdsResp) Reset() {
 	*x = GetPostsByIdsResp{}
-	mi := &file_proto_content_content_proto_msgTypes[26]
+	mi := &file_proto_content_content_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1733,7 +1823,7 @@ func (x *GetPostsByIdsResp) String() string {
 func (*GetPostsByIdsResp) ProtoMessage() {}
 
 func (x *GetPostsByIdsResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_content_content_proto_msgTypes[26]
+	mi := &file_proto_content_content_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1746,7 +1836,7 @@ func (x *GetPostsByIdsResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostsByIdsResp.ProtoReflect.Descriptor instead.
 func (*GetPostsByIdsResp) Descriptor() ([]byte, []int) {
-	return file_proto_content_content_proto_rawDescGZIP(), []int{26}
+	return file_proto_content_content_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetPostsByIdsResp) GetPosts() []*PostInfo {
@@ -1863,7 +1953,12 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\n" +
 	"comment_id\x18\x01 \x01(\x03R\tcommentId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x13\n" +
-	"\x11DeleteCommentResp\"v\n" +
+	"\x11DeleteCommentResp\"U\n" +
+	"\x15AssertInteractableReq\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\x03R\btargetId\x12\x1f\n" +
+	"\vtarget_type\x18\x02 \x01(\x05R\n" +
+	"targetType\"\x18\n" +
+	"\x16AssertInteractableResp\"v\n" +
 	"\x11GetCommentListReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
@@ -1892,7 +1987,7 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\x10GetPostsByIdsReq\x12\x19\n" +
 	"\bpost_ids\x18\x01 \x03(\x03R\apostIds\"<\n" +
 	"\x11GetPostsByIdsResp\x12'\n" +
-	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts2\xab\x06\n" +
+	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts2\x82\a\n" +
 	"\x0eContentService\x12=\n" +
 	"\n" +
 	"CreatePost\x12\x16.content.CreatePostReq\x1a\x17.content.CreatePostResp\x124\n" +
@@ -1906,7 +2001,8 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\rGetPostsByIds\x12\x19.content.GetPostsByIdsReq\x1a\x1a.content.GetPostsByIdsResp\x12F\n" +
 	"\rCreateComment\x12\x19.content.CreateCommentReq\x1a\x1a.content.CreateCommentResp\x12F\n" +
 	"\rDeleteComment\x12\x19.content.DeleteCommentReq\x1a\x1a.content.DeleteCommentResp\x12I\n" +
-	"\x0eGetCommentList\x12\x1a.content.GetCommentListReq\x1a\x1b.content.GetCommentListResp\x124\n" +
+	"\x0eGetCommentList\x12\x1a.content.GetCommentListReq\x1a\x1b.content.GetCommentListResp\x12U\n" +
+	"\x12AssertInteractable\x12\x1e.content.AssertInteractableReq\x1a\x1f.content.AssertInteractableResp\x124\n" +
 	"\aGetTags\x12\x13.content.GetTagsReq\x1a\x14.content.GetTagsResp\x12F\n" +
 	"\rGetPostsByTag\x12\x19.content.GetPostsByTagReq\x1a\x1a.content.GetPostsByTagRespB\x16Z\x14xiaobaihe/content/pbb\x06proto3"
 
@@ -1922,42 +2018,44 @@ func file_proto_content_content_proto_rawDescGZIP() []byte {
 	return file_proto_content_content_proto_rawDescData
 }
 
-var file_proto_content_content_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_proto_content_content_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_proto_content_content_proto_goTypes = []any{
-	(*PostInfo)(nil),           // 0: content.PostInfo
-	(*CommentInfo)(nil),        // 1: content.CommentInfo
-	(*CreatePostReq)(nil),      // 2: content.CreatePostReq
-	(*CreatePostResp)(nil),     // 3: content.CreatePostResp
-	(*GetPostReq)(nil),         // 4: content.GetPostReq
-	(*GetPostResp)(nil),        // 5: content.GetPostResp
-	(*UpdatePostReq)(nil),      // 6: content.UpdatePostReq
-	(*UpdatePostResp)(nil),     // 7: content.UpdatePostResp
-	(*DeletePostReq)(nil),      // 8: content.DeletePostReq
-	(*DeletePostResp)(nil),     // 9: content.DeletePostResp
-	(*GetPostListReq)(nil),     // 10: content.GetPostListReq
-	(*GetPostListResp)(nil),    // 11: content.GetPostListResp
-	(*GetUserPostsReq)(nil),    // 12: content.GetUserPostsReq
-	(*GetUserPostsResp)(nil),   // 13: content.GetUserPostsResp
-	(*CreateCommentReq)(nil),   // 14: content.CreateCommentReq
-	(*CreateCommentResp)(nil),  // 15: content.CreateCommentResp
-	(*DeleteCommentReq)(nil),   // 16: content.DeleteCommentReq
-	(*DeleteCommentResp)(nil),  // 17: content.DeleteCommentResp
-	(*GetCommentListReq)(nil),  // 18: content.GetCommentListReq
-	(*GetCommentListResp)(nil), // 19: content.GetCommentListResp
-	(*GetTagsReq)(nil),         // 20: content.GetTagsReq
-	(*GetTagsResp)(nil),        // 21: content.GetTagsResp
-	(*TagInfo)(nil),            // 22: content.TagInfo
-	(*GetPostsByTagReq)(nil),   // 23: content.GetPostsByTagReq
-	(*GetPostsByTagResp)(nil),  // 24: content.GetPostsByTagResp
-	(*GetPostsByIdsReq)(nil),   // 25: content.GetPostsByIdsReq
-	(*GetPostsByIdsResp)(nil),  // 26: content.GetPostsByIdsResp
+	(*PostInfo)(nil),               // 0: content.PostInfo
+	(*CommentInfo)(nil),            // 1: content.CommentInfo
+	(*CreatePostReq)(nil),          // 2: content.CreatePostReq
+	(*CreatePostResp)(nil),         // 3: content.CreatePostResp
+	(*GetPostReq)(nil),             // 4: content.GetPostReq
+	(*GetPostResp)(nil),            // 5: content.GetPostResp
+	(*UpdatePostReq)(nil),          // 6: content.UpdatePostReq
+	(*UpdatePostResp)(nil),         // 7: content.UpdatePostResp
+	(*DeletePostReq)(nil),          // 8: content.DeletePostReq
+	(*DeletePostResp)(nil),         // 9: content.DeletePostResp
+	(*GetPostListReq)(nil),         // 10: content.GetPostListReq
+	(*GetPostListResp)(nil),        // 11: content.GetPostListResp
+	(*GetUserPostsReq)(nil),        // 12: content.GetUserPostsReq
+	(*GetUserPostsResp)(nil),       // 13: content.GetUserPostsResp
+	(*CreateCommentReq)(nil),       // 14: content.CreateCommentReq
+	(*CreateCommentResp)(nil),      // 15: content.CreateCommentResp
+	(*DeleteCommentReq)(nil),       // 16: content.DeleteCommentReq
+	(*DeleteCommentResp)(nil),      // 17: content.DeleteCommentResp
+	(*AssertInteractableReq)(nil),  // 18: content.AssertInteractableReq
+	(*AssertInteractableResp)(nil), // 19: content.AssertInteractableResp
+	(*GetCommentListReq)(nil),      // 20: content.GetCommentListReq
+	(*GetCommentListResp)(nil),     // 21: content.GetCommentListResp
+	(*GetTagsReq)(nil),             // 22: content.GetTagsReq
+	(*GetTagsResp)(nil),            // 23: content.GetTagsResp
+	(*TagInfo)(nil),                // 24: content.TagInfo
+	(*GetPostsByTagReq)(nil),       // 25: content.GetPostsByTagReq
+	(*GetPostsByTagResp)(nil),      // 26: content.GetPostsByTagResp
+	(*GetPostsByIdsReq)(nil),       // 27: content.GetPostsByIdsReq
+	(*GetPostsByIdsResp)(nil),      // 28: content.GetPostsByIdsResp
 }
 var file_proto_content_content_proto_depIdxs = []int32{
 	0,  // 0: content.GetPostResp.post:type_name -> content.PostInfo
 	0,  // 1: content.GetPostListResp.posts:type_name -> content.PostInfo
 	0,  // 2: content.GetUserPostsResp.posts:type_name -> content.PostInfo
 	1,  // 3: content.GetCommentListResp.comments:type_name -> content.CommentInfo
-	22, // 4: content.GetTagsResp.tags:type_name -> content.TagInfo
+	24, // 4: content.GetTagsResp.tags:type_name -> content.TagInfo
 	0,  // 5: content.GetPostsByTagResp.posts:type_name -> content.PostInfo
 	0,  // 6: content.GetPostsByIdsResp.posts:type_name -> content.PostInfo
 	2,  // 7: content.ContentService.CreatePost:input_type -> content.CreatePostReq
@@ -1966,26 +2064,28 @@ var file_proto_content_content_proto_depIdxs = []int32{
 	8,  // 10: content.ContentService.DeletePost:input_type -> content.DeletePostReq
 	10, // 11: content.ContentService.GetPostList:input_type -> content.GetPostListReq
 	12, // 12: content.ContentService.GetUserPosts:input_type -> content.GetUserPostsReq
-	25, // 13: content.ContentService.GetPostsByIds:input_type -> content.GetPostsByIdsReq
+	27, // 13: content.ContentService.GetPostsByIds:input_type -> content.GetPostsByIdsReq
 	14, // 14: content.ContentService.CreateComment:input_type -> content.CreateCommentReq
 	16, // 15: content.ContentService.DeleteComment:input_type -> content.DeleteCommentReq
-	18, // 16: content.ContentService.GetCommentList:input_type -> content.GetCommentListReq
-	20, // 17: content.ContentService.GetTags:input_type -> content.GetTagsReq
-	23, // 18: content.ContentService.GetPostsByTag:input_type -> content.GetPostsByTagReq
-	3,  // 19: content.ContentService.CreatePost:output_type -> content.CreatePostResp
-	5,  // 20: content.ContentService.GetPost:output_type -> content.GetPostResp
-	7,  // 21: content.ContentService.UpdatePost:output_type -> content.UpdatePostResp
-	9,  // 22: content.ContentService.DeletePost:output_type -> content.DeletePostResp
-	11, // 23: content.ContentService.GetPostList:output_type -> content.GetPostListResp
-	13, // 24: content.ContentService.GetUserPosts:output_type -> content.GetUserPostsResp
-	26, // 25: content.ContentService.GetPostsByIds:output_type -> content.GetPostsByIdsResp
-	15, // 26: content.ContentService.CreateComment:output_type -> content.CreateCommentResp
-	17, // 27: content.ContentService.DeleteComment:output_type -> content.DeleteCommentResp
-	19, // 28: content.ContentService.GetCommentList:output_type -> content.GetCommentListResp
-	21, // 29: content.ContentService.GetTags:output_type -> content.GetTagsResp
-	24, // 30: content.ContentService.GetPostsByTag:output_type -> content.GetPostsByTagResp
-	19, // [19:31] is the sub-list for method output_type
-	7,  // [7:19] is the sub-list for method input_type
+	20, // 16: content.ContentService.GetCommentList:input_type -> content.GetCommentListReq
+	18, // 17: content.ContentService.AssertInteractable:input_type -> content.AssertInteractableReq
+	22, // 18: content.ContentService.GetTags:input_type -> content.GetTagsReq
+	25, // 19: content.ContentService.GetPostsByTag:input_type -> content.GetPostsByTagReq
+	3,  // 20: content.ContentService.CreatePost:output_type -> content.CreatePostResp
+	5,  // 21: content.ContentService.GetPost:output_type -> content.GetPostResp
+	7,  // 22: content.ContentService.UpdatePost:output_type -> content.UpdatePostResp
+	9,  // 23: content.ContentService.DeletePost:output_type -> content.DeletePostResp
+	11, // 24: content.ContentService.GetPostList:output_type -> content.GetPostListResp
+	13, // 25: content.ContentService.GetUserPosts:output_type -> content.GetUserPostsResp
+	28, // 26: content.ContentService.GetPostsByIds:output_type -> content.GetPostsByIdsResp
+	15, // 27: content.ContentService.CreateComment:output_type -> content.CreateCommentResp
+	17, // 28: content.ContentService.DeleteComment:output_type -> content.DeleteCommentResp
+	21, // 29: content.ContentService.GetCommentList:output_type -> content.GetCommentListResp
+	19, // 30: content.ContentService.AssertInteractable:output_type -> content.AssertInteractableResp
+	23, // 31: content.ContentService.GetTags:output_type -> content.GetTagsResp
+	26, // 32: content.ContentService.GetPostsByTag:output_type -> content.GetPostsByTagResp
+	20, // [20:33] is the sub-list for method output_type
+	7,  // [7:20] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
 	7,  // [7:7] is the sub-list for extension extendee
 	0,  // [0:7] is the sub-list for field type_name
@@ -2003,7 +2103,7 @@ func file_proto_content_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_content_content_proto_rawDesc), len(file_proto_content_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
