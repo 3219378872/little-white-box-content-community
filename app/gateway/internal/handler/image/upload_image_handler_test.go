@@ -96,7 +96,7 @@ func extractBizCode(t *testing.T, body []byte) int {
 	return code
 }
 
-func TestUploadImageHandler_NotMultipart_ReturnsFileTooLarge(t *testing.T) {
+func TestUploadImageHandler_NotMultipart_ReturnsParamError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/upload/image", strings.NewReader("not-multipart"))
 	req.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
@@ -104,8 +104,8 @@ func TestUploadImageHandler_NotMultipart_ReturnsFileTooLarge(t *testing.T) {
 	UploadImageHandler(newSvcCtx())(w, req)
 
 	body, _ := io.ReadAll(w.Result().Body)
-	if got := extractBizCode(t, body); got != errx.FileTooLarge {
-		t.Fatalf("expected code=%d FileTooLarge, got %d (body=%s)", errx.FileTooLarge, got, string(body))
+	if got := extractBizCode(t, body); got != errx.ParamError {
+		t.Fatalf("expected code=%d ParamError, got %d (body=%s)", errx.ParamError, got, string(body))
 	}
 }
 

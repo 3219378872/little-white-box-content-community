@@ -2,8 +2,8 @@
 title: knowledge transition register
 owner: agent
 status: active
-observed_at: 2026-08-14
-observed_commit: bea6c09
+observed_at: 2026-08-15
+observed_commit: a52eb89
 ---
 
 # 知识迁移登记
@@ -33,6 +33,6 @@ observed_commit: bea6c09
 
 ## 后续待办
 
-1. 人类评审产出冻结评测集（`eval/` 下的正式 search_qrels 与 assistant_cases 文件），
-   运行 `scripts/spec_evals.py` 门禁（DISC-060~063 / ASST-050~051）。
-2. 收集一个自然月的生产观测数据，运行 SLO 报告命令（REL-030~043）。
+1. 两名人类评审者产出正式冻结评测集；现有 LLM 合成集不能关闭 DISC-060 / ASST-050。
+2. 学习模型达到 DISC-062 门槛后复评 DISC-063。
+3. 收集一个自然月的生产观测数据，关闭 REL-033 / REL-040~043 / REL-A05。

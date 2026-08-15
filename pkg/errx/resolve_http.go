@@ -1,10 +1,15 @@
 package errx
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+)
 
 // FromHTTPError converts a non-BizError (from httpx.Parse validation/JSON parsing)
-// to a BizError with ParamError code. If err already is a BizError (possibly wrapped),
-// it is returned unchanged. nil is returned as-is.
+// to a public BizError. Parse/validation failures become ParamError with the
+// generic message. Unknown errors become SystemError. Neither path returns
+// the raw err.Error() (CORE-054).
 func FromHTTPError(err error) *BizError {
 	if err == nil {
 		return nil
@@ -14,8 +19,33 @@ func FromHTTPError(err error) *BizError {
 		return bizErr
 	}
 
-	return &BizError{
-		Code:    ParamError,
-		Message: err.Error(),
+	if isHTTPParseError(err) {
+		return &BizError{Code: ParamError, Message: GetMsg(ParamError)}
 	}
+	return &BizError{Code: SystemError, Message: GetMsg(SystemError)}
+}
+
+func isHTTPParseError(err error) bool {
+	var syntax *json.SyntaxError
+	if errors.As(err, &syntax) {
+		return true
+	}
+	var unmarshal *json.UnmarshalTypeError
+	if errors.As(err, &unmarshal) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "is not set") ||
+		strings.Contains(msg, "type mismatch") ||
+		strings.Contains(msg, "is not defined in options") ||
+		strings.Contains(msg, "unmarshal") ||
+		strings.Contains(msg, "invalid character") ||
+		strings.Contains(msg, "strconv") ||
+		strings.Contains(msg, "invalid syntax") ||
+		strings.Contains(msg, "unexpected end") ||
+		strings.Contains(msg, "unexpected eof") ||
+		strings.Contains(msg, "request body") ||
+		strings.Contains(msg, "not json") ||
+		strings.Contains(msg, "multipart") ||
+		strings.Contains(msg, "parse")
 }

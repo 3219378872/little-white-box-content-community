@@ -4,16 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/internal/config"
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/pkg/outboxx"
 	"fmt"
+	"interceptor"
 	"mqx"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	"github.com/zeromicro/go-zero/zrpc"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
@@ -30,6 +34,12 @@ type ServiceContext struct {
 	Redis               *redis.Redis
 	RedisStore          RedisStore
 	SingleFlight        singleflight.Group
+	ContentService      ContentService
+}
+
+// ContentService is the subset Interaction uses to enforce CORE-034.
+type ContentService interface {
+	GetPost(ctx context.Context, in *contentservice.GetPostReq, opts ...grpc.CallOption) (*contentservice.GetPostResp, error)
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -73,6 +83,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		}
 	}
 
+	var contentService ContentService
+	if len(c.ContentRpc.Etcd.Hosts) > 0 || len(c.ContentRpc.Endpoints) > 0 || c.ContentRpc.Target != "" {
+		contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		contentService = contentservice.NewContentService(contentClient)
+	}
+
 	return &ServiceContext{
 		Config:              c,
 		Conn:                conn,
@@ -86,6 +102,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MQProducer:          producer,
 		Redis:               redisClient,
 		RedisStore:          NewRedisStore(redisClient),
+		ContentService:      contentService,
 	}
 }
 

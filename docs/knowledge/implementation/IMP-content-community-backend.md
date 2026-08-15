@@ -35,8 +35,8 @@ tracks:
   - deploy/sql/xbh_user.sql
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
-verified_at: 2026-08-14
-verified_commit: 900ac7e
+verified_at: 2026-08-15
+verified_commit: a52eb89
 ---
 
 # 小白盒内容社区后端实现映射
@@ -47,14 +47,13 @@ verified_commit: 900ac7e
 
 ## 总体状态
 
-`diverged`：公开列表与发现回源后只保留 published；GetPost/列表对外返回 status。评论按主键读取不再走缓存。
-仍偏离处：
-- 搜索/列表/标签/收藏 `Total` 未重算全库，其他页仍可能计入已取消发布文档。
-- `CORE-032` 计数 30s 收敛缺少生产观测。
-- `DISC-061/063`（推荐门禁）冻结样本集已生成并执行（2026-08-14：规则基线相对提升
-  0，生产暂无学习模型，按 DISC-062 不宣称改善）；`ASST-050/051` 的来源有效率 77.3%
-  与证据不足召回 8.3% 未达阈值（live 结果 2026-08-14 见 ASST 行）。
-- `REL-030~043` 月度 SLO/异步延迟缺少生产观测。
+`diverged`：2026-08-15 已锁定规范。条目可见性与页内 `Total` 回减现与 CORE-015/DISC-001
+一致。仍偏离处：
+- `CORE-032` 公开计数 30s 收敛缺少生产观测。
+- `CORE-034` 评论点赞尚未回源父帖（Content 无 GetComment）。
+- `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-061/063` 无学习模型、相对提升 0。
+- `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
+- `REL-A03` 未注入 `REL-054` 全部十行。
 
 ## 规格追踪
 
@@ -75,36 +74,38 @@ verified_commit: 900ac7e
 | CORE-012 草稿仅作者可读 | aligned | GetPost 作者可读草稿，非作者统一 404 |
 | CORE-013 变更携带预期 revision | aligned | /api/v2/post 是唯一写路径，强制 expected_revision（缺失/0 → 400，冲突 → 409）；人类 2026-08-13 决定“直接废弃并迁移”，/api/v1 帖子写接口已移除（PROP-20260813-core-revision-contract 选项 B + 废弃决定） |
 | CORE-014 变更后读取返回新状态/revision | aligned | 事务内写+outbox；Update 返回 status/revision；HTTP GetPost 与公开列表 PostItem 回传权威 status 与 revision |
-| CORE-015 取消发布/删除不再出现 | partial | 单帖/批量/公开列表/标签回源后只保留 published；搜索/列表/标签/收藏 Total 只按本页回减 |
+| CORE-015 取消发布/删除不再出现 | aligned | 条目回源后只保留 published；`Total` 按本页回减（2026-08-15 SPEC 允许估计） |
 | CORE-016 匿名/非作者统一不存在 | aligned | 草稿/删除/非公开对非作者统一 404；已发布详情/评论允许匿名读取；评论列表 SQL 过滤 status=1 后再内存二次过滤并回减 Total（纵深防御） |
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
-| CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | Handler 只限制 10MiB；类型由 mediautil 按文件内容嗅探 |
+| CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | Handler 区分 MaxBytes 与非法 multipart；类型由 mediautil 按内容嗅探 |
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 重复请求返回成功且不重复累计；命令层 no-op 不写 outbox |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
-| CORE-032 互动状态立即可查 | partial | liked/favorited 状态即时回填；计数走 count-sync，30s 收敛未经生产观测证明 |
+| CORE-032 互动状态立即可查 | partial | 详情与列表经 Gateway viewerstate 回填；计数走 count-sync，30s 收敛未经生产观测 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
+| CORE-034 赞藏仅已发布 | partial | 帖子点赞/收藏写前 GetPost 校验 published；评论点赞尚无 GetComment |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |
 | CORE-041 消息正文/媒体消息 | aligned | 文本 1~1000；媒体消息必须引用本人已完成媒体并持久化 media_id |
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令（含不同 media_id）冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
+| CORE-044 私信成功不依赖通知 | aligned | SendMessage 以库提交为成功；无赞/评/关通知生产者 |
 | CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409；媒体命令哈希含接收文件内容 sha256 指纹；评论命令哈希含回复目标评论与被回复用户（CORE-051 异命令冲突，2026-08-14） |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError；HTTPStatus 为唯一映射（密码错误 401、验证码错误/过期 400、空搜索 400、搜索超时 504，2026-08-14 补齐） |
 | CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务（帖子/评论；media 软删已接入：media-deleted 事件与软删同事务，relay 投递，避免提交后崩溃丢事件产生 S3 孤儿对象） |
 | CORE-053 异步效果失败不改成功 | aligned | 互动/评论/帖子缓存失效失败只告警不改变已提交成功的响应 |
-| CORE-054 不泄露内部信息 | aligned | WrapMsg 不拼内部错误；框架 gRPC 错误只保留业务码，不暴露原始消息 |
+| CORE-054 不泄露内部信息 | aligned | FromHTTPError 未知错误走 SystemError 通用文案；解析失败不回传底层字符串 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
 | CORE-061 游标链约束 | aligned | 见 DISC-003/033 |
-| CORE-062 /api/v1 与 /api/v2/messages 兼容 | aligned | 消息契约仅新增可选字段；帖子写接口已按人类决定直接废弃并迁移到 /api/v2/post*，无迁移期跳过语义 |
+| CORE-062 /api/v1 读契约与 v2 写路径 | aligned | SPEC 已记录移除 v1 帖子写接口；其余 v1 读/互动与 `/api/v2/messages*` 兼容 |
 | CORE-063 不依赖内部结构 | aligned | 契约层不暴露内部结构 |
 
 ## SPEC-content-discovery 追踪
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| DISC-001 只返回可见已发布内容 | partial | 条目经 Content 回源过滤；搜索标题/摘要回填权威正文；Total 只按本页回减；中文检索改用 cjk 分词 + 20% minimum_should_match（2026-08-14 live 门禁调参） |
+| DISC-001 只返回可见已发布内容 | aligned | 条目经 Content 回源过滤；`Total` 按本页回减（SPEC 允许估计） |
 | DISC-002 稳定内容标识 | aligned | post_id 稳定 |
 | DISC-003 游标不重复、绑定上下文 | aligned | recommend 游标 HMAC+绑定；feed 游标按创建时间+id |
 | DISC-004 未曝光不得解释为负反馈 | aligned | 负反馈只来自 hide/dislike 等明确动作 |
@@ -128,7 +129,10 @@ verified_commit: 900ac7e
 | DISC-050 /api/v2/feed/*、/search* 兼容 | aligned | 无破坏性变更 |
 | DISC-051 分值/来源/版本语义稳定 | aligned | 字段语义与行为事件关联未变 |
 | DISC-052 客户端不依赖固定排序 | aligned | 契约不承诺排序 |
-| DISC-060~063 离线评测门禁 | partial | DISC-060 已 live 通过（NDCG@10=0.816、泄漏=0）；DISC-061/063 冻结样本集已生成并执行（2026-08-14：model=baseline=规则热榜 0.0599，相对提升 0——生产无学习模型，按 DISC-062 不宣称改善，如实未达标）；待学习模型达 1 万曝光/1 千身份门槛后重生成真实排序复评 |
+| DISC-060 搜索人类冻结集 | partial | 现有 qrels 为 LLM 双评审合成集；SPEC 要求两名人类评审，不能关闭 |
+| DISC-061 分能力评估 | aligned | 搜索/推荐/助手使用独立冻结文件与指标 |
+| DISC-062 学习模型门槛 | aligned | 未达 1 万曝光/1 千身份，不宣称学习改善 |
+| DISC-063 推荐相对提升 | partial | 规则基线相对提升 0，如实未达标 |
 
 ## SPEC-grounded-assistant 追踪
 
@@ -161,7 +165,8 @@ verified_commit: 900ac7e
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
 | ASST-041 证据边界不可变 | aligned | 设计约束 |
 | ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050~051 离线评测门禁 | partial | live 执行（2026-08-14）：注入越界 0（达标）、可回答误拒率 5.8%（≤10% 达标）、来源有效率 77.3%（<100%）、证据不足召回 8.3%（<95%）；事实陈述支持率已纳入门禁（expected_facts 由冻结语料确定性派生，bigram 覆盖代理判定，需 ≥95%）；检索与 LLM 引用行为待提升 |
+| ASST-050 人类评测集 | partial | 现有案例为 LLM 生成；SPEC 要求两名人类评审 |
+| ASST-051 质量阈值 | partial | live（合成集）：注入 0、误拒 5.8% 达标；来源 77.3%、不足召回 8.3% 未达 |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -170,7 +175,7 @@ verified_commit: 900ac7e
 | REL-001 客户端动作白名单 | aligned | 客户端仅可提交 exposure/click/dwell/view/play/share/hide/dislike |
 | REL-002 事件 id ≤128 全局唯一、批 ≤100 | aligned | client_event_id ≤128、批量上限配置 |
 | REL-003 事件关联身份、位置从 1 开始 | aligned | exposure 位置必须 ≥1 |
-| REL-004 曝光定义与去重 | aligned | 去重事件 id + 同一 (requestId, postId) 独立曝光去重键 |
+| REL-004 曝光定义与去重 | aligned | 视口/1s 由客户端判定；服务端强制 (requestId, postId) 去重 |
 | REL-005 停留时长非负、未曝光不作负反馈 | aligned | duration 校验 + 负反馈来源 |
 | REL-006 补报 30 天/超前 5 分钟 | aligned | MaxPastAgeHours/MaxFutureSkewSeconds |
 | REL-007 批量逐项接受/拒绝 | aligned | RecordEvents 逐项结果 |
@@ -181,16 +186,23 @@ verified_commit: 900ac7e
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地；新增 `daily_aggregates` 去标识聚合表（TTL 365 天，ReplacingMergeTree 幂等）与 behavior-log 定时聚合任务（`AggregateIntervalSeconds`/`AggregateBackfillDays`）；修复既有 schema 在 DateTime64 列上的 TTL 建表错误（BAD_TTL_EXPRESSION），ClickHouse 集成测试现可初始化 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
-| REL-022 业务日志 30 天不泄密 | aligned | 全部 RPC 服务抑制框架自动内容日志（IgnoreContentMethods）+ 30 天 Loki 保留；结构化业务日志不含正文/私信/全量输入 |
+| REL-022 业务日志 30 天不泄密 | aligned | IgnoreContentMethods + Loki 30 天；登录/注册/验证码日志不再写手机号 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
-| REL-030~033 SLO 口径 | partial | 月度 SLO 口径已在 scripts/spec_evals.py slo 落地；2026-08-14 合成观测干跑 6 能力域全部 met=True（管线验证，人类授权 LLM 生成）；真实生产观测待月度报告 |
+| REL-030 SLO 分母口径 | partial | 口径在 spec_evals.py；缺真实月度数据 |
+| REL-031 降级计可用 | partial | 口径已实现；缺真实月度数据 |
+| REL-032 延迟口径 | partial | 口径已实现；缺真实月度数据 |
+| REL-033 月度目标表 | partial | 目标已编号；合成干跑只验证管线 |
 | REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；真实月度观测待收集（合成干跑已验证报告管线） |
 | REL-041 行为到特征 p95 60s/p99 5m | n/a | 需要真实观测数据（指标已埋点） |
 | REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要真实观测数据（指标已埋点） |
 | REL-043 RPO 0/RTO 30m | n/a | 运维目标 |
 | REL-044 有界恢复不重试风暴 | aligned | relay 退避与租约 |
-| REL-050~053 可观测与健康检查 | aligned | metrics + /health 存活 + /health/ready 就绪（列出依赖；可选发现能力故障仅 degraded）；网关 trace_id 经 gRPC metadata 透传下游 |
+| REL-050 请求可观测 | aligned | metrics + 错误类别 + 降级标记 |
+| REL-051 异步可观测 | aligned | MQ outcome/延迟与 outbox 积压 |
+| REL-052 追踪标识 | aligned | trace_id 经 gRPC metadata 透传 |
+| REL-053 存活与就绪 | aligned | /health 与 /health/ready；可选发现故障 degraded |
+| REL-054 降级矩阵 | partial | 代码覆盖库/缓存/relay/可见性/搜索/LLM/状态存储；REL-A03 未逐行注入十类故障 |
 | REL-060 行为契约带版本 | aligned | schema_version=2 |
 | REL-061 语义保持 | aligned | 契约稳定 |
 
@@ -213,14 +225,15 @@ verified_commit: 900ac7e
 | DISC-A03 搜索结果区分 | aligned | `app/search/rpc/internal/logic/search_logic_test.go` |
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
-| DISC-A06 冻结集复现门禁 | partial | search 冻结集已 live 复现（NDCG@10=0.816、泄漏 0）；recommend 冻结样本集已执行（相对提升 0，规则基线现状，DISC-062 合规） |
+| DISC-A06 冻结集复现门禁 | partial | 现有 live 结果基于 LLM 合成集，不满足人类双评审 |
+| CORE-A07 详情状态与不可用点赞 | partial | GetPost 已回填 liked/favorited；帖子点赞校验 published；评论点赞未回源 |
 | ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
 | ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A04 完成/取消/降级/越权 | aligned | `app/gateway/internal/logic/assistant/assistant_chat_logic_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | REL-A02 链路归因 | aligned | `integration/behavior_pipeline_integration_test.go`、`app/pipeline/behaviorlog` |
-| REL-A03 故障降级矩阵 | aligned | `app/gateway/rest_decision_table_test.go`（RPC-FAIL 系列）、`app/recommend/rpc/internal/logic/inference_fault_injection_test.go` |
+| REL-A03 故障降级矩阵 | partial | 仅覆盖网关 RPC-FAIL 与推荐推理注入，不是 REL-054 全部十行 |
 | REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
 

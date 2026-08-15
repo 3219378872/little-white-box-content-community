@@ -8,6 +8,7 @@ import (
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
+	"gateway/internal/logic/viewerstate"
 	"jwtx"
 
 	"gateway/internal/svc"
@@ -52,6 +53,12 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 
+	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, userId, []int64{post.Id})
+	if err != nil {
+		l.Errorw("viewerstate.Enrich failed", logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+		return nil, err
+	}
+
 	return &types.GetPostResp{
 		Id:            post.Id,
 		AuthorId:      post.AuthorId,
@@ -64,8 +71,8 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		LikeCount:     post.LikeCount,
 		CommentCount:  post.CommentCount,
 		FavoriteCount: post.FavoriteCount,
-		IsLiked:       result.IsLiked,
-		IsFavorited:   result.IsFavorited,
+		IsLiked:       liked[post.Id],
+		IsFavorited:   favorited[post.Id],
 		Revision:      post.Revision,
 		CreatedAt:     post.CreatedAt,
 	}, nil

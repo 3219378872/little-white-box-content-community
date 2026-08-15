@@ -9,8 +9,8 @@ upstream:
 tracks:
   - app/
   - pkg/
-verified_at: 2026-08-14
-verified_commit: bea6c09
+verified_at: 2026-08-15
+verified_commit: a52eb89
 ---
 
 # 服务架构与模块清单
@@ -79,8 +79,10 @@ internal/model/    → 数据访问层
 ## 服务间通信
 
 - **Gateway → RPC**：zrpc 客户端 + etcd 服务发现；trace_id 经 gRPC metadata 透传。
-- **RPC → RPC**：Content 聚合 User（作者）与 Interaction（点赞/收藏状态）；Assistant 经
-  Content 重读正文并验证 published 状态。
+- **RPC → RPC**：Interaction 写赞/藏前问 Content 校验 published；Assistant 经 Content
+  重读正文并验证 published。详情/列表的访问者互动状态由 Gateway 回填 Interaction。
+- **算法旁路**：`algorithm/online_infer` 与 `offline_train` 可选；推荐超时则规则降级。
+  `message-push` 不是当前产品路径。
 - **RPC → MQ**：权威业务事务与 outbox 同事务提交，relay 投递 RocketMQ。
 - **写入路径**：权威写入走事务 outbox，不依赖 DTM。Content 契约已删除 `QueryPrepared`。
 

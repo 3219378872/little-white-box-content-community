@@ -37,14 +37,14 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	// 马上验证码登录是正常流程，不应被 60 秒冷却阻断。
 	existing, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.GetPhone())
 	if err != nil {
-		l.Errorw("Redis.GetCtx failed", logx.Field("phone", in.GetPhone()), logx.Field("err", err.Error()))
+		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if existing != "" {
 		cooldownKey := fmt.Sprintf("verify:cooldown:%s", in.GetPhone())
 		first, setErr := l.svcCtx.RedisClient.SetnxExCtx(l.ctx, cooldownKey, "1", verifyCodeCooldownSeconds)
 		if setErr != nil {
-			l.Errorw("Redis.SetnxExCtx failed", logx.Field("phone", in.GetPhone()), logx.Field("err", setErr.Error()))
+			l.Errorw("Redis.SetnxExCtx failed", logx.Field("err", setErr.Error()))
 			return nil, errx.Wrap(setErr, errx.SystemError)
 		}
 		if !first {
@@ -64,7 +64,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	err = l.svcCtx.RedisClient.SetexCtx(l.ctx, in.GetPhone(), fmt.Sprintf("%06d", randInt), expireTime)
 
 	if err != nil {
-		l.Errorw("Redis.SetexCtx failed", logx.Field("phone", in.GetPhone()), logx.Field("err", err.Error()))
+		l.Errorw("Redis.SetexCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 

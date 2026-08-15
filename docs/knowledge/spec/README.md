@@ -22,3 +22,7 @@
 | [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
 
 四份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
+
+2026-08-15 锁定：补齐意图模板字段；记录 `/api/v1` 帖子写接口移除；明确详情互动状态、
+不可用目标点赞、曝光客户端/服务端分工、`Total` 估计语义、人类评测门禁和 `REL-033`/
+`REL-054` 编号。站内赞/评/关通知不在范围。

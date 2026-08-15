@@ -30,6 +30,9 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	if in.UserId <= 0 || in.PostId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if err := requirePublishedPost(l.ctx, l.svcCtx.ContentService, in.PostId); err != nil {
+		return nil, err
+	}
 
 	if l.svcCtx.InteractionCommands == nil {
 		l.Errorw("favorite command dependency is not configured")

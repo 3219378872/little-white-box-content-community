@@ -51,6 +51,7 @@
 | 测试 | [docs/knowledge/implementation/IMP-development-quickstart.md](docs/knowledge/implementation/IMP-development-quickstart.md) | 测试分层、覆盖率和质量门禁 |
 | 整体架构 | [docs/knowledge/implementation/IMP-architecture.md](docs/knowledge/implementation/IMP-architecture.md) | 服务、存储和主要数据流概览 |
 | 实现映射 | [docs/knowledge/implementation/IMP-content-community-backend.md](docs/knowledge/implementation/IMP-content-community-backend.md) | 设计到代码的逐条追踪与状态 |
+| 剩余门禁 | [docs/knowledge/implementation/IMP-todo-blocked-gates.md](docs/knowledge/implementation/IMP-todo-blocked-gates.md) | 人类评测集与月度 SLO |
 
 迁移状态见 [docs/knowledge/TRANSITION.md](docs/knowledge/TRANSITION.md)。
 

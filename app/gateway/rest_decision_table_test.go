@@ -510,7 +510,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "UNLIKE-MALFORMED", method: http.MethodDelete, path: "/api/v1/like", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "FAVORITE-MALFORMED", method: http.MethodPost, path: "/api/v1/favorite", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "UNFAVORITE-MALFORMED", method: http.MethodDelete, path: "/api/v1/favorite", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "MEDIA-IMAGE-NOT-MULTIPART", method: http.MethodPost, path: "/api/v1/media/image", body: plainBody("not-multipart"), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.FileTooLarge},
+		restDecision{id: "MEDIA-IMAGE-NOT-MULTIPART", method: http.MethodPost, path: "/api/v1/media/image", body: plainBody("not-multipart"), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "BEHAVIOR-EVENTS-MALFORMED", method: http.MethodPost, path: "/api/v2/behavior/events", body: jsonBody(`{`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "FEED-FOLLOW-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/follow?pageSize=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "FEED-RECOMMEND-BAD-QUERY", method: http.MethodGet, path: "/api/v2/feed/recommend?anonymousId=device-1&requestId=request-1&pageSize=bad", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},

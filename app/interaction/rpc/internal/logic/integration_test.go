@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	}
 
 	testSvcCtx = svc.NewServiceContext(cfg)
+	testSvcCtx.ContentService = &fakeContentService{}
 
 	ensureActionCountTable()
 

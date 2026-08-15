@@ -4,6 +4,7 @@
 package image
 
 import (
+	"errors"
 	"errx"
 	"net/http"
 
@@ -20,7 +21,12 @@ func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			httpx.ErrorCtx(r.Context(), w, errx.NewWithCode(errx.FileTooLarge))
+			var maxBytes *http.MaxBytesError
+			if errors.As(err, &maxBytes) {
+				httpx.ErrorCtx(r.Context(), w, errx.NewWithCode(errx.FileTooLarge))
+				return
+			}
+			httpx.ErrorCtx(r.Context(), w, errx.NewWithCode(errx.ParamError))
 			return
 		}
 

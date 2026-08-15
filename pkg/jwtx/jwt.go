@@ -80,7 +80,7 @@ func ParseToken(tokenString string, config JwtConfig) (*Claims, error) {
 func GetUserIdFromContext(ctx context.Context) (int64, error) {
 	userId, ok := GetOptionalUserIdFromContext(ctx)
 	if !ok {
-		return 0, fmt.Errorf("convert userId failed: %w", errx.NewWithCode(errx.SystemError))
+		return 0, errx.NewWithCode(errx.LoginRequired)
 	}
 	return userId, nil
 }

@@ -6,11 +6,35 @@ import (
 
 	"esx/app/content/rpc/contentservice"
 	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/app/interaction/rpc/interactionservice"
 	"gateway/internal/svc"
 	"gateway/internal/types"
+	"jwtx"
 
 	"google.golang.org/grpc"
 )
+
+type fakeGetPostInteractionService struct {
+	interactionservice.InteractionService
+	liked     map[int64]bool
+	favorited map[int64]bool
+}
+
+func (f *fakeGetPostInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+	results := make(map[int64]bool, len(in.TargetIds))
+	for _, id := range in.TargetIds {
+		results[id] = f.liked[id]
+	}
+	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
+}
+
+func (f *fakeGetPostInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckFavoritedResp, error) {
+	results := make(map[int64]bool, len(in.PostIds))
+	for _, id := range in.PostIds {
+		results[id] = f.favorited[id]
+	}
+	return &interactionservice.BatchCheckFavoritedResp{Results: results}, nil
+}
 
 type fakeGetPostContentService struct {
 	contentservice.ContentService
@@ -41,5 +65,33 @@ func TestGetPost_ReturnsStatusAndRevision(t *testing.T) {
 	}
 	if resp.Status != 0 || resp.Revision != 4 || resp.Id != 11 {
 		t.Fatalf("expected status/revision from content, got %+v", resp)
+	}
+	if resp.IsLiked || resp.IsFavorited {
+		t.Fatalf("anonymous viewer must not receive interaction state, got %+v", resp)
+	}
+}
+
+func TestGetPost_AuthenticatedFillsViewerState(t *testing.T) {
+	svcCtx := &svc.ServiceContext{
+		ContentService: &fakeGetPostContentService{
+			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+				return &contentservice.GetPostResp{Post: &contentpb.PostInfo{
+					Id: 11, AuthorId: 7, Title: "pub", Content: "body", Status: 1, Revision: 2,
+				}}, nil
+			},
+		},
+		InteractionService: &fakeGetPostInteractionService{
+			liked:     map[int64]bool{11: true},
+			favorited: map[int64]bool{11: false},
+		},
+	}
+	ctx := jwtx.WithUserIdContext(context.Background(), 42)
+	logic := NewGetPostLogic(ctx, svcCtx)
+	resp, err := logic.GetPost(&types.GetPostReq{PostId: 11})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !resp.IsLiked || resp.IsFavorited {
+		t.Fatalf("expected liked=true favorited=false, got %+v", resp)
 	}
 }

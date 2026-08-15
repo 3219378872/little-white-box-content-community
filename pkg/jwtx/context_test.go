@@ -3,6 +3,7 @@ package jwtx
 import (
 	"context"
 	"encoding/json"
+	"errx"
 	"testing"
 )
 
@@ -60,6 +61,16 @@ func TestGetOptionalUserIdFromContext_Missing_ReturnsFalse(t *testing.T) {
 	got, ok := GetOptionalUserIdFromContext(context.Background())
 	if ok {
 		t.Fatalf("expected no user id, got %d", got)
+	}
+}
+
+func TestGetUserIdFromContext_Missing_ReturnsLoginRequired(t *testing.T) {
+	_, err := GetUserIdFromContext(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errx.Is(err, errx.LoginRequired) {
+		t.Fatalf("expected LoginRequired, got %v", err)
 	}
 }
 

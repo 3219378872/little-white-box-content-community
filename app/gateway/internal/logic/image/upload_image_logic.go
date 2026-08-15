@@ -35,7 +35,7 @@ func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Uploa
 
 // UploadImage 保留原签名以保证 types 匹配（实际入口走 UploadImageMultipart）。
 func (l *UploadImageLogic) UploadImage(_ *types.UploadImageReq) (*types.UploadImageResp, error) {
-	return nil, errx.NewWithCode(errx.SystemError)
+	return nil, errx.NewWithCode(errx.ParamError)
 }
 
 // UploadImageMultipart 从 handler 接收 multipart 文件，分块 streaming 到 Media RPC。

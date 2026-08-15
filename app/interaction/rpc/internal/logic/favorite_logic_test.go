@@ -75,6 +75,7 @@ func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
+		ContentService:   &fakeContentService{},
 		FavoriteModel:    favoriteModel,
 		ActionCountModel: countModel,
 	}
@@ -101,7 +102,8 @@ func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	svcCtx := &svc.ServiceContext{
-		FavoriteModel: favoriteModel,
+		ContentService: &fakeContentService{},
+		FavoriteModel:  favoriteModel,
 	}
 
 	favoriteModel.
@@ -122,6 +124,7 @@ func TestFavoriteLogic_Favorite_ReviveCanceledRecord(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
+		ContentService:   &fakeContentService{},
 		FavoriteModel:    favoriteModel,
 		ActionCountModel: countModel,
 	}
@@ -148,7 +151,8 @@ func TestFavoriteLogic_Favorite_ReviveCanceledRecord(t *testing.T) {
 func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	svcCtx := &svc.ServiceContext{
-		FavoriteModel: favoriteModel,
+		ContentService: &fakeContentService{},
+		FavoriteModel:  favoriteModel,
 	}
 
 	favoriteModel.
@@ -169,6 +173,7 @@ func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
+		ContentService:   &fakeContentService{},
 		FavoriteModel:    favoriteModel,
 		ActionCountModel: countModel,
 	}

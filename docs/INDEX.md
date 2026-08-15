@@ -24,6 +24,8 @@
 | MQ、重试、降级、部署排查 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | `deploy/` 和对应消费者 |
 | 测试、质量、发布前验证 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | 相关测试文件和 CI |
 | 需要了解整体结构 | [implementation/IMP-architecture.md](knowledge/implementation/IMP-architecture.md) | 对应 `app/`、`pkg/` 代码 |
+| 规格对齐与逐条状态 | [implementation/IMP-content-community-backend.md](knowledge/implementation/IMP-content-community-backend.md) | 设计到代码台账 |
+| 剩余外部门禁 | [implementation/IMP-todo-blocked-gates.md](knowledge/implementation/IMP-todo-blocked-gates.md) | 人类评测集与月度 SLO |
 
 ## 文档层级
 

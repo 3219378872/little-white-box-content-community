@@ -42,3 +42,8 @@ Outbox:
   BaseBackoffMs: 1000
   MaxBackoffMs: 60000
   MaxAttempts: 20
+ContentRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: content.rpc

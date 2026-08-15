@@ -12,4 +12,5 @@ type Config struct {
 	DataSource string
 	MQ         mqx.ProducerConfig
 	Outbox     outboxx.Config
+	ContentRpc zrpc.RpcClientConf `json:",optional"`
 }

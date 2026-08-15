@@ -12,10 +12,10 @@
 
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
-| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-13（规格台账迁到 IMP；CORE-013/评测/SLO 仍偏离） |
-| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
-| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
-| [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-13（快照） |
+| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-15（规范锁定后仍有评测/SLO/评论点赞缺口） |
+| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-15（快照） |
+| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
+| [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
 
 > 迁移说明：docs/active 速查、顶层 DESIGN/SECURITY/RELIABILITY/QUALITY_SCORE
 > 规范文档、ARCHITECTURE 服务架构文档与 generated 旧快照的内容已并入上述实现页

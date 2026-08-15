@@ -24,25 +24,14 @@ func TestFromHTTPError_AlreadyBizError(t *testing.T) {
 
 func TestFromHTTPError_MappingErrors(t *testing.T) {
 	tests := []struct {
-		name    string
-		err     error
-		wantMsg string
+		name string
+		err  error
 	}{
-		{
-			"field not set",
-			fmt.Errorf("field %q is not set", "username"),
-			`field "username" is not set`,
-		},
-		{
-			"type mismatch",
-			fmt.Errorf("type mismatch for field %q", "loginType"),
-			`type mismatch for field "loginType"`,
-		},
-		{
-			"option validation",
-			fmt.Errorf(`value "x" for field "type" is not defined in options "[1,2]"`),
-			`value "x" for field "type" is not defined in options "[1,2]"`,
-		},
+		{"field not set", fmt.Errorf("field %q is not set", "username")},
+		{"type mismatch", fmt.Errorf("type mismatch for field %q", "loginType")},
+		{"option validation", fmt.Errorf(`value "x" for field "type" is not defined in options "[1,2]"`)},
+		{"path strconv", fmt.Errorf(`strconv.ParseInt: parsing "not-a-number": invalid syntax`)},
+		{"truncated json", fmt.Errorf("unexpected EOF")},
 	}
 
 	for _, tt := range tests {
@@ -51,8 +40,8 @@ func TestFromHTTPError_MappingErrors(t *testing.T) {
 			if got.Code != ParamError {
 				t.Errorf("Code = %d, want %d", got.Code, ParamError)
 			}
-			if got.Message != tt.wantMsg {
-				t.Errorf("Message = %q, want %q", got.Message, tt.wantMsg)
+			if got.Message != GetMsg(ParamError) {
+				t.Errorf("Message = %q, want generic ParamError", got.Message)
 			}
 		})
 	}
@@ -73,10 +62,20 @@ func TestFromHTTPError_JSONErrors(t *testing.T) {
 			if got.Code != ParamError {
 				t.Errorf("Code = %d, want %d", got.Code, ParamError)
 			}
-			if got.Message != tt.err.Error() {
-				t.Errorf("Message = %q, want %q", got.Message, tt.err.Error())
+			if got.Message != GetMsg(ParamError) {
+				t.Errorf("Message = %q, want generic ParamError", got.Message)
 			}
 		})
+	}
+}
+
+func TestFromHTTPError_UnknownErrorIsSystemError(t *testing.T) {
+	got := FromHTTPError(fmt.Errorf("dial tcp 10.0.0.1:3306: connect refused"))
+	if got.Code != SystemError {
+		t.Errorf("Code = %d, want %d", got.Code, SystemError)
+	}
+	if got.Message != GetMsg(SystemError) {
+		t.Errorf("Message = %q, want generic SystemError", got.Message)
 	}
 }
 

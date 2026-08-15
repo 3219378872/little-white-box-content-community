@@ -8,8 +8,9 @@ upstream:
   - DES-content-community-backend
 tracks:
   - scripts/spec_evals.py
-  - eval/search_qrels.example.json
-  - eval/assistant_cases.example.json
+  - eval/search_qrels.json
+  - eval/assistant_cases.json
+  - eval/recommend_samples.json
   - pkg/outboxx/metrics.go
 verified_at: 2026-08-14
 verified_commit: bea6c09

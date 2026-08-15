@@ -50,7 +50,7 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 		// 校验信息
 		verifyCode, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.Phone)
 		if err != nil {
-			l.Errorw("Redis.GetCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+			l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 		if verifyCode == "" {
@@ -67,7 +67,7 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 		// 删除验证码
 		_, err = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
 		if err != nil {
-			l.Errorw("Redis.DelCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+			l.Errorw("Redis.DelCtx failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	} else {

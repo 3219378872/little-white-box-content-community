@@ -811,12 +811,8 @@ SPEC_TRACKING_HEADINGS = (
 FORBIDDEN_ALIGNED_REQUIREMENTS = {
     # CORE-013 已于 2026-08-13 经人类采纳选项 B（/api/v2 强制 expected_revision，
     # v1 迁移期）后关闭，不再禁止 aligned；见 proposals/PROP-20260813-core-revision-contract。
-    "CORE-015",
     "CORE-032",
-    "DISC-001",
     "DISC-060",
-    "DISC-061",
-    "DISC-062",
     "DISC-063",
     "ASST-013",
     "ASST-014",

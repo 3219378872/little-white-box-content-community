@@ -30,6 +30,9 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if in.UserId <= 0 || in.TargetId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	if err := requirePublishedLikeTarget(l.ctx, l.svcCtx.ContentService, in.TargetId, in.TargetType); err != nil {
+		return nil, err
+	}
 	if l.svcCtx.InteractionCommands == nil || l.svcCtx.LikeRecordModel == nil || l.svcCtx.ActionCountModel == nil {
 		l.Errorw("like dependencies are not configured")
 		return nil, errx.NewWithCode(errx.SystemError)

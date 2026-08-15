@@ -55,13 +55,16 @@ func TestMapError_WrappedBizError(t *testing.T) {
 	}
 }
 
-func TestMapError_NonBizErrorMapsToParamError(t *testing.T) {
+func TestMapError_UnknownErrorMapsToSystemError(t *testing.T) {
 	status, body := MapError(errors.New("some plain error"))
-	if status != http.StatusBadRequest {
-		t.Fatalf("plain error status = %d, want 400", status)
+	if status != http.StatusInternalServerError {
+		t.Fatalf("plain error status = %d, want 500", status)
 	}
 	envelope, ok := body.(map[string]any)
-	if !ok || envelope["code"] != errx.ParamError {
+	if !ok || envelope["code"] != errx.SystemError {
 		t.Fatalf("unexpected envelope: %+v", body)
+	}
+	if envelope["message"] != errx.GetMsg(errx.SystemError) {
+		t.Fatalf("unexpected message: %+v", envelope)
 	}
 }

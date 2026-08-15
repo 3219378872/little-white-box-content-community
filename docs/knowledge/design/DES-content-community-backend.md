@@ -13,81 +13,121 @@ upstream:
 
 # 小白盒内容社区后端设计
 
-本设计说明如何以现有 go-zero 工程结构满足四份已批准规范。
-实现对齐状态以 [IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
+本设计说明如何以 go-zero 工程结构满足四份已批准规范。实现对齐状态以
+[IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
 和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
 ## 组件边界
 
-- Gateway（`app/gateway`）：只绑定参数、调用 RPC、返回响应；鉴权中间件解析 JWT。
-- RPC 服务：user / content / interaction / media / message / feed / search / recommend /
-  assistant / behavior，各自持有 Model 与事务。
-- MQ 消费（`app/*/mq`）：search 索引、embedding、feed fanout、message 通知、行为链路、
-  推荐特征、清理任务。
-- 可靠写入：权威业务写入与 outbox 同事务提交，异步效果经 relay 投递；
-  不再使用 DTM，Content 契约已删除 QueryPrepared。
-- 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog pipeline
-  （去重+ClickHouse 存储）→ recommend-mq 特征更新。
-- 权威可见性：Content 是帖子状态的唯一权威。Feed、Search、Recommend 和 Assistant 对外返回前
-  必须回源 `GetPostsByIds`/`GetPost`。特征库与搜索索引只提供候选；状态验证失败时发现和
-  Assistant 失败关闭。
+- Gateway（`app/gateway`）：HTTP 绑定、鉴权、SSE、BFF 组合。详情和列表的访问者点赞/收藏
+  状态在 Gateway 回填 Interaction，不把 Interaction 客户端放进 Content。收藏隐私、回源过滤
+  也在 Gateway 组合，因为没有独立 favorites 读模型跨库。
+- RPC：user / content / interaction / media / message / feed / search / recommend /
+  assistant / behavior，各自持有权威库与事务。
+- MQ：search 索引、embedding、feed fanout、行为管道、推荐特征、媒体清理、内容计数同步。
+- 算法旁路（`algorithm/`）：可选在线推理与离线训练。推荐在超时或不可用时规则降级
+  （DISC-036）；算法不拥有可见性。
+- 可靠写入：权威业务与 outbox 同事务，relay 投递 RocketMQ。不再使用 DTM。
+- 行为闭环：客户端事件 → behavior-rpc（校验+去重）→ RocketMQ → behaviorlog
+  （ClickHouse）→ recommend-mq 特征。
+- 权威可见性：Content 是帖子状态唯一权威。Feed、Search、Recommend、Assistant 和
+  收藏列表把索引/inbox/召回当候选，返回前经 `app/content/visibility` + `pkg/visibilityx`
+  回源；验证失败整次请求失败关闭。
 
 ## 方案
 
-### 可见性
+### 可见性与详情状态
 
-Content 持有帖子状态机与正文。普通读取走 `FindPostById`/`FindByIds` 且不读缓存，避免
-CORE-053 允许的失效失败把已取消发布内容继续当成 published。公开列表在 SQL `status=1`
-之后再次丢弃非 published 行。发现与 Assistant 只把 ES、向量库、inbox/outbox 当候选，
-返回前必须经 `app/content/visibility` 回源 `GetPostsByIds`，由 `pkg/visibilityx` 验证 published；验证失败则整次请求
-失败关闭，不得降级成“空结果成功”。
+Content 持有状态机与正文。`FindPostById`/`FindByIds` 不读缓存，避免 CORE-053 允许的
+失效失败把已取消发布内容继续当成 published。公开列表 SQL `status=1` 后再丢弃非
+published 行。
+
+已认证 GetPost/列表的 `isLiked`/`isFavorited` 由 Gateway 调 Interaction
+`BatchCheckLiked`/`BatchCheckFavorited` 回填（CORE-032）。Content proto 可保留这两个
+字段但 Content Logic 不再填写；对外以 Gateway 为准。
+
+`Total` 只按本页过滤回减（CORE-015 / DISC-001）。全库精确计数需要索引与权威完全同步，
+当前不做。
+
+### 互动写路径
+
+点赞/收藏在 Interaction 写入前经 Content `GetPost` 确认目标对调用者可互动且 published
+（CORE-034）。Content 不可用则失败关闭，不写入关系。对不可用目标返回 `ContentNotFound`，
+与 CORE-016 一致。关注只校验用户身份，不经 Content。
+
+公开计数：关系以 Interaction 为准；`post.like_count`/`favorite_count` 由 count-sync
+异步收敛，目标 30 秒（CORE-032）。评论计数在 Content 事务内更新。
 
 ### 关注流
 
-`/api/v2/feed/follow` 只对认证用户开放。读路径先分页拉取当前 following（页大小 100），
-空关注立即返回空列表，不混入推荐。inbox 只保留当前关注作者；outbox 按作者分批
-`IN` 查询后归并。这样取关后的新请求不会再露出旧 inbox，也覆盖 BigV 只写 outbox 的路径。
+`/api/v2/feed/follow` 仅认证用户。先分页拉取当前 following（页大小 100），空关注立即
+返回空列表，不混入推荐。inbox 只保留当前关注作者；outbox 按作者分批 `IN` 后归并。
+读路径回源 Content；inbox 不在取消发布时主动撤回，新请求靠回源排除（DISC-011）。
 
 ### 搜索
 
-ES 只索引 published，并在取消发布时尽力删文档，但这是异步效果。查询时再次回源 Content：
-丢掉不可见 ID，标题与摘要改用权威正文，`Total` 减去本页被过滤的条数。用户/标签子搜索
-失败可以降级，帖子可见性失败不能降级。
+ES 只索引 published，取消发布时尽力删文档。查询再回源 Content：丢掉不可见 ID，标题与
+摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出 `unavailableTypes`；
+帖子可见性或索引不可用不能降级成空成功。
 
-### 写入
+### 推荐
 
-权威写入与事务 outbox 同提交，relay 投递 MQ。不再使用 DTM。content/interaction/media
-已接入 `scripts/generate.sh`；Content 契约不再包含 `QueryPrepared`。
+候选来自规则召回，可选 OnlineInfer。匿名或关闭个性化只走规则冷启动（DISC-031）。
+游标 HMAC 绑定身份/请求/场景/会话/实验/页大小，TTL 600s。作者配额、负反馈 30 天、
+曝光 7 天按 DISC-034/035。返回前 `visibilityx` 过滤；可见性失败关闭，推理失败规则降级。
+推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。
+
+### Assistant
+
+只对认证用户开放。工具检索 published 候选后必须 Content 重读正文。无正文证据则固定拒答。
+事实段落强制 `[post:id]`，对外 SOURCE 只含回源验证过来源。LLM 不可用返回证据摘要；
+检索或回源失败关闭。会话按用户隔离，Redis 限流 20/60s，历史 100 条 / 30 天。
+
+### 写入与私信
+
+帖子写路径只有 `/api/v2/post*`，强制 `expectedRevision`（CORE-013/062）。帖子/评论/
+媒体/互动/关注走事务 outbox。私信权威写入以 message 库提交为成功（CORE-044）；不实现
+赞/评/关通知生产者。`message-push` 消费者不是当前产品路径，部署可不启动；主题保留不
+构成对外能力。
+
+### 行为与隐私
+
+Gateway 接收白名单动作。曝光的 50%/1s 由客户端判定，服务端只强制 `(requestId, postId)`
+去重（REL-004）。完整 IP 在写入 ClickHouse 前哈希。业务日志不写手机号、验证码、正文或
+私信。关闭个性化后 recommend-mq 定时清特征，24 小时内完成（REL-023）。
+
+### 健康与观测
+
+`/health` 存活，`/health/ready` 列出依赖；搜索/Assistant 可选，故障只标 `degraded`。
+MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/spec_evals.py slo`
+按 REL-030~033 口径计算；正式关闭依赖真实月度数据。
 
 ## 失败模式
 
-- 内容权威不可用：发现/Assistant/公开回源读取失败关闭。
-- 关注关系不可用：关注流失败关闭，避免按过期关系越权。
-- 搜索引擎不可用：帖子搜索返回暂时不可用，不用空列表冒充无匹配。
-- 缓存/索引/通知失败：不改变已提交的权威写成功（CORE-053）。
+对应 `REL-054`：
+
+- 权威库不可用：写/读返回 503。
+- Redis 不可用：回源；已提交写仍成功。
+- outbox relay 不可用：业务成功，异步延迟并告警。
+- 行为 Broker 不可用：行为接收 503。
+- 部分推荐来源不可用：规则降级并标记。
+- 可见性不可用：发现与 Assistant 失败关闭。
+- 帖子搜索索引不可用：搜索 503。
+- LLM 不可用但有证据：证据摘要降级。
+- Assistant 状态存储不可用：一次性降级、不续接。
+- 指标后端不可用：业务继续。
 
 ## 取舍
 
-- 行为分析聚合采用查询期视图 + 定时聚合任务，而非 insert-triggered 物化视图：
-  避免 at-least-once 投递在物化时重复计数（`xbh_analytics.sql` 注释）。定时任务读取
-  `behavior_events FINAL`（已按 event_id 收敛）写入 `daily_aggregates`
-  （ReplacingMergeTree + 365 天 TTL），重复执行幂等，满足 REL-020 的“去标识聚合
-  结果保留 365 天”；首次上线可用 `AggregateBackfillDays` 回填存量。
-- 搜索 `Total` 只按本页过滤值回减，不重扫 ES。全库精确计数需要索引与权威完全同步，
-  目前做不到，因此 DISC-001/CORE-015 仍标 partial。
-- `CORE-013` 与 `CORE-062` 的冲突已于 2026-08-13 经人类采纳选项 B 后进一步决定
-  “直接废弃并迁移”：`/api/v1` 帖子写接口（create/update/delete）已移除，
-  `/api/v2/post*` 是唯一写路径并强制 `expectedRevision`（缺失/0 → 400 参数错误，
-  冲突 → 409）。CORE-013 全量生效，无迁移期跳过语义。
-
-## 实现追踪
-
-逐条对齐状态以 [IMP-content-community-backend](../implementation/IMP-content-community-backend.md) 为准。
-本文只说明如何满足规范，不把实现台账标成设计结论。
+- `Total` 不重扫全库，换可实现的可见性保证。
+- 详情互动状态放在 Gateway 而不是 Content，避免 Content 依赖 Interaction。
+- 点赞前同步问 Content，换 CORE-034/016，增加 Interaction→Content 边。
+- 不把赞/评/关通知做成产品，避免死消费者冒充完整通知系统。
+- 曝光视口不在服务端复测，换可实现的去重边界。
+- 算法旁路可选；未达 DISC-062 门槛不宣称学习改善。
 
 ## 验收策略
 
-按规范逐条补实现并在对应服务补失败路径测试（AGENTS.md：不为通过测试改测试）。
-离线评测门禁（DISC-060~063、ASST-050~051、REL-A05）需要冻结评测集与脚本，属于独立
-验证工程；代码行为类验收（CORE-A*、DISC-A*、ASST-A*、REL-A* 的接口部分）以 Go 测试
-与集成测试落地。
+代码行为类（CORE-A*、DISC-A01~A05、ASST-A01~A04、REL-A01~A04 的接口部分）用 Go 测试
+落地，每个改动的 Logic 至少一条失败路径。DISC-A06、ASST-050/051、REL-A05 需要人类冻结
+集与真实观测，由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。

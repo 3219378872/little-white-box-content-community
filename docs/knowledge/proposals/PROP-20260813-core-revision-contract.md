@@ -5,7 +5,7 @@ title: CORE-013 乐观锁与 CORE-062 向后兼容的契约收敛选项
 status: closed
 owner: agent
 target_layer: spec
-decision: 2026-08-13 人类采纳选项 B（/api/v2 强制 expected_revision，/api/v1 迁移期+废弃计划）
+decision: 2026-08-13 人类采纳选项 B；同日进一步废弃 /api/v1 帖子写接口。2026-08-15 已写入 SPEC CORE-062。
 upstream:
   - SPEC-community-core
 ---

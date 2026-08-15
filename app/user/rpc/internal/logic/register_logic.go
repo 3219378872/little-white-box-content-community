@@ -79,7 +79,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		Valid:  true,
 	})
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorw("UserProfileModel.FindOneByPhone failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		l.Errorw("UserProfileModel.FindOneByPhone failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if phone != nil {
@@ -88,7 +88,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 
 	code, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.Phone)
 	if err != nil {
-		l.Errorw("Redis.GetCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if code == "" {
@@ -112,7 +112,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 	}
 	_, err = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
 	if err != nil {
-		l.Errorw("Redis.DelCtx failed", logx.Field("phone", in.Phone), logx.Field("err", err.Error()))
+		l.Errorw("Redis.DelCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 
@@ -193,7 +193,7 @@ func recordVerifyCodeFailure(ctx context.Context, redis svc.RedisStore, phone st
 	attempts, err := redis.IncrCtx(ctx, attemptKey)
 	if err != nil {
 		logx.WithContext(ctx).Errorw("verify attempts incr failed",
-			logx.Field("phone", phone), logx.Field("err", err.Error()))
+			logx.Field("err", err.Error()))
 		return
 	}
 	if attempts == 1 {
