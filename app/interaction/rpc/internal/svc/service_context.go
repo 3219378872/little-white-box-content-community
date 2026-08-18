@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"interceptor"
 	"mqx"
+	"util"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -63,6 +64,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
+	if err := util.InitSnowflake(3, 1); err != nil {
+		panic(fmt.Sprintf("interaction snowflake initialization failed: %v", err))
+	}
 
 	outboxStore := outboxx.NewSQLStore(conn)
 	var producer *mqx.Producer

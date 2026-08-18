@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"mqx"
+	"util"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -26,6 +27,9 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	if err := util.InitSnowflake(4, 1); err != nil {
+		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
+	}
 	conn := sqlx.NewMysql(c.DataSource)
 
 	cacheConf := cache.CacheConf{
