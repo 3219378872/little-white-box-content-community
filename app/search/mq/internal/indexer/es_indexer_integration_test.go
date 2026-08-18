@@ -110,7 +110,7 @@ func TestESIndexer_Delete_RemovesDoc(t *testing.T) {
 		PostID: 10003, AuthorID: 42, Title: "to-be-deleted",
 	}
 	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(e)))
-	require.NoError(t, esIdx.Delete(ctx, "10003"))
+	require.NoError(t, esIdx.Delete(ctx, "10003", 1))
 	require.NoError(t, esIdx.Refresh(ctx))
 
 	res, err := esapi.GetRequest{Index: indexN, DocumentID: "10003"}.Do(ctx, esIdx.client)
@@ -121,7 +121,7 @@ func TestESIndexer_Delete_RemovesDoc(t *testing.T) {
 
 func TestESIndexer_Delete_MissingDoc_NoError(t *testing.T) {
 	ctx := context.Background()
-	require.NoError(t, esIdx.Delete(ctx, "99999999"))
+	require.NoError(t, esIdx.Delete(ctx, "99999999", 1))
 }
 
 func TestESIndexer_EnsureIndex_Idempotent(t *testing.T) {

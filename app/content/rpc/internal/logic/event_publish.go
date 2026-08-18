@@ -31,6 +31,6 @@ func buildPostOutboxEvent(topic string, e event.PostEvent) (outboxx.Event, error
 	}
 	return outboxx.Event{
 		ID: e.EventID, Topic: topic, Tag: mqx.TagDefault,
-		Key: strconv.FormatInt(e.EventID, 10), Payload: body,
+		Key: strconv.FormatInt(e.PostID, 10), Payload: body,
 	}, nil
 }

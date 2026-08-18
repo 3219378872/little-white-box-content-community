@@ -2,7 +2,6 @@ package logic
 
 import (
 	"encoding/json"
-	"strconv"
 	"testing"
 
 	"esx/pkg/event"
@@ -28,10 +27,11 @@ func TestBuildPostOutboxEventCreatesCanonicalTransportRecord(t *testing.T) {
 	assert.Positive(t, record.ID)
 	assert.Equal(t, mqx.TopicPostCreate, record.Topic)
 	assert.Equal(t, mqx.TagDefault, record.Tag)
-	assert.Equal(t, strconv.FormatInt(record.ID, 10), record.Key)
+	assert.Equal(t, "1", record.Key)
 
 	var payload event.PostEvent
 	require.NoError(t, json.Unmarshal(record.Payload, &payload))
 	assert.Equal(t, record.ID, payload.EventID)
+	assert.Equal(t, int64(1), payload.PostID)
 	assert.Positive(t, payload.EventTime)
 }

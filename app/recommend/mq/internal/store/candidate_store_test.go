@@ -32,6 +32,7 @@ func TestRedisCandidateStoreWritesVersionedPostKeys(t *testing.T) {
 	}, redis.keys)
 	assert.Equal(t, "post.created", redis.args[0])
 	assert.Equal(t, "go", redis.args[3])
+	assert.Equal(t, int64(0), redis.args[7])
 }
 
 func TestRedisCandidateStorePropagatesFailure(t *testing.T) {

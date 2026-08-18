@@ -51,8 +51,9 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 				continue
 			}
 			doc := indexer.IndexDoc{
-				DocID: strconv.FormatInt(post.Id, 10),
-				Type:  "rebuild",
+				DocID:    strconv.FormatInt(post.Id, 10),
+				Type:     "rebuild",
+				Revision: post.Revision,
 				Body: map[string]any{
 					"post_id":       post.Id,
 					"author_id":     post.AuthorId,

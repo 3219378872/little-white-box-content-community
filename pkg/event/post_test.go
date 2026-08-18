@@ -62,6 +62,14 @@ func TestPostEvent_Validate_DeleteAllowsZeroAuthor(t *testing.T) {
 	assert.NoError(t, e.Validate())
 }
 
+func TestReplacesStoredRevision(t *testing.T) {
+	assert.True(t, ReplacesStoredRevision(0, 5), "unversioned events still apply")
+	assert.True(t, ReplacesStoredRevision(3, 1))
+	assert.True(t, ReplacesStoredRevision(2, 0))
+	assert.False(t, ReplacesStoredRevision(2, 3), "older snapshot must not replace newer")
+	assert.False(t, ReplacesStoredRevision(3, 3), "equal revision is already applied")
+}
+
 func TestInteractionEvent_JSONRoundTrip(t *testing.T) {
 	e := InteractionEvent{
 		EventID:    9001,

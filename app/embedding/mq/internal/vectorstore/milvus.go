@@ -355,6 +355,11 @@ func (m *MilvusVectorStore) Delete(ctx context.Context, postID int64) error {
 	return nil
 }
 
+func (m *MilvusVectorStore) CurrentRevision(context.Context, int64) (int64, error) {
+	// Existing collections have no revision field; unversioned projections always apply.
+	return 0, nil
+}
+
 func (m *MilvusVectorStore) Flush(ctx context.Context) error {
 	if err := m.cli.Flush(ctx, m.collection, false); err != nil {
 		return fmt.Errorf("milvus flush collection %q: %w", m.collection, err)

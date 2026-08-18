@@ -58,7 +58,7 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 			// CORE-015：草稿/取消发布的内容不得进入搜索索引。
 			if !visibilityx.IsPublished(int32(e.Status)) {
 				docID := strconv.FormatInt(e.PostID, 10)
-				if err := idx.Delete(ctx, docID); err != nil {
+				if err := idx.Delete(ctx, docID, e.Revision); err != nil {
 					logx.WithContext(ctx).Errorw("search-consumer: delete non-published doc failed",
 						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 						logx.Field("err", err.Error()))
@@ -83,7 +83,7 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 				logx.Field("post_id", e.PostID), logx.Field("type", string(e.Type)))
 		case event.PostEventDeleted:
 			docID := strconv.FormatInt(e.PostID, 10)
-			if err := idx.Delete(ctx, docID); err != nil {
+			if err := idx.Delete(ctx, docID, e.Revision); err != nil {
 				logx.WithContext(ctx).Errorw("search-consumer: delete failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
 					logx.Field("err", err.Error()))

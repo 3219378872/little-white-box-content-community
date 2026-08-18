@@ -53,6 +53,21 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
+		storedRevision, err := vs.CurrentRevision(ctx, e.PostID)
+		if err != nil {
+			logx.WithContext(ctx).Errorw("embedding-consumer: read revision failed",
+				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
+				logx.Field("err", err.Error()))
+			embeddingConsumerMessages.Inc("retry")
+			return consumer.ConsumeRetryLater
+		}
+		if !event.ReplacesStoredRevision(e.Revision, storedRevision) {
+			logx.WithContext(ctx).Infow("embedding-consumer: stale revision skipped",
+				logx.Field("post_id", e.PostID), logx.Field("revision", e.Revision),
+				logx.Field("stored_revision", storedRevision))
+			embeddingConsumerMessages.Inc("processed")
+			continue
+		}
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
 			// CORE-015：草稿/取消发布的内容不进入向量库；如已存在则删除。
@@ -83,6 +98,7 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 				Vector:       result.Vector,
 				ModelVersion: result.ModelVersion,
 				Dimension:    result.Dimension,
+				Revision:     e.Revision,
 			}); err != nil {
 				logx.WithContext(ctx).Errorw("embedding-consumer: upsert failed",
 					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),

@@ -7,11 +7,13 @@ type Record struct {
 	Vector       []float32
 	ModelVersion string
 	Dimension    int
+	Revision     int64
 }
 
 type VectorStore interface {
 	Upsert(ctx context.Context, record Record) error
 	Delete(ctx context.Context, postID int64) error
+	CurrentRevision(ctx context.Context, postID int64) (int64, error)
 }
 
 type RebuildTarget interface {

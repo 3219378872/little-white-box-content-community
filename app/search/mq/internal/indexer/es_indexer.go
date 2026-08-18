@@ -65,11 +65,18 @@ func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
 		Body:       bytes.NewReader(body),
 		Refresh:    "false",
 	}
+	if version, ok := externalVersion(doc.Revision); ok {
+		req.Version = version
+		req.VersionType = "external"
+	}
 	res, err := req.Do(ctx, e.client)
 	if err != nil {
 		return fmt.Errorf("ES index request: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode == http.StatusConflict {
+		return nil
+	}
 	if res.IsError() {
 		raw, _ := io.ReadAll(res.Body)
 		return fmt.Errorf("ES index failed status=%s body=%s", res.Status(), string(raw))
@@ -77,19 +84,23 @@ func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
 	return nil
 }
 
-func (e *ESIndexer) Delete(ctx context.Context, docID string) error {
+func (e *ESIndexer) Delete(ctx context.Context, docID string, revision int64) error {
 	req := esapi.DeleteRequest{
 		Index:      e.index,
 		DocumentID: docID,
 		Refresh:    "false",
+	}
+	if version, ok := externalVersion(revision); ok {
+		req.Version = version
+		req.VersionType = "external"
 	}
 	res, err := req.Do(ctx, e.client)
 	if err != nil {
 		return fmt.Errorf("ES delete request: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
-	// 404 视为已删除（幂等）
-	if res.StatusCode == http.StatusNotFound {
+	// 404 视为已删除（幂等）；409 表示更旧的删除，保留较新文档。
+	if res.StatusCode == http.StatusNotFound || res.StatusCode == http.StatusConflict {
 		return nil
 	}
 	if res.IsError() {
@@ -97,6 +108,14 @@ func (e *ESIndexer) Delete(ctx context.Context, docID string) error {
 		return fmt.Errorf("ES delete failed status=%s body=%s", res.Status(), string(raw))
 	}
 	return nil
+}
+
+func externalVersion(revision int64) (*int, bool) {
+	if revision <= 0 {
+		return nil, false
+	}
+	version := int(revision)
+	return &version, true
 }
 
 // EnsureIndex 在启动时确保索引存在，使用与父 spec phase-3 §1.2 一致的 mapping。
@@ -241,7 +260,8 @@ const PostIndexMapping = `{
       "tags":        {"type": "keyword"},
 	  "like_count":  {"type": "long"},
 	  "comment_count":{"type": "long"},
-      "created_at":  {"type": "date", "format": "epoch_millis"}
+      "created_at":  {"type": "date", "format": "epoch_millis"},
+      "revision":    {"type": "long"}
     }
   }
 }`
@@ -250,8 +270,9 @@ const PostIndexMapping = `{
 // 提供给消费者层使用，避免消费者直接耦合 ES 字段命名。
 func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 	return IndexDoc{
-		DocID: strconv.FormatInt(e.PostID, 10),
-		Type:  string(e.Type),
+		DocID:    strconv.FormatInt(e.PostID, 10),
+		Type:     string(e.Type),
+		Revision: e.Revision,
 		Body: map[string]any{
 			"post_id":       e.PostID,
 			"author_id":     e.AuthorID,
@@ -262,6 +283,7 @@ func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 			"like_count":    0,
 			"comment_count": 0,
 			"created_at":    e.EventTime,
+			"revision":      e.Revision,
 		},
 	}
 }

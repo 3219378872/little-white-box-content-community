@@ -153,6 +153,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		BodyExcerpt: bodyExcerpt,
 		Tags:        validTags,
 		Status:      int32(newStatus),
+		Revision:    post.Revision + 1,
 	})
 	if err != nil {
 		l.Errorw("build post-updated event failed", logx.Field("err", err.Error()))

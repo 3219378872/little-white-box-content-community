@@ -18,18 +18,35 @@ import (
 type errorIndexer struct{ err error }
 
 func (e *errorIndexer) Index(ctx context.Context, doc indexer.IndexDoc) error { return e.err }
-func (e *errorIndexer) Delete(ctx context.Context, docID string) error        { return e.err }
+func (e *errorIndexer) Delete(ctx context.Context, docID string, _ int64) error {
+	return e.err
+}
 
 type recordingIndexer struct {
 	indexed []indexer.IndexDoc
 	deleted []string
+	revs    map[string]int64
 }
 
 func (r *recordingIndexer) Index(ctx context.Context, doc indexer.IndexDoc) error {
+	if r.revs == nil {
+		r.revs = map[string]int64{}
+	}
+	if !event.ReplacesStoredRevision(doc.Revision, r.revs[doc.DocID]) {
+		return nil
+	}
+	r.revs[doc.DocID] = doc.Revision
 	r.indexed = append(r.indexed, doc)
 	return nil
 }
-func (r *recordingIndexer) Delete(ctx context.Context, docID string) error {
+func (r *recordingIndexer) Delete(ctx context.Context, docID string, revision int64) error {
+	if r.revs == nil {
+		r.revs = map[string]int64{}
+	}
+	if !event.ReplacesStoredRevision(revision, r.revs[docID]) {
+		return nil
+	}
+	r.revs[docID] = revision
 	r.deleted = append(r.deleted, docID)
 	return nil
 }
@@ -142,4 +159,22 @@ func TestSearchConsumer_DeleteError_ReturnsRetry(t *testing.T) {
 	}
 	result := consumeSearchBatch(context.Background(), errIdx, msg("m7", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
+}
+
+func TestSearchConsumer_StaleUpdateAfterNewerDoesNotOverwrite(t *testing.T) {
+	rec := &recordingIndexer{}
+	newer := event.PostEvent{
+		EventID: 20, EventTime: 200, Type: event.PostEventUpdated,
+		PostID: 2001, AuthorID: 42, Title: "C", Status: 1, Revision: 3,
+	}
+	older := event.PostEvent{
+		EventID: 10, EventTime: 100, Type: event.PostEventUpdated,
+		PostID: 2001, AuthorID: 42, Title: "B", Status: 1, Revision: 2,
+	}
+	result := consumeSearchBatch(context.Background(), rec,
+		msg("c", mustMarshal(t, newer)), msg("b", mustMarshal(t, older)))
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	require.Len(t, rec.indexed, 1)
+	assert.Equal(t, "C", rec.indexed[0].Body["title"])
+	assert.Equal(t, int64(3), rec.indexed[0].Revision)
 }

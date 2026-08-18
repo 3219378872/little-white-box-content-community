@@ -21,14 +21,17 @@ type recordingStore struct {
 	mu       sync.Mutex
 	upserted map[int64]vectorstore.Record
 	deleted  map[int64]struct{}
+	revs     map[int64]int64
 	upErr    error
 	delErr   error
+	revErr   error
 }
 
 func newRecordingStore() *recordingStore {
 	return &recordingStore{
 		upserted: map[int64]vectorstore.Record{},
 		deleted:  map[int64]struct{}{},
+		revs:     map[int64]int64{},
 	}
 }
 
@@ -39,6 +42,8 @@ func (r *recordingStore) Upsert(_ context.Context, record vectorstore.Record) er
 		return r.upErr
 	}
 	r.upserted[record.PostID] = record
+	r.revs[record.PostID] = record.Revision
+	delete(r.deleted, record.PostID)
 	return nil
 }
 
@@ -49,7 +54,17 @@ func (r *recordingStore) Delete(_ context.Context, postID int64) error {
 		return r.delErr
 	}
 	r.deleted[postID] = struct{}{}
+	delete(r.upserted, postID)
 	return nil
+}
+
+func (r *recordingStore) CurrentRevision(_ context.Context, postID int64) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.revErr != nil {
+		return 0, r.revErr
+	}
+	return r.revs[postID], nil
 }
 
 type errorEmbedder struct{ err error }
@@ -166,4 +181,22 @@ func TestEmbeddingConsumer_NonPublished_RemovesVector(t *testing.T) {
 	assert.Equal(t, consumer.ConsumeSuccess, res)
 	assert.Contains(t, store.deleted, int64(1005))
 	assert.NotContains(t, store.upserted, int64(1005))
+}
+
+func TestEmbeddingConsumer_StaleUpdateAfterNewerDoesNotOverwrite(t *testing.T) {
+	store := newRecordingStore()
+	newer := event.PostEvent{
+		EventID: 20, EventTime: 20, Type: event.PostEventUpdated,
+		PostID: 2001, AuthorID: 42, Title: "C", Status: 1, Revision: 3,
+	}
+	older := event.PostEvent{
+		EventID: 10, EventTime: 10, Type: event.PostEventUpdated,
+		PostID: 2001, AuthorID: 42, Title: "B", Status: 1, Revision: 2,
+	}
+	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store,
+		mq("c", mustMarshal(t, newer)), mq("b", mustMarshal(t, older)))
+	assert.Equal(t, consumer.ConsumeSuccess, res)
+	require.Contains(t, store.upserted, int64(2001))
+	assert.Equal(t, int64(3), store.upserted[2001].Revision)
+	assert.Equal(t, int64(3), store.revs[2001])
 }

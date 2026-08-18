@@ -50,7 +50,7 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 		s.recallPrefix + ":author:" + authorID + ":posts",
 		s.recallPrefix + ":follow:author:" + authorID + ":followers",
 	}, string(post.Type), postID, authorID, category, post.EventTime,
-		s.ttlSeconds, s.recallPrefix)
+		s.ttlSeconds, s.recallPrefix, post.Revision)
 	if err != nil {
 		return fmt.Errorf("record recommendation post candidates: %w", err)
 	}
@@ -65,16 +65,22 @@ local category = ARGV[4]
 local event_time = ARGV[5]
 local ttl = ARGV[6]
 local recall_prefix = ARGV[7]
+local incoming_rev = tonumber(ARGV[8]) or 0
+local stored_rev = tonumber(redis.call('HGET', KEYS[1], 'revision') or '0')
+if incoming_rev > 0 and incoming_rev <= stored_rev then
+  return 0
+end
 
 if event_type == 'post.deleted' then
-  redis.call('HSET', KEYS[1], 'status', 'deleted')
+  redis.call('HSET', KEYS[1], 'status', 'deleted', 'revision', incoming_rev)
   redis.call('ZREM', KEYS[2], post_id)
   redis.call('ZREM', KEYS[3], post_id)
   redis.call('ZREM', KEYS[4], post_id)
 else
   redis.call('HSET', KEYS[1],
     'status', 'active', 'visibility', 'public', 'author_id', author_id,
-    'category', category, 'quality_score', '0.5', 'freshness', '1')
+    'category', category, 'quality_score', '0.5', 'freshness', '1',
+    'revision', incoming_rev)
   redis.call('HSETNX', KEYS[1], 'popularity', '0')
   redis.call('HSETNX', KEYS[1], 'ctr', '0')
   redis.call('ZADD', KEYS[2], event_time, post_id)

@@ -61,6 +61,7 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		Type:     event.PostEventDeleted,
 		PostID:   post.Id,
 		AuthorID: post.AuthorId,
+		Revision: post.Revision + 1,
 	})
 	if err != nil {
 		l.Errorw("build post-deleted event failed", logx.Field("err", err.Error()))

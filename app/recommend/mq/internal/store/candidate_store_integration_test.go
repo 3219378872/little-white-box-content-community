@@ -72,6 +72,27 @@ func TestRedisCandidatePipelineProducesOnlineRecallKeys(t *testing.T) {
 	assert.Equal(t, "deleted", features["status"])
 }
 
+func TestRedisCandidateStoreIgnoresStaleRevision(t *testing.T) {
+	env := testutil.SetupRedisEnv(t)
+	t.Cleanup(env.Close)
+	ctx := context.Background()
+	candidates := NewRedisCandidateStore(env.Redis, "v2-rev", "recommend", 3600)
+
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 302, EventTime: 2_000, Type: event.PostEventUpdated,
+		PostID: 300, AuthorID: 7, Title: "C", Tags: []string{"c-tag"}, Revision: 3,
+	}))
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 301, EventTime: 1_000, Type: event.PostEventUpdated,
+		PostID: 300, AuthorID: 7, Title: "B", Tags: []string{"b-tag"}, Revision: 2,
+	}))
+
+	features, err := env.Redis.HgetallCtx(ctx, "feature:v2-rev:post:300")
+	require.NoError(t, err)
+	assert.Equal(t, "c-tag", features["category"])
+	assert.Equal(t, "3", features["revision"])
+}
+
 func TestRedisDeadLettersAreBounded(t *testing.T) {
 	env := testutil.SetupRedisEnv(t)
 	t.Cleanup(env.Close)

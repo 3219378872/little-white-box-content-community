@@ -42,11 +42,13 @@ func (c *capturingPostCommand) CreatePost(
 	return post.Id, c.result == nil, c.result
 }
 
-func (*capturingPostCommand) UpdatePost(context.Context, int64, map[string]any, []string, []int64, outboxx.Event, int64) error {
+func (c *capturingPostCommand) UpdatePost(_ context.Context, _ int64, _ map[string]any, _ []string, _ []int64, event outboxx.Event, _ int64) error {
+	c.event = event
 	return nil
 }
 
-func (*capturingPostCommand) DeletePost(context.Context, int64, outboxx.Event, int64) error {
+func (c *capturingPostCommand) DeletePost(_ context.Context, _ int64, event outboxx.Event, _ int64) error {
+	c.event = event
 	return nil
 }
 
@@ -73,6 +75,55 @@ func TestCreatePostLogicWritesLifecycleEventInCommandTransaction(t *testing.T) {
 	assert.Equal(t, event.PostEventCreated, payload.Type)
 	assert.Equal(t, resp.PostId, payload.PostID)
 	assert.Equal(t, int64(9), payload.AuthorID)
+	assert.Equal(t, int64(1), payload.Revision)
+	assert.Equal(t, strconv.FormatInt(resp.PostId, 10), command.event.Key)
+}
+
+func TestUpdatePostLogicWritesRevisionAndPostKeyedOutbox(t *testing.T) {
+	postModel := new(MockPostModel)
+	postModel.On("FindPostById", mock.Anything, int64(300)).Return(&model.Post{
+		Id: 300, AuthorId: 3001, Title: "old", Content: "old", Status: 1, Revision: 3,
+	}, nil)
+	command := &capturingPostCommand{}
+	svcCtx := newUnitSvcCtx(postModel, nil, nil, new(MockPostTagModel))
+	svcCtx.PostCommandModel = command
+
+	_, err := NewUpdatePostLogic(context.Background(), svcCtx).UpdatePost(&pb.UpdatePostReq{
+		PostId: 300, AuthorId: 3001, Title: "C", Content: "C-body", ExpectedRevision: 3,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, mqx.TopicPostUpdate, command.event.Topic)
+	assert.Equal(t, "300", command.event.Key)
+
+	var payload event.PostEvent
+	require.NoError(t, json.Unmarshal(command.event.Payload, &payload))
+	assert.Equal(t, event.PostEventUpdated, payload.Type)
+	assert.Equal(t, int64(300), payload.PostID)
+	assert.Equal(t, int64(4), payload.Revision)
+	assert.Equal(t, "C", payload.Title)
+}
+
+func TestDeletePostLogicWritesRevisionAndPostKeyedOutbox(t *testing.T) {
+	postModel := new(MockPostModel)
+	postModel.On("FindPostById", mock.Anything, int64(300)).Return(&model.Post{
+		Id: 300, AuthorId: 3001, Status: 1, Revision: 4,
+	}, nil)
+	command := &capturingPostCommand{}
+	svcCtx := newUnitSvcCtx(postModel, nil, nil, new(MockPostTagModel))
+	svcCtx.PostCommandModel = command
+
+	_, err := NewDeletePostLogic(context.Background(), svcCtx).DeletePost(&pb.DeletePostReq{
+		PostId: 300, AuthorId: 3001, ExpectedRevision: 4,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, mqx.TopicPostDelete, command.event.Topic)
+	assert.Equal(t, "300", command.event.Key)
+
+	var payload event.PostEvent
+	require.NoError(t, json.Unmarshal(command.event.Payload, &payload))
+	assert.Equal(t, event.PostEventDeleted, payload.Type)
+	assert.Equal(t, int64(300), payload.PostID)
+	assert.Equal(t, int64(5), payload.Revision)
 }
 
 func TestCreatePostLogicRejectsWhenTransactionalOutboxWriteFails(t *testing.T) {

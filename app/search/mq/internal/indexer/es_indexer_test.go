@@ -95,3 +95,43 @@ func TestPromoteToAliasRejectsInvalidAlias(t *testing.T) {
 		t.Fatal("expected identical index and alias to fail")
 	}
 }
+
+func TestIndexTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
+	var gotVersion, gotVersionType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		gotVersion = r.URL.Query().Get("version")
+		gotVersionType = r.URL.Query().Get("version_type")
+		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
+	}))
+	defer server.Close()
+
+	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.Index(t.Context(), IndexDoc{
+		DocID: "9", Revision: 2, Body: map[string]any{"title": "B"},
+	}); err != nil {
+		t.Fatalf("stale index should be ignored: %v", err)
+	}
+	if gotVersion != "2" || gotVersionType != "external" {
+		t.Fatalf("version=%q type=%q", gotVersion, gotVersionType)
+	}
+}
+
+func TestDeleteTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
+	}))
+	defer server.Close()
+
+	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.Delete(t.Context(), "9", 2); err != nil {
+		t.Fatalf("stale delete should be ignored: %v", err)
+	}
+}

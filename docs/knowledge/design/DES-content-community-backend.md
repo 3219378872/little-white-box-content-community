@@ -66,16 +66,18 @@ published 行。
 
 ### 搜索
 
-ES 只索引 published，取消发布时尽力删文档。查询再回源 Content：丢掉不可见 ID，标题与
-摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出 `unavailableTypes`；
-帖子可见性或索引不可用不能降级成空成功。
+ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `post_id` 投递，载荷带
+`revision`；索引写入用 external version，旧快照 409 丢弃。查询再回源 Content：丢掉
+不可见 ID，标题与摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出
+`unavailableTypes`；帖子可见性或索引不可用不能降级成空成功。
 
 ### 推荐
 
 候选来自规则召回，可选 OnlineInfer。匿名或关闭个性化只走规则冷启动（DISC-031）。
 游标 HMAC 绑定身份/请求/场景/会话/实验/页大小，TTL 600s。作者配额、负反馈 30 天、
 曝光 7 天按 DISC-034/035。返回前 `visibilityx` 过滤；可见性失败关闭，推理失败规则降级。
-推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。
+推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。候选特征按 `revision` 单调覆盖，
+旧快照不回写。
 
 ### Assistant
 

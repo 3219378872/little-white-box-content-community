@@ -24,6 +24,7 @@ type PostEvent struct {
 	CategoryID  int64         `json:"category_id,omitempty"`
 	Tags        []string      `json:"tags,omitempty"`
 	Status      int32         `json:"status,omitempty"` // 0:草稿 1:已发布 2:已删除（CORE-015）
+	Revision    int64         `json:"revision,omitempty"`
 }
 
 func (e *PostEvent) Validate() error {
@@ -45,6 +46,15 @@ func (e *PostEvent) Validate() error {
 		return fmt.Errorf("author_id is required for non-delete events")
 	}
 	return nil
+}
+
+// ReplacesStoredRevision reports whether incoming should replace a stored projection.
+// incoming <= 0 is unversioned and always applies. Equal revisions are already applied.
+func ReplacesStoredRevision(incoming, stored int64) bool {
+	if incoming <= 0 {
+		return true
+	}
+	return incoming > stored
 }
 
 // InteractionEvent 描述用户对内容/用户的互动。
