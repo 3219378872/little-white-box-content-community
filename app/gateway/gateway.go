@@ -51,8 +51,6 @@ func corsOrigins() []string {
 		"http://localhost:3000", "http://127.0.0.1:3000",
 		"http://localhost:3001", "http://127.0.0.1:3001",
 		"http://localhost:3002", "http://127.0.0.1:3002",
-		"https://localhost:3002", "https://127.0.0.1:3002",
-		"https://localhost:3443", "https://127.0.0.1:3443",
 	}
 	if raw := strings.TrimSpace(os.Getenv("GATEWAY_CORS_ORIGINS")); raw != "" {
 		origins = nil
