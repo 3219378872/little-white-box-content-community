@@ -22,7 +22,11 @@ const countSyncTagExpression = "like || unlike || favorite || unfavorite"
 // NewCountSyncConsumer 订阅 user-behavior-v2 上的互动动作，把计数同步到内容表。
 // CORE-032：公开计数允许最终一致，但必须在 30 秒内收敛；outbox 同事务投递。
 func NewCountSyncConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
-	c, err := mqx.NewConsumer(svcCtx.Config.MQ)
+	cfg, err := svcCtx.Config.CountSyncConsumerConfig()
+	if err != nil {
+		return nil, err
+	}
+	c, err := mqx.NewConsumer(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("count-sync-consumer: create consumer: %w", err)
 	}

@@ -6,6 +6,16 @@ MQ:
   ConsumeOrder: false
   MaxReconsumeTimes: 8
 
+# Distinct group: this process also starts a cleanup consumer. Sharing
+# content-cleanup-service-group makes the second Start() fatal.
+CountSync:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "content-count-sync-service-group"
+  Topic: "user-behavior-v2"
+  Tag: "like || unlike || favorite || unfavorite"
+  ConsumeOrder: false
+  MaxReconsumeTimes: 8
+
 DataSource: "${DB_CONTENT}"
 
 Redis:

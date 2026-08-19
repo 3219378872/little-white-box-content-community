@@ -22,6 +22,7 @@ func TestRocketMQBootstrapUsesOnlyActiveTopicsAndGroups(t *testing.T) {
 		"recommend-feature-service-group",
 		"embedding-service-group",
 		"content-cleanup-service-group",
+		"content-count-sync-service-group",
 	} {
 		if !strings.Contains(content, required) {
 			t.Errorf("RocketMQ bootstrap is missing active contract %q", required)

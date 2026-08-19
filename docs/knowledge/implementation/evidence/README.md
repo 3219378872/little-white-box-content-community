@@ -75,6 +75,8 @@
   message 会话死方法清理（UpsertPairForMessage），提交见 frontmatter。
 - [2026-08-14-content-community-countsync-retry.md](2026-08-14-content-community-countsync-retry.md)：
   count-sync 去重占位失败重试缺陷修复（CORE-032），提交见 frontmatter。
+- [2026-08-19-content-community-countsync-consumer-group.md](2026-08-19-content-community-countsync-consumer-group.md)：
+  count-sync 独立消费组，避免与 cleanup 同组二次 Start fatal（CORE-032），提交见 frontmatter。
 - [2026-08-14-content-community-post-idem-hash.md](2026-08-14-content-community-post-idem-hash.md)：
   帖子幂等命令哈希完整性修复（CORE-050/051），提交见 frontmatter。
 - [2026-08-14-content-community-tags-limit.md](2026-08-14-content-community-tags-limit.md)：

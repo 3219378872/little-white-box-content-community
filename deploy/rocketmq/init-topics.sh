@@ -52,6 +52,7 @@ done
 
 CONSUMER_GROUPS=(
   content-cleanup-service-group
+  content-count-sync-service-group
   embedding-service-group
   search-service-group
   feed-service-group

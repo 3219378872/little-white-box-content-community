@@ -27,4 +27,6 @@ const (
 // app/pipeline/behaviorlog/etc/behavior-log.yaml。
 const (
 	GroupBehaviorLogService = "behavior-log-service-group"
+	GroupContentCleanup     = "content-cleanup-service-group"
+	GroupContentCountSync   = "content-count-sync-service-group"
 )
