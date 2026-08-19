@@ -82,7 +82,7 @@ verified_commit: a52eb89
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 重复请求返回成功且不重复累计；命令层 no-op 不写 outbox |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
-| CORE-032 互动状态立即可查 | partial | 详情与列表经 Gateway viewerstate 回填；计数走 count-sync（独立消费组 `content-count-sync-service-group`，与 cleanup 同进程）；30s 收敛未经生产观测 |
+| CORE-032 互动状态立即可查 | partial | 详情与列表经 Gateway viewerstate 回填；计数走 count-sync（独立消费组）；broker `JAVA_OPT_EXT` 含 `-XX:-UseContainerSupport`，避免 cgroup v2 上 StoreUtil 初始化失败导致 Pull 全挂；30s 收敛未经生产观测 |
 | CORE-033 取消互动后查询无效 | aligned | Unlike/Unfavorite 置 inactive 并失效缓存 |
 | CORE-034 赞藏仅已发布 | aligned | Interaction 写前调 Content `AssertInteractable`；帖子须 published，评论须有效且父帖 published；权威不可用失败关闭 |
 | CORE-040 一对一私信能力 | aligned | 仅 text/image/video/audio（type 1-4），无群聊/撤回/删除 |

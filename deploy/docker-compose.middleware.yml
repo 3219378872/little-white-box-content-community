@@ -103,7 +103,10 @@ services:
       - "10909:10909"
     environment:
       NAMESRV_ADDR: "rocketmq-namesrv:9876"
-      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -server -Xms512m -Xmx512m"
+      # Host cgroup v2 + JDK 8u372: StoreUtil.<clinit> NPEs in
+      # CgroupV2Subsystem.getInstance, then every Pull returns
+      # NoClassDefFoundError. Disable container metrics so OS MXBean works.
+      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -server -Xms512m -Xmx512m -XX:-UseContainerSupport"
     command: >
       bash -c "
         chown -R rocketmq:rocketmq /home/rocketmq/store /home/rocketmq/logs &&
