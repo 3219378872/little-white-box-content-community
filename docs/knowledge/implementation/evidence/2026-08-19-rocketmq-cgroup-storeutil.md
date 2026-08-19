@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-19
-verified_commit: 49fb5d4
+verified_commit: 3f43251
 commands:
   - go test -count=1 ./deploy/ -run TestRocketMQBrokerDisablesContainerSupport
 result: passed
