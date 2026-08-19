@@ -15,6 +15,7 @@ func TestNginxProductionRoutingContract(t *testing.T) {
 	required := []string{
 		"listen 80",
 		"listen 443 ssl",
+		"http2 on",
 		"ssl_certificate /etc/nginx/tls/tls.crt",
 		"ssl_certificate_key /etc/nginx/tls/tls.key",
 		"server gateway-a:8888",
