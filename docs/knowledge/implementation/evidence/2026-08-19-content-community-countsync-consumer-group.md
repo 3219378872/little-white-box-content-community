@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-19
-verified_commit: 8e9c867
+verified_commit: a67a209
 commands:
   - go test -count=1 ./app/content/mq/cleanup/... ./deploy/... ./pkg/mqx/...
   - python3 scripts/engineering-lint.py
