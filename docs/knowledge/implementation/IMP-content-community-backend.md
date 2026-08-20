@@ -36,6 +36,8 @@ tracks:
   - deploy/sql/xbh_user.sql
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
+  - deploy/loki/loki-config.yaml
+  - deploy/docker-compose.middleware.yml
 verified_at: 2026-08-15
 verified_commit: a52eb89
 ---
@@ -185,7 +187,7 @@ verified_commit: a52eb89
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地；新增 `daily_aggregates` 去标识聚合表（TTL 365 天，ReplacingMergeTree 幂等）与 behavior-log 定时聚合任务（`AggregateIntervalSeconds`/`AggregateBackfillDays`）；修复既有 schema 在 DateTime64 列上的 TTL 建表错误（BAD_TTL_EXPRESSION），ClickHouse 集成测试现可初始化 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
-| REL-022 业务日志 30 天不泄密 | aligned | IgnoreContentMethods + Loki 30 天；登录/注册/验证码日志不再写手机号 |
+| REL-022 业务日志 30 天不泄密 | aligned | IgnoreContentMethods + Loki 30 天（镜像钉 `grafana/loki:3.7.6`，schema v13/tsdb，`compactor.delete_request_store`；禁止 `:latest`）；登录/注册/验证码日志不再写手机号 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030 SLO 分母口径 | partial | 口径在 spec_evals.py；缺真实月度数据 |

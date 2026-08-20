@@ -79,6 +79,8 @@
   count-sync 独立消费组，避免与 cleanup 同组二次 Start fatal（CORE-032），提交见 frontmatter。
 - [2026-08-19-rocketmq-cgroup-storeutil.md](2026-08-19-rocketmq-cgroup-storeutil.md)：
   broker 关闭 UseContainerSupport，修复 cgroup v2 上 StoreUtil 初始化失败（CORE-032），提交见 frontmatter。
+- [2026-08-20-content-community-loki-retention.md](2026-08-20-content-community-loki-retention.md)：
+  Loki 钉 3.7.6 并升到 v13/tsdb，30 天 retention 可启动（REL-022），提交见 frontmatter。
 - [2026-08-14-content-community-post-idem-hash.md](2026-08-14-content-community-post-idem-hash.md)：
   帖子幂等命令哈希完整性修复（CORE-050/051），提交见 frontmatter。
 - [2026-08-14-content-community-tags-limit.md](2026-08-14-content-community-tags-limit.md)：
