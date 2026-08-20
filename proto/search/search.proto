@@ -42,6 +42,8 @@ message PostSearchResult {
   int64  like_count        = 5;
   int64  comment_count     = 6;
   int64  created_at        = 7; // Unix 时间戳（毫秒）
+  int64  author_id         = 8;
+  string author_avatar     = 9;
 }
 
 // 搜索用户请求

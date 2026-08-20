@@ -10,6 +10,7 @@ import (
 	"gateway/internal/svc"
 	"gateway/internal/types"
 	"jwtx"
+	"user/userservice"
 
 	"google.golang.org/grpc"
 )
@@ -43,6 +44,15 @@ type fakeGetPostContentService struct {
 
 func (f *fakeGetPostContentService) GetPost(ctx context.Context, in *contentservice.GetPostReq, opts ...grpc.CallOption) (*contentservice.GetPostResp, error) {
 	return f.getPostFn(ctx, in, opts...)
+}
+
+type fakeGetPostUserService struct {
+	userservice.UserService
+	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+}
+
+func (f *fakeGetPostUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+	return f.batchGetUsersFn(ctx, in, opts...)
 }
 
 func TestGetPost_ReturnsStatusAndRevision(t *testing.T) {
@@ -93,5 +103,34 @@ func TestGetPost_AuthenticatedFillsViewerState(t *testing.T) {
 	}
 	if !resp.IsLiked || resp.IsFavorited {
 		t.Fatalf("expected liked=true favorited=false, got %+v", resp)
+	}
+}
+
+func TestGetPost_HydratesAuthorProfile(t *testing.T) {
+	svcCtx := &svc.ServiceContext{
+		ContentService: &fakeGetPostContentService{
+			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+				return &contentservice.GetPostResp{Post: &contentpb.PostInfo{
+					Id: 11, AuthorId: 7, Title: "pub", Content: "body", Status: 1, Revision: 2,
+				}}, nil
+			},
+		},
+		UserService: &fakeGetPostUserService{
+			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+				if len(in.UserIds) != 1 || in.UserIds[0] != 7 {
+					t.Fatalf("unexpected author ids %+v", in.UserIds)
+				}
+				return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+					Id: 7, Nickname: "Alice", Username: "alice", AvatarUrl: "https://avatar/7.png",
+				}}}, nil
+			},
+		},
+	}
+	resp, err := NewGetPostLogic(context.Background(), svcCtx).GetPost(&types.GetPostReq{PostId: 11})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.AuthorId != 7 || resp.AuthorName != "Alice" || resp.AuthorAvatar != "https://avatar/7.png" {
+		t.Fatalf("expected hydrated author, got %+v", resp)
 	}
 }

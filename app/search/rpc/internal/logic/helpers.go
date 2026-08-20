@@ -87,16 +87,18 @@ func postResults(posts []store.Post, profiles map[int64]*userservice.UserInfo) [
 	result := make([]*pb.PostSearchResult, 0, len(posts))
 	for _, post := range posts {
 		authorName := ""
+		authorAvatar := ""
 		if profile := profiles[post.AuthorID]; profile != nil {
 			authorName = strings.TrimSpace(profile.Nickname)
 			if authorName == "" {
-				authorName = profile.Username
+				authorName = strings.TrimSpace(profile.Username)
 			}
+			authorAvatar = strings.TrimSpace(profile.AvatarUrl)
 		}
 		result = append(result, &pb.PostSearchResult{
 			Id: post.ID, Title: post.Title, ContentHighlight: post.ContentHighlight,
-			AuthorName: authorName, LikeCount: post.LikeCount,
-			CommentCount: post.CommentCount, CreatedAt: post.CreatedAt,
+			AuthorId: post.AuthorID, AuthorName: authorName, AuthorAvatar: authorAvatar,
+			LikeCount: post.LikeCount, CommentCount: post.CommentCount, CreatedAt: post.CreatedAt,
 		})
 	}
 	return result

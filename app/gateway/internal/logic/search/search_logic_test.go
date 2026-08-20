@@ -45,7 +45,8 @@ func TestSearch_MapsAllResultKinds(t *testing.T) {
 			}
 			return &searchservice.SearchResp{
 				Posts: []*searchservice.PostSearchResult{{
-					Id: 1, Title: "Go", ContentHighlight: "<em>Go</em>", AuthorName: "alice",
+					Id: 1, Title: "Go", ContentHighlight: "<em>Go</em>",
+					AuthorId: 8, AuthorName: "alice", AuthorAvatar: "https://avatar/alice.png",
 					LikeCount: 2, CommentCount: 3, CreatedAt: 4,
 				}},
 				Users: []*searchservice.UserSearchResult{{
@@ -62,6 +63,9 @@ func TestSearch_MapsAllResultKinds(t *testing.T) {
 	}
 	if len(resp.Posts) != 1 || resp.Posts[0].ContentHighlight != "<em>Go</em>" || resp.Posts[0].CommentCount != 3 {
 		t.Fatalf("posts were not mapped: %+v", resp.Posts)
+	}
+	if resp.Posts[0].AuthorId != 8 || resp.Posts[0].AuthorName != "alice" || resp.Posts[0].AuthorAvatar != "https://avatar/alice.png" {
+		t.Fatalf("post author was not mapped: %+v", resp.Posts[0])
 	}
 	if len(resp.Users) != 1 || resp.Users[0].Id != 5 || resp.Users[0].FollowerCount != 6 {
 		t.Fatalf("users were not mapped: %+v", resp.Users)

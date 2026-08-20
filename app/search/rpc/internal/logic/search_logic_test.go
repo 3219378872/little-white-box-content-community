@@ -114,7 +114,9 @@ func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
 	userService := &fakeUserService{batchGetUsersFn: func(got context.Context, in *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error) {
 		assert.Equal(t, ctx, got)
 		assert.Equal(t, []int64{9}, in.UserIds)
-		return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{Id: 9, Nickname: "Go Author"}}}, nil
+		return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+			Id: 9, Nickname: "Go Author", AvatarUrl: "https://avatar/9.png",
+		}}}, nil
 	}}
 	content := &fakeContentService{getPostsByIDs: func(got context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
 		assert.Equal(t, ctx, got)
@@ -132,8 +134,35 @@ func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
 	assert.Equal(t, int64(7), resp.Posts[0].Id)
 	assert.Equal(t, "Go Zero", resp.Posts[0].Title)
 	assert.Equal(t, "<em>go</em>", resp.Posts[0].ContentHighlight)
+	assert.Equal(t, int64(9), resp.Posts[0].AuthorId)
 	assert.Equal(t, "Go Author", resp.Posts[0].AuthorName)
+	assert.Equal(t, "https://avatar/9.png", resp.Posts[0].AuthorAvatar)
 	assert.Equal(t, int64(1), resp.Total)
+}
+
+func TestSearchPostsKeepsAuthorIDWhenProfileHydrationFails(t *testing.T) {
+	fake := &fakeStore{postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+		return store.PostResult{Posts: []store.Post{{
+			ID: 7, AuthorID: 0, Title: "stale title",
+		}}, Total: 1}, nil
+	}}
+	userService := &fakeUserService{batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error) {
+		return nil, errors.New("user rpc unavailable")
+	}}
+	content := &fakeContentService{getPostsByIDs: func(_ context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{
+			Id: 7, AuthorId: 9, Status: 1, Title: "Go Zero", Content: "learn go zero",
+		}}}, nil
+	}}
+
+	resp, err := NewSearchPostsLogic(context.Background(), serviceContextWithDeps(fake, userService, content)).SearchPosts(&pb.SearchPostsReq{
+		Keyword: "go", Page: 1, PageSize: 20,
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Posts, 1)
+	assert.Equal(t, int64(9), resp.Posts[0].AuthorId)
+	assert.Empty(t, resp.Posts[0].AuthorName)
+	assert.Empty(t, resp.Posts[0].AuthorAvatar)
 }
 
 func TestSearchPostsSupportsHotSort(t *testing.T) {

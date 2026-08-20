@@ -5,11 +5,13 @@ package posts
 
 import (
 	"context"
+	"strings"
 
 	"errx"
 	"esx/app/content/rpc/contentservice"
 	"gateway/internal/logic/viewerstate"
 	"jwtx"
+	"user/userservice"
 
 	"gateway/internal/svc"
 	"gateway/internal/types"
@@ -59,9 +61,12 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		return nil, err
 	}
 
+	authorName, authorAvatar := l.loadPostAuthor(post.AuthorId)
 	return &types.GetPostResp{
 		Id:            post.Id,
 		AuthorId:      post.AuthorId,
+		AuthorName:    authorName,
+		AuthorAvatar:  authorAvatar,
 		Title:         post.Title,
 		Content:       post.Content,
 		Images:        post.Images,
@@ -76,4 +81,30 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		Revision:      post.Revision,
 		CreatedAt:     post.CreatedAt,
 	}, nil
+}
+
+func (l *GetPostLogic) loadPostAuthor(authorID int64) (string, string) {
+	if authorID <= 0 || l.svcCtx == nil || l.svcCtx.UserService == nil {
+		return "", ""
+	}
+	response, err := l.svcCtx.UserService.BatchGetUsers(l.ctx, &userservice.BatchGetUsersReq{UserIds: []int64{authorID}})
+	if err != nil {
+		l.Errorw("UserService.BatchGetUsers failed", logx.Field("authorId", authorID), logx.Field("err", err.Error()))
+		return "", ""
+	}
+	if response == nil {
+		l.Error("UserService.BatchGetUsers returned a nil response")
+		return "", ""
+	}
+	for _, user := range response.Users {
+		if user == nil || user.Id != authorID {
+			continue
+		}
+		name := strings.TrimSpace(user.Nickname)
+		if name == "" {
+			name = strings.TrimSpace(user.Username)
+		}
+		return name, strings.TrimSpace(user.AvatarUrl)
+	}
+	return "", ""
 }

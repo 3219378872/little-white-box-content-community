@@ -161,6 +161,8 @@ type PostSearchResult struct {
 	LikeCount        int64                  `protobuf:"varint,5,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"`
 	CommentCount     int64                  `protobuf:"varint,6,opt,name=comment_count,json=commentCount,proto3" json:"comment_count,omitempty"`
 	CreatedAt        int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // Unix 时间戳（毫秒）
+	AuthorId         int64                  `protobuf:"varint,8,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	AuthorAvatar     string                 `protobuf:"bytes,9,opt,name=author_avatar,json=authorAvatar,proto3" json:"author_avatar,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -242,6 +244,20 @@ func (x *PostSearchResult) GetCreatedAt() int64 {
 		return x.CreatedAt
 	}
 	return 0
+}
+
+func (x *PostSearchResult) GetAuthorId() int64 {
+	if x != nil {
+		return x.AuthorId
+	}
+	return 0
+}
+
+func (x *PostSearchResult) GetAuthorAvatar() string {
+	if x != nil {
+		return x.AuthorAvatar
+	}
+	return ""
 }
 
 // 搜索用户请求
@@ -835,7 +851,7 @@ const file_proto_search_search_proto_rawDesc = "" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\"W\n" +
 	"\x0fSearchPostsResp\x12.\n" +
 	"\x05posts\x18\x01 \x03(\v2\x18.search.PostSearchResultR\x05posts\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\"\xe9\x01\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"\xab\x02\n" +
 	"\x10PostSearchResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12+\n" +
@@ -846,7 +862,9 @@ const file_proto_search_search_proto_rawDesc = "" +
 	"like_count\x18\x05 \x01(\x03R\tlikeCount\x12#\n" +
 	"\rcomment_count\x18\x06 \x01(\x03R\fcommentCount\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\a \x01(\x03R\tcreatedAt\"[\n" +
+	"created_at\x18\a \x01(\x03R\tcreatedAt\x12\x1b\n" +
+	"\tauthor_id\x18\b \x01(\x03R\bauthorId\x12#\n" +
+	"\rauthor_avatar\x18\t \x01(\tR\fauthorAvatar\"[\n" +
 	"\x0eSearchUsersReq\x12\x18\n" +
 	"\akeyword\x18\x01 \x01(\tR\akeyword\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +

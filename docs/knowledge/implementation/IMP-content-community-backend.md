@@ -113,8 +113,8 @@ verified_commit: a52eb89
 | DISC-010 关注流仅认证用户 | aligned | `/api/v2/feed/follow` 挂 jwt |
 | DISC-011 关系变化按当前关系生成 | aligned | 关注流先分页拉取当前 following，inbox 按当前关系过滤，outbox 按作者分批回源 |
 | DISC-012 空关注流返回空 | aligned | 不混入推荐 |
-| DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索 |
-| DISC-021 帖子结果来自可访问已发布内容 | aligned | 查询时回源 Content，标题/摘要来自仍 published 的正文，不可见项丢弃 |
+| DISC-020 搜索覆盖帖子/用户/标签 | aligned | Search RPC 综合搜索；帖子结果带 author_id/author_name/author_avatar（User 回填，失败时仍保留 author_id） |
+| DISC-021 帖子结果来自可访问已发布内容 | aligned | 查询时回源 Content，标题/摘要/作者 ID 来自仍 published 的正文，不可见项丢弃 |
 | DISC-022 无匹配空结果、索引不可用 503 | aligned | 搜索 RPC 区分空与不可用 |
 | DISC-023 部分失败返回 degraded+unavailableTypes | aligned | 用户/标签搜索失败时降级并列出 unavailableTypes |
 | DISC-030 认证用户个性化 | aligned | recommend 按身份特征召回 |

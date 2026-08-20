@@ -151,7 +151,9 @@ type SearchPostItem struct {
 	Id               int64  `json:"id"`
 	Title            string `json:"title"`
 	ContentHighlight string `json:"contentHighlight"`
+	AuthorId         int64  `json:"authorId"`
 	AuthorName       string `json:"authorName"`
+	AuthorAvatar     string `json:"authorAvatar"`
 	LikeCount        int64  `json:"likeCount"`
 	CommentCount     int64  `json:"commentCount"`
 	CreatedAt        int64  `json:"createdAt"`
