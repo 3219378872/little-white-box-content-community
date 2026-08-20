@@ -341,7 +341,7 @@ services:
 
   # Loki 日志收集
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.7.6
     container_name: xbh-loki
     restart: unless-stopped
     ports:

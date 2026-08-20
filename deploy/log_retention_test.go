@@ -20,6 +20,30 @@ func TestLokiBusinessLogRetentionIsThirtyDays(t *testing.T) {
 	if !strings.Contains(config, "retention_enabled: true") {
 		t.Error("loki config must enable compactor retention")
 	}
+	if !strings.Contains(config, "delete_request_store: filesystem") {
+		t.Error("loki config must set compactor.delete_request_store when retention is enabled")
+	}
+	if !strings.Contains(config, "schema: v13") {
+		t.Error("loki config must use schema v13")
+	}
+	if !strings.Contains(config, "store: tsdb") {
+		t.Error("loki config must use tsdb index store")
+	}
+}
+
+// REL-022：禁止 grafana/loki:latest。3.x 默认校验会拒绝仓库曾用的 v11/boltdb-shipper。
+func TestLokiImageIsPinned(t *testing.T) {
+	data, err := os.ReadFile("docker-compose.middleware.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compose := string(data)
+	if strings.Contains(compose, "grafana/loki:latest") {
+		t.Error("loki image must not use :latest")
+	}
+	if !strings.Contains(compose, "grafana/loki:3.7.6") {
+		t.Error("loki image must pin grafana/loki:3.7.6")
+	}
 }
 
 // REL-021：安全访问日志最多保留 7 天（nginx access log 每日轮转 + 7 份）。
