@@ -15,10 +15,10 @@ import (
 	"gateway/internal/httpxconfig"
 	gatewaymiddleware "gateway/internal/middleware"
 	"gateway/internal/svc"
+	"middleware"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/rest"
-	"middleware"
 )
 
 var configFile = flag.String("f", "etc/gateway.yaml", "the config file")
