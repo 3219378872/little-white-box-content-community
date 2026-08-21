@@ -80,6 +80,12 @@ func (m *MockUserService) Login(ctx context.Context, in *userservice.LoginReq, o
 	return v, args.Error(1)
 }
 
+func (m *MockUserService) RefreshToken(ctx context.Context, in *userservice.RefreshTokenReq, opts ...grpc.CallOption) (*userservice.RefreshTokenResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.RefreshTokenResp)
+	return v, args.Error(1)
+}
+
 func (m *MockUserService) SendVerifyCode(ctx context.Context, in *userservice.SendVerifyCodeReq, opts ...grpc.CallOption) (*userservice.SendVerifyCodeResp, error) {
 	args := m.Called(ctx, in)
 	v, _ := args.Get(0).(*userservice.SendVerifyCodeResp)
