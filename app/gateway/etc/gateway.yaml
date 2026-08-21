@@ -2,6 +2,9 @@ RestConf:
   Name: gateway
   Host: 0.0.0.0
   Port: 8888
+  # 框架默认 1MiB 会先于上传 handler 的 10MB MaxBytesReader 拒绝大图，
+  # 与 image 上传上限对齐（video 走 gRPC 不受此限制）。
+  MaxBytes: 10485760
 Auth:
   AccessSecret: ${JWT_SECRET_KEY}
   AccessExpire: 86400
