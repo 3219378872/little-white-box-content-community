@@ -8,6 +8,7 @@ import (
 
 // REL-022：content RPC 必须抑制框架自动内容日志（请求携带社区正文/评论）。
 func TestContentConfigSuppressesContentLogging(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("MQ_NAMESERVER", "")
 	var c Config

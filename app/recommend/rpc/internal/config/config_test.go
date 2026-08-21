@@ -7,11 +7,13 @@ import (
 )
 
 func TestConfigValidate(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	valid := Config{
 		CursorSecret:    "0123456789abcdef0123456789abcdef",
 		DefaultPageSize: 20,
 		MaxPageSize:     50,
 		ExploreRatio:    0.1,
+		InternalSecret:  "test-internal-secret",
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
@@ -34,6 +36,7 @@ func TestConfigValidate(t *testing.T) {
 }
 
 func TestRecommendYAMLLoadsEnvironmentAndDefaults(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("RECOMMEND_CURSOR_SECRET", "0123456789abcdef0123456789abcdef")

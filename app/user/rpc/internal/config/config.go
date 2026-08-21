@@ -13,6 +13,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
+	InternalSecret string
 	JwtConfig  jwtx.JwtConfig
 	DataSource string
 	MQ         mqx.ProducerConfig
@@ -24,6 +25,9 @@ type Config struct {
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.JwtConfig.AccessSecret) == "" {
 		return fmt.Errorf("user JwtConfig.AccessSecret is required; set JWT_SECRET_KEY")
+	}
+	if strings.TrimSpace(c.InternalSecret) == "" {
+		return fmt.Errorf("user InternalSecret is required; set RPC_INTERNAL_SECRET")
 	}
 	return nil
 }

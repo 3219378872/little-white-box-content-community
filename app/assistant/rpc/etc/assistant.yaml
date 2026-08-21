@@ -76,3 +76,6 @@ LLM:
   MaxOutputTokens: 4096
   PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
   CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}
+
+# 服务间内部鉴权共享密钥（HMAC），全服务一致
+InternalSecret: ${RPC_INTERNAL_SECRET}

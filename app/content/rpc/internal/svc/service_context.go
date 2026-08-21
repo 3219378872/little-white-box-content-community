@@ -101,7 +101,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	postModel := model2.NewPostModel(conn, cacheConf)
 	var mediaService mediaservice.MediaService
 	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
-		mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		mediaClient := zrpc.MustNewClient(c.MediaRpc,
+			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
+			zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 		mediaService = mediaservice.NewMediaService(mediaClient)
 	}
 

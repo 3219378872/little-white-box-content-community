@@ -50,24 +50,33 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	traceInterceptor := interceptor.TraceIDUnaryInterceptor()
+	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
 
-	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	withInternalAuth := func(opts ...zrpc.ClientOption) []zrpc.ClientOption {
+		return append([]zrpc.ClientOption{
+			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
+			zrpc.WithUnaryClientInterceptor(traceInterceptor),
+			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
+		}, opts...)
+	}
+
+	userClient := zrpc.MustNewClient(c.UserRpc, withInternalAuth()...)
 	userService := userservice.NewUserService(userClient)
-	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	contentClient := zrpc.MustNewClient(c.ContentRpc, withInternalAuth()...)
 	contentService := contentservice.NewContentService(contentClient)
-	mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	mediaClient := zrpc.MustNewClient(c.MediaRpc, withInternalAuth()...)
 	mediaService := mediaservice.NewMediaService(mediaClient)
-	interactionClient := zrpc.MustNewClient(c.InteractionRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	interactionClient := zrpc.MustNewClient(c.InteractionRpc, withInternalAuth()...)
 	interactionService := interactionservice.NewInteractionService(interactionClient)
-	behaviorClient := zrpc.MustNewClient(c.BehaviorRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	behaviorClient := zrpc.MustNewClient(c.BehaviorRpc, withInternalAuth()...)
 	behaviorService := behaviorservice.NewBehaviorService(behaviorClient)
-	feedClient := zrpc.MustNewClient(c.FeedRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	feedClient := zrpc.MustNewClient(c.FeedRpc, withInternalAuth()...)
 	feedService := feedservice.NewFeedService(feedClient)
-	messageClient := zrpc.MustNewClient(c.MessageRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	messageClient := zrpc.MustNewClient(c.MessageRpc, withInternalAuth()...)
 	messageService := messageservice.NewMessageService(messageClient)
-	searchClient := zrpc.MustNewClient(c.SearchRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	searchClient := zrpc.MustNewClient(c.SearchRpc, withInternalAuth()...)
 	searchService := searchservice.NewSearchService(searchClient)
-	assistantClient := zrpc.MustNewClient(c.AssistantRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(traceInterceptor))
+	assistantClient := zrpc.MustNewClient(c.AssistantRpc, withInternalAuth()...)
 	assistantService := assistantservice.NewAssistantService(assistantClient)
 
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{

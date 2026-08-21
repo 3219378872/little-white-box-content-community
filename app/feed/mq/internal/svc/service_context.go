@@ -4,6 +4,7 @@ import (
 	"context"
 	"esx/app/feed/mq/internal/config"
 	"esx/app/feed/mq/internal/model"
+	"interceptor"
 	"user/userservice"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -28,7 +29,8 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn := sqlx.NewMysql(c.DataSource)
-	userRpcClient := zrpc.MustNewClient(c.UserRpc)
+	userRpcClient := zrpc.MustNewClient(c.UserRpc,
+		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	return &ServiceContext{
 		Config:          c,
 		Conn:            conn,

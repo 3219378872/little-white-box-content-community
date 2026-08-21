@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
+	InternalSecret string
 	DataSource string
 	S3Storage  storage.Config
 	Upload     UploadConf

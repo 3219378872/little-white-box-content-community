@@ -88,6 +88,7 @@ x-gateway: &gateway
   environment:
     <<: *etcd-env
     JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+    RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
   expose:
     - "8888"
   healthcheck:
@@ -187,6 +188,7 @@ services:
         SERVICE_CONFIG: app/user/rpc/etc/user.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_USER: ${DB_USER:?DB_USER is required}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
     expose: ["9090", "9190"]
@@ -209,6 +211,7 @@ services:
         SERVICE_CONFIG: app/content/rpc/etc/content.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_CONTENT: ${DB_CONTENT:?DB_CONTENT is required}
     expose: ["8088", "9188"]
     healthcheck:
@@ -230,6 +233,7 @@ services:
         SERVICE_CONFIG: app/media/rpc/etc/media.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env, *s3-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_MEDIA: ${DB_MEDIA:?DB_MEDIA is required}
     expose: ["9008"]
     healthcheck:
@@ -253,6 +257,7 @@ services:
         SERVICE_CONFIG: app/interaction/rpc/etc/interaction.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_INTERACTION: ${DB_INTERACTION:?DB_INTERACTION is required}
     expose: ["9003", "9103"]
     healthcheck:
@@ -274,6 +279,7 @@ services:
         SERVICE_CONFIG: app/feed/rpc/etc/feed.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_FEED: ${DB_FEED:?DB_FEED is required}
       FEED_CURSOR_SECRET: ${FEED_CURSOR_SECRET:?FEED_CURSOR_SECRET is required}
     expose: ["9093"]
@@ -302,6 +308,7 @@ services:
         SERVICE_CONFIG: app/message/rpc/etc/message.yaml
     environment:
       <<: [*etcd-env, *redis-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_MESSAGE: ${DB_MESSAGE:?DB_MESSAGE is required}
     expose: ["9092"]
     healthcheck:
@@ -325,6 +332,7 @@ services:
         SERVICE_CONFIG: app/behavior/rpc/etc/behavior.yaml
     environment:
       <<: [*etcd-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
     expose: ["9021", "9121"]
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "9021"]
@@ -348,6 +356,7 @@ services:
         SERVICE_CONFIG: app/search/rpc/etc/search.yaml
     environment:
       <<: [*etcd-env, *es-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
     expose: ["9022", "9122"]
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "9022"]
@@ -373,6 +382,7 @@ services:
         SERVICE_CONFIG: app/recommend/rpc/etc/recommend.yaml
     environment:
       <<: [*etcd-env, *redis-env, *es-env, *milvus-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       ONLINE_INFER_ENDPOINT: online-infer:9025
       RECOMMEND_CURSOR_SECRET: ${RECOMMEND_CURSOR_SECRET:?RECOMMEND_CURSOR_SECRET is required}
     expose: ["9023", "9123"]
@@ -408,6 +418,7 @@ services:
         SERVICE_CONFIG: app/assistant/rpc/etc/assistant.yaml
     environment:
       <<: [*etcd-env, *redis-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
       ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-chat_completions}
       ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}
@@ -446,6 +457,7 @@ services:
         SERVICE_CONFIG: app/feed/mq/etc/feed-consumer.yaml
     environment:
       <<: [*etcd-env, *mq-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_FEED: ${DB_FEED:?DB_FEED is required}
     healthcheck: *process-healthcheck
     depends_on:
@@ -522,6 +534,7 @@ services:
         SERVICE_CONFIG: app/search/mq/etc/search-consumer.yaml
     environment:
       <<: [*etcd-env, *mq-env, *es-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
     healthcheck: *process-healthcheck
     depends_on:
       etcd:
@@ -543,6 +556,7 @@ services:
         SERVICE_CONFIG: app/embedding/mq/etc/embedding-consumer.yaml
     environment:
       <<: [*etcd-env, *mq-env, *milvus-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       EMBEDDING_GRPC_ADDRESS: embedding-service:50051
       EMBEDDING_MODEL_VERSION: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2@e8f8c211226b894fcb81acc59f3b34ba3efd5f42
     healthcheck: *process-healthcheck

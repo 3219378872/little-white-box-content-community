@@ -14,6 +14,7 @@ import (
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/rebuild"
 	"esx/app/embedding/mq/internal/vectorstore"
+	"interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -105,7 +106,8 @@ func run() (err error) {
 		}
 	}()
 
-	contentClient, err := zrpc.NewClient(c.ContentRpc)
+	contentClient, err := zrpc.NewClient(c.ContentRpc,
+		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	if err != nil {
 		return fmt.Errorf("initialize Content RPC client: %w", err)
 	}

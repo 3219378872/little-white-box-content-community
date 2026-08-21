@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	}
 
 	cfg := config.Config{
+		InternalSecret: "test-internal-secret",
 		RpcServerConf: zrpc.RpcServerConf{},
 		DataSource:    testEnv.MySQLDSN,
 		S3Storage: storage.Config{

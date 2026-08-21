@@ -26,6 +26,7 @@ type SafetyConfig struct {
 
 type Config struct {
 	zrpc.RpcServerConf
+	InternalSecret string
 	SearchRpc               zrpc.RpcClientConf
 	ContentRpc              zrpc.RpcClientConf
 	RecommendRpc            zrpc.RpcClientConf

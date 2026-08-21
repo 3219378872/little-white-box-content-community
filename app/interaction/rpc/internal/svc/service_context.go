@@ -89,7 +89,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	var contentService ContentService
 	if len(c.ContentRpc.Etcd.Hosts) > 0 || len(c.ContentRpc.Endpoints) > 0 || c.ContentRpc.Target != "" {
-		contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		contentClient := zrpc.MustNewClient(c.ContentRpc,
+			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
+			zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 		contentService = contentservice.NewContentService(contentClient)
 	}
 

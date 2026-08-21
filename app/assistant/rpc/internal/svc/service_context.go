@@ -28,9 +28,10 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	searchClient := zrpc.MustNewClient(c.SearchRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
-	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
-	recommendClient := zrpc.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
+	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
+	searchClient := zrpc.MustNewClient(c.SearchRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	recommendClient := zrpc.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
 
 	tools, err := tool.NewRegistry(c.AllowedTools, tool.Clients{
 		Search:    searchservice.NewSearchService(searchClient),

@@ -23,3 +23,6 @@ MQ:
 MaxBatchSize: 100
 MaxPastAgeHours: 720
 MaxFutureSkewSeconds: 300
+
+# 服务间内部鉴权共享密钥（HMAC），全服务一致
+InternalSecret: ${RPC_INTERNAL_SECRET}

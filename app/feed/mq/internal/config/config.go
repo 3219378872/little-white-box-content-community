@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	InternalSecret string
 	DataSource      string
 	MQ              mqx.ConsumerConfig
 	UserRpc         zrpc.RpcClientConf

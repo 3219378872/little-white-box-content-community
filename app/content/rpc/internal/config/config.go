@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
+	InternalSecret string
 	DataSource string
 	MediaRpc   zrpc.RpcClientConf
 	MQ         mqx.ProducerConfig

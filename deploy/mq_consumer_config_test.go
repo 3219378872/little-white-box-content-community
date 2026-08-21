@@ -11,6 +11,7 @@ import (
 )
 
 func TestAllConsumerConfigsDeclareBoundedRetries(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("MQ_NAMESERVER", "127.0.0.1:9876")
 	files := []string{
 		"app/content/mq/cleanup/etc/content-cleanup.yaml",
@@ -36,6 +37,7 @@ func TestAllConsumerConfigsDeclareBoundedRetries(t *testing.T) {
 }
 
 func TestContentCleanupCountSyncDeclaresBoundedRetriesAndDistinctGroup(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("MQ_NAMESERVER", "127.0.0.1:9876")
 	t.Setenv("DB_CONTENT", "user:pass@tcp(127.0.0.1:3306)/xbh_content")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")

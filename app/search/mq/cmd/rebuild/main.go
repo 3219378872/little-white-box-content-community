@@ -15,12 +15,14 @@ import (
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/zrpc"
+	"interceptor"
 )
 
 type commandConfig struct {
-	ContentRpc zrpc.RpcClientConf
-	ES         config.ESConfig
-	Rebuild    struct {
+	ContentRpc     zrpc.RpcClientConf
+	InternalSecret string
+	ES             config.ESConfig
+	Rebuild        struct {
 		PageSize       int32
 		TimeoutSeconds int64
 	}
@@ -67,7 +69,8 @@ func main() {
 		}
 	}()
 
-	contentClient := zrpc.MustNewClient(c.ContentRpc)
+	contentClient := zrpc.MustNewClient(c.ContentRpc,
+		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	source := contentservice.NewContentService(contentClient)
 	count, err := rebuild.Run(ctx, source, target, c.Rebuild.PageSize)
 	if err != nil {

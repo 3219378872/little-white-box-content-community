@@ -36,6 +36,7 @@ type MilvusRecallConfig struct {
 
 type Config struct {
 	zrpc.RpcServerConf
+	InternalSecret string
 	ContentRpc          zrpc.RpcClientConf
 	UserRpc             zrpc.RpcClientConf
 	FeatureVersion      string `json:",default=v2"`
@@ -54,6 +55,9 @@ type Config struct {
 }
 
 func (c Config) Validate() error {
+	if strings.TrimSpace(c.InternalSecret) == "" {
+		return fmt.Errorf("recommend InternalSecret is required; set RPC_INTERNAL_SECRET")
+	}
 	if len(c.CursorSecret) < 32 {
 		return fmt.Errorf("recommend CursorSecret must be at least 32 bytes")
 	}

@@ -247,6 +247,7 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"MYSQL_ROOT_PASSWORD":                              "contract-mysql-password",
 		"RECOMMEND_CURSOR_SECRET":                          "contract-recommend-cursor",
 		"REDIS_PASSWORD":                                   "contract-redis-password",
+		"RPC_INTERNAL_SECRET":                              "contract-rpc-internal-secret",
 		"S3_ACCESS_KEY":                                    "contract-s3-access",
 		"S3_PUBLIC_BASE_URL":                               "https://media.example.test",
 		"S3_SECRET_KEY":                                    "contract-s3-secret",

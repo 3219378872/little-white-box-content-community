@@ -18,6 +18,7 @@ type Config struct {
 	ContentRpc       zrpc.RpcClientConf `json:",optional"`
 	Rebuild          RebuildConfig      `json:",optional"`
 	StartupTimeoutMs int64              `json:",default=30000,range=[100:300000]"`
+	InternalSecret   string
 }
 
 type EmbeddingConfig struct {

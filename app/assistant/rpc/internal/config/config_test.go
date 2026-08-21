@@ -7,6 +7,7 @@ import (
 )
 
 func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")
@@ -39,6 +40,7 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 
 // REL-022：assistant 必须抑制框架自动内容日志（Chat 携带全量用户输入）。
 func TestAssistantConfigSuppressesChatContentLogging(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")

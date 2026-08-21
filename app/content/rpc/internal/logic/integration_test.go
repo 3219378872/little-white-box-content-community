@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 	testEnv = testutil.SetupTestEnvM("xbh_content", testutil.SchemaPath("xbh_content.sql"))
 
 	cfg := config.Config{
+		InternalSecret: "test-internal-secret",
 		RpcServerConf: zrpc.RpcServerConf{},
 		DataSource:    testEnv.MySQLDSN,
 	}

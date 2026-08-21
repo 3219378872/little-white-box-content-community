@@ -28,3 +28,6 @@ ContentRpc:
 Rebuild:
   PageSize: 50
   TimeoutSeconds: 900
+
+# 服务间内部鉴权共享密钥（HMAC），全服务一致
+InternalSecret: ${RPC_INTERNAL_SECRET}

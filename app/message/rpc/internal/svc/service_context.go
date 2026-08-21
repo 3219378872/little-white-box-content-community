@@ -62,10 +62,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},
 	}
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
-	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	var mediaService mediaservice.MediaService
 	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
-		mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+		mediaClient := zrpc.MustNewClient(c.MediaRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 		mediaService = mediaservice.NewMediaService(mediaClient)
 	}
 

@@ -8,6 +8,7 @@ import (
 
 // REL-022：user RPC 必须抑制框架自动内容日志（认证/资料字段）。
 func TestUserConfigSuppressesContentLogging(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("JWT_SECRET_KEY", "test-jwt-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("DB_USER", "")
@@ -30,6 +31,7 @@ func TestUserConfigSuppressesContentLogging(t *testing.T) {
 }
 
 func TestUserConfigValidateRequiresJwtSecret(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	for _, secret := range []string{"", " \t\n"} {
 		c := Config{}
 		c.JwtConfig.AccessSecret = secret
@@ -40,6 +42,7 @@ func TestUserConfigValidateRequiresJwtSecret(t *testing.T) {
 
 	valid := Config{}
 	valid.JwtConfig.AccessSecret = "user-jwt-secret"
+	valid.InternalSecret = "test-internal-secret"
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() rejected configured JwtConfig.AccessSecret: %v", err)
 	}

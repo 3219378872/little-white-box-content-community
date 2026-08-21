@@ -7,6 +7,7 @@ import (
 )
 
 func TestConfigValidateRequiresAccessSecret(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	for _, secret := range []string{"", " \t\n"} {
 		c := Config{}
 		c.Auth.AccessSecret = secret
@@ -23,6 +24,7 @@ func TestConfigValidateRequiresAccessSecret(t *testing.T) {
 }
 
 func TestGatewayYAMLLoadsSecretFromEnvironment(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("JWT_SECRET_KEY", "configured-gateway-jwt-secret")
 
 	var c Config

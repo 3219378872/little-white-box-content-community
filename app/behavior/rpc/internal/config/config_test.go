@@ -7,6 +7,7 @@ import (
 )
 
 func TestBehaviorConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("MQ_NAMESERVER", "127.0.0.1:9876")
 	var c Config
 	if err := conf.Load("../../etc/behavior.yaml", &c, conf.UseEnv()); err != nil {

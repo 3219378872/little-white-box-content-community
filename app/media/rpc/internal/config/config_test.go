@@ -8,6 +8,7 @@ import (
 
 // REL-022：media RPC 必须抑制框架自动内容日志。
 func TestMediaConfigSuppressesContentLogging(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("DB_MEDIA", "")
 	t.Setenv("S3_ACCESS_KEY", "k")

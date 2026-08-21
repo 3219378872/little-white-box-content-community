@@ -7,6 +7,7 @@ import (
 )
 
 func TestCommandConfigLoadsSharedSearchYAML(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("ES_ADDRESS", "http://127.0.0.1:9200")
 	t.Setenv("ES_USERNAME", "")
 	t.Setenv("ES_PASSWORD", "")

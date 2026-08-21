@@ -9,18 +9,20 @@ import (
 )
 
 func TestConfigValidateRequiresCursorSecret(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	for _, secret := range []string{"", " \t\n"} {
 		if err := (Config{CursorSecret: secret}).Validate(); err == nil {
 			t.Fatalf("Validate() accepted blank CursorSecret %q", secret)
 		}
 	}
 
-	if err := (Config{CursorSecret: "feed-cursor-secret"}).Validate(); err != nil {
+	if err := (Config{CursorSecret: "feed-cursor-secret", InternalSecret: "test-internal-secret"}).Validate(); err != nil {
 		t.Fatalf("Validate() rejected configured CursorSecret: %v", err)
 	}
 }
 
 func TestFeedYAMLRejectsMissingCursorSecret(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	previous, existed := os.LookupEnv("FEED_CURSOR_SECRET")
 	if err := os.Unsetenv("FEED_CURSOR_SECRET"); err != nil {
 		t.Fatalf("unset FEED_CURSOR_SECRET: %v", err)
@@ -44,6 +46,7 @@ func TestFeedYAMLRejectsMissingCursorSecret(t *testing.T) {
 }
 
 func TestFeedYAMLRejectsEmptyCursorSecret(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("FEED_CURSOR_SECRET", "")
 
 	var c Config
@@ -57,6 +60,7 @@ func TestFeedYAMLRejectsEmptyCursorSecret(t *testing.T) {
 }
 
 func TestFeedYAMLLoadsCursorSecretFromEnvironment(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("FEED_CURSOR_SECRET", "configured-feed-cursor-secret")
 
 	var c Config

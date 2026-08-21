@@ -26,6 +26,7 @@ type Config struct {
 	MessageRpc     zrpc.RpcClientConf
 	SearchRpc      zrpc.RpcClientConf
 	AssistantRpc   zrpc.RpcClientConf
+	InternalSecret string
 }
 
 // Validate 在启动前强制校验安全关键配置：空 JWT secret 会使 HS256
@@ -33,6 +34,9 @@ type Config struct {
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.Auth.AccessSecret) == "" {
 		return fmt.Errorf("gateway Auth.AccessSecret is required; set JWT_SECRET_KEY")
+	}
+	if strings.TrimSpace(c.InternalSecret) == "" {
+		return fmt.Errorf("gateway InternalSecret is required; set RPC_INTERNAL_SECRET")
 	}
 	return nil
 }

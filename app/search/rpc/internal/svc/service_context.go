@@ -46,8 +46,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err := esStore.Health(ctx); err != nil {
 		panic(fmt.Errorf("search-rpc: Elasticsearch health check: %w", err))
 	}
-	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
-	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()))
+	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	return &ServiceContext{
 		Config:         c,
 		Store:          esStore,

@@ -37,3 +37,6 @@ ContentRpc:
     Hosts:
       - 127.0.0.1:2379
     Key: content.rpc
+
+# 服务间内部鉴权共享密钥（HMAC），全服务一致
+InternalSecret: ${RPC_INTERNAL_SECRET}
