@@ -183,6 +183,7 @@ message LoginResp {
 message SendVerifyCodeReq {
   string phone = 1;
   int32  type  = 2; // 1: 注册 2: 登录 3: 重置密码
+  string client_ip = 3; // 网关提取的客户端 IP，用于发送频控；可为空（频控降级为仅号码维度）
 }
 
 // 发送验证码响应

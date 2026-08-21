@@ -6,6 +6,7 @@ package login
 import (
 	"context"
 	"esx/pkg/validator"
+	gatewaymiddleware "gateway/internal/middleware"
 	"user/userservice"
 
 	"gateway/internal/svc"
@@ -37,8 +38,9 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(req *types.SendVerifyCodeReq) (resp
 	}
 
 	_, err = l.svcCtx.UserService.SendVerifyCode(l.ctx, &userservice.SendVerifyCodeReq{
-		Phone: req.Phone,
-		Type:  req.Type,
+		Phone:    req.Phone,
+		Type:     req.Type,
+		ClientIp: gatewaymiddleware.ClientIPFromContext(l.ctx),
 	})
 
 	if err != nil {

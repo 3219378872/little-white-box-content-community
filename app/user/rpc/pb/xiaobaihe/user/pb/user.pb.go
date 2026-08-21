@@ -1316,7 +1316,8 @@ func (x *LoginResp) GetUser() *UserInfo {
 type SendVerifyCodeReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Phone         string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`
-	Type          int32                  `protobuf:"varint,2,opt,name=type,proto3" json:"type,omitempty"` // 1: 注册 2: 登录 3: 重置密码
+	Type          int32                  `protobuf:"varint,2,opt,name=type,proto3" json:"type,omitempty"`                        // 1: 注册 2: 登录 3: 重置密码
+	ClientIp      string                 `protobuf:"bytes,3,opt,name=client_ip,json=clientIp,proto3" json:"client_ip,omitempty"` // 网关提取的客户端 IP，用于发送频控；可为空（频控降级为仅号码维度）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1363,6 +1364,13 @@ func (x *SendVerifyCodeReq) GetType() int32 {
 		return x.Type
 	}
 	return 0
+}
+
+func (x *SendVerifyCodeReq) GetClientIp() string {
+	if x != nil {
+		return x.ClientIp
+	}
+	return ""
 }
 
 // 发送验证码响应
@@ -1684,10 +1692,11 @@ const file_user_proto_rawDesc = "" +
 	"\tLoginResp\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12\"\n" +
-	"\x04user\x18\x03 \x01(\v2\x0e.user.UserInfoR\x04user\"=\n" +
+	"\x04user\x18\x03 \x01(\v2\x0e.user.UserInfoR\x04user\"Z\n" +
 	"\x11SendVerifyCodeReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\x05R\x04type\"\x14\n" +
+	"\x04type\x18\x02 \x01(\x05R\x04type\x12\x1b\n" +
+	"\tclient_ip\x18\x03 \x01(\tR\bclientIp\"\x14\n" +
 	"\x12SendVerifyCodeResp\":\n" +
 	"\x1fGetPersonalizationPreferenceReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"^\n" +
