@@ -308,26 +308,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 获取用户信息
-				Method:  http.MethodGet,
-				Path:    "/user/:userId",
-				Handler: user.GetUserHandler(serverCtx),
-			},
-			{
-				// 获取用户的收藏帖子列表
-				Method:  http.MethodGet,
-				Path:    "/users/:userId/favorites",
-				Handler: user.GetUserFavoritesHandler(serverCtx),
-			},
-			{
-				// 获取用户发布的帖子列表
-				Method:  http.MethodGet,
-				Path:    "/users/:userId/posts",
-				Handler: user.GetUserPostsHandler(serverCtx),
-			},
-		},
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.OptionalAuth},
+			[]rest.Route{
+				{
+					// 获取用户信息
+					Method:  http.MethodGet,
+					Path:    "/user/:userId",
+					Handler: user.GetUserHandler(serverCtx),
+				},
+				{
+					// 获取用户的收藏帖子列表
+					Method:  http.MethodGet,
+					Path:    "/users/:userId/favorites",
+					Handler: user.GetUserFavoritesHandler(serverCtx),
+				},
+				{
+					// 获取用户发布的帖子列表
+					Method:  http.MethodGet,
+					Path:    "/users/:userId/posts",
+					Handler: user.GetUserPostsHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 

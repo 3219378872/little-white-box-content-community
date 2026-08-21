@@ -624,8 +624,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	group:  user
+	prefix:     /api/v1
+	group:      user
+	middleware: OptionalAuth
 )
 service gateway {
 	@doc "获取用户信息"
