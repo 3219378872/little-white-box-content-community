@@ -71,12 +71,78 @@ func TestCreateCommentLogic(t *testing.T) {
 			},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
+				cm.On("FindCommentById", mock.Anything, int64(5001)).
+					Return(&model2.Comment{Id: 5001, PostId: 1000, UserId: 200, Status: 1}, nil)
 				cm.On("InsertComment", mock.Anything, mock.AnythingOfType("*model.Comment")).Return(nil)
 				pm.On("IncrCommentCount", mock.Anything, int64(1000)).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreateCommentResp) {
 				assert.Greater(t, resp.CommentId, int64(0))
 			},
+		},
+		{
+			name: "回复目标用户与父评论作者不一致被拒绝",
+			req: &pb.CreateCommentReq{
+				PostId:      1000,
+				UserId:      201,
+				ParentId:    5001,
+				ReplyUserId: 999,
+				Content:     "这是回复",
+			},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
+				cm.On("FindCommentById", mock.Anything, int64(5001)).
+					Return(&model2.Comment{Id: 5001, PostId: 1000, UserId: 200, Status: 1}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ParamError,
+		},
+		{
+			name: "父评论属于其他帖子时回复被拒绝",
+			req: &pb.CreateCommentReq{
+				PostId:      1000,
+				UserId:      201,
+				ParentId:    5002,
+				ReplyUserId: 200,
+				Content:     "这是回复",
+			},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
+				cm.On("FindCommentById", mock.Anything, int64(5002)).
+					Return(&model2.Comment{Id: 5002, PostId: 8888, UserId: 200, Status: 1}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ParamError,
+		},
+		{
+			name: "父评论不存在时回复被拒绝",
+			req: &pb.CreateCommentReq{
+				PostId:      1000,
+				UserId:      201,
+				ParentId:    5999,
+				ReplyUserId: 200,
+				Content:     "这是回复",
+			},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
+				cm.On("FindCommentById", mock.Anything, int64(5999)).Return(nil, model2.ErrNotFound)
+			},
+			wantErr: true,
+			errCode: errx.ParamError,
+		},
+		{
+			name: "有回复目标但缺少父评论被拒绝",
+			req: &pb.CreateCommentReq{
+				PostId:      1000,
+				UserId:      201,
+				ReplyUserId: 200,
+				Content:     "这是回复",
+			},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(publishedPost, nil)
+			},
+			wantErr: true,
+			errCode: errx.ParamError,
 		},
 		{
 			name:    "空内容报错",
