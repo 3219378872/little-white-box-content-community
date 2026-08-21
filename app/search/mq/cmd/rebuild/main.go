@@ -12,10 +12,10 @@ import (
 	"esx/app/search/mq/internal/config"
 	"esx/app/search/mq/internal/indexer"
 	"esx/app/search/mq/internal/rebuild"
+	"interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/zrpc"
-	"interceptor"
 )
 
 type commandConfig struct {

@@ -3,19 +3,21 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
+	"fmt"
+
 	"esx/app/content/rpc/internal/config"
 	"esx/app/content/rpc/internal/server"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	"flag"
-	"fmt"
+	"interceptor"
+
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"interceptor"
 )
 
 var configFile = flag.String("f", "etc/content.yaml", "the config file")

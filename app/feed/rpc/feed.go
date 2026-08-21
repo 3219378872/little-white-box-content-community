@@ -8,12 +8,13 @@ import (
 	"esx/app/feed/rpc/internal/server"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"interceptor"
+
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"interceptor"
 )
 
 var configFile = flag.String("f", "etc/feed.yaml", "the config file")
