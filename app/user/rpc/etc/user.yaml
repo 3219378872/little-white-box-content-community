@@ -27,7 +27,10 @@ Redis:
 
 JwtConfig:
   AccessSecret: ${JWT_SECRET_KEY}
-  AccessExpire: 86400
+  # 双令牌：访问令牌 30 分钟，刷新令牌独立密钥、7 天轮换
+  AccessExpire: 1800
+  RefreshSecret: ${JWT_REFRESH_SECRET}
+  RefreshExpire: 604800
 
 DataSource: "${DB_USER}"
 MQ:

@@ -66,10 +66,19 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
+	refreshToken, err := jwtx.GenerateRefreshToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
+	if err != nil {
+		l.Errorw("jwtx.GenerateRefreshToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
+	}
+	if err := storeRefreshJTI(l.ctx, l.svcCtx, refreshToken, user.Id); err != nil {
+		return nil, err
+	}
 
 	return &pb.RegisterResp{
-		UserId: user.Id,
-		Token:  token,
+		UserId:       user.Id,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}, nil
 }
 
@@ -129,9 +138,18 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
+	refreshToken, err := jwtx.GenerateRefreshToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
+	if err != nil {
+		l.Errorw("jwtx.GenerateRefreshToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		return nil, errx.Wrap(err, errx.SystemError)
+	}
+	if err := storeRefreshJTI(l.ctx, l.svcCtx, refreshToken, user.Id); err != nil {
+		return nil, err
+	}
 	return &pb.RegisterResp{
-		UserId: user.Id,
-		Token:  token,
+		UserId:       user.Id,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}, nil
 }
 

@@ -27,6 +27,8 @@ service UserService {
   rpc Register(RegisterReq) returns (RegisterResp);
   // 登录
   rpc Login(LoginReq) returns (LoginResp);
+  // 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+  rpc RefreshToken(RefreshTokenReq) returns (RefreshTokenResp);
   // 发送验证码
   rpc SendVerifyCode(SendVerifyCodeReq) returns (SendVerifyCodeResp);
   // 获取个性化偏好（REL-023）
@@ -161,6 +163,8 @@ message RegisterReq {
 message RegisterResp {
   int64  user_id = 1;
   string token   = 2;
+  // 刷新令牌（JWT，独立密钥签名，服务端 jti 白名单轮换）
+  string refresh_token = 3;
 }
 
 // 登录请求
@@ -177,6 +181,19 @@ message LoginResp {
   int64    user_id = 1;
   string   token   = 2;
   UserInfo user    = 3;
+  // 刷新令牌（JWT，独立密钥签名，服务端 jti 白名单轮换）
+  string refresh_token = 4;
+}
+
+// 刷新令牌请求
+message RefreshTokenReq {
+  string refresh_token = 1;
+}
+
+// 刷新令牌响应：返回全新的访问/刷新令牌对（旧 refresh token 立即失效）
+message RefreshTokenResp {
+  string token         = 1;
+  string refresh_token = 2;
 }
 
 // 发送验证码请求

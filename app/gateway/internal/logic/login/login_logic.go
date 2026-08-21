@@ -56,7 +56,8 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 		return nil, err
 	}
 	return &types.LoginResp{
-		UserId: login.UserId,
-		Token:  login.Token,
+		UserId:       login.UserId,
+		Token:        login.Token,
+		RefreshToken: login.RefreshToken,
 	}, nil
 }

@@ -26,6 +26,9 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.JwtConfig.AccessSecret) == "" {
 		return fmt.Errorf("user JwtConfig.AccessSecret is required; set JWT_SECRET_KEY")
 	}
+	if strings.TrimSpace(c.JwtConfig.RefreshSecret) == "" {
+		return fmt.Errorf("user JwtConfig.RefreshSecret is required; set JWT_REFRESH_SECRET")
+	}
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return fmt.Errorf("user InternalSecret is required; set RPC_INTERNAL_SECRET")
 	}

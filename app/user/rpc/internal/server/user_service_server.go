@@ -89,6 +89,12 @@ func (s *UserServiceServer) Login(ctx context.Context, in *pb.LoginReq) (*pb.Log
 	return l.Login(in)
 }
 
+// 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+func (s *UserServiceServer) RefreshToken(ctx context.Context, in *pb.RefreshTokenReq) (*pb.RefreshTokenResp, error) {
+	l := logic.NewRefreshTokenLogic(ctx, s.svcCtx)
+	return l.RefreshToken(in)
+}
+
 // 发送验证码
 func (s *UserServiceServer) SendVerifyCode(ctx context.Context, in *pb.SendVerifyCodeReq) (*pb.SendVerifyCodeResp, error) {
 	l := logic.NewSendVerifyCodeLogic(ctx, s.svcCtx)

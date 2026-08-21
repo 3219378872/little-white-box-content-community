@@ -12,8 +12,18 @@ type LoginReq struct {
 }
 
 type LoginResp struct {
-	UserId int64  `json:"userId"`
-	Token  string `json:"token"`
+	UserId       int64  `json:"userId"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refreshToken,optional"`
+}
+
+type RefreshTokenReq struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type RefreshTokenResp struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 type RegisterReq struct {
@@ -24,8 +34,9 @@ type RegisterReq struct {
 }
 
 type RegisterResp struct {
-	UserId int64  `json:"userId"`
-	Token  string `json:"token"`
+	UserId       int64  `json:"userId"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refreshToken,optional"`
 }
 
 type SendVerifyCodeReq struct {

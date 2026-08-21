@@ -30,6 +30,7 @@ const (
 	UserService_GetUserTags_FullMethodName                  = "/user.UserService/GetUserTags"
 	UserService_Register_FullMethodName                     = "/user.UserService/Register"
 	UserService_Login_FullMethodName                        = "/user.UserService/Login"
+	UserService_RefreshToken_FullMethodName                 = "/user.UserService/RefreshToken"
 	UserService_SendVerifyCode_FullMethodName               = "/user.UserService/SendVerifyCode"
 	UserService_GetPersonalizationPreference_FullMethodName = "/user.UserService/GetPersonalizationPreference"
 	UserService_SetPersonalizationPreference_FullMethodName = "/user.UserService/SetPersonalizationPreference"
@@ -63,6 +64,8 @@ type UserServiceClient interface {
 	Register(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterResp, error)
 	// 登录
 	Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginResp, error)
+	// 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+	RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenResp, error)
 	// 发送验证码
 	SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error)
 	// 获取个性化偏好（REL-023）
@@ -189,6 +192,16 @@ func (c *userServiceClient) Login(ctx context.Context, in *LoginReq, opts ...grp
 	return out, nil
 }
 
+func (c *userServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshTokenResp)
+	err := c.cc.Invoke(ctx, UserService_RefreshToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userServiceClient) SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendVerifyCodeResp)
@@ -247,6 +260,8 @@ type UserServiceServer interface {
 	Register(context.Context, *RegisterReq) (*RegisterResp, error)
 	// 登录
 	Login(context.Context, *LoginReq) (*LoginResp, error)
+	// 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+	RefreshToken(context.Context, *RefreshTokenReq) (*RefreshTokenResp, error)
 	// 发送验证码
 	SendVerifyCode(context.Context, *SendVerifyCodeReq) (*SendVerifyCodeResp, error)
 	// 获取个性化偏好（REL-023）
@@ -295,6 +310,9 @@ func (UnimplementedUserServiceServer) Register(context.Context, *RegisterReq) (*
 }
 func (UnimplementedUserServiceServer) Login(context.Context, *LoginReq) (*LoginResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedUserServiceServer) RefreshToken(context.Context, *RefreshTokenReq) (*RefreshTokenResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
 }
 func (UnimplementedUserServiceServer) SendVerifyCode(context.Context, *SendVerifyCodeReq) (*SendVerifyCodeResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendVerifyCode not implemented")
@@ -524,6 +542,24 @@ func _UserService_Login_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshTokenReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).RefreshToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_RefreshToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).RefreshToken(ctx, req.(*RefreshTokenReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_SendVerifyCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendVerifyCodeReq)
 	if err := dec(in); err != nil {
@@ -628,6 +664,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _UserService_Login_Handler,
+		},
+		{
+			MethodName: "RefreshToken",
+			Handler:    _UserService_RefreshToken_Handler,
 		},
 		{
 			MethodName: "SendVerifyCode",

@@ -185,6 +185,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: login.LoginHandler(serverCtx),
 			},
 			{
+				// 刷新令牌：凭 refresh token 换取全新令牌对
+				Method:  http.MethodPost,
+				Path:    "/auth/refresh",
+				Handler: login.RefreshTokenHandler(serverCtx),
+			},
+			{
 				// 用户注册
 				Method:  http.MethodPost,
 				Path:    "/auth/register",

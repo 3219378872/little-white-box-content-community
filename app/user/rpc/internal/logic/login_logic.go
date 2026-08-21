@@ -6,7 +6,6 @@ import (
 	"errors"
 	"errx"
 	"fmt"
-	"jwtx"
 	"strings"
 	"user/internal/model"
 	"user/internal/svc"
@@ -98,21 +97,18 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 		}
 	}
 
-	// 生成token
-	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
+	// 签发访问/刷新令牌对
+	token, refreshToken, err := issueTokenPair(l.ctx, l.svcCtx, user.Id, user.Username)
 	if err != nil {
-		l.Errorw("jwtx.GenerateToken failed",
-			logx.Field("userId", user.Id),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, err
 	}
 
 	// 组装返回值
 	return &pb.LoginResp{
-		UserId: user.Id,
-		Token:  token,
-		User:   UserProfileToUserInfo(user),
+		UserId:       user.Id,
+		Token:        token,
+		User:         UserProfileToUserInfo(user),
+		RefreshToken: refreshToken,
 	}, nil
 
 }

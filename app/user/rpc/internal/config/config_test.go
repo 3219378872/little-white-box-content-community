@@ -10,6 +10,7 @@ import (
 func TestUserConfigSuppressesContentLogging(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("JWT_SECRET_KEY", "test-jwt-secret")
+	t.Setenv("JWT_REFRESH_SECRET", "test-refresh-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("DB_USER", "")
 	t.Setenv("MQ_NAMESERVER", "")
@@ -42,6 +43,7 @@ func TestUserConfigValidateRequiresJwtSecret(t *testing.T) {
 
 	valid := Config{}
 	valid.JwtConfig.AccessSecret = "user-jwt-secret"
+	valid.JwtConfig.RefreshSecret = "user-refresh-secret"
 	valid.InternalSecret = "test-internal-secret"
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() rejected configured JwtConfig.AccessSecret: %v", err)

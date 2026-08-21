@@ -53,6 +53,16 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 ## 安全
 
 - JWT 由 `pkg/jwtx` 签发/校验并写入 context；业务层不复制 token 解析。
+- 双令牌：访问令牌 30 分钟（HS256，`JWT_SECRET_KEY`）；刷新令牌独立密钥
+  （`JWT_REFRESH_SECRET`）、7 天有效、携带 jti 并在 user rpc Redis 白名单中一次性轮换
+  （`POST /api/v1/auth/refresh`）。access 与 refresh 类型互不通用，由 `tokenType`
+  声明强制区分。
+- 服务间 gRPC 内部鉴权：所有 RPC server 强制校验 HMAC-SHA256 时间戳签名
+  （`pkg/interceptor.InternalAuth*`），客户端统一经 `RPC_INTERNAL_SECRET` 签名；
+  健康检查与 reflection 豁免；Python 推理旁路（online-infer/embedding-service）
+  属独立信任域不挂此拦截器。
+- 验证码发送三维度频控：号码 5 次/小时、IP 20 次/小时（网关经 TraceMiddleware
+  提取 client_ip 传入）、全站 2 万次/日。
 - 可选鉴权与 CORS 使用 `pkg/middleware` 已有实现。
 - 用户输入经过 `pkg/validator`；错误响应不泄露内部堆栈、凭据或存储细节。
 - secret 只来自环境变量；配置文件只保留占位或非敏感默认值。

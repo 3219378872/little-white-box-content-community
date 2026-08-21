@@ -78,6 +78,13 @@ func (contractUserService) SendVerifyCode(_ context.Context, in *userservice.Sen
 	return &userservice.SendVerifyCodeResp{}, nil
 }
 
+func (contractUserService) RefreshToken(_ context.Context, in *userservice.RefreshTokenReq, _ ...grpc.CallOption) (*userservice.RefreshTokenResp, error) {
+	if in.RefreshToken == "stale-refresh-token" {
+		return nil, errx.NewWithCode(errx.LoginRequired)
+	}
+	return &userservice.RefreshTokenResp{Token: "rotated-access", RefreshToken: "rotated-refresh"}, nil
+}
+
 func (contractUserService) GetPersonalizationPreference(_ context.Context, in *userservice.GetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
 	if in.UserId == 999 {
 		return nil, errx.NewWithCode(errx.SystemError)
@@ -438,6 +445,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "AUTH-REGISTER-VALID", method: http.MethodPost, path: "/api/v1/auth/register", body: jsonBody(`{"username":"newuser","password":"Strong123"}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
 		{id: "AUTH-LOGIN-VALID", method: http.MethodPost, path: "/api/v1/auth/login", body: jsonBody(`{"username":"alice","password":"Strong123","loginType":1}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
 		{id: "AUTH-CODE-VALID", method: http.MethodPost, path: "/api/v1/auth/verify-code", body: jsonBody(`{"phone":"13800138000","type":1}`), wantStatus: http.StatusOK},
+		{id: "AUTH-REFRESH-VALID", method: http.MethodPost, path: "/api/v1/auth/refresh", body: jsonBody(`{"refreshToken":"valid-refresh-token"}`), wantStatus: http.StatusOK, wantFields: []string{"token", "refreshToken"}},
 		{id: "USER-GET-VALID", method: http.MethodGet, path: "/api/v1/user/2", routePath: "/api/v1/user/:userId", wantStatus: http.StatusOK, wantFields: []string{"id", "username", "favoritesVisible"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "USER-POSTS-VALID", method: http.MethodGet, path: "/api/v1/users/2/posts?page=1&pageSize=20&sortBy=1", routePath: "/api/v1/users/:userId/posts", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "USER-FAVORITES-VALID", method: http.MethodGet, path: "/api/v1/users/2/favorites?page=1&pageSize=20", routePath: "/api/v1/users/:userId/favorites", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
@@ -486,6 +494,8 @@ func TestRESTDecisionTable(t *testing.T) {
 	}
 	decisions = append(decisions,
 		restDecision{id: "AUTH-REGISTER-EMPTY", method: http.MethodPost, path: "/api/v1/auth/register", body: jsonBody(`{}`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "AUTH-REFRESH-EMPTY", method: http.MethodPost, path: "/api/v1/auth/refresh", body: jsonBody(`{}`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "AUTH-REFRESH-STALE", method: http.MethodPost, path: "/api/v1/auth/refresh", body: jsonBody(`{"refreshToken":"stale-refresh-token"}`), wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
 		restDecision{id: "AUTH-LOGIN-EMPTY", method: http.MethodPost, path: "/api/v1/auth/login", body: jsonBody(`{}`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "AUTH-CODE-BAD-PHONE", method: http.MethodPost, path: "/api/v1/auth/verify-code", body: jsonBody(`{"phone":"123","type":1}`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-LIST-VALID-TOKEN", method: http.MethodGet, path: "/api/v1/posts", auth: true, wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAuthenticated}},
@@ -628,8 +638,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 38 {
-		t.Fatalf("route inventory drift: got %d success rules, want 38", len(successes))
+	if len(successes) != 39 {
+		t.Fatalf("route inventory drift: got %d success rules, want 39", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

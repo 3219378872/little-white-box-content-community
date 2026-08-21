@@ -30,6 +30,8 @@ type (
 	GetUserTagsResp                  = pb.GetUserTagsResp
 	LoginReq                         = pb.LoginReq
 	LoginResp                        = pb.LoginResp
+	RefreshTokenReq                  = pb.RefreshTokenReq
+	RefreshTokenResp                 = pb.RefreshTokenResp
 	RegisterReq                      = pb.RegisterReq
 	RegisterResp                     = pb.RegisterResp
 	SearchUsersReq                   = pb.SearchUsersReq
@@ -67,6 +69,8 @@ type (
 		Register(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterResp, error)
 		// 登录
 		Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginResp, error)
+		// 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+		RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenResp, error)
 		// 发送验证码
 		SendVerifyCode(ctx context.Context, in *SendVerifyCodeReq, opts ...grpc.CallOption) (*SendVerifyCodeResp, error)
 		// 获取个性化偏好（REL-023）
@@ -150,6 +154,12 @@ func (m *defaultUserService) Register(ctx context.Context, in *RegisterReq, opts
 func (m *defaultUserService) Login(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginResp, error) {
 	client := pb.NewUserServiceClient(m.cli.Conn())
 	return client.Login(ctx, in, opts...)
+}
+
+// 刷新令牌：校验并轮换 refresh token，签发新的访问/刷新令牌对
+func (m *defaultUserService) RefreshToken(ctx context.Context, in *RefreshTokenReq, opts ...grpc.CallOption) (*RefreshTokenResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.RefreshToken(ctx, in, opts...)
 }
 
 // 发送验证码

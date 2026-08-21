@@ -7,7 +7,8 @@ RestConf:
   MaxBytes: 10485760
 Auth:
   AccessSecret: ${JWT_SECRET_KEY}
-  AccessExpire: 86400
+  # 双令牌：访问令牌 30 分钟，客户端凭刷新令牌换新（user rpc 签发）
+  AccessExpire: 1800
 
 UserRpc:
   Etcd:

@@ -191,6 +191,7 @@ services:
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_USER: ${DB_USER:?DB_USER is required}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
     expose: ["9090", "9190"]
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "9090"]

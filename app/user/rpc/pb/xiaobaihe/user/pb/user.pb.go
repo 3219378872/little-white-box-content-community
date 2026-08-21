@@ -1123,9 +1123,11 @@ func (x *RegisterReq) GetVerifyCode() string {
 
 // 注册响应
 type RegisterResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Token         string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Token  string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	// 刷新令牌（JWT，独立密钥签名，服务端 jti 白名单轮换）
+	RefreshToken  string `protobuf:"bytes,3,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1170,6 +1172,13 @@ func (x *RegisterResp) GetUserId() int64 {
 func (x *RegisterResp) GetToken() string {
 	if x != nil {
 		return x.Token
+	}
+	return ""
+}
+
+func (x *RegisterResp) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -1253,10 +1262,12 @@ func (x *LoginReq) GetLoginType() int32 {
 
 // 登录响应
 type LoginResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Token         string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
-	User          *UserInfo              `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Token  string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	User   *UserInfo              `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	// 刷新令牌（JWT，独立密钥签名，服务端 jti 白名单轮换）
+	RefreshToken  string `protobuf:"bytes,4,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1312,6 +1323,111 @@ func (x *LoginResp) GetUser() *UserInfo {
 	return nil
 }
 
+func (x *LoginResp) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+// 刷新令牌请求
+type RefreshTokenReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenReq) Reset() {
+	*x = RefreshTokenReq{}
+	mi := &file_user_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenReq) ProtoMessage() {}
+
+func (x *RefreshTokenReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenReq.ProtoReflect.Descriptor instead.
+func (*RefreshTokenReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *RefreshTokenReq) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+// 刷新令牌响应：返回全新的访问/刷新令牌对（旧 refresh token 立即失效）
+type RefreshTokenResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenResp) Reset() {
+	*x = RefreshTokenResp{}
+	mi := &file_user_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenResp) ProtoMessage() {}
+
+func (x *RefreshTokenResp) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenResp.ProtoReflect.Descriptor instead.
+func (*RefreshTokenResp) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RefreshTokenResp) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *RefreshTokenResp) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
 // 发送验证码请求
 type SendVerifyCodeReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1324,7 +1440,7 @@ type SendVerifyCodeReq struct {
 
 func (x *SendVerifyCodeReq) Reset() {
 	*x = SendVerifyCodeReq{}
-	mi := &file_user_proto_msgTypes[23]
+	mi := &file_user_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1336,7 +1452,7 @@ func (x *SendVerifyCodeReq) String() string {
 func (*SendVerifyCodeReq) ProtoMessage() {}
 
 func (x *SendVerifyCodeReq) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[23]
+	mi := &file_user_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1349,7 +1465,7 @@ func (x *SendVerifyCodeReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendVerifyCodeReq.ProtoReflect.Descriptor instead.
 func (*SendVerifyCodeReq) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{23}
+	return file_user_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SendVerifyCodeReq) GetPhone() string {
@@ -1382,7 +1498,7 @@ type SendVerifyCodeResp struct {
 
 func (x *SendVerifyCodeResp) Reset() {
 	*x = SendVerifyCodeResp{}
-	mi := &file_user_proto_msgTypes[24]
+	mi := &file_user_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +1510,7 @@ func (x *SendVerifyCodeResp) String() string {
 func (*SendVerifyCodeResp) ProtoMessage() {}
 
 func (x *SendVerifyCodeResp) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[24]
+	mi := &file_user_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,7 +1523,7 @@ func (x *SendVerifyCodeResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendVerifyCodeResp.ProtoReflect.Descriptor instead.
 func (*SendVerifyCodeResp) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{24}
+	return file_user_proto_rawDescGZIP(), []int{26}
 }
 
 // 获取个性化偏好请求
@@ -1420,7 +1536,7 @@ type GetPersonalizationPreferenceReq struct {
 
 func (x *GetPersonalizationPreferenceReq) Reset() {
 	*x = GetPersonalizationPreferenceReq{}
-	mi := &file_user_proto_msgTypes[25]
+	mi := &file_user_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1432,7 +1548,7 @@ func (x *GetPersonalizationPreferenceReq) String() string {
 func (*GetPersonalizationPreferenceReq) ProtoMessage() {}
 
 func (x *GetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[25]
+	mi := &file_user_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1445,7 +1561,7 @@ func (x *GetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPersonalizationPreferenceReq.ProtoReflect.Descriptor instead.
 func (*GetPersonalizationPreferenceReq) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{25}
+	return file_user_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetPersonalizationPreferenceReq) GetUserId() int64 {
@@ -1466,7 +1582,7 @@ type GetPersonalizationPreferenceResp struct {
 
 func (x *GetPersonalizationPreferenceResp) Reset() {
 	*x = GetPersonalizationPreferenceResp{}
-	mi := &file_user_proto_msgTypes[26]
+	mi := &file_user_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1478,7 +1594,7 @@ func (x *GetPersonalizationPreferenceResp) String() string {
 func (*GetPersonalizationPreferenceResp) ProtoMessage() {}
 
 func (x *GetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[26]
+	mi := &file_user_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1491,7 +1607,7 @@ func (x *GetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPersonalizationPreferenceResp.ProtoReflect.Descriptor instead.
 func (*GetPersonalizationPreferenceResp) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{26}
+	return file_user_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetPersonalizationPreferenceResp) GetEnabled() bool {
@@ -1519,7 +1635,7 @@ type SetPersonalizationPreferenceReq struct {
 
 func (x *SetPersonalizationPreferenceReq) Reset() {
 	*x = SetPersonalizationPreferenceReq{}
-	mi := &file_user_proto_msgTypes[27]
+	mi := &file_user_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1531,7 +1647,7 @@ func (x *SetPersonalizationPreferenceReq) String() string {
 func (*SetPersonalizationPreferenceReq) ProtoMessage() {}
 
 func (x *SetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[27]
+	mi := &file_user_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1544,7 +1660,7 @@ func (x *SetPersonalizationPreferenceReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPersonalizationPreferenceReq.ProtoReflect.Descriptor instead.
 func (*SetPersonalizationPreferenceReq) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{27}
+	return file_user_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SetPersonalizationPreferenceReq) GetUserId() int64 {
@@ -1570,7 +1686,7 @@ type SetPersonalizationPreferenceResp struct {
 
 func (x *SetPersonalizationPreferenceResp) Reset() {
 	*x = SetPersonalizationPreferenceResp{}
-	mi := &file_user_proto_msgTypes[28]
+	mi := &file_user_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1698,7 @@ func (x *SetPersonalizationPreferenceResp) String() string {
 func (*SetPersonalizationPreferenceResp) ProtoMessage() {}
 
 func (x *SetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[28]
+	mi := &file_user_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1711,7 @@ func (x *SetPersonalizationPreferenceResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPersonalizationPreferenceResp.ProtoReflect.Descriptor instead.
 func (*SetPersonalizationPreferenceResp) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{28}
+	return file_user_proto_rawDescGZIP(), []int{30}
 }
 
 var File_user_proto protoreflect.FileDescriptor
@@ -1677,10 +1793,11 @@ const file_user_proto_rawDesc = "" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x14\n" +
 	"\x05phone\x18\x03 \x01(\tR\x05phone\x12\x1f\n" +
 	"\vverify_code\x18\x04 \x01(\tR\n" +
-	"verifyCode\"=\n" +
+	"verifyCode\"b\n" +
 	"\fRegisterResp\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\"\x98\x01\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\x12#\n" +
+	"\rrefresh_token\x18\x03 \x01(\tR\frefreshToken\"\x98\x01\n" +
 	"\bLoginReq\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x14\n" +
@@ -1688,11 +1805,17 @@ const file_user_proto_rawDesc = "" +
 	"\vverify_code\x18\x04 \x01(\tR\n" +
 	"verifyCode\x12\x1d\n" +
 	"\n" +
-	"login_type\x18\x05 \x01(\x05R\tloginType\"^\n" +
+	"login_type\x18\x05 \x01(\x05R\tloginType\"\x83\x01\n" +
 	"\tLoginResp\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12\"\n" +
-	"\x04user\x18\x03 \x01(\v2\x0e.user.UserInfoR\x04user\"Z\n" +
+	"\x04user\x18\x03 \x01(\v2\x0e.user.UserInfoR\x04user\x12#\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"6\n" +
+	"\x0fRefreshTokenReq\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"M\n" +
+	"\x10RefreshTokenResp\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"Z\n" +
 	"\x11SendVerifyCodeReq\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\x05R\x04type\x12\x1b\n" +
@@ -1707,7 +1830,7 @@ const file_user_proto_rawDesc = "" +
 	"\x1fSetPersonalizationPreferenceReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\"\"\n" +
-	" SetPersonalizationPreferenceResp2\x97\a\n" +
+	" SetPersonalizationPreferenceResp2\xd6\a\n" +
 	"\vUserService\x12.\n" +
 	"\aGetUser\x12\x10.user.GetUserReq\x1a\x11.user.GetUserResp\x12@\n" +
 	"\rBatchGetUsers\x12\x16.user.BatchGetUsersReq\x1a\x17.user.BatchGetUsersResp\x12:\n" +
@@ -1719,7 +1842,8 @@ const file_user_proto_rawDesc = "" +
 	"\fGetFollowing\x12\x15.user.GetFollowingReq\x1a\x16.user.GetFollowingResp\x12:\n" +
 	"\vGetUserTags\x12\x14.user.GetUserTagsReq\x1a\x15.user.GetUserTagsResp\x121\n" +
 	"\bRegister\x12\x11.user.RegisterReq\x1a\x12.user.RegisterResp\x12(\n" +
-	"\x05Login\x12\x0e.user.LoginReq\x1a\x0f.user.LoginResp\x12C\n" +
+	"\x05Login\x12\x0e.user.LoginReq\x1a\x0f.user.LoginResp\x12=\n" +
+	"\fRefreshToken\x12\x15.user.RefreshTokenReq\x1a\x16.user.RefreshTokenResp\x12C\n" +
 	"\x0eSendVerifyCode\x12\x17.user.SendVerifyCodeReq\x1a\x18.user.SendVerifyCodeResp\x12m\n" +
 	"\x1cGetPersonalizationPreference\x12%.user.GetPersonalizationPreferenceReq\x1a&.user.GetPersonalizationPreferenceResp\x12m\n" +
 	"\x1cSetPersonalizationPreference\x12%.user.SetPersonalizationPreferenceReq\x1a&.user.SetPersonalizationPreferenceRespB\x13Z\x11xiaobaihe/user/pbb\x06proto3"
@@ -1736,7 +1860,7 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_user_proto_goTypes = []any{
 	(*UserInfo)(nil),                         // 0: user.UserInfo
 	(*GetUserReq)(nil),                       // 1: user.GetUserReq
@@ -1761,12 +1885,14 @@ var file_user_proto_goTypes = []any{
 	(*RegisterResp)(nil),                     // 20: user.RegisterResp
 	(*LoginReq)(nil),                         // 21: user.LoginReq
 	(*LoginResp)(nil),                        // 22: user.LoginResp
-	(*SendVerifyCodeReq)(nil),                // 23: user.SendVerifyCodeReq
-	(*SendVerifyCodeResp)(nil),               // 24: user.SendVerifyCodeResp
-	(*GetPersonalizationPreferenceReq)(nil),  // 25: user.GetPersonalizationPreferenceReq
-	(*GetPersonalizationPreferenceResp)(nil), // 26: user.GetPersonalizationPreferenceResp
-	(*SetPersonalizationPreferenceReq)(nil),  // 27: user.SetPersonalizationPreferenceReq
-	(*SetPersonalizationPreferenceResp)(nil), // 28: user.SetPersonalizationPreferenceResp
+	(*RefreshTokenReq)(nil),                  // 23: user.RefreshTokenReq
+	(*RefreshTokenResp)(nil),                 // 24: user.RefreshTokenResp
+	(*SendVerifyCodeReq)(nil),                // 25: user.SendVerifyCodeReq
+	(*SendVerifyCodeResp)(nil),               // 26: user.SendVerifyCodeResp
+	(*GetPersonalizationPreferenceReq)(nil),  // 27: user.GetPersonalizationPreferenceReq
+	(*GetPersonalizationPreferenceResp)(nil), // 28: user.GetPersonalizationPreferenceResp
+	(*SetPersonalizationPreferenceReq)(nil),  // 29: user.SetPersonalizationPreferenceReq
+	(*SetPersonalizationPreferenceResp)(nil), // 30: user.SetPersonalizationPreferenceResp
 }
 var file_user_proto_depIdxs = []int32{
 	0,  // 0: user.GetUserResp.user:type_name -> user.UserInfo
@@ -1786,25 +1912,27 @@ var file_user_proto_depIdxs = []int32{
 	17, // 14: user.UserService.GetUserTags:input_type -> user.GetUserTagsReq
 	19, // 15: user.UserService.Register:input_type -> user.RegisterReq
 	21, // 16: user.UserService.Login:input_type -> user.LoginReq
-	23, // 17: user.UserService.SendVerifyCode:input_type -> user.SendVerifyCodeReq
-	25, // 18: user.UserService.GetPersonalizationPreference:input_type -> user.GetPersonalizationPreferenceReq
-	27, // 19: user.UserService.SetPersonalizationPreference:input_type -> user.SetPersonalizationPreferenceReq
-	2,  // 20: user.UserService.GetUser:output_type -> user.GetUserResp
-	4,  // 21: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
-	6,  // 22: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
-	8,  // 23: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
-	10, // 24: user.UserService.Follow:output_type -> user.FollowResp
-	12, // 25: user.UserService.Unfollow:output_type -> user.UnfollowResp
-	14, // 26: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
-	16, // 27: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
-	18, // 28: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
-	20, // 29: user.UserService.Register:output_type -> user.RegisterResp
-	22, // 30: user.UserService.Login:output_type -> user.LoginResp
-	24, // 31: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
-	26, // 32: user.UserService.GetPersonalizationPreference:output_type -> user.GetPersonalizationPreferenceResp
-	28, // 33: user.UserService.SetPersonalizationPreference:output_type -> user.SetPersonalizationPreferenceResp
-	20, // [20:34] is the sub-list for method output_type
-	6,  // [6:20] is the sub-list for method input_type
+	23, // 17: user.UserService.RefreshToken:input_type -> user.RefreshTokenReq
+	25, // 18: user.UserService.SendVerifyCode:input_type -> user.SendVerifyCodeReq
+	27, // 19: user.UserService.GetPersonalizationPreference:input_type -> user.GetPersonalizationPreferenceReq
+	29, // 20: user.UserService.SetPersonalizationPreference:input_type -> user.SetPersonalizationPreferenceReq
+	2,  // 21: user.UserService.GetUser:output_type -> user.GetUserResp
+	4,  // 22: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
+	6,  // 23: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
+	8,  // 24: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
+	10, // 25: user.UserService.Follow:output_type -> user.FollowResp
+	12, // 26: user.UserService.Unfollow:output_type -> user.UnfollowResp
+	14, // 27: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
+	16, // 28: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
+	18, // 29: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
+	20, // 30: user.UserService.Register:output_type -> user.RegisterResp
+	22, // 31: user.UserService.Login:output_type -> user.LoginResp
+	24, // 32: user.UserService.RefreshToken:output_type -> user.RefreshTokenResp
+	26, // 33: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
+	28, // 34: user.UserService.GetPersonalizationPreference:output_type -> user.GetPersonalizationPreferenceResp
+	30, // 35: user.UserService.SetPersonalizationPreference:output_type -> user.SetPersonalizationPreferenceResp
+	21, // [21:36] is the sub-list for method output_type
+	6,  // [6:21] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -1821,7 +1949,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

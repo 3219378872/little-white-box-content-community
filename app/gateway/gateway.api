@@ -18,8 +18,19 @@ type (
 		VerifyCode string `json:"verifyCode,optional"`
 	}
 	RegisterResp {
-		UserId int64  `json:"userId"`
-		Token  string `json:"token"`
+		UserId       int64  `json:"userId"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken,optional"`
+	}
+)
+
+type (
+	RefreshTokenReq {
+		RefreshToken string `json:"refreshToken"`
+	}
+	RefreshTokenResp {
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken"`
 	}
 )
 
@@ -32,8 +43,9 @@ type (
 		LoginType  int32  `json:"loginType"` // 1:密码登录 2:验证码登录
 	}
 	LoginResp {
-		UserId int64  `json:"userId"`
-		Token  string `json:"token"`
+		UserId       int64  `json:"userId"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken,optional"`
 	}
 )
 
@@ -621,6 +633,10 @@ service gateway {
 	@doc "发送验证码"
 	@handler SendVerifyCode
 	post /auth/verify-code (SendVerifyCodeReq) returns (SendVerifyCodeResp)
+
+	@doc "刷新令牌：凭 refresh token 换取全新令牌对"
+	@handler RefreshToken
+	post /auth/refresh (RefreshTokenReq) returns (RefreshTokenResp)
 }
 
 @server (

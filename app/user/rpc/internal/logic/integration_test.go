@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"esx/pkg/testutil"
+	"jwtx"
 	"user/internal/model"
 	"user/internal/svc"
 	"util"
@@ -28,7 +29,7 @@ func TestMain(m *testing.M) {
 
 func buildSvcCtx(env *testutil.TestEnv) *svc.ServiceContext {
 	conn := sqlx.NewSqlConnFromDB(env.DB)
-	return &svc.ServiceContext{
+	svcCtx := &svc.ServiceContext{
 		DB:                conn,
 		UserProfileModel:  model.NewUserProfileModel(conn),
 		UserFollowModel:   model.NewUserFollowModel(conn),
@@ -37,4 +38,11 @@ func buildSvcCtx(env *testutil.TestEnv) *svc.ServiceContext {
 		Personalization:   model.NewPersonalizationPreferenceModel(conn),
 		RedisClient:       env.Redis,
 	}
+	svcCtx.Config.JwtConfig = jwtx.JwtConfig{
+		AccessSecret:  "integration-access-secret",
+		AccessExpire:  1800,
+		RefreshSecret: "integration-refresh-secret",
+		RefreshExpire: 7 * 24 * 3600,
+	}
+	return svcCtx
 }

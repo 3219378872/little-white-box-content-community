@@ -16,7 +16,8 @@ func RegisterReqConvert(req *types.RegisterReq) *pb.RegisterReq {
 
 func RegisterRespConvert(resp *pb.RegisterResp) *types.RegisterResp {
 	return &types.RegisterResp{
-		UserId: resp.UserId,
-		Token:  resp.Token,
+		UserId:       resp.UserId,
+		Token:        resp.Token,
+		RefreshToken: resp.RefreshToken,
 	}
 }
