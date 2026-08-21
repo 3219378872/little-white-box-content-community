@@ -44,7 +44,7 @@ count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（
 | Media | RPC + MQ | `app/media/rpc/media.go`、`app/media/mq/main.go` | `proto/media/media.proto` |
 | Interaction | RPC | `app/interaction/rpc/interaction.go` | `proto/interaction/interaction.proto` |
 | Feed | RPC + MQ | `app/feed/rpc/feed.go`、`app/feed/mq/main.go` | `proto/feed/feed.proto` |
-| Message | RPC + MQ | `app/message/rpc/message.go`、`app/message/mq/main.go` | `proto/message/message.proto` |
+| Message | RPC | `app/message/rpc/message.go` | `proto/message/message.proto` |
 | Search | RPC + MQ | `app/search/rpc/search.go`、`app/search/mq/main.go` | `proto/search/search.proto` |
 | Recommend | RPC + MQ | `app/recommend/rpc/recommend.go`、`app/recommend/mq/main.go` | `proto/recommend/recommend.proto` |
 | Embedding | MQ + service | `app/embedding/mq/main.go`、`app/embedding/service` | `proto/embedding/embedding.proto` |
