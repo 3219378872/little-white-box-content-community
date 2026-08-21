@@ -35,12 +35,12 @@ func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Se
 //   - 同一客户端 IP 每小时最多 verifyCodeIPHourlyLimit 次（防跨号码轰炸）；
 //   - 全站每日最多 verifyCodeDailyGlobalLimit 次（保护短信预算）。
 const (
-	verifyCodeCooldownSeconds      = 60
-	verifyCodePhoneHourlyLimit     = 5
-	verifyCodeIPHourlyLimit        = 20
-	verifyCodeWindowSeconds        = 3600
-	verifyCodeDailyGlobalLimit     = 20000
-	verifyCodeDailyWindowSeconds   = 172800
+	verifyCodeCooldownSeconds    = 60
+	verifyCodePhoneHourlyLimit   = 5
+	verifyCodeIPHourlyLimit      = 20
+	verifyCodeWindowSeconds      = 3600
+	verifyCodeDailyGlobalLimit   = 20000
+	verifyCodeDailyWindowSeconds = 172800
 )
 
 // incrWindow 递增计数窗口；首次写入时设置过期。Redis 故障时返回错误，

@@ -10,8 +10,8 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret string
-	DataSource string
-	MQ         mqx.ProducerConfig
-	Outbox     outboxx.Config
-	ContentRpc zrpc.RpcClientConf `json:",optional"`
+	DataSource     string
+	MQ             mqx.ProducerConfig
+	Outbox         outboxx.Config
+	ContentRpc     zrpc.RpcClientConf `json:",optional"`
 }

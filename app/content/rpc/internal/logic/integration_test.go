@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 
 	cfg := config.Config{
 		InternalSecret: "test-internal-secret",
-		RpcServerConf: zrpc.RpcServerConf{},
-		DataSource:    testEnv.MySQLDSN,
+		RpcServerConf:  zrpc.RpcServerConf{},
+		DataSource:     testEnv.MySQLDSN,
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
 		Host: testEnv.RedisAddr,

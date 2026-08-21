@@ -36,7 +36,7 @@ type MilvusRecallConfig struct {
 
 type Config struct {
 	zrpc.RpcServerConf
-	InternalSecret string
+	InternalSecret      string
 	ContentRpc          zrpc.RpcClientConf
 	UserRpc             zrpc.RpcClientConf
 	FeatureVersion      string `json:",default=v2"`

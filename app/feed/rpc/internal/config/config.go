@@ -11,7 +11,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	InternalSecret string
+	InternalSecret  string
 	DataSource      string
 	UserRpc         zrpc.RpcClientConf
 	ContentRpc      zrpc.RpcClientConf

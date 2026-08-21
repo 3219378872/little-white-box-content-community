@@ -61,8 +61,8 @@ func TestRegisterLogic_ByUsername(t *testing.T) {
 			}
 			svcCtx := newUnitSvcCtx(pm, nil)
 			svcCtx.Config.JwtConfig = jwtx.JwtConfig{
-				AccessSecret: "test-secret-32bytes-long-key!!",
-				AccessExpire: 3600,
+				AccessSecret:  "test-secret-32bytes-long-key!!",
+				AccessExpire:  3600,
 				RefreshSecret: "test-refresh-secret-32bytes!!",
 				RefreshExpire: 7 * 24 * 3600,
 			}

@@ -5,9 +5,9 @@ import "github.com/zeromicro/go-zero/zrpc"
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret string
-	ES         ESConfig
-	UserRpc    zrpc.RpcClientConf
-	ContentRpc zrpc.RpcClientConf
+	ES             ESConfig
+	UserRpc        zrpc.RpcClientConf
+	ContentRpc     zrpc.RpcClientConf
 }
 
 type ESConfig struct {

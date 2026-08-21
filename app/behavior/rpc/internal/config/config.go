@@ -8,7 +8,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	InternalSecret string
+	InternalSecret       string
 	MQ                   mqx.ProducerConfig
 	MaxBatchSize         int   `json:",default=100"`
 	MaxPastAgeHours      int64 `json:",default=720"`

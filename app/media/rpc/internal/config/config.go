@@ -11,11 +11,11 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret string
-	DataSource string
-	S3Storage  storage.Config
-	Upload     UploadConf
-	MQ         mqx.ProducerConfig
-	Outbox     outboxx.Config
+	DataSource     string
+	S3Storage      storage.Config
+	Upload         UploadConf
+	MQ             mqx.ProducerConfig
+	Outbox         outboxx.Config
 }
 
 // UploadConf 上传相关阈值与路径。

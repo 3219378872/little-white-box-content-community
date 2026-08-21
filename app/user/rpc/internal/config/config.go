@@ -14,10 +14,10 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret string
-	JwtConfig  jwtx.JwtConfig
-	DataSource string
-	MQ         mqx.ProducerConfig
-	Outbox     outboxx.Config
+	JwtConfig      jwtx.JwtConfig
+	DataSource     string
+	MQ             mqx.ProducerConfig
+	Outbox         outboxx.Config
 }
 
 // Validate 在启动前强制校验安全关键配置：user rpc 负责签发 JWT，
