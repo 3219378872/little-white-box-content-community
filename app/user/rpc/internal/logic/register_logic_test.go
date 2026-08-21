@@ -82,6 +82,38 @@ func TestRegisterLogic_ByUsername(t *testing.T) {
 	}
 }
 
+func TestRegisterByPhonePasswordStrength(t *testing.T) {
+	t.Run("弱密码在触达存储前被拒绝", func(t *testing.T) {
+		profile := &MockUserProfileModel{}
+		// 强度校验必须先于任何存储访问：不设置任何 mock 期望，
+		// 若实现提前查询手机号，AssertExpectations 不会失败但此处用
+		// 显式断言确保未调用。
+		profile.On("FindOneByPhone", mock.Anything, mock.Anything).
+			Return(nil, model.ErrNotFound).Maybe()
+		svcCtx := &svc.ServiceContext{RedisClient: &memoryRedis{values: map[string]string{}}, UserProfileModel: profile}
+		req := &pb.RegisterReq{Phone: "13800000003", VerifyCode: "123456", Password: "123"}
+		_, err := NewRegisterLogic(context.Background(), svcCtx).Register(req)
+		require.Error(t, err)
+		assert.Equal(t, errx.ParamError, errx.GetCode(err))
+	})
+
+	t.Run("空密码与强密码均放行进入验证码校验", func(t *testing.T) {
+		for _, password := range []string{"", "Passw0rd!"} {
+			mem := &memoryRedis{values: map[string]string{}}
+			profile := &MockUserProfileModel{}
+			profile.On("FindOneByPhone", mock.Anything, mock.Anything).
+				Return(nil, model.ErrNotFound).Once()
+			svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+			req := &pb.RegisterReq{Phone: "13800000004", VerifyCode: "123456", Password: password}
+			_, err := NewRegisterLogic(context.Background(), svcCtx).Register(req)
+			require.Error(t, err)
+			assert.True(t, errx.Is(err, errx.VerifyCodeExpired),
+				"password %q must pass strength check and reach verify-code validation, got %v", password, err)
+			profile.AssertExpectations(t)
+		}
+	})
+}
+
 func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
 	t.Run("未消费验证码的连续重发被冷却拦截", func(t *testing.T) {
 		mem := &memoryRedis{values: map[string]string{}}

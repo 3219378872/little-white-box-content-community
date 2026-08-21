@@ -74,6 +74,14 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 }
 
 func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, error) {
+	// 手机注册允许空密码（注册后由 newUser 生成随机密码），
+	// 但显式提供的密码必须与用户名注册一样满足强度要求。
+	if in.GetPassword() != "" {
+		if _, err := validator.CheckPasswordStrength(in.Password); err != nil {
+			return nil, err
+		}
+	}
+
 	phone, err := l.svcCtx.UserProfileModel.FindOneByPhone(l.ctx, sql.NullString{
 		String: in.Phone,
 		Valid:  true,
