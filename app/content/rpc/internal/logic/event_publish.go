@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
-	"util"
+	"esx/pkg/util"
 )
 
 func buildPostOutboxEvent(topic string, e event.PostEvent) (outboxx.Event, error) {

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
-	"util"
+	"esx/pkg/util"
 )
 
 func buildBusinessBehaviorOutbox(interaction event.InteractionEvent) (outboxx.Event, error) {

@@ -2,7 +2,7 @@ package interceptor
 
 import (
 	"context"
-	"errx"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )

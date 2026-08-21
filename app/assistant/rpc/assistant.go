@@ -8,7 +8,7 @@ import (
 	"esx/app/assistant/rpc/internal/server"
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
-	"interceptor"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"

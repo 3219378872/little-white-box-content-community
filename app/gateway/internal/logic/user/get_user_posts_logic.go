@@ -5,15 +5,15 @@ package user
 
 import (
 	"context"
-	"gateway/internal/logic/pageutil"
+	"esx/app/gateway/internal/logic/pageutil"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
-	"gateway/internal/logic/viewerstate"
+	"esx/app/gateway/internal/logic/viewerstate"
+	"esx/pkg/errx"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"errx"
-	"user/internal/model"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

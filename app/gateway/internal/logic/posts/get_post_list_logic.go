@@ -5,15 +5,15 @@ package posts
 
 import (
 	"context"
-	"gateway/internal/logic/pageutil"
+	"esx/app/gateway/internal/logic/pageutil"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
-	"gateway/internal/logic/viewerstate"
-	"jwtx"
+	"esx/app/gateway/internal/logic/viewerstate"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

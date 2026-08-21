@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"interceptor"
+	"esx/pkg/interceptor"
 )
 
 // TraceMiddleware 为每个请求生成/透传追踪标识并写入 ctx（REL-052），

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

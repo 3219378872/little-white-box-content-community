@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 
-	"cleanupx"
 	"esx/app/content/mq/cleanup/internal/config"
 	"esx/app/content/mq/cleanup/internal/mqs"
 	"esx/app/content/mq/cleanup/internal/svc"
+	"esx/pkg/cleanupx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

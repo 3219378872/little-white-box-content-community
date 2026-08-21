@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"jwtx"
+	"esx/pkg/jwtx"
 
 	"github.com/stretchr/testify/assert"
 )

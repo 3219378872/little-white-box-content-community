@@ -9,8 +9,8 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
-	"interceptor"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"

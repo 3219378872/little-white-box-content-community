@@ -8,7 +8,7 @@ import (
 	"esx/app/recommend/rpc/internal/server"
 	"esx/app/recommend/rpc/internal/svc"
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
-	"interceptor"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

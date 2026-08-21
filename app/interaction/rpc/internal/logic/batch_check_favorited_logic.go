@@ -5,7 +5,7 @@ import (
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
-	"errx"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
 
 	"github.com/zeromicro/go-zero/core/logx"

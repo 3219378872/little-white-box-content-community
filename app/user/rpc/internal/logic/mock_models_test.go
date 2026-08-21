@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"esx/pkg/outboxx"
+	"esx/pkg/util"
 	"time"
-	"util"
 
-	"user/internal/model"
-	"user/internal/svc"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"

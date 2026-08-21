@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/stretchr/testify/require"
 	"github.com/zeromicro/go-zero/core/conf"

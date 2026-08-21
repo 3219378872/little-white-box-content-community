@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"errx"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/errx"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

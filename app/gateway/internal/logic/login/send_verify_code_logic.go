@@ -5,12 +5,12 @@ package login
 
 import (
 	"context"
+	gatewaymiddleware "esx/app/gateway/internal/middleware"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/validator"
-	gatewaymiddleware "gateway/internal/middleware"
-	"user/userservice"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

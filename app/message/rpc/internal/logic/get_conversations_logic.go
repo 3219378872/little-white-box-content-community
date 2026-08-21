@@ -5,10 +5,10 @@ import (
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
+	"esx/app/user/rpc/userservice"
 	"strings"
-	"user/userservice"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

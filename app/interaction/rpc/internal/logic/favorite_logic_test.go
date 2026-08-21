@@ -9,7 +9,7 @@ import (
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

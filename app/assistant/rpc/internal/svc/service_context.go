@@ -9,7 +9,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
-	"interceptor"
+	"esx/pkg/interceptor"
 	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"

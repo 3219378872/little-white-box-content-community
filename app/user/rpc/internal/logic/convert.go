@@ -3,8 +3,8 @@
 package logic
 
 import (
-	"user/internal/model"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 )
 
 func UserProfileToUserInfo(profile *model.UserProfile) *pb.UserInfo {

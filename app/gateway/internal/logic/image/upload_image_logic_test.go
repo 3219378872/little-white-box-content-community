@@ -9,11 +9,11 @@ import (
 	"net/textproto"
 	"testing"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
 	"esx/app/media/rpc/mediaservice"
 	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
-	"gateway/internal/svc"
-	"jwtx"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

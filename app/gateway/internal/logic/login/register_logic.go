@@ -5,10 +5,10 @@ package login
 
 import (
 	"context"
-	"errx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
-	"gateway/internal/svc"
-	"gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

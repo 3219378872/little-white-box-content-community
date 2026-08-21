@@ -6,11 +6,11 @@ package like_favorite
 import (
 	"context"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

@@ -10,12 +10,12 @@ import (
 	"os"
 	"strings"
 
-	"gateway/internal/config"
-	"gateway/internal/handler"
-	"gateway/internal/httpxconfig"
-	gatewaymiddleware "gateway/internal/middleware"
-	"gateway/internal/svc"
-	"middleware"
+	"esx/app/gateway/internal/config"
+	"esx/app/gateway/internal/handler"
+	"esx/app/gateway/internal/httpxconfig"
+	gatewaymiddleware "esx/app/gateway/internal/middleware"
+	"esx/app/gateway/internal/svc"
+	"esx/pkg/middleware"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/rest"

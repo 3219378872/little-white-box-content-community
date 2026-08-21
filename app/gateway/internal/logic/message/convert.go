@@ -1,8 +1,8 @@
 package message
 
 import (
+	"esx/app/gateway/internal/types"
 	"esx/app/message/rpc/messageservice"
-	"gateway/internal/types"
 )
 
 const maxMessagePageSize = 100

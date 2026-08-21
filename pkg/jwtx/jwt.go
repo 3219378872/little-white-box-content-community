@@ -3,7 +3,7 @@ package jwtx
 import (
 	"context"
 	"errors"
-	"errx"
+	"esx/pkg/errx"
 	"fmt"
 	"strings"
 	"time"

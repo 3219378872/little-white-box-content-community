@@ -1,7 +1,7 @@
 package validator
 
 import (
-	"errx"
+	"esx/pkg/errx"
 	"regexp"
 	"unicode"
 	"unicode/utf8"

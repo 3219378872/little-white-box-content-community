@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"errx"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

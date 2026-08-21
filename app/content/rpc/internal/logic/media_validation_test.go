@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"errx"
 	"esx/app/media/rpc/mediaservice"
 	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/zeromicro/go-zero/core/logx"

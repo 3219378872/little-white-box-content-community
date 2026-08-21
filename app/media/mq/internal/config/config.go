@@ -2,7 +2,7 @@ package config
 
 import (
 	"esx/app/media/mq/internal/storage"
-	"mqx"
+	"esx/pkg/mqx"
 )
 
 type Config struct {

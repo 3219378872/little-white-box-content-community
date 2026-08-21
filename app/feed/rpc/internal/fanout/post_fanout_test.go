@@ -6,7 +6,7 @@ import (
 
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

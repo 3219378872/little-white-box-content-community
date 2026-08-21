@@ -3,7 +3,7 @@ package jwtx
 import (
 	"context"
 	"encoding/json"
-	"errx"
+	"esx/pkg/errx"
 	"testing"
 )
 

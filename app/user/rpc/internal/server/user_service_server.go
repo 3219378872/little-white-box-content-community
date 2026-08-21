@@ -7,9 +7,9 @@ package server
 import (
 	"context"
 
-	"user/internal/logic"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/logic"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 )
 
 type UserServiceServer struct {

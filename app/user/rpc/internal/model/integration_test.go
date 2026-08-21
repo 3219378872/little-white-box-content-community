@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"esx/pkg/testutil"
-	"util"
+	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )

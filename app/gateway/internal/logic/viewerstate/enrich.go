@@ -4,9 +4,9 @@ package viewerstate
 import (
 	"context"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
-	"gateway/internal/svc"
+	"esx/pkg/errx"
 )
 
 // PostTargetType 与 interaction proto 约定一致：1 = post。

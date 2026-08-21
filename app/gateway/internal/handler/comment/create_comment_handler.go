@@ -6,9 +6,9 @@ package comment
 import (
 	"net/http"
 
-	"gateway/internal/logic/comment"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/comment"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"esx/app/feed/mq/internal/config"
 	"esx/app/feed/mq/internal/model"
-	"interceptor"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"

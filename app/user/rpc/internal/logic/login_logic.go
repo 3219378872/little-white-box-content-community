@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"errx"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
+	"esx/pkg/util"
 	"fmt"
 	"strings"
-	"user/internal/model"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
-	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

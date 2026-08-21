@@ -13,8 +13,8 @@ import (
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	inferencepb "esx/app/recommend/rpc/xiaobaihe/inference/pb"
-	"interceptor"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/zrpc"

@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"testing"
 
-	"errx"
 	"esx/app/feed/rpc/feedservice"
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
-	userpb "user/pb/xiaobaihe/user/pb"
-	"user/userservice"
+	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 )

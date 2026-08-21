@@ -4,16 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
 	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
-	"user/pb/xiaobaihe/user/pb"
-	"user/userservice"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 )

@@ -5,9 +5,9 @@ package logic
 import (
 	"context"
 	"database/sql"
-	"errx"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

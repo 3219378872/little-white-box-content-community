@@ -67,15 +67,19 @@ internal/model/    → 数据访问层
 
 ## 共享库（pkg/）
 
-- `errx` — 业务错误码与 HTTP/gRPC 错误转换；框架错误不泄露原始消息。
-- `jwtx` — JWT 签发/校验与 context 透传。
-- `middleware` — HTTP 鉴权/可选鉴权/CORS 中间件；行为接收与追踪中间件分别在
+仓库为单一 Go module（根 `esx`），无子模块与 go.work；所有包以 `esx/pkg/<name>`
+导入。此前 7 个 pkg 与 gateway/user 曾是独立 module 且仅靠 workspace 解析依赖，
+已于 module 整合中并入根模块。
+
+- `pkg/errx` — 业务错误码与 HTTP/gRPC 错误转换；框架错误不泄露原始消息。
+- `pkg/jwtx` — JWT 签发/校验与 context 透传。
+- `pkg/middleware` — HTTP 鉴权/可选鉴权/CORS 中间件；行为接收与追踪中间件分别在
   `app/gateway/internal/middleware/`（BehaviorAccepted、Trace）与 `pkg/interceptor/`（RPC 侧）。
-- `interceptor` — gRPC 业务错误拦截器与 trace_id 透传。
-- `mqx` — RocketMQ 生产者/消费者封装与主题常量。
-- `outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
-- `event` — 跨服务事件载荷定义（PostEvent / InteractionEvent / BehaviorEvent）。
-- `cleanupx` / `testutil` / `util` / `validator` / `visibilityx` — 通用辅助。
+- `pkg/interceptor` — gRPC 业务错误拦截器、trace_id 透传与服务间 HMAC 内部鉴权。
+- `pkg/mqx` — RocketMQ 生产者/消费者封装与主题常量。
+- `pkg/outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
+- `pkg/event` — 跨服务事件载荷定义（PostEvent / InteractionEvent / BehaviorEvent）。
+- `pkg/cleanupx` / `pkg/testutil` / `pkg/util` / `pkg/validator` / `pkg/visibilityx` — 通用辅助。
 
 ## 服务间通信
 

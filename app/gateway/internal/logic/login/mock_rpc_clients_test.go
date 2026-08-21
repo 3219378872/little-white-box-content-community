@@ -3,8 +3,8 @@ package login
 import (
 	"context"
 
-	"gateway/internal/svc"
-	"user/userservice"
+	"esx/app/gateway/internal/svc"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"

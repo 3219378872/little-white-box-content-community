@@ -11,13 +11,13 @@ import (
 
 	"google.golang.org/grpc"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	"esx/pkg/errx"
 )
 
 const testCursorSecret = "0123456789abcdef0123456789abcdef"

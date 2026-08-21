@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/recommend/rpc/recommendservice"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

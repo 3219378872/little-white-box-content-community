@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/message/rpc/messageservice"
 	messagepb "esx/app/message/rpc/xiaobaihe/message/pb"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 )

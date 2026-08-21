@@ -8,9 +8,9 @@ import (
 
 	"esx/app/assistant/rpc/assistantservice"
 	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

@@ -6,8 +6,8 @@ import (
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/message/rpc/internal/config"
 	model2 "esx/app/message/rpc/internal/model"
-	"interceptor"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/redis"

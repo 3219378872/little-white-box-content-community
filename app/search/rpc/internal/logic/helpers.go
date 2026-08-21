@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"strings"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/content/visibility"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
-	"user/userservice"
 )
 
 const maxPageSize = 100

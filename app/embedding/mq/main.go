@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"cleanupx"
 	"esx/app/embedding/mq/internal/config"
 	"esx/app/embedding/mq/internal/mqs"
 	"esx/app/embedding/mq/internal/svc"
+	"esx/pkg/cleanupx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

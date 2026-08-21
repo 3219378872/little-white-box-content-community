@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"interceptor"
+	"esx/pkg/interceptor"
 )
 
 func TestTraceMiddlewareSetsContextAndHeader(t *testing.T) {

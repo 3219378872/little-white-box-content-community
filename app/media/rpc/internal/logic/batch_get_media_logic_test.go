@@ -8,7 +8,7 @@ import (
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 )
 
 func newBatchLogicWithFake(f *fakeMediaModel) *BatchGetMediaLogic {

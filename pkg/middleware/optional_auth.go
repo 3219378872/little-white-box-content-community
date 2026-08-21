@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"jwtx"
+	"esx/pkg/jwtx"
 )
 
 const (

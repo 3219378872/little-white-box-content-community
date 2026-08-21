@@ -6,11 +6,11 @@ import (
 	"os"
 	"testing"
 
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
+	"esx/pkg/jwtx"
 	"esx/pkg/testutil"
-	"jwtx"
-	"user/internal/model"
-	"user/internal/svc"
-	"util"
+	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )

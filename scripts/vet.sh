@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run `go vet` across every module in the go.work workspace.
+# Run `go vet` across every module in the repository.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

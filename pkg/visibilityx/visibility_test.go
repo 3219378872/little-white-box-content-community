@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
 )
 

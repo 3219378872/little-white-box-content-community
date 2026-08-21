@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"esx/app/content/rpc/contentservice"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/visibilityx"
-	"user/userservice"
 )
 
 type ContentPostRecallSource struct {

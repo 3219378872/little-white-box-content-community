@@ -6,10 +6,10 @@ package search
 import (
 	"context"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/search/rpc/searchservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

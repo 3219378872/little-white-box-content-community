@@ -5,11 +5,11 @@ package image
 
 import (
 	"errors"
-	"errx"
+	"esx/pkg/errx"
 	"net/http"
 
-	"gateway/internal/logic/image"
-	"gateway/internal/svc"
+	"esx/app/gateway/internal/logic/image"
+	"esx/app/gateway/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest/httpx"
 )

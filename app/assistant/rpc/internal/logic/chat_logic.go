@@ -12,13 +12,13 @@ import (
 	"time"
 	"unicode"
 
-	"errx"
 	"esx/app/assistant/rpc/internal/llm"
 	"esx/app/assistant/rpc/internal/safety"
 	"esx/app/assistant/rpc/internal/store"
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/pkg/errx"
 
 	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"

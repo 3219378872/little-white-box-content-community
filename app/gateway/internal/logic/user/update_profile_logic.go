@@ -5,11 +5,11 @@ package user
 
 import (
 	"context"
-	"jwtx"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/jwtx"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

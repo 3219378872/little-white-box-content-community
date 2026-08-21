@@ -7,9 +7,9 @@ import (
 	"context"
 	"testing"
 
-	"errx"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 )

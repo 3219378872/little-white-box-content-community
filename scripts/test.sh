@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run `go test` across every module in the go.work workspace.
+# Run `go test` across every module in the repository.
 #
 # With multiple go.mod files, `go test ./...` from the repo root only covers the
 # root module, so iterate each module directory explicitly. Extra args (e.g.

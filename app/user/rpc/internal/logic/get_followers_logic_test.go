@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"errx"
-	"user/internal/model"
+	"esx/app/user/rpc/internal/model"
+	"esx/pkg/errx"
 
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

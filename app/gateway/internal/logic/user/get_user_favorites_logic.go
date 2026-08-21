@@ -5,18 +5,18 @@ package user
 
 import (
 	"context"
-	"gateway/internal/logic/pageutil"
+	"esx/app/gateway/internal/logic/pageutil"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/content/visibility"
+	"esx/app/gateway/internal/logic/viewerstate"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 	"esx/pkg/visibilityx"
-	"gateway/internal/logic/viewerstate"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
-	"user/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

@@ -14,7 +14,7 @@ import (
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/rebuild"
 	"esx/app/embedding/mq/internal/vectorstore"
-	"interceptor"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

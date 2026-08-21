@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"testing"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

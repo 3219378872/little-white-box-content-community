@@ -1,8 +1,8 @@
 package login
 
 import (
-	"gateway/internal/types"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 )
 
 func RegisterReqConvert(req *types.RegisterReq) *pb.RegisterReq {

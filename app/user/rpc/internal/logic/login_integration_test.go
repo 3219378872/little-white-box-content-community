@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/stretchr/testify/require"
 )

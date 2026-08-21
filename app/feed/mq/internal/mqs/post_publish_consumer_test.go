@@ -8,8 +8,8 @@ import (
 
 	"esx/app/feed/mq/internal/model"
 	"esx/app/feed/mq/internal/svc"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/event"
-	"user/userservice"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

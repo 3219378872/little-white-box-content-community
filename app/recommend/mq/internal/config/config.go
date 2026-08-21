@@ -1,7 +1,7 @@
 package config
 
 import (
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/core/stores/redis"

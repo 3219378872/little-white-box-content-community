@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"errx"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"

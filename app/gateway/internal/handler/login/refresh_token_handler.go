@@ -6,9 +6,9 @@ package login
 import (
 	"net/http"
 
-	"gateway/internal/logic/login"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/login"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

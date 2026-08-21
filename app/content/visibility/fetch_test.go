@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
 	"google.golang.org/grpc"

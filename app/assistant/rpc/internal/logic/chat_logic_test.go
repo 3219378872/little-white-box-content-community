@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"errx"
 	"esx/app/assistant/rpc/internal/config"
 	"esx/app/assistant/rpc/internal/llm"
 	"esx/app/assistant/rpc/internal/safety"
@@ -16,6 +15,7 @@ import (
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/content/rpc/contentservice"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )

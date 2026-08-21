@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"esx/app/pipeline/behaviorlog/internal/config"
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/zeromicro/go-zero/core/stores/redis"

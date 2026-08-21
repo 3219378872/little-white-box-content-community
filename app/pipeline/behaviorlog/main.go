@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"cleanupx"
 	"esx/app/pipeline/behaviorlog/internal/config"
 	behaviorlogic "esx/app/pipeline/behaviorlog/internal/logic"
 	behaviorconsumer "esx/app/pipeline/behaviorlog/internal/mqs/behavior_log"
 	"esx/app/pipeline/behaviorlog/internal/svc"
-	"mqx"
+	"esx/pkg/cleanupx"
+	"esx/pkg/mqx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

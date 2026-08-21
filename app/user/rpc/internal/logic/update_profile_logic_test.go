@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
-	"gateway/internal/types"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
 
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

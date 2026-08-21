@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/search/rpc/searchservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )

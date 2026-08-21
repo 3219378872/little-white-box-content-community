@@ -3,15 +3,15 @@ package logic
 import (
 	"context"
 	"errors"
-	"errx"
 	mediautil2 "esx/app/media/rpc/internal/mediautil"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
 	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
 	"esx/pkg/idempotencyx"
 
-	"cleanupx"
-	"util"
+	"esx/pkg/cleanupx"
+	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

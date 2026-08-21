@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"errx"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
 	"esx/pkg/event"
-	"user/internal/model"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

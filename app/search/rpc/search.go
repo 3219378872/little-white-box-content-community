@@ -9,7 +9,7 @@ import (
 	"esx/app/search/rpc/internal/server"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
-	"interceptor"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

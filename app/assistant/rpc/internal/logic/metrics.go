@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"errx"
 	"esx/app/assistant/rpc/internal/llm"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/metric"
 )

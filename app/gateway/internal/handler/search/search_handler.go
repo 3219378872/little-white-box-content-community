@@ -6,9 +6,9 @@ package search
 import (
 	"net/http"
 
-	"gateway/internal/logic/search"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/search"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

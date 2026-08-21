@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"errx"
-	"jwtx"
-	"user/internal/svc"
+	"esx/app/user/rpc/internal/svc"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

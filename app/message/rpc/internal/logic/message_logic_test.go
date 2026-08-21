@@ -9,12 +9,12 @@ import (
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
+	"esx/app/user/rpc/userservice"
 	"strings"
 	"testing"
 	"time"
-	"user/userservice"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

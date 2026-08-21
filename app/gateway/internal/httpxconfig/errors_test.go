@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 )
 
 func TestMapError_BizErrorPassthrough(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"esx/pkg/jwtx"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"jwtx"
-	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )

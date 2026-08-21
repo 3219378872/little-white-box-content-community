@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"esx/app/feed/mq/internal/model"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"

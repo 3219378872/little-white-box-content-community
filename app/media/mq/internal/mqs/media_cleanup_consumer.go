@@ -8,7 +8,7 @@ import (
 
 	"esx/app/media/mq/internal/svc"
 	"esx/pkg/event"
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

@@ -5,14 +5,14 @@ package image
 
 import (
 	"context"
-	"errx"
 	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 	"io"
-	"jwtx"
 	"mime/multipart"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

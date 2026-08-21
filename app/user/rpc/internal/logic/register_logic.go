@@ -6,15 +6,15 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"errx"
+	"esx/app/user/rpc/internal/model"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
+	"esx/pkg/util"
 	"esx/pkg/validator"
 	"fmt"
-	"jwtx"
-	"user/internal/model"
-	"util"
 
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

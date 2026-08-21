@@ -4,8 +4,8 @@ package logic
 
 import (
 	"context"
-	"errx"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

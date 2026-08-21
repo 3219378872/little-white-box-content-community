@@ -5,7 +5,7 @@ import (
 	"esx/app/message/rpc/internal/svc"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

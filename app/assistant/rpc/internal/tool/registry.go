@@ -9,11 +9,11 @@ import (
 	"strings"
 	"unicode"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/content/visibility"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
+	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 )
 

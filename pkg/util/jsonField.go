@@ -3,7 +3,7 @@ package util
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errx"
+	"esx/pkg/errx"
 	"fmt"
 )
 

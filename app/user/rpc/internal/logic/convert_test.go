@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"user/internal/model"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/stretchr/testify/assert"
 )

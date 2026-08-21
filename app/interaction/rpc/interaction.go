@@ -10,7 +10,7 @@ import (
 	"esx/app/interaction/rpc/internal/server"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
-	"interceptor"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

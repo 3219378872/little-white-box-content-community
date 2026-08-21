@@ -3,13 +3,13 @@ package logic
 import (
 	"context"
 	"database/sql"
-	"errx"
+	"esx/pkg/errx"
 	"fmt"
 	"time"
 
-	"user/internal/model"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

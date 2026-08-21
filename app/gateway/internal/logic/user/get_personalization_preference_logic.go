@@ -6,11 +6,11 @@ package user
 import (
 	"context"
 
-	"errx"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
-	"user/userservice"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

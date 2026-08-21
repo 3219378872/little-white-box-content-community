@@ -2,8 +2,8 @@ package config
 
 import (
 	"esx/app/media/rpc/internal/storage"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )

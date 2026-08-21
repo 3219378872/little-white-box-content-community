@@ -7,7 +7,7 @@ import (
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

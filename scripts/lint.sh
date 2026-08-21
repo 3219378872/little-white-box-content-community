@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run golangci-lint across every module in the go.work workspace.
+# Run golangci-lint across every module in the repository.
 #
 # This repo is split across multiple nested Go modules, so a single root-level
 # `golangci-lint run ./...` only covers the root module. Iterate each module

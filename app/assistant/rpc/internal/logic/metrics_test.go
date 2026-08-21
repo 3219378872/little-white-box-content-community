@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
 	"esx/app/assistant/rpc/internal/llm"
+	"esx/pkg/errx"
 
 	clientprometheus "github.com/prometheus/client_golang/prometheus"
 	zeroprometheus "github.com/zeromicro/go-zero/core/prometheus"

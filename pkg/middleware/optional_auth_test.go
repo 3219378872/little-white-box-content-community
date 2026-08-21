@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"jwtx"
+	"esx/pkg/jwtx"
 )
 
 func runOptionalAuthRequest(t *testing.T, authHeader string, expire int64) (int, string, string) {

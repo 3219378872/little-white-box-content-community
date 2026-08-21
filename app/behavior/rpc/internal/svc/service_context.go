@@ -7,7 +7,7 @@ import (
 
 	"esx/app/behavior/rpc/internal/config"
 	"esx/app/behavior/rpc/internal/publisher"
-	"mqx"
+	"esx/pkg/mqx"
 )
 
 type ServiceContext struct {

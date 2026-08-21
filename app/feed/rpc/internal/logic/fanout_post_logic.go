@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
-	"errx"
 	"esx/app/feed/rpc/internal/fanout"
+	"esx/pkg/errx"
 
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"

@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
-	"errx"
+	"esx/pkg/errx"
 
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

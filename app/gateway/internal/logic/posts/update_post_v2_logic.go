@@ -6,12 +6,12 @@ package posts
 import (
 	"context"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
-	"jwtx"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

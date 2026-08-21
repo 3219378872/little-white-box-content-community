@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 
-	"cleanupx"
 	"esx/app/behavior/rpc/internal/config"
 	"esx/app/behavior/rpc/internal/server"
 	"esx/app/behavior/rpc/internal/svc"
 	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
-	"interceptor"
+	"esx/pkg/cleanupx"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

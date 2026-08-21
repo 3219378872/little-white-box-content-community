@@ -8,7 +8,7 @@ import (
 	behaviorlogic "esx/app/pipeline/behaviorlog/internal/logic"
 	"esx/app/pipeline/behaviorlog/internal/store"
 	"esx/pkg/event"
-	"mqx"
+	"esx/pkg/mqx"
 
 	rocketconsumer "github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

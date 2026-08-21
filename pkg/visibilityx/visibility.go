@@ -3,7 +3,7 @@ package visibilityx
 import (
 	"context"
 
-	"errx"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
 )
 

@@ -21,8 +21,8 @@ import (
 
 	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/testutil"
-	"mqx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

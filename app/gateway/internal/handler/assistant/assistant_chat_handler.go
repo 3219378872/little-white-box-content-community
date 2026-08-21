@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"gateway/internal/logic/assistant"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/assistant"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/core/logc"
 	"github.com/zeromicro/go-zero/core/threading"
 	"github.com/zeromicro/go-zero/rest/httpx"

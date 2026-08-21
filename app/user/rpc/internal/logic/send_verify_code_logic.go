@@ -3,13 +3,13 @@ package logic
 import (
 	"context"
 	cr "crypto/rand"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"fmt"
 	"math/big"
 	"time"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
 
-	"errx"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
 
 	"github.com/zeromicro/go-zero/core/logx"

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )

@@ -6,9 +6,9 @@ package message
 import (
 	"net/http"
 
-	"gateway/internal/logic/message"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/message"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

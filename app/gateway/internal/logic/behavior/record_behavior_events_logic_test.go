@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"errx"
 	"esx/app/behavior/rpc/behaviorservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 )

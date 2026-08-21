@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate coverage profiles for every go.work module and enforce layered gates.
+# Generate coverage profiles for every module and enforce layered gates.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

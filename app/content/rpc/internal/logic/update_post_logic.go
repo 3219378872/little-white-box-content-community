@@ -3,16 +3,16 @@ package logic
 import (
 	"context"
 	"errors"
-	"errx"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	"esx/pkg/errx"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
+	"esx/pkg/util"
 	"esx/pkg/visibilityx"
-	"mqx"
 	"strings"
 	"unicode/utf8"
-	"util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

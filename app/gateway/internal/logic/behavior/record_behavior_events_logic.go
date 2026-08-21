@@ -7,12 +7,12 @@ import (
 	"context"
 	"strings"
 
-	"errx"
 	"esx/app/behavior/rpc/behaviorservice"
-	"gateway/internal/middleware"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/app/gateway/internal/middleware"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

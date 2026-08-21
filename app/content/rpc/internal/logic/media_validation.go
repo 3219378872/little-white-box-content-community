@@ -2,8 +2,8 @@ package logic
 
 import (
 	"context"
-	"errx"
 	"esx/app/media/rpc/mediaservice"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

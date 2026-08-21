@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"esx/pkg/event"
-	"mqx"
-	"util"
+	"esx/pkg/mqx"
+	"esx/pkg/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

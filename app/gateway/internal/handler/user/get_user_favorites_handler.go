@@ -4,9 +4,9 @@
 package user
 
 import (
-	"gateway/internal/logic/user"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/user"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"net/http"
 
 	"github.com/zeromicro/go-zero/rest/httpx"

@@ -10,12 +10,12 @@ import (
 	"esx/app/media/rpc/internal/storage"
 	"esx/app/media/rpc/internal/svc"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
 	"strconv"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 )
 
 func newDeleteLogicWithFake(f *fakeMediaModel, cmd *fakeMediaCommandModel) *DeleteMediaLogic {

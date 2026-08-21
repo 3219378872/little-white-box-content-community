@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"cleanupx"
 	"esx/app/recommend/mq/internal/config"
 	"esx/app/recommend/mq/internal/mqs"
 	"esx/app/recommend/mq/internal/store"
 	"esx/app/recommend/mq/internal/svc"
+	"esx/pkg/cleanupx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
-	"errx"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/search/rpc/xiaobaihe/search/pb"
+	"esx/pkg/errx"
 
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

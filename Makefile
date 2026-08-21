@@ -51,10 +51,10 @@ engineering-lint: ## Validate layered knowledge, links, and repository policy
 	python3 -m unittest discover -s scripts -p 'test_engineering_lint.py'
 	python3 scripts/engineering-lint.py
 
-vet: ## Run go vet across all workspace modules
+vet: ## Run go vet across all modules
 	scripts/vet.sh $(ARGS)
 
-lint: ## Run golangci-lint across all workspace modules
+lint: ## Run golangci-lint across all modules
 	scripts/lint.sh $(ARGS)
 
 check: fmt-check engineering-lint vet lint ## Run formatting, policy, vet, and lint checks

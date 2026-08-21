@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"errx"
 	"esx/app/behavior/rpc/internal/config"
 	"esx/app/behavior/rpc/internal/publisher"
 	"esx/app/behavior/rpc/internal/svc"
 	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
+	"esx/pkg/errx"
 	"esx/pkg/event"
 
 	"github.com/stretchr/testify/assert"

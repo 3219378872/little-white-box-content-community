@@ -9,7 +9,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

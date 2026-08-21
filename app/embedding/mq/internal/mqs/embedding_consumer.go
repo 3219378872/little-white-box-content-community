@@ -10,8 +10,8 @@ import (
 	"esx/app/embedding/mq/internal/svc"
 	"esx/app/embedding/mq/internal/vectorstore"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
-	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

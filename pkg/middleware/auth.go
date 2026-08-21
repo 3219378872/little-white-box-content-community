@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"context"
-	"jwtx"
+	"esx/pkg/jwtx"
 )
 
 // GetUserId 从 context 获取用户 ID（统一走 jwtx）

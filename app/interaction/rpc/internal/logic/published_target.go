@@ -3,9 +3,9 @@ package logic
 import (
 	"context"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/internal/svc"
+	"esx/pkg/errx"
 )
 
 const (

@@ -3,9 +3,9 @@ package search
 import (
 	"strings"
 
-	"errx"
+	"esx/app/gateway/internal/types"
 	"esx/app/search/rpc/searchservice"
-	"gateway/internal/types"
+	"esx/pkg/errx"
 )
 
 const maxPageSize = 100

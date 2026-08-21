@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"errx"
-	"user/internal/model"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

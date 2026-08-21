@@ -8,12 +8,12 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/testutil"
+	"esx/pkg/util"
 	"fmt"
 	"os"
 	"testing"
-	"util"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/require"
 	"github.com/zeromicro/go-zero/core/stores/redis"

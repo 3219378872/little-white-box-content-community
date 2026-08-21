@@ -7,11 +7,11 @@ import (
 	"context"
 	"strings"
 
-	"errx"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"esx/app/message/rpc/messageservice"
-	"gateway/internal/svc"
-	"gateway/internal/types"
-	"jwtx"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

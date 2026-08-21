@@ -7,8 +7,8 @@ import (
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/recommend/rpc/recommendservice"
-	"interceptor"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"

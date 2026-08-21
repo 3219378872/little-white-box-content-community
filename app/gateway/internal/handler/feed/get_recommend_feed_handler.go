@@ -6,9 +6,9 @@ package feed
 import (
 	"net/http"
 
-	"gateway/internal/logic/feed"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/feed"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

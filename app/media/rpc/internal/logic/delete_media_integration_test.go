@@ -4,9 +4,9 @@ package logic
 
 import (
 	"context"
-	"errx"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
-	"mqx"
+	"esx/pkg/errx"
+	"esx/pkg/mqx"
 	"testing"
 
 	"github.com/stretchr/testify/require"

@@ -1,8 +1,8 @@
 package config
 
 import (
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-	"mqx"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )

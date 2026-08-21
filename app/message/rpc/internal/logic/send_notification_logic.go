@@ -8,7 +8,7 @@ import (
 	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"strings"
 
-	"errx"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

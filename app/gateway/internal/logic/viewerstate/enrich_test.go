@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
-	"gateway/internal/svc"
 
 	"google.golang.org/grpc"
 )

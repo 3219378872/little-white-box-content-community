@@ -5,8 +5,8 @@ package logic
 import (
 	"bytes"
 	"context"
-	"errx"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	"esx/pkg/errx"
 	"image"
 	"image/color"
 	"image/jpeg"

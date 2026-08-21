@@ -6,9 +6,9 @@ package like_favorite
 import (
 	"net/http"
 
-	"gateway/internal/logic/like_favorite"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/like_favorite"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

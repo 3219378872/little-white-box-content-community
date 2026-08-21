@@ -9,9 +9,9 @@ import (
 
 	"esx/app/content/rpc/contentservice"
 	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	"gateway/internal/config"
-	"gateway/internal/svc"
-	"jwtx"
+	"esx/app/gateway/internal/config"
+	"esx/app/gateway/internal/svc"
+	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
 )

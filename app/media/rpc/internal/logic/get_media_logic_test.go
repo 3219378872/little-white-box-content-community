@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"errx"
+	"esx/pkg/errx"
 )
 
 func newGetLogicWithFake(f *fakeMediaModel) *GetMediaLogic {

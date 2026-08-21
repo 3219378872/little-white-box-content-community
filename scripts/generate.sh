@@ -30,23 +30,15 @@ goctl rpc protoc proto/assistant/assistant.proto \
   --go_out=app/assistant/rpc --go-grpc_out=app/assistant/rpc \
   --zrpc_out=app/assistant/rpc --style=go_zero
 
-generation_work_dir="$(mktemp -d)"
-user_work_dir="$generation_work_dir/user"
-gateway_work_dir="$generation_work_dir/gateway"
+# 单模块仓库：goctl 生成不再需要临时 workspace 解析跨模块依赖。
 user_proto_link="$ROOT_DIR/app/user/rpc/user.proto"
 cleanup_generation() {
   if [[ -L "$user_proto_link" ]]; then
     unlink "$user_proto_link"
   fi
-  rm -rf "$generation_work_dir"
 }
 trap cleanup_generation EXIT
 
-mkdir -p "$user_work_dir"
-(
-  cd "$user_work_dir"
-  go work init "$ROOT_DIR/app/user/rpc"
-)
 if [[ -e "$user_proto_link" || -L "$user_proto_link" ]]; then
   echo "refusing to replace existing $user_proto_link" >&2
   exit 1
@@ -54,7 +46,7 @@ fi
 ln -s "$ROOT_DIR/proto/user/user.proto" "$user_proto_link"
 (
   cd "$ROOT_DIR/app/user/rpc"
-  GOWORK="$user_work_dir/go.work" goctl rpc protoc user.proto \
+  goctl rpc protoc user.proto \
     --go_out=pb --go-grpc_out=pb --zrpc_out=. --style=go_zero
 )
 unlink "$user_proto_link"
@@ -82,12 +74,7 @@ protoc -I . --go_out=app/recommend/rpc --go-grpc_out=app/recommend/rpc \
 app/embedding/service/generate_proto.sh
 algorithm/online_infer/generate_proto.sh
 
-mkdir -p "$gateway_work_dir"
-(
-  cd "$gateway_work_dir"
-  go work init "$ROOT_DIR/app/gateway"
-)
-GOWORK="$gateway_work_dir/go.work" goctl api go \
+goctl api go \
   --api "$ROOT_DIR/app/gateway/gateway.api" \
   --dir "$ROOT_DIR/app/gateway" \
   --style=go_zero --type-group

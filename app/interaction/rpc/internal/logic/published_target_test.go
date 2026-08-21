@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"errx"
 	"esx/app/content/rpc/contentservice"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )

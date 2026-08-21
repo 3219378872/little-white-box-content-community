@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"esx/pkg/event"
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"

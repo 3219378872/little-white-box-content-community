@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"esx/pkg/event"
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

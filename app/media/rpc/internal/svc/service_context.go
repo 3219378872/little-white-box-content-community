@@ -8,8 +8,8 @@ import (
 	"esx/pkg/outboxx"
 	"fmt"
 
-	"mqx"
-	"util"
+	"esx/pkg/mqx"
+	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"

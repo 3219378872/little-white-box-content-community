@@ -5,11 +5,11 @@ import (
 	"math"
 	"sort"
 
-	"errx"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

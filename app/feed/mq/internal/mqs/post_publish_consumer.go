@@ -9,8 +9,8 @@ import (
 	"esx/app/feed/mq/internal/logic"
 	"esx/app/feed/mq/internal/svc"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
-	"mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"

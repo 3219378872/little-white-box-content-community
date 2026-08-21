@@ -6,7 +6,7 @@ import (
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 	"esx/pkg/validator"
 
 	"github.com/stretchr/testify/assert"

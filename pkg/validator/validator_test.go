@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"errx"
+	"esx/pkg/errx"
 )
 
 func TestValidateUserName_Boundaries(t *testing.T) {

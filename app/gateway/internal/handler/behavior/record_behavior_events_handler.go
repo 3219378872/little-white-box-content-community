@@ -6,9 +6,9 @@ package behavior
 import (
 	"net/http"
 
-	"gateway/internal/logic/behavior"
-	"gateway/internal/svc"
-	"gateway/internal/types"
+	"esx/app/gateway/internal/logic/behavior"
+	"esx/app/gateway/internal/svc"
+	"esx/app/gateway/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

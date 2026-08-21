@@ -6,11 +6,11 @@ import (
 	"flag"
 	"fmt"
 
-	"interceptor"
-	"user/internal/config"
-	"user/internal/server"
-	"user/internal/svc"
-	"user/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/internal/config"
+	"esx/app/user/rpc/internal/server"
+	"esx/app/user/rpc/internal/svc"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"

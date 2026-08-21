@@ -4,11 +4,11 @@ import (
 	"context"
 	"strings"
 
-	"errx"
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
+	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
-	"gateway/internal/svc"
-	"user/userservice"
+	"esx/app/user/rpc/userservice"
+	"esx/pkg/errx"
 )
 
 const postTargetType int32 = 1

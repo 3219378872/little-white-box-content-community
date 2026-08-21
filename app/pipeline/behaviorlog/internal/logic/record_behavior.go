@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"esx/pkg/event"
-	"mqx"
+	"esx/pkg/mqx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
