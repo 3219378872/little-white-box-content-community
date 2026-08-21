@@ -69,12 +69,13 @@ internal/model/    → 数据访问层
 
 - `errx` — 业务错误码与 HTTP/gRPC 错误转换；框架错误不泄露原始消息。
 - `jwtx` — JWT 签发/校验与 context 透传。
-- `middleware` — HTTP 鉴权/可选鉴权/CORS/行为接收/追踪中间件。
+- `middleware` — HTTP 鉴权/可选鉴权/CORS 中间件；行为接收与追踪中间件分别在
+  `app/gateway/internal/middleware/`（BehaviorAccepted、Trace）与 `pkg/interceptor/`（RPC 侧）。
 - `interceptor` — gRPC 业务错误拦截器与 trace_id 透传。
 - `mqx` — RocketMQ 生产者/消费者封装与主题常量。
 - `outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
 - `event` — 跨服务事件载荷定义（PostEvent / InteractionEvent / BehaviorEvent）。
-- `cleanupx` / `clickhousex` / `testutil` / `util` / `validator` / `visibilityx` — 通用辅助。
+- `cleanupx` / `testutil` / `util` / `validator` / `visibilityx` — 通用辅助。
 
 ## 服务间通信
 
@@ -82,7 +83,16 @@ internal/model/    → 数据访问层
 - **RPC → RPC**：Interaction 写赞/藏前问 Content 校验 published；Assistant 经 Content
   重读正文并验证 published。详情/列表的访问者互动状态由 Gateway 回填 Interaction。
 - **算法旁路**：`algorithm/online_infer` 与 `offline_train` 可选；推荐超时则规则降级。
-  `message-push` 不是当前产品路径。
+
+### 行为事件双轨可靠性模型
+
+同一 `user-behavior-v2` 主题上存在两种投递保证，属有意设计（REL-001）：
+
+- **权威业务动作**（like/unlike/favorite/unfavorite/comment/follow/unfollow）只能由
+  user/content/interaction 的事务 outbox 生成，丢失即计数漂移，必须可靠投递。
+- **客户端遥测动作**（exposure/click/dwell/view/play/share/hide/dislike）经 behavior-rpc
+  直发 RocketMQ，仅服务推荐信号与分析，崩溃丢窗口可容忍；白名单在
+  `pkg/event/behavior.go` 强制，count-sync 只应用权威动作，两条来源不交叉。
 - **RPC → MQ**：权威业务事务与 outbox 同事务提交，relay 投递 RocketMQ。
 - **写入路径**：权威写入走事务 outbox，不依赖 DTM。Content 契约已删除 `QueryPrepared`。
 
