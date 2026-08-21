@@ -27,7 +27,6 @@ echo "[init] creating topics and consumer groups..."
 TOPICS=(
   post-create post-update post-delete
   user-behavior-v2
-  message-push
   media-deleted
 )
 
@@ -56,7 +55,6 @@ CONSUMER_GROUPS=(
   embedding-service-group
   search-service-group
   feed-service-group
-  message-service-group
   recommend-feature-service-group
   behavior-log-service-group
   media-service-group

@@ -1,8 +1,6 @@
 package config
 
 import (
-	"mqx"
-
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -11,5 +9,4 @@ type Config struct {
 	DataSource string
 	UserRpc    zrpc.RpcClientConf
 	MediaRpc   zrpc.RpcClientConf
-	MQ         mqx.ConsumerConfig
 }

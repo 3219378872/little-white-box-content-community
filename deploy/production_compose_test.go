@@ -60,7 +60,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		"nginx", "gateway-a", "gateway-b",
 		"user-rpc", "content-rpc", "media-rpc", "interaction-rpc", "feed-rpc",
 		"message-rpc", "behavior-rpc", "search-rpc", "recommend-rpc", "assistant-rpc",
-		"feed-consumer", "media-consumer", "message-consumer", "behavior-log-consumer",
+		"feed-consumer", "media-consumer", "behavior-log-consumer",
 		"recommend-consumer", "search-consumer", "embedding-consumer", "content-cleanup-consumer",
 		"embedding-service", "online-infer",
 	}
@@ -78,7 +78,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		}
 	}
 
-	goServices := runtimeServices[1:21]
+	goServices := runtimeServices[1:20]
 	for _, name := range goServices {
 		service := project.Services[name]
 		if service.Build == nil || service.Build.Dockerfile != "deploy/Dockerfile.service" {

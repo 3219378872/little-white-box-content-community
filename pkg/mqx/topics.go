@@ -11,9 +11,6 @@ const (
 	// 推荐相关 Topic
 	TopicUserBehaviorV2 = "user-behavior-v2" // 统一行为事件
 
-	// 消息相关 Topic
-	TopicMessagePush = "message-push" // 消息推送事件
-
 	// 媒体相关 Topic
 	TopicMediaDelete = "media-deleted" // 媒体删除事件（触发 S3 清理）
 )

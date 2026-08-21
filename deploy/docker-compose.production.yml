@@ -475,26 +475,6 @@ services:
       seaweedfs:
         condition: service_healthy
 
-  message-consumer:
-    <<: *go-service
-    image: xbh/message-consumer:${IMAGE_TAG:-local}
-    build:
-      <<: *go-build
-      args:
-        SERVICE_PATH: app/message/mq
-        SERVICE_CONFIG: app/message/mq/etc/message-consumer.yaml
-    environment:
-      <<: [*redis-env, *mq-env]
-      DB_MESSAGE: ${DB_MESSAGE:?DB_MESSAGE is required}
-    healthcheck: *process-healthcheck
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rocketmq-broker:
-        condition: service_healthy
-
   behavior-log-consumer:
     <<: *go-service
     image: xbh/behavior-log-consumer:${IMAGE_TAG:-local}

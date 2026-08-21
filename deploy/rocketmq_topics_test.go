@@ -16,7 +16,6 @@ func TestRocketMQBootstrapUsesOnlyActiveTopicsAndGroups(t *testing.T) {
 	for _, required := range []string{
 		"post-create post-update post-delete",
 		"user-behavior-v2",
-		"message-push",
 		"media-deleted",
 		"behavior-log-service-group",
 		"recommend-feature-service-group",
