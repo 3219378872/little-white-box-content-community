@@ -239,6 +239,7 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"HTTP_PORT":                                        "18080",
 		"HTTPS_PORT":                                       "18443",
 		"JWT_SECRET_KEY":                                   "contract-jwt-secret",
+		"JWT_REFRESH_SECRET":                               "contract-jwt-refresh-secret",
 		"MILVUS_MINIO_ROOT_PASSWORD":                       "contract-milvus-minio-password",
 		"MILVUS_MINIO_ROOT_USER":                           "contract-milvus-minio-user",
 		"MINIO_ROOT_PASSWORD":                              "contract-minio-password",

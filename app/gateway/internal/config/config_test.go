@@ -18,6 +18,7 @@ func TestConfigValidateRequiresAccessSecret(t *testing.T) {
 
 	valid := Config{}
 	valid.Auth.AccessSecret = "gateway-jwt-secret"
+	valid.InternalSecret = "test-internal-secret"
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() rejected configured AccessSecret: %v", err)
 	}
