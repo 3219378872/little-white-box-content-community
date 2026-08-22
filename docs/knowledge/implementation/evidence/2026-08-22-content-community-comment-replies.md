@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-22
-verified_commit: 23295da
+verified_commit: abde00b
 commands:
   - go build ./...
   - go vet ./...
@@ -23,7 +23,7 @@ result: passed
 [PROP-20260822-comment-reply-thread](../../proposals/PROP-20260822-comment-reply-thread.md)
 登记为 draft，实现先行。
 
-## 改动（提交 23295da）
+## 改动（提交 abde00b）
 
 - proto/api 契约：`CommentInfo` 增加 `reply_count` 与内嵌 `replies`（仅顶级评论
   填充前 3 条、时间正序）；新增 `GetCommentReplies` RPC 与
