@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-08-22-content-community-test-coverage.md](2026-08-22-content-community-test-coverage.md)：
+  测试覆盖补强（media 上传单测 / 薄弱 logic 失败路径 / content+interaction
+  model 集成测试），提交 bd4457c。
 - [2026-08-15-lock-spec-and-align.md](2026-08-15-lock-spec-and-align.md)：锁定意图/规范并对齐
   GetPost 互动状态、赞藏可见性、错误码与日志，提交见 frontmatter。
 - [2026-08-12-content-community.md](2026-08-12-content-community.md)：内容社区后端
