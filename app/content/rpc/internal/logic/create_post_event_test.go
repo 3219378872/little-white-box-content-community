@@ -42,7 +42,7 @@ func (c *capturingPostCommand) CreatePost(
 	return post.Id, c.result == nil, c.result
 }
 
-func (c *capturingPostCommand) UpdatePost(_ context.Context, _ int64, _ map[string]any, _ []string, _ []int64, event outboxx.Event, _ int64) error {
+func (c *capturingPostCommand) UpdatePost(_ context.Context, _ int64, _ map[string]any, _ []string, _ []int64, event outboxx.Event, _ int64, _ bool) error {
 	c.event = event
 	return nil
 }
@@ -85,7 +85,9 @@ func TestUpdatePostLogicWritesRevisionAndPostKeyedOutbox(t *testing.T) {
 		Id: 300, AuthorId: 3001, Title: "old", Content: "old", Status: 1, Revision: 3,
 	}, nil)
 	command := &capturingPostCommand{}
-	svcCtx := newUnitSvcCtx(postModel, nil, nil, new(MockPostTagModel))
+	tagModel := new(MockPostTagModel)
+	tagModel.On("FindTagNamesByPostId", mock.Anything, int64(300)).Return([]string{"legacy"}, nil)
+	svcCtx := newUnitSvcCtx(postModel, nil, nil, tagModel)
 	svcCtx.PostCommandModel = command
 
 	_, err := NewUpdatePostLogic(context.Background(), svcCtx).UpdatePost(&pb.UpdatePostReq{
@@ -101,6 +103,8 @@ func TestUpdatePostLogicWritesRevisionAndPostKeyedOutbox(t *testing.T) {
 	assert.Equal(t, int64(300), payload.PostID)
 	assert.Equal(t, int64(4), payload.Revision)
 	assert.Equal(t, "C", payload.Title)
+	// 局部更新未显式提供 tags 时，事件沿用现有标签（B3）。
+	assert.Equal(t, []string{"legacy"}, payload.Tags)
 }
 
 func TestDeletePostLogicWritesRevisionAndPostKeyedOutbox(t *testing.T) {

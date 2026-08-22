@@ -18,7 +18,9 @@ type OutboxEnqueuer interface {
 
 type PostCommandModel interface {
 	CreatePost(ctx context.Context, post *Post, tags []string, tagIDs []int64, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (postID int64, created bool, err error)
-	UpdatePost(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64, event outboxx.Event, expectedRevision int64) error
+	// replaceTags=false 时保留现有 post_tag 关联（局部更新未显式提供 tags），
+	// 仅更新字段与 outbox 事件。
+	UpdatePost(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64, event outboxx.Event, expectedRevision int64, replaceTags bool) error
 	DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error
 }
 
@@ -75,6 +77,7 @@ func (m *postCommandModel) UpdatePost(
 	tagIDs []int64,
 	event outboxx.Event,
 	expectedRevision int64,
+	replaceTags bool,
 ) error {
 	if postID <= 0 || m.conn == nil || m.outbox == nil {
 		return fmt.Errorf("content command model is not configured")
@@ -86,11 +89,13 @@ func (m *postCommandModel) UpdatePost(
 		if err := updatePostFieldsSession(ctx, session, postID, fields, expectedRevision); err != nil {
 			return err
 		}
-		if _, err := session.ExecCtx(ctx, "DELETE FROM `post_tag` WHERE `post_id` = ?", postID); err != nil {
-			return err
-		}
-		if err := insertPostTagsSession(ctx, session, postID, tags, tagIDs); err != nil {
-			return err
+		if replaceTags {
+			if _, err := session.ExecCtx(ctx, "DELETE FROM `post_tag` WHERE `post_id` = ?", postID); err != nil {
+				return err
+			}
+			if err := insertPostTagsSession(ctx, session, postID, tags, tagIDs); err != nil {
+				return err
+			}
 		}
 		return m.outbox.Enqueue(ctx, session, event)
 	})

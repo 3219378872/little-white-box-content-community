@@ -361,6 +361,7 @@ func TestUpdatePostLogic(t *testing.T) {
 			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c", ExpectedRevision: 3},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
+				ptm.On("FindTagNamesByPostId", mock.Anything, int64(300)).Return([]string{"kept"}, nil)
 				pm.On("UpdateFields", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("db error"))
 			},
 			wantErr: true,
@@ -379,13 +380,16 @@ func TestUpdatePostLogic(t *testing.T) {
 			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c"},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
+				ptm.On("FindTagNamesByPostId", mock.Anything, int64(300)).Return([]string{"kept"}, nil)
 				pm.On("UpdateFields", mock.Anything, int64(300), mock.Anything).Return(nil)
-				ptm.On("TransactReplaceTagsByPostId", mock.Anything, mock.Anything, int64(300), mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
-			name:    "标题超长报错",
-			req:     &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: strings.Repeat("长", 121), Content: "c", ExpectedRevision: 3},
+			name: "标题超长报错",
+			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: strings.Repeat("长", 121), Content: "c", ExpectedRevision: 3},
+			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
+				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
+			},
 			wantErr: true,
 			errCode: errx.ContentTooLong,
 		},

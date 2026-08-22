@@ -213,14 +213,14 @@ func TestPostCommandModelUpdatePostRevisionGuard(t *testing.T) {
 	// 版本不匹配拒绝。
 	err := commandModel.UpdatePost(ctx, post.Id,
 		map[string]any{"title": "after"}, nil, nil,
-		outboxEvent(t, "content-post-v1"), 4)
+		outboxEvent(t, "content-post-v1"), 4, true)
 	require.ErrorIs(t, err, ErrVersionConflict)
 
 	// 版本匹配：字段更新、revision 自增、标签整体替换。
 	err = commandModel.UpdatePost(ctx, post.Id,
 		map[string]any{"title": "after"},
 		[]string{"rust"}, []int64{nextID(t)},
-		outboxEvent(t, "content-post-v1"), 5)
+		outboxEvent(t, "content-post-v1"), 5, true)
 	require.NoError(t, err)
 
 	var updatedTitle string
@@ -240,7 +240,7 @@ func TestPostCommandModelUpdatePostRevisionGuard(t *testing.T) {
 	// 非法列名被白名单拦截（revision 保持不变）。
 	err = commandModel.UpdatePost(ctx, post.Id,
 		map[string]any{"author_id": 99}, nil, nil,
-		outboxEvent(t, "content-post-v1"), updatedRevision)
+		outboxEvent(t, "content-post-v1"), updatedRevision, true)
 	require.ErrorContains(t, err, "disallowed column")
 }
 

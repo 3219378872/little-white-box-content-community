@@ -334,7 +334,11 @@ func (m legacyPostCommandModel) UpdatePost(
 	tagIDs []int64,
 	_ outboxx.Event,
 	_ int64,
+	replaceTags bool,
 ) error {
+	if !replaceTags {
+		return m.post.UpdateFields(ctx, postID, fields)
+	}
 	if err := m.post.UpdateFields(ctx, postID, fields); err != nil {
 		return err
 	}
