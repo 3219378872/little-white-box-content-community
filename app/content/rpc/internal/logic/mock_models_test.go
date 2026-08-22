@@ -147,6 +147,19 @@ func (m *MockCommentModel) FindByPostId(ctx context.Context, postId int64, page,
 	return args.Get(0).([]*model2.Comment), args.Get(1).(int64), args.Error(2)
 }
 
+func (m *MockCommentModel) FindByParentId(ctx context.Context, parentId int64, page, pageSize int) ([]*model2.Comment, int64, error) {
+	args := m.Called(ctx, parentId, page, pageSize)
+	return args.Get(0).([]*model2.Comment), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*model2.Comment, error) {
+	args := m.Called(ctx, postId, parentIds)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*model2.Comment), args.Error(1)
+}
+
 func (m *MockCommentModel) UpdateStatus(ctx context.Context, id, status int64) error {
 	return m.Called(ctx, id, status).Error(0)
 }
@@ -297,11 +310,11 @@ func (m legacyCommentCommandModel) CreateComment(
 	return comment.Id, true, nil
 }
 
-func (m legacyCommentCommandModel) DeleteComment(ctx context.Context, commentID, postID int64) error {
-	if err := m.comments.UpdateStatus(ctx, commentID, 0); err != nil {
+func (m legacyCommentCommandModel) DeleteComment(ctx context.Context, comment *model2.Comment) error {
+	if err := m.comments.UpdateStatus(ctx, comment.Id, 0); err != nil {
 		return err
 	}
-	return m.post.DecrCommentCount(ctx, postID)
+	return m.post.DecrCommentCount(ctx, comment.PostId)
 }
 
 type legacyPostCommandModel struct {

@@ -35,3 +35,16 @@ type GetCommentListResp struct {
 	Page     int32         `json:"page"`
 	PageSize int32         `json:"pageSize"`
 }
+
+type GetCommentRepliesReq struct {
+	CommentId int64 `path:"commentId"`
+	Page      int32 `form:"page,default=1"`
+	PageSize  int32 `form:"pageSize,default=20"`
+}
+
+type GetCommentRepliesResp struct {
+	List     []CommentItem `json:"list"`
+	Total    int64         `json:"total"`
+	Page     int32         `json:"page"`
+	PageSize int32         `json:"pageSize"`
+}

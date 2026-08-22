@@ -54,7 +54,7 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 		l.Errorw("CommentCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.CommentCommandModel.DeleteComment(l.ctx, comment.Id, comment.PostId); err != nil {
+	if err = l.svcCtx.CommentCommandModel.DeleteComment(l.ctx, comment); err != nil {
 		l.Errorw("delete comment transaction failed",
 			logx.Field("commentId", comment.Id),
 			logx.Field("err", err.Error()),

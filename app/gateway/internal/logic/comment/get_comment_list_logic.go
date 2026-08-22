@@ -51,15 +51,7 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 
 	list := make([]types.CommentItem, 0, len(result.Comments))
 	for _, c := range result.Comments {
-		list = append(list, types.CommentItem{
-			Id:          c.Id,
-			UserId:      c.UserId,
-			ParentId:    c.ParentId,
-			ReplyUserId: c.ReplyUserId,
-			Content:     c.Content,
-			LikeCount:   c.LikeCount,
-			CreatedAt:   c.CreatedAt,
-		})
+		list = append(list, toCommentItem(c))
 	}
 
 	return &types.GetCommentListResp{
@@ -68,4 +60,28 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// toCommentItem 映射评论及内嵌回复预览；回复行自身不再嵌套。
+func toCommentItem(c *contentservice.CommentInfo) types.CommentItem {
+	item := types.CommentItem{
+		Id:          c.Id,
+		UserId:      c.UserId,
+		ParentId:    c.ParentId,
+		ReplyUserId: c.ReplyUserId,
+		Content:     c.Content,
+		LikeCount:   c.LikeCount,
+		CreatedAt:   c.CreatedAt,
+		ReplyCount:  c.ReplyCount,
+	}
+	if len(c.Replies) > 0 {
+		replies := make([]types.CommentItem, 0, len(c.Replies))
+		for _, r := range c.Replies {
+			reply := toCommentItem(r)
+			reply.Replies = nil
+			replies = append(replies, reply)
+		}
+		item.Replies = replies
+	}
+	return item
 }

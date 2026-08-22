@@ -61,7 +61,29 @@ func CommentToCommentInfo(comment *model2.Comment) *pb.CommentInfo {
 		Status:      int32(comment.Status),
 		LikeCount:   comment.LikeCount,
 		CreatedAt:   comment.CreatedAt.UnixMilli(),
+		ReplyCount:  comment.ReplyCount,
 	}
+}
+
+// previewReplyLimit 评论列表内嵌的回复预览条数上限。
+const previewReplyLimit = 3
+
+// groupReplyPreviews 将按时间正序返回的回复行按父评论归组，
+// 每组截取前 previewReplyLimit 条作为内嵌预览。
+// 输入全局正序，因此每组子序列天然保持正序。
+func groupReplyPreviews(replies []*model2.Comment) map[int64][]*pb.CommentInfo {
+	out := make(map[int64][]*pb.CommentInfo, len(replies))
+	for _, reply := range replies {
+		if !reply.ParentId.Valid {
+			continue
+		}
+		parentId := reply.ParentId.Int64
+		if len(out[parentId]) >= previewReplyLimit {
+			continue
+		}
+		out[parentId] = append(out[parentId], CommentToCommentInfo(reply))
+	}
+	return out
 }
 
 // TagToTagInfo 将 Tag model 转换为 pb.TagInfo

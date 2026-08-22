@@ -61,9 +61,32 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 	fetched := len(comments)
 	comments = keepActiveComments(comments)
 	total = visibilityx.AdjustPageTotal(total, fetched, len(comments))
+
+	// 批量拉取本页一级评论的可见回复，内嵌前 previewReplyLimit 条预览（时间正序）。
+	parentIds := make([]int64, 0, len(comments))
+	for _, comment := range comments {
+		parentIds = append(parentIds, comment.Id)
+	}
+	var replies []*model2.Comment
+	if len(parentIds) > 0 {
+		var err error
+		replies, err = l.svcCtx.CommentModel.FindByParentIds(l.ctx, in.PostId, parentIds)
+		if err != nil {
+			l.Errorw("CommentModel.FindByParentIds failed",
+				logx.Field("postId", in.PostId),
+				logx.Field("err", err.Error()),
+			)
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+	}
+	replies = keepActiveComments(replies)
+	previews := groupReplyPreviews(replies)
+
 	commentInfos := make([]*pb.CommentInfo, 0, len(comments))
 	for _, comment := range comments {
-		commentInfos = append(commentInfos, CommentToCommentInfo(comment))
+		info := CommentToCommentInfo(comment)
+		info.Replies = previews[comment.Id]
+		commentInfos = append(commentInfos, info)
 	}
 
 	return &pb.GetCommentListResp{

@@ -77,10 +77,16 @@ func (s *ContentServiceServer) DeleteComment(ctx context.Context, in *pb.DeleteC
 	return l.DeleteComment(in)
 }
 
-// 获取评论列表
+// 获取评论列表（一级评论 + 内嵌前 N 条回复预览）
 func (s *ContentServiceServer) GetCommentList(ctx context.Context, in *pb.GetCommentListReq) (*pb.GetCommentListResp, error) {
 	l := logic.NewGetCommentListLogic(ctx, s.svcCtx)
 	return l.GetCommentList(in)
+}
+
+// 获取评论的回复列表（楼中楼全量分页，时间正序）
+func (s *ContentServiceServer) GetCommentReplies(ctx context.Context, in *pb.GetCommentRepliesReq) (*pb.GetCommentRepliesResp, error) {
+	l := logic.NewGetCommentRepliesLogic(ctx, s.svcCtx)
+	return l.GetCommentReplies(in)
 }
 
 // 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）

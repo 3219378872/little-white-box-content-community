@@ -310,7 +310,7 @@ func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 
 	// 删除评论：状态置 0 且计数回落。命令写入绕过查询缓存，
 	// 因此用裸 SQL 断言数据库真实状态（logic 层负责失效后回读）。
-	require.NoError(t, commandModel.DeleteComment(ctx, comment.Id, postID))
+	require.NoError(t, commandModel.DeleteComment(ctx, comment))
 
 	var rawCount, rawStatus int64
 	require.NoError(t, newTestConn().QueryRowCtx(ctx, &rawStatus,
@@ -321,7 +321,7 @@ func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 	assert.Equal(t, int64(0), rawCount)
 
 	// 重复删除同一评论：状态条件不再满足，报错而非静默成功。
-	err = commandModel.DeleteComment(ctx, comment.Id, postID)
+	err = commandModel.DeleteComment(ctx, comment)
 	require.Error(t, err)
 }
 

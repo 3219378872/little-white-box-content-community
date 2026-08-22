@@ -145,6 +145,9 @@ func (contractContentService) DeleteComment(context.Context, *contentservice.Del
 func (contractContentService) GetCommentList(context.Context, *contentservice.GetCommentListReq, ...grpc.CallOption) (*contentservice.GetCommentListResp, error) {
 	return &contentservice.GetCommentListResp{Comments: []*contentpb.CommentInfo{{Id: 21, PostId: 11, UserId: 1, Content: "comment"}}, Total: 1}, nil
 }
+func (contractContentService) GetCommentReplies(context.Context, *contentservice.GetCommentRepliesReq, ...grpc.CallOption) (*contentservice.GetCommentRepliesResp, error) {
+	return &contentservice.GetCommentRepliesResp{Comments: []*contentpb.CommentInfo{{Id: 22, PostId: 11, UserId: 1, ParentId: 21, Content: "reply"}}, Total: 1}, nil
+}
 
 type contractInteractionService struct {
 	interactionservice.InteractionService
@@ -456,6 +459,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "COMMENT-CREATE-VALID", method: http.MethodPost, path: "/api/v1/comment", body: jsonBody(`{"postId":11,"content":"comment"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"commentId"}},
 		{id: "COMMENT-DELETE-VALID", method: http.MethodDelete, path: "/api/v1/comment/21", routePath: "/api/v1/comment/:commentId", auth: true, wantStatus: http.StatusOK},
 		{id: "COMMENT-LIST-ANON", method: http.MethodGet, path: "/api/v1/comments/11?page=1&pageSize=20&sortBy=1", routePath: "/api/v1/comments/:postId", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "COMMENT-REPLIES-ANON", method: http.MethodGet, path: "/api/v1/comments/21/replies?page=1&pageSize=20", routePath: "/api/v1/comments/:commentId/replies", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "LIKE-VALID", method: http.MethodPost, path: "/api/v1/like", body: jsonBody(`{"targetId":11,"targetType":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "UNLIKE-VALID", method: http.MethodDelete, path: "/api/v1/like", body: jsonBody(`{"targetId":11,"targetType":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "FAVORITE-VALID", method: http.MethodPost, path: "/api/v1/favorite", body: jsonBody(`{"postId":11}`), auth: true, wantStatus: http.StatusOK},
@@ -638,8 +642,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 39 {
-		t.Fatalf("route inventory drift: got %d success rules, want 39", len(successes))
+	if len(successes) != 40 {
+		t.Fatalf("route inventory drift: got %d success rules, want 40", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

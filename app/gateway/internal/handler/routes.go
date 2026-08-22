@@ -75,6 +75,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.OptionalAuth},
 			[]rest.Route{
 				{
+					// 获取评论的回复列表（楼中楼分页，时间正序）
+					Method:  http.MethodGet,
+					Path:    "/comments/:commentId/replies",
+					Handler: comment.GetCommentRepliesHandler(serverCtx),
+				},
+				{
 					// 获取评论列表
 					Method:  http.MethodGet,
 					Path:    "/comments/:postId",

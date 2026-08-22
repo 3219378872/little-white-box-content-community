@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -20,6 +21,8 @@ type (
 		FindCommentById(ctx context.Context, id int64) (*Comment, error)
 		InsertComment(ctx context.Context, comment *Comment) error
 		FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error)
+		FindByParentId(ctx context.Context, parentId int64, page, pageSize int) ([]*Comment, int64, error)
+		FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*Comment, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
 		InvalidateCommentCache(ctx context.Context, id int64) error
 	}
@@ -85,6 +88,52 @@ func (m *customCommentModel) FindByPostId(ctx context.Context, postId int64, pag
 	}
 
 	return comments, total, nil
+}
+
+// FindByParentId 分页读取某条评论的楼中楼回复（时间正序，CORE-060 确定性二级键）。
+func (m *customCommentModel) FindByParentId(ctx context.Context, parentId int64, page, pageSize int) ([]*Comment, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var comments []*Comment
+	query := fmt.Sprintf("select %s from %s where `parent_id` = ? and `status` = 1 order by `created_at` asc, `id` asc limit ?,?", commentRows, m.table)
+	err := m.QueryRowsNoCacheCtx(ctx, &comments, query, parentId, offset, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var total int64
+	countQuery := fmt.Sprintf("select count(*) from %s where `parent_id` = ? and `status` = 1", m.table)
+	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, parentId)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return comments, total, nil
+}
+
+// FindByParentIds 批量读取多条一级评论的可见回复（时间正序），供评论列表内嵌预览。
+// 返回行不按父分组，由调用方在内存中按 ParentId 归组截断。
+func (m *customCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*Comment, error) {
+	if len(parentIds) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, 0, len(parentIds))
+	args := make([]interface{}, 0, len(parentIds)+1)
+	args = append(args, postId)
+	for _, id := range parentIds {
+		placeholders = append(placeholders, "?")
+		args = append(args, id)
+	}
+	var comments []*Comment
+	query := fmt.Sprintf(
+		"select %s from %s where `post_id` = ? and `status` = 1 and `parent_id` in (%s) order by `created_at` asc, `id` asc",
+		commentRows, m.table, strings.Join(placeholders, ","),
+	)
+	err := m.QueryRowsNoCacheCtx(ctx, &comments, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return comments, nil
 }
 
 func (m *customCommentModel) UpdateStatus(ctx context.Context, id int64, status int64) error {

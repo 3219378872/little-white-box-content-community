@@ -84,10 +84,11 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		return nil, errx.NewWithCode(errx.ContentNotFound)
 	}
 
-	// ReplyUserId 由客户端传入且用于构造回复通知，必须校验其与父评论的
-	// 从属关系，防止对任意用户伪造"评论回复"通知。
-	if in.ReplyUserId > 0 {
-		if in.ParentId <= 0 {
+	// 楼中楼为严格两层：回复必须同时携带父评论与被回复用户，且父评论必须是
+	// 当前帖子上可见的顶级评论。ReplyUserId 由客户端传入且用于构造回复通知，
+	// 必须校验其与父评论的从属关系，防止对任意用户伪造"评论回复"通知。
+	if in.ParentId > 0 || in.ReplyUserId > 0 {
+		if in.ParentId <= 0 || in.ReplyUserId <= 0 {
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
 		parent, err := l.svcCtx.CommentModel.FindCommentById(l.ctx, in.ParentId)
@@ -102,6 +103,13 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		if parent.PostId != in.PostId || parent.UserId != in.ReplyUserId {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+		if parent.Status != 1 {
+			return nil, errx.NewWithCode(errx.ContentNotFound)
+		}
+		if parent.ParentId.Valid {
+			// 不支持对楼中楼再嵌套；客户端应将 parent 归一到顶级评论。
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
 	}

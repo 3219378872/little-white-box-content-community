@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"database/sql"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/idempotencyx"
@@ -391,10 +392,38 @@ func TestGetCommentListLogic(t *testing.T) {
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 10, 0).Return(comments, int64(2), nil)
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000, 3001}).Return(nil, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
 				assert.Len(t, resp.Comments, 2)
 				assert.Equal(t, int64(2), resp.Total)
+			},
+		},
+		{
+			name: "内嵌回复预览与回复总数",
+			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
+				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 10, 0).Return([]*model2.Comment{
+					{Id: 3000, PostId: 1000, UserId: 400, Content: "父评论", Status: 1, ReplyCount: 4},
+				}, int64(1), nil)
+				parentID := sql.NullInt64{Int64: 3000, Valid: true}
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}).Return([]*model2.Comment{
+					{Id: 4000, PostId: 1000, UserId: 401, Content: "回1", Status: 1, ParentId: parentID},
+					{Id: 4001, PostId: 1000, UserId: 402, Content: "回2", Status: 1, ParentId: parentID},
+					{Id: 4002, PostId: 1000, UserId: 403, Content: "回3", Status: 1, ParentId: parentID},
+					{Id: 4003, PostId: 1000, UserId: 404, Content: "回4", Status: 1, ParentId: parentID},
+					{Id: 4004, PostId: 1000, UserId: 405, Content: "已删回复", Status: 0, ParentId: parentID},
+				}, nil)
+			},
+			check: func(t *testing.T, resp *pb.GetCommentListResp) {
+				require.Len(t, resp.Comments, 1)
+				assert.Equal(t, int64(4), resp.Comments[0].ReplyCount)
+				require.Len(t, resp.Comments[0].Replies, 3)
+				assert.Equal(t, int64(4000), resp.Comments[0].Replies[0].Id)
+				assert.Equal(t, int64(4002), resp.Comments[0].Replies[2].Id)
+				assert.Equal(t, int64(0), resp.Comments[0].Replies[0].ReplyCount)
+				assert.Nil(t, resp.Comments[0].Replies[0].Replies)
 			},
 		},
 		{
@@ -428,6 +457,7 @@ func TestGetCommentListLogic(t *testing.T) {
 					{Id: 3000, PostId: 1000, UserId: 400, Content: "live", Status: 1},
 					{Id: 3001, PostId: 1000, UserId: 401, Content: "gone", Status: 0},
 				}, int64(4), nil)
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}).Return(nil, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
 				assert.Len(t, resp.Comments, 1)
@@ -475,6 +505,133 @@ func TestGetCommentListLogic(t *testing.T) {
 			l := NewGetCommentListLogic(context.Background(), svcCtx)
 
 			resp, err := l.GetCommentList(tt.req)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errCode != 0 {
+					assert.True(t, errx.Is(err, tt.errCode), "期望错误码 %d，实际: %v", tt.errCode, err)
+				}
+				return
+			}
+			require.NoError(t, err)
+			if tt.check != nil {
+				tt.check(t, resp)
+			}
+			cm.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetCommentRepliesLogic(t *testing.T) {
+	parentID := sql.NullInt64{Int64: 3000, Valid: true}
+	tests := []struct {
+		name      string
+		req       *pb.GetCommentRepliesReq
+		setupMock func(*MockPostModel, *MockCommentModel)
+		wantErr   bool
+		errCode   int
+		check     func(t *testing.T, resp *pb.GetCommentRepliesResp)
+	}{
+		{
+			name: "成功分页返回回复（时间正序）",
+			req:  &pb.GetCommentRepliesReq{CommentId: 3000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(3000)).Return(&model2.Comment{
+					Id: 3000, PostId: 1000, UserId: 400, Content: "父", Status: 1, ReplyCount: 2,
+				}, nil)
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
+				cm.On("FindByParentId", mock.Anything, int64(3000), 1, 10).Return([]*model2.Comment{
+					{Id: 4000, PostId: 1000, UserId: 401, Content: "回1", Status: 1, ParentId: parentID},
+					{Id: 4001, PostId: 1000, UserId: 402, Content: "回2", Status: 1, ParentId: parentID},
+				}, int64(2), nil)
+			},
+			check: func(t *testing.T, resp *pb.GetCommentRepliesResp) {
+				require.Len(t, resp.Comments, 2)
+				assert.Equal(t, int64(4000), resp.Comments[0].Id)
+				assert.Equal(t, int64(2), resp.Total)
+				assert.Nil(t, resp.Comments[0].Replies)
+			},
+		},
+		{
+			name: "回复行二次过滤并回减 Total（纵深防御 CORE-016）",
+			req:  &pb.GetCommentRepliesReq{CommentId: 3000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(3000)).Return(&model2.Comment{
+					Id: 3000, PostId: 1000, UserId: 400, Content: "父", Status: 1,
+				}, nil)
+				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
+				cm.On("FindByParentId", mock.Anything, int64(3000), 1, 10).Return([]*model2.Comment{
+					{Id: 4000, PostId: 1000, UserId: 401, Content: "live", Status: 1, ParentId: parentID},
+					{Id: 4001, PostId: 1000, UserId: 402, Content: "gone", Status: 0, ParentId: parentID},
+				}, int64(5), nil)
+			},
+			check: func(t *testing.T, resp *pb.GetCommentRepliesResp) {
+				require.Len(t, resp.Comments, 1)
+				assert.Equal(t, int64(4), resp.Total)
+			},
+		},
+		{
+			name:    "参数非法",
+			req:     &pb.GetCommentRepliesReq{CommentId: 0},
+			wantErr: true,
+			errCode: errx.ParamError,
+		},
+		{
+			name: "父评论不存在",
+			req:  &pb.GetCommentRepliesReq{CommentId: 9999, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(9999)).Return(nil, model2.ErrNotFound)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
+		},
+		{
+			name: "父评论已删除",
+			req:  &pb.GetCommentRepliesReq{CommentId: 3000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(3000)).Return(&model2.Comment{
+					Id: 3000, PostId: 1000, UserId: 400, Content: "父", Status: 0,
+				}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
+		},
+		{
+			name: "父评论是楼中楼回复",
+			req:  &pb.GetCommentRepliesReq{CommentId: 4000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(4000)).Return(&model2.Comment{
+					Id: 4000, PostId: 1000, UserId: 401, Content: "回复", Status: 1, ParentId: parentID,
+				}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
+		},
+		{
+			name: "草稿帖的回复统一不存在",
+			req:  &pb.GetCommentRepliesReq{CommentId: 3000, Page: 1, PageSize: 10},
+			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
+				cm.On("FindCommentById", mock.Anything, int64(3000)).Return(&model2.Comment{
+					Id: 3000, PostId: 1002, UserId: 400, Content: "父", Status: 1,
+				}, nil)
+				pm.On("FindPostById", mock.Anything, int64(1002)).Return(&model2.Post{Id: 1002, Status: 0}, nil)
+			},
+			wantErr: true,
+			errCode: errx.ContentNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := new(MockPostModel)
+			cm := new(MockCommentModel)
+			if tt.setupMock != nil {
+				tt.setupMock(pm, cm)
+			}
+			svcCtx := newUnitSvcCtx(pm, cm, nil, nil)
+			l := NewGetCommentRepliesLogic(context.Background(), svcCtx)
+
+			resp, err := l.GetCommentReplies(tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)

@@ -110,6 +110,23 @@ func createTestComment(t *testing.T, postId, userId int64, content string) int64
 	return resp.CommentId
 }
 
+// createTestReply 创建一条楼中楼回复（父评论必须是顶级评论）。
+func createTestReply(t *testing.T, postId, userId, parentId, replyUserId int64, content string) int64 {
+	t.Helper()
+	ctx := context.Background()
+	l := NewCreateCommentLogic(ctx, testSvcCtx)
+	resp, err := l.CreateComment(&pb.CreateCommentReq{
+		PostId:      postId,
+		UserId:      userId,
+		ParentId:    parentId,
+		ReplyUserId: replyUserId,
+		Content:     content,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, resp.CommentId)
+	return resp.CommentId
+}
+
 func assertBizError(t *testing.T, err error, expectedCode int) {
 	t.Helper()
 	require.Error(t, err)

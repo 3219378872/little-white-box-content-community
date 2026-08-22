@@ -34,15 +34,17 @@ type BehaviorEventResult struct {
 }
 
 type CommentItem struct {
-	Id          int64  `json:"id"`
-	UserId      int64  `json:"userId"`
-	UserName    string `json:"userName"`
-	UserAvatar  string `json:"userAvatar"`
-	ParentId    int64  `json:"parentId"`
-	ReplyUserId int64  `json:"replyUserId"`
-	Content     string `json:"content"`
-	LikeCount   int64  `json:"likeCount"`
-	CreatedAt   int64  `json:"createdAt"`
+	Id          int64         `json:"id"`
+	UserId      int64         `json:"userId"`
+	UserName    string        `json:"userName"`
+	UserAvatar  string        `json:"userAvatar"`
+	ParentId    int64         `json:"parentId"`
+	ReplyUserId int64         `json:"replyUserId"`
+	Content     string        `json:"content"`
+	LikeCount   int64         `json:"likeCount"`
+	CreatedAt   int64         `json:"createdAt"`
+	ReplyCount  int64         `json:"replyCount"` // 楼中楼回复总数，仅顶级评论有值
+	Replies     []CommentItem `json:"replies"`    // 内嵌回复预览（前 N 条），仅顶级评论有值
 }
 
 type ConversationItem struct {
