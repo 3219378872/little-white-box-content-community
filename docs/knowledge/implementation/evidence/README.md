@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-08-22-content-community-comment-replies.md](2026-08-22-content-community-comment-replies.md)：
+  楼中楼回复读取（列表内嵌预览 + 全量分页接口）与计数一致性（reply_count
+  维护、删除级联），提交 23295da。
 - [2026-08-22-content-community-test-coverage.md](2026-08-22-content-community-test-coverage.md)：
   测试覆盖补强（media 上传单测 / 薄弱 logic 失败路径 / content+interaction
   model 集成测试），提交 bd4457c。
