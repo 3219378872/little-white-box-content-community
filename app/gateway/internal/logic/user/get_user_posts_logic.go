@@ -64,11 +64,16 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		return nil, err
 	}
 
+	authors := loadPostAuthors(l.ctx, l.svcCtx, uniquePostAuthorIDs(result.Posts))
+
 	list := make([]types.PostItem, 0, len(result.Posts))
 	for _, post := range result.Posts {
+		author := authors[post.AuthorId]
 		list = append(list, types.PostItem{
 			Id:            post.Id,
 			AuthorId:      post.AuthorId,
+			AuthorName:    author.name,
+			AuthorAvatar:  author.avatar,
 			Title:         post.Title,
 			Content:       post.Content,
 			Images:        post.Images,

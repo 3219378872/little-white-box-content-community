@@ -110,11 +110,16 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, err
 	}
 
+	authors := loadPostAuthors(l.ctx, l.svcCtx, uniquePostAuthorIDs(visible))
+
 	list := make([]types.PostItem, 0, len(visible))
 	for _, post := range visible {
+		author := authors[post.AuthorId]
 		list = append(list, types.PostItem{
 			Id:            post.Id,
 			AuthorId:      post.AuthorId,
+			AuthorName:    author.name,
+			AuthorAvatar:  author.avatar,
 			Title:         post.Title,
 			Content:       post.Content,
 			Images:        post.Images,
