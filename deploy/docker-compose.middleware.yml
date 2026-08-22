@@ -279,7 +279,9 @@ services:
       - seaweedfs_data:/data
       - ./seaweedfs/s3_config.json:/etc/seaweedfs/s3_config.json:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
+      # localhost resolves to ::1 first inside the container, but SeaweedFS
+      # only listens on IPv4; busybox wget then fails with ECONNREFUSED.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9333/cluster/status"]
       interval: 30s
       timeout: 10s
       retries: 5
