@@ -29,6 +29,11 @@ const (
 	defaultTokenChunkRunes  = 64
 	defaultToolTimeout      = 1500 * time.Millisecond
 	defaultMaxResponseRunes = 8000
+	// 与 Config.LLM.TimeoutMs 的默认值保持一致；生成预算在其上加固定余量，
+	// 保证 LLM 客户端自身超时先触发，余量留给结果处理与降级落库。
+	defaultLLMClientTimeout = 8000 * time.Millisecond
+	generateBudgetMargin    = 2 * time.Second
+	defaultPersistBudget    = 5 * time.Second
 )
 
 var blockedDirectives = []string{
@@ -108,12 +113,9 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	result, err := l.svcCtx.Tools.Execute(toolCtx, name, request)
 	if err != nil {
 		assistantToolCallsTotal.Inc(string(name), toolCallMetricOutcome(err, toolCtx.Err()))
-		if l.ctx.Err() != nil {
-			return l.ctx.Err()
-		}
 		l.Errorw("assistant tool failed", logx.Field("tool", string(name)), logx.Field("err", err))
 		code := toolErrorCode(err)
-		if errors.Is(toolCtx.Err(), context.DeadlineExceeded) {
+		if errors.Is(toolCtx.Err(), context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 			code = "TOOL_TIMEOUT"
 		}
 		return l.sendPersistedDegraded(stream, request, conversationID, code)
@@ -127,10 +129,14 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	responseText := result.Text
 	generatedResponse := false
 	if l.svcCtx.Generator != nil && (!result.EvidenceRequired || result.HasEvidence) {
-		generated, generateErr := l.svcCtx.Generator.Generate(l.ctx, llm.Request{
+		// 生成使用脱离请求取消信号的预算内上下文（缺陷 B2）：网关/传输层可能在
+		// 慢生成完成前取消请求，结果仍需产出以维持会话历史与降级路径完整。
+		generateCtx, generateCancel := l.detachedContext(l.generateBudget())
+		generated, generateErr := l.svcCtx.Generator.Generate(generateCtx, llm.Request{
 			UserMessage: request.Message, ToolName: string(name), ToolResult: result.Text,
 			ContextKind: result.ContextKind,
 		})
+		generateCancel()
 		if generateErr != nil {
 			assistantLLMCallsTotal.Inc("failure")
 			l.Errorw("assistant LLM failed", logx.Field("err", generateErr.Error()))
@@ -217,7 +223,9 @@ func (l *ChatLogic) beginRequest(request tool.Request, conversationID string) er
 	if l.svcCtx.Conversations == nil {
 		return nil
 	}
-	err := l.svcCtx.Conversations.Append(l.ctx, request.UserID, conversationID, store.Message{
+	appendCtx, appendCancel := l.persistContext()
+	defer appendCancel()
+	err := l.svcCtx.Conversations.Append(appendCtx, request.UserID, conversationID, store.Message{
 		Role: "user", Content: request.Message, RequestID: request.RequestID,
 	})
 	if errors.Is(err, store.ErrConversationOwnedByAnother) {
@@ -249,7 +257,9 @@ func (l *ChatLogic) persistAssistant(
 			Revision: source.Revision,
 		})
 	}
-	return l.svcCtx.Conversations.Append(l.ctx, request.UserID, conversationID, store.Message{
+	appendCtx, appendCancel := l.persistContext()
+	defer appendCancel()
+	return l.svcCtx.Conversations.Append(appendCtx, request.UserID, conversationID, store.Message{
 		Role: "assistant", Content: text, RequestID: request.RequestID, Sources: references,
 	})
 }
@@ -476,9 +486,8 @@ func (l *ChatLogic) sendDegradedWithText(stream pb.AssistantService_ChatServer, 
 }
 
 func (l *ChatLogic) send(stream pb.AssistantService_ChatServer, event *pb.ChatEvent) error {
-	if err := l.ctx.Err(); err != nil {
-		return err
-	}
+	// 不做 l.ctx 预检查：请求被取消后仍要尽力送达降级事件；传输层确已断开时
+	// stream.Send 自身会返回错误，行为等价且不会吞掉最终事件。
 	return stream.Send(event)
 }
 
@@ -583,6 +592,36 @@ func (l *ChatLogic) toolTimeout() time.Duration {
 		return time.Duration(l.svcCtx.Config.ToolTimeoutMs) * time.Millisecond
 	}
 	return defaultToolTimeout
+}
+
+// generateBudget 为 LLM 生成预留的预算：LLM 客户端自身的超时
+// （Config.LLM.TimeoutMs）先行触发，余量留给结果处理与降级落库。
+func (l *ChatLogic) generateBudget() time.Duration {
+	if l.svcCtx != nil && l.svcCtx.Config.LLM.TimeoutMs > 0 {
+		return time.Duration(l.svcCtx.Config.LLM.TimeoutMs)*time.Millisecond + generateBudgetMargin
+	}
+	return defaultLLMClientTimeout + generateBudgetMargin
+}
+
+// detachedContext 返回脱离请求取消信号的上下文：网关/传输层可能在慢操作完成前
+// 取消请求（客户端断开、代理超时），生成与会话状态仍需尽力完成。值
+// （trace 等）继续透传，预算到点强制回收。
+func (l *ChatLogic) detachedContext(budget time.Duration) (context.Context, context.CancelFunc) {
+	base := l.ctx
+	if base == nil {
+		base = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(base), budget)
+}
+
+// persistContext 返回会话落库使用的上下文：请求级 ctx 尚存活时原样透传；
+// 已取消则切换到脱离取消信号的短预算上下文，保证用户输入与降级回答仍能
+// 完整落库。存储层自身的超时与重试语义不受影响。
+func (l *ChatLogic) persistContext() (context.Context, context.CancelFunc) {
+	if l.ctx == nil || l.ctx.Err() == nil {
+		return l.ctx, func() {}
+	}
+	return l.detachedContext(defaultPersistBudget)
 }
 
 func (l *ChatLogic) maxResponseRunes() int {

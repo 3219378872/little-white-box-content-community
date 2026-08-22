@@ -732,7 +732,7 @@ func TestChatToolTimeoutIsStructuredDegradedEvent(t *testing.T) {
 	}
 }
 
-func TestChatCancellationPropagatesToTool(t *testing.T) {
+func TestChatCancellationStillEmitsDegradedEvent(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	toolStarted := make(chan struct{})
@@ -750,14 +750,19 @@ func TestChatCancellationPropagatesToTool(t *testing.T) {
 	cancel()
 	select {
 	case err := <-result:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("error=%v want context canceled", err)
+		if err != nil {
+			t.Fatalf("error=%v want nil (cancellation must degrade, not abort)", err)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("chat did not stop after cancellation")
 	}
-	if len(stream.events) != 0 {
-		t.Fatalf("canceled chat emitted %d events", len(stream.events))
+	if len(stream.events) != 1 {
+		t.Fatalf("canceled chat emitted %d events, want exactly one degraded error", len(stream.events))
+	}
+	event := stream.events[0]
+	if event.Type != pb.ChatEventType_CHAT_EVENT_TYPE_ERROR || !event.Degraded ||
+		event.ErrorCode == "" || event.ErrorCode == "STATE_UNAVAILABLE" {
+		t.Fatalf("unexpected terminal event: %+v", event)
 	}
 }
 
@@ -815,5 +820,94 @@ func TestChatLLMFailureStreamsEvidenceSources(t *testing.T) {
 	}
 	if len(state.messages) != 2 || len(state.messages[1].Sources) != 1 {
 		t.Fatalf("expected persisted assistant message with one source, got %#v", state.messages)
+	}
+}
+
+// ctxCheckingState 模拟真实存储对请求级取消敏感的行为：ctx 已取消即拒绝写入。
+type ctxCheckingState struct {
+	fakeAssistantState
+	appended int
+}
+
+func (f *ctxCheckingState) Append(
+	ctx context.Context, userID int64, conversationID string, message assistantstore.Message,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	f.appended++
+	return f.fakeAssistantState.Append(ctx, userID, conversationID, message)
+}
+
+// 网关/传输层可能在 LLM 完成前取消请求（客户端断开、代理超时）。生成调用
+// 必须使用脱离请求取消信号的预算内上下文，否则慢生成永远拿不到结果，
+// 证据降级与会话落库也随之失败（黑盒 e2e 首轮发现的缺陷 B2）。
+func TestChatGeneratesWithDetachedContextAfterRequestCancellation(t *testing.T) {
+	t.Parallel()
+	parentCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var generatorCtxErr error
+	serviceContext := &svc.ServiceContext{
+		Config: config.Config{TokenChunkRunes: 4},
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return &tool.Result{
+				Text:             "evidence text",
+				Sources:          []tool.Source{{Type: "post", ID: "11", Title: "title"}},
+				EvidenceRequired: true,
+				HasEvidence:      true,
+			}, nil
+		}},
+		Generator: fakeGenerator{generate: func(ctx context.Context, _ llm.Request) (llm.Result, error) {
+			generatorCtxErr = ctx.Err()
+			return llm.Result{Text: "answer [post:11]"}, nil
+		}},
+	}
+	stream := &collectingChatStream{ctx: parentCtx}
+	err := NewChatLogic(parentCtx, serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1",
+		Message: "golang", RequestId: "request-1",
+	}, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generatorCtxErr != nil {
+		t.Fatalf("generator context was canceled: %v", generatorCtxErr)
+	}
+	if len(stream.events) == 0 || stream.events[len(stream.events)-1].Type != pb.ChatEventType_CHAT_EVENT_TYPE_DONE {
+		t.Fatalf("expected stream to finish with done event, got %d events", len(stream.events))
+	}
+}
+
+func TestDegradationPersistsWhenRequestContextCanceled(t *testing.T) {
+	t.Parallel()
+	parentCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	state := &ctxCheckingState{fakeAssistantState: fakeAssistantState{allowed: true}}
+	serviceContext := &svc.ServiceContext{
+		Config:        config.Config{TokenChunkRunes: 4, ToolTimeoutMs: 500},
+		Conversations: state,
+		Tools: fakeToolExecutor{execute: func(context.Context, tool.Name, tool.Request) (*tool.Result, error) {
+			return nil, errors.New("search backend down")
+		}},
+	}
+	stream := &collectingChatStream{ctx: parentCtx}
+	err := NewChatLogic(parentCtx, serviceContext).Chat(&pb.ChatReq{
+		UserId: 42, ConversationId: "conversation-1",
+		Message: "golang", RequestId: "request-1",
+	}, stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.appended != 2 {
+		t.Fatalf("user input and degraded answer must both be persisted, appended=%d", state.appended)
+	}
+	if last := state.messages[len(state.messages)-1]; last.Role != "assistant" {
+		t.Fatalf("expected degraded assistant message persisted, got %#v", state.messages)
+	}
+	last := stream.events[len(stream.events)-1]
+	if last.Type != pb.ChatEventType_CHAT_EVENT_TYPE_ERROR || last.ErrorCode == "STATE_UNAVAILABLE" {
+		t.Fatalf("unexpected terminal event: %+v", last)
 	}
 }
