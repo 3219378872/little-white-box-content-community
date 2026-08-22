@@ -199,6 +199,9 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 			String: req.Phone,
 			Valid:  req.Phone != "",
 		},
+		// INSERT 显式携带全部列，零值会覆盖表默认值；status 必须显式置 1
+		// （正常），否则 SearchPublic 的 status=1 过滤会让新用户永久不可搜索。
+		Status: 1,
 	}, nil
 }
 

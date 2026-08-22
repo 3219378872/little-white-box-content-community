@@ -25,6 +25,30 @@ func TestRegisterByUsernameIntegration(t *testing.T) {
 	assert.NotEmpty(t, resp.Token)
 }
 
+// 注册用户必须以正常状态（status=1）落库：SearchPublic 只检索 status=1，
+// 零值落库会让新用户永久不可被搜索（黑盒 e2e 首轮发现的缺陷 B1）。
+func TestRegisterPersistsActiveStatusIntegration(t *testing.T) {
+	testEnv.TruncateAll(t, "user_profile")
+
+	const username = "status_probe_user"
+	logic := NewRegisterLogic(context.Background(), testSvcCtx)
+	resp, err := logic.Register(&pb.RegisterReq{
+		Username: username,
+		Password: "Strong@123",
+	})
+	require.NoError(t, err)
+
+	profile, err := testSvcCtx.UserProfileModel.FindOne(context.Background(), resp.UserId)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, profile.Status, "registered user must be active (status=1)")
+
+	found, total, err := testSvcCtx.UserProfileModel.SearchPublic(context.Background(), username, 0, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	require.Len(t, found, 1)
+	assert.Equal(t, resp.UserId, found[0].Id)
+}
+
 func TestRegisterDuplicateIntegration(t *testing.T) {
 	testEnv.TruncateAll(t, "user_profile")
 
