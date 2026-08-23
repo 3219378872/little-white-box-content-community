@@ -25,7 +25,8 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
 	algorithm-test spec-evals-test model-pipeline-integration performance-gateway python-unit \
 	fault-injection-recommend production-config production-build \
-	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic
+	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic \
+	gen-eval-posts
 
 help: ## Show the available project commands
 	@printf '%s\n' 'Usage: make <target> [ARGS="..."]'
@@ -99,6 +100,9 @@ gen-recommend-samples: ## Regenerate the frozen recommendation sample set via LL
 
 gen-slo-synthetic: ## Regenerate the deterministic synthetic SLO observations
 	python3 scripts/gen_slo_synthetic.py $(ARGS)
+
+gen-eval-posts: ## Regenerate dev seed corpus eval/dev/corpus_2000.json via LLM
+	python3 scripts/gen_eval_posts.py $(ARGS)
 
 python-unit: ## Run dependency-light unit tests for repo Python tools
 	python3 -m unittest -q scripts.test_coverage_report

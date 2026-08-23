@@ -16,6 +16,10 @@
   干运行（dry-run）**，各含 200 条/个，用于验证评测门禁在规范要求的规模下可用。
 - 它们**不是**冻结评测集，不构成正式门禁（DISC-060 / ASST-050 要求双人评审标注）；
   正式门禁必须使用人类评审产出的冻结文件。
+- `dev/corpus_2000.json`：2000 篇 LLM 生成的本地种子帖（id 2001~4000，`frozen=false`），
+  供本地联调栈灌库扩充搜索语料，不参与任何正式门禁；由 `make gen-eval-posts`
+  （`scripts/gen_eval_posts.py`，需 `./.env` 的 `ASSISTANT_LLM_API_KEY`）生成，
+  经工作区 `just seed-eval-corpus` 灌入 MySQL。
 
 ## 冻结评测集（`eval/` 根目录，2026-08-13 生成）
 
