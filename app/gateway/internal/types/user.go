@@ -16,16 +16,17 @@ type GetPersonalizationPreferenceResp struct {
 }
 
 type GetUserFavoritesReq struct {
-	UserId   int64 `path:"userId"`
-	Page     int32 `form:"page,default=1"`
-	PageSize int32 `form:"pageSize,default=20"`
+	UserId   int64  `path:"userId"`
+	Page     int32  `form:"page,default=1"`
+	PageSize int32  `form:"pageSize,default=20"`
+	Cursor   string `form:"cursor,optional"` // 统一游标形状；内部换算页码
 }
 
 type GetUserPostsReq struct {
-	UserId   int64 `path:"userId"`
-	Page     int32 `form:"page,default=1"`
-	PageSize int32 `form:"pageSize,default=20"`
-	SortBy   int32 `form:"sortBy,optional,default=1"`
+	UserId   int64  `path:"userId"`
+	PageSize int32  `form:"pageSize,default=20"`
+	SortBy   int32  `form:"sortBy,optional,default=1"`
+	Cursor   string `form:"cursor,optional"` // 不透明游标；首页传空
 }
 
 type GetUserReq struct {

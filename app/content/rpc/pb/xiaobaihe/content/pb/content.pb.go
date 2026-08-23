@@ -831,13 +831,13 @@ func (*DeletePostResp) Descriptor() ([]byte, []int) {
 	return file_proto_content_content_proto_rawDescGZIP(), []int{9}
 }
 
-// 获取帖子列表请求
+// 获取帖子列表请求（keyset 游标分页）
 type GetPostListReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	SortBy        int32                  `protobuf:"varint,3,opt,name=sort_by,json=sortBy,proto3" json:"sort_by,omitempty"` // 1: 最新 2: 热门 3: 推荐
-	UserId        int64                  `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // 可选，用于判断当前用户是否点赞/收藏
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	SortBy        int32                  `protobuf:"varint,2,opt,name=sort_by,json=sortBy,proto3" json:"sort_by,omitempty"` // 1: 最新 2: 热门 3: 推荐
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // 可选，用于判断当前用户是否点赞/收藏
+	Cursor        string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`                // 不透明游标；首页传空，翻页传上一页 next_cursor
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -872,13 +872,6 @@ func (*GetPostListReq) Descriptor() ([]byte, []int) {
 	return file_proto_content_content_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *GetPostListReq) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
 func (x *GetPostListReq) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
@@ -900,11 +893,19 @@ func (x *GetPostListReq) GetUserId() int64 {
 	return 0
 }
 
+func (x *GetPostListReq) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 // 获取帖子列表响应
+// next_cursor 为空表示没有更多数据。
 type GetPostListResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Posts         []*PostInfo            `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
-	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -946,20 +947,20 @@ func (x *GetPostListResp) GetPosts() []*PostInfo {
 	return nil
 }
 
-func (x *GetPostListResp) GetTotal() int64 {
+func (x *GetPostListResp) GetNextCursor() string {
 	if x != nil {
-		return x.Total
+		return x.NextCursor
 	}
-	return 0
+	return ""
 }
 
-// 获取用户帖子列表请求
+// 获取用户帖子列表请求（keyset 游标分页）
 type GetUserPostsReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	SortBy        int32                  `protobuf:"varint,4,opt,name=sort_by,json=sortBy,proto3" json:"sort_by,omitempty"` // 1: 最新 2: 热门
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	SortBy        int32                  `protobuf:"varint,3,opt,name=sort_by,json=sortBy,proto3" json:"sort_by,omitempty"` // 1: 最新 2: 热门
+	Cursor        string                 `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`                // 不透明游标；首页传空
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1001,13 +1002,6 @@ func (x *GetUserPostsReq) GetUserId() int64 {
 	return 0
 }
 
-func (x *GetUserPostsReq) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
 func (x *GetUserPostsReq) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
@@ -1022,11 +1016,19 @@ func (x *GetUserPostsReq) GetSortBy() int32 {
 	return 0
 }
 
+func (x *GetUserPostsReq) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 // 获取用户帖子列表响应
+// next_cursor 为空表示没有更多数据。
 type GetUserPostsResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Posts         []*PostInfo            `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
-	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1068,11 +1070,11 @@ func (x *GetUserPostsResp) GetPosts() []*PostInfo {
 	return nil
 }
 
-func (x *GetUserPostsResp) GetTotal() int64 {
+func (x *GetUserPostsResp) GetNextCursor() string {
 	if x != nil {
-		return x.Total
+		return x.NextCursor
 	}
-	return 0
+	return ""
 }
 
 // 创建评论请求
@@ -2056,23 +2058,25 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12+\n" +
 	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x10\n" +
-	"\x0eDeletePostResp\"s\n" +
-	"\x0eGetPostListReq\x12\x12\n" +
-	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x17\n" +
-	"\asort_by\x18\x03 \x01(\x05R\x06sortBy\x12\x17\n" +
-	"\auser_id\x18\x04 \x01(\x03R\x06userId\"P\n" +
+	"\x0eDeletePostResp\"w\n" +
+	"\x0eGetPostListReq\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x17\n" +
+	"\asort_by\x18\x02 \x01(\x05R\x06sortBy\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\"[\n" +
 	"\x0fGetPostListResp\x12'\n" +
-	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\"t\n" +
+	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"x\n" +
 	"\x0fGetUserPostsReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x17\n" +
-	"\asort_by\x18\x04 \x01(\x05R\x06sortBy\"Q\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x17\n" +
+	"\asort_by\x18\x03 \x01(\x05R\x06sortBy\x12\x16\n" +
+	"\x06cursor\x18\x04 \x01(\tR\x06cursor\"\\\n" +
 	"\x10GetUserPostsResp\x12'\n" +
-	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\"\xc8\x01\n" +
+	"\x05posts\x18\x01 \x03(\v2\x11.content.PostInfoR\x05posts\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\xc8\x01\n" +
 	"\x10CreateCommentReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +

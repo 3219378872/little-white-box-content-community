@@ -38,7 +38,7 @@ func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 		},
 		ContentService: &fakeContentServiceUserPosts{
 			getUserPostsFn: func(_ context.Context, in *contentservice.GetUserPostsReq, _ ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
-				if in.UserId != 42 || in.Page != 1 || in.PageSize != 20 {
+				if in.UserId != 42 || in.Cursor != "" || in.PageSize != 20 {
 					t.Fatalf("unexpected rpc req: %+v", in)
 				}
 				return &contentservice.GetUserPostsResp{
@@ -47,14 +47,14 @@ func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 						{Id: 200, AuthorId: 9, Title: "B", Status: 1},
 						{Id: 300, AuthorId: 7, Title: "C", Status: 1},
 					},
-					Total: 3,
+					NextCursor: "",
 				}, nil
 			},
 		},
 	}
 
 	l := NewGetUserPostsLogic(context.Background(), svcCtx)
-	resp, err := l.GetUserPosts(&types.GetUserPostsReq{UserId: 42, Page: 1, PageSize: 20})
+	resp, err := l.GetUserPosts(&types.GetUserPostsReq{UserId: 42, PageSize: 20})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,15 +82,15 @@ func TestGetUserPosts_BatchGetUsersError_DegradesToEmptyAuthorFields(t *testing.
 		ContentService: &fakeContentServiceUserPosts{
 			getUserPostsFn: func(_ context.Context, _ *contentservice.GetUserPostsReq, _ ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
 				return &contentservice.GetUserPostsResp{
-					Posts: []*contentpb.PostInfo{{Id: 100, AuthorId: 7, Title: "A", Status: 1}},
-					Total: 1,
+					Posts:      []*contentpb.PostInfo{{Id: 100, AuthorId: 7, Title: "A", Status: 1}},
+					NextCursor: "",
 				}, nil
 			},
 		},
 	}
 
 	l := NewGetUserPostsLogic(context.Background(), svcCtx)
-	resp, err := l.GetUserPosts(&types.GetUserPostsReq{UserId: 42, Page: 1, PageSize: 20})
+	resp, err := l.GetUserPosts(&types.GetUserPostsReq{UserId: 42, PageSize: 20})
 	if err != nil {
 		t.Fatalf("expected list to survive author lookup failure, got %v", err)
 	}

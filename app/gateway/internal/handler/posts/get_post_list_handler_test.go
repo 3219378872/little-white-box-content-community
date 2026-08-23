@@ -52,7 +52,7 @@ func newPostListSvcCtx() *svc.ServiceContext {
 							CreatedAt: 5,
 						},
 					},
-					Total: 1,
+					NextCursor: "",
 				}, nil
 			},
 		},
@@ -70,13 +70,13 @@ func TestGetPostListHandler_NoToken_Returns200AndAnonymous(t *testing.T) {
 	}
 
 	var resp struct {
-		List  []map[string]any `json:"list"`
-		Total int64            `json:"total"`
+		List       []map[string]any `json:"list"`
+		NextCursor string           `json:"nextCursor"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal: %v, body=%s", err, rec.Body.String())
 	}
-	if resp.Total != 1 || len(resp.List) != 1 {
+	if resp.NextCursor != "" || len(resp.List) != 1 {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 }

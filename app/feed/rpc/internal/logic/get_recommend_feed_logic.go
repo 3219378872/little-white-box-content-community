@@ -36,12 +36,12 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	requestID := strings.TrimSpace(in.RequestId)
-	if page, matched, err := decodeFallbackCursor(
+	if page, hotCursor, latestCursor, matched, err := decodeFallbackCursor(
 		l.svcCtx.Config.CursorSecret, in.Cursor, requestID, time.Now(),
 	); err != nil {
 		return nil, errx.NewWithCode(errx.ParamError)
 	} else if matched {
-		return l.fallbackFeed(in, page)
+		return l.fallbackFeed(in, page, hotCursor, latestCursor)
 	}
 
 	scene := strings.TrimSpace(in.Scene)
@@ -50,7 +50,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 	}
 	if l.svcCtx.RecommendService == nil {
 		l.Error("RecommendService is not configured; using rule fallback")
-		return l.fallbackFeed(in, 1)
+		return l.fallbackFeed(in, 1, "", "")
 	}
 	recommendation, err := l.svcCtx.RecommendService.GetRecommendPosts(l.ctx, &recommendservice.GetRecommendPostsReq{
 		UserId: in.UserId, AnonymousId: strings.TrimSpace(in.AnonymousId), Scene: scene,
@@ -62,17 +62,17 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 			l.Errorw("RecommendService.GetRecommendPosts failed; using rule fallback",
 				logx.Field("requestId", requestID), logx.Field("err", err.Error()))
 		}
-		return l.fallbackFeed(in, 1)
+		return l.fallbackFeed(in, 1, "", "")
 	}
 
 	response, err := l.enrichRecommendation(in, recommendation)
 	if err != nil {
 		l.Errorw("recommendation enrichment failed; using rule fallback",
 			logx.Field("requestId", requestID), logx.Field("err", err.Error()))
-		return l.fallbackFeed(in, 1)
+		return l.fallbackFeed(in, 1, "", "")
 	}
 	if len(response.Items) == 0 {
-		return l.fallbackFeed(in, 1)
+		return l.fallbackFeed(in, 1, "", "")
 	}
 	return response, nil
 }
@@ -123,15 +123,15 @@ type fallbackSource struct {
 	index int
 }
 
-func (l *GetRecommendFeedLogic) fallbackFeed(in *pb.GetRecommendFeedReq, page int32) (*pb.GetRecommendFeedResp, error) {
+func (l *GetRecommendFeedLogic) fallbackFeed(in *pb.GetRecommendFeedReq, page int32, hotCursor, latestCursor string) (*pb.GetRecommendFeedResp, error) {
 	if l.svcCtx.ContentService == nil || page <= 0 {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	hot, hotErr := l.svcCtx.ContentService.GetPostList(l.ctx, &contentservice.GetPostListReq{
-		Page: page, PageSize: in.PageSize, SortBy: 3,
+		PageSize: in.PageSize, SortBy: 3, Cursor: hotCursor,
 	})
 	latest, latestErr := l.svcCtx.ContentService.GetPostList(l.ctx, &contentservice.GetPostListReq{
-		Page: page, PageSize: in.PageSize, SortBy: 1,
+		PageSize: in.PageSize, SortBy: 1, Cursor: latestCursor,
 	})
 	if hotErr != nil && latestErr != nil {
 		l.Errorw("all feed fallback sources failed",
@@ -159,20 +159,23 @@ func (l *GetRecommendFeedLogic) fallbackFeed(in *pb.GetRecommendFeedReq, page in
 			hasMore = hasMore || follow.HasMore
 		}
 	}
+	nextHotCursor, nextLatestCursor := "", ""
 	if hotErr == nil && hot != nil {
 		sources = append(sources, fallbackSource{items: fallbackItems(hot.Posts, "popular")})
-		hasMore = hasMore || int64(page*in.PageSize) < hot.Total
+		nextHotCursor = hot.NextCursor
+		hasMore = hasMore || nextHotCursor != ""
 	}
 	if latestErr == nil && latest != nil {
 		sources = append(sources, fallbackSource{items: fallbackItems(latest.Posts, "latest")})
-		hasMore = hasMore || int64(page*in.PageSize) < latest.Total
+		nextLatestCursor = latest.NextCursor
+		hasMore = hasMore || nextLatestCursor != ""
 	}
 
 	items := interleaveFallbackSources(sources, int(in.PageSize), in.ExperimentId)
 	nextCursor := ""
 	if hasMore {
 		var err error
-		nextCursor, err = encodeFallbackCursor(l.svcCtx.Config.CursorSecret, in.RequestId, page+1, time.Now())
+		nextCursor, err = encodeFallbackCursor(l.svcCtx.Config.CursorSecret, in.RequestId, page+1, nextHotCursor, nextLatestCursor, time.Now())
 		if err != nil {
 			l.Errorw("encode feed fallback cursor failed", logx.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.SystemError)

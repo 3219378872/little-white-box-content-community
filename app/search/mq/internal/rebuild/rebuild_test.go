@@ -12,7 +12,8 @@ import (
 )
 
 type fakeSource struct {
-	pages map[int32]*contentservice.GetPostListResp
+	// pages 以请求游标为键（"" 为首页）；缺键视为空页（终止翻页）。
+	pages map[string]*contentservice.GetPostListResp
 	err   error
 }
 
@@ -20,7 +21,10 @@ func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostL
 	if f.err != nil {
 		return nil, f.err
 	}
-	return f.pages[req.Page], nil
+	if resp, ok := f.pages[req.Cursor]; ok {
+		return resp, nil
+	}
+	return &contentservice.GetPostListResp{}, nil
 }
 
 type fakeTarget struct {
@@ -43,12 +47,12 @@ func (f *fakeTarget) Refresh(context.Context) error {
 }
 
 func TestRunIndexesPublishedPostsAcrossPages(t *testing.T) {
-	source := &fakeSource{pages: map[int32]*contentservice.GetPostListResp{
-		1: {Total: 3, Posts: []*contentservice.PostInfo{
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
+		"": {NextCursor: "c2", Posts: []*contentservice.PostInfo{
 			{Id: 1, AuthorId: 10, Title: "one", Content: "body", Tags: []string{"go"}, Status: 1, LikeCount: 4},
 			{Id: 2, Status: 0},
 		}},
-		2: {Total: 3, Posts: []*contentservice.PostInfo{{Id: 3, Status: 1, CommentCount: 2}}},
+		"c2": {Posts: []*contentservice.PostInfo{{Id: 3, Status: 1, CommentCount: 2}}},
 	}}
 	target := &fakeTarget{}
 
@@ -65,8 +69,8 @@ func TestRunIndexesPublishedPostsAcrossPages(t *testing.T) {
 }
 
 func TestRunStopsOnIndexFailureWithoutRefresh(t *testing.T) {
-	source := &fakeSource{pages: map[int32]*contentservice.GetPostListResp{
-		1: {Total: 1, Posts: []*contentservice.PostInfo{{Id: 1, Status: 1}}},
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
+		"": {Posts: []*contentservice.PostInfo{{Id: 1, Status: 1}}},
 	}}
 	target := &fakeTarget{indexErrAt: 1}
 

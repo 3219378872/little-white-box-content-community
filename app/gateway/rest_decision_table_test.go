@@ -125,13 +125,13 @@ func (contractContentService) DeletePost(context.Context, *contentservice.Delete
 	return &contentservice.DeletePostResp{}, nil
 }
 func (contractContentService) GetPostList(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
-	if in.Page == 999 {
+	if in.Cursor == "rpc-fail" {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	return &contentservice.GetPostListResp{Posts: []*contentpb.PostInfo{contractPost()}, Total: 1}, nil
+	return &contentservice.GetPostListResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
 }
 func (contractContentService) GetUserPosts(context.Context, *contentservice.GetUserPostsReq, ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
-	return &contentservice.GetUserPostsResp{Posts: []*contentpb.PostInfo{contractPost()}, Total: 1}, nil
+	return &contentservice.GetUserPostsResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
 }
 func (contractContentService) GetPostsByIds(context.Context, *contentservice.GetPostsByIdsReq, ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
 	return &contentservice.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
@@ -444,14 +444,14 @@ func TestRESTDecisionTable(t *testing.T) {
 	successes := []restDecision{
 		{id: "HEALTH-VALID", method: http.MethodGet, path: "/api/v1/health", wantStatus: http.StatusOK, wantFields: []string{"status"}},
 		{id: "HEALTH-READY-VALID", method: http.MethodGet, path: "/api/v1/health/ready", wantStatus: http.StatusOK, wantFields: []string{"status", "dependencies"}},
-		{id: "POST-LIST-ANON", method: http.MethodGet, path: "/api/v1/posts?page=1&pageSize=20&sortBy=1", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "POST-LIST-ANON", method: http.MethodGet, path: "/api/v1/posts?pageSize=20&sortBy=1", wantStatus: http.StatusOK, wantFields: []string{"list", "nextCursor"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "AUTH-REGISTER-VALID", method: http.MethodPost, path: "/api/v1/auth/register", body: jsonBody(`{"username":"newuser","password":"Strong123"}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
 		{id: "AUTH-LOGIN-VALID", method: http.MethodPost, path: "/api/v1/auth/login", body: jsonBody(`{"username":"alice","password":"Strong123","loginType":1}`), wantStatus: http.StatusOK, wantFields: []string{"userId", "token"}},
 		{id: "AUTH-CODE-VALID", method: http.MethodPost, path: "/api/v1/auth/verify-code", body: jsonBody(`{"phone":"13800138000","type":1}`), wantStatus: http.StatusOK},
 		{id: "AUTH-REFRESH-VALID", method: http.MethodPost, path: "/api/v1/auth/refresh", body: jsonBody(`{"refreshToken":"valid-refresh-token"}`), wantStatus: http.StatusOK, wantFields: []string{"token", "refreshToken"}},
 		{id: "USER-GET-VALID", method: http.MethodGet, path: "/api/v1/user/2", routePath: "/api/v1/user/:userId", wantStatus: http.StatusOK, wantFields: []string{"id", "username", "favoritesVisible"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
-		{id: "USER-POSTS-VALID", method: http.MethodGet, path: "/api/v1/users/2/posts?page=1&pageSize=20&sortBy=1", routePath: "/api/v1/users/:userId/posts", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
-		{id: "USER-FAVORITES-VALID", method: http.MethodGet, path: "/api/v1/users/2/favorites?page=1&pageSize=20", routePath: "/api/v1/users/:userId/favorites", wantStatus: http.StatusOK, wantFields: []string{"list", "total", "page", "pageSize"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "USER-POSTS-VALID", method: http.MethodGet, path: "/api/v1/users/2/posts?pageSize=20&sortBy=1", routePath: "/api/v1/users/:userId/posts", wantStatus: http.StatusOK, wantFields: []string{"list", "nextCursor"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "USER-FAVORITES-VALID", method: http.MethodGet, path: "/api/v1/users/2/favorites?pageSize=20", routePath: "/api/v1/users/:userId/favorites", wantStatus: http.StatusOK, wantFields: []string{"list", "nextCursor"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "USER-PROFILE-VALID", method: http.MethodPut, path: "/api/v1/user/profile", body: jsonBody(`{"nickname":"Alice"}`), auth: true, wantStatus: http.StatusOK},
 		{id: "USER-FOLLOW-VALID", method: http.MethodPost, path: "/api/v1/user/follow", body: jsonBody(`{"targetUserId":2}`), auth: true, wantStatus: http.StatusOK},
 		{id: "USER-UNFOLLOW-VALID", method: http.MethodDelete, path: "/api/v1/user/follow", body: jsonBody(`{"targetUserId":2}`), auth: true, wantStatus: http.StatusOK},
@@ -515,8 +515,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "USER-FAVORITES-INVALID-TOKEN", method: http.MethodGet, path: "/api/v1/users/2/favorites?page=1&pageSize=20", headerToken: "invalid", wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateInvalid}},
 		restDecision{id: "USER-FAVORITES-EXPIRED-TOKEN", method: http.MethodGet, path: "/api/v1/users/2/favorites?page=1&pageSize=20", headerToken: expiredToken, wantStatus: http.StatusOK, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateExpired}},
 		restDecision{id: "USER-GET-BAD-PATH", method: http.MethodGet, path: "/api/v1/user/not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "POST-LIST-BAD-QUERY", method: http.MethodGet, path: "/api/v1/posts?page=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "USER-POSTS-BAD-QUERY", method: http.MethodGet, path: "/api/v1/users/2/posts?page=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "POST-LIST-BAD-QUERY", method: http.MethodGet, path: "/api/v1/posts?pageSize=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "USER-POSTS-BAD-QUERY", method: http.MethodGet, path: "/api/v1/users/2/posts?pageSize=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-FAVORITES-BAD-QUERY", method: http.MethodGet, path: "/api/v1/users/2/favorites?pageSize=not-a-number", wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-PROFILE-MALFORMED", method: http.MethodPut, path: "/api/v1/user/profile", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "USER-FOLLOW-MALFORMED", method: http.MethodPost, path: "/api/v1/user/follow", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -539,7 +539,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "PERSONALIZATION-PUT-RPC-FAIL", method: http.MethodPut, path: "/api/v2/me/personalization", body: jsonBody(`{"enabled":false}`), headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MESSAGE-UNREAD-RPC-FAIL", method: http.MethodGet, path: "/api/v2/messages/unread", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
-		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?page=999", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?cursor=rpc-fail", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-UPDATE-V2-MISSING-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated"}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-UPDATE-V2-ZERO-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":0}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-UPDATE-V2-CONFLICT", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":999}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ContentVersionConflict},

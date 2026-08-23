@@ -21,3 +21,27 @@ func normalizePage(page, pageSize int) (int, int) {
 	}
 	return page, pageSize
 }
+
+// normalizePageSize clamps only the page size (cursor pagination has no page).
+func normalizePageSize(pageSize int) int {
+	if pageSize <= 0 || pageSize > maxPageSize {
+		return defaultPageSize
+	}
+	return pageSize
+}
+
+// normalizeSortBy clamps a sort mode; allowViewed enables the global-list-only
+// viewed mode.
+func normalizeSortBy(sortBy int, allowViewed bool) int {
+	switch sortBy {
+	case 1: // SortByLatest
+		return sortBy
+	case 2: // SortByHot
+		return sortBy
+	case 3: // SortByViewed（仅全局列表）
+		if allowViewed {
+			return sortBy
+		}
+	}
+	return 1
+}

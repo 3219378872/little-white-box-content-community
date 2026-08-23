@@ -14,9 +14,9 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/pkg/cursorx"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -37,7 +37,19 @@ func NewGetUserFavoritesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq) (*types.GetPostListResp, error) {
-	page := pageutil.ClampPage(req.Page)
+	// 对外统一游标形状；收藏列表底层仍按页取（小表），游标仅编码页码。
+	page := int32(1)
+	if req.Cursor != "" {
+		data, err := cursorx.Decode(req.Cursor)
+		if err != nil {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+		p := data["p"]
+		if p <= 0 || p > 10_000 {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+		page = int32(p)
+	}
 	// 互动 GetFavoriteList 为 clamp 语义：pageSize 非正数→20、>100→20。
 	pageSize := pageutil.ClampPageSizeTo(req.PageSize, 20, 100)
 	// 未登录时 requesterID 为 0，由权限判断视为非 owner
@@ -77,10 +89,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 
 	if len(favoriteResp.PostIds) == 0 {
 		return &types.GetPostListResp{
-			List:     []types.PostItem{},
-			Total:    favoriteResp.Total,
-			Page:     page,
-			PageSize: pageSize,
+			List: []types.PostItem{},
 		}, nil
 	}
 
@@ -136,12 +145,19 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		})
 	}
 
-	total := visibilityx.AdjustPageTotal(favoriteResp.Total, len(favoriteResp.PostIds), len(visible))
+	// 满批才给下一页游标；可见性过滤可能减少本页条数，属保守策略。
+	var nextCursor string
+	if len(favoriteResp.PostIds) >= int(pageSize) {
+		token, err := cursorx.Encode(cursorx.Data{"p": int64(page) + 1})
+		if err != nil {
+			l.Errorw("encode favorites cursor failed", logx.Field("err", err.Error()))
+		} else {
+			nextCursor = token
+		}
+	}
 
 	return &types.GetPostListResp{
-		List:     list,
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
+		List:       list,
+		NextCursor: nextCursor,
 	}, nil
 }

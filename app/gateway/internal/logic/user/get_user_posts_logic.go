@@ -36,12 +36,11 @@ func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetU
 func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.GetPostListResp, error) {
 	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)
-	page := pageutil.ClampPage(req.Page)
 	result, err := l.svcCtx.ContentService.GetUserPosts(l.ctx, &contentservice.GetUserPostsReq{
 		UserId:   req.UserId,
-		Page:     page,
 		PageSize: pageSize,
 		SortBy:   req.SortBy,
+		Cursor:   req.Cursor,
 	})
 	if err != nil {
 		l.Errorw("ContentService.GetUserPosts RPC failed",
@@ -91,9 +90,7 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 	}
 
 	return &types.GetPostListResp{
-		List:     list,
-		Total:    result.Total,
-		Page:     page,
-		PageSize: pageSize,
+		List:       list,
+		NextCursor: result.NextCursor,
 	}, nil
 }

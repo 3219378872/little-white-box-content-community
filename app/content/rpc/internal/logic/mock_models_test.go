@@ -68,14 +68,14 @@ func (m *MockPostModel) Delete(ctx context.Context, id int64) error {
 	return m.Called(ctx, id).Error(0)
 }
 
-func (m *MockPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*model2.Post, int64, error) {
-	args := m.Called(ctx, authorId, page, pageSize, sortBy)
-	return args.Get(0).([]*model2.Post), args.Get(1).(int64), args.Error(2)
+func (m *MockPostModel) FindUserPostsByCursor(ctx context.Context, authorId int64, cur *model2.PostListCursor, pageSize int) ([]*model2.Post, bool, error) {
+	args := m.Called(ctx, authorId, cur, pageSize)
+	return args.Get(0).([]*model2.Post), args.Bool(1), args.Error(2)
 }
 
-func (m *MockPostModel) FindList(ctx context.Context, page, pageSize, sortBy int) ([]*model2.Post, int64, error) {
-	args := m.Called(ctx, page, pageSize, sortBy)
-	return args.Get(0).([]*model2.Post), args.Get(1).(int64), args.Error(2)
+func (m *MockPostModel) FindListByCursor(ctx context.Context, cur *model2.PostListCursor, pageSize int) ([]*model2.Post, bool, error) {
+	args := m.Called(ctx, cur, pageSize)
+	return args.Get(0).([]*model2.Post), args.Bool(1), args.Error(2)
 }
 
 func (m *MockPostModel) FindByIds(ctx context.Context, ids []int64) ([]*model2.Post, error) {

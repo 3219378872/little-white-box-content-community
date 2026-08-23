@@ -32,18 +32,19 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 	}
 
 	var indexed int64
-	for page := int32(1); ; page++ {
+	cursor := ""
+	for {
 		if err := ctx.Err(); err != nil {
 			return indexed, err
 		}
 		resp, err := source.GetPostList(ctx, &contentservice.GetPostListReq{
-			Page: page, PageSize: pageSize, SortBy: 1,
+			PageSize: pageSize, SortBy: 1, Cursor: cursor,
 		})
 		if err != nil {
-			return indexed, fmt.Errorf("load content page %d: %w", page, err)
+			return indexed, fmt.Errorf("load content page: %w", err)
 		}
 		if resp == nil {
-			return indexed, fmt.Errorf("load content page %d: nil response", page)
+			return indexed, fmt.Errorf("load content page: nil response")
 		}
 
 		for _, post := range resp.Posts {
@@ -71,9 +72,11 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 			indexed++
 		}
 
-		if len(resp.Posts) == 0 || int64(page)*int64(pageSize) >= resp.Total {
+		// 游标为空表示没有更多数据。
+		if len(resp.Posts) == 0 || resp.NextCursor == "" {
 			break
 		}
+		cursor = resp.NextCursor
 	}
 	if err := target.Refresh(ctx); err != nil {
 		return indexed, fmt.Errorf("refresh rebuilt index: %w", err)

@@ -36,7 +36,7 @@ func (s *ContentPostRecallSource) Recall(ctx context.Context, req RecallRequest)
 		return nil, fmt.Errorf("%s content recall limit must be positive", s.name)
 	}
 	response, err := s.content.GetPostList(ctx, &contentservice.GetPostListReq{
-		Page: 1, PageSize: int32(pageSize), SortBy: s.sortBy, UserId: req.UserID,
+		PageSize: int32(pageSize), SortBy: s.sortBy, UserId: req.UserID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("load %s content recall: %w", s.name, err)

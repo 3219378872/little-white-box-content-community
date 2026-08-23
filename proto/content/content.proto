@@ -131,32 +131,34 @@ message DeletePostReq {
 // 删除帖子响应
 message DeletePostResp {}
 
-// 获取帖子列表请求
+// 获取帖子列表请求（keyset 游标分页）
 message GetPostListReq {
-  int32 page      = 1;
-  int32 page_size = 2;
-  int32 sort_by   = 3; // 1: 最新 2: 热门 3: 推荐
-  int64 user_id   = 4; // 可选，用于判断当前用户是否点赞/收藏
+  int32  page_size = 1;
+  int32  sort_by   = 2; // 1: 最新 2: 热门 3: 推荐
+  int64  user_id   = 3; // 可选，用于判断当前用户是否点赞/收藏
+  string cursor    = 4; // 不透明游标；首页传空，翻页传上一页 next_cursor
 }
 
 // 获取帖子列表响应
+// next_cursor 为空表示没有更多数据。
 message GetPostListResp {
   repeated PostInfo posts = 1;
-  int64             total = 2;
+  string next_cursor      = 2;
 }
 
-// 获取用户帖子列表请求
+// 获取用户帖子列表请求（keyset 游标分页）
 message GetUserPostsReq {
-  int64 user_id   = 1;
-  int32 page      = 2;
-  int32 page_size = 3;
-  int32 sort_by   = 4; // 1: 最新 2: 热门
+  int64  user_id   = 1;
+  int32  page_size = 2;
+  int32  sort_by   = 3; // 1: 最新 2: 热门
+  string cursor    = 4; // 不透明游标；首页传空
 }
 
 // 获取用户帖子列表响应
+// next_cursor 为空表示没有更多数据。
 message GetUserPostsResp {
   repeated PostInfo posts = 1;
-  int64             total = 2;
+  string next_cursor      = 2;
 }
 
 // 创建评论请求

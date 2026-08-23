@@ -28,9 +28,9 @@ type DeletePostV2Req struct {
 }
 
 type GetPostListReq struct {
-	Page     int32 `form:"page,default=1"`
-	PageSize int32 `form:"pageSize,default=20"`
-	SortBy   int32 `form:"sortBy,default=1"` // 1:最新 2:热门 3:推荐
+	PageSize int32  `form:"pageSize,default=20"`
+	SortBy   int32  `form:"sortBy,default=1"` // 1:最新 2:热门 3:推荐
+	Cursor   string `form:"cursor,optional"`  // 不透明游标；首页传空
 }
 
 type GetPostReq struct {

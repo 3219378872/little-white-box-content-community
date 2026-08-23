@@ -75,17 +75,18 @@ func RunAndPromote(
 	}
 
 	var indexed int64
-	for page := int32(1); ; page++ {
+	cursor := ""
+	for {
 		resp, err := retryValue(ctx, options, func() (*contentservice.GetPostListResp, error) {
 			return source.GetPostList(ctx, &contentservice.GetPostListReq{
-				Page: page, PageSize: options.PageSize, SortBy: 1,
+				PageSize: options.PageSize, SortBy: 1, Cursor: cursor,
 			})
 		})
 		if err != nil {
-			return indexed, fmt.Errorf("load content page %d: %w", page, err)
+			return indexed, fmt.Errorf("load content page: %w", err)
 		}
 		if resp == nil {
-			return indexed, fmt.Errorf("load content page %d: nil response", page)
+			return indexed, fmt.Errorf("load content page: nil response")
 		}
 		posts := publishedPosts(resp.Posts)
 		for start := 0; start < len(posts); start += options.BatchSize {
@@ -99,7 +100,7 @@ func RunAndPromote(
 				return emb.EmbedBatch(ctx, texts)
 			})
 			if err != nil {
-				return indexed, fmt.Errorf("embed content page %d batch %d: %w", page, start/options.BatchSize+1, err)
+				return indexed, fmt.Errorf("embed content batch %d: %w", start/options.BatchSize+1, err)
 			}
 			if len(results) != len(batch) {
 				return indexed, fmt.Errorf("embedding batch result count mismatch: got %d, want %d", len(results), len(batch))
@@ -114,14 +115,16 @@ func RunAndPromote(
 				}
 			}
 			if err := retry(ctx, options, func() error { return target.UpsertBatch(ctx, records) }); err != nil {
-				return indexed, fmt.Errorf("upsert content page %d batch %d: %w", page, start/options.BatchSize+1, err)
+				return indexed, fmt.Errorf("upsert content batch %d: %w", start/options.BatchSize+1, err)
 			}
 			indexed += int64(len(records))
 		}
 
-		if len(resp.Posts) == 0 || int64(page)*int64(options.PageSize) >= resp.Total {
+		// 游标为空表示没有更多数据。
+		if len(resp.Posts) == 0 || resp.NextCursor == "" {
 			break
 		}
+		cursor = resp.NextCursor
 	}
 	if err := retry(ctx, options, func() error { return target.Flush(ctx) }); err != nil {
 		return indexed, fmt.Errorf("flush rebuilt embeddings: %w", err)

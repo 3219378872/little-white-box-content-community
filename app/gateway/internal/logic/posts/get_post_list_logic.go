@@ -36,11 +36,10 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.GetPostListResp, err error) {
 	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)
-	page := pageutil.ClampPage(req.Page)
 	rpcReq := &contentservice.GetPostListReq{
-		Page:     page,
 		PageSize: pageSize,
 		SortBy:   req.SortBy,
+		Cursor:   req.Cursor,
 	}
 	if userId, ok := jwtx.GetOptionalUserIdFromContext(l.ctx); ok {
 		rpcReq.UserId = userId
@@ -86,9 +85,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 	}
 
 	return &types.GetPostListResp{
-		List:     list,
-		Total:    result.Total,
-		Page:     page,
-		PageSize: pageSize,
+		List:       list,
+		NextCursor: result.NextCursor,
 	}, nil
 }

@@ -28,7 +28,7 @@ func newLogic(t *testing.T, ctx context.Context, expectedUserId int64) *GetPostL
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakePostListContentService{
 			getPostListFn: func(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
-				if in.Page != 1 || in.PageSize != 20 || in.SortBy != 1 {
+				if in.Cursor != "" || in.PageSize != 20 || in.SortBy != 1 {
 					t.Fatalf("unexpected rpc req: %+v", in)
 				}
 				if in.UserId != expectedUserId {
@@ -50,7 +50,7 @@ func newLogic(t *testing.T, ctx context.Context, expectedUserId int64) *GetPostL
 							CreatedAt:     50,
 						},
 					},
-					Total: 1,
+					NextCursor: "",
 				}, nil
 			},
 		},
@@ -63,14 +63,13 @@ func TestGetPostList_AnonymousContext_ReturnsPublicData(t *testing.T) {
 	l := newLogic(t, context.Background(), 0)
 
 	resp, err := l.GetPostList(&types.GetPostListReq{
-		Page:     1,
 		PageSize: 20,
 		SortBy:   1,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Total != 1 || len(resp.List) != 1 {
+	if resp.NextCursor != "" || len(resp.List) != 1 {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 	if resp.List[0].Id != 100 || resp.List[0].AuthorId != 200 {
@@ -86,14 +85,13 @@ func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
 	l := newLogic(t, ctx, 42)
 
 	resp, err := l.GetPostList(&types.GetPostListReq{
-		Page:     1,
 		PageSize: 20,
 		SortBy:   1,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Total != 1 || len(resp.List) != 1 {
+	if resp.NextCursor != "" || len(resp.List) != 1 {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 	if resp.List[0].Id != 100 || resp.List[0].AuthorId != 200 {

@@ -91,11 +91,8 @@ func TestGetUserFavorites_PrivateAndOwner_ReturnsEmptyList(t *testing.T) {
 	if len(resp.List) != 0 {
 		t.Fatalf("expected empty list, got %d items", len(resp.List))
 	}
-	if resp.Total != 0 {
-		t.Fatalf("expected Total=0, got %d", resp.Total)
-	}
-	if resp.Page != 1 || resp.PageSize != 20 {
-		t.Fatalf("expected Page=1, PageSize=20, got Page=%d, PageSize=%d", resp.Page, resp.PageSize)
+	if resp.NextCursor != "" {
+		t.Fatalf("expected empty NextCursor on empty favorites, got %q", resp.NextCursor)
 	}
 }
 
@@ -210,8 +207,8 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 	if resp.List[0].Id != 100 || resp.List[1].Id != 200 {
 		t.Fatalf("unexpected items: %+v", resp.List)
 	}
-	if resp.Total != 2 {
-		t.Fatalf("expected Total=2, got %d", resp.Total)
+	if resp.NextCursor != "" {
+		t.Fatalf("expected no NextCursor for partial batch, got %q", resp.NextCursor)
 	}
 	// CORE-032：列表应回填当前访问者的互动状态。
 	if !resp.List[0].IsLiked || resp.List[0].IsFavorited != true {
@@ -271,7 +268,7 @@ func TestGetUserFavorites_NonOwnerUsesViewerFavoriteState(t *testing.T) {
 	}
 }
 
-func TestGetUserFavorites_DropsUnavailablePostsAndReducesTotal(t *testing.T) {
+func TestGetUserFavorites_DropsUnavailablePosts(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		UserService: &fakeUserService{
 			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
@@ -300,9 +297,6 @@ func TestGetUserFavorites_DropsUnavailablePostsAndReducesTotal(t *testing.T) {
 	}
 	if len(resp.List) != 1 || resp.List[0].Id != 100 {
 		t.Fatalf("expected only published favorite, got %+v", resp.List)
-	}
-	if resp.Total != 4 {
-		t.Fatalf("expected Total=4 after dropping unpublished, got %d", resp.Total)
 	}
 	if !resp.List[0].IsFavorited {
 		t.Fatalf("owner should still see live favorite as favorited, got %+v", resp.List[0])

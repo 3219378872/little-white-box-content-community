@@ -76,10 +76,8 @@ type FeedItem struct {
 }
 
 type GetPostListResp struct {
-	List     []PostItem `json:"list"`
-	Total    int64      `json:"total"`
-	Page     int32      `json:"page"`
-	PageSize int32      `json:"pageSize"`
+	List       []PostItem `json:"list"`
+	NextCursor string     `json:"nextCursor"` // 为空表示没有更多
 }
 
 type HealthReadyResp struct {

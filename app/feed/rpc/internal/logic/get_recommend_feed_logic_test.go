@@ -117,14 +117,15 @@ func TestGetRecommendFeedLogic_RecommendFailureUsesInterleavedFallback(t *testin
 	recommendSvc.On("GetRecommendPosts", mock.Anything, &recommendservice.GetRecommendPostsReq{
 		AnonymousId: "device-1", Scene: "home", RequestId: "req-fallback", PageSize: 4, ExperimentId: "exp-fallback",
 	}).Return(nil, errors.New("recommend unavailable")).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 1, PageSize: 4, SortBy: 3}).Return(&contentservice.GetPostListResp{
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 4, SortBy: 3}).Return(&contentservice.GetPostListResp{
+		NextCursor: "hot-next",
 		Posts: []*contentservice.PostInfo{
 			{Id: 21, AuthorId: 201, Title: "popular", Content: "popular content", Images: []string{"popular.png"}, Tags: []string{"hot"}, Status: 1, ViewCount: 6, LikeCount: 5, CommentCount: 4, FavoriteCount: 3, CreatedAt: 2001},
 			{Id: 22, AuthorId: 202, Status: 1},
-		}, Total: 8,
+		},
 	}, nil).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 1, PageSize: 4, SortBy: 1}).Return(&contentservice.GetPostListResp{
-		Posts: []*contentservice.PostInfo{{Id: 22, AuthorId: 202, Status: 1}, {Id: 23, AuthorId: 203, Status: 1}}, Total: 4,
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 4, SortBy: 1}).Return(&contentservice.GetPostListResp{
+		Posts: []*contentservice.PostInfo{{Id: 22, AuthorId: 202, Status: 1}, {Id: 23, AuthorId: 203, Status: 1}},
 	}, nil).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
@@ -159,13 +160,15 @@ func TestGetRecommendFeedLogic_RecommendFailureUsesInterleavedFallback(t *testin
 
 func TestGetRecommendFeedLogic_FallbackCursorContinuesWithoutRecommend(t *testing.T) {
 	contentSvc := new(mockContentService)
-	cursor, err := encodeFallbackCursor("cursor-secret", "req-2", 2, timeNowForTest())
+	const hotPage2 = "hot-page-2"
+	const latestPage2 = "latest-page-2"
+	cursor, err := encodeFallbackCursor("cursor-secret", "req-2", 2, hotPage2, latestPage2, timeNowForTest())
 	require.NoError(t, err)
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 2, PageSize: 2, SortBy: 3}).Return(&contentservice.GetPostListResp{
-		Posts: []*contentservice.PostInfo{{Id: 31, Status: 1}}, Total: 3,
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 3, Cursor: hotPage2}).Return(&contentservice.GetPostListResp{
+		Posts: []*contentservice.PostInfo{{Id: 31, Status: 1}},
 	}, nil).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 2, PageSize: 2, SortBy: 1}).Return(&contentservice.GetPostListResp{
-		Posts: []*contentservice.PostInfo{{Id: 32, Status: 1}}, Total: 3,
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 1, Cursor: latestPage2}).Return(&contentservice.GetPostListResp{
+		Posts: []*contentservice.PostInfo{{Id: 32, Status: 1}},
 	}, nil).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
@@ -189,10 +192,10 @@ func TestGetRecommendFeedLogic_EnrichmentFailureFallsBack(t *testing.T) {
 		Posts: []*recommendservice.RecommendPost{{PostId: 41}},
 	}, nil).Once()
 	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{41}}).Return(nil, errors.New("content unavailable")).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 1, PageSize: 2, SortBy: 3}).Return(&contentservice.GetPostListResp{
-		Posts: []*contentservice.PostInfo{{Id: 42, Title: "fallback", Status: 1}}, Total: 1,
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 3}).Return(&contentservice.GetPostListResp{
+		Posts: []*contentservice.PostInfo{{Id: 42, Title: "fallback", Status: 1}},
 	}, nil).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{Page: 1, PageSize: 2, SortBy: 1}).Return(nil, errors.New("latest unavailable")).Once()
+	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 1}).Return(nil, errors.New("latest unavailable")).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
 		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc, RecommendService: recommendSvc,

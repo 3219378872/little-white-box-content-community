@@ -32,8 +32,8 @@ type (
 		FindPostById(ctx context.Context, id int64) (*Post, error)
 		InsertPost(ctx context.Context, post *Post) error
 		InsertPostTx(ctx context.Context, tx *sql.Tx, post *Post) error
-		FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error)
-		FindList(ctx context.Context, page, pageSize int, sortBy int) ([]*Post, int64, error)
+		FindUserPostsByCursor(ctx context.Context, authorId int64, cur *PostListCursor, pageSize int) ([]*Post, bool, error)
+		FindListByCursor(ctx context.Context, cur *PostListCursor, pageSize int) ([]*Post, bool, error)
 		FindByIds(ctx context.Context, ids []int64) ([]*Post, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
 		UpdateFields(ctx context.Context, id int64, fields map[string]interface{}) error
@@ -46,6 +46,99 @@ type (
 		*defaultPostModel
 	}
 )
+
+// PostListCursor keyset 游标：Vals 与当前排序模式的键列一一对应
+// （末位恒为二级键 id），由 Logic 层从上一页边界行经 NewListCursor /
+// NewUserPostsCursor 构造。nil 表示首页。
+type PostListCursor struct {
+	SortBy int
+	Vals   []int64
+}
+
+// listKeysetColumns 全局帖子列表各排序模式的键列，与 ORDER BY 完全一致
+// （CORE-060：确定性二级键 id 防跨页漂移）。
+func listKeysetColumns(sortBy int) []string {
+	switch sortBy {
+	case SortByHot:
+		return []string{"`like_count`", "`id`"}
+	case SortByViewed:
+		return []string{"`view_count`", "`id`"}
+	default:
+		return []string{"`created_at`", "`id`"}
+	}
+}
+
+// userPostsKeysetColumns 用户主页列表的键列（热门带 created_at 中间键）。
+func userPostsKeysetColumns(sortBy int) []string {
+	if sortBy == SortByHot {
+		return []string{"`like_count`", "`created_at`", "`id`"}
+	}
+	return []string{"`created_at`", "`id`"}
+}
+
+// keysetCondition 构造 (c1..cn) < (v1..vn) 的展开 OR 条件，
+// 避免 MySQL 行构造符在旧版本下的索引利用问题。
+func keysetCondition(cols []string) string {
+	parts := make([]string, 0, len(cols))
+	for i := 0; i < len(cols); i++ {
+		var conds []string
+		for j := 0; j < i; j++ {
+			conds = append(conds, fmt.Sprintf("%s = ?", cols[j]))
+		}
+		conds = append(conds, fmt.Sprintf("%s < ?", cols[i]))
+		parts = append(parts, "("+strings.Join(conds, " and ")+")")
+	}
+	return "(" + strings.Join(parts, " or ") + ")"
+}
+
+// ErrCursorArity 游标值个数与当前排序键列数不一致（解码层漏校验时兜底）。
+var ErrCursorArity = errors.New("post list cursor arity mismatch")
+
+// ErrInvalidCursorArity 判断错误是否为游标维度不匹配。
+func ErrInvalidCursorArity(err error) bool { return errors.Is(err, ErrCursorArity) }
+
+// findByKeyset 是两类列表共用的 keyset 查询：多取一行判定 hasMore 后截断。
+func (m *customPostModel) findByKeyset(
+	ctx context.Context,
+	cur *PostListCursor,
+	pageSize int,
+	cols []string,
+	where string,
+	baseArgs []interface{},
+) ([]*Post, bool, error) {
+	if cur != nil && len(cur.Vals) > 0 && len(cur.Vals) != len(cols) {
+		return nil, false, fmt.Errorf("%w: want %d got %d", ErrCursorArity, len(cols), len(cur.Vals))
+	}
+
+	orderBy := strings.Join(cols, " desc, ") + " desc"
+	conds := []string{where}
+	args := append([]interface{}{}, baseArgs...)
+	if cur != nil && len(cur.Vals) > 0 {
+		conds = append(conds, keysetCondition(cols))
+		// 与 keysetCondition 的部件顺序严格对应：第 i 个部件消耗 Vals[0..i]。
+		for i := range cols {
+			for j := 0; j <= i; j++ {
+				args = append(args, cur.Vals[j])
+			}
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select %s from %s where %s order by %s limit ?",
+		postRows, m.table, strings.Join(conds, " and "), orderBy,
+	)
+	var posts []*Post
+	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, append(args, pageSize+1)...)
+	if err != nil {
+		return nil, false, err
+	}
+
+	hasMore := len(posts) > pageSize
+	if hasMore {
+		posts = posts[:pageSize]
+	}
+	return posts, hasMore, nil
+}
 
 // NewPostModel returns a model for the database table.
 func NewPostModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) PostModel {
@@ -110,61 +203,33 @@ func (m *customPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, post *Po
 	return err
 }
 
-func (m *customPostModel) FindByAuthorId(ctx context.Context, authorId int64, page, pageSize, sortBy int) ([]*Post, int64, error) {
-	offset := (page - 1) * pageSize
-
-	// CORE-060/DISC-003：排序必须带确定性二级键（id），否则同秒创建时
-	// OFFSET 分页不稳定，重建索引等全量遍历会重复/漏行。
-	orderBy := "`created_at` desc, `id` desc"
-	switch sortBy {
-	case SortByHot:
-		orderBy = "`like_count` desc, `created_at` desc, `id` desc"
-	}
-
-	var posts []*Post
-	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `status` = %d order by %s limit ?,?", postRows, m.table, visibilityx.PublishedStatus, orderBy)
-	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, authorId, offset, pageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var total int64
-	countQuery := fmt.Sprintf("select count(*) from %s where `author_id` = ? and `status` = %d", m.table, visibilityx.PublishedStatus)
-	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery, authorId)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return posts, total, nil
+// FindUserPostsByCursor keyset 游标分页获取用户已发布帖子。
+// hasMore 表示是否还有下一页；返回行数至多 pageSize。
+func (m *customPostModel) FindUserPostsByCursor(ctx context.Context, authorId int64, cur *PostListCursor, pageSize int) ([]*Post, bool, error) {
+	return m.findByKeyset(
+		ctx, cur, pageSize,
+		userPostsKeysetColumns(curSortBy(cur)),
+		"`author_id` = ? and `status` = "+fmt.Sprint(visibilityx.PublishedStatus),
+		[]interface{}{authorId},
+	)
 }
 
-func (m *customPostModel) FindList(ctx context.Context, page, pageSize int, sortBy int) ([]*Post, int64, error) {
-	offset := (page - 1) * pageSize
+// FindListByCursor keyset 游标分页获取全局已发布帖子。
+func (m *customPostModel) FindListByCursor(ctx context.Context, cur *PostListCursor, pageSize int) ([]*Post, bool, error) {
+	return m.findByKeyset(
+		ctx, cur, pageSize,
+		listKeysetColumns(curSortBy(cur)),
+		"`status` = "+fmt.Sprint(visibilityx.PublishedStatus),
+		nil,
+	)
+}
 
-	// CORE-060：确定性排序，防止同秒创建/同计数时的跨页漂移。
-	orderBy := "`created_at` desc, `id` desc"
-	switch sortBy {
-	case SortByHot:
-		orderBy = "`like_count` desc, `id` desc"
-	case SortByViewed:
-		orderBy = "`view_count` desc, `id` desc"
+// curSortBy 容忍 nil 首页游标，统一取排序模式。
+func curSortBy(cur *PostListCursor) int {
+	if cur == nil {
+		return SortByLatest
 	}
-
-	var posts []*Post
-	query := fmt.Sprintf("select %s from %s where `status` = %d order by %s limit ?,?", postRows, m.table, visibilityx.PublishedStatus, orderBy)
-	err := m.QueryRowsNoCacheCtx(ctx, &posts, query, offset, pageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var total int64
-	countQuery := fmt.Sprintf("select count(*) from %s where `status` = %d", m.table, visibilityx.PublishedStatus)
-	err = m.QueryRowNoCacheCtx(ctx, &total, countQuery)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return posts, total, nil
+	return cur.SortBy
 }
 
 func (m *customPostModel) UpdateStatus(ctx context.Context, id int64, status int64) error {

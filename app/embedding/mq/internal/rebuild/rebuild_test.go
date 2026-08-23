@@ -16,7 +16,8 @@ import (
 )
 
 type fakeSource struct {
-	pages    map[int32]*contentservice.GetPostListResp
+	// pages 以请求游标为键（"" 为首页）；缺键视为空页（终止翻页）。
+	pages    map[string]*contentservice.GetPostListResp
 	failures int
 	calls    int
 }
@@ -26,7 +27,10 @@ func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostL
 	if f.calls <= f.failures {
 		return nil, errors.New("content unavailable")
 	}
-	return f.pages[req.Page], nil
+	if resp, ok := f.pages[req.Cursor]; ok {
+		return resp, nil
+	}
+	return &contentservice.GetPostListResp{}, nil
 }
 
 type fakeBatchEmbedder struct {
@@ -95,12 +99,12 @@ func testOptions() Options {
 func TestRunAndPromoteRetriesAndIndexesOnlyPublishedPosts(t *testing.T) {
 	source := &fakeSource{
 		failures: 1,
-		pages: map[int32]*contentservice.GetPostListResp{
-			1: {Total: 3, Posts: []*contentservice.PostInfo{
+		pages: map[string]*contentservice.GetPostListResp{
+			"": {NextCursor: "c2", Posts: []*contentservice.PostInfo{
 				{Id: 1, Title: "one", Content: "body", Status: 1},
 				{Id: 2, Status: 0},
 			}},
-			2: {Total: 3, Posts: []*contentservice.PostInfo{{Id: 3, Title: "three", Status: 1}}},
+			"c2": {Posts: []*contentservice.PostInfo{{Id: 3, Title: "three", Status: 1}}},
 		},
 	}
 	emb := &fakeBatchEmbedder{failures: 1}
@@ -118,8 +122,8 @@ func TestRunAndPromoteRetriesAndIndexesOnlyPublishedPosts(t *testing.T) {
 }
 
 func TestRunAndPromoteDoesNotPromotePartialBuild(t *testing.T) {
-	source := &fakeSource{pages: map[int32]*contentservice.GetPostListResp{
-		1: {Total: 1, Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
+		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
 	}}
 	target := &fakeTarget{failures: 10}
 
@@ -130,8 +134,8 @@ func TestRunAndPromoteDoesNotPromotePartialBuild(t *testing.T) {
 }
 
 func TestRunAndPromoteRejectsCountMismatch(t *testing.T) {
-	source := &fakeSource{pages: map[int32]*contentservice.GetPostListResp{
-		1: {Total: 1, Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
+		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
 	}}
 	target := &fakeTarget{}
 	target.count = 99

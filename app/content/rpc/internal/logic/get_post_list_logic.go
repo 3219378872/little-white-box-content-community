@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
+	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/errx"
-	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -24,43 +24,51 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 	}
 }
 
-// GetPostList 获取帖子列表
+// GetPostList 获取帖子列表（keyset 游标分页，无 count(*)）
 func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListResp, error) {
-	page, pageSize := normalizePage(int(in.Page), int(in.PageSize))
+	pageSize := normalizePageSize(int(in.PageSize))
+	sortBy := normalizeSortBy(int(in.SortBy), true)
 
-	posts, total, err := l.svcCtx.PostModel.FindList(l.ctx, page, pageSize, int(in.SortBy))
+	cursor, err := decodePostCursor(in.Cursor, postListGlobal)
 	if err != nil {
-		l.Errorw("PostModel.FindList failed", logx.Field("err", err.Error()))
+		return nil, err
+	}
+	if cursor == nil {
+		// 首页也必须携带排序模式，Model 据此选择 keyset 键列。
+		cursor = &model.PostListCursor{SortBy: sortBy}
+	}
+
+	posts, hasMore, err := l.svcCtx.PostModel.FindListByCursor(l.ctx, cursor, pageSize)
+	if err != nil {
+		if model.ErrInvalidCursorArity(err) {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+		l.Errorw("PostModel.FindListByCursor failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	if len(posts) == 0 {
-		return &pb.GetPostListResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+		return &pb.GetPostListResp{Posts: []*pb.PostInfo{}}, nil
 	}
 
-	fetched := len(posts)
+	var nextCursor string
+	if hasMore && len(posts) > 0 {
+		boundary := posts[len(posts)-1]
+		nextCursor, err = encodePostCursor(sortBy, boundary)
+		if err != nil {
+			l.Errorw("encode post cursor failed", logx.Field("err", err.Error()))
+			nextCursor = ""
+		}
+	}
+
 	posts = keepPublishedPosts(posts)
-	total = visibilityx.AdjustPageTotal(total, fetched, len(posts))
 	if len(posts) == 0 {
-		return &pb.GetPostListResp{Posts: []*pb.PostInfo{}, Total: total}, nil
+		return &pb.GetPostListResp{Posts: []*pb.PostInfo{}, NextCursor: nextCursor}, nil
 	}
 
-	postIds := make([]int64, 0, len(posts))
-	for _, post := range posts {
-		postIds = append(postIds, post.Id)
-	}
-	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, postIds)
-	if err != nil {
-		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
-		tagsMap = map[int64][]string{}
-	}
-	postInfos := make([]*pb.PostInfo, 0, len(posts))
-	for _, post := range posts {
-		postInfos = append(postInfos, PostToPostInfo(post, tagsMap[post.Id]))
-	}
-
+	postInfos := hydratePostInfos(l.ctx, l.svcCtx, l.Logger, posts)
 	return &pb.GetPostListResp{
-		Posts: postInfos,
-		Total: total,
+		Posts:      postInfos,
+		NextCursor: nextCursor,
 	}, nil
 }
