@@ -22,7 +22,6 @@ x-etcd-env: &etcd-env
 
 x-redis-env: &redis-env
   REDIS_HOST: redis:6379
-  REDIS_PASS: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
   REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
 
 x-mq-env: &mq-env

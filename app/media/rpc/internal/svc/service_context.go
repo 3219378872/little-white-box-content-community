@@ -27,7 +27,7 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	if err := util.InitSnowflake(4, 1); err != nil {
+	if err := util.InitSnowflakeFromEnv(4, 1); err != nil {
 		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
 	}
 	conn := sqlx.NewMysql(c.DataSource)

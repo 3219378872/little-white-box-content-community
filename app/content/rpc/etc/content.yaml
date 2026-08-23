@@ -26,7 +26,7 @@ Etcd:
   Key: content.rpc
 Redis:
   Host: 127.0.0.1:6379
-  Pass: "${REDIS_PASS}"
+  Pass: "${REDIS_PASSWORD}"
   Type: node
   Key: content
 DataSource: "${DB_CONTENT}"

@@ -12,8 +12,6 @@ import (
 	"esx/pkg/outboxx"
 	"esx/pkg/util"
 	"fmt"
-	"os"
-	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -44,31 +42,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	conn := sqlx.NewSqlConnFromDB(db)
 
-	workerIdStr := os.Getenv("SNOWFLAKE_WORKER_ID")
-	dataCenterIdStr := os.Getenv("SNOWFLAKE_DATACENTER_ID")
-	var workerId, dataCenterId int64
-	if workerIdStr != "" {
-		id, parseErr := strconv.ParseInt(workerIdStr, 10, 64)
-		if parseErr != nil {
-			panic(fmt.Errorf("SNOWFLAKE_WORKER_ID 格式无效: %w", parseErr))
-		}
-		workerId = id
-	}
-	if dataCenterIdStr != "" {
-		id, parseErr := strconv.ParseInt(dataCenterIdStr, 10, 64)
-		if parseErr != nil {
-			panic(fmt.Errorf("SNOWFLAKE_DATACENTER_ID 格式无效: %w", parseErr))
-		}
-		dataCenterId = id
-	}
-	if workerId == 0 {
-		workerId = 1
-	}
-	if dataCenterId == 0 {
-		dataCenterId = 1
-	}
-	if err = util.InitSnowflake(workerId, dataCenterId); err != nil {
-		panic(fmt.Errorf("雪花算法初始化失败%v", err))
+	if err = util.InitSnowflakeFromEnv(1, 1); err != nil {
+		panic(fmt.Errorf("雪花算法初始化失败%w", err))
 	}
 
 	cacheConf := cache.CacheConf{

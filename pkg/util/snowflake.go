@@ -2,6 +2,9 @@ package util
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -54,6 +57,39 @@ func NextID() (int64, error) {
 		return 0, ErrSnowflakeNotInit
 	}
 	return snowflake.NextID()
+}
+
+// 环境变量名：多副本部署时用于区分各实例，避免生成重复 ID。
+const (
+	EnvSnowflakeWorkerID     = "SNOWFLAKE_WORKER_ID"
+	EnvSnowflakeDatacenterID = "SNOWFLAKE_DATACENTER_ID"
+)
+
+// InitSnowflakeFromEnv 是各服务统一的 Snowflake 初始化入口：
+// 优先从环境变量读取 worker/datacenter ID，未设置时使用传入默认值；
+// 格式非法时返回携带变量名的错误。默认值按服务区分
+// （user=0、content=1、interaction=3、media=4），多副本部署必须显式配置。
+func InitSnowflakeFromEnv(defaultWorkerID, defaultDatacenterID int64) error {
+	parse := func(name string, def int64) (int64, error) {
+		raw := os.Getenv(name)
+		if raw == "" {
+			return def, nil
+		}
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("%s 格式无效: %w", name, err)
+		}
+		return id, nil
+	}
+	workerID, err := parse(EnvSnowflakeWorkerID, defaultWorkerID)
+	if err != nil {
+		return err
+	}
+	datacenterID, err := parse(EnvSnowflakeDatacenterID, defaultDatacenterID)
+	if err != nil {
+		return err
+	}
+	return InitSnowflake(workerID, datacenterID)
 }
 
 // NextID 生成下一个 ID

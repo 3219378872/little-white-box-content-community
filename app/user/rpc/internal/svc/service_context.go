@@ -88,7 +88,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	newRedis := redis.MustNewRedis(c.Redis.RedisConf)
 
 	// 初始化雪花算法
-	err = util.InitSnowflake(0, 1)
+	err = util.InitSnowflakeFromEnv(0, 1)
 	if err != nil {
 		panic(fmt.Sprintf("雪花算法初始化失败: %v", err))
 	}

@@ -64,7 +64,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
-	if err := util.InitSnowflake(3, 1); err != nil {
+	if err := util.InitSnowflakeFromEnv(3, 1); err != nil {
 		panic(fmt.Sprintf("interaction snowflake initialization failed: %v", err))
 	}
 
