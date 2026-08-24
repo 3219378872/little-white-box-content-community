@@ -86,12 +86,10 @@ func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 
 	// Redis
 	req := testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "redis:7-alpine",
-			ExposedPorts: []string{"6379/tcp"},
-			WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
-		},
-		Started: true,
+		Image:        "redis:7-alpine",
+		ExposedPorts: []string{"6379/tcp"},
+		WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
+		Started:      true,
 	}
 	redisContainer, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {

@@ -87,7 +87,7 @@ func (m *MockPostModel) UpdateStatus(ctx context.Context, id, status int64) erro
 	return m.Called(ctx, id, status).Error(0)
 }
 
-func (m *MockPostModel) UpdateFields(ctx context.Context, id int64, fields map[string]interface{}) error {
+func (m *MockPostModel) UpdateFields(ctx context.Context, id int64, fields map[string]any) error {
 	return m.Called(ctx, id, fields).Error(0)
 }
 

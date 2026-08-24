@@ -32,7 +32,7 @@ func behaviorMessage(t *testing.T, behavior event.BehaviorEvent) *primitive.Mess
 	t.Helper()
 	payload, err := json.Marshal(behavior)
 	require.NoError(t, err)
-	return &primitive.MessageExt{Message: primitive.Message{Body: payload}}
+	return &primitive.MessageExt{Body: payload}
 }
 
 func TestConsumeCountSyncBatchAppliesEachEvent(t *testing.T) {
@@ -61,7 +61,7 @@ func TestConsumeCountSyncBatchRetriesOnStoreFailure(t *testing.T) {
 
 func TestConsumeCountSyncBatchSkipsMalformedMessages(t *testing.T) {
 	store := &fakeCountSyncStore{}
-	msg := &primitive.MessageExt{Message: primitive.Message{Body: []byte("{not-json")}}
+	msg := &primitive.MessageExt{Body: []byte("{not-json")}
 	result := consumeCountSyncBatch(context.Background(), store, msg)
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Empty(t, store.events)

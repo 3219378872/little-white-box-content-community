@@ -104,7 +104,7 @@ func TestPostPublishConsumer_MalformedJSON_Skips(t *testing.T) {
 	}
 
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`not-json`)}, MsgId: "msg-1"},
+		&primitive.MessageExt{Body: []byte(`not-json`), MsgId: "msg-1"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -121,7 +121,7 @@ func TestPostPublishConsumer_MissingFields_Skips(t *testing.T) {
 
 	// 缺 post_id 的 event 被 Validate 拒绝
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"event_id":1,"type":"post.created","author_id":1}`)}, MsgId: "msg-2"},
+		&primitive.MessageExt{Body: []byte(`{"event_id":1,"type":"post.created","author_id":1}`), MsgId: "msg-2"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -139,7 +139,7 @@ func TestPostPublishConsumer_NonCreateEvent_Skips(t *testing.T) {
 		EventID: 9, EventTime: 1, Type: event.PostEventDeleted, PostID: 100,
 	})
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: deletedBody}, MsgId: "msg-del"},
+		&primitive.MessageExt{Body: deletedBody, MsgId: "msg-del"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -158,7 +158,7 @@ func TestPostPublishConsumer_UserRPCFailure_Retry(t *testing.T) {
 	}
 
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: postCreatedBody(t, 1, 9, 1710000000000)}, MsgId: "msg-3"},
+		&primitive.MessageExt{Body: postCreatedBody(t, 1, 9, 1710000000000), MsgId: "msg-3"},
 	)
 
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
@@ -174,7 +174,7 @@ func TestPostPublishConsumer_ValidMessage_Success(t *testing.T) {
 	}
 
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: postCreatedBody(t, 1, 9, 1710000000000)}, MsgId: "msg-4"},
+		&primitive.MessageExt{Body: postCreatedBody(t, 1, 9, 1710000000000), MsgId: "msg-4"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -191,7 +191,7 @@ func TestPostPublishConsumer_DraftCreate_Skipped(t *testing.T) {
 	}
 
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: draftCreatedBody(t, 50, 9, 1710000000000)}, MsgId: "msg-draft"},
+		&primitive.MessageExt{Body: draftCreatedBody(t, 50, 9, 1710000000000), MsgId: "msg-draft"},
 	)
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Empty(t, outbox.inserted, "draft must not fan out")
@@ -208,7 +208,7 @@ func TestPostPublishConsumer_PublishTransition_FansOut(t *testing.T) {
 
 	// 草稿→发布（post-update status=1）必须进入关注流
 	result := consumeMessageBatch(context.Background(), svcCtx,
-		&primitive.MessageExt{Message: primitive.Message{Body: publishedUpdateBody(t, 60, 9, 1710000000000)}, MsgId: "msg-publish"},
+		&primitive.MessageExt{Body: publishedUpdateBody(t, 60, 9, 1710000000000), MsgId: "msg-publish"},
 	)
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Len(t, outbox.inserted, 1)

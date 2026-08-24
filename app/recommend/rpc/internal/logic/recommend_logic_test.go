@@ -475,7 +475,7 @@ func TestEnforceAuthorQuotaEvery20Window(t *testing.T) {
 	for i := int64(1); i <= 20; i++ {
 		posts = append(posts, model.PostCandidate{PostID: i, AuthorID: i + 100})
 	}
-	for i := int64(0); i < 5; i++ {
+	for i := range int64(5) {
 		posts = append(posts, model.PostCandidate{PostID: 1000 + i, AuthorID: 999})
 	}
 

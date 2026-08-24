@@ -26,12 +26,10 @@ func FromHTTPError(err error) *BizError {
 }
 
 func isHTTPParseError(err error) bool {
-	var syntax *json.SyntaxError
-	if errors.As(err, &syntax) {
+	if _, ok := errors.AsType[*json.SyntaxError](err); ok {
 		return true
 	}
-	var unmarshal *json.UnmarshalTypeError
-	if errors.As(err, &unmarshal) {
+	if _, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
 		return true
 	}
 	msg := strings.ToLower(err.Error())

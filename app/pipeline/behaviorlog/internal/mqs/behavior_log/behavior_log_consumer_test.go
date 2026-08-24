@@ -48,7 +48,7 @@ func (d *fakeDeadLetters) InsertDeadLetter(_ context.Context, letter store.DeadL
 
 func makeMsg(body string) *primitive.MessageExt {
 	return &primitive.MessageExt{
-		Message: primitive.Message{Body: []byte(body)}, MsgId: "test-msg",
+		Body: []byte(body), MsgId: "test-msg",
 		StoreTimestamp: 1714300000000,
 	}
 }

@@ -76,7 +76,7 @@ func (m *customLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, 
 	}
 	placeholders := strings.Repeat("?,", len(targetIds))
 	placeholders = placeholders[:len(placeholders)-1]
-	args := make([]interface{}, 0, len(targetIds)+2)
+	args := make([]any, 0, len(targetIds)+2)
 	args = append(args, userId, targetType)
 	for _, id := range targetIds {
 		args = append(args, id)

@@ -158,7 +158,7 @@ func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
 			Phone: "13800000001", VerifyCode: "000000",
 			Username: "u1", Password: "Passw0rd!",
 		}
-		for i := 0; i < verifyCodeMaxAttempts; i++ {
+		for range verifyCodeMaxAttempts {
 			_, err := NewRegisterLogic(context.Background(), svcCtx).Register(req)
 			require.Error(t, err, "wrong code must fail")
 			assert.True(t, errx.Is(err, errx.VerifyCodeError))

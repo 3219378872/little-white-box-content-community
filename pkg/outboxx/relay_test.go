@@ -68,7 +68,7 @@ func TestEventValidate(t *testing.T) {
 }
 
 func TestRelayProcessBatchMarksBrokerAcknowledgementsSent(t *testing.T) {
-	store := &fakeStore{records: []Record{{Event: Event{ID: 11}}, {Event: Event{ID: 12}}}}
+	store := &fakeStore{records: []Record{{ID: 11}, {ID: 12}}}
 	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))
 
 	processed, err := relay.ProcessBatch(context.Background())
@@ -80,7 +80,7 @@ func TestRelayProcessBatchMarksBrokerAcknowledgementsSent(t *testing.T) {
 }
 
 func TestRelayProcessBatchSchedulesPublishFailureForRetry(t *testing.T) {
-	store := &fakeStore{records: []Record{{Event: Event{ID: 21}, Attempts: 2}}}
+	store := &fakeStore{records: []Record{{ID: 21, Attempts: 2}}}
 	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error {
 		return errors.New("broker unavailable")
 	}))
@@ -95,7 +95,7 @@ func TestRelayProcessBatchSchedulesPublishFailureForRetry(t *testing.T) {
 
 func TestRelayProcessBatchKeepsSentEventLeasedWhenMarkFails(t *testing.T) {
 	store := &fakeStore{
-		records:     []Record{{Event: Event{ID: 31}}},
+		records:     []Record{{ID: 31}},
 		markSentErr: errors.New("database unavailable"),
 	}
 	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))

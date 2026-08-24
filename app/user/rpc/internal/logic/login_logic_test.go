@@ -116,7 +116,7 @@ func TestLoginVerifyCodeSharesAttemptLimitWithRegister(t *testing.T) {
 	svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
 	req := &pb.LoginReq{LoginType: 2, Phone: "13900000000", VerifyCode: "000000"}
 
-	for i := 0; i < verifyCodeMaxAttempts; i++ {
+	for range verifyCodeMaxAttempts {
 		_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
 		require.Error(t, err)
 		assert.True(t, errx.Is(err, errx.VerifyCodeError))
@@ -135,7 +135,7 @@ func TestLoginPasswordFailureLockout(t *testing.T) {
 	svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
 	req := &pb.LoginReq{LoginType: 1, Username: "attacker", Password: "wrong"}
 
-	for i := 0; i < loginLockMaxAttempts; i++ {
+	for range loginLockMaxAttempts {
 		_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
 		require.Error(t, err)
 	}

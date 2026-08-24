@@ -65,7 +65,7 @@ func mustMarshal(t *testing.T, v any) []byte {
 }
 
 func mq(id string, body []byte) *primitive.MessageExt {
-	return &primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: id}
+	return &primitive.MessageExt{Body: body, MsgId: id}
 }
 
 func TestCleanupConsumer_PostDeleted_RunsAllCleanup(t *testing.T) {

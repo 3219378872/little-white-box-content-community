@@ -59,7 +59,7 @@ func mustMarshal(t *testing.T, v any) []byte {
 }
 
 func msg(id string, body []byte) *primitive.MessageExt {
-	return &primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: id}
+	return &primitive.MessageExt{Body: body, MsgId: id}
 }
 
 func TestSearchConsumer_MalformedJSON_Skips(t *testing.T) {

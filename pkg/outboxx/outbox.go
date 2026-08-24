@@ -174,9 +174,7 @@ func (s *SQLStore) Claim(
 			continue
 		}
 		claimed = append(claimed, Record{
-			Event: Event{
-				ID: row.ID, Topic: row.Topic, Tag: row.Tag, Key: row.Key, Payload: row.Payload,
-			},
+			ID: row.ID, Topic: row.Topic, Tag: row.Tag, Key: row.Key, Payload: row.Payload,
 			Attempts:  row.Attempts + 1,
 			LockedBy:  owner,
 			CreatedAt: row.CreatedAt,

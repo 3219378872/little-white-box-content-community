@@ -114,8 +114,7 @@ func FromRPCError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var bizErr *BizError
-	if errors.As(err, &bizErr) {
+	if bizErr, ok := errors.AsType[*BizError](err); ok {
 		return bizErr
 	}
 	return Wrap(err, SystemError)

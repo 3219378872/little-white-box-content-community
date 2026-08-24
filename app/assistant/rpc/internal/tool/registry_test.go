@@ -205,7 +205,7 @@ func TestRegistrySearchEncodesMaliciousCommunityEvidence(t *testing.T) {
 		t.Fatalf("evidence limits exceeded: text=%d title=%d", len([]rune(result.Text)), len([]rune(result.Sources[0].Title)))
 	}
 	trustedMarkers := 0
-	for _, line := range strings.Split(result.Text, "\n") {
+	for line := range strings.SplitSeq(result.Text, "\n") {
 		if strings.HasPrefix(line, "SOURCE [post:") {
 			trustedMarkers++
 		}

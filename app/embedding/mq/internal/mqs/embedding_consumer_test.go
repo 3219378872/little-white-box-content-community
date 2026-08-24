@@ -77,11 +77,9 @@ type fixedEmbedder struct{}
 
 func (fixedEmbedder) Embed(_ context.Context, _ string) (embedder.Embedding, error) {
 	return embedder.Embedding{
-		Vector: []float32{0.1, 0.2, 0.3},
-		Metadata: embedder.Metadata{
-			ModelVersion: "test-model@v1",
-			Dimension:    3,
-		},
+		Vector:       []float32{0.1, 0.2, 0.3},
+		ModelVersion: "test-model@v1",
+		Dimension:    3,
 	}, nil
 }
 
@@ -93,7 +91,7 @@ func mustMarshal(t *testing.T, v any) []byte {
 }
 
 func mq(id string, body []byte) *primitive.MessageExt {
-	return &primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: id}
+	return &primitive.MessageExt{Body: body, MsgId: id}
 }
 
 func TestEmbeddingConsumer_PostCreated_UpsertsVector(t *testing.T) {

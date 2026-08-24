@@ -447,7 +447,7 @@ func snippetCandidates(query string) []string {
 	if query != "" {
 		candidates = append(candidates, query)
 	}
-	for _, field := range strings.Fields(query) {
+	for field := range strings.FieldsSeq(query) {
 		if field != query {
 			candidates = append(candidates, field)
 		}

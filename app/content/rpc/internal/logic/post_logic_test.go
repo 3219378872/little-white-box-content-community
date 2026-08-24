@@ -17,10 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func int32Ptr(v int32) *int32 {
-	return &v
-}
-
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 
 func TestCreatePostLogic(t *testing.T) {
@@ -308,7 +304,7 @@ func TestUpdatePostLogic(t *testing.T) {
 				Title:            "新标题",
 				Content:          "新内容",
 				Tags:             []string{"golang"},
-				Status:           int32Ptr(1),
+				Status:           new(int32(1)),
 				ExpectedRevision: 3,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {

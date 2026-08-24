@@ -28,7 +28,7 @@ func TestSendVerifyCodeRateLimits(t *testing.T) {
 		mem := &memoryRedis{values: map[string]string{}}
 		svcCtx := &svc.ServiceContext{RedisClient: mem}
 		logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
-		for i := 0; i < verifyCodePhoneHourlyLimit; i++ {
+		for i := range verifyCodePhoneHourlyLimit {
 			_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000010", Type: 1})
 			require.NoError(t, err, "send %d should pass", i+1)
 			// 模拟验证码被消费（注册/登录成功），绕开未消费冷却，
@@ -45,7 +45,7 @@ func TestSendVerifyCodeRateLimits(t *testing.T) {
 		mem := &memoryRedis{values: map[string]string{}}
 		svcCtx := &svc.ServiceContext{RedisClient: mem}
 		logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
-		for i := 0; i < verifyCodeIPHourlyLimit; i++ {
+		for i := range verifyCodeIPHourlyLimit {
 			// 每次换号码，隔离号码维度，只压 IP 维度。
 			_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{
 				Phone: fmt.Sprintf("13800001%03d", i), Type: 1, ClientIp: "10.0.0.1",
@@ -63,7 +63,7 @@ func TestSendVerifyCodeRateLimits(t *testing.T) {
 		mem := &memoryRedis{values: map[string]string{}}
 		svcCtx := &svc.ServiceContext{RedisClient: mem}
 		logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
-		for i := 0; i < verifyCodeIPHourlyLimit+1; i++ {
+		for i := range verifyCodeIPHourlyLimit + 1 {
 			_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{
 				Phone: fmt.Sprintf("13900002%03d", i), Type: 1,
 			})

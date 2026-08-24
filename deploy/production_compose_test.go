@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -298,10 +299,5 @@ func replaceEnvironment(current []string, values map[string]string) []string {
 }
 
 func contains(values []string, expected string) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, expected)
 }

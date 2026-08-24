@@ -28,10 +28,7 @@ func (s *ContentPostRecallSource) Recall(ctx context.Context, req RecallRequest)
 	if s.content == nil {
 		return nil, ErrNotApplicable
 	}
-	pageSize := req.Limit
-	if pageSize > 50 {
-		pageSize = 50
-	}
+	pageSize := min(req.Limit, 50)
 	if pageSize <= 0 {
 		return nil, fmt.Errorf("%s content recall limit must be positive", s.name)
 	}

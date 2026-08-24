@@ -36,7 +36,7 @@ type (
 		FindListByCursor(ctx context.Context, cur *PostListCursor, pageSize int) ([]*Post, bool, error)
 		FindByIds(ctx context.Context, ids []int64) ([]*Post, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
-		UpdateFields(ctx context.Context, id int64, fields map[string]interface{}) error
+		UpdateFields(ctx context.Context, id int64, fields map[string]any) error
 		InvalidatePostCache(ctx context.Context, id int64) error
 		IncrCommentCount(ctx context.Context, postId int64) error
 		DecrCommentCount(ctx context.Context, postId int64) error
@@ -80,9 +80,9 @@ func userPostsKeysetColumns(sortBy int) []string {
 // 避免 MySQL 行构造符在旧版本下的索引利用问题。
 func keysetCondition(cols []string) string {
 	parts := make([]string, 0, len(cols))
-	for i := 0; i < len(cols); i++ {
+	for i := range cols {
 		var conds []string
-		for j := 0; j < i; j++ {
+		for j := range i {
 			conds = append(conds, fmt.Sprintf("%s = ?", cols[j]))
 		}
 		conds = append(conds, fmt.Sprintf("%s < ?", cols[i]))
@@ -104,7 +104,7 @@ func (m *customPostModel) findByKeyset(
 	pageSize int,
 	cols []string,
 	where string,
-	baseArgs []interface{},
+	baseArgs []any,
 ) ([]*Post, bool, error) {
 	if cur != nil && len(cur.Vals) > 0 && len(cur.Vals) != len(cols) {
 		return nil, false, fmt.Errorf("%w: want %d got %d", ErrCursorArity, len(cols), len(cur.Vals))
@@ -112,7 +112,7 @@ func (m *customPostModel) findByKeyset(
 
 	orderBy := strings.Join(cols, " desc, ") + " desc"
 	conds := []string{where}
-	args := append([]interface{}{}, baseArgs...)
+	args := append([]any{}, baseArgs...)
 	if cur != nil && len(cur.Vals) > 0 {
 		conds = append(conds, keysetCondition(cols))
 		// 与 keysetCondition 的部件顺序严格对应：第 i 个部件消耗 Vals[0..i]。
@@ -210,7 +210,7 @@ func (m *customPostModel) FindUserPostsByCursor(ctx context.Context, authorId in
 		ctx, cur, pageSize,
 		userPostsKeysetColumns(curSortBy(cur)),
 		"`author_id` = ? and `status` = "+fmt.Sprint(visibilityx.PublishedStatus),
-		[]interface{}{authorId},
+		[]any{authorId},
 	)
 }
 
@@ -243,12 +243,12 @@ func (m *customPostModel) UpdateStatus(ctx context.Context, id int64, status int
 
 // UpdateFields 动态更新帖子字段（PATCH 语义），只更新 fields 中显式传入的字段，
 // 避免覆盖计数等字段（防止 Lost Update），空 fields 直接返回。
-func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map[string]interface{}) error {
+func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map[string]any) error {
 	if len(fields) == 0 {
 		return nil
 	}
 	setClauses := make([]string, 0, len(fields))
-	args := make([]interface{}, 0, len(fields)+1)
+	args := make([]any, 0, len(fields)+1)
 	for col, val := range fields {
 		if _, ok := allowedUpdateCols[col]; !ok {
 			return fmt.Errorf("UpdateFields: disallowed column %q", col)
@@ -294,7 +294,7 @@ func (m *customPostModel) FindByIds(ctx context.Context, ids []int64) ([]*Post, 
 	if len(ids) == 0 {
 		return []*Post{}, nil
 	}
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i, id := range ids {
 		args[i] = id
 	}

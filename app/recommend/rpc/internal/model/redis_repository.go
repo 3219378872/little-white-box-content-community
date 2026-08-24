@@ -204,9 +204,7 @@ func (r *RedisFeatureRepository) LoadPostFeatures(ctx context.Context, postIDs [
 	workerCount := min(featureLoadWorkers, len(postIDs))
 	var group sync.WaitGroup
 	for range workerCount {
-		group.Add(1)
-		go func() {
-			defer group.Done()
+		group.Go(func() {
 			for postID := range jobs {
 				values, err := r.redis.HgetallCtx(ctx, fmt.Sprintf("feature:%s:post:%d", r.featureVersion, postID))
 				if err != nil {
@@ -220,7 +218,7 @@ func (r *RedisFeatureRepository) LoadPostFeatures(ctx context.Context, postIDs [
 				}
 				results <- loadResult{postID: postID, features: features}
 			}
-		}()
+		})
 	}
 	go func() {
 		group.Wait()
@@ -261,9 +259,7 @@ func (r *RedisFeatureRepository) LoadUserFeatures(ctx context.Context, userIDs [
 	workerCount := min(featureLoadWorkers, len(userIDs))
 	var group sync.WaitGroup
 	for range workerCount {
-		group.Add(1)
-		go func() {
-			defer group.Done()
+		group.Go(func() {
 			for userID := range jobs {
 				values, err := r.redis.HgetallCtx(ctx, fmt.Sprintf("feature:%s:user:%d", r.featureVersion, userID))
 				if err != nil {
@@ -277,7 +273,7 @@ func (r *RedisFeatureRepository) LoadUserFeatures(ctx context.Context, userIDs [
 				}
 				results <- loadResult{userID: userID, features: features}
 			}
-		}()
+		})
 	}
 	go func() {
 		group.Wait()

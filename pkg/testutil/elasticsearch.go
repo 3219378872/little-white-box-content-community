@@ -44,22 +44,20 @@ func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 	defer cancel()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        defaultElasticsearchImage,
-			ExposedPorts: []string{"9200/tcp"},
-			Env: map[string]string{
-				"discovery.type": "single-node",
-				"cluster.routing.allocation.disk.threshold_enabled": "false",
-				"xpack.security.enabled":                            "false",
-				"ES_JAVA_OPTS":                                      "-Xms512m -Xmx512m",
-			},
-			// Wait for the HTTP layer instead of only the TCP port: Elasticsearch
-			// binds the port early during startup and can reset connections until
-			// the node is ready, which made the integration tests flaky in CI.
-			WaitingFor: wait.ForHTTP("/").
-				WithPort("9200/tcp").
-				WithStartupTimeout(3 * time.Minute),
+		Image:        defaultElasticsearchImage,
+		ExposedPorts: []string{"9200/tcp"},
+		Env: map[string]string{
+			"discovery.type": "single-node",
+			"cluster.routing.allocation.disk.threshold_enabled": "false",
+			"xpack.security.enabled":                            "false",
+			"ES_JAVA_OPTS":                                      "-Xms512m -Xmx512m",
 		},
+		// Wait for the HTTP layer instead of only the TCP port: Elasticsearch
+		// binds the port early during startup and can reset connections until
+		// the node is ready, which made the integration tests flaky in CI.
+		WaitingFor: wait.ForHTTP("/").
+			WithPort("9200/tcp").
+			WithStartupTimeout(3 * time.Minute),
 		Started: true,
 	})
 	if err != nil {

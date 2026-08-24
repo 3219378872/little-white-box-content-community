@@ -30,7 +30,7 @@ func TestMediaCleanupConsumer_MalformedJSON_Skips(t *testing.T) {
 	store := &fakeStorage{}
 
 	result := consumeMediaDeleteBatch(context.Background(), store,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`not-json`)}, MsgId: "msg-1"},
+		&primitive.MessageExt{Body: []byte(`not-json`), MsgId: "msg-1"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -41,7 +41,7 @@ func TestMediaCleanupConsumer_EmptyObjectKey_Skips(t *testing.T) {
 	store := &fakeStorage{}
 
 	result := consumeMediaDeleteBatch(context.Background(), store,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"media_id":1,"s3_object_key":"","bucket":"xbh-media"}`)}, MsgId: "msg-2"},
+		&primitive.MessageExt{Body: []byte(`{"media_id":1,"s3_object_key":"","bucket":"xbh-media"}`), MsgId: "msg-2"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -52,7 +52,7 @@ func TestMediaCleanupConsumer_ValidMessage_DeletesObject(t *testing.T) {
 	store := &fakeStorage{}
 
 	result := consumeMediaDeleteBatch(context.Background(), store,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"media_id":1,"s3_object_key":"obj/key","bucket":"xbh-media","deleted_at":1710000000}`)}, MsgId: "msg-3"},
+		&primitive.MessageExt{Body: []byte(`{"media_id":1,"s3_object_key":"obj/key","bucket":"xbh-media","deleted_at":1710000000}`), MsgId: "msg-3"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)
@@ -64,7 +64,7 @@ func TestMediaCleanupConsumer_DeleteFails_ReturnsRetry(t *testing.T) {
 	store := &fakeStorage{err: errors.New("s3 unavailable")}
 
 	result := consumeMediaDeleteBatch(context.Background(), store,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"media_id":1,"s3_object_key":"obj/key","bucket":"xbh-media","deleted_at":1710000000}`)}, MsgId: "msg-4"},
+		&primitive.MessageExt{Body: []byte(`{"media_id":1,"s3_object_key":"obj/key","bucket":"xbh-media","deleted_at":1710000000}`), MsgId: "msg-4"},
 	)
 
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
@@ -74,8 +74,8 @@ func TestMediaCleanupConsumer_BatchSkipsBadAndProcessesGood(t *testing.T) {
 	store := &fakeStorage{}
 
 	result := consumeMediaDeleteBatch(context.Background(), store,
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`bad`)}, MsgId: "bad"},
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`{"media_id":2,"s3_object_key":"obj/key2","bucket":"xbh-media","deleted_at":1710000000}`)}, MsgId: "good"},
+		&primitive.MessageExt{Body: []byte(`bad`), MsgId: "bad"},
+		&primitive.MessageExt{Body: []byte(`{"media_id":2,"s3_object_key":"obj/key2","bucket":"xbh-media","deleted_at":1710000000}`), MsgId: "good"},
 	)
 
 	assert.Equal(t, consumer.ConsumeSuccess, result)

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"uuid"
 
 	"esx/app/assistant/rpc/internal/llm"
 	"esx/app/assistant/rpc/internal/safety"
@@ -20,7 +21,6 @@ import (
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/pkg/errx"
 
-	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -432,13 +432,13 @@ func (l *ChatLogic) validate(in *pb.ChatReq) (tool.Request, string, error) {
 
 	conversationID := strings.TrimSpace(in.ConversationId)
 	if conversationID == "" {
-		conversationID = uuid.NewString()
+		conversationID = uuid.New().String()
 	} else if !validOpaqueID(conversationID) {
 		return tool.Request{}, "", errx.New(errx.ParamError, "invalid conversation id")
 	}
 	requestID := strings.TrimSpace(in.RequestId)
 	if requestID == "" {
-		requestID = uuid.NewString()
+		requestID = uuid.New().String()
 	} else if !validOpaqueID(requestID) {
 		return tool.Request{}, "", errx.New(errx.ParamError, "invalid request id")
 	}

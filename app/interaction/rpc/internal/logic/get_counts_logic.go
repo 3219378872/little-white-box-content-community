@@ -38,7 +38,7 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 		return &pb.GetCountsResp{}, nil
 	}
 
-	result, err, _ := l.svcCtx.SingleFlight.Do(key, func() (interface{}, error) {
+	result, err, _ := l.svcCtx.SingleFlight.Do(key, func() (any, error) {
 		if resp, ok := l.readCountsFromCache(key); ok {
 			return resp, nil
 		}

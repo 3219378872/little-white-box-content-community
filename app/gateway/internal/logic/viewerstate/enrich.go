@@ -3,6 +3,7 @@ package viewerstate
 
 import (
 	"context"
+	"maps"
 
 	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
@@ -38,9 +39,7 @@ func Enrich(
 	if likeResp == nil {
 		return nil, nil, errx.NewWithCode(errx.SystemError)
 	}
-	for postID, isLiked := range likeResp.Results {
-		liked[postID] = isLiked
-	}
+	maps.Copy(liked, likeResp.Results)
 
 	favResp, err := svcCtx.InteractionService.BatchCheckFavorited(ctx, &interactionservice.BatchCheckFavoritedReq{
 		UserId:  userID,
@@ -52,8 +51,6 @@ func Enrich(
 	if favResp == nil {
 		return nil, nil, errx.NewWithCode(errx.SystemError)
 	}
-	for postID, isFavorited := range favResp.Results {
-		favorited[postID] = isFavorited
-	}
+	maps.Copy(favorited, favResp.Results)
 	return liked, favorited, nil
 }

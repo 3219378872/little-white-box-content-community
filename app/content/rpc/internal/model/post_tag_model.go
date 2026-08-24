@@ -61,7 +61,7 @@ func (m *customPostTagModel) FindTagNamesByPostIds(ctx context.Context, postIds 
 		return map[int64][]string{}, nil
 	}
 	placeholders := make([]string, len(postIds))
-	args := make([]interface{}, len(postIds))
+	args := make([]any, len(postIds))
 	for i, id := range postIds {
 		placeholders[i] = "?"
 		args[i] = id

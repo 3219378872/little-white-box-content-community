@@ -133,7 +133,7 @@ func appendSource(current, next string) string {
 }
 
 func hasSource(sources, source string) bool {
-	for _, current := range strings.Split(sources, ",") {
+	for current := range strings.SplitSeq(sources, ",") {
 		if current == source {
 			return true
 		}

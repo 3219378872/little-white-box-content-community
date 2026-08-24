@@ -2,6 +2,7 @@ package feed
 
 import (
 	"context"
+	"maps"
 	"strings"
 
 	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
@@ -71,9 +72,7 @@ func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items [
 		if response == nil {
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
-		for postID, liked := range response.Results {
-			enrichment.liked[postID] = liked
-		}
+		maps.Copy(enrichment.liked, response.Results)
 	}
 
 	return enrichment, nil

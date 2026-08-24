@@ -56,7 +56,7 @@ func TestRecommendConsumerSkipsMalformedOrInvalidEvents(t *testing.T) {
 		dead := &recordingDeadLetters{}
 		result := consumeBehaviorBatch(context.Background(), rec,
 			dead,
-			&primitive.MessageExt{Message: primitive.Message{Body: []byte(body)}, MsgId: "bad"})
+			&primitive.MessageExt{Body: []byte(body), MsgId: "bad"})
 		assert.Equal(t, consumer.ConsumeSuccess, result)
 		assert.Empty(t, rec.recorded)
 		assert.Equal(t, 1, dead.count)
@@ -67,7 +67,7 @@ func TestRecommendConsumerRecordsCanonicalEvent(t *testing.T) {
 	rec := &recordingStore{}
 	result := consumeBehaviorBatch(context.Background(), rec,
 		&recordingDeadLetters{},
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(canonicalBehaviorJSON)}, MsgId: "msg-4"})
+		&primitive.MessageExt{Body: []byte(canonicalBehaviorJSON), MsgId: "msg-4"})
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Len(t, rec.recorded, 1)
 	assert.Equal(t, int64(1), rec.recorded[0].UserID)
@@ -76,14 +76,14 @@ func TestRecommendConsumerRecordsCanonicalEvent(t *testing.T) {
 
 func TestRecommendConsumerStoreErrorReturnsRetry(t *testing.T) {
 	result := consumeBehaviorBatch(context.Background(), &errorStore{err: errors.New("store offline")}, &recordingDeadLetters{},
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(canonicalBehaviorJSON)}, MsgId: "msg-5"})
+		&primitive.MessageExt{Body: []byte(canonicalBehaviorJSON), MsgId: "msg-5"})
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
 }
 
 func TestRecommendConsumerRetriesWhenDeadLetterWriteFails(t *testing.T) {
 	result := consumeBehaviorBatch(context.Background(), &recordingStore{},
 		&recordingDeadLetters{err: errors.New("redis unavailable")},
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`bad`)}, MsgId: "bad"})
+		&primitive.MessageExt{Body: []byte(`bad`), MsgId: "bad"})
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
 }
 
@@ -95,7 +95,7 @@ func TestRecommendConsumerRecordsPostLifecycleCandidates(t *testing.T) {
 	body, _ := json.Marshal(post)
 	candidates := &recordingCandidateStore{}
 	result := consumePostBatch(context.Background(), candidates, &recordingDeadLetters{},
-		&primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: "post-1"})
+		&primitive.MessageExt{Body: body, MsgId: "post-1"})
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Equal(t, []event.PostEvent{post}, candidates.posts)
 }
@@ -104,7 +104,7 @@ func TestRecommendConsumerDeadLettersMalformedOrInvalidPostEvents(t *testing.T) 
 	for _, body := range [][]byte{[]byte(`bad`), []byte(`{"post_id":99}`)} {
 		dead := &recordingDeadLetters{}
 		result := consumePostBatch(context.Background(), &recordingCandidateStore{}, dead,
-			&primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: "bad-post"})
+			&primitive.MessageExt{Body: body, MsgId: "bad-post"})
 
 		assert.Equal(t, consumer.ConsumeSuccess, result)
 		assert.Equal(t, 1, dead.count)
@@ -114,7 +114,7 @@ func TestRecommendConsumerDeadLettersMalformedOrInvalidPostEvents(t *testing.T) 
 func TestRecommendConsumerPostDeadLetterFailureReturnsRetry(t *testing.T) {
 	result := consumePostBatch(context.Background(), &recordingCandidateStore{},
 		&recordingDeadLetters{err: errors.New("dead letter unavailable")},
-		&primitive.MessageExt{Message: primitive.Message{Body: []byte(`bad`)}, MsgId: "bad-post"})
+		&primitive.MessageExt{Body: []byte(`bad`), MsgId: "bad-post"})
 
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
 }
@@ -129,7 +129,7 @@ func TestRecommendConsumerCandidateStoreFailureReturnsRetry(t *testing.T) {
 	result := consumePostBatch(context.Background(),
 		&recordingCandidateStore{err: errors.New("candidate store unavailable")},
 		&recordingDeadLetters{},
-		&primitive.MessageExt{Message: primitive.Message{Body: body}, MsgId: "post-1"})
+		&primitive.MessageExt{Body: body, MsgId: "post-1"})
 
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
 }

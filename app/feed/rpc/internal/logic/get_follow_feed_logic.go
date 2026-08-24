@@ -199,10 +199,7 @@ func (l *GetFollowFeedLogic) outboxRowsForAuthors(authorIDs []int64, cursorCreat
 	merged := make([]*model.FeedOutbox, 0)
 	hasMore := false
 	for start := 0; start < len(authorIDs); start += outboxAuthorBatchSize {
-		end := start + outboxAuthorBatchSize
-		if end > len(authorIDs) {
-			end = len(authorIDs)
-		}
+		end := min(start+outboxAuthorBatchSize, len(authorIDs))
 		rows, err := l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs[start:end], cursorCreatedAt, cursorPostID, limit)
 		if err != nil {
 			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))

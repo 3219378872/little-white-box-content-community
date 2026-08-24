@@ -50,8 +50,8 @@ func (f *fakeBatchEmbedder) EmbedBatch(_ context.Context, texts []string) ([]emb
 	results := make([]embedder.Embedding, len(texts))
 	for i := range results {
 		results[i] = embedder.Embedding{
-			Vector:   []float32{float32(i) + 0.1, 0.2},
-			Metadata: embedder.Metadata{ModelVersion: "model@sha", Dimension: 2},
+			Vector:       []float32{float32(i) + 0.1, 0.2},
+			ModelVersion: "model@sha", Dimension: 2,
 		}
 	}
 	return results, nil

@@ -54,7 +54,7 @@ func corsOrigins() []string {
 	}
 	if raw := strings.TrimSpace(os.Getenv("GATEWAY_CORS_ORIGINS")); raw != "" {
 		origins = nil
-		for _, origin := range strings.Split(raw, ",") {
+		for origin := range strings.SplitSeq(raw, ",") {
 			origin = strings.TrimSpace(origin)
 			if origin != "" {
 				origins = append(origins, origin)

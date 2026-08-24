@@ -49,11 +49,9 @@ func GenerateToken(userId int64, username string, config JwtConfig) (string, err
 		UserId:    userId,
 		Username:  username,
 		TokenType: TokenTypeAccess,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(config.AccessExpire) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-		},
+		ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(config.AccessExpire) * time.Second)),
+		IssuedAt:  jwt.NewNumericDate(now),
+		NotBefore: jwt.NewNumericDate(now),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(config.AccessSecret))
@@ -78,12 +76,10 @@ func GenerateRefreshToken(userId int64, username string, config JwtConfig) (stri
 		UserId:    userId,
 		Username:  username,
 		TokenType: TokenTypeRefresh,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        jti,
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(expire) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-		},
+		ID:        jti,
+		ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(expire) * time.Second)),
+		IssuedAt:  jwt.NewNumericDate(now),
+		NotBefore: jwt.NewNumericDate(now),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(config.RefreshSecret))
@@ -116,7 +112,7 @@ func ParseRefreshToken(tokenString string, config JwtConfig) (*Claims, error) {
 }
 
 func parseSigned(tokenString, secret string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		// 强制校验签名算法，防止算法混淆攻击（alg:none 或 RS256→HS256 等）
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

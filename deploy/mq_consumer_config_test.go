@@ -24,7 +24,6 @@ func TestAllConsumerConfigsDeclareBoundedRetries(t *testing.T) {
 		"app/search/mq/etc/search-consumer.yaml",
 	}
 	for _, file := range files {
-		file := file
 		t.Run(file, func(t *testing.T) {
 			var config struct {
 				MQ mqx.ConsumerConfig

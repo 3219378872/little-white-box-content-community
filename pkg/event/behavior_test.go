@@ -8,15 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func int32Ptr(value int32) *int32 { return &value }
-func int64Ptr(value int64) *int64 { return &value }
-
 func validBehaviorEvent() BehaviorEvent {
 	return BehaviorEvent{
 		EventID: 100001, ClientEventID: "client-1", SchemaVersion: BehaviorSchemaVersion,
 		EventTime: 1714300000000, ReceivedAt: 1714300000100, UserID: 42,
 		Action: BehaviorActionExposure, TargetID: 999, TargetType: "post",
-		Scene: "home", RequestID: "request-1", Position: int32Ptr(3),
+		Scene: "home", RequestID: "request-1", Position: new(int32(3)),
 		Producer: "behavior-rpc", ClientIP: "10.0.0.1", ClientVersion: "2.0.0",
 	}
 }
@@ -44,9 +41,9 @@ func TestBehaviorEventValidate(t *testing.T) {
 		{name: "schema required", mutate: func(e *BehaviorEvent) { e.SchemaVersion = 1 }, wantErr: "schema_version"},
 		{name: "exposure request required", mutate: func(e *BehaviorEvent) { e.RequestID = "" }, wantErr: "request_id"},
 		{name: "exposure position required", mutate: func(e *BehaviorEvent) { e.Position = nil }, wantErr: "position"},
-		{name: "duration rejected for like", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionLike; e.DurationMs = int64Ptr(10) }, wantErr: "not allowed"},
+		{name: "duration rejected for like", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionLike; e.DurationMs = new(int64(10)) }, wantErr: "not allowed"},
 		{name: "duration required for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell }, wantErr: "duration_ms is required"},
-		{name: "duration accepted for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell; e.DurationMs = int64Ptr(1000) }},
+		{name: "duration accepted for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell; e.DurationMs = new(int64(1000)) }},
 	}
 
 	for _, tt := range tests {
@@ -78,7 +75,7 @@ func TestBehaviorEventValidateClientSubmitted(t *testing.T) {
 			if _, ok := map[string]struct{}{
 				BehaviorActionDwell: {}, BehaviorActionPlay: {}, BehaviorActionView: {},
 			}[action]; ok {
-				e.DurationMs = int64Ptr(1000)
+				e.DurationMs = new(int64(1000))
 			}
 			require.NoError(t, e.ValidateClientSubmitted())
 		})

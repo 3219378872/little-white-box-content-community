@@ -117,15 +117,13 @@ func TestRedisBehaviorStoreExposureCarriesRequestPostDedupKey(t *testing.T) {
 	behavior := featureBehavior()
 	behavior.Action = event.BehaviorActionExposure
 	behavior.RequestID = "request-1"
-	behavior.Position = int32Ptr(3)
+	behavior.Position = new(int32(3))
 
 	require.NoError(t, store.Record(context.Background(), behavior))
 	require.Len(t, redis.keys, 16)
 	// REL-004：同一 (requestId, postId) 最多记录一次曝光。
 	assert.Equal(t, "feature:v2:u:42:exposure:dedup:request-1:9", redis.keys[1])
 }
-
-func int32Ptr(value int32) *int32 { return &value }
 
 // fakePurgeRedis 同时实现 RedisEvaler 与 RedisKeyLister，记录每次 purge 的键。
 type fakePurgeRedis struct {

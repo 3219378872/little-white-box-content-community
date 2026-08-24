@@ -35,8 +35,8 @@ func TestValidateBehaviorLogConfig_AllowsMinimalRequiredConfig(t *testing.T) {
 }
 
 func TestServiceContextDependencyFieldsUseSvcInterfaces(t *testing.T) {
-	serviceContextType := reflect.TypeOf(ServiceContext{})
-	expectedPkg := reflect.TypeOf((*BehaviorStore)(nil)).Elem().PkgPath()
+	serviceContextType := reflect.TypeFor[ServiceContext]()
+	expectedPkg := reflect.TypeFor[BehaviorStore]().PkgPath()
 
 	for _, name := range []string{"Store", "Dedup", "DeadLetters"} {
 		field, ok := serviceContextType.FieldByName(name)

@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 )
 
 // CORS 中间件配置
@@ -48,11 +50,8 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 			}
 
 			allowedOrigin := ""
-			for _, o := range config.AllowOrigins {
-				if o == origin {
-					allowedOrigin = origin
-					break
-				}
+			if slices.Contains(config.AllowOrigins, origin) {
+				allowedOrigin = origin
 			}
 
 			// 若 AllowCredentials=true，绝不允许回写 *（浏览器会拒绝）
@@ -95,12 +94,12 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 }
 
 func joinStrings(strs []string, sep string) string {
-	result := ""
+	var result strings.Builder
 	for i, s := range strs {
 		if i > 0 {
-			result += sep
+			result.WriteString(sep)
 		}
-		result += s
+		result.WriteString(s)
 	}
-	return result
+	return result.String()
 }

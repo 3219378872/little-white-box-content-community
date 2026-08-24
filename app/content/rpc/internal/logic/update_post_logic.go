@@ -122,7 +122,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 
 	// PATCH 语义：只写入客户端显式传入的字段，避免静默清空现有值；
 	// title/content 写入的是与现值合并后的结果。
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"title":   mergedTitle,
 		"content": mergedContent,
 	}

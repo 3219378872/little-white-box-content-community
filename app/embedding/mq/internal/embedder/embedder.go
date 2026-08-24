@@ -142,11 +142,9 @@ func (e *GRPCEmbedder) Embed(ctx context.Context, text string) (Embedding, error
 		return Embedding{}, fmt.Errorf("embed RPC returned nil response")
 	}
 	result := Embedding{
-		Vector: resp.Vector,
-		Metadata: Metadata{
-			ModelVersion: resp.ModelVersion,
-			Dimension:    int(resp.Dimension),
-		},
+		Vector:       resp.Vector,
+		ModelVersion: resp.ModelVersion,
+		Dimension:    int(resp.Dimension),
 	}
 	if err := e.validateEmbedding(result); err != nil {
 		return Embedding{}, err

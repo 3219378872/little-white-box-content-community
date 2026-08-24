@@ -18,7 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -105,7 +106,7 @@ func receiveUploadStream[Req any](
 // buildObjectKey 组织对象键：{prefix}/YYYYMM/{uuid}.{ext}
 func buildObjectKey(prefix, ext string) string {
 	ym := time.Now().Format("200601")
-	return fmt.Sprintf("%s/%s/%s.%s", prefix, ym, uuid.NewString(), ext)
+	return fmt.Sprintf("%s/%s/%s.%s", prefix, ym, uuid.New().String(), ext)
 }
 
 // nullStringOr 包装非空字符串为 sql.NullString。

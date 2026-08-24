@@ -3,7 +3,7 @@ package logic
 import (
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -110,7 +110,7 @@ func sortedMediaIDs(ids []int64) []string {
 		seen[id] = struct{}{}
 		unique = append(unique, id)
 	}
-	sort.Slice(unique, func(i, j int) bool { return unique[i] < unique[j] })
+	slices.Sort(unique)
 	out := make([]string, 0, len(unique))
 	for _, id := range unique {
 		out = append(out, strconv.FormatInt(id, 10))

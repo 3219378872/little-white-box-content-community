@@ -23,6 +23,11 @@ import (
 var testEnv *testutil.TestEnv
 var testSvcCtx *svc.ServiceContext
 
+//go:fix inline
+func int32Ptr(v int32) *int32 {
+	return new(v)
+}
+
 func TestMain(m *testing.M) {
 	testEnv = testutil.SetupTestEnvM("xbh_content", testutil.SchemaPath("xbh_content.sql"))
 

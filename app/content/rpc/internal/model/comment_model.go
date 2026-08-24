@@ -118,7 +118,7 @@ func (m *customCommentModel) FindByParentIds(ctx context.Context, postId int64, 
 		return nil, nil
 	}
 	placeholders := make([]string, 0, len(parentIds))
-	args := make([]interface{}, 0, len(parentIds)+1)
+	args := make([]any, 0, len(parentIds)+1)
 	args = append(args, postId)
 	for _, id := range parentIds {
 		placeholders = append(placeholders, "?")

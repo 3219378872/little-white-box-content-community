@@ -75,7 +75,7 @@ func (m *customFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Conte
 	}
 	placeholders := strings.Repeat("?,", len(postIds))
 	placeholders = placeholders[:len(placeholders)-1]
-	args := make([]interface{}, 0, len(postIds)+1)
+	args := make([]any, 0, len(postIds)+1)
 	args = append(args, userId)
 	for _, id := range postIds {
 		args = append(args, id)

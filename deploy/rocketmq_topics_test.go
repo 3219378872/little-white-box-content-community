@@ -67,7 +67,7 @@ func TestRocketMQTopicsMatchCodeConstants(t *testing.T) {
 		t.Fatal("init-topics.sh: TOPICS array not found")
 	}
 	scriptTopics := map[string]bool{}
-	for _, word := range strings.Fields(block[1]) {
+	for word := range strings.FieldsSeq(block[1]) {
 		scriptTopics[word] = true
 	}
 
