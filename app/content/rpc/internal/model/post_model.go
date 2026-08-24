@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"esx/pkg/visibilityx"
 	"strings"
@@ -118,7 +119,7 @@ func (m *customPostModel) findByKeyset(
 		// 与 keysetCondition 的部件顺序严格对应：第 i 个部件消耗 Vals[0..i]。
 		for i := range cols {
 			for j := 0; j <= i; j++ {
-				args = append(args, cur.Vals[j])
+				args = append(args, keysetBindArg(cols[j], cur.Vals[j]))
 			}
 		}
 	}
@@ -138,6 +139,17 @@ func (m *customPostModel) findByKeyset(
 		posts = posts[:pageSize]
 	}
 	return posts, hasMore, nil
+}
+
+// keysetBindArg 把游标值转换为可与对应列直接比较的绑定参数。
+// created_at 是 DATETIME 列，而游标负载携带 Unix 秒整数；MySQL 比较时间列与
+// 数字时会把时间数值化为 YYYYMMDDHHMMSS，与 Unix 秒量级错位导致续页恒为空，
+// 因此必须转回 time.Time 由驱动按原生时间绑定。
+func keysetBindArg(col string, v int64) any {
+	if col == "`created_at`" {
+		return time.Unix(v, 0)
+	}
+	return v
 }
 
 // NewPostModel returns a model for the database table.
