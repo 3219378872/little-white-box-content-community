@@ -102,16 +102,23 @@ func TestPostModelRoundtripAndQueries(t *testing.T) {
 	_, err = postModel.FindPostById(ctx, -1)
 	require.ErrorIs(t, err, ErrNotFound)
 
-	posts, total, err := postModel.FindByAuthorId(ctx, 7, 1, 10, 0)
+	// 用户帖子 keyset 查询只包含已发布帖子（草稿被过滤）。
+	posts, hasMore, err := postModel.FindUserPostsByCursor(ctx, 7, nil, 10)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), total)
 	require.Len(t, posts, 2)
+	assert.False(t, hasMore)
 
-	// 列表查询只包含已发布帖子（草稿被过滤）。
-	list, listTotal, err := postModel.FindList(ctx, 1, 10, 0)
+	// pageSize 截断时 hasMore=true，恰返回一页。
+	paged, pagedHasMore, err := postModel.FindUserPostsByCursor(ctx, 7, nil, 1)
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), listTotal)
+	require.Len(t, paged, 1)
+	assert.True(t, pagedHasMore)
+
+	// 全局列表查询同样只包含已发布帖子（草稿被过滤）。
+	list, listHasMore, err := postModel.FindListByCursor(ctx, nil, 10)
+	require.NoError(t, err)
 	require.Len(t, list, 2)
+	assert.False(t, listHasMore)
 
 	byIds, err := postModel.FindByIds(ctx, []int64{first.Id, second.Id, draft.Id, -42})
 	require.NoError(t, err)

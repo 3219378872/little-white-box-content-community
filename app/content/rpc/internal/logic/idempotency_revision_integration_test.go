@@ -31,7 +31,7 @@ func TestCreatePostIdempotency(t *testing.T) {
 		assert.Equal(t, int64(1), second.Revision)
 
 		list, err := NewGetUserPostsLogic(ctx, testSvcCtx).GetUserPosts(&pb.GetUserPostsReq{
-			UserId: 9101, Page: 1, PageSize: 10,
+			UserId: 9101, PageSize: 10,
 		})
 		require.NoError(t, err)
 		count := 0

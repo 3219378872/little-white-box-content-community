@@ -222,24 +222,21 @@ func TestGetPostList(t *testing.T) {
 	t.Run("正常获取列表", func(t *testing.T) {
 		l := NewGetPostListLogic(ctx, testSvcCtx)
 		resp, err := l.GetPostList(&pb.GetPostListReq{
-			Page:     1,
 			PageSize: 10,
 			SortBy:   1,
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(resp.Posts), 3)
-		assert.GreaterOrEqual(t, resp.Total, int64(3))
 	})
 
 	t.Run("分页截断", func(t *testing.T) {
 		l := NewGetPostListLogic(ctx, testSvcCtx)
 		resp, err := l.GetPostList(&pb.GetPostListReq{
-			Page:     1,
 			PageSize: 2,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(resp.Posts))
-		assert.GreaterOrEqual(t, resp.Total, int64(3))
+		assert.NotEmpty(t, resp.NextCursor, "结果被截断时应返回下一页游标")
 	})
 }
 
@@ -253,12 +250,11 @@ func TestGetUserPosts(t *testing.T) {
 		l := NewGetUserPostsLogic(ctx, testSvcCtx)
 		resp, err := l.GetUserPosts(&pb.GetUserPostsReq{
 			UserId:   5001,
-			Page:     1,
 			PageSize: 10,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(resp.Posts))
-		assert.Equal(t, int64(2), resp.Total)
+		assert.Empty(t, resp.NextCursor, "结果不足一页时不应有下一页游标")
 		for _, p := range resp.Posts {
 			assert.Equal(t, int64(5001), p.AuthorId)
 		}
@@ -268,11 +264,10 @@ func TestGetUserPosts(t *testing.T) {
 		l := NewGetUserPostsLogic(ctx, testSvcCtx)
 		resp, err := l.GetUserPosts(&pb.GetUserPostsReq{
 			UserId:   5999,
-			Page:     1,
 			PageSize: 10,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(resp.Posts))
-		assert.Equal(t, int64(0), resp.Total)
+		assert.Empty(t, resp.NextCursor)
 	})
 }
