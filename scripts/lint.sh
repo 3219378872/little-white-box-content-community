@@ -18,8 +18,8 @@ if ! command -v golangci-lint >/dev/null 2>&1; then
 golangci-lint is not installed or not on PATH.
 
 The prebuilt binaries are built with an older Go and reject this repo's
-go 1.26.1 config, so build it from source with the project toolchain:
-  GOTOOLCHAIN=go1.26.1 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0
+go 1.27.0 config, so build it from source with the project toolchain:
+  GOTOOLCHAIN=go1.27.0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
 
 Then rerun:
   scripts/lint.sh
