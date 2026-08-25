@@ -27,12 +27,12 @@ CREATE TABLE IF NOT EXISTS `post` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `published_at` TIMESTAMP NULL COMMENT '发布时间',
     PRIMARY KEY (`id`),
-    KEY `idx_author_id` (`author_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created_at` (`created_at`),
+    -- 列表游标分页的复合索引在 patches/20260823_post_list_cursor_indexes.sql：
+    -- (status,created_at,id) / (status,like_count,id) / (status,view_count,id) /
+    -- (author_id,status,...) 的最左前缀已覆盖 author_id/status/created_at/
+    -- like_count/view_count 单列查询，这里不再保留冗余单列索引。
+    -- 存量旧卷由补丁重放补建复合索引，单列索引如已存在可另行人工清理。
     KEY `idx_published_at` (`published_at`),
-    KEY `idx_like_count` (`like_count`),
-    KEY `idx_view_count` (`view_count`),
     KEY `idx_category_id` (`category_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子表';
 
