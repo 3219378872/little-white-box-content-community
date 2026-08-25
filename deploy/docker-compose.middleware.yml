@@ -135,7 +135,7 @@ services:
 
   # RocketMQ Console
   rocketmq-console:
-    image: styletang/rocketmq-console-ng@sha256:7df83bb6e6381b3b05b2edd91699dd4f8610e71520f80590e830ea2771110d6d
+    image: styletang/rocketmq-console-ng@sha256:96e99d10eda871640b9529b75da30fa6ca85fc15722661acb9660639e6904fc3
     container_name: xbh-rocketmq-console
     restart: unless-stopped
     ports:
