@@ -17,5 +17,7 @@
 - 存在性守卫：用 `information_schema` 判断列/索引是否存在，再经预处理语句执行 DDL；
 - 数据守卫：`UPDATE ... WHERE <旧缺陷特征>`，重复执行影响 0 行。
 
+补丁由编排层经无默认库的 root 连接重放，因此每个补丁必须自带 `USE <schema>;`。
+
 补丁合并进 patches/ 后即视为可对任意环境重复执行；不要再依赖「手工跑一次」。
 ClickHouse 侧无此拆分：`xbh_analytics.sql` 全文幂等，直接整体重放。
