@@ -50,11 +50,18 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, fmt.Errorf("initialize recommend redis: %w", err)
 	}
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	contentClient, err := zrpc.NewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
+	// content/user 的服务端挂了内部签名校验拦截器，出站必须同样签名；
+	// 否则请求被 Unauthenticated 拒绝并经 errx 映射成 1006，推荐整体降级到规则。
+	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
+	contentClient, err := zrpc.NewClient(c.ContentRpc,
+		zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
+		zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
 	if err != nil {
 		return nil, fmt.Errorf("initialize content rpc client: %w", err)
 	}
-	userClient, err := zrpc.NewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor))
+	userClient, err := zrpc.NewClient(c.UserRpc,
+		zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
+		zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
 	if err != nil {
 		return nil, fmt.Errorf("initialize user rpc client: %w", err)
 	}
