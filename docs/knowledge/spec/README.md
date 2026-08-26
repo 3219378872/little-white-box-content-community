@@ -19,9 +19,13 @@
 | [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | approved |
 | [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | approved |
 | [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 基于已发布内容的可追溯回答 | approved |
+| [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md) | 经用户授权的 Agent 工具执行模式 | approved |
 | [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
 
-四份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
+五份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
+
+2026-08-26 新增：`SPEC-assistant-agent-mode` 获人类批准；意图边界同步放宽为受授权、
+工具白名单与执行预算约束的受限形态；原检索问答管线命名 enhanced_search（ASST-043）。
 
 2026-08-15 锁定：补齐意图模板字段；记录 `/api/v1` 帖子写接口移除；明确详情互动状态、
 不可用目标点赞、曝光客户端/服务端分工、`Total` 估计语义、人类评测门禁和 `REL-033`/

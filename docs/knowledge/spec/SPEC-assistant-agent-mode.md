@@ -2,7 +2,7 @@
 id: SPEC-assistant-agent-mode
 layer: spec
 title: Assistant Agent 模式规范
-status: draft
+status: approved
 owner: human
 upstream:
   - INT-content-community-backend

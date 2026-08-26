@@ -8,6 +8,7 @@ upstream:
   - SPEC-community-core
   - SPEC-content-discovery
   - SPEC-grounded-assistant
+  - SPEC-assistant-agent-mode
   - SPEC-feedback-reliability
 ---
 
