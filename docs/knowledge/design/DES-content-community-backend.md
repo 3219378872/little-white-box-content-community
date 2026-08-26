@@ -85,6 +85,34 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 事实段落强制 `[post:id]`，对外 SOURCE 只含回源验证过来源。LLM 不可用返回证据摘要；
 检索或回源失败关闭。会话按用户隔离，Redis 限流 20/60s，历史 100 条 / 30 天。
 
+### Assistant Agent 模式（AGNT-*）
+
+编排放在 assistant RPC 内新增的 `internal/agent` 包，不开新服务：复用会话存储、安全
+过滤、SSE 管道与指标。`Chat` 流式 RPC 增加 `mode` 与 `attachments` 字段分流：
+enhanced_search 走既有单轮管线，agent 走多轮 Runner。对外新增 `TOOL_CALL` /
+`CONFIRM_REQUIRED` 事件与 `ConfirmToolCall` 回调、REST `tool/confirm` 转发。
+
+- **Runner 抽象**：`agent.Runner` 接口隔离编排引擎，默认实现基于 openai-go 官方 SDK
+  的 chat completions + tools（经 `option.WithBaseURL` 指向现有 OpenAI 兼容端点），
+  未来可换其他 agent SDK 而不动工具层与事件层。
+- **工具层**：`search_posts`→SearchRpc、`web_search`→Tavily（`net/http` 直连，key 走
+  env，未配置时从工具表剔除）、`create_post`/`update_post`/`delete_post`→ContentRpc v2
+  写语义。全部显式传 userId（AGNT-003），不引入新的身份通道。create/update 引用的
+  mediaId 必须 ⊆ 本次请求附件并先经 MediaRpc `BatchGetMedia` 校验 owner+status
+  （AGNT-013），Content 侧 `validatePostMedia` 二次校验兜底；幂等键由 requestId 派生
+  （AGNT-015）。
+- **高危确认**：Runner 发出 `CONFIRM_REQUIRED(call_id)` 后挂起，等待 Redis pub/sub 唤醒
+  （待确认项存 `{prefix}:pending_confirm:{requestId}:{callId}`，TTL=ConfirmTimeoutSeconds，
+  默认 120s）；网关 `POST /api/v2/assistant/tool/confirm` → `ConfirmToolCall` 校验凭据
+  一次性绑定后发布结果。超时/拒绝按 AGNT-020~022 反馈模型继续。
+- **预算**：软限 MaxStepsSoft(8)/硬限 MaxStepsHard(12)（AGNT-030/031）：超软限后在每个
+  工具结果尾部注入剩余轮数系统通知；达硬限剥离 tools 强制收尾一次，失败报
+  `AGENT_BUDGET_EXCEEDED`。独立配额默认 10 req/min（AGNT-032）。
+- **授权存储**：user 模块新增 `agent_capability_consent` 表与 Get/Set RPC（照抄
+  personalization_preference 模式，含 granted_at/revoked_at 审计字段）；SQL 变更同时进
+  基线与幂等补丁。网关在 mode=agent 时先查授权，未授权返回
+  `errx.AgentNotAuthorized`（AGNT-002/004/006）。
+
 ### 写入与私信
 
 帖子写路径只有 `/api/v2/post*`，强制 `expectedRevision`（CORE-013/062）。帖子/评论/
@@ -116,6 +144,8 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 - 可见性不可用：发现与 Assistant 失败关闭。
 - 帖子搜索索引不可用：搜索 503。
 - LLM 不可用但有证据：证据摘要降级。
+- Agent 轮内预算耗尽且无法收尾：结构化 `AGENT_BUDGET_EXCEEDED` 错误事件，已成功写入保留。
+- Agent 确认等待超时：视为拒绝并反馈模型，流不挂起。
 - Assistant 状态存储不可用：一次性降级、不续接。
 - 指标后端不可用：业务继续。
 
