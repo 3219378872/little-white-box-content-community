@@ -85,6 +85,14 @@ func (contractUserService) RefreshToken(_ context.Context, in *userservice.Refre
 	return &userservice.RefreshTokenResp{Token: "rotated-access", RefreshToken: "rotated-refresh"}, nil
 }
 
+func (contractUserService) GetAgentCapabilityConsent(context.Context, *userservice.GetAgentCapabilityConsentReq, ...grpc.CallOption) (*userservice.GetAgentCapabilityConsentResp, error) {
+	return &userservice.GetAgentCapabilityConsentResp{Granted: false}, nil
+}
+
+func (contractUserService) SetAgentCapabilityConsent(context.Context, *userservice.SetAgentCapabilityConsentReq, ...grpc.CallOption) (*userservice.SetAgentCapabilityConsentResp, error) {
+	return &userservice.SetAgentCapabilityConsentResp{}, nil
+}
+
 func (contractUserService) GetPersonalizationPreference(_ context.Context, in *userservice.GetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
 	if in.UserId == 999 {
 		return nil, errx.NewWithCode(errx.SystemError)
@@ -311,6 +319,10 @@ type contractAssistantService struct {
 	assistantservice.AssistantService
 }
 
+func (contractAssistantService) ConfirmToolCall(context.Context, *assistantservice.ConfirmToolCallReq, ...grpc.CallOption) (*assistantpb.ConfirmToolCallResp, error) {
+	return &assistantpb.ConfirmToolCallResp{}, nil
+}
+
 func (contractAssistantService) Chat(ctx context.Context, in *assistantservice.ChatReq, _ ...grpc.CallOption) (assistantpb.AssistantService_ChatClient, error) {
 	return &contractAssistantStream{ctx: ctx, events: []*assistantpb.ChatEvent{
 		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_TOKEN, Text: "answer", ConversationId: in.ConversationId},
@@ -481,6 +493,9 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "POST-CREATE-V2-VALID", method: http.MethodPost, path: "/api/v2/post", body: jsonBody(`{"title":"title","content":"content","status":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"postId"}},
 		{id: "POST-UPDATE-V2-VALID", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "POST-DELETE-V2-VALID", method: http.MethodDelete, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
+		{id: "AGENT-CONSENT-GET-VALID", method: http.MethodGet, path: "/api/v2/assistant/consent", auth: true, wantStatus: http.StatusOK},
+		{id: "AGENT-CONSENT-SET-VALID", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{"granted":true}`), auth: true, wantStatus: http.StatusOK},
+		{id: "AGENT-TOOL-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/assistant/tool/confirm", body: jsonBody(`{"requestId":"request-1","callId":"call-1","approved":true}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
 	}
 
@@ -642,8 +657,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 40 {
-		t.Fatalf("route inventory drift: got %d success rules, want 40", len(successes))
+	if len(successes) != 43 {
+		t.Fatalf("route inventory drift: got %d success rules, want 43", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

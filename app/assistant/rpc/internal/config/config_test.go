@@ -17,6 +17,8 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
 	t.Setenv("ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS", "1.25")
 	t.Setenv("ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS", "5")
+	t.Setenv("ASSISTANT_AGENT_ENABLED", "false")
+	t.Setenv("TAVILY_API_KEY", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
@@ -50,6 +52,8 @@ func TestAssistantConfigSuppressesChatContentLogging(t *testing.T) {
 	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
 	t.Setenv("ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS", "1.25")
 	t.Setenv("ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS", "5")
+	t.Setenv("ASSISTANT_AGENT_ENABLED", "false")
+	t.Setenv("TAVILY_API_KEY", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)

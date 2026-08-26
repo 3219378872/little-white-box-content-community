@@ -564,15 +564,27 @@ type (
 
 type (
 	AssistantChatReq {
-		ConversationId string `json:"conversationId,optional"`
-		Message        string `json:"message"`
-		RequestId      string `json:"requestId,optional"`
+		ConversationId string                `json:"conversationId,optional"`
+		Message        string                `json:"message"`
+		RequestId      string                `json:"requestId,optional"`
+		Mode           string                `json:"mode,optional"`
+		Attachments    []AssistantAttachment `json:"attachments,optional"`
+	}
+	AssistantAttachment {
+		MediaId int64  `json:"mediaId"`
+		Url     string `json:"url"`
 	}
 	AssistantSourceReference {
 		SourceType string `json:"sourceType"`
 		SourceId   string `json:"sourceId"`
 		Title      string `json:"title"`
 		Revision   int64  `json:"revision"`
+	}
+	AssistantToolCallInfo {
+		CallId      string `json:"callId"`
+		Tool        string `json:"tool"`
+		Summary     string `json:"summary"`
+		PayloadJson string `json:"payloadJson"`
 	}
 	AssistantChatEvent {
 		Type           string                    `json:"type"`
@@ -581,7 +593,23 @@ type (
 		Degraded       bool                      `json:"degraded,optional"`
 		ErrorCode      string                    `json:"errorCode,optional"`
 		ConversationId string                    `json:"conversationId"`
+		ToolCall       *AssistantToolCallInfo    `json:"toolCall,optional"`
 	}
+	GetAgentConsentResp {
+		Granted   bool  `json:"granted"`
+		GrantedAt int64 `json:"grantedAt,optional"`
+		RevokedAt int64 `json:"revokedAt,optional"`
+	}
+	SetAgentConsentReq {
+		Granted bool `json:"granted"`
+	}
+	SetAgentConsentResp  {}
+	AssistantToolConfirmReq {
+		RequestId string `json:"requestId"`
+		CallId    string `json:"callId"`
+		Approved  bool   `json:"approved"`
+	}
+	AssistantToolConfirmResp  {}
 )
 
 // ============================================
@@ -862,6 +890,25 @@ service gateway {
 	@doc "Assistant SSE 对话"
 	@handler AssistantChat
 	post /assistant/chat (AssistantChatReq) returns (AssistantChatEvent)
+}
+
+@server (
+	prefix: /api/v2
+	jwt:    Auth
+	group:  assistant
+)
+service gateway {
+	@doc "查询 Agent 能力授权状态（AGNT-004）"
+	@handler GetAgentConsent
+	get /assistant/consent returns (GetAgentConsentResp)
+
+	@doc "记录或撤销 Agent 能力授权（AGNT-004/006）"
+	@handler SetAgentConsent
+	post /assistant/consent (SetAgentConsentReq) returns (SetAgentConsentResp)
+
+	@doc "Agent 高危操作确认回调（AGNT-020~022）"
+	@handler ConfirmAssistantTool
+	post /assistant/tool/confirm (AssistantToolConfirmReq) returns (AssistantToolConfirmResp)
 }
 
 @server (

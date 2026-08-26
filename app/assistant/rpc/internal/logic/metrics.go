@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"time"
 
 	"esx/app/assistant/rpc/internal/llm"
 	"esx/pkg/errx"
@@ -32,7 +33,21 @@ var (
 		Namespace: "esx", Subsystem: "assistant_rpc", Name: "llm_cost_usd_total",
 		Help: "Estimated Assistant LLM cost in USD by configured model", Labels: []string{"model"},
 	})
+	agentTurnsTotal = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "assistant_rpc", Name: "agent_turns_total",
+		Help: "Assistant agent turns by outcome", Labels: []string{"outcome"},
+	})
+	agentTurnSeconds = metric.NewHistogramVec(&metric.HistogramVecOpts{
+		Namespace: "esx", Subsystem: "assistant_rpc", Name: "agent_turn_seconds",
+		Help:    "Duration of completed Assistant agent turns",
+		Buckets: []float64{1, 3, 10, 30, 60, 120, 300},
+	})
 )
+
+// observeAgentTurnLatency 记录一轮 Agent 执行的总时长（AGNT-033 预算观测）。
+func observeAgentTurnLatency(d time.Duration) {
+	agentTurnSeconds.ObserveFloat(d.Seconds())
+}
 
 func observeLLMUsage(result llm.Result) {
 	model := result.Model

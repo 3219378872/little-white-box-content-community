@@ -12,6 +12,7 @@ import (
 	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
@@ -20,7 +21,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const gatewayMaxMessageRunes = 2000
+const (
+	gatewayMaxMessageRunes    = 2000
+	gatewayMaxChatAttachments = 9
+)
 
 type AssistantChatLogic struct {
 	logx.Logger
@@ -57,11 +61,43 @@ func (l *AssistantChatLogic) AssistantChat(req *types.AssistantChatReq, client c
 		return l.sendError(client, conversationID, "ASSISTANT_UNAVAILABLE", "The assistant is temporarily unavailable.")
 	}
 
+	mode := assistantpb.AssistantMode_ASSISTANT_MODE_ENHANCED_SEARCH
+	if strings.EqualFold(strings.TrimSpace(req.Mode), "agent") {
+		mode = assistantpb.AssistantMode_ASSISTANT_MODE_AGENT
+		// AGNT-002：网关强制校验授权，未授权返回结构化错误（AGNT-061）
+		if l.svcCtx.UserService == nil {
+			return l.sendError(client, conversationID, "ASSISTANT_UNAVAILABLE", "The assistant is temporarily unavailable.")
+		}
+		consent, consentErr := l.svcCtx.UserService.GetAgentCapabilityConsent(l.ctx, &userservice.GetAgentCapabilityConsentReq{
+			UserId: userID,
+		})
+		if consentErr != nil {
+			l.Errorw("agent consent check failed", logx.Field("userId", userID), logx.Field("err", consentErr.Error()))
+			return l.sendError(client, conversationID, "ASSISTANT_UNAVAILABLE", "The assistant is temporarily unavailable.")
+		}
+		if consent == nil || !consent.Granted {
+			return l.sendError(client, conversationID, "AGENT_NOT_AUTHORIZED", "Agent mode requires explicit user authorization.")
+		}
+	}
+
+	var attachments []*assistantpb.Attachment
+	for _, item := range req.Attachments {
+		if item.MediaId <= 0 || strings.TrimSpace(item.Url) == "" {
+			return l.sendError(client, conversationID, "INVALID_REQUEST", "Attachments require a positive mediaId and a url.")
+		}
+		attachments = append(attachments, &assistantpb.Attachment{MediaId: item.MediaId, Url: item.Url})
+	}
+	if len(attachments) > gatewayMaxChatAttachments {
+		return l.sendError(client, conversationID, "INVALID_REQUEST", "At most 9 attachments are allowed per message.")
+	}
+
 	stream, err := l.svcCtx.AssistantService.Chat(l.ctx, &assistantservice.ChatReq{
 		UserId:         userID,
 		ConversationId: conversationID,
 		Message:        strings.TrimSpace(req.Message),
 		RequestId:      strings.TrimSpace(req.RequestId),
+		Mode:           mode,
+		Attachments:    attachments,
 	})
 	if err != nil {
 		l.Errorw("assistant stream start failed", logx.Field("err", err))
@@ -145,10 +181,31 @@ func mapChatEvent(event *assistantpb.ChatEvent, conversationID string) (*types.A
 		mapped.Type = "error"
 		mapped.Degraded = true
 		terminal = true
+	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_TOOL_CALL:
+		if event.ToolCall == nil || event.ToolCall.Tool == "" {
+			return nil, false, false
+		}
+		mapped.Type = "tool_call"
+		mapped.ToolCall = mapToolCall(event.ToolCall)
+	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_CONFIRM_REQUIRED:
+		if event.ToolCall == nil || event.ToolCall.CallId == "" || event.ToolCall.Tool == "" {
+			return nil, false, false
+		}
+		mapped.Type = "confirm_required"
+		mapped.ToolCall = mapToolCall(event.ToolCall)
 	default:
 		return nil, false, false
 	}
 	return mapped, terminal, true
+}
+
+func mapToolCall(info *assistantpb.ToolCallInfo) *types.AssistantToolCallInfo {
+	return &types.AssistantToolCallInfo{
+		CallId:      info.CallId,
+		Tool:        info.Tool,
+		Summary:     info.Summary,
+		PayloadJson: info.PayloadJson,
+	}
 }
 
 func (l *AssistantChatLogic) sendRPCError(client chan<- *types.AssistantChatEvent, conversationID string, rpcErr error) error {

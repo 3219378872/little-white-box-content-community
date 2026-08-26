@@ -13,6 +13,7 @@ import (
 	"unicode"
 	"uuid"
 
+	"esx/app/assistant/rpc/internal/agent"
 	"esx/app/assistant/rpc/internal/llm"
 	"esx/app/assistant/rpc/internal/safety"
 	"esx/app/assistant/rpc/internal/store"
@@ -34,6 +35,8 @@ const (
 	defaultLLMClientTimeout = 8000 * time.Millisecond
 	generateBudgetMargin    = 2 * time.Second
 	defaultPersistBudget    = 5 * time.Second
+
+	maxAgentAttachments = 9
 )
 
 var blockedDirectives = []string{
@@ -82,6 +85,12 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 			}
 			return err
 		}
+	}
+
+	// Agent 模式走独立编排循环（SPEC-assistant-agent-mode）；enhanced_search
+	// 保持既有单轮管线不变（AGNT-001）。
+	if in.Mode == pb.AssistantMode_ASSISTANT_MODE_AGENT {
+		return l.runAgentChat(in, request, conversationID, stream)
 	}
 
 	name, err := planTool(request.Message, &request)
@@ -168,7 +177,20 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 			return err
 		}
 	}
-	if err := l.persistAssistant(request, conversationID, responseText, result.Sources); err != nil {
+	return l.deliverResponse(stream, request, conversationID, responseText, result.Sources, startedAt)
+}
+
+// deliverResponse 落库助手回答并回放 token 分块、来源引用与完成事件。
+// enhanced_search 与 agent 两条管线共用该尾部（AGNT-060 事件契约一致）。
+func (l *ChatLogic) deliverResponse(
+	stream pb.AssistantService_ChatServer,
+	request tool.Request,
+	conversationID string,
+	responseText string,
+	sources []tool.Source,
+	startedAt time.Time,
+) error {
+	if err := l.persistAssistant(request, conversationID, responseText, sources); err != nil {
 		l.Errorw("assistant response persistence failed", logx.Field("err", err.Error()))
 		return l.sendDegraded(stream, conversationID, "STATE_UNAVAILABLE")
 	}
@@ -185,7 +207,7 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 			assistantFirstTokenSeconds.ObserveFloat(time.Since(startedAt).Seconds())
 		}
 	}
-	for _, source := range result.Sources {
+	for _, source := range sources {
 		if source.Type == "" || source.ID == "" {
 			continue
 		}
@@ -209,9 +231,116 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	})
 }
 
-func (l *ChatLogic) beginRequest(request tool.Request, conversationID string) error {
-	if l.svcCtx.Quota != nil {
-		allowed, err := l.svcCtx.Quota.Allow(l.ctx, request.UserID)
+// runAgentChat 执行 Agent 模式一轮对话：独立配额、附件校验、多轮工具循环、
+// 输出安全检查后走与 enhanced_search 一致的投递尾部（AGNT-002/032/050/060）。
+func (l *ChatLogic) runAgentChat(
+	in *pb.ChatReq,
+	request tool.Request,
+	conversationID string,
+	stream pb.AssistantService_ChatServer,
+) error {
+	startedAt := time.Now()
+	if l.svcCtx.AgentRunner == nil || l.svcCtx.AgentTools == nil {
+		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
+	}
+	attachments, err := validateAgentAttachments(in.GetAttachments())
+	if err != nil {
+		return err
+	}
+	// AGNT-032：独立配额；未装配时按不可用处理，避免无预算执行写操作。
+	if l.svcCtx.AgentQuota == nil {
+		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
+	}
+	if err := l.beginRequestWithQuota(request, conversationID, l.svcCtx.AgentQuota); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.GetConversationId()) != "" {
+		warnings, warnErr := l.verifyHistoricalSources(request.UserID, conversationID)
+		if warnErr != nil {
+			l.Errorw("agent historical source verification failed", logx.Field("err", warnErr.Error()))
+		} else {
+			for _, warning := range warnings {
+				if err := l.send(stream, &pb.ChatEvent{
+					Type:           pb.ChatEventType_CHAT_EVENT_TYPE_TOKEN,
+					Text:           warning,
+					ConversationId: conversationID,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	session := &agent.Session{
+		UserID:         request.UserID,
+		ConversationID: conversationID,
+		RequestID:      request.RequestID,
+		UserMessage:    request.Message,
+		Attachments:    attachments,
+		SystemPrompt:   l.agentSystemPrompt(),
+		Budget:         l.agentBudget(),
+		Emit: func(event *pb.ChatEvent) error {
+			if event.ConversationId == "" {
+				event.ConversationId = conversationID
+			}
+			return l.send(stream, event)
+		},
+		Tools:    l.svcCtx.AgentTools,
+		Confirms: l.svcCtx.AgentConfirms,
+	}
+
+	turnCtx, cancel := context.WithTimeout(l.ctx, time.Duration(session.Budget.TurnTimeout)*time.Millisecond)
+	defer cancel()
+	result, runErr := l.svcCtx.AgentRunner.Run(turnCtx, session)
+	if runErr != nil {
+		l.Errorw("agent turn failed", logx.Field("err", runErr.Error()))
+		switch {
+		case errors.Is(runErr, agent.ErrBudgetExhausted):
+			agentTurnsTotal.Inc("budget_exhausted")
+			return l.sendPersistedDegraded(stream, request, conversationID, "AGENT_BUDGET_EXCEEDED")
+		case errors.Is(runErr, context.Canceled), errors.Is(turnCtx.Err(), context.Canceled):
+			agentTurnsTotal.Inc("canceled")
+			return runErr
+		case errors.Is(runErr, context.DeadlineExceeded), errors.Is(turnCtx.Err(), context.DeadlineExceeded):
+			agentTurnsTotal.Inc("timeout")
+			return l.sendPersistedDegraded(stream, request, conversationID, "ASSISTANT_TIMEOUT")
+		default:
+			agentTurnsTotal.Inc("llm_unavailable")
+			return l.sendPersistedDegraded(stream, request, conversationID, "LLM_UNAVAILABLE")
+		}
+	}
+	agentTurnsTotal.Inc("success")
+
+	responseText := strings.TrimSpace(result.Text)
+	if l.svcCtx.Safety != nil {
+		if err := l.svcCtx.Safety.Check(l.ctx, responseText); err != nil {
+			if errors.Is(err, safety.ErrBlocked) {
+				return l.sendPersistedDegraded(stream, request, conversationID, "CONTENT_FILTERED")
+			}
+			return err
+		}
+	}
+	observeAgentTurnLatency(time.Since(startedAt))
+	return l.deliverResponse(stream, request, conversationID, responseText, result.Sources, startedAt)
+}
+
+func validateAgentAttachments(attachments []*pb.Attachment) ([]agent.Attachment, error) {
+	if len(attachments) > maxAgentAttachments {
+		return nil, errx.New(errx.ParamError, "at most 9 attachments are allowed per message")
+	}
+	result := make([]agent.Attachment, 0, len(attachments))
+	for _, item := range attachments {
+		if item.GetMediaId() <= 0 || strings.TrimSpace(item.GetUrl()) == "" {
+			return nil, errx.New(errx.ParamError, "attachments require a positive mediaId and a url")
+		}
+		result = append(result, agent.Attachment{MediaID: item.GetMediaId(), URL: strings.TrimSpace(item.GetUrl())})
+	}
+	return result, nil
+}
+
+func (l *ChatLogic) beginRequestWithQuota(request tool.Request, conversationID string, quota store.QuotaLimiter) error {
+	if quota != nil {
+		allowed, err := quota.Allow(l.ctx, request.UserID)
 		if err != nil {
 			l.Errorw("assistant quota store failed", logx.Field("err", err.Error()))
 			return errx.Wrap(err, errx.ServiceUnavailable)
@@ -236,6 +365,56 @@ func (l *ChatLogic) beginRequest(request tool.Request, conversationID string) er
 		return errx.Wrap(err, errx.ServiceUnavailable)
 	}
 	return nil
+}
+
+func (l *ChatLogic) agentBudget() agent.Budget {
+	budget := agent.Budget{
+		MaxStepsSoft:        8,
+		MaxStepsHard:        12,
+		MaxToolCallsPerTurn: 12,
+		StepTimeout:         30000,
+		TurnTimeout:         120000,
+		ConfirmTimeout:      120,
+	}
+	if l.svcCtx == nil {
+		return budget
+	}
+	config := l.svcCtx.Config.Agent
+	if config.MaxStepsSoft > 0 {
+		budget.MaxStepsSoft = config.MaxStepsSoft
+	}
+	if config.MaxStepsHard > 0 {
+		budget.MaxStepsHard = config.MaxStepsHard
+	}
+	if config.MaxToolCallsPerTurn > 0 {
+		budget.MaxToolCallsPerTurn = config.MaxToolCallsPerTurn
+	}
+	if config.StepTimeoutMs > 0 {
+		budget.StepTimeout = config.StepTimeoutMs
+	}
+	if config.TurnTimeoutMs > 0 {
+		budget.TurnTimeout = config.TurnTimeoutMs
+	}
+	if config.ConfirmTimeoutSecs > 0 {
+		budget.ConfirmTimeout = int64(config.ConfirmTimeoutSecs)
+	}
+	return budget
+}
+
+func (l *ChatLogic) agentSystemPrompt() string {
+	prompt := ""
+	if l.svcCtx != nil {
+		prompt = strings.TrimSpace(l.svcCtx.Config.Agent.SystemPrompt)
+	}
+	if prompt != "" {
+		return prompt
+	}
+	// 空值时由 Runner 使用内置默认提示词（含当前用户身份）。
+	return ""
+}
+
+func (l *ChatLogic) beginRequest(request tool.Request, conversationID string) error {
+	return l.beginRequestWithQuota(request, conversationID, l.svcCtx.Quota)
 }
 
 func (l *ChatLogic) persistAssistant(

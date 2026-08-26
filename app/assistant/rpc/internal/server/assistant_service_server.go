@@ -5,6 +5,8 @@
 package server
 
 import (
+	"context"
+
 	"esx/app/assistant/rpc/internal/logic"
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
@@ -24,4 +26,10 @@ func NewAssistantServiceServer(svcCtx *svc.ServiceContext) *AssistantServiceServ
 func (s *AssistantServiceServer) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) error {
 	l := logic.NewChatLogic(stream.Context(), s.svcCtx)
 	return l.Chat(in, stream)
+}
+
+// Agent 模式高危操作确认回调（AGNT-020~022）
+func (s *AssistantServiceServer) ConfirmToolCall(ctx context.Context, in *pb.ConfirmToolCallReq) (*pb.ConfirmToolCallResp, error) {
+	l := logic.NewConfirmToolCallLogic(ctx, s.svcCtx)
+	return l.ConfirmToolCall(in)
 }

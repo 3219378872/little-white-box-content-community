@@ -1714,6 +1714,202 @@ func (*SetPersonalizationPreferenceResp) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{30}
 }
 
+// 查询 Agent 能力授权请求
+type GetAgentCapabilityConsentReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentCapabilityConsentReq) Reset() {
+	*x = GetAgentCapabilityConsentReq{}
+	mi := &file_user_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentCapabilityConsentReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentCapabilityConsentReq) ProtoMessage() {}
+
+func (x *GetAgentCapabilityConsentReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentCapabilityConsentReq.ProtoReflect.Descriptor instead.
+func (*GetAgentCapabilityConsentReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetAgentCapabilityConsentReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// 查询 Agent 能力授权响应
+type GetAgentCapabilityConsentResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Granted       bool                   `protobuf:"varint,1,opt,name=granted,proto3" json:"granted,omitempty"`                      // 是否已授权
+	GrantedAt     int64                  `protobuf:"varint,2,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"` // 最近一次授权时间 Unix 毫秒
+	RevokedAt     int64                  `protobuf:"varint,3,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"` // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentCapabilityConsentResp) Reset() {
+	*x = GetAgentCapabilityConsentResp{}
+	mi := &file_user_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentCapabilityConsentResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentCapabilityConsentResp) ProtoMessage() {}
+
+func (x *GetAgentCapabilityConsentResp) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentCapabilityConsentResp.ProtoReflect.Descriptor instead.
+func (*GetAgentCapabilityConsentResp) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetAgentCapabilityConsentResp) GetGranted() bool {
+	if x != nil {
+		return x.Granted
+	}
+	return false
+}
+
+func (x *GetAgentCapabilityConsentResp) GetGrantedAt() int64 {
+	if x != nil {
+		return x.GrantedAt
+	}
+	return 0
+}
+
+func (x *GetAgentCapabilityConsentResp) GetRevokedAt() int64 {
+	if x != nil {
+		return x.RevokedAt
+	}
+	return 0
+}
+
+// 设置 Agent 能力授权请求
+type SetAgentCapabilityConsentReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Granted       bool                   `protobuf:"varint,2,opt,name=granted,proto3" json:"granted,omitempty"` // true 授权 / false 撤销
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAgentCapabilityConsentReq) Reset() {
+	*x = SetAgentCapabilityConsentReq{}
+	mi := &file_user_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAgentCapabilityConsentReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAgentCapabilityConsentReq) ProtoMessage() {}
+
+func (x *SetAgentCapabilityConsentReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAgentCapabilityConsentReq.ProtoReflect.Descriptor instead.
+func (*SetAgentCapabilityConsentReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *SetAgentCapabilityConsentReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SetAgentCapabilityConsentReq) GetGranted() bool {
+	if x != nil {
+		return x.Granted
+	}
+	return false
+}
+
+// 设置 Agent 能力授权响应
+type SetAgentCapabilityConsentResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAgentCapabilityConsentResp) Reset() {
+	*x = SetAgentCapabilityConsentResp{}
+	mi := &file_user_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAgentCapabilityConsentResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAgentCapabilityConsentResp) ProtoMessage() {}
+
+func (x *SetAgentCapabilityConsentResp) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAgentCapabilityConsentResp.ProtoReflect.Descriptor instead.
+func (*SetAgentCapabilityConsentResp) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{34}
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -1830,7 +2026,19 @@ const file_user_proto_rawDesc = "" +
 	"\x1fSetPersonalizationPreferenceReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\"\"\n" +
-	" SetPersonalizationPreferenceResp2\xd6\a\n" +
+	" SetPersonalizationPreferenceResp\"7\n" +
+	"\x1cGetAgentCapabilityConsentReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"w\n" +
+	"\x1dGetAgentCapabilityConsentResp\x12\x18\n" +
+	"\agranted\x18\x01 \x01(\bR\agranted\x12\x1d\n" +
+	"\n" +
+	"granted_at\x18\x02 \x01(\x03R\tgrantedAt\x12\x1d\n" +
+	"\n" +
+	"revoked_at\x18\x03 \x01(\x03R\trevokedAt\"Q\n" +
+	"\x1cSetAgentCapabilityConsentReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
+	"\agranted\x18\x02 \x01(\bR\agranted\"\x1f\n" +
+	"\x1dSetAgentCapabilityConsentResp2\xa2\t\n" +
 	"\vUserService\x12.\n" +
 	"\aGetUser\x12\x10.user.GetUserReq\x1a\x11.user.GetUserResp\x12@\n" +
 	"\rBatchGetUsers\x12\x16.user.BatchGetUsersReq\x1a\x17.user.BatchGetUsersResp\x12:\n" +
@@ -1846,7 +2054,9 @@ const file_user_proto_rawDesc = "" +
 	"\fRefreshToken\x12\x15.user.RefreshTokenReq\x1a\x16.user.RefreshTokenResp\x12C\n" +
 	"\x0eSendVerifyCode\x12\x17.user.SendVerifyCodeReq\x1a\x18.user.SendVerifyCodeResp\x12m\n" +
 	"\x1cGetPersonalizationPreference\x12%.user.GetPersonalizationPreferenceReq\x1a&.user.GetPersonalizationPreferenceResp\x12m\n" +
-	"\x1cSetPersonalizationPreference\x12%.user.SetPersonalizationPreferenceReq\x1a&.user.SetPersonalizationPreferenceRespB\x13Z\x11xiaobaihe/user/pbb\x06proto3"
+	"\x1cSetPersonalizationPreference\x12%.user.SetPersonalizationPreferenceReq\x1a&.user.SetPersonalizationPreferenceResp\x12d\n" +
+	"\x19GetAgentCapabilityConsent\x12\".user.GetAgentCapabilityConsentReq\x1a#.user.GetAgentCapabilityConsentResp\x12d\n" +
+	"\x19SetAgentCapabilityConsent\x12\".user.SetAgentCapabilityConsentReq\x1a#.user.SetAgentCapabilityConsentRespB\x13Z\x11xiaobaihe/user/pbb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -1860,7 +2070,7 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_user_proto_goTypes = []any{
 	(*UserInfo)(nil),                         // 0: user.UserInfo
 	(*GetUserReq)(nil),                       // 1: user.GetUserReq
@@ -1893,6 +2103,10 @@ var file_user_proto_goTypes = []any{
 	(*GetPersonalizationPreferenceResp)(nil), // 28: user.GetPersonalizationPreferenceResp
 	(*SetPersonalizationPreferenceReq)(nil),  // 29: user.SetPersonalizationPreferenceReq
 	(*SetPersonalizationPreferenceResp)(nil), // 30: user.SetPersonalizationPreferenceResp
+	(*GetAgentCapabilityConsentReq)(nil),     // 31: user.GetAgentCapabilityConsentReq
+	(*GetAgentCapabilityConsentResp)(nil),    // 32: user.GetAgentCapabilityConsentResp
+	(*SetAgentCapabilityConsentReq)(nil),     // 33: user.SetAgentCapabilityConsentReq
+	(*SetAgentCapabilityConsentResp)(nil),    // 34: user.SetAgentCapabilityConsentResp
 }
 var file_user_proto_depIdxs = []int32{
 	0,  // 0: user.GetUserResp.user:type_name -> user.UserInfo
@@ -1916,23 +2130,27 @@ var file_user_proto_depIdxs = []int32{
 	25, // 18: user.UserService.SendVerifyCode:input_type -> user.SendVerifyCodeReq
 	27, // 19: user.UserService.GetPersonalizationPreference:input_type -> user.GetPersonalizationPreferenceReq
 	29, // 20: user.UserService.SetPersonalizationPreference:input_type -> user.SetPersonalizationPreferenceReq
-	2,  // 21: user.UserService.GetUser:output_type -> user.GetUserResp
-	4,  // 22: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
-	6,  // 23: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
-	8,  // 24: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
-	10, // 25: user.UserService.Follow:output_type -> user.FollowResp
-	12, // 26: user.UserService.Unfollow:output_type -> user.UnfollowResp
-	14, // 27: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
-	16, // 28: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
-	18, // 29: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
-	20, // 30: user.UserService.Register:output_type -> user.RegisterResp
-	22, // 31: user.UserService.Login:output_type -> user.LoginResp
-	24, // 32: user.UserService.RefreshToken:output_type -> user.RefreshTokenResp
-	26, // 33: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
-	28, // 34: user.UserService.GetPersonalizationPreference:output_type -> user.GetPersonalizationPreferenceResp
-	30, // 35: user.UserService.SetPersonalizationPreference:output_type -> user.SetPersonalizationPreferenceResp
-	21, // [21:36] is the sub-list for method output_type
-	6,  // [6:21] is the sub-list for method input_type
+	31, // 21: user.UserService.GetAgentCapabilityConsent:input_type -> user.GetAgentCapabilityConsentReq
+	33, // 22: user.UserService.SetAgentCapabilityConsent:input_type -> user.SetAgentCapabilityConsentReq
+	2,  // 23: user.UserService.GetUser:output_type -> user.GetUserResp
+	4,  // 24: user.UserService.BatchGetUsers:output_type -> user.BatchGetUsersResp
+	6,  // 25: user.UserService.SearchUsers:output_type -> user.SearchUsersResp
+	8,  // 26: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResp
+	10, // 27: user.UserService.Follow:output_type -> user.FollowResp
+	12, // 28: user.UserService.Unfollow:output_type -> user.UnfollowResp
+	14, // 29: user.UserService.GetFollowers:output_type -> user.GetFollowersResp
+	16, // 30: user.UserService.GetFollowing:output_type -> user.GetFollowingResp
+	18, // 31: user.UserService.GetUserTags:output_type -> user.GetUserTagsResp
+	20, // 32: user.UserService.Register:output_type -> user.RegisterResp
+	22, // 33: user.UserService.Login:output_type -> user.LoginResp
+	24, // 34: user.UserService.RefreshToken:output_type -> user.RefreshTokenResp
+	26, // 35: user.UserService.SendVerifyCode:output_type -> user.SendVerifyCodeResp
+	28, // 36: user.UserService.GetPersonalizationPreference:output_type -> user.GetPersonalizationPreferenceResp
+	30, // 37: user.UserService.SetPersonalizationPreference:output_type -> user.SetPersonalizationPreferenceResp
+	32, // 38: user.UserService.GetAgentCapabilityConsent:output_type -> user.GetAgentCapabilityConsentResp
+	34, // 39: user.UserService.SetAgentCapabilityConsent:output_type -> user.SetAgentCapabilityConsentResp
+	23, // [23:40] is the sub-list for method output_type
+	6,  // [6:23] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -1949,7 +2167,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

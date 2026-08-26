@@ -35,6 +35,10 @@ service UserService {
   rpc GetPersonalizationPreference(GetPersonalizationPreferenceReq) returns (GetPersonalizationPreferenceResp);
   // 设置个性化偏好（REL-023）
   rpc SetPersonalizationPreference(SetPersonalizationPreferenceReq) returns (SetPersonalizationPreferenceResp);
+  // 查询 Agent 能力授权状态（AGNT-004/006）
+  rpc GetAgentCapabilityConsent(GetAgentCapabilityConsentReq) returns (GetAgentCapabilityConsentResp);
+  // 记录或撤销 Agent 能力授权（AGNT-004/006）
+  rpc SetAgentCapabilityConsent(SetAgentCapabilityConsentReq) returns (SetAgentCapabilityConsentResp);
 }
 
 // 用户信息
@@ -225,3 +229,24 @@ message SetPersonalizationPreferenceReq {
 
 // 设置个性化偏好响应
 message SetPersonalizationPreferenceResp {}
+
+// 查询 Agent 能力授权请求
+message GetAgentCapabilityConsentReq {
+  int64 user_id = 1;
+}
+
+// 查询 Agent 能力授权响应
+message GetAgentCapabilityConsentResp {
+  bool  granted    = 1; // 是否已授权
+  int64 granted_at = 2; // 最近一次授权时间 Unix 毫秒
+  int64 revoked_at = 3; // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
+}
+
+// 设置 Agent 能力授权请求
+message SetAgentCapabilityConsentReq {
+  int64 user_id = 1;
+  bool  granted = 2; // true 授权 / false 撤销
+}
+
+// 设置 Agent 能力授权响应
+message SetAgentCapabilityConsentResp {}

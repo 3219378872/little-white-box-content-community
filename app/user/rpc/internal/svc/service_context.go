@@ -64,6 +64,7 @@ type ServiceContext struct {
 	UserFollowCommands UserFollowCommandStore
 	UserTagModel       UserTagStore
 	Personalization    model.PersonalizationPreferenceStore
+	AgentConsent       model.AgentCapabilityConsentStore
 	RedisClient        RedisStore
 	OutboxStore        *outboxx.SQLStore
 	OutboxRelay        *outboxx.Relay
@@ -123,6 +124,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserFollowCommands: model.NewUserFollowCommandModel(conn, outboxStore),
 		UserTagModel:       model.NewUserTagModel(conn),
 		Personalization:    model.NewPersonalizationPreferenceModel(conn),
+		AgentConsent:       model.NewAgentCapabilityConsentModel(conn),
 		RedisClient:        newRedis,
 		OutboxStore:        outboxStore,
 		OutboxRelay:        outboxRelay,

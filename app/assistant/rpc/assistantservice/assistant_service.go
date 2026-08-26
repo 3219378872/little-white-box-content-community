@@ -14,12 +14,18 @@ import (
 )
 
 type (
-	ChatEvent       = pb.ChatEvent
-	ChatReq         = pb.ChatReq
-	SourceReference = pb.SourceReference
+	Attachment          = pb.Attachment
+	ChatEvent           = pb.ChatEvent
+	ChatReq             = pb.ChatReq
+	ConfirmToolCallReq  = pb.ConfirmToolCallReq
+	ConfirmToolCallResp = pb.ConfirmToolCallResp
+	SourceReference     = pb.SourceReference
+	ToolCallInfo        = pb.ToolCallInfo
 
 	AssistantService interface {
 		Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (pb.AssistantService_ChatClient, error)
+		// Agent 模式高危操作确认回调（AGNT-020~022）
+		ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error)
 	}
 
 	defaultAssistantService struct {
@@ -36,4 +42,10 @@ func NewAssistantService(cli zrpc.Client) AssistantService {
 func (m *defaultAssistantService) Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (pb.AssistantService_ChatClient, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
 	return client.Chat(ctx, in, opts...)
+}
+
+// Agent 模式高危操作确认回调（AGNT-020~022）
+func (m *defaultAssistantService) ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.ConfirmToolCall(ctx, in, opts...)
 }

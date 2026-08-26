@@ -56,6 +56,31 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
+		[]rest.Route{
+			{
+				// 查询 Agent 能力授权状态（AGNT-004）
+				Method:  http.MethodGet,
+				Path:    "/assistant/consent",
+				Handler: assistant.GetAgentConsentHandler(serverCtx),
+			},
+			{
+				// 记录或撤销 Agent 能力授权（AGNT-004/006）
+				Method:  http.MethodPost,
+				Path:    "/assistant/consent",
+				Handler: assistant.SetAgentConsentHandler(serverCtx),
+			},
+			{
+				// Agent 高危操作确认回调（AGNT-020~022）
+				Method:  http.MethodPost,
+				Path:    "/assistant/tool/confirm",
+				Handler: assistant.ConfirmAssistantToolHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/api/v2"),
+	)
+
+	server.AddRoutes(
 		rest.WithMiddlewares(
 			[]rest.Middleware{serverCtx.OptionalAuth, serverCtx.BehaviorAccepted},
 			[]rest.Route{

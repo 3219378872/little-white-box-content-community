@@ -112,3 +112,15 @@ func (s *UserServiceServer) SetPersonalizationPreference(ctx context.Context, in
 	l := logic.NewSetPersonalizationPreferenceLogic(ctx, s.svcCtx)
 	return l.SetPersonalizationPreference(in)
 }
+
+// 查询 Agent 能力授权状态（AGNT-004/006）
+func (s *UserServiceServer) GetAgentCapabilityConsent(ctx context.Context, in *pb.GetAgentCapabilityConsentReq) (*pb.GetAgentCapabilityConsentResp, error) {
+	l := logic.NewGetAgentCapabilityConsentLogic(ctx, s.svcCtx)
+	return l.GetAgentCapabilityConsent(in)
+}
+
+// 记录或撤销 Agent 能力授权（AGNT-004/006）
+func (s *UserServiceServer) SetAgentCapabilityConsent(ctx context.Context, in *pb.SetAgentCapabilityConsentReq) (*pb.SetAgentCapabilityConsentResp, error) {
+	l := logic.NewSetAgentCapabilityConsentLogic(ctx, s.svcCtx)
+	return l.SetAgentCapabilityConsent(in)
+}

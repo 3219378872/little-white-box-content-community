@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AssistantService_Chat_FullMethodName = "/assistant.AssistantService/Chat"
+	AssistantService_Chat_FullMethodName            = "/assistant.AssistantService/Chat"
+	AssistantService_ConfirmToolCall_FullMethodName = "/assistant.AssistantService/ConfirmToolCall"
 )
 
 // AssistantServiceClient is the client API for AssistantService service.
@@ -27,6 +28,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AssistantServiceClient interface {
 	Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatEvent], error)
+	// Agent 模式高危操作确认回调（AGNT-020~022）
+	ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error)
 }
 
 type assistantServiceClient struct {
@@ -56,11 +59,23 @@ func (c *assistantServiceClient) Chat(ctx context.Context, in *ChatReq, opts ...
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AssistantService_ChatClient = grpc.ServerStreamingClient[ChatEvent]
 
+func (c *assistantServiceClient) ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmToolCallResp)
+	err := c.cc.Invoke(ctx, AssistantService_ConfirmToolCall_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AssistantServiceServer is the server API for AssistantService service.
 // All implementations must embed UnimplementedAssistantServiceServer
 // for forward compatibility.
 type AssistantServiceServer interface {
 	Chat(*ChatReq, grpc.ServerStreamingServer[ChatEvent]) error
+	// Agent 模式高危操作确认回调（AGNT-020~022）
+	ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error)
 	mustEmbedUnimplementedAssistantServiceServer()
 }
 
@@ -73,6 +88,9 @@ type UnimplementedAssistantServiceServer struct{}
 
 func (UnimplementedAssistantServiceServer) Chat(*ChatReq, grpc.ServerStreamingServer[ChatEvent]) error {
 	return status.Error(codes.Unimplemented, "method Chat not implemented")
+}
+func (UnimplementedAssistantServiceServer) ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmToolCall not implemented")
 }
 func (UnimplementedAssistantServiceServer) mustEmbedUnimplementedAssistantServiceServer() {}
 func (UnimplementedAssistantServiceServer) testEmbeddedByValue()                          {}
@@ -106,13 +124,36 @@ func _AssistantService_Chat_Handler(srv interface{}, stream grpc.ServerStream) e
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AssistantService_ChatServer = grpc.ServerStreamingServer[ChatEvent]
 
+func _AssistantService_ConfirmToolCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmToolCallReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ConfirmToolCall(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ConfirmToolCall_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ConfirmToolCall(ctx, req.(*ConfirmToolCallReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AssistantService_ServiceDesc is the grpc.ServiceDesc for AssistantService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AssistantService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "assistant.AssistantService",
 	HandlerType: (*AssistantServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ConfirmToolCall",
+			Handler:    _AssistantService_ConfirmToolCall_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Chat",

@@ -18,6 +18,8 @@ type (
 	BatchGetUsersResp                = pb.BatchGetUsersResp
 	FollowReq                        = pb.FollowReq
 	FollowResp                       = pb.FollowResp
+	GetAgentCapabilityConsentReq     = pb.GetAgentCapabilityConsentReq
+	GetAgentCapabilityConsentResp    = pb.GetAgentCapabilityConsentResp
 	GetFollowersReq                  = pb.GetFollowersReq
 	GetFollowersResp                 = pb.GetFollowersResp
 	GetFollowingReq                  = pb.GetFollowingReq
@@ -38,6 +40,8 @@ type (
 	SearchUsersResp                  = pb.SearchUsersResp
 	SendVerifyCodeReq                = pb.SendVerifyCodeReq
 	SendVerifyCodeResp               = pb.SendVerifyCodeResp
+	SetAgentCapabilityConsentReq     = pb.SetAgentCapabilityConsentReq
+	SetAgentCapabilityConsentResp    = pb.SetAgentCapabilityConsentResp
 	SetPersonalizationPreferenceReq  = pb.SetPersonalizationPreferenceReq
 	SetPersonalizationPreferenceResp = pb.SetPersonalizationPreferenceResp
 	UnfollowReq                      = pb.UnfollowReq
@@ -77,6 +81,10 @@ type (
 		GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error)
 		// 设置个性化偏好（REL-023）
 		SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error)
+		// 查询 Agent 能力授权状态（AGNT-004/006）
+		GetAgentCapabilityConsent(ctx context.Context, in *GetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*GetAgentCapabilityConsentResp, error)
+		// 记录或撤销 Agent 能力授权（AGNT-004/006）
+		SetAgentCapabilityConsent(ctx context.Context, in *SetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*SetAgentCapabilityConsentResp, error)
 	}
 
 	defaultUserService struct {
@@ -178,4 +186,16 @@ func (m *defaultUserService) GetPersonalizationPreference(ctx context.Context, i
 func (m *defaultUserService) SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error) {
 	client := pb.NewUserServiceClient(m.cli.Conn())
 	return client.SetPersonalizationPreference(ctx, in, opts...)
+}
+
+// 查询 Agent 能力授权状态（AGNT-004/006）
+func (m *defaultUserService) GetAgentCapabilityConsent(ctx context.Context, in *GetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*GetAgentCapabilityConsentResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.GetAgentCapabilityConsent(ctx, in, opts...)
+}
+
+// 记录或撤销 Agent 能力授权（AGNT-004/006）
+func (m *defaultUserService) SetAgentCapabilityConsent(ctx context.Context, in *SetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*SetAgentCapabilityConsentResp, error) {
+	client := pb.NewUserServiceClient(m.cli.Conn())
+	return client.SetAgentCapabilityConsent(ctx, in, opts...)
 }

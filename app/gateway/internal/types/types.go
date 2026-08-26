@@ -3,11 +3,23 @@
 
 package types
 
+type AssistantAttachment struct {
+	MediaId int64  `json:"mediaId"`
+	Url     string `json:"url"`
+}
+
 type AssistantSourceReference struct {
 	SourceType string `json:"sourceType"`
 	SourceId   string `json:"sourceId"`
 	Title      string `json:"title"`
 	Revision   int64  `json:"revision"`
+}
+
+type AssistantToolCallInfo struct {
+	CallId      string `json:"callId"`
+	Tool        string `json:"tool"`
+	Summary     string `json:"summary"`
+	PayloadJson string `json:"payloadJson"`
 }
 
 type BehaviorEvent struct {

@@ -26,6 +26,11 @@ ContentRpc:
     Hosts:
     - 127.0.0.1:2379
     Key: content.rpc
+MediaRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: media.rpc
 RecommendRpc:
   Etcd:
     Hosts:
@@ -54,6 +59,28 @@ ConversationTTLSeconds: 2592000
 ConversationMaxMessages: 100
 QuotaWindowSeconds: 60
 QuotaRequests: 20
+# Agent 模式（SPEC-assistant-agent-mode）：默认关闭；Enabled 与 LLM.Enabled 同时
+# 为真才装配编排引擎。软/硬步数上限见 AGNT-030/031；web_search 未配置 key 时自动剔除。
+Agent:
+  Enabled: ${ASSISTANT_AGENT_ENABLED}
+  MaxStepsSoft: 8
+  MaxStepsHard: 12
+  MaxToolCallsPerTurn: 12
+  TurnTimeoutMs: 120000
+  StepTimeoutMs: 30000
+  ConfirmTimeoutSecs: 120
+  QuotaRequests: 10
+  AllowedTools:
+  - search_posts
+  - web_search
+  - create_post
+  - update_post
+  - delete_post
+  WebSearch:
+    Provider: tavily
+    APIKey: "${TAVILY_API_KEY}"
+    TimeoutMs: 8000
+    MaxResults: 5
 Safety:
   Enabled: true
   MaxScanRunes: 10000

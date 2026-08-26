@@ -34,6 +34,8 @@ const (
 	UserService_SendVerifyCode_FullMethodName               = "/user.UserService/SendVerifyCode"
 	UserService_GetPersonalizationPreference_FullMethodName = "/user.UserService/GetPersonalizationPreference"
 	UserService_SetPersonalizationPreference_FullMethodName = "/user.UserService/SetPersonalizationPreference"
+	UserService_GetAgentCapabilityConsent_FullMethodName    = "/user.UserService/GetAgentCapabilityConsent"
+	UserService_SetAgentCapabilityConsent_FullMethodName    = "/user.UserService/SetAgentCapabilityConsent"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -72,6 +74,10 @@ type UserServiceClient interface {
 	GetPersonalizationPreference(ctx context.Context, in *GetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*GetPersonalizationPreferenceResp, error)
 	// 设置个性化偏好（REL-023）
 	SetPersonalizationPreference(ctx context.Context, in *SetPersonalizationPreferenceReq, opts ...grpc.CallOption) (*SetPersonalizationPreferenceResp, error)
+	// 查询 Agent 能力授权状态（AGNT-004/006）
+	GetAgentCapabilityConsent(ctx context.Context, in *GetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*GetAgentCapabilityConsentResp, error)
+	// 记录或撤销 Agent 能力授权（AGNT-004/006）
+	SetAgentCapabilityConsent(ctx context.Context, in *SetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*SetAgentCapabilityConsentResp, error)
 }
 
 type userServiceClient struct {
@@ -232,6 +238,26 @@ func (c *userServiceClient) SetPersonalizationPreference(ctx context.Context, in
 	return out, nil
 }
 
+func (c *userServiceClient) GetAgentCapabilityConsent(ctx context.Context, in *GetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*GetAgentCapabilityConsentResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentCapabilityConsentResp)
+	err := c.cc.Invoke(ctx, UserService_GetAgentCapabilityConsent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) SetAgentCapabilityConsent(ctx context.Context, in *SetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*SetAgentCapabilityConsentResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAgentCapabilityConsentResp)
+	err := c.cc.Invoke(ctx, UserService_SetAgentCapabilityConsent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -268,6 +294,10 @@ type UserServiceServer interface {
 	GetPersonalizationPreference(context.Context, *GetPersonalizationPreferenceReq) (*GetPersonalizationPreferenceResp, error)
 	// 设置个性化偏好（REL-023）
 	SetPersonalizationPreference(context.Context, *SetPersonalizationPreferenceReq) (*SetPersonalizationPreferenceResp, error)
+	// 查询 Agent 能力授权状态（AGNT-004/006）
+	GetAgentCapabilityConsent(context.Context, *GetAgentCapabilityConsentReq) (*GetAgentCapabilityConsentResp, error)
+	// 记录或撤销 Agent 能力授权（AGNT-004/006）
+	SetAgentCapabilityConsent(context.Context, *SetAgentCapabilityConsentReq) (*SetAgentCapabilityConsentResp, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -322,6 +352,12 @@ func (UnimplementedUserServiceServer) GetPersonalizationPreference(context.Conte
 }
 func (UnimplementedUserServiceServer) SetPersonalizationPreference(context.Context, *SetPersonalizationPreferenceReq) (*SetPersonalizationPreferenceResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetPersonalizationPreference not implemented")
+}
+func (UnimplementedUserServiceServer) GetAgentCapabilityConsent(context.Context, *GetAgentCapabilityConsentReq) (*GetAgentCapabilityConsentResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentCapabilityConsent not implemented")
+}
+func (UnimplementedUserServiceServer) SetAgentCapabilityConsent(context.Context, *SetAgentCapabilityConsentReq) (*SetAgentCapabilityConsentResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAgentCapabilityConsent not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -614,6 +650,42 @@ func _UserService_SetPersonalizationPreference_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetAgentCapabilityConsent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentCapabilityConsentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetAgentCapabilityConsent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetAgentCapabilityConsent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetAgentCapabilityConsent(ctx, req.(*GetAgentCapabilityConsentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_SetAgentCapabilityConsent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAgentCapabilityConsentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).SetAgentCapabilityConsent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_SetAgentCapabilityConsent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).SetAgentCapabilityConsent(ctx, req.(*SetAgentCapabilityConsentReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -680,6 +752,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetPersonalizationPreference",
 			Handler:    _UserService_SetPersonalizationPreference_Handler,
+		},
+		{
+			MethodName: "GetAgentCapabilityConsent",
+			Handler:    _UserService_GetAgentCapabilityConsent_Handler,
+		},
+		{
+			MethodName: "SetAgentCapabilityConsent",
+			Handler:    _UserService_SetAgentCapabilityConsent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

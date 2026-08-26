@@ -21,6 +21,56 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// 助手模式（AGNT-001）：缺省或无法识别的值按 enhanced_search 处理
+type AssistantMode int32
+
+const (
+	AssistantMode_ASSISTANT_MODE_UNSPECIFIED     AssistantMode = 0
+	AssistantMode_ASSISTANT_MODE_ENHANCED_SEARCH AssistantMode = 1
+	AssistantMode_ASSISTANT_MODE_AGENT           AssistantMode = 2
+)
+
+// Enum value maps for AssistantMode.
+var (
+	AssistantMode_name = map[int32]string{
+		0: "ASSISTANT_MODE_UNSPECIFIED",
+		1: "ASSISTANT_MODE_ENHANCED_SEARCH",
+		2: "ASSISTANT_MODE_AGENT",
+	}
+	AssistantMode_value = map[string]int32{
+		"ASSISTANT_MODE_UNSPECIFIED":     0,
+		"ASSISTANT_MODE_ENHANCED_SEARCH": 1,
+		"ASSISTANT_MODE_AGENT":           2,
+	}
+)
+
+func (x AssistantMode) Enum() *AssistantMode {
+	p := new(AssistantMode)
+	*p = x
+	return p
+}
+
+func (x AssistantMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssistantMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_assistant_assistant_proto_enumTypes[0].Descriptor()
+}
+
+func (AssistantMode) Type() protoreflect.EnumType {
+	return &file_proto_assistant_assistant_proto_enumTypes[0]
+}
+
+func (x AssistantMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssistantMode.Descriptor instead.
+func (AssistantMode) EnumDescriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{0}
+}
+
 type ChatEventType int32
 
 const (
@@ -29,6 +79,9 @@ const (
 	ChatEventType_CHAT_EVENT_TYPE_SOURCE      ChatEventType = 2
 	ChatEventType_CHAT_EVENT_TYPE_DONE        ChatEventType = 3
 	ChatEventType_CHAT_EVENT_TYPE_ERROR       ChatEventType = 4
+	// agent 工具调用进度与高危确认请求（AGNT-060）
+	ChatEventType_CHAT_EVENT_TYPE_TOOL_CALL        ChatEventType = 5
+	ChatEventType_CHAT_EVENT_TYPE_CONFIRM_REQUIRED ChatEventType = 6
 )
 
 // Enum value maps for ChatEventType.
@@ -39,13 +92,17 @@ var (
 		2: "CHAT_EVENT_TYPE_SOURCE",
 		3: "CHAT_EVENT_TYPE_DONE",
 		4: "CHAT_EVENT_TYPE_ERROR",
+		5: "CHAT_EVENT_TYPE_TOOL_CALL",
+		6: "CHAT_EVENT_TYPE_CONFIRM_REQUIRED",
 	}
 	ChatEventType_value = map[string]int32{
-		"CHAT_EVENT_TYPE_UNSPECIFIED": 0,
-		"CHAT_EVENT_TYPE_TOKEN":       1,
-		"CHAT_EVENT_TYPE_SOURCE":      2,
-		"CHAT_EVENT_TYPE_DONE":        3,
-		"CHAT_EVENT_TYPE_ERROR":       4,
+		"CHAT_EVENT_TYPE_UNSPECIFIED":      0,
+		"CHAT_EVENT_TYPE_TOKEN":            1,
+		"CHAT_EVENT_TYPE_SOURCE":           2,
+		"CHAT_EVENT_TYPE_DONE":             3,
+		"CHAT_EVENT_TYPE_ERROR":            4,
+		"CHAT_EVENT_TYPE_TOOL_CALL":        5,
+		"CHAT_EVENT_TYPE_CONFIRM_REQUIRED": 6,
 	}
 )
 
@@ -60,11 +117,11 @@ func (x ChatEventType) String() string {
 }
 
 func (ChatEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_assistant_assistant_proto_enumTypes[0].Descriptor()
+	return file_proto_assistant_assistant_proto_enumTypes[1].Descriptor()
 }
 
 func (ChatEventType) Type() protoreflect.EnumType {
-	return &file_proto_assistant_assistant_proto_enumTypes[0]
+	return &file_proto_assistant_assistant_proto_enumTypes[1]
 }
 
 func (x ChatEventType) Number() protoreflect.EnumNumber {
@@ -73,7 +130,7 @@ func (x ChatEventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ChatEventType.Descriptor instead.
 func (ChatEventType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{0}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
 }
 
 type ChatReq struct {
@@ -82,8 +139,11 @@ type ChatReq struct {
 	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	Message        string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	RequestId      string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Mode           AssistantMode          `protobuf:"varint,5,opt,name=mode,proto3,enum=assistant.AssistantMode" json:"mode,omitempty"`
+	// 当前会话上传的图片附件，仅 agent 模式写帖工具可引用（AGNT-013/040）
+	Attachments   []*Attachment `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ChatReq) Reset() {
@@ -144,6 +204,176 @@ func (x *ChatReq) GetRequestId() string {
 	return ""
 }
 
+func (x *ChatReq) GetMode() AssistantMode {
+	if x != nil {
+		return x.Mode
+	}
+	return AssistantMode_ASSISTANT_MODE_UNSPECIFIED
+}
+
+func (x *ChatReq) GetAttachments() []*Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+type Attachment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MediaId       int64                  `protobuf:"varint,1,opt,name=media_id,json=mediaId,proto3" json:"media_id,omitempty"`
+	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Attachment) Reset() {
+	*x = Attachment{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Attachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Attachment) ProtoMessage() {}
+
+func (x *Attachment) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
+func (*Attachment) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Attachment) GetMediaId() int64 {
+	if x != nil {
+		return x.MediaId
+	}
+	return 0
+}
+
+func (x *Attachment) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type ConfirmToolCallReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	CallId        string                 `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	Approved      bool                   `protobuf:"varint,4,opt,name=approved,proto3" json:"approved,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmToolCallReq) Reset() {
+	*x = ConfirmToolCallReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmToolCallReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmToolCallReq) ProtoMessage() {}
+
+func (x *ConfirmToolCallReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmToolCallReq.ProtoReflect.Descriptor instead.
+func (*ConfirmToolCallReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ConfirmToolCallReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ConfirmToolCallReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *ConfirmToolCallReq) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *ConfirmToolCallReq) GetApproved() bool {
+	if x != nil {
+		return x.Approved
+	}
+	return false
+}
+
+type ConfirmToolCallResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmToolCallResp) Reset() {
+	*x = ConfirmToolCallResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmToolCallResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmToolCallResp) ProtoMessage() {}
+
+func (x *ConfirmToolCallResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmToolCallResp.ProtoReflect.Descriptor instead.
+func (*ConfirmToolCallResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{3}
+}
+
 type SourceReference struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SourceType    string                 `protobuf:"bytes,1,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
@@ -156,7 +386,7 @@ type SourceReference struct {
 
 func (x *SourceReference) Reset() {
 	*x = SourceReference{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -168,7 +398,7 @@ func (x *SourceReference) String() string {
 func (*SourceReference) ProtoMessage() {}
 
 func (x *SourceReference) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -181,7 +411,7 @@ func (x *SourceReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceReference.ProtoReflect.Descriptor instead.
 func (*SourceReference) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SourceReference) GetSourceType() string {
@@ -212,6 +442,74 @@ func (x *SourceReference) GetRevision() int64 {
 	return 0
 }
 
+type ToolCallInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CallId        string                 `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`                // 确认回传凭据，一次性绑定请求与调用（AGNT-022）
+	Tool          string                 `protobuf:"bytes,2,opt,name=tool,proto3" json:"tool,omitempty"`                                  // search_posts|web_search|create_post|update_post|delete_post
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`                            // 人可读摘要，客户端直接渲染
+	PayloadJson   string                 `protobuf:"bytes,4,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"` // 参数摘要 JSON
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToolCallInfo) Reset() {
+	*x = ToolCallInfo{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolCallInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolCallInfo) ProtoMessage() {}
+
+func (x *ToolCallInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolCallInfo.ProtoReflect.Descriptor instead.
+func (*ToolCallInfo) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ToolCallInfo) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *ToolCallInfo) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *ToolCallInfo) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ToolCallInfo) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
 type ChatEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Type           ChatEventType          `protobuf:"varint,1,opt,name=type,proto3,enum=assistant.ChatEventType" json:"type,omitempty"`
@@ -220,13 +518,14 @@ type ChatEvent struct {
 	Degraded       bool                   `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"`
 	ErrorCode      string                 `protobuf:"bytes,5,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	ConversationId string                 `protobuf:"bytes,6,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ToolCall       *ToolCallInfo          `protobuf:"bytes,7,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ChatEvent) Reset() {
 	*x = ChatEvent{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -238,7 +537,7 @@ func (x *ChatEvent) String() string {
 func (*ChatEvent) ProtoMessage() {}
 
 func (x *ChatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,7 +550,7 @@ func (x *ChatEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
 func (*ChatEvent) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{2}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ChatEvent) GetType() ChatEventType {
@@ -296,23 +595,48 @@ func (x *ChatEvent) GetConversationId() string {
 	return ""
 }
 
+func (x *ChatEvent) GetToolCall() *ToolCallInfo {
+	if x != nil {
+		return x.ToolCall
+	}
+	return nil
+}
+
 var File_proto_assistant_assistant_proto protoreflect.FileDescriptor
 
 const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
-	"\x1fproto/assistant/assistant.proto\x12\tassistant\"\x84\x01\n" +
+	"\x1fproto/assistant/assistant.proto\x12\tassistant\"\xeb\x01\n" +
 	"\aChatReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x04 \x01(\tR\trequestId\"\x81\x01\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId\x12,\n" +
+	"\x04mode\x18\x05 \x01(\x0e2\x18.assistant.AssistantModeR\x04mode\x127\n" +
+	"\vattachments\x18\x06 \x03(\v2\x15.assistant.AttachmentR\vattachments\"9\n" +
+	"\n" +
+	"Attachment\x12\x19\n" +
+	"\bmedia_id\x18\x01 \x01(\x03R\amediaId\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\x81\x01\n" +
+	"\x12ConfirmToolCallReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\x12\x1a\n" +
+	"\bapproved\x18\x04 \x01(\bR\bapproved\"\x15\n" +
+	"\x13ConfirmToolCallResp\"\x81\x01\n" +
 	"\x0fSourceReference\x12\x1f\n" +
 	"\vsource_type\x18\x01 \x01(\tR\n" +
 	"sourceType\x12\x1b\n" +
 	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x1a\n" +
-	"\brevision\x18\x04 \x01(\x03R\brevision\"\xe5\x01\n" +
+	"\brevision\x18\x04 \x01(\x03R\brevision\"x\n" +
+	"\fToolCallInfo\x12\x17\n" +
+	"\acall_id\x18\x01 \x01(\tR\x06callId\x12\x12\n" +
+	"\x04tool\x18\x02 \x01(\tR\x04tool\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12!\n" +
+	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\x9b\x02\n" +
 	"\tChatEvent\x12,\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x18.assistant.ChatEventTypeR\x04type\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x122\n" +
@@ -320,15 +644,23 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x1d\n" +
 	"\n" +
 	"error_code\x18\x05 \x01(\tR\terrorCode\x12'\n" +
-	"\x0fconversation_id\x18\x06 \x01(\tR\x0econversationId*\x9c\x01\n" +
+	"\x0fconversation_id\x18\x06 \x01(\tR\x0econversationId\x124\n" +
+	"\ttool_call\x18\a \x01(\v2\x17.assistant.ToolCallInfoR\btoolCall*m\n" +
+	"\rAssistantMode\x12\x1e\n" +
+	"\x1aASSISTANT_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eASSISTANT_MODE_ENHANCED_SEARCH\x10\x01\x12\x18\n" +
+	"\x14ASSISTANT_MODE_AGENT\x10\x02*\xe1\x01\n" +
 	"\rChatEventType\x12\x1f\n" +
 	"\x1bCHAT_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CHAT_EVENT_TYPE_TOKEN\x10\x01\x12\x1a\n" +
 	"\x16CHAT_EVENT_TYPE_SOURCE\x10\x02\x12\x18\n" +
 	"\x14CHAT_EVENT_TYPE_DONE\x10\x03\x12\x19\n" +
-	"\x15CHAT_EVENT_TYPE_ERROR\x10\x042F\n" +
+	"\x15CHAT_EVENT_TYPE_ERROR\x10\x04\x12\x1d\n" +
+	"\x19CHAT_EVENT_TYPE_TOOL_CALL\x10\x05\x12$\n" +
+	" CHAT_EVENT_TYPE_CONFIRM_REQUIRED\x10\x062\x98\x01\n" +
 	"\x10AssistantService\x122\n" +
-	"\x04Chat\x12\x12.assistant.ChatReq\x1a\x14.assistant.ChatEvent0\x01B\x18Z\x16xiaobaihe/assistant/pbb\x06proto3"
+	"\x04Chat\x12\x12.assistant.ChatReq\x1a\x14.assistant.ChatEvent0\x01\x12P\n" +
+	"\x0fConfirmToolCall\x12\x1d.assistant.ConfirmToolCallReq\x1a\x1e.assistant.ConfirmToolCallRespB\x18Z\x16xiaobaihe/assistant/pbb\x06proto3"
 
 var (
 	file_proto_assistant_assistant_proto_rawDescOnce sync.Once
@@ -342,24 +674,34 @@ func file_proto_assistant_assistant_proto_rawDescGZIP() []byte {
 	return file_proto_assistant_assistant_proto_rawDescData
 }
 
-var file_proto_assistant_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_proto_assistant_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_proto_assistant_assistant_proto_goTypes = []any{
-	(ChatEventType)(0),      // 0: assistant.ChatEventType
-	(*ChatReq)(nil),         // 1: assistant.ChatReq
-	(*SourceReference)(nil), // 2: assistant.SourceReference
-	(*ChatEvent)(nil),       // 3: assistant.ChatEvent
+	(AssistantMode)(0),          // 0: assistant.AssistantMode
+	(ChatEventType)(0),          // 1: assistant.ChatEventType
+	(*ChatReq)(nil),             // 2: assistant.ChatReq
+	(*Attachment)(nil),          // 3: assistant.Attachment
+	(*ConfirmToolCallReq)(nil),  // 4: assistant.ConfirmToolCallReq
+	(*ConfirmToolCallResp)(nil), // 5: assistant.ConfirmToolCallResp
+	(*SourceReference)(nil),     // 6: assistant.SourceReference
+	(*ToolCallInfo)(nil),        // 7: assistant.ToolCallInfo
+	(*ChatEvent)(nil),           // 8: assistant.ChatEvent
 }
 var file_proto_assistant_assistant_proto_depIdxs = []int32{
-	0, // 0: assistant.ChatEvent.type:type_name -> assistant.ChatEventType
-	2, // 1: assistant.ChatEvent.source:type_name -> assistant.SourceReference
-	1, // 2: assistant.AssistantService.Chat:input_type -> assistant.ChatReq
-	3, // 3: assistant.AssistantService.Chat:output_type -> assistant.ChatEvent
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: assistant.ChatReq.mode:type_name -> assistant.AssistantMode
+	3, // 1: assistant.ChatReq.attachments:type_name -> assistant.Attachment
+	1, // 2: assistant.ChatEvent.type:type_name -> assistant.ChatEventType
+	6, // 3: assistant.ChatEvent.source:type_name -> assistant.SourceReference
+	7, // 4: assistant.ChatEvent.tool_call:type_name -> assistant.ToolCallInfo
+	2, // 5: assistant.AssistantService.Chat:input_type -> assistant.ChatReq
+	4, // 6: assistant.AssistantService.ConfirmToolCall:input_type -> assistant.ConfirmToolCallReq
+	8, // 7: assistant.AssistantService.Chat:output_type -> assistant.ChatEvent
+	5, // 8: assistant.AssistantService.ConfirmToolCall:output_type -> assistant.ConfirmToolCallResp
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_assistant_assistant_proto_init() }
@@ -372,8 +714,8 @@ func file_proto_assistant_assistant_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_assistant_assistant_proto_rawDesc), len(file_proto_assistant_assistant_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   3,
+			NumEnums:      2,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

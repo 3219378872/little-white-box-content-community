@@ -104,6 +104,18 @@ func (m *MockUserService) SetPersonalizationPreference(ctx context.Context, in *
 	return v, args.Error(1)
 }
 
+func (m *MockUserService) GetAgentCapabilityConsent(ctx context.Context, in *userservice.GetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*userservice.GetAgentCapabilityConsentResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.GetAgentCapabilityConsentResp)
+	return v, args.Error(1)
+}
+
+func (m *MockUserService) SetAgentCapabilityConsent(ctx context.Context, in *userservice.SetAgentCapabilityConsentReq, opts ...grpc.CallOption) (*userservice.SetAgentCapabilityConsentResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.SetAgentCapabilityConsentResp)
+	return v, args.Error(1)
+}
+
 func newUnitSvcCtx(userSvc userservice.UserService) *svc.ServiceContext {
 	return &svc.ServiceContext{
 		UserService: userSvc,

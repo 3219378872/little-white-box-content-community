@@ -52,6 +52,9 @@ const (
 	// 搜索相关错误码 5000-5999
 	SearchEmpty   = 5001
 	SearchTimeout = 5002
+
+	// Assistant Agent 相关错误码 6000-6999（SPEC-assistant-agent-mode）
+	AgentNotAuthorized = 6001
 )
 
 // 错误码消息映射
@@ -100,6 +103,8 @@ var codeMsg = map[int]string{
 
 	SearchEmpty:   "搜索关键词为空",
 	SearchTimeout: "搜索超时",
+
+	AgentNotAuthorized: "Agent 能力未授权",
 }
 
 // GetMsg 获取错误码对应的消息

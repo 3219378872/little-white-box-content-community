@@ -10,10 +10,35 @@ type AssistantChatEvent struct {
 	Degraded       bool                      `json:"degraded,optional"`
 	ErrorCode      string                    `json:"errorCode,optional"`
 	ConversationId string                    `json:"conversationId"`
+	ToolCall       *AssistantToolCallInfo    `json:"toolCall,optional"`
 }
 
 type AssistantChatReq struct {
-	ConversationId string `json:"conversationId,optional"`
-	Message        string `json:"message"`
-	RequestId      string `json:"requestId,optional"`
+	ConversationId string                `json:"conversationId,optional"`
+	Message        string                `json:"message"`
+	RequestId      string                `json:"requestId,optional"`
+	Mode           string                `json:"mode,optional"`
+	Attachments    []AssistantAttachment `json:"attachments,optional"`
+}
+
+type AssistantToolConfirmReq struct {
+	RequestId string `json:"requestId"`
+	CallId    string `json:"callId"`
+	Approved  bool   `json:"approved"`
+}
+
+type AssistantToolConfirmResp struct {
+}
+
+type GetAgentConsentResp struct {
+	Granted   bool  `json:"granted"`
+	GrantedAt int64 `json:"grantedAt,optional"`
+	RevokedAt int64 `json:"revokedAt,optional"`
+}
+
+type SetAgentConsentReq struct {
+	Granted bool `json:"granted"`
+}
+
+type SetAgentConsentResp struct {
 }

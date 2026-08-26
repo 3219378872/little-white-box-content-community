@@ -24,11 +24,37 @@ type SafetyConfig struct {
 	MaxScanRunes int `json:",default=10000,range=[100:50000]"`
 }
 
+// AgentConfig 是 Agent 模式的编排预算与工具配置（SPEC-assistant-agent-mode）。
+// MaxStepsSoft/MaxStepsHard 为软/硬上限：超软限后在工具结果注入剩余轮数通知
+// （AGNT-030），达硬限剥离工具强制收尾（AGNT-031）。
+type AgentConfig struct {
+	Enabled             bool  `json:",default=false"`
+	MaxStepsSoft        int   `json:",default=8,range=[1:50]"`
+	MaxStepsHard        int   `json:",default=12,range=[2:100]"`
+	MaxToolCallsPerTurn int   `json:",default=12,range=[1:100]"`
+	TurnTimeoutMs       int64 `json:",default=120000,range=[1000:600000]"`
+	StepTimeoutMs       int64 `json:",default=30000,range=[1000:120000]"`
+	ConfirmTimeoutSecs  int   `json:",default=120,range=[5:600]"`
+	QuotaRequests       int   `json:",default=10,range=[1:10000]"` // 独立配额，与 enhanced_search 分开计量（AGNT-032）
+	AllowedTools        []string
+	SystemPrompt        string `json:",optional"`
+	WebSearch           WebSearchConfig
+}
+
+type WebSearchConfig struct {
+	Provider   string `json:",default=tavily"`
+	APIKey     string `json:",optional"`
+	Endpoint   string `json:",optional"`
+	TimeoutMs  int64  `json:",default=8000,range=[100:30000]"`
+	MaxResults int    `json:",default=5,range=[1:10]"`
+}
+
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret          string
 	SearchRpc               zrpc.RpcClientConf
 	ContentRpc              zrpc.RpcClientConf
+	MediaRpc                zrpc.RpcClientConf
 	RecommendRpc            zrpc.RpcClientConf
 	UserRpc                 zrpc.RpcClientConf
 	AllowedTools            []string
@@ -41,6 +67,7 @@ type Config struct {
 	ConversationMaxMessages int    `json:",default=100,range=[2:1000]"`
 	QuotaWindowSeconds      int    `json:",default=60,range=[1:86400]"`
 	QuotaRequests           int    `json:",default=20,range=[1:10000]"`
+	Agent                   AgentConfig
 	LLM                     LLMConfig
 	Safety                  SafetyConfig
 }
