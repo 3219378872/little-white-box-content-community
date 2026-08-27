@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-27
-verified_commit: de91264
+verified_commit: 163bf1cbb71e2dda91cd35ee8801614b7b1e2052
 commands:
   - goctl rpc protoc proto/interaction/interaction.proto --go_out=app/interaction/rpc/pb --go-grpc_out=app/interaction/rpc/pb --zrpc_out=app/interaction/rpc --style=go_zero
   - go test -count=1 ./app/assistant/... ./app/interaction/rpc/internal/logic/... ./app/gateway/
