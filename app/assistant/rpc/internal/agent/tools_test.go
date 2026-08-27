@@ -27,9 +27,11 @@ func TestResolveAttachmentsRejectsForeignMedia(t *testing.T) {
 
 type fakeContentService struct {
 	contentservice.ContentService
-	create     func(ctx context.Context, req *contentservice.CreatePostReq) (*contentservice.CreatePostResp, error)
-	deletePost func(ctx context.Context, req *contentservice.DeletePostReq) (*contentservice.DeletePostResp, error)
-	getPost    func(ctx context.Context, req *contentservice.GetPostReq) (*contentservice.GetPostResp, error)
+	create      func(ctx context.Context, req *contentservice.CreatePostReq) (*contentservice.CreatePostResp, error)
+	deletePost  func(ctx context.Context, req *contentservice.DeletePostReq) (*contentservice.DeletePostResp, error)
+	getPost     func(ctx context.Context, req *contentservice.GetPostReq) (*contentservice.GetPostResp, error)
+	postsByIDs  func(ctx context.Context, req *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error)
+	commentList func(ctx context.Context, req *contentservice.GetCommentListReq) (*contentservice.GetCommentListResp, error)
 }
 
 func (f *fakeContentService) CreatePost(ctx context.Context, req *contentservice.CreatePostReq, _ ...grpc.CallOption) (*contentservice.CreatePostResp, error) {
@@ -42,6 +44,20 @@ func (f *fakeContentService) DeletePost(ctx context.Context, req *contentservice
 
 func (f *fakeContentService) GetPost(ctx context.Context, req *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
 	return f.getPost(ctx, req)
+}
+
+func (f *fakeContentService) GetPostsByIds(ctx context.Context, req *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	if f.postsByIDs == nil {
+		return &contentservice.GetPostsByIdsResp{}, nil
+	}
+	return f.postsByIDs(ctx, req)
+}
+
+func (f *fakeContentService) GetCommentList(ctx context.Context, req *contentservice.GetCommentListReq, _ ...grpc.CallOption) (*contentservice.GetCommentListResp, error) {
+	if f.commentList == nil {
+		return &contentservice.GetCommentListResp{}, nil
+	}
+	return f.commentList(ctx, req)
 }
 
 type fakeMediaService struct {

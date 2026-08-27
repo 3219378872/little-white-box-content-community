@@ -91,7 +91,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Generator: generator, Safety: safetyFilter,
 		ContentService: contentService,
 
-		AgentTools: buildAgentTools(c, searchService, contentService, mediaService),
+		AgentTools: buildAgentTools(c, searchService, contentService, mediaService, recommendService),
 		// AgentConfirms 始终可用：即使 runner 未启用，ConfirmToolCall 也应能明确拒绝过期凭据。
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
 		AgentRunner:   buildAgentRunner(c),
@@ -107,14 +107,16 @@ func buildAgentTools(
 	searchService searchservice.SearchService,
 	contentService contentservice.ContentService,
 	mediaService mediaservice.MediaService,
+	recommendService recommendservice.RecommendService,
 ) *agent.ToolRegistry {
 	if !c.Agent.Enabled {
 		return nil
 	}
 	registry, err := agent.NewToolRegistry(agent.Clients{
-		Search:  searchService,
-		Content: contentService,
-		Media:   mediaService,
+		Search:    searchService,
+		Content:   contentService,
+		Media:     mediaService,
+		Recommend: recommendService,
 		Web: websearch.New(websearch.Config{
 			APIKey:     c.Agent.WebSearch.APIKey,
 			Endpoint:   c.Agent.WebSearch.Endpoint,

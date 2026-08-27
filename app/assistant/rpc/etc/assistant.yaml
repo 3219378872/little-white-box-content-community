@@ -73,6 +73,10 @@ Agent:
   QuotaRequests: 10
   AllowedTools:
   - search_posts
+  - search_users
+  - search_tags
+  - get_post
+  - get_post_comments
   - web_search
   - create_post
   - update_post

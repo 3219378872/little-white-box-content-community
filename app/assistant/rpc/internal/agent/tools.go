@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -15,6 +14,7 @@ import (
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/media/rpc/mediaservice"
+	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
 
@@ -40,10 +40,11 @@ const (
 // Clients 是 Agent 工具依赖的下游服务。WebSearcher 为 nil 时 web_search
 // 从工具表剔除（AGNT-010 允许按配置收缩集合）。
 type Clients struct {
-	Search  searchservice.SearchService
-	Content contentservice.ContentService
-	Media   mediaservice.MediaService
-	Web     websearch.Searcher
+	Search    searchservice.SearchService
+	Content   contentservice.ContentService
+	Media     mediaservice.MediaService
+	Recommend recommendservice.RecommendService
+	Web       websearch.Searcher
 }
 
 // Definition 描述一个工具的 schema 与执行器，供 Runner 转换为模型侧 function 定义。
@@ -69,18 +70,72 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 	definitions := []Definition{
 		{
 			Name:        ToolSearchPosts,
-			Description: "搜索站内已发布的帖子。返回标题、摘要与帖子 ID；引用社区事实时必须标注 [post:<id>]。",
+			Description: "搜索站内已发布的帖子。可按关键词、标签、时间排序；需要社区讨论时可带评论。引用社区事实必须标注 [post:<id>] 或 [comment:<id>]。",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"keyword":   map[string]any{"type": "string", "description": "搜索关键词"},
-					"page":      map[string]any{"type": "integer", "minimum": 1},
-					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
-					"tags":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"keyword":          map[string]any{"type": "string", "description": "搜索关键词"},
+					"page":             map[string]any{"type": "integer", "minimum": 1},
+					"page_size":        map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+					"tags":             map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"sort_by":          map[string]any{"type": "integer", "enum": []int{1, 2, 3}, "description": "1相关 2最新 3最热；讨论类问题默认最新"},
+					"include_comments": map[string]any{"type": "boolean", "description": "是否附带热门评论作为 comment 证据"},
+					"seed_post_id":     map[string]any{"type": "integer", "description": "用于相似召回的种子帖子"},
 				},
 				"required": []string{"keyword"},
 			},
 			executor: searchPostsExecutor(clients),
+		},
+		{
+			Name:        ToolSearchUsers,
+			Description: "搜索公开用户。结果不是社区事实证据，不能用来替代 [post:<id>]。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"keyword":   map[string]any{"type": "string"},
+					"page":      map[string]any{"type": "integer", "minimum": 1},
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+				"required": []string{"keyword"},
+			},
+			executor: searchUsersExecutor(clients.Search),
+		},
+		{
+			Name:        ToolSearchTags,
+			Description: "搜索标签。结果不是社区事实证据。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"keyword": map[string]any{"type": "string"},
+					"limit":   map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+				"required": []string{"keyword"},
+			},
+			executor: searchTagsExecutor(clients.Search),
+		},
+		{
+			Name:        ToolGetPost,
+			Description: "按 ID 读取一篇当前用户可见的已发布帖子。引用时标注 [post:<id>]。",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"post_id": map[string]any{"type": "integer"}},
+				"required":   []string{"post_id"},
+			},
+			executor: getPostExecutor(clients.Content),
+		},
+		{
+			Name:        ToolGetPostComments,
+			Description: "读取一篇已发布帖子下的有效评论。父帖必须可见；引用评论用 [comment:<id>]。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"post_id":   map[string]any{"type": "integer"},
+					"page":      map[string]any{"type": "integer", "minimum": 1},
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+				"required": []string{"post_id"},
+			},
+			executor: getPostCommentsExecutor(clients.Content),
 		},
 		{
 			Name:        ToolWebSearch,
@@ -222,73 +277,6 @@ func (r *ToolRegistry) Call(ctx context.Context, session *Session, name, callID,
 		return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 	}
 	return handle(ctx, session, callID, argsJSON)
-}
-
-func searchPostsExecutor(clients Clients) executorFunc {
-	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []tool.Source, error) {
-		if clients.Search == nil || clients.Content == nil {
-			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
-		}
-		var args struct {
-			Keyword  string   `json:"keyword"`
-			Page     int32    `json:"page"`
-			PageSize int32    `json:"page_size"`
-			Tags     []string `json:"tags"`
-		}
-		if err := strictUnmarshal(argsJSON, &args); err != nil {
-			return "", nil, errx.New(errx.ParamError, "search_posts arguments are invalid")
-		}
-		keyword := strings.TrimSpace(args.Keyword)
-		if keyword == "" {
-			return "", nil, errx.New(errx.ParamError, "search_posts keyword is required")
-		}
-		page := args.Page
-		if page <= 0 {
-			page = 1
-		}
-		pageSize := args.PageSize
-		if pageSize <= 0 || pageSize > 20 {
-			pageSize = defaultPageResult
-		}
-		response, err := clients.Search.SearchPosts(ctx, &searchservice.SearchPostsReq{
-			Keyword: keyword, Page: page, PageSize: pageSize, SortBy: 1, Tags: args.Tags,
-		})
-		if err != nil {
-			logx.WithContext(ctx).Errorw("agent search_posts rpc failed", logx.Field("err", err.Error()))
-			return "", nil, errx.FromRPCError(err)
-		}
-		posts := response.GetPosts()
-		ids := make([]int64, 0, len(posts))
-		for _, post := range posts {
-			ids = append(ids, post.Id)
-		}
-		published, err := tool.PublishedPosts(ctx, clients.Content, ids)
-		if err != nil {
-			logx.WithContext(ctx).Errorw("agent search_posts visibility check failed", logx.Field("err", err.Error()))
-			return "", nil, err
-		}
-		var text strings.Builder
-		sources := make([]tool.Source, 0, len(published))
-		for _, post := range posts {
-			info := published[post.Id]
-			if info == nil {
-				continue
-			}
-			snippet := post.ContentHighlight
-			if utf8.RuneCountInString(snippet) > maxEvidenceSnippetRunes {
-				snippet = string([]rune(snippet)[:maxEvidenceSnippetRunes]) + "…"
-			}
-			fmt.Fprintf(&text, "- [post:%d] %s\n  摘要: %s\n", post.Id, post.Title, snippet)
-			sources = append(sources, tool.Source{
-				Type: "post", ID: strconv.FormatInt(post.Id, 10), Title: post.Title,
-				Snippet: snippet, Revision: info.Revision,
-			})
-		}
-		if text.Len() == 0 {
-			return "没有找到与关键词相关的已发布帖子。", nil, nil
-		}
-		return strings.TrimRight(text.String(), "\n"), sources, nil
-	}
 }
 
 func webSearchExecutor(searcher websearch.Searcher) executorFunc {
