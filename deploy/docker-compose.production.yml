@@ -420,11 +420,14 @@ services:
       <<: [*etcd-env, *redis-env]
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
+      ASSISTANT_AGENT_ENABLED: ${ASSISTANT_AGENT_ENABLED:-false}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
       ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-chat_completions}
       ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}
       ASSISTANT_LLM_API_KEY: ${ASSISTANT_LLM_API_KEY:-}
       ASSISTANT_LLM_MODEL: ${ASSISTANT_LLM_MODEL:-}
+      ASSISTANT_LLM_MODEL_SMALL: ${ASSISTANT_LLM_MODEL_SMALL:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS:-0}
       ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS:-0}
     expose: ["9024", "9124"]
@@ -600,14 +603,17 @@ services:
         SERVICE_PATH: app/assistant/mq
         SERVICE_CONFIG: app/assistant/mq/etc/watch-consumer.yaml
     environment:
-      <<: *mq-env
+      <<: [*etcd-env, *mq-env]
       DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
     expose: ["9135"]
     healthcheck: *process-healthcheck
     depends_on:
       mysql:
         condition: service_healthy
       rocketmq-broker:
+        condition: service_healthy
+      content-rpc:
         condition: service_healthy
 
   gateway-a:

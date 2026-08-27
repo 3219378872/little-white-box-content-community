@@ -640,10 +640,10 @@ type (
 		Items []AssistantMemoryItem `json:"items"`
 	}
 	UpdateAssistantMemoryReq {
-		Id         int64   `path:"id"`
-		Value      string  `json:"value,optional"`
-		Score      float64 `json:"score,optional"`
-		Suppressed bool    `json:"suppressed,optional"`
+		Id         int64    `path:"id"`
+		Value      *string  `json:"value,optional"`
+		Score      *float64 `json:"score,optional"`
+		Suppressed *bool    `json:"suppressed,optional"`
 	}
 	UpdateAssistantMemoryResp  {}
 	DeleteAssistantMemoryReq {
@@ -805,9 +805,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	jwt:    Auth
-	group:  user
+	prefix:     /api/v1
+	group:      user
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "更新用户资料"
@@ -824,9 +824,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  posts
+	prefix:     /api/v2
+	group:      posts
+	middleware: RequiredAuth
 )
 service gateway {
 	// CORE-013：v2 写接口强制乐观锁，Update/Delete 必须携带 expectedRevision，
@@ -860,9 +860,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	jwt:    Auth
-	group:  comment
+	prefix:     /api/v1
+	group:      comment
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "创建评论"
@@ -875,9 +875,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	jwt:    Auth
-	group:  like_favorite
+	prefix:     /api/v1
+	group:      like_favorite
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "点赞"
@@ -898,9 +898,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v1
-	jwt:    Auth
-	group:  image
+	prefix:     /api/v1
+	group:      image
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "上传图片"
@@ -920,9 +920,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  feed
+	prefix:     /api/v2
+	group:      feed
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "获取关注流"
@@ -960,9 +960,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  message
+	prefix:     /api/v2
+	group:      message
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "获取会话列表"
@@ -987,10 +987,10 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  assistant
-	sse:    true
+	prefix:     /api/v2
+	group:      assistant
+	middleware: RequiredAuth
+	sse:        true
 )
 service gateway {
 	@doc "Assistant SSE 对话"
@@ -999,9 +999,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  assistant
+	prefix:     /api/v2
+	group:      assistant
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "查询 Agent 能力授权状态（AGNT-004）"
@@ -1058,9 +1058,9 @@ service gateway {
 }
 
 @server (
-	prefix: /api/v2
-	jwt:    Auth
-	group:  user
+	prefix:     /api/v2
+	group:      user
+	middleware: RequiredAuth
 )
 service gateway {
 	@doc "获取个性化偏好"

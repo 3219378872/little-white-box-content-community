@@ -48,8 +48,11 @@ func (l *ListWatchHitsLogic) ListWatchHits(in *pb.ListWatchHitsReq) (*pb.ListWat
 }
 
 func redactUnavailableWatchHits(ctx context.Context, svcCtx *svc.ServiceContext, hits []watch.Hit) []watch.Hit {
-	if svcCtx == nil || svcCtx.ContentService == nil || len(hits) == 0 {
+	if len(hits) == 0 {
 		return hits
+	}
+	if svcCtx == nil || svcCtx.ContentService == nil {
+		return redactAllWatchHitContent(hits)
 	}
 	ids := make([]int64, 0, len(hits))
 	for _, hit := range hits {
@@ -63,7 +66,7 @@ func redactUnavailableWatchHits(ctx context.Context, svcCtx *svc.ServiceContext,
 	published, err := tool.PublishedPosts(ctx, svcCtx.ContentService, ids)
 	if err != nil {
 		logx.WithContext(ctx).Infow("watch hit visibility backfill failed", logx.Field("err", err.Error()))
-		return hits
+		return redactAllWatchHitContent(hits)
 	}
 	out := make([]watch.Hit, len(hits))
 	copy(out, hits)
@@ -79,6 +82,17 @@ func redactUnavailableWatchHits(ctx context.Context, svcCtx *svc.ServiceContext,
 		}
 		if strings.TrimSpace(out[i].Title) == "" {
 			out[i].Title = info.Title
+		}
+	}
+	return out
+}
+
+func redactAllWatchHitContent(hits []watch.Hit) []watch.Hit {
+	out := append([]watch.Hit(nil), hits...)
+	for i := range out {
+		if out[i].PostID > 0 {
+			out[i].Title = ""
+			out[i].Summary = ""
 		}
 	}
 	return out

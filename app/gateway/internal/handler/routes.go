@@ -42,101 +42,105 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// Assistant SSE 对话
-				Method:  http.MethodPost,
-				Path:    "/assistant/chat",
-				Handler: assistant.AssistantChatHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// Assistant SSE 对话
+					Method:  http.MethodPost,
+					Path:    "/assistant/chat",
+					Handler: assistant.AssistantChatHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 		rest.WithSSE(),
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 查询 Agent 能力授权状态（AGNT-004）
-				Method:  http.MethodGet,
-				Path:    "/assistant/consent",
-				Handler: assistant.GetAgentConsentHandler(serverCtx),
-			},
-			{
-				// 记录或撤销 Agent 能力授权（AGNT-004/006）
-				Method:  http.MethodPost,
-				Path:    "/assistant/consent",
-				Handler: assistant.SetAgentConsentHandler(serverCtx),
-			},
-			{
-				// 列出当前用户的 Agent 记忆
-				Method:  http.MethodGet,
-				Path:    "/assistant/memory",
-				Handler: assistant.ListAssistantMemoryHandler(serverCtx),
-			},
-			{
-				// 修改一条 Agent 记忆
-				Method:  http.MethodPatch,
-				Path:    "/assistant/memory/:id",
-				Handler: assistant.UpdateAssistantMemoryHandler(serverCtx),
-			},
-			{
-				// 删除一条 Agent 记忆
-				Method:  http.MethodDelete,
-				Path:    "/assistant/memory/:id",
-				Handler: assistant.DeleteAssistantMemoryHandler(serverCtx),
-			},
-			{
-				// 提交 Agent 推荐反馈
-				Method:  http.MethodPost,
-				Path:    "/assistant/recommend/feedback",
-				Handler: assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx),
-			},
-			{
-				// Agent 高危操作确认回调（AGNT-020~022）
-				Method:  http.MethodPost,
-				Path:    "/assistant/tool/confirm",
-				Handler: assistant.ConfirmAssistantToolHandler(serverCtx),
-			},
-			{
-				// 列出 Watch 任务
-				Method:  http.MethodGet,
-				Path:    "/assistant/watch",
-				Handler: assistant.ListAssistantWatchHandler(serverCtx),
-			},
-			{
-				// 创建 Watch 任务
-				Method:  http.MethodPost,
-				Path:    "/assistant/watch",
-				Handler: assistant.CreateAssistantWatchHandler(serverCtx),
-			},
-			{
-				// 更新 Watch 任务
-				Method:  http.MethodPatch,
-				Path:    "/assistant/watch/:id",
-				Handler: assistant.UpdateAssistantWatchHandler(serverCtx),
-			},
-			{
-				// 删除 Watch 任务
-				Method:  http.MethodDelete,
-				Path:    "/assistant/watch/:id",
-				Handler: assistant.DeleteAssistantWatchHandler(serverCtx),
-			},
-			{
-				// 列出 Watch 命中
-				Method:  http.MethodGet,
-				Path:    "/assistant/watch/hits",
-				Handler: assistant.ListAssistantWatchHitsHandler(serverCtx),
-			},
-			{
-				// 标记 Watch 命中已读
-				Method:  http.MethodPost,
-				Path:    "/assistant/watch/hits/read",
-				Handler: assistant.MarkAssistantWatchHitsReadHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 查询 Agent 能力授权状态（AGNT-004）
+					Method:  http.MethodGet,
+					Path:    "/assistant/consent",
+					Handler: assistant.GetAgentConsentHandler(serverCtx),
+				},
+				{
+					// 记录或撤销 Agent 能力授权（AGNT-004/006）
+					Method:  http.MethodPost,
+					Path:    "/assistant/consent",
+					Handler: assistant.SetAgentConsentHandler(serverCtx),
+				},
+				{
+					// 列出当前用户的 Agent 记忆
+					Method:  http.MethodGet,
+					Path:    "/assistant/memory",
+					Handler: assistant.ListAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 修改一条 Agent 记忆
+					Method:  http.MethodPatch,
+					Path:    "/assistant/memory/:id",
+					Handler: assistant.UpdateAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 删除一条 Agent 记忆
+					Method:  http.MethodDelete,
+					Path:    "/assistant/memory/:id",
+					Handler: assistant.DeleteAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 提交 Agent 推荐反馈
+					Method:  http.MethodPost,
+					Path:    "/assistant/recommend/feedback",
+					Handler: assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx),
+				},
+				{
+					// Agent 高危操作确认回调（AGNT-020~022）
+					Method:  http.MethodPost,
+					Path:    "/assistant/tool/confirm",
+					Handler: assistant.ConfirmAssistantToolHandler(serverCtx),
+				},
+				{
+					// 列出 Watch 任务
+					Method:  http.MethodGet,
+					Path:    "/assistant/watch",
+					Handler: assistant.ListAssistantWatchHandler(serverCtx),
+				},
+				{
+					// 创建 Watch 任务
+					Method:  http.MethodPost,
+					Path:    "/assistant/watch",
+					Handler: assistant.CreateAssistantWatchHandler(serverCtx),
+				},
+				{
+					// 更新 Watch 任务
+					Method:  http.MethodPatch,
+					Path:    "/assistant/watch/:id",
+					Handler: assistant.UpdateAssistantWatchHandler(serverCtx),
+				},
+				{
+					// 删除 Watch 任务
+					Method:  http.MethodDelete,
+					Path:    "/assistant/watch/:id",
+					Handler: assistant.DeleteAssistantWatchHandler(serverCtx),
+				},
+				{
+					// 列出 Watch 命中
+					Method:  http.MethodGet,
+					Path:    "/assistant/watch/hits",
+					Handler: assistant.ListAssistantWatchHitsHandler(serverCtx),
+				},
+				{
+					// 标记 Watch 命中已读
+					Method:  http.MethodPost,
+					Path:    "/assistant/watch/hits/read",
+					Handler: assistant.MarkAssistantWatchHitsReadHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 	)
 
@@ -177,34 +181,38 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 创建评论
-				Method:  http.MethodPost,
-				Path:    "/comment",
-				Handler: comment.CreateCommentHandler(serverCtx),
-			},
-			{
-				// 删除评论
-				Method:  http.MethodDelete,
-				Path:    "/comment/:commentId",
-				Handler: comment.DeleteCommentHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 创建评论
+					Method:  http.MethodPost,
+					Path:    "/comment",
+					Handler: comment.CreateCommentHandler(serverCtx),
+				},
+				{
+					// 删除评论
+					Method:  http.MethodDelete,
+					Path:    "/comment/:commentId",
+					Handler: comment.DeleteCommentHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 获取关注流
-				Method:  http.MethodGet,
-				Path:    "/feed/follow",
-				Handler: feed.GetFollowFeedHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 获取关注流
+					Method:  http.MethodGet,
+					Path:    "/feed/follow",
+					Handler: feed.GetFollowFeedHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 	)
 
@@ -224,46 +232,50 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 上传图片
-				Method:  http.MethodPost,
-				Path:    "/media/image",
-				Handler: image.UploadImageHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 上传图片
+					Method:  http.MethodPost,
+					Path:    "/media/image",
+					Handler: image.UploadImageHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 收藏
-				Method:  http.MethodPost,
-				Path:    "/favorite",
-				Handler: like_favorite.FavoriteHandler(serverCtx),
-			},
-			{
-				// 取消收藏
-				Method:  http.MethodDelete,
-				Path:    "/favorite",
-				Handler: like_favorite.UnfavoriteHandler(serverCtx),
-			},
-			{
-				// 点赞
-				Method:  http.MethodPost,
-				Path:    "/like",
-				Handler: like_favorite.LikeHandler(serverCtx),
-			},
-			{
-				// 取消点赞
-				Method:  http.MethodDelete,
-				Path:    "/like",
-				Handler: like_favorite.UnlikeHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 收藏
+					Method:  http.MethodPost,
+					Path:    "/favorite",
+					Handler: like_favorite.FavoriteHandler(serverCtx),
+				},
+				{
+					// 取消收藏
+					Method:  http.MethodDelete,
+					Path:    "/favorite",
+					Handler: like_favorite.UnfavoriteHandler(serverCtx),
+				},
+				{
+					// 点赞
+					Method:  http.MethodPost,
+					Path:    "/like",
+					Handler: like_favorite.LikeHandler(serverCtx),
+				},
+				{
+					// 取消点赞
+					Method:  http.MethodDelete,
+					Path:    "/like",
+					Handler: like_favorite.UnlikeHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 
@@ -298,39 +310,41 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 发送私信
-				Method:  http.MethodPost,
-				Path:    "/messages",
-				Handler: message.SendMessageHandler(serverCtx),
-			},
-			{
-				// 获取会话列表
-				Method:  http.MethodGet,
-				Path:    "/messages/conversations",
-				Handler: message.GetConversationsHandler(serverCtx),
-			},
-			{
-				// 获取会话消息
-				Method:  http.MethodGet,
-				Path:    "/messages/conversations/:id",
-				Handler: message.GetMessagesHandler(serverCtx),
-			},
-			{
-				// 标记会话已读
-				Method:  http.MethodPost,
-				Path:    "/messages/conversations/:id/read",
-				Handler: message.MarkConversationReadHandler(serverCtx),
-			},
-			{
-				// 获取未读汇总
-				Method:  http.MethodGet,
-				Path:    "/messages/unread",
-				Handler: message.GetUnreadSummaryHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 发送私信
+					Method:  http.MethodPost,
+					Path:    "/messages",
+					Handler: message.SendMessageHandler(serverCtx),
+				},
+				{
+					// 获取会话列表
+					Method:  http.MethodGet,
+					Path:    "/messages/conversations",
+					Handler: message.GetConversationsHandler(serverCtx),
+				},
+				{
+					// 获取会话消息
+					Method:  http.MethodGet,
+					Path:    "/messages/conversations/:id",
+					Handler: message.GetMessagesHandler(serverCtx),
+				},
+				{
+					// 标记会话已读
+					Method:  http.MethodPost,
+					Path:    "/messages/conversations/:id/read",
+					Handler: message.MarkConversationReadHandler(serverCtx),
+				},
+				{
+					// 获取未读汇总
+					Method:  http.MethodGet,
+					Path:    "/messages/unread",
+					Handler: message.GetUnreadSummaryHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 	)
 
@@ -356,27 +370,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 创建帖子（v2）
-				Method:  http.MethodPost,
-				Path:    "/post",
-				Handler: posts.CreatePostV2Handler(serverCtx),
-			},
-			{
-				// 更新帖子（v2，强制 expectedRevision）
-				Method:  http.MethodPut,
-				Path:    "/post/:postId",
-				Handler: posts.UpdatePostV2Handler(serverCtx),
-			},
-			{
-				// 删除帖子（v2，强制 expectedRevision）
-				Method:  http.MethodDelete,
-				Path:    "/post/:postId",
-				Handler: posts.DeletePostV2Handler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 创建帖子（v2）
+					Method:  http.MethodPost,
+					Path:    "/post",
+					Handler: posts.CreatePostV2Handler(serverCtx),
+				},
+				{
+					// 更新帖子（v2，强制 expectedRevision）
+					Method:  http.MethodPut,
+					Path:    "/post/:postId",
+					Handler: posts.UpdatePostV2Handler(serverCtx),
+				},
+				{
+					// 删除帖子（v2，强制 expectedRevision）
+					Method:  http.MethodDelete,
+					Path:    "/post/:postId",
+					Handler: posts.DeletePostV2Handler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 	)
 
@@ -432,46 +448,50 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 关注用户
-				Method:  http.MethodPost,
-				Path:    "/user/follow",
-				Handler: user.FollowHandler(serverCtx),
-			},
-			{
-				// 取消关注
-				Method:  http.MethodDelete,
-				Path:    "/user/follow",
-				Handler: user.UnfollowHandler(serverCtx),
-			},
-			{
-				// 更新用户资料
-				Method:  http.MethodPut,
-				Path:    "/user/profile",
-				Handler: user.UpdateProfileHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 关注用户
+					Method:  http.MethodPost,
+					Path:    "/user/follow",
+					Handler: user.FollowHandler(serverCtx),
+				},
+				{
+					// 取消关注
+					Method:  http.MethodDelete,
+					Path:    "/user/follow",
+					Handler: user.UnfollowHandler(serverCtx),
+				},
+				{
+					// 更新用户资料
+					Method:  http.MethodPut,
+					Path:    "/user/profile",
+					Handler: user.UpdateProfileHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v1"),
 	)
 
 	server.AddRoutes(
-		[]rest.Route{
-			{
-				// 获取个性化偏好
-				Method:  http.MethodGet,
-				Path:    "/me/personalization",
-				Handler: user.GetPersonalizationPreferenceHandler(serverCtx),
-			},
-			{
-				// 设置个性化偏好
-				Method:  http.MethodPut,
-				Path:    "/me/personalization",
-				Handler: user.SetPersonalizationPreferenceHandler(serverCtx),
-			},
-		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 获取个性化偏好
+					Method:  http.MethodGet,
+					Path:    "/me/personalization",
+					Handler: user.GetPersonalizationPreferenceHandler(serverCtx),
+				},
+				{
+					// 设置个性化偏好
+					Method:  http.MethodPut,
+					Path:    "/me/personalization",
+					Handler: user.SetPersonalizationPreferenceHandler(serverCtx),
+				},
+			}...,
+		),
 		rest.WithPrefix("/api/v2"),
 	)
 }

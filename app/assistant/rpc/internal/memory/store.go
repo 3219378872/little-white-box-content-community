@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"math"
@@ -89,6 +90,7 @@ type Candidate struct {
 	Source     string
 	Confidence float64
 	Excerpt    string
+	Suppressed bool
 }
 
 type Store interface {
@@ -236,6 +238,9 @@ func (s *SQLStore) Update(ctx context.Context, userID, id int64, patch Patch, no
 	if patch.Suppressed != nil {
 		suppressed = *patch.Suppressed
 	}
+	if !validMemoryValueScore(value, score) {
+		return errx.NewWithCode(errx.ParamError)
+	}
 	switch layer {
 	case LayerProfile:
 		_, err = s.conn.ExecCtx(ctx,
@@ -260,28 +265,36 @@ func (s *SQLStore) Delete(ctx context.Context, userID, id int64) error {
 	if !ok || userID <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
+	var res sql.Result
 	var err error
 	switch layer {
 	case LayerProfile:
-		_, err = s.conn.ExecCtx(ctx, `DELETE FROM user_preference WHERE id = ? AND user_id = ?`, recordID, userID)
+		res, err = s.conn.ExecCtx(ctx, `DELETE FROM user_preference WHERE id = ? AND user_id = ?`, recordID, userID)
 	case LayerInterest:
-		_, err = s.conn.ExecCtx(ctx, `DELETE FROM user_interest WHERE id = ? AND user_id = ?`, recordID, userID)
+		res, err = s.conn.ExecCtx(ctx, `DELETE FROM user_interest WHERE id = ? AND user_id = ?`, recordID, userID)
 	case LayerTask:
-		_, err = s.conn.ExecCtx(ctx, `DELETE FROM task_memory WHERE id = ? AND user_id = ?`, recordID, userID)
+		res, err = s.conn.ExecCtx(ctx, `DELETE FROM task_memory WHERE id = ? AND user_id = ?`, recordID, userID)
 	case LayerEpisodic:
-		_, err = s.conn.ExecCtx(ctx, `DELETE FROM user_memory WHERE id = ? AND user_id = ?`, recordID, userID)
+		res, err = s.conn.ExecCtx(ctx, `DELETE FROM user_memory WHERE id = ? AND user_id = ?`, recordID, userID)
 	default:
 		return errx.NewWithCode(errx.ParamError)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *SQLStore) Apply(ctx context.Context, userID int64, candidate Candidate, now time.Time) error {
-	if userID <= 0 || strings.TrimSpace(candidate.Value) == "" {
+	if userID <= 0 || !validMemoryValueScore(candidate.Value, candidate.Score) {
 		return errx.NewWithCode(errx.ParamError)
-	}
-	if ContainsPrivateValue(candidate.Value) {
-		return errx.New(errx.ParamError, "memory value is not allowed")
 	}
 	if candidate.Source != SourceExplicit && candidate.Source != SourceConversation && candidate.Source != SourceBehavior {
 		return errx.NewWithCode(errx.ParamError)
@@ -294,23 +307,23 @@ func (s *SQLStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 	case LayerProfile:
 		_, err := s.conn.ExecCtx(ctx, `
 			INSERT INTO user_preference (user_id, dimension, value, score, source, confidence, suppressed, history_json, updated_at_ms)
-			VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
 			ON DUPLICATE KEY UPDATE
 			  history_json = JSON_ARRAY_APPEND(COALESCE(history_json, JSON_ARRAY()), '$', JSON_OBJECT('score', score, 'source', source, 'updated_at_ms', updated_at_ms)),
 			  score = VALUES(score), source = VALUES(source), confidence = VALUES(confidence),
-			  suppressed = IF(suppressed = 1, 1, 0), updated_at_ms = VALUES(updated_at_ms)`,
-			userID, candidate.Dimension, candidate.Value, candidate.Score, candidate.Source, candidate.Confidence, ms)
+			  suppressed = IF(suppressed = 1, 1, VALUES(suppressed)), updated_at_ms = VALUES(updated_at_ms)`,
+			userID, candidate.Dimension, candidate.Value, candidate.Score, candidate.Source, candidate.Confidence, boolToInt(candidate.Suppressed), ms)
 		return err
 	case LayerInterest:
 		_, err := s.conn.ExecCtx(ctx, `
 			INSERT INTO user_interest (user_id, dimension, value, score, source, confidence, suppressed, last_event_at_ms, history_json, updated_at_ms)
-			VALUES (?, ?, ?, ?, ?, ?, 0, ?, NULL, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
 			ON DUPLICATE KEY UPDATE
 			  history_json = JSON_ARRAY_APPEND(COALESCE(history_json, JSON_ARRAY()), '$', JSON_OBJECT('score', score, 'source', source, 'updated_at_ms', updated_at_ms)),
 			  score = VALUES(score), source = VALUES(source), confidence = VALUES(confidence),
 			  last_event_at_ms = VALUES(last_event_at_ms), updated_at_ms = VALUES(updated_at_ms),
-			  suppressed = IF(suppressed = 1, 1, 0)`,
-			userID, candidate.Dimension, candidate.Value, candidate.Score, candidate.Source, candidate.Confidence, ms, ms)
+			  suppressed = IF(suppressed = 1, 1, VALUES(suppressed))`,
+			userID, candidate.Dimension, candidate.Value, candidate.Score, candidate.Source, candidate.Confidence, boolToInt(candidate.Suppressed), ms, ms)
 		return err
 	case LayerTask:
 		_, err := s.conn.ExecCtx(ctx, `
@@ -451,6 +464,9 @@ func (m *MapStore) Update(_ context.Context, userID, id int64, patch Patch, now 
 	if patch.Suppressed != nil {
 		item.Suppressed = *patch.Suppressed
 	}
+	if !validMemoryValueScore(item.Value, item.Score) {
+		return errx.NewWithCode(errx.ParamError)
+	}
 	item.Source = SourceExplicit
 	item.UpdatedAt = now.UnixMilli()
 	m.items[id] = item
@@ -472,11 +488,8 @@ func (m *MapStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	value := strings.TrimSpace(candidate.Value)
-	if userID <= 0 || value == "" {
+	if userID <= 0 || !validMemoryValueScore(value, candidate.Score) {
 		return errx.NewWithCode(errx.ParamError)
-	}
-	if ContainsPrivateValue(value) {
-		return errx.New(errx.ParamError, "memory value is not allowed")
 	}
 	if candidate.Source != SourceExplicit && candidate.Source != SourceConversation && candidate.Source != SourceBehavior {
 		return errx.NewWithCode(errx.ParamError)
@@ -492,6 +505,7 @@ func (m *MapStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 			item.Score = candidate.Score
 			item.Source = candidate.Source
 			item.Confidence = candidate.Confidence
+			item.Suppressed = item.Suppressed || candidate.Suppressed
 			item.UpdatedAt = now.UnixMilli()
 			m.items[id] = item
 			return nil
@@ -503,7 +517,7 @@ func (m *MapStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 	m.items[id] = Item{
 		ID: id, UserID: userID, Layer: candidate.Layer, Dimension: candidate.Dimension,
 		Value: value, Score: candidate.Score, Source: candidate.Source,
-		Confidence: candidate.Confidence, UpdatedAt: now.UnixMilli(),
+		Confidence: candidate.Confidence, Suppressed: candidate.Suppressed, UpdatedAt: now.UnixMilli(),
 	}
 	return nil
 }
@@ -547,7 +561,7 @@ func Extract(message string) []Candidate {
 		out = appendPrivateFiltered(out, Candidate{Layer: LayerInterest, Dimension: "topic", Value: value, Score: 0.7, Source: SourceConversation, Confidence: 0.7, Excerpt: text})
 	}
 	if value, ok := cutPrefix(text, "不要记住"); ok {
-		out = appendPrivateFiltered(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0, Source: SourceExplicit, Confidence: 1, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0, Source: SourceExplicit, Confidence: 1, Excerpt: text, Suppressed: true})
 	}
 	return out
 }
@@ -588,13 +602,18 @@ func ContainsPrivateValue(value string) bool {
 	return len(compact) == 11 && digitRunes >= 9
 }
 
+func validMemoryValueScore(value string, score float64) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && !ContainsPrivateValue(value) && !math.IsNaN(score) && !math.IsInf(score, 0) && score >= -1 && score <= 1
+}
+
 func behaviorAllowed(ctx context.Context, lookup func(context.Context, int64) (bool, error), userID int64) bool {
 	if lookup == nil || userID <= 0 {
-		return true
+		return false
 	}
 	enabled, err := lookup(ctx, userID)
 	if err != nil {
-		return true
+		return false
 	}
 	return enabled
 }

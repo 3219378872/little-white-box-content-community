@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"esx/app/assistant/rpc/internal/svc"
@@ -16,10 +17,38 @@ import (
 type fakeListContent struct {
 	contentservice.ContentService
 	posts []*contentservice.PostInfo
+	err   error
 }
 
 func (f fakeListContent) GetPostsByIds(_ context.Context, req *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
 	return &contentservice.GetPostsByIdsResp{Posts: f.posts}, nil
+}
+
+func TestListWatchHitsFailsClosedWhenVisibilityUnavailable(t *testing.T) {
+	for name, content := range map[string]contentservice.ContentService{
+		"missing": nil,
+		"error":   fakeListContent{err: errors.New("content down")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := watch.NewMapStore()
+			if err := store.RecordHit(t.Context(), watch.Hit{
+				UserID: 2, TaskID: 1, PostID: 11, Title: "secret", Summary: "stale",
+			}, "event"); err != nil {
+				t.Fatal(err)
+			}
+			logic := NewListWatchHitsLogic(t.Context(), &svc.ServiceContext{Watch: store, ContentService: content})
+			resp, err := logic.ListWatchHits(&pb.ListWatchHitsReq{UserId: 2})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(resp.Hits) != 1 || resp.Hits[0].Title != "" || resp.Hits[0].Summary != "" {
+				t.Fatalf("hits=%+v", resp.Hits)
+			}
+		})
+	}
 }
 
 func TestListWatchHitsRedactsUnpublished(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"esx/app/assistant/watch"
+	"esx/app/content/rpc/contentservice"
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
@@ -15,11 +16,21 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 type errStore struct {
 	watch.MapStore
 	listErr error
+}
+
+type fakeCurrentContent struct {
+	contentservice.ContentService
+	post *contentservice.PostInfo
+}
+
+func (f fakeCurrentContent) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+	return &contentservice.GetPostResp{Post: f.post}, nil
 }
 
 func (s *errStore) ListEnabled(ctx context.Context) ([]watch.Task, error) {
@@ -72,6 +83,46 @@ func TestConsumeWatchBatch_StoreError_Retries(t *testing.T) {
 	}
 	result := consumeWatchBatch(context.Background(), matcher{Store: store}, msg("m3", mustMarshal(t, ev)))
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
+}
+
+func TestConsumeWatchBatch_StalePostEventSkips(t *testing.T) {
+	store := watch.NewMapStore()
+	_, err := store.Create(t.Context(), watch.Task{
+		UserID: 3, ConditionType: watch.AuthorNewPost, TargetType: "author", TargetID: 4,
+	})
+	require.NoError(t, err)
+	ev := event.PostEvent{
+		EventID: 9, EventTime: 100, Type: event.PostEventCreated,
+		PostID: 21, AuthorID: 4, Title: "stale", Status: 1, Revision: 1,
+	}
+	result := consumeWatchBatch(t.Context(), matcher{
+		Store: store,
+		ValidatePost: func(context.Context, event.PostEvent) (bool, error) {
+			return false, nil
+		},
+	}, msg("stale", mustMarshal(t, ev)))
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	hits, err := store.ListHits(t.Context(), 3, false)
+	require.NoError(t, err)
+	assert.Empty(t, hits)
+}
+
+func TestCurrentPostEventValidatorRequiresPublishedMatchingRevision(t *testing.T) {
+	ev := event.PostEvent{EventID: 1, Type: event.PostEventUpdated, PostID: 2, AuthorID: 3, Status: 1, Revision: 4}
+	for name, tc := range map[string]struct {
+		post *contentservice.PostInfo
+		want bool
+	}{
+		"current": {&contentservice.PostInfo{Id: 2, Status: 1, Revision: 4}, true},
+		"stale":   {&contentservice.PostInfo{Id: 2, Status: 1, Revision: 5}, false},
+		"draft":   {&contentservice.PostInfo{Id: 2, Status: 0, Revision: 4}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := currentPostEventValidator(fakeCurrentContent{post: tc.post})(t.Context(), ev)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestConsumeWatchBatch_CommentBelowSpikeThreshold_NoHit(t *testing.T) {

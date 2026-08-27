@@ -36,13 +36,10 @@ func (l *UpdateMemoryLogic) UpdateMemory(in *pb.UpdateMemoryReq) (*pb.UpdateMemo
 	if l.svcCtx == nil || l.svcCtx.Memory == nil {
 		return nil, unavailableUntilStore()
 	}
-	value := in.Value
-	score := in.Score
-	suppressed := in.Suppressed
 	err := l.svcCtx.Memory.Update(l.ctx, in.UserId, in.Id, memory.Patch{
-		Value:      &value,
-		Score:      &score,
-		Suppressed: &suppressed,
+		Value:      in.Value,
+		Score:      in.Score,
+		Suppressed: in.Suppressed,
 	}, time.Now())
 	if errors.Is(err, memory.ErrNotFound) {
 		return nil, errx.NewWithCode(errx.NotFound)

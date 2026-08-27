@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"esx/app/assistant/rpc/internal/memory"
+	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/watch"
+	"esx/app/content/rpc/contentservice"
 	"esx/app/user/rpc/userservice"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -24,6 +26,7 @@ type Runtime struct {
 	Watch    watch.Store
 	Audit    AuditStore
 	User     userservice.UserService
+	Content  contentservice.ContentService
 	Model    string
 }
 
@@ -49,20 +52,14 @@ func (r *Runtime) Run(ctx context.Context, session *Session) (*Result, error) {
 		if block, err := r.Memory.ContextBlock(ctx, session.UserID, session.Plan.Intent, time.Now(), skipBehavior); err != nil {
 			logx.WithContext(ctx).Infow("agent memory context skipped", logx.Field("err", err.Error()))
 		} else if block != "" {
-			if session.SystemPrompt != "" {
-				session.SystemPrompt += "\n\n"
-			}
-			session.SystemPrompt += block
+			session.MemoryContext = block
 		}
 	}
 	if r.Watch != nil && session.UserID > 0 {
 		if hits, err := r.Watch.ListHits(ctx, session.UserID, true); err != nil {
 			logx.WithContext(ctx).Infow("agent watch hits skipped", logx.Field("err", err.Error()))
-		} else if block := formatUnreadWatchHits(hits); block != "" {
-			if session.SystemPrompt != "" {
-				session.SystemPrompt += "\n\n"
-			}
-			session.SystemPrompt += block
+		} else if block := formatUnreadWatchHits(r.filterVisibleWatchHits(ctx, hits)); block != "" {
+			session.WatchContext = block
 		}
 	}
 	logx.WithContext(ctx).Infow("agent runtime planned",
@@ -80,13 +77,57 @@ func (r *Runtime) Run(ctx context.Context, session *Session) (*Result, error) {
 
 func (r *Runtime) skipBehaviorSources(ctx context.Context, userID int64) bool {
 	if r == nil || r.User == nil || userID <= 0 {
-		return false
+		return true
 	}
 	pref, err := r.User.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
 	if err != nil || pref == nil {
-		return false
+		return true
 	}
 	return !pref.Enabled
+}
+
+func (r *Runtime) filterVisibleWatchHits(ctx context.Context, hits []watch.Hit) []watch.Hit {
+	out := append([]watch.Hit(nil), hits...)
+	ids := make([]int64, 0, len(out))
+	for _, hit := range out {
+		if hit.PostID > 0 {
+			ids = append(ids, hit.PostID)
+		}
+	}
+	if len(ids) == 0 {
+		return out
+	}
+	if r == nil || r.Content == nil {
+		return redactWatchHitContent(out)
+	}
+	published, err := tool.PublishedPosts(ctx, r.Content, ids)
+	if err != nil {
+		logx.WithContext(ctx).Infow("agent watch visibility check failed", logx.Field("err", err.Error()))
+		return redactWatchHitContent(out)
+	}
+	for i := range out {
+		if out[i].PostID <= 0 {
+			continue
+		}
+		info := published[out[i].PostID]
+		if info == nil {
+			out[i].Title = ""
+			out[i].Summary = ""
+			continue
+		}
+		out[i].Title = info.Title
+	}
+	return out
+}
+
+func redactWatchHitContent(hits []watch.Hit) []watch.Hit {
+	for i := range hits {
+		if hits[i].PostID > 0 {
+			hits[i].Title = ""
+			hits[i].Summary = ""
+		}
+	}
+	return hits
 }
 
 func formatUnreadWatchHits(hits []watch.Hit) string {

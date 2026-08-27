@@ -54,7 +54,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		return zrpc.MustNewClient(conf, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+		conf.Middlewares.Duration = false
+		return zrpc.MustNewClient(conf,
+			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
+			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
+			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
+		)
 	}
 	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))
 	contentService := contentservice.NewContentService(newClient(c.ContentRpc))
@@ -114,7 +119,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AgentTools:         buildAgentTools(c, searchService, contentService, mediaService, recommendService, interactionService, userService, memoryStore, watchStore),
 		// AgentConfirms 始终可用：即使 runner 未启用，ConfirmToolCall 也应能明确拒绝过期凭据。
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
-		AgentRunner:   buildAgentRunner(c, memoryStore, watchStore, auditStore, userService),
+		AgentRunner:   buildAgentRunner(c, memoryStore, watchStore, auditStore, userService, contentService),
 		AgentQuota:    buildAgentQuota(redisClient, c),
 		UserService:   userService,
 	}
@@ -129,10 +134,10 @@ func buildMemoryStore(c config.Config, userService userservice.UserService) memo
 		store.Personalization = func(ctx context.Context, userID int64) (bool, error) {
 			pref, err := userService.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
 			if err != nil {
-				return true, err
+				return false, err
 			}
 			if pref == nil {
-				return true, nil
+				return false, nil
 			}
 			return pref.Enabled, nil
 		}
@@ -195,7 +200,8 @@ func buildAgentTools(
 
 // buildAgentRunner 装配 Agent 编排引擎；未启用或配置不完整时返回 nil 并记录原因，
 // 不 panic——agent 关闭不应影响服务启动与既有管线。
-func buildAgentRunner(c config.Config, memoryStore memory.Store, watchStore watch.Store, auditStore agent.AuditStore, userService userservice.UserService) agent.Runner {
+func buildAgentRunner(c config.Config, memoryStore memory.Store, watchStore watch.Store, auditStore agent.AuditStore,
+	userService userservice.UserService, contentService contentservice.ContentService) agent.Runner {
 	if !c.Agent.Enabled || !c.LLM.Enabled || c.LLM.WireAPI == llm.WireAPIResponses {
 		return nil
 	}
@@ -214,6 +220,7 @@ func buildAgentRunner(c config.Config, memoryStore memory.Store, watchStore watc
 	runtime.Watch = watchStore
 	runtime.Audit = auditStore
 	runtime.User = userService
+	runtime.Content = contentService
 	runtime.Model = c.LLM.Model
 	return runtime
 }

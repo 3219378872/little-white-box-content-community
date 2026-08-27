@@ -12,3 +12,10 @@ func TestNewServiceContextRequiresDataSource(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestNewServiceContextRequiresInternalSecret(t *testing.T) {
+	_, err := NewServiceContext(config.Config{DataSource: "mysql://configured"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

@@ -44,6 +44,7 @@ type ServiceContext struct {
 	SearchService      searchservice.SearchService
 	AssistantService   assistantservice.AssistantService
 	OptionalAuth       rest.Middleware
+	RequiredAuth       rest.Middleware
 	BehaviorAccepted   rest.Middleware
 }
 
@@ -57,29 +58,40 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
 			zrpc.WithUnaryClientInterceptor(traceInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
+			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 		}, opts...)
 	}
+	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
+		// go-zero's default duration interceptor logs the complete protobuf request
+		// on failures. The replacement above keeps method/error/latency only.
+		conf.Middlewares.Duration = false
+		return zrpc.MustNewClient(conf, withInternalAuth()...)
+	}
 
-	userClient := zrpc.MustNewClient(c.UserRpc, withInternalAuth()...)
+	userClient := newClient(c.UserRpc)
 	userService := userservice.NewUserService(userClient)
-	contentClient := zrpc.MustNewClient(c.ContentRpc, withInternalAuth()...)
+	contentClient := newClient(c.ContentRpc)
 	contentService := contentservice.NewContentService(contentClient)
-	mediaClient := zrpc.MustNewClient(c.MediaRpc, withInternalAuth()...)
+	mediaClient := newClient(c.MediaRpc)
 	mediaService := mediaservice.NewMediaService(mediaClient)
-	interactionClient := zrpc.MustNewClient(c.InteractionRpc, withInternalAuth()...)
+	interactionClient := newClient(c.InteractionRpc)
 	interactionService := interactionservice.NewInteractionService(interactionClient)
-	behaviorClient := zrpc.MustNewClient(c.BehaviorRpc, withInternalAuth()...)
+	behaviorClient := newClient(c.BehaviorRpc)
 	behaviorService := behaviorservice.NewBehaviorService(behaviorClient)
-	feedClient := zrpc.MustNewClient(c.FeedRpc, withInternalAuth()...)
+	feedClient := newClient(c.FeedRpc)
 	feedService := feedservice.NewFeedService(feedClient)
-	messageClient := zrpc.MustNewClient(c.MessageRpc, withInternalAuth()...)
+	messageClient := newClient(c.MessageRpc)
 	messageService := messageservice.NewMessageService(messageClient)
-	searchClient := zrpc.MustNewClient(c.SearchRpc, withInternalAuth()...)
+	searchClient := newClient(c.SearchRpc)
 	searchService := searchservice.NewSearchService(searchClient)
-	assistantClient := zrpc.MustNewClient(c.AssistantRpc, withInternalAuth()...)
+	assistantClient := newClient(c.AssistantRpc)
 	assistantService := assistantservice.NewAssistantService(assistantClient)
 
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{
+		AccessSecret: c.Auth.AccessSecret,
+		AccessExpire: c.Auth.AccessExpire,
+	})
+	requiredAuth := middleware.NewRequiredAuthMiddleware(jwtx.JwtConfig{
 		AccessSecret: c.Auth.AccessSecret,
 		AccessExpire: c.Auth.AccessExpire,
 	})
@@ -108,6 +120,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		SearchService:      searchService,
 		AssistantService:   assistantService,
 		OptionalAuth:       optionalAuth.Handle,
+		RequiredAuth:       requiredAuth.Handle,
 		BehaviorAccepted:   behaviorAccepted.Handle,
 	}
 }

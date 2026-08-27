@@ -114,10 +114,10 @@ type SetAgentConsentResp struct {
 }
 
 type UpdateAssistantMemoryReq struct {
-	Id         int64   `path:"id"`
-	Value      string  `json:"value,optional"`
-	Score      float64 `json:"score,optional"`
-	Suppressed bool    `json:"suppressed,optional"`
+	Id         int64    `path:"id"`
+	Value      *string  `json:"value,optional"`
+	Score      *float64 `json:"score,optional"`
+	Suppressed *bool    `json:"suppressed,optional"`
 }
 
 type UpdateAssistantMemoryResp struct {

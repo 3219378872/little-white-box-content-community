@@ -431,6 +431,7 @@ func startContractServer(t *testing.T) (string, []rest.Route) {
 	cfg.Auth.AccessSecret = contractSecret
 	cfg.Auth.AccessExpire = 3600
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
+	requiredAuth := middleware.NewRequiredAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
 	behaviorAccepted := gatewaymiddleware.NewBehaviorAcceptedMiddleware()
 	ctx := &svc.ServiceContext{
 		Config:             cfg,
@@ -444,6 +445,7 @@ func startContractServer(t *testing.T) (string, []rest.Route) {
 		SearchService:      contractSearchService{},
 		AssistantService:   contractAssistantService{},
 		OptionalAuth:       optionalAuth.Handle,
+		RequiredAuth:       requiredAuth.Handle,
 		BehaviorAccepted:   behaviorAccepted.Handle,
 	}
 
@@ -612,6 +614,16 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MESSAGE-SEND-MALFORMED", method: http.MethodPost, path: "/api/v2/messages", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "MESSAGE-MARK-READ-BAD-PATH", method: http.MethodPost, path: "/api/v2/messages/conversations/not-a-number/read", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-CHAT-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "AGENT-CONSENT-SET-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "AGENT-TOOL-CONFIRM-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/tool/confirm", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-MEMORY-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-MEMORY-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/watch/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-HITS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/assistant/watch/hits?unreadOnly=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-HITS-READ-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch/hits/read", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-RECOMMEND-FEEDBACK-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 	)
 
 	client := &http.Client{Timeout: 2 * time.Second}

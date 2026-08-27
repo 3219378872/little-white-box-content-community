@@ -35,6 +35,9 @@ func TestGatewayYAMLLoadsSecretFromEnvironment(t *testing.T) {
 	if c.Auth.AccessSecret != "configured-gateway-jwt-secret" {
 		t.Fatalf("AccessSecret = %q", c.Auth.AccessSecret)
 	}
+	if c.RestConf.Middlewares.Log {
+		t.Fatal("gateway must disable go-zero request-dump logging")
+	}
 	if err := c.Validate(); err != nil {
 		t.Fatalf("Validate() rejected loaded config: %v", err)
 	}

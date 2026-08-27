@@ -140,9 +140,9 @@ message ListMemoryResp {
 message UpdateMemoryReq {
   int64  user_id = 1;
   int64  id = 2;
-  string value = 3;
-  double score = 4;
-  bool   suppressed = 5;
+  optional string value = 3;
+  optional double score = 4;
+  optional bool   suppressed = 5;
 }
 
 message UpdateMemoryResp {}

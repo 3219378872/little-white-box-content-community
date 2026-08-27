@@ -269,11 +269,11 @@ func excludedPostIDs(ctx context.Context, clients Clients, userID int64) map[int
 
 func skipBehaviorSources(ctx context.Context, user userservice.UserService, userID int64) bool {
 	if user == nil || userID <= 0 {
-		return false
+		return true
 	}
 	pref, err := user.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
 	if err != nil || pref == nil {
-		return false
+		return true
 	}
 	return !pref.Enabled
 }

@@ -118,6 +118,16 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	if got := project.Services["assistant-rpc"].Environment["ASSISTANT_LLM_WIRE_API"]; got != "responses" {
 		t.Errorf("production assistant LLM wire API = %q, want responses", got)
 	}
+	if got := project.Services["assistant-rpc"].Environment["ASSISTANT_AGENT_ENABLED"]; got != "false" {
+		t.Errorf("production assistant Agent switch = %q, want explicit false default", got)
+	}
+	watch := project.Services["assistant-watch-consumer"]
+	if watch.Environment["ETCD_ENDPOINT"] == "" || watch.Environment["RPC_INTERNAL_SECRET"] == "" {
+		t.Error("assistant Watch consumer must receive Content RPC discovery and auth settings")
+	}
+	if dependency, ok := watch.DependsOn["content-rpc"]; !ok || dependency.Condition != "service_healthy" {
+		t.Error("assistant Watch consumer must wait for healthy content-rpc")
+	}
 }
 
 func TestProductionComposeHostPortsAndNginxUpstreamsDoNotConflict(t *testing.T) {
@@ -223,11 +233,13 @@ func loadProductionCompose(t *testing.T) composeProject {
 	}
 
 	values := map[string]string{
+		"ASSISTANT_AGENT_ENABLED":                          "false",
 		"ASSISTANT_LLM_API_KEY":                            "",
 		"ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS": "0",
 		"ASSISTANT_LLM_ENABLED":                            "false",
 		"ASSISTANT_LLM_ENDPOINT":                           "",
 		"ASSISTANT_LLM_MODEL":                              "",
+		"ASSISTANT_LLM_MODEL_SMALL":                        "",
 		"ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS":     "0",
 		"ASSISTANT_LLM_WIRE_API":                           "responses",
 		"DB_CONTENT":                                       "contract-content-dsn",
@@ -258,6 +270,7 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"STATIC_ROOT":                                      staticRoot,
 		"TLS_CERT_FILE":                                    tlsCert,
 		"TLS_KEY_FILE":                                     tlsKey,
+		"TAVILY_API_KEY":                                   "",
 	}
 
 	cmd := exec.Command("docker", "compose",

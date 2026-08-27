@@ -40,6 +40,7 @@ func main() {
 	ctx := svc.NewServiceContext(c)
 	server.Use(corsRestMiddleware())
 	server.Use(gatewaymiddleware.NewTraceMiddleware().Handle)
+	server.Use(gatewaymiddleware.NewSafeAccessLogMiddleware().Handle)
 	handler.RegisterHandlers(server, ctx)
 
 	fmt.Printf("Starting server at %s:%d...\n", c.RestConf.Host, c.RestConf.Port)

@@ -2,9 +2,12 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"esx/pkg/errx"
 )
 
 func TestMapStoreConflictKeepsOneCurrentRecord(t *testing.T) {
@@ -111,6 +114,64 @@ func TestApplyIgnoresBehaviorWhenPersonalizationDisabled(t *testing.T) {
 	}
 	if strings.Contains(block, "behavior-visible") || !strings.Contains(block, "explicit-topic") {
 		t.Fatalf("%q", block)
+	}
+}
+
+func TestBehaviorMemoryFailsClosedWithoutPreferenceState(t *testing.T) {
+	for name, lookup := range map[string]func(context.Context, int64) (bool, error){
+		"missing": nil,
+		"error": func(context.Context, int64) (bool, error) {
+			return false, errors.New("user service down")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := NewMapStore()
+			store.Personalization = lookup
+			if err := store.Apply(context.Background(), 2, Candidate{
+				Layer: LayerProfile, Dimension: "topic", Value: "private-behavior", Score: 0.5,
+				Source: SourceBehavior, Confidence: 0.5,
+			}, time.Now()); err != nil {
+				t.Fatal(err)
+			}
+			items, err := store.List(context.Background(), 2, LayerProfile, time.Now())
+			if err != nil || len(items) != 0 {
+				t.Fatalf("items=%+v err=%v", items, err)
+			}
+		})
+	}
+}
+
+func TestDoNotRememberExtractsSuppressedMemory(t *testing.T) {
+	candidates := Extract("不要记住水文")
+	if len(candidates) != 1 || !candidates[0].Suppressed {
+		t.Fatalf("candidates=%+v", candidates)
+	}
+	store := NewMapStore()
+	if err := store.Apply(context.Background(), 2, candidates[0], time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.List(context.Background(), 2, LayerProfile, time.Now())
+	if err != nil || len(items) != 1 || !items[0].Suppressed {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+}
+
+func TestUpdateRejectsPrivateOrOutOfRangeValues(t *testing.T) {
+	store := NewMapStore()
+	if err := store.Apply(context.Background(), 2, Candidate{
+		Layer: LayerProfile, Dimension: "topic", Value: "go", Score: 0.5,
+		Source: SourceExplicit, Confidence: 1,
+	}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	items, _ := store.List(context.Background(), 2, LayerProfile, time.Now())
+	private := "13800138000"
+	if err := store.Update(context.Background(), 2, items[0].ID, Patch{Value: &private}, time.Now()); !errx.Is(err, errx.ParamError) {
+		t.Fatalf("private update err=%v", err)
+	}
+	score := 2.0
+	if err := store.Update(context.Background(), 2, items[0].ID, Patch{Score: &score}, time.Now()); !errx.Is(err, errx.ParamError) {
+		t.Fatalf("score update err=%v", err)
 	}
 }
 

@@ -1041,9 +1041,9 @@ type UpdateMemoryReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
-	Suppressed    bool                   `protobuf:"varint,5,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	Value         *string                `protobuf:"bytes,3,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	Score         *float64               `protobuf:"fixed64,4,opt,name=score,proto3,oneof" json:"score,omitempty"`
+	Suppressed    *bool                  `protobuf:"varint,5,opt,name=suppressed,proto3,oneof" json:"suppressed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1093,22 +1093,22 @@ func (x *UpdateMemoryReq) GetId() int64 {
 }
 
 func (x *UpdateMemoryReq) GetValue() string {
-	if x != nil {
-		return x.Value
+	if x != nil && x.Value != nil {
+		return *x.Value
 	}
 	return ""
 }
 
 func (x *UpdateMemoryReq) GetScore() float64 {
-	if x != nil {
-		return x.Score
+	if x != nil && x.Score != nil {
+		return *x.Score
 	}
 	return 0
 }
 
 func (x *UpdateMemoryReq) GetSuppressed() bool {
-	if x != nil {
-		return x.Suppressed
+	if x != nil && x.Suppressed != nil {
+		return *x.Suppressed
 	}
 	return false
 }
@@ -2184,15 +2184,18 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05layer\x18\x02 \x01(\tR\x05layer\"=\n" +
 	"\x0eListMemoryResp\x12+\n" +
-	"\x05items\x18\x01 \x03(\v2\x15.assistant.MemoryItemR\x05items\"\x86\x01\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.assistant.MemoryItemR\x05items\"\xb8\x01\n" +
 	"\x0fUpdateMemoryReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\x12\x14\n" +
-	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x1e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x19\n" +
+	"\x05value\x18\x03 \x01(\tH\x00R\x05value\x88\x01\x01\x12\x19\n" +
+	"\x05score\x18\x04 \x01(\x01H\x01R\x05score\x88\x01\x01\x12#\n" +
 	"\n" +
-	"suppressed\x18\x05 \x01(\bR\n" +
-	"suppressed\"\x12\n" +
+	"suppressed\x18\x05 \x01(\bH\x02R\n" +
+	"suppressed\x88\x01\x01B\b\n" +
+	"\x06_valueB\b\n" +
+	"\x06_scoreB\r\n" +
+	"\v_suppressed\"\x12\n" +
 	"\x10UpdateMemoryResp\":\n" +
 	"\x0fDeleteMemoryReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
@@ -2388,6 +2391,7 @@ func file_proto_assistant_assistant_proto_init() {
 	if File_proto_assistant_assistant_proto != nil {
 		return
 	}
+	file_proto_assistant_assistant_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

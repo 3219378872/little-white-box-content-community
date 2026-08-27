@@ -89,8 +89,14 @@ func TestRuntimeInjectsUnreadWatchHits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(executor.session.SystemPrompt, "未读的条件追踪命中") || !strings.Contains(executor.session.SystemPrompt, "怪猎") {
-		t.Fatalf("%q", executor.session.SystemPrompt)
+	if executor.session.SystemPrompt != "" {
+		t.Fatalf("watch data must not become system instructions: %q", executor.session.SystemPrompt)
+	}
+	if !strings.Contains(executor.session.WatchContext, "未读的条件追踪命中") || strings.Contains(executor.session.WatchContext, "怪猎") {
+		t.Fatalf("watch context must be fail-closed without content lookup: %q", executor.session.WatchContext)
+	}
+	if turn := executor.session.userTurnText(); !strings.Contains(turn, "UNTRUSTED_PERSONAL_CONTEXT_JSON=") {
+		t.Fatalf("watch context was not serialized as untrusted user data: %q", turn)
 	}
 }
 
@@ -104,9 +110,7 @@ func TestRuntimePersistsAuditWithoutUserText(t *testing.T) {
 	runtime.Audit = audit
 	runtime.Model = "test-model"
 	session := &Session{UserID: 2, RequestID: "req-9", UserMessage: "secret prompt", Tools: registry, Plan: QueryPlan{Intent: IntentRecommend}}
-	if _, _, callErr := registry.Call(context.Background(), session, ToolSearchPosts, "c1", `{"keyword":"secret"}`); callErr == nil {
-		// search client is nil → unavailable; still records digest
-	}
+	_, _, _ = registry.Call(context.Background(), session, ToolSearchPosts, "c1", `{"keyword":"secret"}`)
 	_, err = runtime.Run(context.Background(), session)
 	if err != nil {
 		t.Fatal(err)

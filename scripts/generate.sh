@@ -82,4 +82,6 @@ goctl api go \
 # gateway.api 声明 middleware: OptionalAuth，goctl 会在 internal/middleware 生成
 # 空的 OptionalAuthMiddleware 桩（含误导性 TODO）；真实实现在 pkg/middleware，
 # 路由经 serverCtx.OptionalAuth 装配。删除该死桩，保持生成后工作树干净。
-rm -f "$ROOT_DIR/app/gateway/internal/middleware/optionalauth_middleware.go"
+rm -f \
+  "$ROOT_DIR/app/gateway/internal/middleware/optionalauth_middleware.go" \
+  "$ROOT_DIR/app/gateway/internal/middleware/requiredauth_middleware.go"

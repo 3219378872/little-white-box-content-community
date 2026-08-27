@@ -2,6 +2,7 @@ package watch
 
 import (
 	"context"
+	"database/sql"
 	"strconv"
 	"strings"
 	"sync"
@@ -199,13 +200,27 @@ func (s *SQLStore) Create(ctx context.Context, task Task) (Task, error) {
 }
 
 func (s *SQLStore) UpdateEnabled(ctx context.Context, userID, id int64, enabled bool) error {
-	_, err := s.conn.ExecCtx(ctx, `UPDATE watch_task SET enabled = ? WHERE id = ? AND user_id = ?`, boolToInt(enabled), id, userID)
-	return err
+	res, err := s.conn.ExecCtx(ctx, `UPDATE watch_task SET enabled = ? WHERE id = ? AND user_id = ?`, boolToInt(enabled), id, userID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil || affected > 0 {
+		return err
+	}
+	var count int64
+	if err := s.conn.QueryRowCtx(ctx, &count, `SELECT COUNT(*) FROM watch_task WHERE id = ? AND user_id = ?`, id, userID); err != nil {
+		return err
+	}
+	if count == 0 {
+		return errx.NewWithCode(errx.NotFound)
+	}
+	return nil
 }
 
 func (s *SQLStore) Delete(ctx context.Context, userID, id int64) error {
-	_, err := s.conn.ExecCtx(ctx, `DELETE FROM watch_task WHERE id = ? AND user_id = ?`, id, userID)
-	return err
+	res, err := s.conn.ExecCtx(ctx, `DELETE FROM watch_task WHERE id = ? AND user_id = ?`, id, userID)
+	return requireDeletedRow(res, err)
 }
 
 func (s *SQLStore) ListHits(ctx context.Context, userID int64, unreadOnly bool) ([]Hit, error) {
@@ -261,24 +276,37 @@ func (s *SQLStore) CountExecutions(ctx context.Context, taskID int64, eventKeyPr
 }
 
 func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) error {
-	res, err := s.conn.ExecCtx(ctx, `
-		INSERT IGNORE INTO watch_execution (task_id, event_key, hit, used_llm, status)
-		VALUES (?, ?, 1, 0, 'matched')`, hit.TaskID, eventKey)
+	return s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		res, err := session.ExecCtx(ctx, `
+			INSERT IGNORE INTO watch_execution (task_id, event_key, hit, used_llm, status)
+			VALUES (?, ?, 1, 0, 'matched')`, hit.TaskID, eventKey)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil || n == 0 {
+			return err
+		}
+		_, err = session.ExecCtx(ctx, `
+			INSERT INTO watch_hit (user_id, task_id, post_id, title, summary, created_at_ms)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			hit.UserID, hit.TaskID, hit.PostID, hit.Title, hit.Summary, time.Now().UnixMilli())
+		return err
+	})
+}
+
+func requireDeletedRow(result sql.Result, err error) error {
 	if err != nil {
 		return err
 	}
-	n, err := res.RowsAffected()
+	affected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	if n == 0 {
-		return nil
+	if affected == 0 {
+		return errx.NewWithCode(errx.NotFound)
 	}
-	_, err = s.conn.ExecCtx(ctx, `
-		INSERT INTO watch_hit (user_id, task_id, post_id, title, summary, created_at_ms)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		hit.UserID, hit.TaskID, hit.PostID, hit.Title, hit.Summary, time.Now().UnixMilli())
-	return err
+	return nil
 }
 
 type execRow struct {

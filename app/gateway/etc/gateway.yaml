@@ -2,6 +2,10 @@ RestConf:
   Name: gateway
   Host: 0.0.0.0
   Port: 8888
+  # go-zero 的 REST Log 中间件会在 JWT/5xx 路径 dump 完整请求（含凭据和正文）。
+  # Gateway 改用只记录方法、路径、状态和耗时的 SafeAccessLog。
+  Middlewares:
+    Log: false
   # 框架默认 1MiB 会先于上传 handler 的 10MB MaxBytesReader 拒绝大图，
   # 与 image 上传上限对齐（video 走 gRPC 不受此限制）。
   MaxBytes: 10485760

@@ -49,6 +49,8 @@ type Session struct {
 	UserMessage    string
 	Attachments    []Attachment
 	SystemPrompt   string
+	MemoryContext  string
+	WatchContext   string
 	Budget         Budget
 	Emit           EmitFunc
 

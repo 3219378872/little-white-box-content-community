@@ -14,3 +14,9 @@ MQ:
 
 DataSource: "${DB_ASSISTANT}"
 SpikeMinComments: 5
+ContentRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: content.rpc
+InternalSecret: ${RPC_INTERNAL_SECRET}

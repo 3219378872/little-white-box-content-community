@@ -30,6 +30,7 @@ func TestNginxProductionRoutingContract(t *testing.T) {
 		"proxy_cache off",
 		"chunked_transfer_encoding on",
 		"proxy_read_timeout 10m",
+		"proxy_set_header X-Forwarded-For $remote_addr",
 		"location = /healthz",
 		"proxy_pass http://gateway_backend/api/v1/health",
 		"root /srv/www",
@@ -42,5 +43,8 @@ func TestNginxProductionRoutingContract(t *testing.T) {
 	}
 	if strings.Contains(config, "server 127.0.0.1:888") || strings.Contains(config, "server localhost:888") {
 		t.Fatal("production nginx upstreams must use Compose service discovery, not loopback ports")
+	}
+	if strings.Contains(config, "$proxy_add_x_forwarded_for") {
+		t.Fatal("production edge must overwrite client-supplied X-Forwarded-For")
 	}
 }
