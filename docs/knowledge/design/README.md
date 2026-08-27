@@ -11,5 +11,5 @@
 
 | 设计页 | 上游规范 | 状态 |
 | --- | --- | --- |
-| [DES-content-community-backend](DES-content-community-backend.md) | SPEC-community-core / SPEC-content-discovery / SPEC-grounded-assistant / SPEC-assistant-agent-mode / SPEC-feedback-reliability | active |
+| [DES-content-community-backend](DES-content-community-backend.md) | SPEC-community-core / SPEC-content-discovery / SPEC-grounded-assistant / SPEC-assistant-agent-mode / SPEC-agent-memory / SPEC-agent-watch / SPEC-feedback-reliability | active |
 | [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) | SPEC-grounded-assistant / SPEC-assistant-agent-mode / SPEC-agent-memory / SPEC-agent-watch / SPEC-content-discovery / SPEC-feedback-reliability | active |

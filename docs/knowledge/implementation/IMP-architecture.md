@@ -9,8 +9,8 @@ upstream:
 tracks:
   - app/
   - pkg/
-verified_at: 2026-08-15
-verified_commit: a52eb89
+verified_at: 2026-08-27
+verified_commit: c33a541
 ---
 
 # 服务架构与模块清单
@@ -32,7 +32,9 @@ Client → Gateway (REST :8888) → User RPC (:9090)
 
 异步链路经 RocketMQ 驱动：内容变更 → search 索引 / embedding / feed fanout /
 count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
-推荐特征；权威业务事务通过 outbox 同事务投递。
+推荐特征；权威业务事务通过 outbox 同事务投递。Assistant 记忆与 Watch 权威库是
+`xbh_assistant`（DSN `DB_ASSISTANT`，可选）；Watch 规则匹配函数在 assistant RPC
+内，消费组 `assistant-watch-matcher-group` 已预留，**还不是一个正在运行的进程**。
 
 ## 服务清单
 
@@ -48,7 +50,7 @@ count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（
 | Search | RPC + MQ | `app/search/rpc/search.go`、`app/search/mq/main.go` | `proto/search/search.proto` |
 | Recommend | RPC + MQ | `app/recommend/rpc/recommend.go`、`app/recommend/mq/main.go` | `proto/recommend/recommend.proto` |
 | Embedding | MQ + service | `app/embedding/mq/main.go`、`app/embedding/service` | `proto/embedding/embedding.proto` |
-| Assistant | RPC（SSE） | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
+| Assistant | RPC（SSE）+ 记忆/Watch 权威 | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
 | Behavior | RPC | `app/behavior/rpc/behavior.go` | `proto/behavior/behavior.proto` |
 | Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |
 | Content cleanup | MQ 消费者 | `app/content/mq/cleanup/main.go` | — |
@@ -86,6 +88,7 @@ internal/model/    → 数据访问层
 - **Gateway → RPC**：zrpc 客户端 + etcd 服务发现；trace_id 经 gRPC metadata 透传。
 - **RPC → RPC**：Interaction 写赞/藏前问 Content 校验 published；Assistant 经 Content
   重读正文并验证 published。详情/列表的访问者互动状态由 Gateway 回填 Interaction。
+  记忆与 Watch 的权威在 assistant RPC（`xbh_assistant`），不新开业务服务。
 - **算法旁路**：`algorithm/online_infer` 与 `offline_train` 可选；推荐超时则规则降级。
 
 ### 行为事件双轨可靠性模型

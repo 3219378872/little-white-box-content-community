@@ -12,8 +12,8 @@
 
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
-| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-15（规范锁定后仍有评测/SLO/评论点赞缺口） |
-| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-15（快照） |
+| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-08-27（Agent Runtime 映射；Watch MQ 未接线；评测/SLO 仍缺） |
+| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-27（快照：xbh_assistant / Watch 消费组预留） |
 | [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
 | [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
 

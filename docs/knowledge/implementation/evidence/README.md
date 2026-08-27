@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-08-27-content-community-agent-runtime.md](2026-08-27-content-community-agent-runtime.md)：
+  Agent Runtime / 记忆 / Watch 实现映射与评测回归（Watch MQ 消费者未接线；
+  ASST-050 live 未重跑），提交见 frontmatter。
 - [2026-08-22-content-community-comment-replies.md](2026-08-22-content-community-comment-replies.md)：
   楼中楼回复读取（列表内嵌预览 + 全量分页接口）与计数一致性（reply_count
   维护、删除级联），提交 abde00b。

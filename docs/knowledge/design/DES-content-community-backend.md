@@ -9,6 +9,8 @@ upstream:
   - SPEC-content-discovery
   - SPEC-grounded-assistant
   - SPEC-assistant-agent-mode
+  - SPEC-agent-memory
+  - SPEC-agent-watch
   - SPEC-feedback-reliability
 ---
 

@@ -18,11 +18,15 @@ tracks:
   - app/assistant/rpc/internal/logic
   - app/assistant/rpc/internal/store
   - app/assistant/rpc/internal/tool
+  - app/assistant/rpc/internal/agent
+  - app/assistant/rpc/internal/memory
+  - app/assistant/rpc/internal/watch
   - app/behavior/rpc/internal/logic
   - app/search/rpc/internal/logic
   - app/feed/rpc/internal/logic
   - app/content/mq/cleanup
   - app/gateway
+  - app/gateway/internal/logic/assistant
   - pkg/visibilityx
   - app/content/visibility
   - proto/content/content.proto
@@ -36,25 +40,34 @@ tracks:
   - deploy/sql/xbh_user.sql
   - deploy/sql/xbh_media.sql
   - deploy/sql/xbh_analytics.sql
+  - deploy/sql/xbh_assistant.sql
+  - deploy/sql/patches/20260827_assistant_runtime.sql
+  - deploy/sql/patches/20260827_agent_consent_version.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
-verified_at: 2026-08-15
-verified_commit: a52eb89
+verified_at: 2026-08-27
+verified_commit: c33a541
 ---
 
 # 小白盒内容社区后端实现映射
 
-本页记录四份已批准规范到代码实现的映射与逐条状态。
-设计见 [DES-content-community-backend](../design/DES-content-community-backend.md)；
+本页记录已批准规范到代码实现的映射与逐条状态（社区核心、发现、证据化
+Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
+设计见 [DES-content-community-backend](../design/DES-content-community-backend.md)
+与 [DES-assistant-agent-runtime](../design/DES-assistant-agent-runtime.md)；
 源码、`.api`、`.proto`、SQL 与测试高于本页。
 
 ## 总体状态
 
-`diverged`：2026-08-15 已锁定规范。代码可关闭项已对齐。仍偏离处：
+`diverged`：2026-08-27 已把 Agent Runtime / 记忆 / Watch 映射进本页。代码可关闭项
+仍保持对齐。仍偏离处：
 - `CORE-032` 公开计数 30s 收敛缺少生产观测。
 - `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
 - `REL-A03` 未注入 `REL-054` 全部十行。
+- Watch RocketMQ 消费者进程未接线：`Match()` 有单测，消费组
+  `assistant-watch-matcher-group` 已预留，但没有运行中的 matcher 进程。
+- 未配置 `DB_ASSISTANT` 时记忆/Watch 列表返回空，写接口 503。
 
 ## 规格追踪
 
@@ -140,14 +153,14 @@ verified_commit: a52eb89
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
 | ASST-001 仅认证用户、会话本人 | aligned | /assistant/chat 挂 jwt；会话按用户隔离 |
-| ASST-002 只用已发布帖子证据 | aligned | tool 只检索 published 帖子 |
-| ASST-003 仅元数据不构成证据 | aligned | 证据要求真实正文片段 |
-| ASST-004 推荐候选需重读验证 | aligned | 推荐候选经 content 重读正文并验证 published 后才成为证据 |
+| ASST-002 只用已发布帖子或有效评论证据 | aligned | enhanced_search 工具只检索 published 帖子；Agent `search_posts`/`get_post_comments` 可附带父帖可见且 status=1 的评论，父帖未发布则拒绝 |
+| ASST-003 仅元数据不构成证据 | aligned | 证据要求真实帖子正文或评论正文片段 |
+| ASST-004 推荐候选需重读验证 | aligned | 推荐候选经 content 重读正文并验证 published 后才成为证据；评论按评论标识回源且父帖须可见 published |
 | ASST-005 不提供资料工具 | aligned | 无用户资料工具 |
 | ASST-006 内容指令不可信 | aligned | safety filter + 注入防护 |
 | ASST-007 证据不足拒答 | aligned | 无已发布正文证据时返回固定拒答，不返回搜索/推荐元数据摘要 |
-| ASST-010 段落必须含 [post:id]、1~5 来源 | aligned | 事实回答强制至少一个 [post:id]；来源 1~5 上限；缺失引用时降级 |
-| ASST-011 结构化来源含 id/标题/片段/revision | aligned | 来源含 id/标题/片段/revision（SSRC 事件与持久化） |
+| ASST-010 段落必须含 [post:id] 或 [comment:id]、1~5 来源 | aligned | enhanced_search 事实回答强制至少一个 [post:id]；Agent 评论证据标注 [comment:id] 并携带父帖 revision；来源 1~5 上限；缺失引用时降级 |
+| ASST-011 结构化来源含类型/id/标题/片段/revision | aligned | 来源含 type（post/comment/web）、id/标题/片段/revision；comment 携带父帖 revision；web 不作为社区证据 |
 | ASST-012 仅服务端验证来源可返回 | aligned | 对外 SOURCE 只含回源验证过的帖子；user/tag 元数据不再提升为来源 |
 | ASST-013 区分事实/观点/无法确认 | partial | 系统指令强制区分作者观点与平台事实；终验依赖 ASST-050/051 评测（来源有效率与事实支持率） |
 | ASST-014 证据冲突呈现双方 | partial | 系统指令强制呈现冲突及各自来源；所有来源均提供给模型；终验依赖 ASST-050/051 评测 |
@@ -164,10 +177,101 @@ verified_commit: a52eb89
 | ASST-034 安全策略拒绝、不泄露 | aligned | safety filter + 错误包装 |
 | ASST-035 同请求重试不矛盾 | aligned | 同 request_id 的重复用户消息被去重，避免重复/矛盾回答 |
 | ASST-040 /api/v2/assistant/chat 兼容 | aligned | 事件契约稳定 |
-| ASST-041 证据边界不可变 | aligned | 设计约束 |
-| ASST-042 新来源需重新批准 | aligned | 仅 post 来源 |
-| ASST-050 人类评测集 | partial | 现有案例为 LLM 生成；SPEC 要求两名人类评审 |
-| ASST-051 质量阈值 | partial | live（合成集）：注入 0、误拒 5.8% 达标；来源 77.3%、不足召回 8.3% 未达 |
+| ASST-041 证据边界不可变 | aligned | 社区证据仍为已发布帖子及其有效评论；记忆与 Watch 命中不能替代引用 |
+| ASST-042 comment 来源已批准 | aligned | Agent 搜索可返回 `comment` 来源；`web` 为研究素材；旧客户端忽略未知来源（AGNT-A08） |
+| ASST-043 enhanced_search 缺省 | aligned | 网关空/无法识别 mode 一律 `enhanced_search`；`TestEnhancedSearchIsDefaultMode` |
+| ASST-050 人类评测集 | partial | 现有案例为 LLM 生成；SPEC 要求两名人类评审；本轮未重跑 live Gateway、未改 `eval/assistant_cases.json` |
+| ASST-051 质量阈值 | partial | live（合成集）：注入 0、误拒 5.8% 达标；来源 77.3%、不足召回 8.3% 未达；本轮未重跑 live |
+
+## SPEC-assistant-agent-mode 追踪
+
+| 要求 | 状态 | 实现位置与偏离说明 |
+| --- | --- | --- |
+| AGNT-001 mode=agent/enhanced_search，缺省 enhanced_search | aligned | 网关空/无法识别值走 `ASSISTANT_MODE_ENHANCED_SEARCH`；`TestEnhancedSearchIsDefaultMode` |
+| AGNT-002 未授权不得静默降级执行工具 | aligned | 网关在开流前查 consent，未授权只回 `AGENT_NOT_AUTHORIZED`；`agent_chat_gate_test.go` |
+| AGNT-003 以当前用户身份、权限不超过本人 | aligned | 写帖 `AuthorId=session.UserID`；记忆/Watch 按 `user_id` 隔离；检索回源走当前用户可见性 |
+| AGNT-004 授权可查询、先查再确认 | aligned | `GET /assistant/consent` → User `GetAgentCapabilityConsent`；默认未授权 |
+| AGNT-005 授权说明披露工具清单 | aligned | 后端返回 `consentVersion`/`currentVersion`（当前披露版本常量 `2`）；说明文案由客户端展示，服务端不代替确认 |
+| AGNT-006 可随时撤销、立即生效 | aligned | `SetAgentCapabilityConsent` 持久化 `revoked_at`；之后 agent 请求按 AGNT-002 拒绝 |
+| AGNT-007 consent_version 与分组裁剪 | aligned | User 库 `consent_version`；v1 只保留 Write + `search_posts`/`web_search`；`TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
+| AGNT-010 分组白名单 | partial | Search/Recommend/Memory/Watch/Write 已注册，配置可收缩；**UserState**（`get_my_favorites`/`get_my_likes`/`get_my_following`/`get_my_posts`）未实现 |
+| AGNT-011 帖子/评论回源 | aligned | `search_posts`/`get_post`/`get_post_comments` 回源 Content；未发布父帖拒绝评论；`search_test.go` |
+| AGNT-012 web_search 非社区证据 | aligned | 来源 `type=web`，文案禁止当帖子证据；无 key 时工具不可用失败关闭 |
+| AGNT-013 写帖图片仅本会话附件 | aligned | `resolveAttachments` + `assertMediaOwnership`；会话外 mediaId 失败；`tools_test.go` |
+| AGNT-014 v2 乐观锁 | aligned | update/delete 走 `expected_revision`；缺省先读再写，冲突原样反馈 |
+| AGNT-015 幂等键由请求标识派生 | aligned | `agent:<action>:<requestID>:<callID>`；`TestCreatePostDerivesIdempotencyAndRestrictsImages` |
+| AGNT-016 用户/标签搜索非证据、get_post 回源 | aligned | `TestSearchUsersAreNotEvidence`；`get_post` 调 Content |
+| AGNT-017 UserState 只读本人列表 | partial | 四个 UserState 工具未注册 |
+| AGNT-018 Recommend 真实 ID 并回源 | aligned | `recommend_posts` 调 RecommendRpc `scene=agent`，排除记忆负向 ID 后再 Content 回源；`recommend_test.go` |
+| AGNT-019 Memory/Watch 受 consent 与失败反馈 | aligned | 出现在白名单；v1 consent 不可见；失败走 `errx`/`toolFeedback` |
+| AGNT-020 删除逐次确认 | aligned | `delete_post` HighRisk；确认事件含帖子摘要；拒绝不执行 |
+| AGNT-021 确认超时视为拒绝 | aligned | 默认 120s；`ErrConfirmExpired` 反馈模型不挂起；`confirm_test.go` |
+| AGNT-022 确认凭据一次性 | aligned | Redis pending/decision 键，Wait 后删除；跨请求重放无效 |
+| AGNT-023 Memory/Watch 不走删除确认 | aligned | 对应工具 `HighRisk=false` |
+| AGNT-030 软硬步数预算 | aligned | 默认软 8 / 硬 12；超软限注入剩余步数；`TestRunnerInjectsSoftLimitNotice` |
+| AGNT-031 硬限强制收尾 | aligned | 剥离工具再生成一次，失败 `AGENT_BUDGET_EXCEEDED`；`TestRunnerFinalizesWithoutToolsAtHardLimit` |
+| AGNT-032 独立配额 | aligned | Agent Redis 配额默认 10/60s，与 enhanced_search 分开 |
+| AGNT-033 单轮时长上限、已写入不回滚 | aligned | `TurnTimeoutMs` 默认 120s；取消/超时停止发送；已成功写保留 |
+| AGNT-040 会话附件仅当次请求 | aligned | ChatReq.attachments；网关校验 mediaId/url 与 ≤9 |
+| AGNT-041 图片 ≤9 | aligned | 附件与写帖均拒绝超出，不截断 |
+| AGNT-042 context_post_id 可选提示 | aligned | 缺省忽略；不授予额外权限 |
+| AGNT-050 安全过滤与不可信内容 | aligned | 输入/输出走 safety；Agent 系统提示把网络与社区内容当不可信数据 |
+| AGNT-051 错误不泄密 | aligned | 对外 `errx` 包装；不回传提示词/secret/堆栈 |
+| AGNT-052 工具审计条目 | partial | 指标 `agent_tool_calls_total`；`tool_call`/`agent_run` 表已建，**无写入路径** |
+| AGNT-053 可查询运行记录 | partial | schema 已有 `agent_run`（禁止正文/secret）；Runtime 只打日志与指标，未落库 |
+| AGNT-060 事件向后兼容 | aligned | 新增 CARD/ACTIONS/WATCH_HIT；网关未知类型忽略；`TestAssistantChatUnknownEventsAreIgnored` |
+| AGNT-061 LLM 不可用不得自行写帖 | aligned | Agent LLM 失败走 `LLM_UNAVAILABLE` 降级；规则 Watch 匹配不在对话回合内 |
+| AGNT-062 工具失败分类反馈 | aligned | 参数/越权/冲突/不可用/超限映射 `errx` 后回灌模型 |
+| AGNT-063 卡片/动作标识须已验证 | partial | proto 与网关映射已有；Runner **尚未发出** CARD/ACTIONS |
+| AGNT-064 推荐卡片 ID 来自真实结果 | partial | Recommend 工具只返回回源 ID；尚无推荐卡片事件 |
+
+## SPEC-agent-memory 追踪
+
+| 要求 | 状态 | 实现位置与偏离说明 |
+| --- | --- | --- |
+| MEM-001 结构化记录字段 | aligned | `memory.Item`：层/维度/值/分值/来源/置信度/更新时间；四层表在 `xbh_assistant` |
+| MEM-002 来源仅 behavior/conversation/explicit | aligned | `Apply` 拒绝其它来源 |
+| MEM-003 同键一条当前记录+历史 | aligned | 唯一键 + `history_json`；`TestMapStoreConflictKeepsOneCurrentRecord` |
+| MEM-004 Interest 读取衰减 | aligned | `score * exp(-λ Δt)`，低于 0.05 不进 ContextBlock；`TestInterestDecayDropsBelowFloorInContext` |
+| MEM-005 Episodic 默认不注入 | partial | 默认 List 不含 episodic；ContextBlock 仅在 recommend/community_opinion 跳过 episodic，其它 intent 仍可能带上 |
+| MEM-006 “还有吗”续写 Task | partial | `ClassifyIntent` 把“还有吗/换一批”标 `continue_task` 并装载开放 Task；检索/推荐尚未强制套用 Task 已排除 ID |
+| MEM-010 写入须校验合并 | partial | 显式句式 `Extract` + `Apply` 去重合并；无 LLM 候选 schema 路径 |
+| MEM-011 显式偏好高于行为推断 | aligned | 对话显式句式 `conversation` 置信度 0.9；工具写入 `explicit` 置信度 1 |
+| MEM-012 关闭个性化后 behavior 停用 | partial | 助手记忆路径未读取个性化关闭标记 |
+| MEM-013 不得保存私密字段 | partial | 只拒绝空值；无手机号/验证码/私信/未发布内容丢弃规则 |
+| MEM-020 可列出 Profile/Interest/Task | aligned | `GET /assistant/memory`；`confirmed` 区分高置信；episodic 按 layer 检索 |
+| MEM-021 修改/删除/不要记住 | aligned | PATCH/DELETE；`suppressed=1` 后 SQL 冲突更新保持禁止 |
+| MEM-022 只对所属用户开放 | aligned | JWT userId；store 按 user_id 过滤，他人记录 NotFound |
+| MEM-023 回答不得引用已删/失效记忆 | partial | ContextBlock 跳过 suppressed 与衰减 Interest；无“回答引用已删记忆”专项测试 |
+| MEM-030 Memory 工具只作用于当前用户 | aligned | `get/add/update/delete_memory`；add/update 走 `Apply`/`Update` |
+| MEM-031 对外列表/修改/删除且幂等 | aligned | REST+RPC；无库时写 503、删不存在 404；列表无库返回空（见 MEM-040） |
+| MEM-032 抽取不阻塞 DONE | aligned | 回合成功后 `go persistMemory`；失败只打日志 |
+| MEM-040 存储不可用不得谎报成功 | partial | Memory 工具 store=nil → 503；**列表在无 `DB_ASSISTANT` 时返回空 items，不报暂时不可用**；写需要 DB |
+| MEM-041 记忆不是社区证据 | aligned | Memory 工具不产出 post/comment Source |
+| MEM-042 随后列表与回合可见刚提交修改 | aligned | 同进程 Apply 后 List 立即可见 |
+
+## SPEC-agent-watch 追踪
+
+| 要求 | 状态 | 实现位置与偏离说明 |
+| --- | --- | --- |
+| WCH-001 任务含稳定标识/类型/目标/启用 | aligned | `watch_task` + REST/工具 CRUD |
+| WCH-002 四种规则条件 | aligned | `author_new_post`/`tag_new_post`/`keyword_new_post`/`post_revised`；`TestMatchRules` |
+| WCH-003 discussion_spike 预筛选后才调模型 | partial | 允许创建该类型；`Match()` **未实现**预筛选或模型判定 |
+| WCH-004 不可见/未发布不命中；目标不存在须创建失败 | partial | `Match` 要求 `Status==1`；创建路径**不校验**作者/标签是否存在 |
+| WCH-005 同用户同条件同目标不重复 | aligned | 唯一键；重复 `IdempotencyConflict`；`TestCreateRejectsUnknownConditionAndDuplicates` |
+| WCH-010 规则条件由事件驱动 | partial | `Match(task, PostEvent)` 单测覆盖；消费组 `assistant-watch-matcher-group` 已预留；**没有 matcher 消费者进程** |
+| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；`RecordHit` 去重；无消费者故无端到端重试路径 |
+| WCH-012 spike 未过阈值不调模型 | partial | 预筛选/模型否定路径未实现 |
+| WCH-013 匹配失败不影响发帖主路径 | partial | 主路径不依赖 matcher；因消费者未接线，本条按“未部署故未接入发帖”部分满足 |
+| WCH-020 命中只进助手收件箱 | partial | `watch_hit` + `GET /assistant/watch/hits`；不写私信/通知/推送；**下次 Agent 对话未注入未读摘要** |
+| WCH-021 列表/已读且可见性过滤 | partial | 按 user_id 列出/标记已读；返回前**未回源**过滤不可见帖 |
+| WCH-022 命中不是社区证据 | aligned | 命中不自动变成 Source；事实陈述仍须回源引用 |
+| WCH-030 Watch 工具只作用于当前用户 | aligned | 四个工具 + RPC，均带 session/JWT userId |
+| WCH-031 不走删除确认；删任务停后续命中 | aligned | 工具非 HighRisk；删除任务后 `Match` 不再看到该任务；已有 hit 保留 |
+| WCH-032 越权拒绝 | aligned | REST jwt；SQL/MapStore 按 user_id |
+| WCH-040 存储不可用 | partial | 无 `DB_ASSISTANT` 时创建/更新/删除 503；**列表任务/命中返回空**；无恢复后补扫 |
+| WCH-041 未知条件类型拒绝 | aligned | `ValidateTask` → ParamError；`TestCreateRejectsUnknownConditionAndDuplicates` |
+| WCH-042 WATCH_HIT 事件可忽略 | aligned | proto `CHAT_EVENT_TYPE_WATCH_HIT`；网关未知事件忽略 |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -209,8 +313,9 @@ verified_commit: a52eb89
 
 ## 验收标准追踪
 
-四份规范共 22 条验收标准（CORE-A01~A07、DISC/ASST/REL-A*）。代码行为类以 Go 测试落地，
-离线评测/观测类由 `scripts/spec_evals.py` 与冻结数据集承担（后者待人类输入，见
+原四份规范共 22 条验收标准（CORE-A01~A07、DISC/ASST/REL-A*），外加 AGNT-A01~A08、
+MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/观测类由
+`scripts/spec_evals.py` 与冻结数据集承担（后者待人类输入，见
 [IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)）。
 
 | 验收标准 | 状态 | 测试/证据位置 |
@@ -229,7 +334,7 @@ verified_commit: a52eb89
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | DISC-A06 冻结集复现门禁 | partial | 现有 live 结果基于 LLM 合成集，不满足人类双评审 |
 | ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
-| ASST-A02 候选重读与无资料工具 | aligned | `app/assistant/rpc/internal/tool/registry_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
+| ASST-A02 候选重读与无资料工具 | aligned | `registry_test.go`、`chat_logic_test.go`；Agent 评论：父帖未发布拒绝、无效评论不附带（`search_test.go`） |
 | ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | ASST-A04 完成/取消/降级/越权 | aligned | `app/gateway/internal/logic/assistant/assistant_chat_logic_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
 | REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
@@ -237,6 +342,24 @@ verified_commit: a52eb89
 | REL-A03 故障降级矩阵 | partial | 仅覆盖网关 RPC-FAIL 与推荐推理注入，不是 REL-054 全部十行 |
 | REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
+| AGNT-A01 未授权/授权/撤销网关行为 | aligned | `app/gateway/internal/logic/assistant/agent_chat_gate_test.go` |
+| AGNT-A02 Write + search_posts/web_search 成功与失败 | aligned | `app/assistant/rpc/internal/agent/tools_test.go`、`app/assistant/rpc/internal/agent/search_test.go` |
+| AGNT-A03 删除确认同意/拒绝/超时/重放 | aligned | `app/assistant/rpc/internal/agent/confirm_test.go`、`TestDeletePostRequiresConfirmation` |
+| AGNT-A04 软限通知与硬限收尾 | aligned | `app/assistant/rpc/internal/agent/runner_openai_test.go` |
+| AGNT-A05 注入不能触发白名单外操作 | partial | enhanced_search 注入单测仍绿；Agent 系统提示约束不可信内容，缺专门的白名单外工具注入用例 |
+| AGNT-A06 consent_version=1 新分组不可见 | aligned | `TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
+| AGNT-A07 Search/UserState/Recommend 成功与越权 | partial | Search/Recommend 有成功与不可见/回源路径；**UserState 未实现** |
+| AGNT-A08 旧客户端忽略未知事件/来源 | aligned | `TestAssistantChatUnknownEventsAreIgnored`；web 来源 type=web |
+| MEM-A01 显式写入/冲突合并 | aligned | `app/assistant/rpc/internal/memory/store_test.go`、`app/assistant/rpc/internal/agent/memory_tools_test.go` |
+| MEM-A02 Interest 衰减与“还有吗”续写 | partial | 衰减已测；continue_task 仅 intent 分类，未测 Task 排除约束推荐 |
+| MEM-A03 列表/修改/删除/不要记住 | partial | CRUD 与 suppressed 已实现；缺“删除后回答不得再引用”专项 |
+| MEM-A04 越权拒绝与存储不可用 | partial | 他人记录 NotFound；工具无库 503；REST 列表无库返回空而非暂时不可用 |
+| MEM-A05 记忆不能当社区证据/不能存私密资料 | partial | 工具不产出社区 Source；私密字段丢弃未测 |
+| WCH-A01 四种规则命中与不可见不命中 | partial | `TestMatchRules` 覆盖四种规则与停用；未发布靠 Status!=1；无消费者端到端 |
+| WCH-A02 重复任务/越权/未知类型 | aligned | `TestCreateRejectsUnknownConditionAndDuplicates`；store 按 user_id |
+| WCH-A03 discussion_spike 预筛选 | partial | 类型可创建，匹配与预筛选未实现 |
+| WCH-A04 命中仅本人收件箱、事件不重复未读 | partial | hit 按 user 隔离、RecordHit 去重；无下次对话注入；消费者未接线 |
+| WCH-A05 停用/删除后不再命中且不影响发帖 | partial | disabled `Match` 为 false；发帖主路径独立；因消费者未部署，无线上漏命中证据 |
 
 
 ## 代码入口
@@ -255,8 +378,15 @@ verified_commit: a52eb89
   `pkg/idempotencyx/idempotency.go`（共享幂等，CORE-050）。
 - 推荐：`app/recommend/rpc/internal/logic/get_recommend_posts_logic.go`、`helpers.go`、
   `app/recommend/mq/internal/store/behavior_store.go`。
-- Assistant：`app/assistant/rpc/internal/logic/chat_logic.go`、
+- Assistant enhanced_search：`app/assistant/rpc/internal/logic/chat_logic.go`、
   `app/assistant/rpc/internal/tool/registry.go`、`app/assistant/rpc/internal/store/state.go`。
+- Assistant Agent Runtime：`app/assistant/rpc/internal/agent/`（runtime、runner、tools、search、recommend、intent）；
+  记忆 `app/assistant/rpc/internal/memory/store.go`；Watch `app/assistant/rpc/internal/watch/store.go`（`Match()` 单测，无 MQ 消费者进程）。
+- Assistant 权威库：`deploy/sql/xbh_assistant.sql`，存量补丁
+  `deploy/sql/patches/20260827_assistant_runtime.sql`、
+  `deploy/sql/patches/20260827_agent_consent_version.sql`；DSN 为可选 `DB_ASSISTANT`。
+- 网关 Assistant REST：`app/gateway/internal/logic/assistant/`（chat/consent/memory/watch/feedback）；
+  契约 `proto/assistant/assistant.proto`、`app/gateway/gateway.api`。
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
 - 搜索：`app/search/rpc/internal/logic/search_logic.go`。
 - 共享回源：`app/content/visibility`（把 Content `GetPostsByIds` 适配为 `visibilityx.Fetcher`，Assistant/Feed/Recommend/Search/Gateway 统一复用）。
@@ -266,13 +396,10 @@ verified_commit: a52eb89
 
 ## 证据
 
-验证于 2026-08-12（提交 0031d91）：
-- `make check`：fmt、engineering-lint、vet、golangci-lint 全部通过。
-- `make test`：全部模块 race 测试通过。
-- `go test -tags integration ./app/content/rpc/internal/logic/` 与
-  `./app/user/rpc/internal/logic/`：通过（含 revision/idempotency/状态机/隐私偏好）。
-- `make integration-critical` 通过；count-sync 与 message 命令模型集成测试通过。
-- 各服务单元测试覆盖新增失败路径（版本冲突、幂等冲突、媒体归属、来源变化等）。
+Agent Runtime 映射验证于 2026-08-27，见
+[2026-08-27-content-community-agent-runtime.md](evidence/2026-08-27-content-community-agent-runtime.md)。
+`verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
-未覆盖边界：媒体与消息的媒体校验依赖真实 media RPC（本地无 SeaweedFS），通过单元测试
-fake 覆盖；离线评测门禁与 SLO 观测数据不在此提交内。
+未覆盖边界：Watch MQ 消费者未接线；无 `DB_ASSISTANT` 时记忆/Watch 列表为空；
+ASST-050/051 人类冻结集与 live Gateway 评测本轮未跑（网关未起来）；
+UserState 工具与 `agent_run` 落库、discussion_spike 匹配仍缺。
