@@ -1,11 +1,13 @@
 package svc
 
 import (
+	"strings"
 	"time"
 
 	"esx/app/assistant/rpc/internal/agent"
 	"esx/app/assistant/rpc/internal/config"
 	"esx/app/assistant/rpc/internal/llm"
+	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/safety"
 	"esx/app/assistant/rpc/internal/store"
 	"esx/app/assistant/rpc/internal/tool"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -37,6 +40,7 @@ type ServiceContext struct {
 	AgentConfirms agent.ConfirmBroker
 	AgentQuota    store.QuotaLimiter
 	UserService   userservice.UserService
+	Memory        memory.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -86,18 +90,26 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		}
 	}
 
+	memoryStore := buildMemoryStore(c)
 	return &ServiceContext{
 		Config: c, Tools: tools, Conversations: state, Quota: state,
 		Generator: generator, Safety: safetyFilter,
 		ContentService: contentService,
-
-		AgentTools: buildAgentTools(c, searchService, contentService, mediaService, recommendService),
+		Memory:         memoryStore,
+		AgentTools:     buildAgentTools(c, searchService, contentService, mediaService, recommendService, memoryStore),
 		// AgentConfirms 始终可用：即使 runner 未启用，ConfirmToolCall 也应能明确拒绝过期凭据。
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
-		AgentRunner:   buildAgentRunner(c),
+		AgentRunner:   buildAgentRunner(c, memoryStore),
 		AgentQuota:    buildAgentQuota(redisClient, c),
 		UserService:   userservice.NewUserService(newClient(c.UserRpc)),
 	}
+}
+
+func buildMemoryStore(c config.Config) memory.Store {
+	if strings.TrimSpace(c.DataSource) == "" {
+		return nil
+	}
+	return memory.NewSQLStore(sqlx.NewMysql(c.DataSource))
 }
 
 // buildAgentTools 构造 Agent 工具注册表；失败时返回 nil（agent 模式不可用），
@@ -108,6 +120,7 @@ func buildAgentTools(
 	contentService contentservice.ContentService,
 	mediaService mediaservice.MediaService,
 	recommendService recommendservice.RecommendService,
+	memoryStore memory.Store,
 ) *agent.ToolRegistry {
 	if !c.Agent.Enabled {
 		return nil
@@ -117,6 +130,7 @@ func buildAgentTools(
 		Content:   contentService,
 		Media:     mediaService,
 		Recommend: recommendService,
+		Memory:    memoryStore,
 		Web: websearch.New(websearch.Config{
 			APIKey:     c.Agent.WebSearch.APIKey,
 			Endpoint:   c.Agent.WebSearch.Endpoint,
@@ -133,7 +147,7 @@ func buildAgentTools(
 
 // buildAgentRunner 装配 Agent 编排引擎；未启用或配置不完整时返回 nil 并记录原因，
 // 不 panic——agent 关闭不应影响服务启动与既有管线。
-func buildAgentRunner(c config.Config) agent.Runner {
+func buildAgentRunner(c config.Config, memoryStore memory.Store) agent.Runner {
 	if !c.Agent.Enabled || !c.LLM.Enabled || c.LLM.WireAPI == llm.WireAPIResponses {
 		return nil
 	}
@@ -148,7 +162,7 @@ func buildAgentRunner(c config.Config) agent.Runner {
 		logx.Errorw("assistant agent disabled", logx.Field("reason", err.Error()))
 		return nil
 	}
-	return agent.NewRuntime(runner)
+	return agent.NewRuntime(runner, memoryStore)
 }
 
 // buildAgentQuota 为 Agent 模式构造独立固定窗口限流器（AGNT-032）。

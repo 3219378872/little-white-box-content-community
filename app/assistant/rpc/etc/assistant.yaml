@@ -77,6 +77,10 @@ Agent:
   - search_tags
   - get_post
   - get_post_comments
+  - get_memory
+  - add_memory
+  - update_memory
+  - delete_memory
   - web_search
   - create_post
   - update_post

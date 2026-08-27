@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/internal/websearch"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
@@ -45,6 +46,7 @@ type Clients struct {
 	Media     mediaservice.MediaService
 	Recommend recommendservice.RecommendService
 	Web       websearch.Searcher
+	Memory    memory.Store
 }
 
 // Definition 描述一个工具的 schema 与执行器，供 Runner 转换为模型侧 function 定义。
@@ -136,6 +138,55 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 				"required": []string{"post_id"},
 			},
 			executor: getPostCommentsExecutor(clients.Content),
+		},
+		{
+			Name:        ToolGetMemory,
+			Description: "列出当前用户的结构化记忆（偏好/兴趣/任务）。",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"layer": map[string]any{"type": "string", "enum": []string{"profile", "interest", "task", "episodic"}}},
+			},
+			executor: getMemoryExecutor(clients.Memory),
+		},
+		{
+			Name:        ToolAddMemory,
+			Description: "为当前用户写入一条显式记忆。须走校验与冲突合并。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"layer":     map[string]any{"type": "string"},
+					"dimension": map[string]any{"type": "string"},
+					"value":     map[string]any{"type": "string"},
+					"score":     map[string]any{"type": "number"},
+				},
+				"required": []string{"value"},
+			},
+			executor: addMemoryExecutor(clients.Memory),
+		},
+		{
+			Name:        ToolUpdateMemory,
+			Description: "修改当前用户的一条记忆，包括标记不要记住。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id":         map[string]any{"type": "integer"},
+					"value":      map[string]any{"type": "string"},
+					"score":      map[string]any{"type": "number"},
+					"suppressed": map[string]any{"type": "boolean"},
+				},
+				"required": []string{"id"},
+			},
+			executor: updateMemoryExecutor(clients.Memory),
+		},
+		{
+			Name:        ToolDeleteMemory,
+			Description: "删除当前用户的一条记忆。",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"id": map[string]any{"type": "integer"}},
+				"required":   []string{"id"},
+			},
+			executor: deleteMemoryExecutor(clients.Memory),
 		},
 		{
 			Name:        ToolWebSearch,

@@ -54,7 +54,7 @@ func TestRuntimeClassifiesAndRestricts(t *testing.T) {
 		t.Fatal(err)
 	}
 	executor := &fakeRunner{}
-	runtime := NewRuntime(executor)
+	runtime := NewRuntime(executor, nil)
 	result, err := runtime.Run(context.Background(), &Session{
 		UserMessage:    "还有吗",
 		Tools:          registry,

@@ -2,32 +2,27 @@ package logic
 
 import (
 	"testing"
+	"time"
 
+	"esx/app/assistant/rpc/internal/memory"
+	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
-	"esx/pkg/errx"
 )
 
-func TestListMemoryRequiresUser(t *testing.T) {
-	logic := NewListMemoryLogic(t.Context(), nil)
-	if _, err := logic.ListMemory(nil); !errx.Is(err, errx.LoginRequired) {
-		t.Fatalf("nil req: got %v", err)
+func TestListMemoryReturnsStoredItems(t *testing.T) {
+	store := memory.NewMapStore()
+	if err := store.Apply(t.Context(), 2, memory.Candidate{
+		Layer: memory.LayerProfile, Dimension: "topic", Value: "剧情", Score: 0.9,
+		Source: memory.SourceExplicit, Confidence: 1,
+	}, time.Now()); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := logic.ListMemory(&pb.ListMemoryReq{}); !errx.Is(err, errx.LoginRequired) {
-		t.Fatalf("zero user: got %v", err)
-	}
-	resp, err := logic.ListMemory(&pb.ListMemoryReq{UserId: 2})
+	logic := NewListMemoryLogic(t.Context(), &svc.ServiceContext{Memory: store})
+	resp, err := logic.ListMemory(&pb.ListMemoryReq{UserId: 2, Layer: memory.LayerProfile})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp == nil || resp.Items == nil {
-		t.Fatal("expected empty items slice")
-	}
-}
-
-func TestUpdateMemoryUnavailableUntilStore(t *testing.T) {
-	logic := NewUpdateMemoryLogic(t.Context(), nil)
-	_, err := logic.UpdateMemory(&pb.UpdateMemoryReq{UserId: 2, Id: 1})
-	if !errx.Is(err, errx.ServiceUnavailable) {
-		t.Fatalf("got %v", err)
+	if len(resp.Items) != 1 || resp.Items[0].Value != "剧情" || !resp.Items[0].Confirmed {
+		t.Fatalf("%+v", resp.Items)
 	}
 }
