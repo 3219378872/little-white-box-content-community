@@ -46,7 +46,7 @@ tracks:
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
 verified_at: 2026-08-27
-verified_commit: c33a541
+verified_commit: a1942c466bc75d5b9265a50d4e4b21422dfa598f
 ---
 
 # 小白盒内容社区后端实现映射

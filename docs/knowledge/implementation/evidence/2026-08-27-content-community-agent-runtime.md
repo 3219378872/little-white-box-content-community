@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-27
-verified_commit: c33a541
+verified_commit: a1942c466bc75d5b9265a50d4e4b21422dfa598f
 commands:
   - go test -count=1 ./app/assistant/rpc/internal/agent/... ./app/assistant/rpc/internal/memory/... ./app/assistant/rpc/internal/watch/... ./app/assistant/rpc/internal/logic/... ./app/gateway/internal/logic/assistant/... ./app/gateway/
   - python3 -m unittest -v test_spec_evals.py
