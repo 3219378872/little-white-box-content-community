@@ -189,6 +189,39 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 			executor: deleteMemoryExecutor(clients.Memory),
 		},
 		{
+			Name:        ToolRecommendPosts,
+			Description: "从推荐系统取当前用户可见的已发布帖子，并回源验证。禁止编造 post id。",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20}},
+			},
+			executor: recommendPostsExecutor(clients),
+		},
+		{
+			Name:        ToolSimilarPosts,
+			Description: "按种子帖子取相似已发布帖子。post_id 可缺省为当前上下文帖子。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"post_id": map[string]any{"type": "integer"},
+					"limit":   map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+			},
+			executor: similarPostsExecutor(clients),
+		},
+		{
+			Name:        ToolComparePosts,
+			Description: "比较 2～5 篇本轮已知或用户点名的帖子，必须回源。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"post_ids": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
+				},
+				"required": []string{"post_ids"},
+			},
+			executor: comparePostsExecutor(clients.Content),
+		},
+		{
 			Name:        ToolWebSearch,
 			Description: "搜索公共互联网。结果仅作为研究素材，不是社区帖子的证据。",
 			Parameters: map[string]any{

@@ -182,6 +182,7 @@ func (f *fakeSearchService) SearchTags(ctx context.Context, req *searchservice.S
 type fakeRecommendService struct {
 	recommendservice.RecommendService
 	similar func(context.Context, *recommendservice.GetSimilarPostsReq) (*recommendservice.GetSimilarPostsResp, error)
+	feed    func(context.Context, *recommendservice.GetRecommendPostsReq) (*recommendservice.GetRecommendPostsResp, error)
 }
 
 func (f *fakeRecommendService) GetSimilarPosts(ctx context.Context, req *recommendservice.GetSimilarPostsReq, _ ...grpc.CallOption) (*recommendservice.GetSimilarPostsResp, error) {

@@ -81,6 +81,9 @@ Agent:
   - add_memory
   - update_memory
   - delete_memory
+  - recommend_posts
+  - similar_posts
+  - compare_posts
   - web_search
   - create_post
   - update_post

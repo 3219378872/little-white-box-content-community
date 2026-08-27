@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +94,7 @@ type Store interface {
 	Delete(ctx context.Context, userID, id int64) error
 	Apply(ctx context.Context, userID int64, candidate Candidate, now time.Time) error
 	ContextBlock(ctx context.Context, userID int64, intent string, now time.Time) (string, error)
+	RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error
 }
 
 type SQLStore struct {
@@ -323,6 +325,16 @@ func (s *SQLStore) ContextBlock(ctx context.Context, userID int64, intent string
 	return formatContext(items, intent), nil
 }
 
+func (s *SQLStore) RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error {
+	if userID <= 0 || postID <= 0 || strings.TrimSpace(reason) == "" {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	_, err := s.conn.ExecCtx(ctx,
+		`INSERT INTO recommendation_feedback (user_id, request_id, post_id, reason) VALUES (?, ?, ?, ?)`,
+		userID, requestID, postID, strings.TrimSpace(reason))
+	return err
+}
+
 func decayInterest(score float64, lastEventAtMs int64, now time.Time) float64 {
 	if lastEventAtMs <= 0 {
 		return score
@@ -477,6 +489,16 @@ func (m *MapStore) ContextBlock(ctx context.Context, userID int64, intent string
 		return "", err
 	}
 	return formatContext(items, intent), nil
+}
+
+func (m *MapStore) RecordFeedback(_ context.Context, userID int64, requestID string, postID int64, reason string) error {
+	if userID <= 0 || postID <= 0 || strings.TrimSpace(reason) == "" {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	return m.Apply(context.Background(), userID, Candidate{
+		Layer: LayerProfile, Dimension: "post", Value: strconv.FormatInt(postID, 10),
+		Score: -0.5, Source: SourceExplicit, Confidence: 0.8, Excerpt: requestID + " " + reason,
+	}, time.Now())
 }
 
 // Extract 从用户话轮抽出结构化候选；只认显式句式，不把猜测当记忆。
