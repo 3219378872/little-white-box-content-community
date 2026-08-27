@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS `agent_capability_consent` (
     `granted` TINYINT NOT NULL DEFAULT 0 COMMENT '1:已授权 0:未授权或已撤销',
     `granted_at` BIGINT DEFAULT NULL COMMENT '最近一次授权 Unix 毫秒',
     `revoked_at` BIGINT DEFAULT NULL COMMENT '最近一次撤销 Unix 毫秒（未撤销为 NULL）',
+    `consent_version` INT NOT NULL DEFAULT 1 COMMENT '已授予的披露版本（AGNT-007）',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Agent 能力授权表';

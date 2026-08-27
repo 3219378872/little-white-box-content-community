@@ -234,6 +234,7 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"DB_INTERACTION":                                   "contract-interaction-dsn",
 		"DB_MEDIA":                                         "contract-media-dsn",
 		"DB_MESSAGE":                                       "contract-message-dsn",
+		"DB_ASSISTANT":                                     "contract-assistant-dsn",
 		"DB_USER":                                          "contract-user-dsn",
 		"FEED_CURSOR_SECRET":                               "contract-feed-cursor",
 		"GRAFANA_PASSWORD":                                 "contract-grafana-password",

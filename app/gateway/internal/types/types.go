@@ -3,9 +3,32 @@
 
 package types
 
+type AssistantAction struct {
+	Action      string `json:"action"`
+	PayloadJson string `json:"payloadJson"`
+}
+
 type AssistantAttachment struct {
 	MediaId int64  `json:"mediaId"`
 	Url     string `json:"url"`
+}
+
+type AssistantCard struct {
+	CardType    string `json:"cardType"`
+	PayloadJson string `json:"payloadJson"`
+}
+
+type AssistantMemoryItem struct {
+	Id         int64   `json:"id"`
+	Layer      string  `json:"layer"`
+	Dimension  string  `json:"dimension"`
+	Value      string  `json:"value"`
+	Score      float64 `json:"score"`
+	Source     string  `json:"source"`
+	Confidence float64 `json:"confidence"`
+	Confirmed  bool    `json:"confirmed"`
+	Suppressed bool    `json:"suppressed"`
+	UpdatedAt  int64   `json:"updatedAt"`
 }
 
 type AssistantSourceReference struct {
@@ -20,6 +43,34 @@ type AssistantToolCallInfo struct {
 	Tool        string `json:"tool"`
 	Summary     string `json:"summary"`
 	PayloadJson string `json:"payloadJson"`
+}
+
+type AssistantWatchHit struct {
+	Id        int64  `json:"id"`
+	TaskId    int64  `json:"taskId"`
+	PostId    int64  `json:"postId"`
+	Title     string `json:"title,optional"`
+	Summary   string `json:"summary,optional"`
+	CreatedAt int64  `json:"createdAt"`
+	Read      bool   `json:"read"`
+}
+
+type AssistantWatchHitEvent struct {
+	HitId   int64  `json:"hitId"`
+	TaskId  int64  `json:"taskId"`
+	PostId  int64  `json:"postId"`
+	Title   string `json:"title,optional"`
+	Summary string `json:"summary,optional"`
+}
+
+type AssistantWatchTask struct {
+	Id            int64  `json:"id"`
+	ConditionType string `json:"conditionType"`
+	TargetType    string `json:"targetType"`
+	TargetId      int64  `json:"targetId"`
+	TargetText    string `json:"targetText"`
+	Enabled       bool   `json:"enabled"`
+	CreatedAt     int64  `json:"createdAt"`
 }
 
 type BehaviorEvent struct {

@@ -33,3 +33,53 @@ func (s *AssistantServiceServer) ConfirmToolCall(ctx context.Context, in *pb.Con
 	l := logic.NewConfirmToolCallLogic(ctx, s.svcCtx)
 	return l.ConfirmToolCall(in)
 }
+
+func (s *AssistantServiceServer) ListMemory(ctx context.Context, in *pb.ListMemoryReq) (*pb.ListMemoryResp, error) {
+	l := logic.NewListMemoryLogic(ctx, s.svcCtx)
+	return l.ListMemory(in)
+}
+
+func (s *AssistantServiceServer) UpdateMemory(ctx context.Context, in *pb.UpdateMemoryReq) (*pb.UpdateMemoryResp, error) {
+	l := logic.NewUpdateMemoryLogic(ctx, s.svcCtx)
+	return l.UpdateMemory(in)
+}
+
+func (s *AssistantServiceServer) DeleteMemory(ctx context.Context, in *pb.DeleteMemoryReq) (*pb.DeleteMemoryResp, error) {
+	l := logic.NewDeleteMemoryLogic(ctx, s.svcCtx)
+	return l.DeleteMemory(in)
+}
+
+func (s *AssistantServiceServer) ListWatchTasks(ctx context.Context, in *pb.ListWatchTasksReq) (*pb.ListWatchTasksResp, error) {
+	l := logic.NewListWatchTasksLogic(ctx, s.svcCtx)
+	return l.ListWatchTasks(in)
+}
+
+func (s *AssistantServiceServer) CreateWatchTask(ctx context.Context, in *pb.CreateWatchTaskReq) (*pb.CreateWatchTaskResp, error) {
+	l := logic.NewCreateWatchTaskLogic(ctx, s.svcCtx)
+	return l.CreateWatchTask(in)
+}
+
+func (s *AssistantServiceServer) UpdateWatchTask(ctx context.Context, in *pb.UpdateWatchTaskReq) (*pb.UpdateWatchTaskResp, error) {
+	l := logic.NewUpdateWatchTaskLogic(ctx, s.svcCtx)
+	return l.UpdateWatchTask(in)
+}
+
+func (s *AssistantServiceServer) DeleteWatchTask(ctx context.Context, in *pb.DeleteWatchTaskReq) (*pb.DeleteWatchTaskResp, error) {
+	l := logic.NewDeleteWatchTaskLogic(ctx, s.svcCtx)
+	return l.DeleteWatchTask(in)
+}
+
+func (s *AssistantServiceServer) ListWatchHits(ctx context.Context, in *pb.ListWatchHitsReq) (*pb.ListWatchHitsResp, error) {
+	l := logic.NewListWatchHitsLogic(ctx, s.svcCtx)
+	return l.ListWatchHits(in)
+}
+
+func (s *AssistantServiceServer) MarkWatchHitsRead(ctx context.Context, in *pb.MarkWatchHitsReadReq) (*pb.MarkWatchHitsReadResp, error) {
+	l := logic.NewMarkWatchHitsReadLogic(ctx, s.svcCtx)
+	return l.MarkWatchHitsRead(in)
+}
+
+func (s *AssistantServiceServer) SubmitRecommendFeedback(ctx context.Context, in *pb.SubmitRecommendFeedbackReq) (*pb.SubmitRecommendFeedbackResp, error) {
+	l := logic.NewSubmitRecommendFeedbackLogic(ctx, s.svcCtx)
+	return l.SubmitRecommendFeedback(in)
+}

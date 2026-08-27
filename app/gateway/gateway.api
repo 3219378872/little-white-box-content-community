@@ -569,6 +569,7 @@ type (
 		RequestId      string                `json:"requestId,optional"`
 		Mode           string                `json:"mode,optional"`
 		Attachments    []AssistantAttachment `json:"attachments,optional"`
+		ContextPostId  int64                 `json:"contextPostId,optional"`
 	}
 	AssistantAttachment {
 		MediaId int64  `json:"mediaId"`
@@ -586,6 +587,21 @@ type (
 		Summary     string `json:"summary"`
 		PayloadJson string `json:"payloadJson"`
 	}
+	AssistantCard {
+		CardType    string `json:"cardType"`
+		PayloadJson string `json:"payloadJson"`
+	}
+	AssistantAction {
+		Action      string `json:"action"`
+		PayloadJson string `json:"payloadJson"`
+	}
+	AssistantWatchHitEvent {
+		HitId   int64  `json:"hitId"`
+		TaskId  int64  `json:"taskId"`
+		PostId  int64  `json:"postId"`
+		Title   string `json:"title,optional"`
+		Summary string `json:"summary,optional"`
+	}
 	AssistantChatEvent {
 		Type           string                    `json:"type"`
 		Text           string                    `json:"text,optional"`
@@ -594,12 +610,102 @@ type (
 		ErrorCode      string                    `json:"errorCode,optional"`
 		ConversationId string                    `json:"conversationId"`
 		ToolCall       *AssistantToolCallInfo    `json:"toolCall,optional"`
+		Card           *AssistantCard            `json:"card,optional"`
+		Actions        []AssistantAction         `json:"actions,optional"`
+		WatchHit       *AssistantWatchHitEvent   `json:"watchHit,optional"`
 	}
 	GetAgentConsentResp {
-		Granted   bool  `json:"granted"`
-		GrantedAt int64 `json:"grantedAt,optional"`
-		RevokedAt int64 `json:"revokedAt,optional"`
+		Granted        bool  `json:"granted"`
+		GrantedAt      int64 `json:"grantedAt,optional"`
+		RevokedAt      int64 `json:"revokedAt,optional"`
+		ConsentVersion int32 `json:"consentVersion"`
+		CurrentVersion int32 `json:"currentVersion"`
 	}
+	AssistantMemoryItem {
+		Id         int64   `json:"id"`
+		Layer      string  `json:"layer"`
+		Dimension  string  `json:"dimension"`
+		Value      string  `json:"value"`
+		Score      float64 `json:"score"`
+		Source     string  `json:"source"`
+		Confidence float64 `json:"confidence"`
+		Confirmed  bool    `json:"confirmed"`
+		Suppressed bool    `json:"suppressed"`
+		UpdatedAt  int64   `json:"updatedAt"`
+	}
+	ListAssistantMemoryReq {
+		Layer string `form:"layer,optional"`
+	}
+	ListAssistantMemoryResp {
+		Items []AssistantMemoryItem `json:"items"`
+	}
+	UpdateAssistantMemoryReq {
+		Id         int64   `path:"id"`
+		Value      string  `json:"value,optional"`
+		Score      float64 `json:"score,optional"`
+		Suppressed bool    `json:"suppressed,optional"`
+	}
+	UpdateAssistantMemoryResp  {}
+	DeleteAssistantMemoryReq {
+		Id int64 `path:"id"`
+	}
+	DeleteAssistantMemoryResp  {}
+	AssistantWatchTask {
+		Id            int64  `json:"id"`
+		ConditionType string `json:"conditionType"`
+		TargetType    string `json:"targetType"`
+		TargetId      int64  `json:"targetId"`
+		TargetText    string `json:"targetText"`
+		Enabled       bool   `json:"enabled"`
+		CreatedAt     int64  `json:"createdAt"`
+	}
+	ListAssistantWatchReq  {}
+	ListAssistantWatchResp {
+		Tasks []AssistantWatchTask `json:"tasks"`
+	}
+	CreateAssistantWatchReq {
+		ConditionType string `json:"conditionType"`
+		TargetType    string `json:"targetType"`
+		TargetId      int64  `json:"targetId,optional"`
+		TargetText    string `json:"targetText,optional"`
+	}
+	CreateAssistantWatchResp {
+		Task AssistantWatchTask `json:"task"`
+	}
+	UpdateAssistantWatchReq {
+		Id      int64 `path:"id"`
+		Enabled bool  `json:"enabled"`
+	}
+	UpdateAssistantWatchResp  {}
+	DeleteAssistantWatchReq {
+		Id int64 `path:"id"`
+	}
+	DeleteAssistantWatchResp  {}
+	AssistantWatchHit {
+		Id        int64  `json:"id"`
+		TaskId    int64  `json:"taskId"`
+		PostId    int64  `json:"postId"`
+		Title     string `json:"title,optional"`
+		Summary   string `json:"summary,optional"`
+		CreatedAt int64  `json:"createdAt"`
+		Read      bool   `json:"read"`
+	}
+	ListAssistantWatchHitsReq {
+		UnreadOnly bool `form:"unreadOnly,optional"`
+	}
+	ListAssistantWatchHitsResp {
+		Hits []AssistantWatchHit `json:"hits"`
+	}
+	MarkAssistantWatchHitsReadReq {
+		HitIds []int64 `json:"hitIds"`
+	}
+	MarkAssistantWatchHitsReadResp  {}
+	AssistantRecommendFeedbackReq {
+		RequestId string `json:"requestId,optional"`
+		PostId    int64  `json:"postId"`
+		Reason    string `json:"reason"`
+	}
+	AssistantRecommendFeedbackResp  {}
 	SetAgentConsentReq {
 		Granted bool `json:"granted"`
 	}
@@ -909,6 +1015,46 @@ service gateway {
 	@doc "Agent 高危操作确认回调（AGNT-020~022）"
 	@handler ConfirmAssistantTool
 	post /assistant/tool/confirm (AssistantToolConfirmReq) returns (AssistantToolConfirmResp)
+
+	@doc "列出当前用户的 Agent 记忆"
+	@handler ListAssistantMemory
+	get /assistant/memory (ListAssistantMemoryReq) returns (ListAssistantMemoryResp)
+
+	@doc "修改一条 Agent 记忆"
+	@handler UpdateAssistantMemory
+	patch /assistant/memory/:id (UpdateAssistantMemoryReq) returns (UpdateAssistantMemoryResp)
+
+	@doc "删除一条 Agent 记忆"
+	@handler DeleteAssistantMemory
+	delete /assistant/memory/:id (DeleteAssistantMemoryReq) returns (DeleteAssistantMemoryResp)
+
+	@doc "列出 Watch 任务"
+	@handler ListAssistantWatch
+	get /assistant/watch (ListAssistantWatchReq) returns (ListAssistantWatchResp)
+
+	@doc "创建 Watch 任务"
+	@handler CreateAssistantWatch
+	post /assistant/watch (CreateAssistantWatchReq) returns (CreateAssistantWatchResp)
+
+	@doc "更新 Watch 任务"
+	@handler UpdateAssistantWatch
+	patch /assistant/watch/:id (UpdateAssistantWatchReq) returns (UpdateAssistantWatchResp)
+
+	@doc "删除 Watch 任务"
+	@handler DeleteAssistantWatch
+	delete /assistant/watch/:id (DeleteAssistantWatchReq) returns (DeleteAssistantWatchResp)
+
+	@doc "列出 Watch 命中"
+	@handler ListAssistantWatchHits
+	get /assistant/watch/hits (ListAssistantWatchHitsReq) returns (ListAssistantWatchHitsResp)
+
+	@doc "标记 Watch 命中已读"
+	@handler MarkAssistantWatchHitsRead
+	post /assistant/watch/hits/read (MarkAssistantWatchHitsReadReq) returns (MarkAssistantWatchHitsReadResp)
+
+	@doc "提交 Agent 推荐反馈"
+	@handler SubmitAssistantRecommendFeedback
+	post /assistant/recommend/feedback (AssistantRecommendFeedbackReq) returns (AssistantRecommendFeedbackResp)
 }
 
 @server (

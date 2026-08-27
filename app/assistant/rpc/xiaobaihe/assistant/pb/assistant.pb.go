@@ -82,6 +82,10 @@ const (
 	// agent 工具调用进度与高危确认请求（AGNT-060）
 	ChatEventType_CHAT_EVENT_TYPE_TOOL_CALL        ChatEventType = 5
 	ChatEventType_CHAT_EVENT_TYPE_CONFIRM_REQUIRED ChatEventType = 6
+	// 结构化卡片、动作与 Watch 命中；旧客户端必须忽略（AGNT-060）
+	ChatEventType_CHAT_EVENT_TYPE_CARD      ChatEventType = 7
+	ChatEventType_CHAT_EVENT_TYPE_ACTIONS   ChatEventType = 8
+	ChatEventType_CHAT_EVENT_TYPE_WATCH_HIT ChatEventType = 9
 )
 
 // Enum value maps for ChatEventType.
@@ -94,6 +98,9 @@ var (
 		4: "CHAT_EVENT_TYPE_ERROR",
 		5: "CHAT_EVENT_TYPE_TOOL_CALL",
 		6: "CHAT_EVENT_TYPE_CONFIRM_REQUIRED",
+		7: "CHAT_EVENT_TYPE_CARD",
+		8: "CHAT_EVENT_TYPE_ACTIONS",
+		9: "CHAT_EVENT_TYPE_WATCH_HIT",
 	}
 	ChatEventType_value = map[string]int32{
 		"CHAT_EVENT_TYPE_UNSPECIFIED":      0,
@@ -103,6 +110,9 @@ var (
 		"CHAT_EVENT_TYPE_ERROR":            4,
 		"CHAT_EVENT_TYPE_TOOL_CALL":        5,
 		"CHAT_EVENT_TYPE_CONFIRM_REQUIRED": 6,
+		"CHAT_EVENT_TYPE_CARD":             7,
+		"CHAT_EVENT_TYPE_ACTIONS":          8,
+		"CHAT_EVENT_TYPE_WATCH_HIT":        9,
 	}
 )
 
@@ -141,7 +151,9 @@ type ChatReq struct {
 	RequestId      string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Mode           AssistantMode          `protobuf:"varint,5,opt,name=mode,proto3,enum=assistant.AssistantMode" json:"mode,omitempty"`
 	// 当前会话上传的图片附件，仅 agent 模式写帖工具可引用（AGNT-013/040）
-	Attachments   []*Attachment `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	Attachments []*Attachment `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// 可选内容上下文，缺省忽略（AGNT-042）
+	ContextPostId int64 `protobuf:"varint,7,opt,name=context_post_id,json=contextPostId,proto3" json:"context_post_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,6 +228,13 @@ func (x *ChatReq) GetAttachments() []*Attachment {
 		return x.Attachments
 	}
 	return nil
+}
+
+func (x *ChatReq) GetContextPostId() int64 {
+	if x != nil {
+		return x.ContextPostId
+	}
+	return 0
 }
 
 type Attachment struct {
@@ -510,6 +529,186 @@ func (x *ToolCallInfo) GetPayloadJson() string {
 	return ""
 }
 
+type Card struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CardType      string                 `protobuf:"bytes,1,opt,name=card_type,json=cardType,proto3" json:"card_type,omitempty"`          // post | watch
+	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"` // 已验证对象的 JSON
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Card) Reset() {
+	*x = Card{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Card) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Card) ProtoMessage() {}
+
+func (x *Card) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Card.ProtoReflect.Descriptor instead.
+func (*Card) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Card) GetCardType() string {
+	if x != nil {
+		return x.CardType
+	}
+	return ""
+}
+
+func (x *Card) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+type Action struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Action        string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"` // open_post | favorite | watch_author | watch_tag
+	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Action) Reset() {
+	*x = Action{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Action) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Action) ProtoMessage() {}
+
+func (x *Action) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Action.ProtoReflect.Descriptor instead.
+func (*Action) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Action) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *Action) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+type WatchHitInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HitId         int64                  `protobuf:"varint,1,opt,name=hit_id,json=hitId,proto3" json:"hit_id,omitempty"`
+	TaskId        int64                  `protobuf:"varint,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	PostId        int64                  `protobuf:"varint,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchHitInfo) Reset() {
+	*x = WatchHitInfo{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchHitInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchHitInfo) ProtoMessage() {}
+
+func (x *WatchHitInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchHitInfo.ProtoReflect.Descriptor instead.
+func (*WatchHitInfo) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WatchHitInfo) GetHitId() int64 {
+	if x != nil {
+		return x.HitId
+	}
+	return 0
+}
+
+func (x *WatchHitInfo) GetTaskId() int64 {
+	if x != nil {
+		return x.TaskId
+	}
+	return 0
+}
+
+func (x *WatchHitInfo) GetPostId() int64 {
+	if x != nil {
+		return x.PostId
+	}
+	return 0
+}
+
+func (x *WatchHitInfo) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *WatchHitInfo) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
 type ChatEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Type           ChatEventType          `protobuf:"varint,1,opt,name=type,proto3,enum=assistant.ChatEventType" json:"type,omitempty"`
@@ -519,13 +718,16 @@ type ChatEvent struct {
 	ErrorCode      string                 `protobuf:"bytes,5,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	ConversationId string                 `protobuf:"bytes,6,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	ToolCall       *ToolCallInfo          `protobuf:"bytes,7,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
+	Card           *Card                  `protobuf:"bytes,8,opt,name=card,proto3" json:"card,omitempty"`
+	Actions        []*Action              `protobuf:"bytes,9,rep,name=actions,proto3" json:"actions,omitempty"`
+	WatchHit       *WatchHitInfo          `protobuf:"bytes,10,opt,name=watch_hit,json=watchHit,proto3" json:"watch_hit,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ChatEvent) Reset() {
 	*x = ChatEvent{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -537,7 +739,7 @@ func (x *ChatEvent) String() string {
 func (*ChatEvent) ProtoMessage() {}
 
 func (x *ChatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,7 +752,7 @@ func (x *ChatEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
 func (*ChatEvent) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{6}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ChatEvent) GetType() ChatEventType {
@@ -602,11 +804,1308 @@ func (x *ChatEvent) GetToolCall() *ToolCallInfo {
 	return nil
 }
 
+func (x *ChatEvent) GetCard() *Card {
+	if x != nil {
+		return x.Card
+	}
+	return nil
+}
+
+func (x *ChatEvent) GetActions() []*Action {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *ChatEvent) GetWatchHit() *WatchHitInfo {
+	if x != nil {
+		return x.WatchHit
+	}
+	return nil
+}
+
+type MemoryItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Layer         string                 `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"` // profile | interest | task | episodic
+	Dimension     string                 `protobuf:"bytes,3,opt,name=dimension,proto3" json:"dimension,omitempty"`
+	Value         string                 `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	Score         float64                `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
+	Source        string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	Confidence    float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Confirmed     bool                   `protobuf:"varint,8,opt,name=confirmed,proto3" json:"confirmed,omitempty"` // 高置信已确认 vs 可能的偏好
+	Suppressed    bool                   `protobuf:"varint,9,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryItem) Reset() {
+	*x = MemoryItem{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryItem) ProtoMessage() {}
+
+func (x *MemoryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryItem.ProtoReflect.Descriptor instead.
+func (*MemoryItem) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *MemoryItem) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *MemoryItem) GetLayer() string {
+	if x != nil {
+		return x.Layer
+	}
+	return ""
+}
+
+func (x *MemoryItem) GetDimension() string {
+	if x != nil {
+		return x.Dimension
+	}
+	return ""
+}
+
+func (x *MemoryItem) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *MemoryItem) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *MemoryItem) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *MemoryItem) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
+func (x *MemoryItem) GetConfirmed() bool {
+	if x != nil {
+		return x.Confirmed
+	}
+	return false
+}
+
+func (x *MemoryItem) GetSuppressed() bool {
+	if x != nil {
+		return x.Suppressed
+	}
+	return false
+}
+
+func (x *MemoryItem) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type ListMemoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Layer         string                 `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"` // 空表示全部（不含默认全量 episodic）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemoryReq) Reset() {
+	*x = ListMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemoryReq) ProtoMessage() {}
+
+func (x *ListMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemoryReq.ProtoReflect.Descriptor instead.
+func (*ListMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListMemoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListMemoryReq) GetLayer() string {
+	if x != nil {
+		return x.Layer
+	}
+	return ""
+}
+
+type ListMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*MemoryItem          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMemoryResp) Reset() {
+	*x = ListMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMemoryResp) ProtoMessage() {}
+
+func (x *ListMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMemoryResp.ProtoReflect.Descriptor instead.
+func (*ListMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListMemoryResp) GetItems() []*MemoryItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type UpdateMemoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
+	Suppressed    bool                   `protobuf:"varint,5,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMemoryReq) Reset() {
+	*x = UpdateMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMemoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMemoryReq) ProtoMessage() {}
+
+func (x *UpdateMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMemoryReq.ProtoReflect.Descriptor instead.
+func (*UpdateMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UpdateMemoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UpdateMemoryReq) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateMemoryReq) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *UpdateMemoryReq) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *UpdateMemoryReq) GetSuppressed() bool {
+	if x != nil {
+		return x.Suppressed
+	}
+	return false
+}
+
+type UpdateMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMemoryResp) Reset() {
+	*x = UpdateMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMemoryResp) ProtoMessage() {}
+
+func (x *UpdateMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMemoryResp.ProtoReflect.Descriptor instead.
+func (*UpdateMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{14}
+}
+
+type DeleteMemoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMemoryReq) Reset() {
+	*x = DeleteMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMemoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMemoryReq) ProtoMessage() {}
+
+func (x *DeleteMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMemoryReq.ProtoReflect.Descriptor instead.
+func (*DeleteMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DeleteMemoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *DeleteMemoryReq) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMemoryResp) Reset() {
+	*x = DeleteMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMemoryResp) ProtoMessage() {}
+
+func (x *DeleteMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMemoryResp.ProtoReflect.Descriptor instead.
+func (*DeleteMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{16}
+}
+
+type WatchTask struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ConditionType string                 `protobuf:"bytes,2,opt,name=condition_type,json=conditionType,proto3" json:"condition_type,omitempty"`
+	TargetType    string                 `protobuf:"bytes,3,opt,name=target_type,json=targetType,proto3" json:"target_type,omitempty"`
+	TargetId      int64                  `protobuf:"varint,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	TargetText    string                 `protobuf:"bytes,5,opt,name=target_text,json=targetText,proto3" json:"target_text,omitempty"`
+	Enabled       bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchTask) Reset() {
+	*x = WatchTask{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchTask) ProtoMessage() {}
+
+func (x *WatchTask) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchTask.ProtoReflect.Descriptor instead.
+func (*WatchTask) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WatchTask) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *WatchTask) GetConditionType() string {
+	if x != nil {
+		return x.ConditionType
+	}
+	return ""
+}
+
+func (x *WatchTask) GetTargetType() string {
+	if x != nil {
+		return x.TargetType
+	}
+	return ""
+}
+
+func (x *WatchTask) GetTargetId() int64 {
+	if x != nil {
+		return x.TargetId
+	}
+	return 0
+}
+
+func (x *WatchTask) GetTargetText() string {
+	if x != nil {
+		return x.TargetText
+	}
+	return ""
+}
+
+func (x *WatchTask) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *WatchTask) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type ListWatchTasksReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWatchTasksReq) Reset() {
+	*x = ListWatchTasksReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWatchTasksReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWatchTasksReq) ProtoMessage() {}
+
+func (x *ListWatchTasksReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWatchTasksReq.ProtoReflect.Descriptor instead.
+func (*ListWatchTasksReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListWatchTasksReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type ListWatchTasksResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tasks         []*WatchTask           `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWatchTasksResp) Reset() {
+	*x = ListWatchTasksResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWatchTasksResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWatchTasksResp) ProtoMessage() {}
+
+func (x *ListWatchTasksResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWatchTasksResp.ProtoReflect.Descriptor instead.
+func (*ListWatchTasksResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListWatchTasksResp) GetTasks() []*WatchTask {
+	if x != nil {
+		return x.Tasks
+	}
+	return nil
+}
+
+type CreateWatchTaskReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConditionType string                 `protobuf:"bytes,2,opt,name=condition_type,json=conditionType,proto3" json:"condition_type,omitempty"`
+	TargetType    string                 `protobuf:"bytes,3,opt,name=target_type,json=targetType,proto3" json:"target_type,omitempty"`
+	TargetId      int64                  `protobuf:"varint,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	TargetText    string                 `protobuf:"bytes,5,opt,name=target_text,json=targetText,proto3" json:"target_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWatchTaskReq) Reset() {
+	*x = CreateWatchTaskReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWatchTaskReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWatchTaskReq) ProtoMessage() {}
+
+func (x *CreateWatchTaskReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWatchTaskReq.ProtoReflect.Descriptor instead.
+func (*CreateWatchTaskReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CreateWatchTaskReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateWatchTaskReq) GetConditionType() string {
+	if x != nil {
+		return x.ConditionType
+	}
+	return ""
+}
+
+func (x *CreateWatchTaskReq) GetTargetType() string {
+	if x != nil {
+		return x.TargetType
+	}
+	return ""
+}
+
+func (x *CreateWatchTaskReq) GetTargetId() int64 {
+	if x != nil {
+		return x.TargetId
+	}
+	return 0
+}
+
+func (x *CreateWatchTaskReq) GetTargetText() string {
+	if x != nil {
+		return x.TargetText
+	}
+	return ""
+}
+
+type CreateWatchTaskResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Task          *WatchTask             `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWatchTaskResp) Reset() {
+	*x = CreateWatchTaskResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWatchTaskResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWatchTaskResp) ProtoMessage() {}
+
+func (x *CreateWatchTaskResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWatchTaskResp.ProtoReflect.Descriptor instead.
+func (*CreateWatchTaskResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CreateWatchTaskResp) GetTask() *WatchTask {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+type UpdateWatchTaskReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWatchTaskReq) Reset() {
+	*x = UpdateWatchTaskReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWatchTaskReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWatchTaskReq) ProtoMessage() {}
+
+func (x *UpdateWatchTaskReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWatchTaskReq.ProtoReflect.Descriptor instead.
+func (*UpdateWatchTaskReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UpdateWatchTaskReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UpdateWatchTaskReq) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateWatchTaskReq) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type UpdateWatchTaskResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWatchTaskResp) Reset() {
+	*x = UpdateWatchTaskResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWatchTaskResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWatchTaskResp) ProtoMessage() {}
+
+func (x *UpdateWatchTaskResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWatchTaskResp.ProtoReflect.Descriptor instead.
+func (*UpdateWatchTaskResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{23}
+}
+
+type DeleteWatchTaskReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWatchTaskReq) Reset() {
+	*x = DeleteWatchTaskReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWatchTaskReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWatchTaskReq) ProtoMessage() {}
+
+func (x *DeleteWatchTaskReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWatchTaskReq.ProtoReflect.Descriptor instead.
+func (*DeleteWatchTaskReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DeleteWatchTaskReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *DeleteWatchTaskReq) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteWatchTaskResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteWatchTaskResp) Reset() {
+	*x = DeleteWatchTaskResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteWatchTaskResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteWatchTaskResp) ProtoMessage() {}
+
+func (x *DeleteWatchTaskResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteWatchTaskResp.ProtoReflect.Descriptor instead.
+func (*DeleteWatchTaskResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{25}
+}
+
+type WatchHit struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	TaskId        int64                  `protobuf:"varint,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	PostId        int64                  `protobuf:"varint,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Read          bool                   `protobuf:"varint,7,opt,name=read,proto3" json:"read,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchHit) Reset() {
+	*x = WatchHit{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchHit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchHit) ProtoMessage() {}
+
+func (x *WatchHit) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchHit.ProtoReflect.Descriptor instead.
+func (*WatchHit) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *WatchHit) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *WatchHit) GetTaskId() int64 {
+	if x != nil {
+		return x.TaskId
+	}
+	return 0
+}
+
+func (x *WatchHit) GetPostId() int64 {
+	if x != nil {
+		return x.PostId
+	}
+	return 0
+}
+
+func (x *WatchHit) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *WatchHit) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *WatchHit) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WatchHit) GetRead() bool {
+	if x != nil {
+		return x.Read
+	}
+	return false
+}
+
+type ListWatchHitsReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UnreadOnly    bool                   `protobuf:"varint,2,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWatchHitsReq) Reset() {
+	*x = ListWatchHitsReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWatchHitsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWatchHitsReq) ProtoMessage() {}
+
+func (x *ListWatchHitsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWatchHitsReq.ProtoReflect.Descriptor instead.
+func (*ListWatchHitsReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListWatchHitsReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListWatchHitsReq) GetUnreadOnly() bool {
+	if x != nil {
+		return x.UnreadOnly
+	}
+	return false
+}
+
+type ListWatchHitsResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hits          []*WatchHit            `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWatchHitsResp) Reset() {
+	*x = ListWatchHitsResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWatchHitsResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWatchHitsResp) ProtoMessage() {}
+
+func (x *ListWatchHitsResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWatchHitsResp.ProtoReflect.Descriptor instead.
+func (*ListWatchHitsResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ListWatchHitsResp) GetHits() []*WatchHit {
+	if x != nil {
+		return x.Hits
+	}
+	return nil
+}
+
+type MarkWatchHitsReadReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	HitIds        []int64                `protobuf:"varint,2,rep,packed,name=hit_ids,json=hitIds,proto3" json:"hit_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkWatchHitsReadReq) Reset() {
+	*x = MarkWatchHitsReadReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkWatchHitsReadReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkWatchHitsReadReq) ProtoMessage() {}
+
+func (x *MarkWatchHitsReadReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkWatchHitsReadReq.ProtoReflect.Descriptor instead.
+func (*MarkWatchHitsReadReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *MarkWatchHitsReadReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *MarkWatchHitsReadReq) GetHitIds() []int64 {
+	if x != nil {
+		return x.HitIds
+	}
+	return nil
+}
+
+type MarkWatchHitsReadResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkWatchHitsReadResp) Reset() {
+	*x = MarkWatchHitsReadResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkWatchHitsReadResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkWatchHitsReadResp) ProtoMessage() {}
+
+func (x *MarkWatchHitsReadResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkWatchHitsReadResp.ProtoReflect.Descriptor instead.
+func (*MarkWatchHitsReadResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{30}
+}
+
+type SubmitRecommendFeedbackReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	PostId        int64                  `protobuf:"varint,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitRecommendFeedbackReq) Reset() {
+	*x = SubmitRecommendFeedbackReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitRecommendFeedbackReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitRecommendFeedbackReq) ProtoMessage() {}
+
+func (x *SubmitRecommendFeedbackReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitRecommendFeedbackReq.ProtoReflect.Descriptor instead.
+func (*SubmitRecommendFeedbackReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *SubmitRecommendFeedbackReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SubmitRecommendFeedbackReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *SubmitRecommendFeedbackReq) GetPostId() int64 {
+	if x != nil {
+		return x.PostId
+	}
+	return 0
+}
+
+func (x *SubmitRecommendFeedbackReq) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type SubmitRecommendFeedbackResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitRecommendFeedbackResp) Reset() {
+	*x = SubmitRecommendFeedbackResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitRecommendFeedbackResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitRecommendFeedbackResp) ProtoMessage() {}
+
+func (x *SubmitRecommendFeedbackResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitRecommendFeedbackResp.ProtoReflect.Descriptor instead.
+func (*SubmitRecommendFeedbackResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{32}
+}
+
 var File_proto_assistant_assistant_proto protoreflect.FileDescriptor
 
 const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
-	"\x1fproto/assistant/assistant.proto\x12\tassistant\"\xeb\x01\n" +
+	"\x1fproto/assistant/assistant.proto\x12\tassistant\"\x93\x02\n" +
 	"\aChatReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x18\n" +
@@ -614,7 +2113,8 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x04 \x01(\tR\trequestId\x12,\n" +
 	"\x04mode\x18\x05 \x01(\x0e2\x18.assistant.AssistantModeR\x04mode\x127\n" +
-	"\vattachments\x18\x06 \x03(\v2\x15.assistant.AttachmentR\vattachments\"9\n" +
+	"\vattachments\x18\x06 \x03(\v2\x15.assistant.AttachmentR\vattachments\x12&\n" +
+	"\x0fcontext_post_id\x18\a \x01(\x03R\rcontextPostId\"9\n" +
 	"\n" +
 	"Attachment\x12\x19\n" +
 	"\bmedia_id\x18\x01 \x01(\x03R\amediaId\x12\x10\n" +
@@ -636,7 +2136,19 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\acall_id\x18\x01 \x01(\tR\x06callId\x12\x12\n" +
 	"\x04tool\x18\x02 \x01(\tR\x04tool\x12\x18\n" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12!\n" +
-	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\x9b\x02\n" +
+	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"F\n" +
+	"\x04Card\x12\x1b\n" +
+	"\tcard_type\x18\x01 \x01(\tR\bcardType\x12!\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"C\n" +
+	"\x06Action\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12!\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\x87\x01\n" +
+	"\fWatchHitInfo\x12\x15\n" +
+	"\x06hit_id\x18\x01 \x01(\x03R\x05hitId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x17\n" +
+	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\"\xa3\x03\n" +
 	"\tChatEvent\x12,\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x18.assistant.ChatEventTypeR\x04type\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x122\n" +
@@ -645,11 +2157,111 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
 	"error_code\x18\x05 \x01(\tR\terrorCode\x12'\n" +
 	"\x0fconversation_id\x18\x06 \x01(\tR\x0econversationId\x124\n" +
-	"\ttool_call\x18\a \x01(\v2\x17.assistant.ToolCallInfoR\btoolCall*m\n" +
+	"\ttool_call\x18\a \x01(\v2\x17.assistant.ToolCallInfoR\btoolCall\x12#\n" +
+	"\x04card\x18\b \x01(\v2\x0f.assistant.CardR\x04card\x12+\n" +
+	"\aactions\x18\t \x03(\v2\x11.assistant.ActionR\aactions\x124\n" +
+	"\twatch_hit\x18\n" +
+	" \x01(\v2\x17.assistant.WatchHitInfoR\bwatchHit\"\x91\x02\n" +
+	"\n" +
+	"MemoryItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
+	"\x05layer\x18\x02 \x01(\tR\x05layer\x12\x1c\n" +
+	"\tdimension\x18\x03 \x01(\tR\tdimension\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\x12\x14\n" +
+	"\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\a \x01(\x01R\n" +
+	"confidence\x12\x1c\n" +
+	"\tconfirmed\x18\b \x01(\bR\tconfirmed\x12\x1e\n" +
+	"\n" +
+	"suppressed\x18\t \x01(\bR\n" +
+	"suppressed\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\x03R\tupdatedAt\">\n" +
+	"\rListMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
+	"\x05layer\x18\x02 \x01(\tR\x05layer\"=\n" +
+	"\x0eListMemoryResp\x12+\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.assistant.MemoryItemR\x05items\"\x86\x01\n" +
+	"\x0fUpdateMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x14\n" +
+	"\x05score\x18\x04 \x01(\x01R\x05score\x12\x1e\n" +
+	"\n" +
+	"suppressed\x18\x05 \x01(\bR\n" +
+	"suppressed\"\x12\n" +
+	"\x10UpdateMemoryResp\":\n" +
+	"\x0fDeleteMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\"\x12\n" +
+	"\x10DeleteMemoryResp\"\xda\x01\n" +
+	"\tWatchTask\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12%\n" +
+	"\x0econdition_type\x18\x02 \x01(\tR\rconditionType\x12\x1f\n" +
+	"\vtarget_type\x18\x03 \x01(\tR\n" +
+	"targetType\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\x03R\btargetId\x12\x1f\n" +
+	"\vtarget_text\x18\x05 \x01(\tR\n" +
+	"targetText\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\x03R\tcreatedAt\",\n" +
+	"\x11ListWatchTasksReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"@\n" +
+	"\x12ListWatchTasksResp\x12*\n" +
+	"\x05tasks\x18\x01 \x03(\v2\x14.assistant.WatchTaskR\x05tasks\"\xb3\x01\n" +
+	"\x12CreateWatchTaskReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12%\n" +
+	"\x0econdition_type\x18\x02 \x01(\tR\rconditionType\x12\x1f\n" +
+	"\vtarget_type\x18\x03 \x01(\tR\n" +
+	"targetType\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\x03R\btargetId\x12\x1f\n" +
+	"\vtarget_text\x18\x05 \x01(\tR\n" +
+	"targetText\"?\n" +
+	"\x13CreateWatchTaskResp\x12(\n" +
+	"\x04task\x18\x01 \x01(\v2\x14.assistant.WatchTaskR\x04task\"W\n" +
+	"\x12UpdateWatchTaskReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\"\x15\n" +
+	"\x13UpdateWatchTaskResp\"=\n" +
+	"\x12DeleteWatchTaskReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\"\x15\n" +
+	"\x13DeleteWatchTaskResp\"\xaf\x01\n" +
+	"\bWatchHit\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x17\n" +
+	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x12\n" +
+	"\x04read\x18\a \x01(\bR\x04read\"L\n" +
+	"\x10ListWatchHitsReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1f\n" +
+	"\vunread_only\x18\x02 \x01(\bR\n" +
+	"unreadOnly\"<\n" +
+	"\x11ListWatchHitsResp\x12'\n" +
+	"\x04hits\x18\x01 \x03(\v2\x13.assistant.WatchHitR\x04hits\"H\n" +
+	"\x14MarkWatchHitsReadReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x17\n" +
+	"\ahit_ids\x18\x02 \x03(\x03R\x06hitIds\"\x17\n" +
+	"\x15MarkWatchHitsReadResp\"\x85\x01\n" +
+	"\x1aSubmitRecommendFeedbackReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12\x17\n" +
+	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x1d\n" +
+	"\x1bSubmitRecommendFeedbackResp*m\n" +
 	"\rAssistantMode\x12\x1e\n" +
 	"\x1aASSISTANT_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eASSISTANT_MODE_ENHANCED_SEARCH\x10\x01\x12\x18\n" +
-	"\x14ASSISTANT_MODE_AGENT\x10\x02*\xe1\x01\n" +
+	"\x14ASSISTANT_MODE_AGENT\x10\x02*\xb7\x02\n" +
 	"\rChatEventType\x12\x1f\n" +
 	"\x1bCHAT_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CHAT_EVENT_TYPE_TOKEN\x10\x01\x12\x1a\n" +
@@ -657,10 +2269,24 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x14CHAT_EVENT_TYPE_DONE\x10\x03\x12\x19\n" +
 	"\x15CHAT_EVENT_TYPE_ERROR\x10\x04\x12\x1d\n" +
 	"\x19CHAT_EVENT_TYPE_TOOL_CALL\x10\x05\x12$\n" +
-	" CHAT_EVENT_TYPE_CONFIRM_REQUIRED\x10\x062\x98\x01\n" +
+	" CHAT_EVENT_TYPE_CONFIRM_REQUIRED\x10\x06\x12\x18\n" +
+	"\x14CHAT_EVENT_TYPE_CARD\x10\a\x12\x1b\n" +
+	"\x17CHAT_EVENT_TYPE_ACTIONS\x10\b\x12\x1d\n" +
+	"\x19CHAT_EVENT_TYPE_WATCH_HIT\x10\t2\xc0\a\n" +
 	"\x10AssistantService\x122\n" +
 	"\x04Chat\x12\x12.assistant.ChatReq\x1a\x14.assistant.ChatEvent0\x01\x12P\n" +
-	"\x0fConfirmToolCall\x12\x1d.assistant.ConfirmToolCallReq\x1a\x1e.assistant.ConfirmToolCallRespB\x18Z\x16xiaobaihe/assistant/pbb\x06proto3"
+	"\x0fConfirmToolCall\x12\x1d.assistant.ConfirmToolCallReq\x1a\x1e.assistant.ConfirmToolCallResp\x12A\n" +
+	"\n" +
+	"ListMemory\x12\x18.assistant.ListMemoryReq\x1a\x19.assistant.ListMemoryResp\x12G\n" +
+	"\fUpdateMemory\x12\x1a.assistant.UpdateMemoryReq\x1a\x1b.assistant.UpdateMemoryResp\x12G\n" +
+	"\fDeleteMemory\x12\x1a.assistant.DeleteMemoryReq\x1a\x1b.assistant.DeleteMemoryResp\x12M\n" +
+	"\x0eListWatchTasks\x12\x1c.assistant.ListWatchTasksReq\x1a\x1d.assistant.ListWatchTasksResp\x12P\n" +
+	"\x0fCreateWatchTask\x12\x1d.assistant.CreateWatchTaskReq\x1a\x1e.assistant.CreateWatchTaskResp\x12P\n" +
+	"\x0fUpdateWatchTask\x12\x1d.assistant.UpdateWatchTaskReq\x1a\x1e.assistant.UpdateWatchTaskResp\x12P\n" +
+	"\x0fDeleteWatchTask\x12\x1d.assistant.DeleteWatchTaskReq\x1a\x1e.assistant.DeleteWatchTaskResp\x12J\n" +
+	"\rListWatchHits\x12\x1b.assistant.ListWatchHitsReq\x1a\x1c.assistant.ListWatchHitsResp\x12V\n" +
+	"\x11MarkWatchHitsRead\x12\x1f.assistant.MarkWatchHitsReadReq\x1a .assistant.MarkWatchHitsReadResp\x12h\n" +
+	"\x17SubmitRecommendFeedback\x12%.assistant.SubmitRecommendFeedbackReq\x1a&.assistant.SubmitRecommendFeedbackRespB\x18Z\x16xiaobaihe/assistant/pbb\x06proto3"
 
 var (
 	file_proto_assistant_assistant_proto_rawDescOnce sync.Once
@@ -675,33 +2301,86 @@ func file_proto_assistant_assistant_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_assistant_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_proto_assistant_assistant_proto_goTypes = []any{
-	(AssistantMode)(0),          // 0: assistant.AssistantMode
-	(ChatEventType)(0),          // 1: assistant.ChatEventType
-	(*ChatReq)(nil),             // 2: assistant.ChatReq
-	(*Attachment)(nil),          // 3: assistant.Attachment
-	(*ConfirmToolCallReq)(nil),  // 4: assistant.ConfirmToolCallReq
-	(*ConfirmToolCallResp)(nil), // 5: assistant.ConfirmToolCallResp
-	(*SourceReference)(nil),     // 6: assistant.SourceReference
-	(*ToolCallInfo)(nil),        // 7: assistant.ToolCallInfo
-	(*ChatEvent)(nil),           // 8: assistant.ChatEvent
+	(AssistantMode)(0),                  // 0: assistant.AssistantMode
+	(ChatEventType)(0),                  // 1: assistant.ChatEventType
+	(*ChatReq)(nil),                     // 2: assistant.ChatReq
+	(*Attachment)(nil),                  // 3: assistant.Attachment
+	(*ConfirmToolCallReq)(nil),          // 4: assistant.ConfirmToolCallReq
+	(*ConfirmToolCallResp)(nil),         // 5: assistant.ConfirmToolCallResp
+	(*SourceReference)(nil),             // 6: assistant.SourceReference
+	(*ToolCallInfo)(nil),                // 7: assistant.ToolCallInfo
+	(*Card)(nil),                        // 8: assistant.Card
+	(*Action)(nil),                      // 9: assistant.Action
+	(*WatchHitInfo)(nil),                // 10: assistant.WatchHitInfo
+	(*ChatEvent)(nil),                   // 11: assistant.ChatEvent
+	(*MemoryItem)(nil),                  // 12: assistant.MemoryItem
+	(*ListMemoryReq)(nil),               // 13: assistant.ListMemoryReq
+	(*ListMemoryResp)(nil),              // 14: assistant.ListMemoryResp
+	(*UpdateMemoryReq)(nil),             // 15: assistant.UpdateMemoryReq
+	(*UpdateMemoryResp)(nil),            // 16: assistant.UpdateMemoryResp
+	(*DeleteMemoryReq)(nil),             // 17: assistant.DeleteMemoryReq
+	(*DeleteMemoryResp)(nil),            // 18: assistant.DeleteMemoryResp
+	(*WatchTask)(nil),                   // 19: assistant.WatchTask
+	(*ListWatchTasksReq)(nil),           // 20: assistant.ListWatchTasksReq
+	(*ListWatchTasksResp)(nil),          // 21: assistant.ListWatchTasksResp
+	(*CreateWatchTaskReq)(nil),          // 22: assistant.CreateWatchTaskReq
+	(*CreateWatchTaskResp)(nil),         // 23: assistant.CreateWatchTaskResp
+	(*UpdateWatchTaskReq)(nil),          // 24: assistant.UpdateWatchTaskReq
+	(*UpdateWatchTaskResp)(nil),         // 25: assistant.UpdateWatchTaskResp
+	(*DeleteWatchTaskReq)(nil),          // 26: assistant.DeleteWatchTaskReq
+	(*DeleteWatchTaskResp)(nil),         // 27: assistant.DeleteWatchTaskResp
+	(*WatchHit)(nil),                    // 28: assistant.WatchHit
+	(*ListWatchHitsReq)(nil),            // 29: assistant.ListWatchHitsReq
+	(*ListWatchHitsResp)(nil),           // 30: assistant.ListWatchHitsResp
+	(*MarkWatchHitsReadReq)(nil),        // 31: assistant.MarkWatchHitsReadReq
+	(*MarkWatchHitsReadResp)(nil),       // 32: assistant.MarkWatchHitsReadResp
+	(*SubmitRecommendFeedbackReq)(nil),  // 33: assistant.SubmitRecommendFeedbackReq
+	(*SubmitRecommendFeedbackResp)(nil), // 34: assistant.SubmitRecommendFeedbackResp
 }
 var file_proto_assistant_assistant_proto_depIdxs = []int32{
-	0, // 0: assistant.ChatReq.mode:type_name -> assistant.AssistantMode
-	3, // 1: assistant.ChatReq.attachments:type_name -> assistant.Attachment
-	1, // 2: assistant.ChatEvent.type:type_name -> assistant.ChatEventType
-	6, // 3: assistant.ChatEvent.source:type_name -> assistant.SourceReference
-	7, // 4: assistant.ChatEvent.tool_call:type_name -> assistant.ToolCallInfo
-	2, // 5: assistant.AssistantService.Chat:input_type -> assistant.ChatReq
-	4, // 6: assistant.AssistantService.ConfirmToolCall:input_type -> assistant.ConfirmToolCallReq
-	8, // 7: assistant.AssistantService.Chat:output_type -> assistant.ChatEvent
-	5, // 8: assistant.AssistantService.ConfirmToolCall:output_type -> assistant.ConfirmToolCallResp
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0,  // 0: assistant.ChatReq.mode:type_name -> assistant.AssistantMode
+	3,  // 1: assistant.ChatReq.attachments:type_name -> assistant.Attachment
+	1,  // 2: assistant.ChatEvent.type:type_name -> assistant.ChatEventType
+	6,  // 3: assistant.ChatEvent.source:type_name -> assistant.SourceReference
+	7,  // 4: assistant.ChatEvent.tool_call:type_name -> assistant.ToolCallInfo
+	8,  // 5: assistant.ChatEvent.card:type_name -> assistant.Card
+	9,  // 6: assistant.ChatEvent.actions:type_name -> assistant.Action
+	10, // 7: assistant.ChatEvent.watch_hit:type_name -> assistant.WatchHitInfo
+	12, // 8: assistant.ListMemoryResp.items:type_name -> assistant.MemoryItem
+	19, // 9: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
+	19, // 10: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
+	28, // 11: assistant.ListWatchHitsResp.hits:type_name -> assistant.WatchHit
+	2,  // 12: assistant.AssistantService.Chat:input_type -> assistant.ChatReq
+	4,  // 13: assistant.AssistantService.ConfirmToolCall:input_type -> assistant.ConfirmToolCallReq
+	13, // 14: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
+	15, // 15: assistant.AssistantService.UpdateMemory:input_type -> assistant.UpdateMemoryReq
+	17, // 16: assistant.AssistantService.DeleteMemory:input_type -> assistant.DeleteMemoryReq
+	20, // 17: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
+	22, // 18: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
+	24, // 19: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
+	26, // 20: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
+	29, // 21: assistant.AssistantService.ListWatchHits:input_type -> assistant.ListWatchHitsReq
+	31, // 22: assistant.AssistantService.MarkWatchHitsRead:input_type -> assistant.MarkWatchHitsReadReq
+	33, // 23: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
+	11, // 24: assistant.AssistantService.Chat:output_type -> assistant.ChatEvent
+	5,  // 25: assistant.AssistantService.ConfirmToolCall:output_type -> assistant.ConfirmToolCallResp
+	14, // 26: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
+	16, // 27: assistant.AssistantService.UpdateMemory:output_type -> assistant.UpdateMemoryResp
+	18, // 28: assistant.AssistantService.DeleteMemory:output_type -> assistant.DeleteMemoryResp
+	21, // 29: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
+	23, // 30: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
+	25, // 31: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
+	27, // 32: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
+	30, // 33: assistant.AssistantService.ListWatchHits:output_type -> assistant.ListWatchHitsResp
+	32, // 34: assistant.AssistantService.MarkWatchHitsRead:output_type -> assistant.MarkWatchHitsReadResp
+	34, // 35: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
+	24, // [24:36] is the sub-list for method output_type
+	12, // [12:24] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_proto_assistant_assistant_proto_init() }
@@ -715,7 +2394,7 @@ func file_proto_assistant_assistant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_assistant_assistant_proto_rawDesc), len(file_proto_assistant_assistant_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   7,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

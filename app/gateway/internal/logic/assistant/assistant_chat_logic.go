@@ -98,6 +98,7 @@ func (l *AssistantChatLogic) AssistantChat(req *types.AssistantChatReq, client c
 		RequestId:      strings.TrimSpace(req.RequestId),
 		Mode:           mode,
 		Attachments:    attachments,
+		ContextPostId:  req.ContextPostId,
 	})
 	if err != nil {
 		l.Errorw("assistant stream start failed", logx.Field("err", err))
@@ -137,6 +138,9 @@ func (l *AssistantChatLogic) AssistantChat(req *types.AssistantChatReq, client c
 		mapped, terminal, ok := mapChatEvent(event, conversationID)
 		if !ok {
 			return l.sendError(client, conversationID, "INVALID_STREAM_EVENT", "The assistant returned an invalid response.")
+		}
+		if mapped == nil {
+			continue
 		}
 		if err := l.send(client, mapped); err != nil {
 			return err
@@ -193,8 +197,35 @@ func mapChatEvent(event *assistantpb.ChatEvent, conversationID string) (*types.A
 		}
 		mapped.Type = "confirm_required"
 		mapped.ToolCall = mapToolCall(event.ToolCall)
+	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_CARD:
+		if event.Card == nil || event.Card.CardType == "" {
+			return nil, false, false
+		}
+		mapped.Type = "card"
+		mapped.Card = &types.AssistantCard{CardType: event.Card.CardType, PayloadJson: event.Card.PayloadJson}
+	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_ACTIONS:
+		mapped.Type = "actions"
+		for _, action := range event.Actions {
+			if action == nil || action.Action == "" {
+				continue
+			}
+			mapped.Actions = append(mapped.Actions, types.AssistantAction{Action: action.Action, PayloadJson: action.PayloadJson})
+		}
+	case assistantpb.ChatEventType_CHAT_EVENT_TYPE_WATCH_HIT:
+		if event.WatchHit == nil {
+			return nil, false, false
+		}
+		mapped.Type = "watch_hit"
+		mapped.WatchHit = &types.AssistantWatchHitEvent{
+			HitId:   event.WatchHit.HitId,
+			TaskId:  event.WatchHit.TaskId,
+			PostId:  event.WatchHit.PostId,
+			Title:   event.WatchHit.Title,
+			Summary: event.WatchHit.Summary,
+		}
 	default:
-		return nil, false, false
+		// AGNT-060：未知事件忽略，不中断流。
+		return nil, false, true
 	}
 	return mapped, terminal, true
 }

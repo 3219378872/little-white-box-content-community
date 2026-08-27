@@ -1761,12 +1761,14 @@ func (x *GetAgentCapabilityConsentReq) GetUserId() int64 {
 
 // 查询 Agent 能力授权响应
 type GetAgentCapabilityConsentResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Granted       bool                   `protobuf:"varint,1,opt,name=granted,proto3" json:"granted,omitempty"`                      // 是否已授权
-	GrantedAt     int64                  `protobuf:"varint,2,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"` // 最近一次授权时间 Unix 毫秒
-	RevokedAt     int64                  `protobuf:"varint,3,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"` // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Granted        bool                   `protobuf:"varint,1,opt,name=granted,proto3" json:"granted,omitempty"`                                     // 是否已授权
+	GrantedAt      int64                  `protobuf:"varint,2,opt,name=granted_at,json=grantedAt,proto3" json:"granted_at,omitempty"`                // 最近一次授权时间 Unix 毫秒
+	RevokedAt      int64                  `protobuf:"varint,3,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`                // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
+	ConsentVersion int32                  `protobuf:"varint,4,opt,name=consent_version,json=consentVersion,proto3" json:"consent_version,omitempty"` // 用户已授予版本；从未授权为 0（AGNT-007）
+	CurrentVersion int32                  `protobuf:"varint,5,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"` // 服务端当前披露版本
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetAgentCapabilityConsentResp) Reset() {
@@ -1816,6 +1818,20 @@ func (x *GetAgentCapabilityConsentResp) GetGrantedAt() int64 {
 func (x *GetAgentCapabilityConsentResp) GetRevokedAt() int64 {
 	if x != nil {
 		return x.RevokedAt
+	}
+	return 0
+}
+
+func (x *GetAgentCapabilityConsentResp) GetConsentVersion() int32 {
+	if x != nil {
+		return x.ConsentVersion
+	}
+	return 0
+}
+
+func (x *GetAgentCapabilityConsentResp) GetCurrentVersion() int32 {
+	if x != nil {
+		return x.CurrentVersion
 	}
 	return 0
 }
@@ -2028,13 +2044,15 @@ const file_user_proto_rawDesc = "" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\"\"\n" +
 	" SetPersonalizationPreferenceResp\"7\n" +
 	"\x1cGetAgentCapabilityConsentReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"w\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xc9\x01\n" +
 	"\x1dGetAgentCapabilityConsentResp\x12\x18\n" +
 	"\agranted\x18\x01 \x01(\bR\agranted\x12\x1d\n" +
 	"\n" +
 	"granted_at\x18\x02 \x01(\x03R\tgrantedAt\x12\x1d\n" +
 	"\n" +
-	"revoked_at\x18\x03 \x01(\x03R\trevokedAt\"Q\n" +
+	"revoked_at\x18\x03 \x01(\x03R\trevokedAt\x12'\n" +
+	"\x0fconsent_version\x18\x04 \x01(\x05R\x0econsentVersion\x12'\n" +
+	"\x0fcurrent_version\x18\x05 \x01(\x05R\x0ecurrentVersion\"Q\n" +
 	"\x1cSetAgentCapabilityConsentReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
 	"\agranted\x18\x02 \x01(\bR\agranted\"\x1f\n" +

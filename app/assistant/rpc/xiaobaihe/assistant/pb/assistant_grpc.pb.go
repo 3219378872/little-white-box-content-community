@@ -19,8 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AssistantService_Chat_FullMethodName            = "/assistant.AssistantService/Chat"
-	AssistantService_ConfirmToolCall_FullMethodName = "/assistant.AssistantService/ConfirmToolCall"
+	AssistantService_Chat_FullMethodName                    = "/assistant.AssistantService/Chat"
+	AssistantService_ConfirmToolCall_FullMethodName         = "/assistant.AssistantService/ConfirmToolCall"
+	AssistantService_ListMemory_FullMethodName              = "/assistant.AssistantService/ListMemory"
+	AssistantService_UpdateMemory_FullMethodName            = "/assistant.AssistantService/UpdateMemory"
+	AssistantService_DeleteMemory_FullMethodName            = "/assistant.AssistantService/DeleteMemory"
+	AssistantService_ListWatchTasks_FullMethodName          = "/assistant.AssistantService/ListWatchTasks"
+	AssistantService_CreateWatchTask_FullMethodName         = "/assistant.AssistantService/CreateWatchTask"
+	AssistantService_UpdateWatchTask_FullMethodName         = "/assistant.AssistantService/UpdateWatchTask"
+	AssistantService_DeleteWatchTask_FullMethodName         = "/assistant.AssistantService/DeleteWatchTask"
+	AssistantService_ListWatchHits_FullMethodName           = "/assistant.AssistantService/ListWatchHits"
+	AssistantService_MarkWatchHitsRead_FullMethodName       = "/assistant.AssistantService/MarkWatchHitsRead"
+	AssistantService_SubmitRecommendFeedback_FullMethodName = "/assistant.AssistantService/SubmitRecommendFeedback"
 )
 
 // AssistantServiceClient is the client API for AssistantService service.
@@ -30,6 +40,16 @@ type AssistantServiceClient interface {
 	Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatEvent], error)
 	// Agent 模式高危操作确认回调（AGNT-020~022）
 	ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error)
+	ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
+	UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error)
+	DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error)
+	ListWatchTasks(ctx context.Context, in *ListWatchTasksReq, opts ...grpc.CallOption) (*ListWatchTasksResp, error)
+	CreateWatchTask(ctx context.Context, in *CreateWatchTaskReq, opts ...grpc.CallOption) (*CreateWatchTaskResp, error)
+	UpdateWatchTask(ctx context.Context, in *UpdateWatchTaskReq, opts ...grpc.CallOption) (*UpdateWatchTaskResp, error)
+	DeleteWatchTask(ctx context.Context, in *DeleteWatchTaskReq, opts ...grpc.CallOption) (*DeleteWatchTaskResp, error)
+	ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error)
+	MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error)
+	SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error)
 }
 
 type assistantServiceClient struct {
@@ -69,6 +89,106 @@ func (c *assistantServiceClient) ConfirmToolCall(ctx context.Context, in *Confir
 	return out, nil
 }
 
+func (c *assistantServiceClient) ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_ListMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_UpdateMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_DeleteMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) ListWatchTasks(ctx context.Context, in *ListWatchTasksReq, opts ...grpc.CallOption) (*ListWatchTasksResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWatchTasksResp)
+	err := c.cc.Invoke(ctx, AssistantService_ListWatchTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) CreateWatchTask(ctx context.Context, in *CreateWatchTaskReq, opts ...grpc.CallOption) (*CreateWatchTaskResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWatchTaskResp)
+	err := c.cc.Invoke(ctx, AssistantService_CreateWatchTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) UpdateWatchTask(ctx context.Context, in *UpdateWatchTaskReq, opts ...grpc.CallOption) (*UpdateWatchTaskResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWatchTaskResp)
+	err := c.cc.Invoke(ctx, AssistantService_UpdateWatchTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) DeleteWatchTask(ctx context.Context, in *DeleteWatchTaskReq, opts ...grpc.CallOption) (*DeleteWatchTaskResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteWatchTaskResp)
+	err := c.cc.Invoke(ctx, AssistantService_DeleteWatchTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWatchHitsResp)
+	err := c.cc.Invoke(ctx, AssistantService_ListWatchHits_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MarkWatchHitsReadResp)
+	err := c.cc.Invoke(ctx, AssistantService_MarkWatchHitsRead_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitRecommendFeedbackResp)
+	err := c.cc.Invoke(ctx, AssistantService_SubmitRecommendFeedback_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AssistantServiceServer is the server API for AssistantService service.
 // All implementations must embed UnimplementedAssistantServiceServer
 // for forward compatibility.
@@ -76,6 +196,16 @@ type AssistantServiceServer interface {
 	Chat(*ChatReq, grpc.ServerStreamingServer[ChatEvent]) error
 	// Agent 模式高危操作确认回调（AGNT-020~022）
 	ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error)
+	ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error)
+	UpdateMemory(context.Context, *UpdateMemoryReq) (*UpdateMemoryResp, error)
+	DeleteMemory(context.Context, *DeleteMemoryReq) (*DeleteMemoryResp, error)
+	ListWatchTasks(context.Context, *ListWatchTasksReq) (*ListWatchTasksResp, error)
+	CreateWatchTask(context.Context, *CreateWatchTaskReq) (*CreateWatchTaskResp, error)
+	UpdateWatchTask(context.Context, *UpdateWatchTaskReq) (*UpdateWatchTaskResp, error)
+	DeleteWatchTask(context.Context, *DeleteWatchTaskReq) (*DeleteWatchTaskResp, error)
+	ListWatchHits(context.Context, *ListWatchHitsReq) (*ListWatchHitsResp, error)
+	MarkWatchHitsRead(context.Context, *MarkWatchHitsReadReq) (*MarkWatchHitsReadResp, error)
+	SubmitRecommendFeedback(context.Context, *SubmitRecommendFeedbackReq) (*SubmitRecommendFeedbackResp, error)
 	mustEmbedUnimplementedAssistantServiceServer()
 }
 
@@ -91,6 +221,36 @@ func (UnimplementedAssistantServiceServer) Chat(*ChatReq, grpc.ServerStreamingSe
 }
 func (UnimplementedAssistantServiceServer) ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmToolCall not implemented")
+}
+func (UnimplementedAssistantServiceServer) ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) UpdateMemory(context.Context, *UpdateMemoryReq) (*UpdateMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) DeleteMemory(context.Context, *DeleteMemoryReq) (*DeleteMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) ListWatchTasks(context.Context, *ListWatchTasksReq) (*ListWatchTasksResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWatchTasks not implemented")
+}
+func (UnimplementedAssistantServiceServer) CreateWatchTask(context.Context, *CreateWatchTaskReq) (*CreateWatchTaskResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateWatchTask not implemented")
+}
+func (UnimplementedAssistantServiceServer) UpdateWatchTask(context.Context, *UpdateWatchTaskReq) (*UpdateWatchTaskResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateWatchTask not implemented")
+}
+func (UnimplementedAssistantServiceServer) DeleteWatchTask(context.Context, *DeleteWatchTaskReq) (*DeleteWatchTaskResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteWatchTask not implemented")
+}
+func (UnimplementedAssistantServiceServer) ListWatchHits(context.Context, *ListWatchHitsReq) (*ListWatchHitsResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWatchHits not implemented")
+}
+func (UnimplementedAssistantServiceServer) MarkWatchHitsRead(context.Context, *MarkWatchHitsReadReq) (*MarkWatchHitsReadResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method MarkWatchHitsRead not implemented")
+}
+func (UnimplementedAssistantServiceServer) SubmitRecommendFeedback(context.Context, *SubmitRecommendFeedbackReq) (*SubmitRecommendFeedbackResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitRecommendFeedback not implemented")
 }
 func (UnimplementedAssistantServiceServer) mustEmbedUnimplementedAssistantServiceServer() {}
 func (UnimplementedAssistantServiceServer) testEmbeddedByValue()                          {}
@@ -142,6 +302,186 @@ func _AssistantService_ConfirmToolCall_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AssistantService_ListMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMemoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ListMemory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ListMemory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ListMemory(ctx, req.(*ListMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_UpdateMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMemoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).UpdateMemory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_UpdateMemory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).UpdateMemory(ctx, req.(*UpdateMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_DeleteMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMemoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).DeleteMemory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_DeleteMemory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).DeleteMemory(ctx, req.(*DeleteMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_ListWatchTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWatchTasksReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ListWatchTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ListWatchTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ListWatchTasks(ctx, req.(*ListWatchTasksReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_CreateWatchTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWatchTaskReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).CreateWatchTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_CreateWatchTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).CreateWatchTask(ctx, req.(*CreateWatchTaskReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_UpdateWatchTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWatchTaskReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).UpdateWatchTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_UpdateWatchTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).UpdateWatchTask(ctx, req.(*UpdateWatchTaskReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_DeleteWatchTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteWatchTaskReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).DeleteWatchTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_DeleteWatchTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).DeleteWatchTask(ctx, req.(*DeleteWatchTaskReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_ListWatchHits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWatchHitsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ListWatchHits(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ListWatchHits_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ListWatchHits(ctx, req.(*ListWatchHitsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_MarkWatchHitsRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkWatchHitsReadReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).MarkWatchHitsRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_MarkWatchHitsRead_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).MarkWatchHitsRead(ctx, req.(*MarkWatchHitsReadReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_SubmitRecommendFeedback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitRecommendFeedbackReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).SubmitRecommendFeedback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_SubmitRecommendFeedback_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).SubmitRecommendFeedback(ctx, req.(*SubmitRecommendFeedbackReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AssistantService_ServiceDesc is the grpc.ServiceDesc for AssistantService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +492,46 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConfirmToolCall",
 			Handler:    _AssistantService_ConfirmToolCall_Handler,
+		},
+		{
+			MethodName: "ListMemory",
+			Handler:    _AssistantService_ListMemory_Handler,
+		},
+		{
+			MethodName: "UpdateMemory",
+			Handler:    _AssistantService_UpdateMemory_Handler,
+		},
+		{
+			MethodName: "DeleteMemory",
+			Handler:    _AssistantService_DeleteMemory_Handler,
+		},
+		{
+			MethodName: "ListWatchTasks",
+			Handler:    _AssistantService_ListWatchTasks_Handler,
+		},
+		{
+			MethodName: "CreateWatchTask",
+			Handler:    _AssistantService_CreateWatchTask_Handler,
+		},
+		{
+			MethodName: "UpdateWatchTask",
+			Handler:    _AssistantService_UpdateWatchTask_Handler,
+		},
+		{
+			MethodName: "DeleteWatchTask",
+			Handler:    _AssistantService_DeleteWatchTask_Handler,
+		},
+		{
+			MethodName: "ListWatchHits",
+			Handler:    _AssistantService_ListWatchHits_Handler,
+		},
+		{
+			MethodName: "MarkWatchHitsRead",
+			Handler:    _AssistantService_MarkWatchHitsRead_Handler,
+		},
+		{
+			MethodName: "SubmitRecommendFeedback",
+			Handler:    _AssistantService_SubmitRecommendFeedback_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

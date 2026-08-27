@@ -42,8 +42,10 @@ func (l *SetAgentCapabilityConsentLogic) SetAgentCapabilityConsent(in *pb.SetAge
 	}
 	if in.Granted {
 		consent.GrantedAt = sql.NullInt64{Int64: nowMilli, Valid: true}
+		consent.ConsentVersion = model.CurrentAgentConsentVersion
 	} else {
 		consent.RevokedAt = sql.NullInt64{Int64: nowMilli, Valid: true}
+		consent.ConsentVersion = 0
 	}
 	if err := l.svcCtx.AgentConsent.Upsert(l.ctx, consent); err != nil {
 		l.Errorw("AgentConsent.Upsert failed", logx.Field("user_id", in.UserId), logx.Field("granted", in.Granted), logx.Field("err", err.Error()))

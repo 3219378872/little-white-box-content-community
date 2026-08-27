@@ -419,6 +419,7 @@ services:
     environment:
       <<: [*etcd-env, *redis-env]
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
+      DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
       ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-chat_completions}
       ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}

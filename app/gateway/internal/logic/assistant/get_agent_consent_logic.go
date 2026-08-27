@@ -49,8 +49,10 @@ func (l *GetAgentConsentLogic) GetAgentConsent() (resp *types.GetAgentConsentRes
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &types.GetAgentConsentResp{
-		Granted:   result.Granted,
-		GrantedAt: result.GrantedAt,
-		RevokedAt: result.RevokedAt,
+		Granted:        result.Granted,
+		GrantedAt:      result.GrantedAt,
+		RevokedAt:      result.RevokedAt,
+		ConsentVersion: result.ConsentVersion,
+		CurrentVersion: result.CurrentVersion,
 	}, nil
 }

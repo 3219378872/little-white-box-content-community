@@ -108,7 +108,6 @@ func TestAssistantChatInvalidStreamEventsAreStructuredErrors(t *testing.T) {
 		"empty token":          {{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_TOKEN, Text: ""}},
 		"incomplete source":    {{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_SOURCE, Source: &assistantpb.SourceReference{SourceType: "post"}}},
 		"error without fields": {{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_ERROR}},
-		"unknown type":         {{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_UNSPECIFIED}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			ctx := jwtx.WithUserIdContext(context.Background(), 1)
@@ -122,6 +121,22 @@ func TestAssistantChatInvalidStreamEventsAreStructuredErrors(t *testing.T) {
 			assert.Equal(t, "INVALID_STREAM_EVENT", got[len(got)-1].ErrorCode)
 		})
 	}
+}
+
+func TestAssistantChatUnknownEventsAreIgnored(t *testing.T) {
+	t.Parallel()
+	ctx := jwtx.WithUserIdContext(context.Background(), 1)
+	service := fakeAssistantService{chat: func(callCtx context.Context, _ *assistantservice.ChatReq) (assistantpb.AssistantService_ChatClient, error) {
+		return &fakeAssistantChatClient{ctx: callCtx, events: []*assistantpb.ChatEvent{
+			{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_UNSPECIFIED},
+			{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_DONE, ConversationId: "c1"},
+		}}, nil
+	}}
+	events, err := collectEvents(t, NewAssistantChatLogic(ctx, &svc.ServiceContext{AssistantService: service}),
+		&types.AssistantChatReq{Message: "hello"})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "done", events[0].Type)
 }
 
 func TestAssistantChatErrorEventIsTerminalAndStructured(t *testing.T) {

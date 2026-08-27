@@ -237,9 +237,11 @@ message GetAgentCapabilityConsentReq {
 
 // 查询 Agent 能力授权响应
 message GetAgentCapabilityConsentResp {
-  bool  granted    = 1; // 是否已授权
-  int64 granted_at = 2; // 最近一次授权时间 Unix 毫秒
-  int64 revoked_at = 3; // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
+  bool  granted          = 1; // 是否已授权
+  int64 granted_at       = 2; // 最近一次授权时间 Unix 毫秒
+  int64 revoked_at       = 3; // 最近一次撤销时间 Unix 毫秒（未撤销为 0）
+  int32 consent_version  = 4; // 用户已授予版本；从未授权为 0（AGNT-007）
+  int32 current_version  = 5; // 服务端当前披露版本
 }
 
 // 设置 Agent 能力授权请求

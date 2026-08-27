@@ -331,6 +331,37 @@ func (contractAssistantService) Chat(ctx context.Context, in *assistantservice.C
 	}}, nil
 }
 
+func (contractAssistantService) ListMemory(context.Context, *assistantservice.ListMemoryReq, ...grpc.CallOption) (*assistantpb.ListMemoryResp, error) {
+	return &assistantpb.ListMemoryResp{}, nil
+}
+func (contractAssistantService) ListWatchTasks(context.Context, *assistantservice.ListWatchTasksReq, ...grpc.CallOption) (*assistantpb.ListWatchTasksResp, error) {
+	return &assistantpb.ListWatchTasksResp{}, nil
+}
+func (contractAssistantService) ListWatchHits(context.Context, *assistantservice.ListWatchHitsReq, ...grpc.CallOption) (*assistantpb.ListWatchHitsResp, error) {
+	return &assistantpb.ListWatchHitsResp{}, nil
+}
+func (contractAssistantService) UpdateMemory(context.Context, *assistantservice.UpdateMemoryReq, ...grpc.CallOption) (*assistantpb.UpdateMemoryResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) DeleteMemory(context.Context, *assistantservice.DeleteMemoryReq, ...grpc.CallOption) (*assistantpb.DeleteMemoryResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) CreateWatchTask(context.Context, *assistantservice.CreateWatchTaskReq, ...grpc.CallOption) (*assistantpb.CreateWatchTaskResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) UpdateWatchTask(context.Context, *assistantservice.UpdateWatchTaskReq, ...grpc.CallOption) (*assistantpb.UpdateWatchTaskResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) DeleteWatchTask(context.Context, *assistantservice.DeleteWatchTaskReq, ...grpc.CallOption) (*assistantpb.DeleteWatchTaskResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) MarkWatchHitsRead(context.Context, *assistantservice.MarkWatchHitsReadReq, ...grpc.CallOption) (*assistantpb.MarkWatchHitsReadResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) SubmitRecommendFeedback(context.Context, *assistantservice.SubmitRecommendFeedbackReq, ...grpc.CallOption) (*assistantpb.SubmitRecommendFeedbackResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+
 type restDecision struct {
 	id             string
 	method         string
@@ -497,6 +528,16 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "AGENT-CONSENT-SET-VALID", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{"granted":true}`), auth: true, wantStatus: http.StatusOK},
 		{id: "AGENT-TOOL-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/assistant/tool/confirm", body: jsonBody(`{"requestId":"request-1","callId":"call-1","approved":true}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
+		{id: "ASSISTANT-MEMORY-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/memory", auth: true, wantStatus: http.StatusOK, wantFields: []string{"items"}},
+		{id: "ASSISTANT-WATCH-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch", auth: true, wantStatus: http.StatusOK, wantFields: []string{"tasks"}},
+		{id: "ASSISTANT-WATCH-HITS-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch/hits", auth: true, wantStatus: http.StatusOK, wantFields: []string{"hits"}},
+		{id: "ASSISTANT-MEMORY-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"value":"rpg"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-MEMORY-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-CREATE-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{"conditionType":"author_new_post","targetType":"author","targetId":2}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-HITS-READ-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch/hits/read", body: jsonBody(`{"hitIds":[1]}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-RECOMMEND-FEEDBACK-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{"postId":11,"reason":"not_interested"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 	}
 
 	decisions := append([]restDecision{}, successes...)
@@ -657,8 +698,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 43 {
-		t.Fatalf("route inventory drift: got %d success rules, want 43", len(successes))
+	if len(successes) != 53 {
+		t.Fatalf("route inventory drift: got %d success rules, want 53", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

@@ -41,6 +41,7 @@ UserRpc:
     Hosts:
     - 127.0.0.1:2379
     Key: user.rpc
+DataSource: "${DB_ASSISTANT}"
 Redis:
   Host: "${REDIS_HOST}"
   Type: node
@@ -97,6 +98,7 @@ LLM:
   Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
   APIKey: "${ASSISTANT_LLM_API_KEY}"
   Model: "${ASSISTANT_LLM_MODEL}"
+  ModelSmall: "${ASSISTANT_LLM_MODEL_SMALL}"
   TimeoutMs: 8000
   MaxContextRunes: 8000
   MaxOutputRunes: 8000

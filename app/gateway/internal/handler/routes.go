@@ -70,10 +70,70 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: assistant.SetAgentConsentHandler(serverCtx),
 			},
 			{
+				// 列出当前用户的 Agent 记忆
+				Method:  http.MethodGet,
+				Path:    "/assistant/memory",
+				Handler: assistant.ListAssistantMemoryHandler(serverCtx),
+			},
+			{
+				// 修改一条 Agent 记忆
+				Method:  http.MethodPatch,
+				Path:    "/assistant/memory/:id",
+				Handler: assistant.UpdateAssistantMemoryHandler(serverCtx),
+			},
+			{
+				// 删除一条 Agent 记忆
+				Method:  http.MethodDelete,
+				Path:    "/assistant/memory/:id",
+				Handler: assistant.DeleteAssistantMemoryHandler(serverCtx),
+			},
+			{
+				// 提交 Agent 推荐反馈
+				Method:  http.MethodPost,
+				Path:    "/assistant/recommend/feedback",
+				Handler: assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx),
+			},
+			{
 				// Agent 高危操作确认回调（AGNT-020~022）
 				Method:  http.MethodPost,
 				Path:    "/assistant/tool/confirm",
 				Handler: assistant.ConfirmAssistantToolHandler(serverCtx),
+			},
+			{
+				// 列出 Watch 任务
+				Method:  http.MethodGet,
+				Path:    "/assistant/watch",
+				Handler: assistant.ListAssistantWatchHandler(serverCtx),
+			},
+			{
+				// 创建 Watch 任务
+				Method:  http.MethodPost,
+				Path:    "/assistant/watch",
+				Handler: assistant.CreateAssistantWatchHandler(serverCtx),
+			},
+			{
+				// 更新 Watch 任务
+				Method:  http.MethodPatch,
+				Path:    "/assistant/watch/:id",
+				Handler: assistant.UpdateAssistantWatchHandler(serverCtx),
+			},
+			{
+				// 删除 Watch 任务
+				Method:  http.MethodDelete,
+				Path:    "/assistant/watch/:id",
+				Handler: assistant.DeleteAssistantWatchHandler(serverCtx),
+			},
+			{
+				// 列出 Watch 命中
+				Method:  http.MethodGet,
+				Path:    "/assistant/watch/hits",
+				Handler: assistant.ListAssistantWatchHitsHandler(serverCtx),
+			},
+			{
+				// 标记 Watch 命中已读
+				Method:  http.MethodPost,
+				Path:    "/assistant/watch/hits/read",
+				Handler: assistant.MarkAssistantWatchHitsReadHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),

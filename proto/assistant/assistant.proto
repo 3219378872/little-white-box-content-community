@@ -7,6 +7,19 @@ service AssistantService {
   rpc Chat(ChatReq) returns (stream ChatEvent);
   // Agent 模式高危操作确认回调（AGNT-020~022）
   rpc ConfirmToolCall(ConfirmToolCallReq) returns (ConfirmToolCallResp);
+
+  rpc ListMemory(ListMemoryReq) returns (ListMemoryResp);
+  rpc UpdateMemory(UpdateMemoryReq) returns (UpdateMemoryResp);
+  rpc DeleteMemory(DeleteMemoryReq) returns (DeleteMemoryResp);
+
+  rpc ListWatchTasks(ListWatchTasksReq) returns (ListWatchTasksResp);
+  rpc CreateWatchTask(CreateWatchTaskReq) returns (CreateWatchTaskResp);
+  rpc UpdateWatchTask(UpdateWatchTaskReq) returns (UpdateWatchTaskResp);
+  rpc DeleteWatchTask(DeleteWatchTaskReq) returns (DeleteWatchTaskResp);
+  rpc ListWatchHits(ListWatchHitsReq) returns (ListWatchHitsResp);
+  rpc MarkWatchHitsRead(MarkWatchHitsReadReq) returns (MarkWatchHitsReadResp);
+
+  rpc SubmitRecommendFeedback(SubmitRecommendFeedbackReq) returns (SubmitRecommendFeedbackResp);
 }
 
 // 助手模式（AGNT-001）：缺省或无法识别的值按 enhanced_search 处理
@@ -24,6 +37,8 @@ message ChatReq {
   AssistantMode mode = 5;
   // 当前会话上传的图片附件，仅 agent 模式写帖工具可引用（AGNT-013/040）
   repeated Attachment attachments = 6;
+  // 可选内容上下文，缺省忽略（AGNT-042）
+  int64 context_post_id = 7;
 }
 
 message Attachment {
@@ -49,6 +64,10 @@ enum ChatEventType {
   // agent 工具调用进度与高危确认请求（AGNT-060）
   CHAT_EVENT_TYPE_TOOL_CALL = 5;
   CHAT_EVENT_TYPE_CONFIRM_REQUIRED = 6;
+  // 结构化卡片、动作与 Watch 命中；旧客户端必须忽略（AGNT-060）
+  CHAT_EVENT_TYPE_CARD = 7;
+  CHAT_EVENT_TYPE_ACTIONS = 8;
+  CHAT_EVENT_TYPE_WATCH_HIT = 9;
 }
 
 message SourceReference {
@@ -65,6 +84,24 @@ message ToolCallInfo {
   string payload_json = 4; // 参数摘要 JSON
 }
 
+message Card {
+  string card_type = 1;     // post | watch
+  string payload_json = 2;  // 已验证对象的 JSON
+}
+
+message Action {
+  string action = 1;        // open_post | favorite | watch_author | watch_tag
+  string payload_json = 2;
+}
+
+message WatchHitInfo {
+  int64  hit_id = 1;
+  int64  task_id = 2;
+  int64  post_id = 3;
+  string title = 4;
+  string summary = 5;
+}
+
 message ChatEvent {
   ChatEventType type = 1;
   string text = 2;
@@ -73,4 +110,126 @@ message ChatEvent {
   string error_code = 5;
   string conversation_id = 6;
   ToolCallInfo tool_call = 7;
+  Card card = 8;
+  repeated Action actions = 9;
+  WatchHitInfo watch_hit = 10;
 }
+
+message MemoryItem {
+  int64  id = 1;
+  string layer = 2;       // profile | interest | task | episodic
+  string dimension = 3;
+  string value = 4;
+  double score = 5;
+  string source = 6;
+  double confidence = 7;
+  bool   confirmed = 8;   // 高置信已确认 vs 可能的偏好
+  bool   suppressed = 9;
+  int64  updated_at = 10;
+}
+
+message ListMemoryReq {
+  int64  user_id = 1;
+  string layer = 2; // 空表示全部（不含默认全量 episodic）
+}
+
+message ListMemoryResp {
+  repeated MemoryItem items = 1;
+}
+
+message UpdateMemoryReq {
+  int64  user_id = 1;
+  int64  id = 2;
+  string value = 3;
+  double score = 4;
+  bool   suppressed = 5;
+}
+
+message UpdateMemoryResp {}
+
+message DeleteMemoryReq {
+  int64 user_id = 1;
+  int64 id = 2;
+}
+
+message DeleteMemoryResp {}
+
+message WatchTask {
+  int64  id = 1;
+  string condition_type = 2;
+  string target_type = 3;
+  int64  target_id = 4;
+  string target_text = 5;
+  bool   enabled = 6;
+  int64  created_at = 7;
+}
+
+message ListWatchTasksReq {
+  int64 user_id = 1;
+}
+
+message ListWatchTasksResp {
+  repeated WatchTask tasks = 1;
+}
+
+message CreateWatchTaskReq {
+  int64  user_id = 1;
+  string condition_type = 2;
+  string target_type = 3;
+  int64  target_id = 4;
+  string target_text = 5;
+}
+
+message CreateWatchTaskResp {
+  WatchTask task = 1;
+}
+
+message UpdateWatchTaskReq {
+  int64 user_id = 1;
+  int64 id = 2;
+  bool  enabled = 3;
+}
+
+message UpdateWatchTaskResp {}
+
+message DeleteWatchTaskReq {
+  int64 user_id = 1;
+  int64 id = 2;
+}
+
+message DeleteWatchTaskResp {}
+
+message WatchHit {
+  int64  id = 1;
+  int64  task_id = 2;
+  int64  post_id = 3;
+  string title = 4;
+  string summary = 5;
+  int64  created_at = 6;
+  bool   read = 7;
+}
+
+message ListWatchHitsReq {
+  int64 user_id = 1;
+  bool  unread_only = 2;
+}
+
+message ListWatchHitsResp {
+  repeated WatchHit hits = 1;
+}
+
+message MarkWatchHitsReadReq {
+  int64 user_id = 1;
+  repeated int64 hit_ids = 2;
+}
+
+message MarkWatchHitsReadResp {}
+
+message SubmitRecommendFeedbackReq {
+  int64  user_id = 1;
+  string request_id = 2;
+  int64  post_id = 3;
+  string reason = 4;
+}
+
+message SubmitRecommendFeedbackResp {}

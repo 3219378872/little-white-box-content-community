@@ -10,6 +10,7 @@ type LLMConfig struct {
 	Endpoint                       string
 	APIKey                         string `json:",optional"`
 	Model                          string
+	ModelSmall                     string  `json:",optional"`
 	TimeoutMs                      int64   `json:",default=8000,range=[100:60000]"`
 	MaxContextRunes                int     `json:",default=8000,range=[100:50000]"`
 	MaxOutputRunes                 int     `json:",default=8000,range=[100:50000]"`
@@ -52,6 +53,7 @@ type WebSearchConfig struct {
 type Config struct {
 	zrpc.RpcServerConf
 	InternalSecret          string
+	DataSource              string `json:",optional"`
 	SearchRpc               zrpc.RpcClientConf
 	ContentRpc              zrpc.RpcClientConf
 	MediaRpc                zrpc.RpcClientConf
