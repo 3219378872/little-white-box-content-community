@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"esx/app/assistant/rpc/internal/tool"
-	"esx/app/assistant/rpc/internal/watch"
+	"esx/app/assistant/watch"
 	"esx/pkg/errx"
 )
 

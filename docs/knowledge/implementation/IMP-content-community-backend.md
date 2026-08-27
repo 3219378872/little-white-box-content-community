@@ -20,7 +20,8 @@ tracks:
   - app/assistant/rpc/internal/tool
   - app/assistant/rpc/internal/agent
   - app/assistant/rpc/internal/memory
-  - app/assistant/rpc/internal/watch
+  - app/assistant/watch
+  - app/assistant/mq
   - app/behavior/rpc/internal/logic
   - app/search/rpc/internal/logic
   - app/feed/rpc/internal/logic
@@ -46,7 +47,7 @@ tracks:
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
 verified_at: 2026-08-27
-verified_commit: a1942c466bc75d5b9265a50d4e4b21422dfa598f
+verified_commit: 237612ab4190b272870355cbd01af6f79e0fef39
 ---
 
 # 小白盒内容社区后端实现映射
@@ -65,8 +66,7 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 - `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
 - `REL-A03` 未注入 `REL-054` 全部十行。
-- Watch RocketMQ 消费者进程未接线：`Match()` 有单测，消费组
-  `assistant-watch-matcher-group` 已预留，但没有运行中的 matcher 进程。
+- Watch `discussion_spike` 与命中列表回源、下次对话注入仍未闭环。
 - 未配置 `DB_ASSISTANT` 时记忆/Watch 列表返回空，写接口 503。
 
 ## 规格追踪
@@ -259,10 +259,10 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | WCH-003 discussion_spike 预筛选后才调模型 | partial | 允许创建该类型；`Match()` **未实现**预筛选或模型判定 |
 | WCH-004 不可见/未发布不命中；目标不存在须创建失败 | partial | `Match` 要求 `Status==1`；创建路径**不校验**作者/标签是否存在 |
 | WCH-005 同用户同条件同目标不重复 | aligned | 唯一键；重复 `IdempotencyConflict`；`TestCreateRejectsUnknownConditionAndDuplicates` |
-| WCH-010 规则条件由事件驱动 | partial | `Match(task, PostEvent)` 单测覆盖；消费组 `assistant-watch-matcher-group` 已预留；**没有 matcher 消费者进程** |
-| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；`RecordHit` 去重；无消费者故无端到端重试路径 |
-| WCH-012 spike 未过阈值不调模型 | partial | 预筛选/模型否定路径未实现 |
-| WCH-013 匹配失败不影响发帖主路径 | partial | 主路径不依赖 matcher；因消费者未接线，本条按“未部署故未接入发帖”部分满足 |
+| WCH-010 规则条件由事件驱动 | aligned | `app/assistant/mq` 订阅 `post-*`；`ApplyPostEvent` + `Match`；不轮询模型 |
+| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；`RecordHit` INSERT IGNORE 后才写 hit；未给未命中任务写 skipped 执行行 |
+| WCH-012 spike 未过阈值不调模型 | partial | 预筛选/模型否定路径未实现；matcher 不消费 `user-behavior-v2` |
+| WCH-013 匹配失败不影响发帖主路径 | aligned | 独立消费者；发帖 outbox 不依赖 matcher；存储错误只重试本消费者 |
 | WCH-020 命中只进助手收件箱 | partial | `watch_hit` + `GET /assistant/watch/hits`；不写私信/通知/推送；**下次 Agent 对话未注入未读摘要** |
 | WCH-021 列表/已读且可见性过滤 | partial | 按 user_id 列出/标记已读；返回前**未回源**过滤不可见帖 |
 | WCH-022 命中不是社区证据 | aligned | 命中不自动变成 Source；事实陈述仍须回源引用 |
@@ -355,11 +355,11 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | MEM-A03 列表/修改/删除/不要记住 | partial | CRUD 与 suppressed 已实现；缺“删除后回答不得再引用”专项 |
 | MEM-A04 越权拒绝与存储不可用 | partial | 他人记录 NotFound；工具无库 503；REST 列表无库返回空而非暂时不可用 |
 | MEM-A05 记忆不能当社区证据/不能存私密资料 | partial | 工具不产出社区 Source；私密字段丢弃未测 |
-| WCH-A01 四种规则命中与不可见不命中 | partial | `TestMatchRules` 覆盖四种规则与停用；未发布靠 Status!=1；无消费者端到端 |
+| WCH-A01 四种规则命中与不可见不命中 | aligned | `TestMatchRules`、`TestApplyPostEvent*`；草稿 Status!=1 不命中；消费者 `TestConsumeWatchBatch_PublishedCreate_RecordsHit` |
 | WCH-A02 重复任务/越权/未知类型 | aligned | `TestCreateRejectsUnknownConditionAndDuplicates`；store 按 user_id |
 | WCH-A03 discussion_spike 预筛选 | partial | 类型可创建，匹配与预筛选未实现 |
-| WCH-A04 命中仅本人收件箱、事件不重复未读 | partial | hit 按 user 隔离、RecordHit 去重；无下次对话注入；消费者未接线 |
-| WCH-A05 停用/删除后不再命中且不影响发帖 | partial | disabled `Match` 为 false；发帖主路径独立；因消费者未部署，无线上漏命中证据 |
+| WCH-A04 命中仅本人收件箱、事件不重复未读 | partial | hit 按 user 隔离、同事件去重；下次 Agent 对话未注入未读摘要 |
+| WCH-A05 停用/删除后不再命中且不影响发帖 | aligned | disabled 任务不进入 `ListEnabled`；发帖主路径独立 |
 
 
 ## 代码入口
@@ -381,7 +381,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 - Assistant enhanced_search：`app/assistant/rpc/internal/logic/chat_logic.go`、
   `app/assistant/rpc/internal/tool/registry.go`、`app/assistant/rpc/internal/store/state.go`。
 - Assistant Agent Runtime：`app/assistant/rpc/internal/agent/`（runtime、runner、tools、search、recommend、intent）；
-  记忆 `app/assistant/rpc/internal/memory/store.go`；Watch `app/assistant/rpc/internal/watch/store.go`（`Match()` 单测，无 MQ 消费者进程）。
+  记忆 `app/assistant/rpc/internal/memory/store.go`；Watch `app/assistant/watch`（`Match`/`ApplyPostEvent`）；matcher 进程 `app/assistant/mq`。
 - Assistant 权威库：`deploy/sql/xbh_assistant.sql`，存量补丁
   `deploy/sql/patches/20260827_assistant_runtime.sql`、
   `deploy/sql/patches/20260827_agent_consent_version.sql`；DSN 为可选 `DB_ASSISTANT`。
@@ -398,8 +398,10 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 
 Agent Runtime 映射验证于 2026-08-27，见
 [2026-08-27-content-community-agent-runtime.md](evidence/2026-08-27-content-community-agent-runtime.md)。
+Watch matcher 接线见
+[2026-08-27-content-community-watch-matcher.md](evidence/2026-08-27-content-community-watch-matcher.md)。
 `verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
-未覆盖边界：Watch MQ 消费者未接线；无 `DB_ASSISTANT` 时记忆/Watch 列表为空；
-ASST-050/051 人类冻结集与 live Gateway 评测本轮未跑（网关未起来）；
-UserState 工具与 `agent_run` 落库、discussion_spike 匹配仍缺。
+未覆盖边界：无 `DB_ASSISTANT` 时记忆/Watch 列表为空；ASST-050/051 人类冻结集
+与 live Gateway 评测不在本轮；UserState 工具、`agent_run` 落库、discussion_spike
+匹配与命中回源仍缺。

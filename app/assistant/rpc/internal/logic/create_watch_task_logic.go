@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"esx/app/assistant/rpc/internal/svc"
-	"esx/app/assistant/rpc/internal/watch"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/assistant/watch"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )

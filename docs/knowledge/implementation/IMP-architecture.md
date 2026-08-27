@@ -10,7 +10,7 @@ tracks:
   - app/
   - pkg/
 verified_at: 2026-08-27
-verified_commit: a1942c466bc75d5b9265a50d4e4b21422dfa598f
+verified_commit: 237612ab4190b272870355cbd01af6f79e0fef39
 ---
 
 # 服务架构与模块清单
@@ -31,10 +31,10 @@ Client → Gateway (REST :8888) → User RPC (:9090)
 ```
 
 异步链路经 RocketMQ 驱动：内容变更 → search 索引 / embedding / feed fanout /
-count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
+count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
 推荐特征；权威业务事务通过 outbox 同事务投递。Assistant 记忆与 Watch 权威库是
-`xbh_assistant`（DSN `DB_ASSISTANT`，可选）；Watch 规则匹配函数在 assistant RPC
-内，消费组 `assistant-watch-matcher-group` 已预留，**还不是一个正在运行的进程**。
+`xbh_assistant`（DSN `DB_ASSISTANT`）。Watch matcher 进程订阅 `post-create` /
+`post-update` / `post-delete`，消费组 `assistant-watch-matcher-group`。
 
 ## 服务清单
 
@@ -51,6 +51,7 @@ count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（
 | Recommend | RPC + MQ | `app/recommend/rpc/recommend.go`、`app/recommend/mq/main.go` | `proto/recommend/recommend.proto` |
 | Embedding | MQ + service | `app/embedding/mq/main.go`、`app/embedding/service` | `proto/embedding/embedding.proto` |
 | Assistant | RPC（SSE）+ 记忆/Watch 权威 | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
+| Assistant Watch matcher | MQ 消费者 | `app/assistant/mq/main.go` | — |
 | Behavior | RPC | `app/behavior/rpc/behavior.go` | `proto/behavior/behavior.proto` |
 | Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |
 | Content cleanup | MQ 消费者 | `app/content/mq/cleanup/main.go` | — |

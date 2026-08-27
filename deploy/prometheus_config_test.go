@@ -21,6 +21,7 @@ func TestPrometheusRuntimeMonitoringContract(t *testing.T) {
 		"host.docker.internal:9132",
 		"host.docker.internal:9133",
 		"host.docker.internal:9134",
+		"host.docker.internal:9135",
 	} {
 		if !strings.Contains(prometheusConfig, fragment) {
 			t.Errorf("prometheus config is missing %q", fragment)
@@ -44,6 +45,7 @@ func TestPrometheusRuntimeMonitoringContract(t *testing.T) {
 		"esx_recommend_feature_consumer_event_lag_seconds_bucket",
 		"esx_search_index_consumer_event_lag_seconds_bucket",
 		"esx_embedding_index_consumer_event_lag_seconds_bucket",
+		"esx_assistant_watch_matcher_event_lag_seconds_bucket",
 	} {
 		if !strings.Contains(alerts, metric) {
 			t.Errorf("prometheus alerts are missing metric %q", metric)
@@ -56,6 +58,7 @@ func TestPrometheusRuntimeMonitoringContract(t *testing.T) {
 		"recommend-consumer:9132",
 		"search-consumer:9133",
 		"embedding-consumer:9134",
+		"assistant-watch-consumer:9135",
 	} {
 		if !strings.Contains(productionConfig, fragment) {
 			t.Errorf("production prometheus config is missing %q", fragment)
@@ -106,6 +109,7 @@ func TestMQConsumersExposePrometheusMetrics(t *testing.T) {
 		"../app/recommend/mq/etc/recommend-consumer.yaml":   {"Name: recommend-feature-consumer", "Port: 9132"},
 		"../app/search/mq/etc/search-consumer.yaml":         {"Name: search-index-consumer", "Port: 9133"},
 		"../app/embedding/mq/etc/embedding-consumer.yaml":   {"Name: embedding-index-consumer", "Port: 9134"},
+		"../app/assistant/mq/etc/watch-consumer.yaml":       {"Name: assistant-watch-matcher", "Port: 9135"},
 	}
 	for path, fragments := range consumers {
 		config := mustReadMonitoringFile(t, path)

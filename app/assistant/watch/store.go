@@ -2,6 +2,7 @@ package watch
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +53,7 @@ type Hit struct {
 
 type Store interface {
 	ListTasks(ctx context.Context, userID int64) ([]Task, error)
+	ListEnabled(ctx context.Context) ([]Task, error)
 	Create(ctx context.Context, task Task) (Task, error)
 	UpdateEnabled(ctx context.Context, userID, id int64, enabled bool) error
 	Delete(ctx context.Context, userID, id int64) error
@@ -148,6 +150,31 @@ func (s *SQLStore) ListTasks(ctx context.Context, userID int64) ([]Task, error) 
 	return out, nil
 }
 
+func (s *SQLStore) ListEnabled(ctx context.Context) ([]Task, error) {
+	var rows []struct {
+		ID            int64  `db:"id"`
+		UserID        int64  `db:"user_id"`
+		ConditionType string `db:"condition_type"`
+		TargetType    string `db:"target_type"`
+		TargetID      int64  `db:"target_id"`
+		TargetText    string `db:"target_text"`
+		Enabled       int64  `db:"enabled"`
+		CreatedAt     int64  `db:"created_at_ms"`
+	}
+	err := s.conn.QueryRowsCtx(ctx, &rows,
+		`SELECT id, user_id, condition_type, target_type, target_id, target_text, enabled, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
+		 FROM watch_task WHERE enabled = 1`)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Task, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, Task{ID: row.ID, UserID: row.UserID, ConditionType: row.ConditionType, TargetType: row.TargetType,
+			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, CreatedAt: row.CreatedAt})
+	}
+	return out, nil
+}
+
 func (s *SQLStore) Create(ctx context.Context, task Task) (Task, error) {
 	if err := ValidateTask(task); err != nil {
 		return Task{}, err
@@ -217,11 +244,18 @@ func (s *SQLStore) MarkRead(ctx context.Context, userID int64, ids []int64) erro
 }
 
 func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) error {
-	_, err := s.conn.ExecCtx(ctx, `
-		INSERT INTO watch_execution (task_id, event_key, hit, used_llm, status) VALUES (?, ?, 1, 0, 'matched')
-		ON DUPLICATE KEY UPDATE status = status`, hit.TaskID, eventKey)
+	res, err := s.conn.ExecCtx(ctx, `
+		INSERT IGNORE INTO watch_execution (task_id, event_key, hit, used_llm, status)
+		VALUES (?, ?, 1, 0, 'matched')`, hit.TaskID, eventKey)
 	if err != nil {
 		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return nil
 	}
 	_, err = s.conn.ExecCtx(ctx, `
 		INSERT INTO watch_hit (user_id, task_id, post_id, title, summary, created_at_ms)
@@ -248,6 +282,18 @@ func (m *MapStore) ListTasks(_ context.Context, userID int64) ([]Task, error) {
 	out := []Task{}
 	for _, task := range m.tasks {
 		if task.UserID == userID {
+			out = append(out, task)
+		}
+	}
+	return out, nil
+}
+
+func (m *MapStore) ListEnabled(_ context.Context) ([]Task, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := []Task{}
+	for _, task := range m.tasks {
+		if task.Enabled {
 			out = append(out, task)
 		}
 	}
@@ -335,13 +381,18 @@ func (m *MapStore) MarkRead(_ context.Context, userID int64, ids []int64) error 
 	return nil
 }
 
+func executionKey(taskID int64, eventKey string) string {
+	return strconv.FormatInt(taskID, 10) + "\x00" + eventKey
+}
+
 func (m *MapStore) RecordHit(_ context.Context, hit Hit, eventKey string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, ok := m.keys[eventKey]; ok {
+	key := executionKey(hit.TaskID, eventKey)
+	if _, ok := m.keys[key]; ok {
 		return nil
 	}
-	m.keys[eventKey] = struct{}{}
+	m.keys[key] = struct{}{}
 	id := m.next
 	m.next++
 	hit.ID = id

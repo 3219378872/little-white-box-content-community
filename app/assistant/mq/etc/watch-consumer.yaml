@@ -1,0 +1,15 @@
+Name: assistant-watch-matcher
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9135
+  Path: /metrics
+
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "assistant-watch-matcher-group"
+  Topic: "post-create"
+  Tag: "default"
+  ConsumeOrder: false
+  MaxReconsumeTimes: 8
+
+DataSource: "${DB_ASSISTANT}"

@@ -53,3 +53,7 @@ scrape_configs:
   - job_name: embedding-index-consumer
     static_configs:
       - targets: ["embedding-consumer:9134"]
+
+  - job_name: assistant-watch-matcher
+    static_configs:
+      - targets: ["assistant-watch-consumer:9135"]

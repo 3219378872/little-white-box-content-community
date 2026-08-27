@@ -22,6 +22,7 @@ func TestAllConsumerConfigsDeclareBoundedRetries(t *testing.T) {
 		"app/pipeline/behaviorlog/etc/behavior-log.yaml",
 		"app/recommend/mq/etc/recommend-consumer.yaml",
 		"app/search/mq/etc/search-consumer.yaml",
+		"app/assistant/mq/etc/watch-consumer.yaml",
 	}
 	for _, file := range files {
 		t.Run(file, func(t *testing.T) {

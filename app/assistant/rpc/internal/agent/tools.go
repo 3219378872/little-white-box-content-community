@@ -11,9 +11,9 @@ import (
 
 	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/tool"
-	"esx/app/assistant/rpc/internal/watch"
 	"esx/app/assistant/rpc/internal/websearch"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/recommend/rpc/recommendservice"

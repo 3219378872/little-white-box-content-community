@@ -591,6 +591,25 @@ services:
       rocketmq-broker:
         condition: service_healthy
 
+  assistant-watch-consumer:
+    <<: *go-service
+    image: xbh/assistant-watch-consumer:${IMAGE_TAG:-local}
+    build:
+      <<: *go-build
+      args:
+        SERVICE_PATH: app/assistant/mq
+        SERVICE_CONFIG: app/assistant/mq/etc/watch-consumer.yaml
+    environment:
+      <<: *mq-env
+      DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
+    expose: ["9135"]
+    healthcheck: *process-healthcheck
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rocketmq-broker:
+        condition: service_healthy
+
   gateway-a:
     <<: *gateway
 

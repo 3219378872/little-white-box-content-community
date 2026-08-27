@@ -63,6 +63,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		"message-rpc", "behavior-rpc", "search-rpc", "recommend-rpc", "assistant-rpc",
 		"feed-consumer", "media-consumer", "behavior-log-consumer",
 		"recommend-consumer", "search-consumer", "embedding-consumer", "content-cleanup-consumer",
+		"assistant-watch-consumer",
 		"embedding-service", "online-infer",
 	}
 	for _, name := range runtimeServices {
@@ -79,7 +80,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		}
 	}
 
-	goServices := runtimeServices[1:20]
+	goServices := runtimeServices[1:21]
 	for _, name := range goServices {
 		service := project.Services[name]
 		if service.Build == nil || service.Build.Dockerfile != "deploy/Dockerfile.service" {

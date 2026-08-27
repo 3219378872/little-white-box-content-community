@@ -2,7 +2,7 @@ groups:
   - name: esx-runtime
     rules:
       - alert: EsxRuntimeMetricsTargetDown
-        expr: up{job=~"behavior-rpc|search-rpc|recommend-rpc|assistant-rpc|content-rpc|interaction-rpc|user-rpc|behavior-log-consumer|recommend-feature-consumer|search-index-consumer|embedding-index-consumer"} == 0
+        expr: up{job=~"behavior-rpc|search-rpc|recommend-rpc|assistant-rpc|content-rpc|interaction-rpc|user-rpc|behavior-log-consumer|recommend-feature-consumer|search-index-consumer|embedding-index-consumer|assistant-watch-matcher"} == 0
         for: 2m
         labels:
           severity: critical
@@ -181,3 +181,15 @@ groups:
           severity: warning
         annotations:
           summary: Milvus embedding update p95 lag is above five minutes
+
+      - alert: AssistantWatchMatcherLagHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(esx_assistant_watch_matcher_event_lag_seconds_bucket[5m]))
+          ) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Assistant watch matcher p95 lag is above one minute
