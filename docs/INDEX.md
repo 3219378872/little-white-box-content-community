@@ -25,6 +25,7 @@
 | 测试、质量、发布前验证 | [implementation/IMP-development-quickstart.md](knowledge/implementation/IMP-development-quickstart.md) | 相关测试文件和 CI |
 | 需要了解整体结构 | [implementation/IMP-architecture.md](knowledge/implementation/IMP-architecture.md) | 对应 `app/`、`pkg/` 代码 |
 | 规格对齐与逐条状态 | [implementation/IMP-content-community-backend.md](knowledge/implementation/IMP-content-community-backend.md) | 设计到代码台账 |
+| Assistant Agent、记忆、条件追踪 | [spec/SPEC-assistant-agent-mode.md](knowledge/spec/SPEC-assistant-agent-mode.md) | `SPEC-grounded-assistant`、`SPEC-agent-memory`、`SPEC-agent-watch` |
 | 剩余外部门禁 | [implementation/IMP-todo-blocked-gates.md](knowledge/implementation/IMP-todo-blocked-gates.md) | 人类评测集与月度 SLO |
 
 ## 文档层级

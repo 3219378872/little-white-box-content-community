@@ -20,9 +20,16 @@
 | [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | approved |
 | [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 基于已发布内容的可追溯回答 | approved |
 | [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md) | 经用户授权的 Agent 工具执行模式 | approved |
+| [SPEC-agent-memory](SPEC-agent-memory.md) | Agent 四层结构化记忆 | approved |
+| [SPEC-agent-watch](SPEC-agent-watch.md) | Agent 条件追踪与助手内投递 | approved |
 | [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
 
-五份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
+七份规范均引用 `INT-content-community-backend`，共同构成当前设计层的正式上游。
+
+2026-08-27 修订：意图将 Agent 扩张为内容域搜索综述、结构化记忆、可解释推荐与条件追踪。
+`SPEC-grounded-assistant` 批准评论作为社区证据；`SPEC-assistant-agent-mode` 改为分组
+白名单与版本化授权；新增 `SPEC-agent-memory`、`SPEC-agent-watch`。不引入游戏库、价格、
+商城或通用通知中心。
 
 2026-08-26 新增：`SPEC-assistant-agent-mode` 获人类批准；意图边界同步放宽为受授权、
 工具白名单与执行预算约束的受限形态；原检索问答管线命名 enhanced_search（ASST-043）。

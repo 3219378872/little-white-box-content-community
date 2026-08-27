@@ -14,6 +14,7 @@ observed_commit: a52eb89
 
 - 意图层：`docs/knowledge/intent/INT-content-community-backend.md`（approved）。
 - 规范层：`SPEC-community-core`、`SPEC-content-discovery`、`SPEC-grounded-assistant`、
+  `SPEC-assistant-agent-mode`、`SPEC-agent-memory`、`SPEC-agent-watch`、
   `SPEC-feedback-reliability`（approved）。
 - 设计层：`docs/knowledge/design/DES-content-community-backend.md`（active）。
 - 实现层：`IMP-content-community-backend`、`IMP-architecture`、
@@ -30,6 +31,16 @@ observed_commit: a52eb89
 - 源码、配置、`.api`、`.proto` 和测试是当前行为的权威事实。
 - 实现页 `aligned/diverged` 状态必须引用活跃 `DES-*` 并列出真实 `tracks`、提交和日期。
 - 未获授权的意图/规范建议只能写入 `docs/knowledge/proposals/`。
+
+## 2026-08-27 Agent 能力扩张
+
+- 意图：`INT-content-community-backend` 将 Agent 从发帖工具扩展为内容搜索综述、
+  结构化记忆、可解释推荐与条件追踪；明确不做游戏库/价格/商城与通用通知中心。
+- 规范：修订 `SPEC-grounded-assistant`（评论证据、`ASST-042` 重批）、
+  `SPEC-assistant-agent-mode`（分组白名单、`consent_version`）；新增
+  `SPEC-agent-memory`、`SPEC-agent-watch`。
+- 设计与实现尚未对齐：活跃设计仍须在后续任务中引用新规范，实现状态在对齐前保持
+  `diverged`。
 
 ## 后续待办
 
