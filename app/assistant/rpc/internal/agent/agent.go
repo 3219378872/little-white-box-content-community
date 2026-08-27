@@ -56,7 +56,19 @@ type Session struct {
 	Tools    *ToolRegistry
 	Confirms ConfirmBroker
 
+	ConsentVersion int32 // AGNT-007：低于当前披露版本时裁剪新分组
+	ContextPostID  int64
+	Plan           QueryPlan
+
 	sources []tool.Source
+}
+
+// QueryPlan 是 Intent Router 的结构化产物，供 Context / Planner 使用。
+type QueryPlan struct {
+	Intent     string
+	EntityType string
+	EntityText string
+	TimeRange  string
 }
 
 func (s *Session) addSources(sources []tool.Source) {

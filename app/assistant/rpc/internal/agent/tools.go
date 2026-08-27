@@ -182,6 +182,27 @@ func (r *ToolRegistry) Definitions() []Definition {
 	return result
 }
 
+// Restrict 返回只包含指定名称的注册表副本；未知名称忽略。空交集返回 nil。
+func (r *ToolRegistry) Restrict(names []string) *ToolRegistry {
+	if r == nil {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if r.Has(name) {
+			allowed[name] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return nil
+	}
+	return &ToolRegistry{
+		definitions: r.definitions,
+		executors:   r.executors,
+		allowed:     allowed,
+	}
+}
+
 // Has 校验工具是否放行。
 func (r *ToolRegistry) Has(name string) bool {
 	if r == nil {

@@ -14,6 +14,7 @@ import (
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -35,6 +36,7 @@ type ServiceContext struct {
 	AgentTools    *agent.ToolRegistry
 	AgentConfirms agent.ConfirmBroker
 	AgentQuota    store.QuotaLimiter
+	UserService   userservice.UserService
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -94,6 +96,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
 		AgentRunner:   buildAgentRunner(c),
 		AgentQuota:    buildAgentQuota(redisClient, c),
+		UserService:   userservice.NewUserService(newClient(c.UserRpc)),
 	}
 }
 
@@ -143,7 +146,7 @@ func buildAgentRunner(c config.Config) agent.Runner {
 		logx.Errorw("assistant agent disabled", logx.Field("reason", err.Error()))
 		return nil
 	}
-	return runner
+	return agent.NewRuntime(runner)
 }
 
 // buildAgentQuota 为 Agent 模式构造独立固定窗口限流器（AGNT-032）。

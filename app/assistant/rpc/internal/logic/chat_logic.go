@@ -20,6 +20,7 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -279,6 +280,8 @@ func (l *ChatLogic) runAgentChat(
 		Attachments:    attachments,
 		SystemPrompt:   l.agentSystemPrompt(),
 		Budget:         l.agentBudget(),
+		ConsentVersion: l.agentConsentVersion(request.UserID),
+		ContextPostID:  in.GetContextPostId(),
 		Emit: func(event *pb.ChatEvent) error {
 			if event.ConversationId == "" {
 				event.ConversationId = conversationID
@@ -336,6 +339,20 @@ func validateAgentAttachments(attachments []*pb.Attachment) ([]agent.Attachment,
 		result = append(result, agent.Attachment{MediaID: item.GetMediaId(), URL: strings.TrimSpace(item.GetUrl())})
 	}
 	return result, nil
+}
+
+func (l *ChatLogic) agentConsentVersion(userID int64) int32 {
+	if l.svcCtx == nil || l.svcCtx.UserService == nil || userID <= 0 {
+		return 1
+	}
+	consent, err := l.svcCtx.UserService.GetAgentCapabilityConsent(l.ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})
+	if err != nil || consent == nil || !consent.Granted {
+		return 1
+	}
+	if consent.ConsentVersion <= 0 {
+		return 1
+	}
+	return consent.ConsentVersion
 }
 
 func (l *ChatLogic) beginRequestWithQuota(request tool.Request, conversationID string, quota store.QuotaLimiter) error {
