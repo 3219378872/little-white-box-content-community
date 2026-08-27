@@ -27,7 +27,7 @@ func (l *ListWatchTasksLogic) ListWatchTasks(in *pb.ListWatchTasksReq) (*pb.List
 		return nil, err
 	}
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
-		return &pb.ListWatchTasksResp{Tasks: []*pb.WatchTask{}}, nil
+		return nil, unavailableUntilStore()
 	}
 	tasks, err := l.svcCtx.Watch.ListTasks(l.ctx, in.UserId)
 	if err != nil {

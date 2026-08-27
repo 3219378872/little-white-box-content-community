@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-27-content-community-agent-closeout.md](2026-08-27-content-community-agent-closeout.md)：
+  UserState / Watch 注入与预筛选 / 推荐卡 / 审计落库收口，提交见 frontmatter。
 - [2026-08-27-content-community-watch-matcher.md](2026-08-27-content-community-watch-matcher.md)：
   Watch matcher 消费 `post-*` 并去重写入 hits，提交见 frontmatter。
 - [2026-08-27-content-community-agent-runtime.md](2026-08-27-content-community-agent-runtime.md)：

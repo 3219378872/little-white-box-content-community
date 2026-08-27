@@ -26,6 +26,8 @@ service InteractionService {
   rpc BatchCheckFavorited(BatchCheckFavoritedReq) returns (BatchCheckFavoritedResp);
   // 获取收藏列表
   rpc GetFavoriteList(GetFavoriteListReq) returns (GetFavoriteListResp);
+  // 获取点赞列表（已点赞的帖子）
+  rpc GetLikeList(GetLikeListReq) returns (GetLikeListResp);
 
   // 获取互动统计
   rpc GetCounts(GetCountsReq) returns (GetCountsResp);
@@ -112,6 +114,19 @@ message GetFavoriteListReq {
 
 // 获取收藏列表响应
 message GetFavoriteListResp {
+  repeated int64 post_ids = 1;
+  int64          total    = 2;
+}
+
+// 获取点赞列表请求
+message GetLikeListReq {
+  int64 user_id   = 1;
+  int32 page      = 2;
+  int32 page_size = 3;
+}
+
+// 获取点赞列表响应
+message GetLikeListResp {
   repeated int64 post_ids = 1;
   int64          total    = 2;
 }

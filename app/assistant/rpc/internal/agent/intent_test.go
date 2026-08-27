@@ -2,7 +2,11 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
+
+	"esx/app/assistant/watch"
 )
 
 func TestClassifyIntent(t *testing.T) {
@@ -69,4 +73,82 @@ func TestRuntimeClassifiesAndRestricts(t *testing.T) {
 	if executor.session.Tools == nil || !executor.session.Tools.Has(ToolSearchPosts) {
 		t.Fatal("expected v1 tools to remain")
 	}
+}
+
+func TestRuntimeInjectsUnreadWatchHits(t *testing.T) {
+	store := watch.NewMapStore()
+	if err := store.RecordHit(context.Background(), watch.Hit{
+		UserID: 2, TaskID: 1, PostID: 11, Title: "怪猎", Summary: "新帖",
+	}, "k1"); err != nil {
+		t.Fatal(err)
+	}
+	executor := &fakeRunner{}
+	runtime := NewRuntime(executor, nil)
+	runtime.Watch = store
+	_, err := runtime.Run(context.Background(), &Session{UserID: 2, UserMessage: "hello", Tools: mustRegistry(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(executor.session.SystemPrompt, "未读的条件追踪命中") || !strings.Contains(executor.session.SystemPrompt, "怪猎") {
+		t.Fatalf("%q", executor.session.SystemPrompt)
+	}
+}
+
+func TestRuntimePersistsAuditWithoutUserText(t *testing.T) {
+	audit := NewMapAuditStore()
+	registry, err := NewToolRegistry(Clients{}, []string{ToolSearchPosts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := NewRuntime(&fakeRunner{}, nil)
+	runtime.Audit = audit
+	runtime.Model = "test-model"
+	session := &Session{UserID: 2, RequestID: "req-9", UserMessage: "secret prompt", Tools: registry, Plan: QueryPlan{Intent: IntentRecommend}}
+	if _, _, callErr := registry.Call(context.Background(), session, ToolSearchPosts, "c1", `{"keyword":"secret"}`); callErr == nil {
+		// search client is nil → unavailable; still records digest
+	}
+	_, err = runtime.Run(context.Background(), session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	var runs []RunRecord
+	for time.Now().Before(deadline) {
+		runs = audit.Snapshot()
+		if len(runs) == 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("runs=%d", len(runs))
+	}
+	if runs[0].UserID != 2 || runs[0].RequestID != "req-9" || runs[0].Status != "ok" || runs[0].Model != "test-model" {
+		t.Fatalf("%+v", runs[0])
+	}
+	if strings.Contains(runs[0].Intent, "secret") {
+		t.Fatal("intent leaked user text")
+	}
+	if len(runs[0].Tools) == 0 || runs[0].Tools[0].ArgDigest == `{"keyword":"secret"}` {
+		t.Fatalf("expected hashed args, got %+v", runs[0].Tools)
+	}
+	if strings.Contains(runs[0].Tools[0].ArgDigest, "secret") {
+		t.Fatalf("raw args stored: %s", runs[0].Tools[0].ArgDigest)
+	}
+}
+
+func TestRuntimeNilAuditSkips(t *testing.T) {
+	runtime := NewRuntime(&fakeRunner{}, nil)
+	if _, err := runtime.Run(context.Background(), &Session{UserID: 1, Tools: mustRegistry(t)}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustRegistry(t *testing.T) *ToolRegistry {
+	t.Helper()
+	registry, err := NewToolRegistry(Clients{}, Version1Tools())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return registry
 }

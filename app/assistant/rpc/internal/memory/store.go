@@ -2,12 +2,14 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"esx/pkg/errx"
 
@@ -38,16 +40,17 @@ var (
 )
 
 type Item struct {
-	ID         int64
-	UserID     int64
-	Layer      string
-	Dimension  string
-	Value      string
-	Score      float64
-	Source     string
-	Confidence float64
-	Suppressed bool
-	UpdatedAt  int64
+	ID           int64
+	UserID       int64
+	Layer        string
+	Dimension    string
+	Value        string
+	Score        float64
+	Source       string
+	Confidence   float64
+	Suppressed   bool
+	UpdatedAt    int64
+	ExcludedJSON string
 }
 
 func (i Item) Confirmed() bool {
@@ -93,12 +96,13 @@ type Store interface {
 	Update(ctx context.Context, userID, id int64, patch Patch, now time.Time) error
 	Delete(ctx context.Context, userID, id int64) error
 	Apply(ctx context.Context, userID int64, candidate Candidate, now time.Time) error
-	ContextBlock(ctx context.Context, userID int64, intent string, now time.Time) (string, error)
+	ContextBlock(ctx context.Context, userID int64, intent string, now time.Time, skipBehavior bool) (string, error)
 	RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error
 }
 
 type SQLStore struct {
-	conn sqlx.SqlConn
+	conn            sqlx.SqlConn
+	Personalization func(ctx context.Context, userID int64) (bool, error)
 }
 
 func NewSQLStore(conn sqlx.SqlConn) *SQLStore {
@@ -140,17 +144,18 @@ func (s *SQLStore) listLayer(ctx context.Context, userID int64, layer string, no
 		LastEventAtMs int64   `db:"last_event_at_ms"`
 		IntentText    string  `db:"intent_text"`
 		Status        string  `db:"status"`
+		ExcludedJSON  string  `db:"excluded_json"`
 	}
 	query := ""
 	switch layer {
 	case LayerProfile:
-		query = `SELECT id, dimension, value, score, source, confidence, suppressed, updated_at_ms, 0 AS last_event_at_ms, '' AS intent_text, '' AS status
+		query = `SELECT id, dimension, value, score, source, confidence, suppressed, updated_at_ms, 0 AS last_event_at_ms, '' AS intent_text, '' AS status, '' AS excluded_json
 			FROM user_preference WHERE user_id = ? ORDER BY updated_at_ms DESC`
 	case LayerInterest:
-		query = `SELECT id, dimension, value, score, source, confidence, suppressed, updated_at_ms, last_event_at_ms, '' AS intent_text, '' AS status
+		query = `SELECT id, dimension, value, score, source, confidence, suppressed, updated_at_ms, last_event_at_ms, '' AS intent_text, '' AS status, '' AS excluded_json
 			FROM user_interest WHERE user_id = ? ORDER BY last_event_at_ms DESC`
 	case LayerTask:
-		query = `SELECT id, 'task' AS dimension, intent_text AS value, 1 AS score, 'conversation' AS source, 1 AS confidence, 0 AS suppressed, updated_at_ms, 0 AS last_event_at_ms, intent_text, status
+		query = `SELECT id, 'task' AS dimension, intent_text AS value, 1 AS score, 'conversation' AS source, 1 AS confidence, 0 AS suppressed, updated_at_ms, 0 AS last_event_at_ms, intent_text, status, COALESCE(excluded_json, '') AS excluded_json
 			FROM task_memory WHERE user_id = ? AND status = 'open' ORDER BY updated_at_ms DESC`
 	default:
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -173,6 +178,7 @@ func (s *SQLStore) listLayer(ctx context.Context, userID int64, layer string, no
 			ID: PackID(layer, item.ID), UserID: userID, Layer: layer,
 			Dimension: item.Dimension, Value: value, Score: score, Source: item.Source,
 			Confidence: item.Confidence, Suppressed: item.Suppressed == 1, UpdatedAt: item.UpdatedAtMs,
+			ExcludedJSON: item.ExcludedJSON,
 		})
 	}
 	return items, nil
@@ -274,8 +280,14 @@ func (s *SQLStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 	if userID <= 0 || strings.TrimSpace(candidate.Value) == "" {
 		return errx.NewWithCode(errx.ParamError)
 	}
+	if ContainsPrivateValue(candidate.Value) {
+		return errx.New(errx.ParamError, "memory value is not allowed")
+	}
 	if candidate.Source != SourceExplicit && candidate.Source != SourceConversation && candidate.Source != SourceBehavior {
 		return errx.NewWithCode(errx.ParamError)
+	}
+	if candidate.Source == SourceBehavior && !behaviorAllowed(ctx, s.Personalization, userID) {
+		return nil
 	}
 	ms := now.UnixMilli()
 	switch candidate.Layer {
@@ -317,12 +329,12 @@ func (s *SQLStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 	}
 }
 
-func (s *SQLStore) ContextBlock(ctx context.Context, userID int64, intent string, now time.Time) (string, error) {
+func (s *SQLStore) ContextBlock(ctx context.Context, userID int64, intent string, now time.Time, skipBehavior bool) (string, error) {
 	items, err := s.List(ctx, userID, "", now)
 	if err != nil {
 		return "", err
 	}
-	return formatContext(items, intent), nil
+	return formatContext(items, intent, skipBehavior), nil
 }
 
 func (s *SQLStore) RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error {
@@ -354,12 +366,15 @@ func boolToInt(v bool) int {
 	return 0
 }
 
-func formatContext(items []Item, intent string) string {
+func formatContext(items []Item, intent string, skipBehavior bool) string {
 	var b strings.Builder
 	b.WriteString("关于你的记忆（用户可见，冲突时以更新的为准）：\n")
 	wrote := false
 	for _, item := range items {
 		if item.Suppressed {
+			continue
+		}
+		if skipBehavior && item.Source == SourceBehavior {
 			continue
 		}
 		if item.Layer == LayerInterest && math.Abs(item.Score) < interestFloor {
@@ -390,9 +405,10 @@ func formatContext(items []Item, intent string) string {
 
 // MapStore 是测试用内存实现，覆盖冲突合并与衰减读取。
 type MapStore struct {
-	mu    sync.Mutex
-	next  int64
-	items map[int64]Item
+	mu              sync.Mutex
+	next            int64
+	items           map[int64]Item
+	Personalization func(ctx context.Context, userID int64) (bool, error)
 }
 
 func NewMapStore() *MapStore {
@@ -452,12 +468,21 @@ func (m *MapStore) Delete(_ context.Context, userID, id int64) error {
 	return nil
 }
 
-func (m *MapStore) Apply(_ context.Context, userID int64, candidate Candidate, now time.Time) error {
+func (m *MapStore) Apply(ctx context.Context, userID int64, candidate Candidate, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	value := strings.TrimSpace(candidate.Value)
 	if userID <= 0 || value == "" {
 		return errx.NewWithCode(errx.ParamError)
+	}
+	if ContainsPrivateValue(value) {
+		return errx.New(errx.ParamError, "memory value is not allowed")
+	}
+	if candidate.Source != SourceExplicit && candidate.Source != SourceConversation && candidate.Source != SourceBehavior {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	if candidate.Source == SourceBehavior && !behaviorAllowed(ctx, m.Personalization, userID) {
+		return nil
 	}
 	for id, item := range m.items {
 		if item.UserID == userID && item.Layer == candidate.Layer && item.Dimension == candidate.Dimension && item.Value == value {
@@ -483,12 +508,15 @@ func (m *MapStore) Apply(_ context.Context, userID int64, candidate Candidate, n
 	return nil
 }
 
-func (m *MapStore) ContextBlock(ctx context.Context, userID int64, intent string, now time.Time) (string, error) {
+func (m *MapStore) ContextBlock(ctx context.Context, userID int64, intent string, now time.Time, skipBehavior bool) (string, error) {
 	items, err := m.List(ctx, userID, "", now)
 	if err != nil {
 		return "", err
 	}
-	return formatContext(items, intent), nil
+	if !skipBehavior {
+		skipBehavior = !behaviorAllowed(ctx, m.Personalization, userID)
+	}
+	return formatContext(items, intent, skipBehavior), nil
 }
 
 func (m *MapStore) RecordFeedback(_ context.Context, userID int64, requestID string, postID int64, reason string) error {
@@ -509,17 +537,102 @@ func Extract(message string) []Candidate {
 	}
 	var out []Candidate
 	if value, ok := cutPrefix(text, "我不喜欢", "不喜欢"); ok {
-		out = append(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: -0.8, Source: SourceConversation, Confidence: 0.9, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: -0.8, Source: SourceConversation, Confidence: 0.9, Excerpt: text})
 	}
 	if value, ok := cutPrefix(text, "我喜欢"); ok {
-		out = append(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0.8, Source: SourceConversation, Confidence: 0.9, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0.8, Source: SourceConversation, Confidence: 0.9, Excerpt: text})
 	}
 	if value, ok := cutPrefix(text, "帮我找", "我想找"); ok {
-		out = append(out, Candidate{Layer: LayerTask, Dimension: "task", Value: value, Score: 1, Source: SourceConversation, Confidence: 0.85, Excerpt: text})
-		out = append(out, Candidate{Layer: LayerInterest, Dimension: "topic", Value: value, Score: 0.7, Source: SourceConversation, Confidence: 0.7, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerTask, Dimension: "task", Value: value, Score: 1, Source: SourceConversation, Confidence: 0.85, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerInterest, Dimension: "topic", Value: value, Score: 0.7, Source: SourceConversation, Confidence: 0.7, Excerpt: text})
 	}
 	if value, ok := cutPrefix(text, "不要记住"); ok {
-		out = append(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0, Source: SourceExplicit, Confidence: 1, Excerpt: text})
+		out = appendPrivateFiltered(out, Candidate{Layer: LayerProfile, Dimension: "topic", Value: value, Score: 0, Source: SourceExplicit, Confidence: 1, Excerpt: text})
+	}
+	return out
+}
+
+func appendPrivateFiltered(out []Candidate, candidate Candidate) []Candidate {
+	if ContainsPrivateValue(candidate.Value) {
+		return out
+	}
+	return append(out, candidate)
+}
+
+func ContainsPrivateValue(value string) bool {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return false
+	}
+	if strings.Contains(text, "验证码") || strings.Contains(text, "私信") {
+		return true
+	}
+	compact := make([]rune, 0, len(text))
+	digitRunes := 0
+	consecutive := 0
+	for _, r := range text {
+		if unicode.IsSpace(r) || r == '-' {
+			continue
+		}
+		compact = append(compact, r)
+		if unicode.IsDigit(r) {
+			digitRunes++
+			consecutive++
+			if consecutive >= 11 {
+				return true
+			}
+			continue
+		}
+		consecutive = 0
+	}
+	return len(compact) == 11 && digitRunes >= 9
+}
+
+func behaviorAllowed(ctx context.Context, lookup func(context.Context, int64) (bool, error), userID int64) bool {
+	if lookup == nil || userID <= 0 {
+		return true
+	}
+	enabled, err := lookup(ctx, userID)
+	if err != nil {
+		return true
+	}
+	return enabled
+}
+
+func ParsePostIDs(value string) []int64 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if strings.HasPrefix(value, "[") {
+		var ids []int64
+		if err := json.Unmarshal([]byte(value), &ids); err == nil {
+			return positiveIDs(ids)
+		}
+	}
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || unicode.IsSpace(r)
+	})
+	if len(fields) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(fields))
+	for _, field := range fields {
+		id, err := strconv.ParseInt(field, 10, 64)
+		if err != nil || id <= 0 {
+			return nil
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func positiveIDs(ids []int64) []int64 {
+	out := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			out = append(out, id)
+		}
 	}
 	return out
 }

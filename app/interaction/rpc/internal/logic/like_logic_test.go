@@ -92,6 +92,12 @@ func (m *mockLikeRecordModel) UpdateStatusById(ctx context.Context, id, expected
 	return result, args.Error(1)
 }
 
+func (m *mockLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error) {
+	args := m.Called(ctx, userID, targetType, page, pageSize)
+	ids, _ := args.Get(0).([]int64)
+	return ids, args.Get(1).(int64), args.Error(2)
+}
+
 type mockActionCountModel struct {
 	mock.Mock
 }

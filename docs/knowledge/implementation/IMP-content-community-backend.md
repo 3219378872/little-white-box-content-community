@@ -35,6 +35,7 @@ tracks:
   - proto/media/media.proto
   - proto/user/user.proto
   - proto/assistant/assistant.proto
+  - proto/interaction/interaction.proto
   - proto/behavior/behavior.proto
   - proto/search/search.proto
   - deploy/sql/xbh_content.sql
@@ -60,14 +61,13 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 
 ## 总体状态
 
-`diverged`：2026-08-27 已把 Agent Runtime / 记忆 / Watch 映射进本页。代码可关闭项
-仍保持对齐。仍偏离处：
+`diverged`：2026-08-27 Agent Runtime 代码可关闭项已补 UserState、Watch 预筛选/
+命中回源/未读注入、推荐卡与审计落库。仍偏离处：
 - `CORE-032` 公开计数 30s 收敛缺少生产观测。
 - `DISC-060`/`ASST-050`/`ASST-051` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
 - `REL-A03` 未注入 `REL-054` 全部十行。
-- Watch `discussion_spike` 与命中列表回源、下次对话注入仍未闭环。
-- 未配置 `DB_ASSISTANT` 时记忆/Watch 列表返回空，写接口 503。
+- `discussion_spike` 生产 matcher 未接 LLM 判定（过阈值且无模型记 failed，不写规则命中）。
 
 ## 规格追踪
 
@@ -194,14 +194,14 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | AGNT-005 授权说明披露工具清单 | aligned | 后端返回 `consentVersion`/`currentVersion`（当前披露版本常量 `2`）；说明文案由客户端展示，服务端不代替确认 |
 | AGNT-006 可随时撤销、立即生效 | aligned | `SetAgentCapabilityConsent` 持久化 `revoked_at`；之后 agent 请求按 AGNT-002 拒绝 |
 | AGNT-007 consent_version 与分组裁剪 | aligned | User 库 `consent_version`；v1 只保留 Write + `search_posts`/`web_search`；`TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
-| AGNT-010 分组白名单 | partial | Search/Recommend/Memory/Watch/Write 已注册，配置可收缩；**UserState**（`get_my_favorites`/`get_my_likes`/`get_my_following`/`get_my_posts`）未实现 |
+| AGNT-010 分组白名单 | aligned | Search/Recommend/Memory/Watch/Write/UserState 已注册，配置可收缩；v1 consent 隐藏新分组；`TestRestrictHidesUserStateOnV1Consent` |
 | AGNT-011 帖子/评论回源 | aligned | `search_posts`/`get_post`/`get_post_comments` 回源 Content；未发布父帖拒绝评论；`search_test.go` |
 | AGNT-012 web_search 非社区证据 | aligned | 来源 `type=web`，文案禁止当帖子证据；无 key 时工具不可用失败关闭 |
 | AGNT-013 写帖图片仅本会话附件 | aligned | `resolveAttachments` + `assertMediaOwnership`；会话外 mediaId 失败；`tools_test.go` |
 | AGNT-014 v2 乐观锁 | aligned | update/delete 走 `expected_revision`；缺省先读再写，冲突原样反馈 |
 | AGNT-015 幂等键由请求标识派生 | aligned | `agent:<action>:<requestID>:<callID>`；`TestCreatePostDerivesIdempotencyAndRestrictsImages` |
 | AGNT-016 用户/标签搜索非证据、get_post 回源 | aligned | `TestSearchUsersAreNotEvidence`；`get_post` 调 Content |
-| AGNT-017 UserState 只读本人列表 | partial | 四个 UserState 工具未注册 |
+| AGNT-017 UserState 只读本人列表 | aligned | `get_my_*` 一律用 `session.UserID`；收藏/点赞回源已发布帖；`userstate_test.go` |
 | AGNT-018 Recommend 真实 ID 并回源 | aligned | `recommend_posts` 调 RecommendRpc `scene=agent`，排除记忆负向 ID 后再 Content 回源；`recommend_test.go` |
 | AGNT-019 Memory/Watch 受 consent 与失败反馈 | aligned | 出现在白名单；v1 consent 不可见；失败走 `errx`/`toolFeedback` |
 | AGNT-020 删除逐次确认 | aligned | `delete_post` HighRisk；确认事件含帖子摘要；拒绝不执行 |
@@ -217,13 +217,13 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | AGNT-042 context_post_id 可选提示 | aligned | 缺省忽略；不授予额外权限 |
 | AGNT-050 安全过滤与不可信内容 | aligned | 输入/输出走 safety；Agent 系统提示把网络与社区内容当不可信数据 |
 | AGNT-051 错误不泄密 | aligned | 对外 `errx` 包装；不回传提示词/secret/堆栈 |
-| AGNT-052 工具审计条目 | partial | 指标 `agent_tool_calls_total`；`tool_call`/`agent_run` 表已建，**无写入路径** |
-| AGNT-053 可查询运行记录 | partial | schema 已有 `agent_run`（禁止正文/secret）；Runtime 只打日志与指标，未落库 |
+| AGNT-052 工具审计条目 | aligned | Runtime 写 `tool_call`（`arg_digest` 为参数哈希，不含原文）；nil store 跳过；`TestRuntimePersistsAuditWithoutUserText` |
+| AGNT-053 可查询运行记录 | aligned | Runtime 写 `agent_run`（user/request/intent/model/latency/status）；不含用户正文/提示词 |
 | AGNT-060 事件向后兼容 | aligned | 新增 CARD/ACTIONS/WATCH_HIT；网关未知类型忽略；`TestAssistantChatUnknownEventsAreIgnored` |
 | AGNT-061 LLM 不可用不得自行写帖 | aligned | Agent LLM 失败走 `LLM_UNAVAILABLE` 降级；规则 Watch 匹配不在对话回合内 |
 | AGNT-062 工具失败分类反馈 | aligned | 参数/越权/冲突/不可用/超限映射 `errx` 后回灌模型 |
-| AGNT-063 卡片/动作标识须已验证 | partial | proto 与网关映射已有；Runner **尚未发出** CARD/ACTIONS |
-| AGNT-064 推荐卡片 ID 来自真实结果 | partial | Recommend 工具只返回回源 ID；尚无推荐卡片事件 |
+| AGNT-063 卡片/动作标识须已验证 | aligned | `recommend_posts`/`similar_posts` 成功后发 `CHAT_EVENT_TYPE_CARD`（`cardType=recommend`），payload 仅已回源帖；Emit nil 不发；ACTIONS 仍未发 |
+| AGNT-064 推荐卡片 ID 来自真实结果 | aligned | 卡片 ID/标题来自 `formatRecommended` 回源后的 `sources`；`TestRecommendPostsEmitsVerifiedCard` |
 
 ## SPEC-agent-memory 追踪
 
@@ -234,19 +234,19 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | MEM-003 同键一条当前记录+历史 | aligned | 唯一键 + `history_json`；`TestMapStoreConflictKeepsOneCurrentRecord` |
 | MEM-004 Interest 读取衰减 | aligned | `score * exp(-λ Δt)`，低于 0.05 不进 ContextBlock；`TestInterestDecayDropsBelowFloorInContext` |
 | MEM-005 Episodic 默认不注入 | partial | 默认 List 不含 episodic；ContextBlock 仅在 recommend/community_opinion 跳过 episodic，其它 intent 仍可能带上 |
-| MEM-006 “还有吗”续写 Task | partial | `ClassifyIntent` 把“还有吗/换一批”标 `continue_task` 并装载开放 Task；检索/推荐尚未强制套用 Task 已排除 ID |
+| MEM-006 “还有吗”续写 Task | aligned | `continue_task` 与推荐共用 `excludedPostIDs`：负向 Profile 帖 ID + 开放 Task `excluded_json`/看起来像帖 ID 的 value；`TestRecommendPostsExcludesOpenTaskIDs` |
 | MEM-010 写入须校验合并 | partial | 显式句式 `Extract` + `Apply` 去重合并；无 LLM 候选 schema 路径 |
 | MEM-011 显式偏好高于行为推断 | aligned | 对话显式句式 `conversation` 置信度 0.9；工具写入 `explicit` 置信度 1 |
-| MEM-012 关闭个性化后 behavior 停用 | partial | 助手记忆路径未读取个性化关闭标记 |
-| MEM-013 不得保存私密字段 | partial | 只拒绝空值；无手机号/验证码/私信/未发布内容丢弃规则 |
+| MEM-012 关闭个性化后 behavior 停用 | aligned | `GetPersonalizationPreference enabled=false` 时 Apply 忽略 `behavior`，ContextBlock/推荐排除跳过 behavior 项；`TestApplyIgnoresBehaviorWhenPersonalizationDisabled` |
+| MEM-013 不得保存私密字段 | aligned | Extract/Apply 拒绝 11 位数字密集串、`验证码`、`私信`；`TestExtractAndApplyRejectPrivateValues` |
 | MEM-020 可列出 Profile/Interest/Task | aligned | `GET /assistant/memory`；`confirmed` 区分高置信；episodic 按 layer 检索 |
 | MEM-021 修改/删除/不要记住 | aligned | PATCH/DELETE；`suppressed=1` 后 SQL 冲突更新保持禁止 |
 | MEM-022 只对所属用户开放 | aligned | JWT userId；store 按 user_id 过滤，他人记录 NotFound |
 | MEM-023 回答不得引用已删/失效记忆 | partial | ContextBlock 跳过 suppressed 与衰减 Interest；无“回答引用已删记忆”专项测试 |
 | MEM-030 Memory 工具只作用于当前用户 | aligned | `get/add/update/delete_memory`；add/update 走 `Apply`/`Update` |
-| MEM-031 对外列表/修改/删除且幂等 | aligned | REST+RPC；无库时写 503、删不存在 404；列表无库返回空（见 MEM-040） |
+| MEM-031 对外列表/修改/删除且幂等 | aligned | REST+RPC；无库时写/列表 503、删不存在 404 |
 | MEM-032 抽取不阻塞 DONE | aligned | 回合成功后 `go persistMemory`；失败只打日志 |
-| MEM-040 存储不可用不得谎报成功 | partial | Memory 工具 store=nil → 503；**列表在无 `DB_ASSISTANT` 时返回空 items，不报暂时不可用**；写需要 DB |
+| MEM-040 存储不可用不得谎报成功 | aligned | Memory 工具与 `ListMemory` store=nil → 503；`TestListMemoryNilStoreUnavailable` |
 | MEM-041 记忆不是社区证据 | aligned | Memory 工具不产出 post/comment Source |
 | MEM-042 随后列表与回合可见刚提交修改 | aligned | 同进程 Apply 后 List 立即可见 |
 
@@ -256,20 +256,20 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | --- | --- | --- |
 | WCH-001 任务含稳定标识/类型/目标/启用 | aligned | `watch_task` + REST/工具 CRUD |
 | WCH-002 四种规则条件 | aligned | `author_new_post`/`tag_new_post`/`keyword_new_post`/`post_revised`；`TestMatchRules` |
-| WCH-003 discussion_spike 预筛选后才调模型 | partial | 允许创建该类型；`Match()` **未实现**预筛选或模型判定 |
-| WCH-004 不可见/未发布不命中；目标不存在须创建失败 | partial | `Match` 要求 `Status==1`；创建路径**不校验**作者/标签是否存在 |
+| WCH-003 discussion_spike 预筛选后才调模型 | partial | matcher 消费 `user-behavior-v2` comment/post；未达 `SpikeMinComments`（默认 5）记 skipped 且不调 Judge；过阈值无 LLM 记 failed **不写命中**；生产未接 LLM 判定 |
+| WCH-004 不可见/未发布不命中；目标不存在须创建失败 | aligned | 创建路径校验作者存在、帖已发布、标签可检索；关键词只要求文本；`TestCreateWatchTaskValidatesTargets` |
 | WCH-005 同用户同条件同目标不重复 | aligned | 唯一键；重复 `IdempotencyConflict`；`TestCreateRejectsUnknownConditionAndDuplicates` |
 | WCH-010 规则条件由事件驱动 | aligned | `app/assistant/mq` 订阅 `post-*`；`ApplyPostEvent` + `Match`；不轮询模型 |
-| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；`RecordHit` INSERT IGNORE 后才写 hit；未给未命中任务写 skipped 执行行 |
-| WCH-012 spike 未过阈值不调模型 | partial | 预筛选/模型否定路径未实现；matcher 不消费 `user-behavior-v2` |
+| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；命中与 spike skipped/failed 均写执行行；规则未匹配任务仍不写 skipped |
+| WCH-012 spike 未过阈值不调模型 | aligned | 低于阈值 `RecordExecution skipped` 且 Judge 不调用；`TestApplyBehaviorEventBelowThresholdDoesNotHitOrCallLLM` |
 | WCH-013 匹配失败不影响发帖主路径 | aligned | 独立消费者；发帖 outbox 不依赖 matcher；存储错误只重试本消费者 |
-| WCH-020 命中只进助手收件箱 | partial | `watch_hit` + `GET /assistant/watch/hits`；不写私信/通知/推送；**下次 Agent 对话未注入未读摘要** |
-| WCH-021 列表/已读且可见性过滤 | partial | 按 user_id 列出/标记已读；返回前**未回源**过滤不可见帖 |
+| WCH-020 命中只进助手收件箱 | aligned | `watch_hit` + REST；Runtime 注入最多 5 条未读摘要到 SystemPrompt；不写私信/通知/推送；`TestRuntimeInjectsUnreadWatchHits` |
+| WCH-021 列表/已读且可见性过滤 | aligned | 按 user_id 列出/标记已读；列表回源 Content，未发布/缺失清空 Title/Summary；`TestListWatchHitsRedactsUnpublished` |
 | WCH-022 命中不是社区证据 | aligned | 命中不自动变成 Source；事实陈述仍须回源引用 |
 | WCH-030 Watch 工具只作用于当前用户 | aligned | 四个工具 + RPC，均带 session/JWT userId |
 | WCH-031 不走删除确认；删任务停后续命中 | aligned | 工具非 HighRisk；删除任务后 `Match` 不再看到该任务；已有 hit 保留 |
 | WCH-032 越权拒绝 | aligned | REST jwt；SQL/MapStore 按 user_id |
-| WCH-040 存储不可用 | partial | 无 `DB_ASSISTANT` 时创建/更新/删除 503；**列表任务/命中返回空**；无恢复后补扫 |
+| WCH-040 存储不可用 | partial | 无 `DB_ASSISTANT` 时创建/更新/删除/列表任务/命中均 503；无恢复后补扫 |
 | WCH-041 未知条件类型拒绝 | aligned | `ValidateTask` → ParamError；`TestCreateRejectsUnknownConditionAndDuplicates` |
 | WCH-042 WATCH_HIT 事件可忽略 | aligned | proto `CHAT_EVENT_TYPE_WATCH_HIT`；网关未知事件忽略 |
 
@@ -348,17 +348,17 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | AGNT-A04 软限通知与硬限收尾 | aligned | `app/assistant/rpc/internal/agent/runner_openai_test.go` |
 | AGNT-A05 注入不能触发白名单外操作 | partial | enhanced_search 注入单测仍绿；Agent 系统提示约束不可信内容，缺专门的白名单外工具注入用例 |
 | AGNT-A06 consent_version=1 新分组不可见 | aligned | `TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
-| AGNT-A07 Search/UserState/Recommend 成功与越权 | partial | Search/Recommend 有成功与不可见/回源路径；**UserState 未实现** |
+| AGNT-A07 Search/UserState/Recommend 成功与越权 | aligned | UserState 成功回源与忽略外来 `user_id`；Search/Recommend 既有路径；`userstate_test.go`、`recommend_test.go` |
 | AGNT-A08 旧客户端忽略未知事件/来源 | aligned | `TestAssistantChatUnknownEventsAreIgnored`；web 来源 type=web |
 | MEM-A01 显式写入/冲突合并 | aligned | `app/assistant/rpc/internal/memory/store_test.go`、`app/assistant/rpc/internal/agent/memory_tools_test.go` |
-| MEM-A02 Interest 衰减与“还有吗”续写 | partial | 衰减已测；continue_task 仅 intent 分类，未测 Task 排除约束推荐 |
+| MEM-A02 Interest 衰减与“还有吗”续写 | aligned | 衰减已测；开放 Task 排除 ID 约束推荐；`TestRecommendPostsExcludesOpenTaskIDs` |
 | MEM-A03 列表/修改/删除/不要记住 | partial | CRUD 与 suppressed 已实现；缺“删除后回答不得再引用”专项 |
-| MEM-A04 越权拒绝与存储不可用 | partial | 他人记录 NotFound；工具无库 503；REST 列表无库返回空而非暂时不可用 |
-| MEM-A05 记忆不能当社区证据/不能存私密资料 | partial | 工具不产出社区 Source；私密字段丢弃未测 |
+| MEM-A04 越权拒绝与存储不可用 | aligned | 他人记录 NotFound；工具与列表无库 503 |
+| MEM-A05 记忆不能当社区证据/不能存私密资料 | aligned | 工具不产出社区 Source；Extract/Apply 丢弃手机号/验证码/私信样值 |
 | WCH-A01 四种规则命中与不可见不命中 | aligned | `TestMatchRules`、`TestApplyPostEvent*`；草稿 Status!=1 不命中；消费者 `TestConsumeWatchBatch_PublishedCreate_RecordsHit` |
 | WCH-A02 重复任务/越权/未知类型 | aligned | `TestCreateRejectsUnknownConditionAndDuplicates`；store 按 user_id |
-| WCH-A03 discussion_spike 预筛选 | partial | 类型可创建，匹配与预筛选未实现 |
-| WCH-A04 命中仅本人收件箱、事件不重复未读 | partial | hit 按 user 隔离、同事件去重；下次 Agent 对话未注入未读摘要 |
+| WCH-A03 discussion_spike 预筛选 | aligned | 未过阈值不调模型、不命中；过阈值无模型/模型否定不命中；`apply_test.go` |
+| WCH-A04 命中仅本人收件箱、事件不重复未读 | aligned | hit 按 user 隔离、同事件去重；下次对话注入未读摘要 |
 | WCH-A05 停用/删除后不再命中且不影响发帖 | aligned | disabled 任务不进入 `ListEnabled`；发帖主路径独立 |
 
 

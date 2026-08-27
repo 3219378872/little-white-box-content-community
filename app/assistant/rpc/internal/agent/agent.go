@@ -60,7 +60,8 @@ type Session struct {
 	ContextPostID  int64
 	Plan           QueryPlan
 
-	sources []tool.Source
+	sources    []tool.Source
+	toolAudits []ToolAudit
 }
 
 // QueryPlan 是 Intent Router 的结构化产物，供 Context / Planner 使用。

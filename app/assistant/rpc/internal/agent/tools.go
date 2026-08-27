@@ -15,9 +15,11 @@ import (
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -42,13 +44,15 @@ const (
 // Clients 是 Agent 工具依赖的下游服务。WebSearcher 为 nil 时 web_search
 // 从工具表剔除（AGNT-010 允许按配置收缩集合）。
 type Clients struct {
-	Search    searchservice.SearchService
-	Content   contentservice.ContentService
-	Media     mediaservice.MediaService
-	Recommend recommendservice.RecommendService
-	Web       websearch.Searcher
-	Memory    memory.Store
-	Watch     watch.Store
+	Search      searchservice.SearchService
+	Content     contentservice.ContentService
+	Media       mediaservice.MediaService
+	Recommend   recommendservice.RecommendService
+	Interaction interactionservice.InteractionService
+	User        userservice.UserService
+	Web         websearch.Searcher
+	Memory      memory.Store
+	Watch       watch.Store
 }
 
 // Definition 描述一个工具的 schema 与执行器，供 Runner 转换为模型侧 function 定义。
@@ -224,6 +228,53 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 			executor: comparePostsExecutor(clients.Content),
 		},
 		{
+			Name:        ToolGetMyFavorites,
+			Description: "列出当前用户自己收藏的已发布帖子。只能读取本人数据。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"page":      map[string]any{"type": "integer", "minimum": 1},
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+			},
+			executor: getMyFavoritesExecutor(clients),
+		},
+		{
+			Name:        ToolGetMyLikes,
+			Description: "列出当前用户自己点赞的已发布帖子。只能读取本人数据。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"page":      map[string]any{"type": "integer", "minimum": 1},
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+			},
+			executor: getMyLikesExecutor(clients),
+		},
+		{
+			Name:        ToolGetMyFollowing,
+			Description: "列出当前用户自己关注的人。只能读取本人数据。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"page":      map[string]any{"type": "integer", "minimum": 1},
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+			},
+			executor: getMyFollowingExecutor(clients.User),
+		},
+		{
+			Name:        ToolGetMyPosts,
+			Description: "列出当前用户自己已发布的帖子。只能读取本人数据。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"page_size": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
+				},
+			},
+			executor: getMyPostsExecutor(clients.Content),
+		},
+		{
 			Name:        ToolListWatchTasks,
 			Description: "列出当前用户的条件追踪任务。",
 			Parameters:  map[string]any{"type": "object", "properties": map[string]any{}},
@@ -231,7 +282,7 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 		},
 		{
 			Name:        ToolCreateWatchTask,
-			Description: "创建条件追踪：author_new_post/tag_new_post/keyword_new_post/post_revised。命中只进助手收件箱。",
+			Description: "创建条件追踪：author_new_post/tag_new_post/keyword_new_post/post_revised/discussion_spike。命中只进助手收件箱。",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -242,7 +293,7 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 				},
 				"required": []string{"condition_type", "target_type"},
 			},
-			executor: createWatchTaskExecutor(clients.Watch),
+			executor: createWatchTaskExecutor(clients),
 		},
 		{
 			Name:        ToolUpdateWatchTask,
@@ -400,13 +451,19 @@ func (r *ToolRegistry) Has(name string) bool {
 // Call 执行一次工具调用并产出给模型的文本反馈与来源。
 func (r *ToolRegistry) Call(ctx context.Context, session *Session, name, callID, argsJSON string) (string, []tool.Source, error) {
 	if !r.Has(name) {
-		return "", nil, errx.New(errx.PermissionDenied, "agent tool is not allowed")
+		err := errx.New(errx.PermissionDenied, "agent tool is not allowed")
+		recordToolAudit(session, name, argsJSON, err)
+		return "", nil, err
 	}
 	handle, ok := r.executors[name]
 	if !ok {
-		return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
+		err := errx.NewWithCode(errx.ServiceUnavailable)
+		recordToolAudit(session, name, argsJSON, err)
+		return "", nil, err
 	}
-	return handle(ctx, session, callID, argsJSON)
+	text, sources, err := handle(ctx, session, callID, argsJSON)
+	recordToolAudit(session, name, argsJSON, err)
+	return text, sources, err
 }
 
 func webSearchExecutor(searcher websearch.Searcher) executorFunc {

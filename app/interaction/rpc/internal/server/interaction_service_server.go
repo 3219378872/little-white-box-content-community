@@ -83,6 +83,12 @@ func (s *InteractionServiceServer) GetFavoriteList(ctx context.Context, in *pb.G
 	return l.GetFavoriteList(in)
 }
 
+// 获取点赞列表（已点赞的帖子）
+func (s *InteractionServiceServer) GetLikeList(ctx context.Context, in *pb.GetLikeListReq) (*pb.GetLikeListResp, error) {
+	l := logic.NewGetLikeListLogic(ctx, s.svcCtx)
+	return l.GetLikeList(in)
+}
+
 // 获取互动统计
 func (s *InteractionServiceServer) GetCounts(ctx context.Context, in *pb.GetCountsReq) (*pb.GetCountsResp, error) {
 	l := logic.NewGetCountsLogic(ctx, s.svcCtx)

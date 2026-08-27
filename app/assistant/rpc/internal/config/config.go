@@ -58,6 +58,7 @@ type Config struct {
 	ContentRpc              zrpc.RpcClientConf
 	MediaRpc                zrpc.RpcClientConf
 	RecommendRpc            zrpc.RpcClientConf
+	InteractionRpc          zrpc.RpcClientConf
 	UserRpc                 zrpc.RpcClientConf
 	AllowedTools            []string
 	ToolTimeoutMs           int64  `json:",default=1500,range=[1:10000]"`

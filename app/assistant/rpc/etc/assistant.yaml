@@ -36,6 +36,11 @@ RecommendRpc:
     Hosts:
     - 127.0.0.1:2379
     Key: recommend.rpc
+InteractionRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: interaction.rpc
 UserRpc:
   Etcd:
     Hosts:
@@ -84,6 +89,10 @@ Agent:
   - recommend_posts
   - similar_posts
   - compare_posts
+  - get_my_favorites
+  - get_my_likes
+  - get_my_following
+  - get_my_posts
   - create_watch_task
   - list_watch_tasks
   - update_watch_task

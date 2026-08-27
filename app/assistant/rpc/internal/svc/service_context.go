@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"esx/app/assistant/rpc/internal/websearch"
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
+	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
@@ -27,13 +29,15 @@ import (
 )
 
 type ServiceContext struct {
-	Config         config.Config
-	Tools          tool.Executor
-	Conversations  store.ConversationStore
-	Quota          store.QuotaLimiter
-	Generator      llm.Generator
-	Safety         safety.Filter
-	ContentService contentservice.ContentService
+	Config             config.Config
+	Tools              tool.Executor
+	Conversations      store.ConversationStore
+	Quota              store.QuotaLimiter
+	Generator          llm.Generator
+	Safety             safety.Filter
+	ContentService     contentservice.ContentService
+	SearchService      searchservice.SearchService
+	InteractionService interactionservice.InteractionService
 
 	// Agent 模式装配（SPEC-assistant-agent-mode）；AgentRunner 为 nil 表示未启用。
 	AgentRunner   agent.Runner
@@ -43,6 +47,7 @@ type ServiceContext struct {
 	UserService   userservice.UserService
 	Memory        memory.Store
 	Watch         watch.Store
+	Audit         agent.AuditStore
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -55,6 +60,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	contentService := contentservice.NewContentService(newClient(c.ContentRpc))
 	recommendService := recommendservice.NewRecommendService(newClient(c.RecommendRpc))
 	mediaService := mediaservice.NewMediaService(newClient(c.MediaRpc))
+	interactionService := interactionservice.NewInteractionService(newClient(c.InteractionRpc))
+	userService := userservice.NewUserService(newClient(c.UserRpc))
 
 	tools, err := tool.NewRegistry(c.AllowedTools, tool.Clients{
 		Search:    searchService,
@@ -92,28 +99,52 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		}
 	}
 
-	memoryStore := buildMemoryStore(c)
+	memoryStore := buildMemoryStore(c, userService)
 	watchStore := buildWatchStore(c)
+	auditStore := buildAuditStore(c)
 	return &ServiceContext{
 		Config: c, Tools: tools, Conversations: state, Quota: state,
 		Generator: generator, Safety: safetyFilter,
-		ContentService: contentService,
-		Memory:         memoryStore,
-		Watch:          watchStore,
-		AgentTools:     buildAgentTools(c, searchService, contentService, mediaService, recommendService, memoryStore, watchStore),
+		ContentService:     contentService,
+		SearchService:      searchService,
+		InteractionService: interactionService,
+		Memory:             memoryStore,
+		Watch:              watchStore,
+		Audit:              auditStore,
+		AgentTools:         buildAgentTools(c, searchService, contentService, mediaService, recommendService, interactionService, userService, memoryStore, watchStore),
 		// AgentConfirms 始终可用：即使 runner 未启用，ConfirmToolCall 也应能明确拒绝过期凭据。
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
-		AgentRunner:   buildAgentRunner(c, memoryStore),
+		AgentRunner:   buildAgentRunner(c, memoryStore, watchStore, auditStore, userService),
 		AgentQuota:    buildAgentQuota(redisClient, c),
-		UserService:   userservice.NewUserService(newClient(c.UserRpc)),
+		UserService:   userService,
 	}
 }
 
-func buildMemoryStore(c config.Config) memory.Store {
+func buildMemoryStore(c config.Config, userService userservice.UserService) memory.Store {
 	if strings.TrimSpace(c.DataSource) == "" {
 		return nil
 	}
-	return memory.NewSQLStore(sqlx.NewMysql(c.DataSource))
+	store := memory.NewSQLStore(sqlx.NewMysql(c.DataSource))
+	if userService != nil {
+		store.Personalization = func(ctx context.Context, userID int64) (bool, error) {
+			pref, err := userService.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
+			if err != nil {
+				return true, err
+			}
+			if pref == nil {
+				return true, nil
+			}
+			return pref.Enabled, nil
+		}
+	}
+	return store
+}
+
+func buildAuditStore(c config.Config) agent.AuditStore {
+	if strings.TrimSpace(c.DataSource) == "" {
+		return nil
+	}
+	return agent.NewSQLAuditStore(sqlx.NewMysql(c.DataSource))
 }
 
 func buildWatchStore(c config.Config) watch.Store {
@@ -131,6 +162,8 @@ func buildAgentTools(
 	contentService contentservice.ContentService,
 	mediaService mediaservice.MediaService,
 	recommendService recommendservice.RecommendService,
+	interactionService interactionservice.InteractionService,
+	userService userservice.UserService,
 	memoryStore memory.Store,
 	watchStore watch.Store,
 ) *agent.ToolRegistry {
@@ -138,12 +171,14 @@ func buildAgentTools(
 		return nil
 	}
 	registry, err := agent.NewToolRegistry(agent.Clients{
-		Search:    searchService,
-		Content:   contentService,
-		Media:     mediaService,
-		Recommend: recommendService,
-		Memory:    memoryStore,
-		Watch:     watchStore,
+		Search:      searchService,
+		Content:     contentService,
+		Media:       mediaService,
+		Recommend:   recommendService,
+		Interaction: interactionService,
+		User:        userService,
+		Memory:      memoryStore,
+		Watch:       watchStore,
 		Web: websearch.New(websearch.Config{
 			APIKey:     c.Agent.WebSearch.APIKey,
 			Endpoint:   c.Agent.WebSearch.Endpoint,
@@ -160,7 +195,7 @@ func buildAgentTools(
 
 // buildAgentRunner 装配 Agent 编排引擎；未启用或配置不完整时返回 nil 并记录原因，
 // 不 panic——agent 关闭不应影响服务启动与既有管线。
-func buildAgentRunner(c config.Config, memoryStore memory.Store) agent.Runner {
+func buildAgentRunner(c config.Config, memoryStore memory.Store, watchStore watch.Store, auditStore agent.AuditStore, userService userservice.UserService) agent.Runner {
 	if !c.Agent.Enabled || !c.LLM.Enabled || c.LLM.WireAPI == llm.WireAPIResponses {
 		return nil
 	}
@@ -175,7 +210,12 @@ func buildAgentRunner(c config.Config, memoryStore memory.Store) agent.Runner {
 		logx.Errorw("assistant agent disabled", logx.Field("reason", err.Error()))
 		return nil
 	}
-	return agent.NewRuntime(runner, memoryStore)
+	runtime := agent.NewRuntime(runner, memoryStore)
+	runtime.Watch = watchStore
+	runtime.Audit = auditStore
+	runtime.User = userService
+	runtime.Model = c.LLM.Model
+	return runtime
 }
 
 // buildAgentQuota 为 Agent 模式构造独立固定窗口限流器（AGNT-032）。

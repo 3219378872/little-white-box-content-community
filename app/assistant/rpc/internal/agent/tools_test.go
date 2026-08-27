@@ -32,6 +32,8 @@ type fakeContentService struct {
 	getPost     func(ctx context.Context, req *contentservice.GetPostReq) (*contentservice.GetPostResp, error)
 	postsByIDs  func(ctx context.Context, req *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error)
 	commentList func(ctx context.Context, req *contentservice.GetCommentListReq) (*contentservice.GetCommentListResp, error)
+	userPosts   func(ctx context.Context, req *contentservice.GetUserPostsReq) (*contentservice.GetUserPostsResp, error)
+	tags        func(ctx context.Context, req *contentservice.GetTagsReq) (*contentservice.GetTagsResp, error)
 }
 
 func (f *fakeContentService) CreatePost(ctx context.Context, req *contentservice.CreatePostReq, _ ...grpc.CallOption) (*contentservice.CreatePostResp, error) {
@@ -58,6 +60,20 @@ func (f *fakeContentService) GetCommentList(ctx context.Context, req *contentser
 		return &contentservice.GetCommentListResp{}, nil
 	}
 	return f.commentList(ctx, req)
+}
+
+func (f *fakeContentService) GetUserPosts(ctx context.Context, req *contentservice.GetUserPostsReq, _ ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
+	if f.userPosts == nil {
+		return &contentservice.GetUserPostsResp{}, nil
+	}
+	return f.userPosts(ctx, req)
+}
+
+func (f *fakeContentService) GetTags(ctx context.Context, req *contentservice.GetTagsReq, _ ...grpc.CallOption) (*contentservice.GetTagsResp, error) {
+	if f.tags == nil {
+		return &contentservice.GetTagsResp{}, nil
+	}
+	return f.tags(ctx, req)
 }
 
 type fakeMediaService struct {

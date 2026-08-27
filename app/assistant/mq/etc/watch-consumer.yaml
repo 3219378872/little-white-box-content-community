@@ -13,3 +13,4 @@ MQ:
   MaxReconsumeTimes: 8
 
 DataSource: "${DB_ASSISTANT}"
+SpikeMinComments: 5

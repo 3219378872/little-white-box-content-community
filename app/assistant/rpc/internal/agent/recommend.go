@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,8 +10,10 @@ import (
 
 	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/tool"
+	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/recommendservice"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -58,7 +61,7 @@ func recommendPostsExecutor(clients Clients) executorFunc {
 			ids = append(ids, post.PostId)
 			meta[post.PostId] = post
 		}
-		excluded := excludedPostIDs(ctx, clients.Memory, userID)
+		excluded := excludedPostIDs(ctx, clients, userID)
 		filtered := ids[:0]
 		for _, id := range ids {
 			if _, skip := excluded[id]; skip {
@@ -66,7 +69,7 @@ func recommendPostsExecutor(clients Clients) executorFunc {
 			}
 			filtered = append(filtered, id)
 		}
-		return formatRecommended(ctx, clients.Content, filtered, meta)
+		return formatRecommended(ctx, session, clients.Content, filtered, meta)
 	}
 }
 
@@ -97,10 +100,20 @@ func similarPostsExecutor(clients Clients) executorFunc {
 			requestID = session.RequestID
 		}
 		ids := similarPostIDs(ctx, clients.Recommend, args.PostID, limit, session)
-		if requestID == "" {
-			_ = requestID
+		userID := int64(0)
+		if session != nil {
+			userID = session.UserID
 		}
-		return formatRecommended(ctx, clients.Content, ids, nil)
+		excluded := excludedPostIDs(ctx, clients, userID)
+		filtered := ids[:0]
+		for _, id := range ids {
+			if _, skip := excluded[id]; skip {
+				continue
+			}
+			filtered = append(filtered, id)
+		}
+		_ = requestID
+		return formatRecommended(ctx, session, clients.Content, filtered, nil)
 	}
 }
 
@@ -144,7 +157,7 @@ func comparePostsExecutor(content contentservice.ContentService) executorFunc {
 	}
 }
 
-func formatRecommended(ctx context.Context, content contentservice.ContentService, ids []int64, meta map[int64]*recommendservice.RecommendPost) (string, []tool.Source, error) {
+func formatRecommended(ctx context.Context, session *Session, content contentservice.ContentService, ids []int64, meta map[int64]*recommendservice.RecommendPost) (string, []tool.Source, error) {
 	if len(ids) == 0 {
 		return "暂时没有可推荐的已发布帖子。", nil, nil
 	}
@@ -182,28 +195,85 @@ func formatRecommended(ctx context.Context, content contentservice.ContentServic
 		return "暂时没有可推荐的已发布帖子。", nil, nil
 	}
 	text.WriteString("候选均来自推荐/检索系统并已回源验证，不得编造帖子 ID。")
+	emitRecommendCard(session, sources)
 	return strings.TrimRight(text.String(), "\n"), sources, nil
 }
 
-func excludedPostIDs(ctx context.Context, store memory.Store, userID int64) map[int64]struct{} {
+type recommendCardItem struct {
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
+}
+
+func emitRecommendCard(session *Session, sources []tool.Source) {
+	if session == nil || session.Emit == nil || len(sources) == 0 {
+		return
+	}
+	items := make([]recommendCardItem, 0, len(sources))
+	for _, source := range sources {
+		id, err := strconv.ParseInt(source.ID, 10, 64)
+		if err != nil || id <= 0 {
+			continue
+		}
+		items = append(items, recommendCardItem{ID: id, Title: source.Title})
+	}
+	if len(items) == 0 {
+		return
+	}
+	payload, err := json.Marshal(items)
+	if err != nil {
+		return
+	}
+	_ = session.Emit(&pb.ChatEvent{
+		Type: pb.ChatEventType_CHAT_EVENT_TYPE_CARD,
+		Card: &pb.Card{CardType: "recommend", PayloadJson: string(payload)},
+	})
+}
+
+func excludedPostIDs(ctx context.Context, clients Clients, userID int64) map[int64]struct{} {
 	out := map[int64]struct{}{}
-	if store == nil || userID <= 0 {
+	if clients.Memory == nil || userID <= 0 {
 		return out
 	}
-	items, err := store.List(ctx, userID, memory.LayerProfile, time.Now())
+	skipBehavior := skipBehaviorSources(ctx, clients.User, userID)
+	items, err := clients.Memory.List(ctx, userID, "", time.Now())
 	if err != nil {
 		logx.WithContext(ctx).Infow("recommend hard filter skipped", logx.Field("err", err.Error()))
 		return out
 	}
 	for _, item := range items {
-		if item.Dimension != "post" || item.Score >= 0 || item.Suppressed {
+		if item.Suppressed {
 			continue
 		}
-		id, convErr := strconv.ParseInt(item.Value, 10, 64)
-		if convErr != nil || id <= 0 {
+		if skipBehavior && item.Source == memory.SourceBehavior {
 			continue
 		}
-		out[id] = struct{}{}
+		if item.Layer == memory.LayerProfile && item.Dimension == "post" && item.Score < 0 {
+			id, convErr := strconv.ParseInt(item.Value, 10, 64)
+			if convErr != nil || id <= 0 {
+				continue
+			}
+			out[id] = struct{}{}
+			continue
+		}
+		if item.Layer == memory.LayerTask {
+			for _, id := range memory.ParsePostIDs(item.ExcludedJSON) {
+				out[id] = struct{}{}
+			}
+			for _, id := range memory.ParsePostIDs(item.Value) {
+				out[id] = struct{}{}
+			}
+		}
 	}
 	return out
+}
+
+func skipBehaviorSources(ctx context.Context, user userservice.UserService, userID int64) bool {
+	if user == nil || userID <= 0 {
+		return false
+	}
+	pref, err := user.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
+	if err != nil || pref == nil {
+		return false
+	}
+	return !pref.Enabled
 }

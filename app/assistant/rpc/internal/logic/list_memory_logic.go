@@ -29,7 +29,7 @@ func (l *ListMemoryLogic) ListMemory(in *pb.ListMemoryReq) (*pb.ListMemoryResp, 
 		return nil, err
 	}
 	if l.svcCtx == nil || l.svcCtx.Memory == nil {
-		return &pb.ListMemoryResp{Items: []*pb.MemoryItem{}}, nil
+		return nil, unavailableUntilStore()
 	}
 	items, err := l.svcCtx.Memory.List(l.ctx, in.UserId, in.Layer, time.Now())
 	if err != nil {

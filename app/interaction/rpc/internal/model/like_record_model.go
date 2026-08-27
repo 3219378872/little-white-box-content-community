@@ -17,6 +17,7 @@ type (
 	// and implement the added methods in customLikeRecordModel.
 	LikeRecordModel interface {
 		likeRecordModel
+		FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error)
 		UpsertLikeStatus(ctx context.Context, userId, targetId, targetType, status int64) (sql.Result, error)
 		UpsertLikeStatusTx(ctx context.Context, conn sqlx.SqlConn, userId, targetId, targetType, status int64) (sql.Result, int64, error)
 		InvalidateLikeRecordCache(ctx context.Context, id, userId, targetId, targetType int64) error
@@ -34,6 +35,30 @@ func NewLikeRecordModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Opti
 	return &customLikeRecordModel{
 		defaultLikeRecordModel: newLikeRecordModel(conn, c, opts...),
 	}
+}
+
+func (m *customLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error) {
+	offset := (page - 1) * pageSize
+
+	var rows []struct {
+		TargetID int64 `db:"target_id"`
+	}
+	query := fmt.Sprintf("select `target_id` from %s where `user_id` = ? and `target_type` = ? and `status` = 1 order by `created_at` desc limit ?, ?", m.table)
+	if err := m.QueryRowsNoCacheCtx(ctx, &rows, query, userID, targetType, offset, pageSize); err != nil {
+		return nil, 0, err
+	}
+	targetIDs := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		targetIDs = append(targetIDs, row.TargetID)
+	}
+
+	var total int64
+	countQuery := fmt.Sprintf("select count(*) from %s where `user_id` = ? and `target_type` = ? and `status` = 1", m.table)
+	if err := m.QueryRowNoCacheCtx(ctx, &total, countQuery, userID, targetType); err != nil {
+		return nil, 0, err
+	}
+
+	return targetIDs, total, nil
 }
 
 func (m *customLikeRecordModel) UpsertLikeStatus(ctx context.Context, userId, targetId, targetType, status int64) (sql.Result, error) {

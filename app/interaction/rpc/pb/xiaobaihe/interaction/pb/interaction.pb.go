@@ -813,6 +813,120 @@ func (x *GetFavoriteListResp) GetTotal() int64 {
 	return 0
 }
 
+// 获取点赞列表请求
+type GetLikeListReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLikeListReq) Reset() {
+	*x = GetLikeListReq{}
+	mi := &file_proto_interaction_interaction_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLikeListReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLikeListReq) ProtoMessage() {}
+
+func (x *GetLikeListReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_interaction_interaction_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLikeListReq.ProtoReflect.Descriptor instead.
+func (*GetLikeListReq) Descriptor() ([]byte, []int) {
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetLikeListReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetLikeListReq) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *GetLikeListReq) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+// 获取点赞列表响应
+type GetLikeListResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PostIds       []int64                `protobuf:"varint,1,rep,packed,name=post_ids,json=postIds,proto3" json:"post_ids,omitempty"`
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLikeListResp) Reset() {
+	*x = GetLikeListResp{}
+	mi := &file_proto_interaction_interaction_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLikeListResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLikeListResp) ProtoMessage() {}
+
+func (x *GetLikeListResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_interaction_interaction_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLikeListResp.ProtoReflect.Descriptor instead.
+func (*GetLikeListResp) Descriptor() ([]byte, []int) {
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetLikeListResp) GetPostIds() []int64 {
+	if x != nil {
+		return x.PostIds
+	}
+	return nil
+}
+
+func (x *GetLikeListResp) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 // 获取互动统计请求
 type GetCountsReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -824,7 +938,7 @@ type GetCountsReq struct {
 
 func (x *GetCountsReq) Reset() {
 	*x = GetCountsReq{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[16]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -836,7 +950,7 @@ func (x *GetCountsReq) String() string {
 func (*GetCountsReq) ProtoMessage() {}
 
 func (x *GetCountsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[16]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -849,7 +963,7 @@ func (x *GetCountsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCountsReq.ProtoReflect.Descriptor instead.
 func (*GetCountsReq) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{16}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetCountsReq) GetTargetId() int64 {
@@ -878,7 +992,7 @@ type GetCountsResp struct {
 
 func (x *GetCountsResp) Reset() {
 	*x = GetCountsResp{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[17]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +1004,7 @@ func (x *GetCountsResp) String() string {
 func (*GetCountsResp) ProtoMessage() {}
 
 func (x *GetCountsResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[17]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1017,7 @@ func (x *GetCountsResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCountsResp.ProtoReflect.Descriptor instead.
 func (*GetCountsResp) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{17}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetCountsResp) GetLikeCount() int64 {
@@ -939,7 +1053,7 @@ type BatchCheckLikedReq struct {
 
 func (x *BatchCheckLikedReq) Reset() {
 	*x = BatchCheckLikedReq{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[18]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1065,7 @@ func (x *BatchCheckLikedReq) String() string {
 func (*BatchCheckLikedReq) ProtoMessage() {}
 
 func (x *BatchCheckLikedReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[18]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1078,7 @@ func (x *BatchCheckLikedReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCheckLikedReq.ProtoReflect.Descriptor instead.
 func (*BatchCheckLikedReq) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{18}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *BatchCheckLikedReq) GetUserId() int64 {
@@ -999,7 +1113,7 @@ type BatchCheckLikedResp struct {
 
 func (x *BatchCheckLikedResp) Reset() {
 	*x = BatchCheckLikedResp{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[19]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1011,7 +1125,7 @@ func (x *BatchCheckLikedResp) String() string {
 func (*BatchCheckLikedResp) ProtoMessage() {}
 
 func (x *BatchCheckLikedResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[19]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1024,7 +1138,7 @@ func (x *BatchCheckLikedResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCheckLikedResp.ProtoReflect.Descriptor instead.
 func (*BatchCheckLikedResp) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{19}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *BatchCheckLikedResp) GetResults() map[int64]bool {
@@ -1045,7 +1159,7 @@ type BatchCheckFavoritedReq struct {
 
 func (x *BatchCheckFavoritedReq) Reset() {
 	*x = BatchCheckFavoritedReq{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[20]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1057,7 +1171,7 @@ func (x *BatchCheckFavoritedReq) String() string {
 func (*BatchCheckFavoritedReq) ProtoMessage() {}
 
 func (x *BatchCheckFavoritedReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[20]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1070,7 +1184,7 @@ func (x *BatchCheckFavoritedReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCheckFavoritedReq.ProtoReflect.Descriptor instead.
 func (*BatchCheckFavoritedReq) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{20}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *BatchCheckFavoritedReq) GetUserId() int64 {
@@ -1098,7 +1212,7 @@ type BatchCheckFavoritedResp struct {
 
 func (x *BatchCheckFavoritedResp) Reset() {
 	*x = BatchCheckFavoritedResp{}
-	mi := &file_proto_interaction_interaction_proto_msgTypes[21]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1110,7 +1224,7 @@ func (x *BatchCheckFavoritedResp) String() string {
 func (*BatchCheckFavoritedResp) ProtoMessage() {}
 
 func (x *BatchCheckFavoritedResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_interaction_interaction_proto_msgTypes[21]
+	mi := &file_proto_interaction_interaction_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1123,7 +1237,7 @@ func (x *BatchCheckFavoritedResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCheckFavoritedResp.ProtoReflect.Descriptor instead.
 func (*BatchCheckFavoritedResp) Descriptor() ([]byte, []int) {
-	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{21}
+	return file_proto_interaction_interaction_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BatchCheckFavoritedResp) GetResults() map[int64]bool {
@@ -1184,6 +1298,13 @@ const file_proto_interaction_interaction_proto_rawDesc = "" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"F\n" +
 	"\x13GetFavoriteListResp\x12\x19\n" +
 	"\bpost_ids\x18\x01 \x03(\x03R\apostIds\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total\"Z\n" +
+	"\x0eGetLikeListReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"B\n" +
+	"\x0fGetLikeListResp\x12\x19\n" +
+	"\bpost_ids\x18\x01 \x03(\x03R\apostIds\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x03R\x05total\"L\n" +
 	"\fGetCountsReq\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\x03R\btargetId\x12\x1f\n" +
@@ -1212,7 +1333,7 @@ const file_proto_interaction_interaction_proto_rawDesc = "" +
 	"\aresults\x18\x01 \x03(\v21.interaction.BatchCheckFavoritedResp.ResultsEntryR\aresults\x1a:\n" +
 	"\fResultsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x03R\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x012\xc5\x06\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x012\x8f\a\n" +
 	"\x12InteractionService\x123\n" +
 	"\x04Like\x12\x14.interaction.LikeReq\x1a\x15.interaction.LikeResp\x129\n" +
 	"\x06Unlike\x12\x16.interaction.UnlikeReq\x1a\x17.interaction.UnlikeResp\x12E\n" +
@@ -1225,7 +1346,8 @@ const file_proto_interaction_interaction_proto_rawDesc = "" +
 	"Unfavorite\x12\x1a.interaction.UnfavoriteReq\x1a\x1b.interaction.UnfavoriteResp\x12Q\n" +
 	"\x0eCheckFavorited\x12\x1e.interaction.CheckFavoritedReq\x1a\x1f.interaction.CheckFavoritedResp\x12`\n" +
 	"\x13BatchCheckFavorited\x12#.interaction.BatchCheckFavoritedReq\x1a$.interaction.BatchCheckFavoritedResp\x12T\n" +
-	"\x0fGetFavoriteList\x12\x1f.interaction.GetFavoriteListReq\x1a .interaction.GetFavoriteListResp\x12B\n" +
+	"\x0fGetFavoriteList\x12\x1f.interaction.GetFavoriteListReq\x1a .interaction.GetFavoriteListResp\x12H\n" +
+	"\vGetLikeList\x12\x1b.interaction.GetLikeListReq\x1a\x1c.interaction.GetLikeListResp\x12B\n" +
 	"\tGetCounts\x12\x19.interaction.GetCountsReq\x1a\x1a.interaction.GetCountsRespB\x1aZ\x18xiaobaihe/interaction/pbb\x06proto3"
 
 var (
@@ -1240,7 +1362,7 @@ func file_proto_interaction_interaction_proto_rawDescGZIP() []byte {
 	return file_proto_interaction_interaction_proto_rawDescData
 }
 
-var file_proto_interaction_interaction_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_proto_interaction_interaction_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_proto_interaction_interaction_proto_goTypes = []any{
 	(*LikeReq)(nil),                 // 0: interaction.LikeReq
 	(*LikeResp)(nil),                // 1: interaction.LikeResp
@@ -1258,42 +1380,46 @@ var file_proto_interaction_interaction_proto_goTypes = []any{
 	(*CheckFavoritedResp)(nil),      // 13: interaction.CheckFavoritedResp
 	(*GetFavoriteListReq)(nil),      // 14: interaction.GetFavoriteListReq
 	(*GetFavoriteListResp)(nil),     // 15: interaction.GetFavoriteListResp
-	(*GetCountsReq)(nil),            // 16: interaction.GetCountsReq
-	(*GetCountsResp)(nil),           // 17: interaction.GetCountsResp
-	(*BatchCheckLikedReq)(nil),      // 18: interaction.BatchCheckLikedReq
-	(*BatchCheckLikedResp)(nil),     // 19: interaction.BatchCheckLikedResp
-	(*BatchCheckFavoritedReq)(nil),  // 20: interaction.BatchCheckFavoritedReq
-	(*BatchCheckFavoritedResp)(nil), // 21: interaction.BatchCheckFavoritedResp
-	nil,                             // 22: interaction.BatchCheckLikedResp.ResultsEntry
-	nil,                             // 23: interaction.BatchCheckFavoritedResp.ResultsEntry
+	(*GetLikeListReq)(nil),          // 16: interaction.GetLikeListReq
+	(*GetLikeListResp)(nil),         // 17: interaction.GetLikeListResp
+	(*GetCountsReq)(nil),            // 18: interaction.GetCountsReq
+	(*GetCountsResp)(nil),           // 19: interaction.GetCountsResp
+	(*BatchCheckLikedReq)(nil),      // 20: interaction.BatchCheckLikedReq
+	(*BatchCheckLikedResp)(nil),     // 21: interaction.BatchCheckLikedResp
+	(*BatchCheckFavoritedReq)(nil),  // 22: interaction.BatchCheckFavoritedReq
+	(*BatchCheckFavoritedResp)(nil), // 23: interaction.BatchCheckFavoritedResp
+	nil,                             // 24: interaction.BatchCheckLikedResp.ResultsEntry
+	nil,                             // 25: interaction.BatchCheckFavoritedResp.ResultsEntry
 }
 var file_proto_interaction_interaction_proto_depIdxs = []int32{
-	22, // 0: interaction.BatchCheckLikedResp.results:type_name -> interaction.BatchCheckLikedResp.ResultsEntry
-	23, // 1: interaction.BatchCheckFavoritedResp.results:type_name -> interaction.BatchCheckFavoritedResp.ResultsEntry
+	24, // 0: interaction.BatchCheckLikedResp.results:type_name -> interaction.BatchCheckLikedResp.ResultsEntry
+	25, // 1: interaction.BatchCheckFavoritedResp.results:type_name -> interaction.BatchCheckFavoritedResp.ResultsEntry
 	0,  // 2: interaction.InteractionService.Like:input_type -> interaction.LikeReq
 	2,  // 3: interaction.InteractionService.Unlike:input_type -> interaction.UnlikeReq
 	4,  // 4: interaction.InteractionService.CheckLiked:input_type -> interaction.CheckLikedReq
-	18, // 5: interaction.InteractionService.BatchCheckLiked:input_type -> interaction.BatchCheckLikedReq
+	20, // 5: interaction.InteractionService.BatchCheckLiked:input_type -> interaction.BatchCheckLikedReq
 	6,  // 6: interaction.InteractionService.GetLikeCount:input_type -> interaction.GetLikeCountReq
 	8,  // 7: interaction.InteractionService.Favorite:input_type -> interaction.FavoriteReq
 	10, // 8: interaction.InteractionService.Unfavorite:input_type -> interaction.UnfavoriteReq
 	12, // 9: interaction.InteractionService.CheckFavorited:input_type -> interaction.CheckFavoritedReq
-	20, // 10: interaction.InteractionService.BatchCheckFavorited:input_type -> interaction.BatchCheckFavoritedReq
+	22, // 10: interaction.InteractionService.BatchCheckFavorited:input_type -> interaction.BatchCheckFavoritedReq
 	14, // 11: interaction.InteractionService.GetFavoriteList:input_type -> interaction.GetFavoriteListReq
-	16, // 12: interaction.InteractionService.GetCounts:input_type -> interaction.GetCountsReq
-	1,  // 13: interaction.InteractionService.Like:output_type -> interaction.LikeResp
-	3,  // 14: interaction.InteractionService.Unlike:output_type -> interaction.UnlikeResp
-	5,  // 15: interaction.InteractionService.CheckLiked:output_type -> interaction.CheckLikedResp
-	19, // 16: interaction.InteractionService.BatchCheckLiked:output_type -> interaction.BatchCheckLikedResp
-	7,  // 17: interaction.InteractionService.GetLikeCount:output_type -> interaction.GetLikeCountResp
-	9,  // 18: interaction.InteractionService.Favorite:output_type -> interaction.FavoriteResp
-	11, // 19: interaction.InteractionService.Unfavorite:output_type -> interaction.UnfavoriteResp
-	13, // 20: interaction.InteractionService.CheckFavorited:output_type -> interaction.CheckFavoritedResp
-	21, // 21: interaction.InteractionService.BatchCheckFavorited:output_type -> interaction.BatchCheckFavoritedResp
-	15, // 22: interaction.InteractionService.GetFavoriteList:output_type -> interaction.GetFavoriteListResp
-	17, // 23: interaction.InteractionService.GetCounts:output_type -> interaction.GetCountsResp
-	13, // [13:24] is the sub-list for method output_type
-	2,  // [2:13] is the sub-list for method input_type
+	16, // 12: interaction.InteractionService.GetLikeList:input_type -> interaction.GetLikeListReq
+	18, // 13: interaction.InteractionService.GetCounts:input_type -> interaction.GetCountsReq
+	1,  // 14: interaction.InteractionService.Like:output_type -> interaction.LikeResp
+	3,  // 15: interaction.InteractionService.Unlike:output_type -> interaction.UnlikeResp
+	5,  // 16: interaction.InteractionService.CheckLiked:output_type -> interaction.CheckLikedResp
+	21, // 17: interaction.InteractionService.BatchCheckLiked:output_type -> interaction.BatchCheckLikedResp
+	7,  // 18: interaction.InteractionService.GetLikeCount:output_type -> interaction.GetLikeCountResp
+	9,  // 19: interaction.InteractionService.Favorite:output_type -> interaction.FavoriteResp
+	11, // 20: interaction.InteractionService.Unfavorite:output_type -> interaction.UnfavoriteResp
+	13, // 21: interaction.InteractionService.CheckFavorited:output_type -> interaction.CheckFavoritedResp
+	23, // 22: interaction.InteractionService.BatchCheckFavorited:output_type -> interaction.BatchCheckFavoritedResp
+	15, // 23: interaction.InteractionService.GetFavoriteList:output_type -> interaction.GetFavoriteListResp
+	17, // 24: interaction.InteractionService.GetLikeList:output_type -> interaction.GetLikeListResp
+	19, // 25: interaction.InteractionService.GetCounts:output_type -> interaction.GetCountsResp
+	14, // [14:26] is the sub-list for method output_type
+	2,  // [2:14] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -1310,7 +1436,7 @@ func file_proto_interaction_interaction_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_interaction_interaction_proto_rawDesc), len(file_proto_interaction_interaction_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

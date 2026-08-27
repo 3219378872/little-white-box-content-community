@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"context"
 	"testing"
 
 	"esx/pkg/event"
@@ -62,6 +63,109 @@ func TestApplyPostEventRecordsHitsAndDedupes(t *testing.T) {
 	}
 	if len(hits9) != 0 {
 		t.Fatalf("disabled task must not hit: %+v", hits9)
+	}
+}
+
+func TestApplyBehaviorEventBelowThresholdDoesNotHitOrCallLLM(t *testing.T) {
+	t.Parallel()
+	store := NewMapStore()
+	task, err := store.Create(t.Context(), Task{
+		UserID: 4, ConditionType: DiscussionSpike, TargetType: "post", TargetID: 11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	judgeCalls := 0
+	judge := func(context.Context, Task, int64, int) (bool, error) {
+		judgeCalls++
+		return true, nil
+	}
+	for i := 1; i <= 3; i++ {
+		ev := event.BehaviorEvent{
+			EventID: int64(i), ClientEventID: "c", SchemaVersion: event.BehaviorSchemaVersion,
+			EventTime: 1, ReceivedAt: 1, Producer: "test", Action: event.BehaviorActionComment, TargetID: 11, TargetType: "post", UserID: 9,
+		}
+		if err := ApplyBehaviorEvent(t.Context(), store, ev, SpikeOptions{MinComments: 5, Judge: judge}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if judgeCalls != 0 {
+		t.Fatalf("llm called %d times", judgeCalls)
+	}
+	hits, err := store.ListHits(t.Context(), 4, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("below threshold must not hit: %+v", hits)
+	}
+	count, err := store.CountExecutions(t.Context(), task.ID, SpikeEventPrefix(11))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Fatalf("skipped executions=%d", count)
+	}
+}
+
+func TestApplyBehaviorEventAtThresholdWithoutLLMDoesNotHit(t *testing.T) {
+	t.Parallel()
+	store := NewMapStore()
+	task, err := store.Create(t.Context(), Task{
+		UserID: 4, ConditionType: DiscussionSpike, TargetType: "post", TargetID: 11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 5; i++ {
+		ev := event.BehaviorEvent{
+			EventID: int64(100 + i), ClientEventID: "c", SchemaVersion: event.BehaviorSchemaVersion,
+			EventTime: 1, ReceivedAt: 1, Producer: "test", Action: event.BehaviorActionComment, TargetID: 11, TargetType: "post", UserID: 9,
+		}
+		if err := ApplyBehaviorEvent(t.Context(), store, ev, SpikeOptions{MinComments: 5}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hits, err := store.ListHits(t.Context(), 4, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("no llm must not rewrite as hit: %+v", hits)
+	}
+	count, err := store.CountExecutions(t.Context(), task.ID, SpikeEventPrefix(11))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 5 {
+		t.Fatalf("executions=%d", count)
+	}
+}
+
+func TestApplyBehaviorEventJudgeRejectsDoNotHit(t *testing.T) {
+	t.Parallel()
+	store := NewMapStore()
+	if _, err := store.Create(t.Context(), Task{
+		UserID: 4, ConditionType: DiscussionSpike, TargetType: "post", TargetID: 11,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	judge := func(context.Context, Task, int64, int) (bool, error) { return false, nil }
+	for i := 1; i <= 5; i++ {
+		ev := event.BehaviorEvent{
+			EventID: int64(200 + i), ClientEventID: "c", SchemaVersion: event.BehaviorSchemaVersion,
+			EventTime: 1, ReceivedAt: 1, Producer: "test", Action: event.BehaviorActionComment, TargetID: 11, TargetType: "post", UserID: 9,
+		}
+		if err := ApplyBehaviorEvent(t.Context(), store, ev, SpikeOptions{MinComments: 5, Judge: judge}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hits, err := store.ListHits(t.Context(), 4, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("negative judge must not hit: %+v", hits)
 	}
 }
 

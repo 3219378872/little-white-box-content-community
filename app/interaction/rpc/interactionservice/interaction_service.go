@@ -30,6 +30,8 @@ type (
 	GetFavoriteListResp     = pb.GetFavoriteListResp
 	GetLikeCountReq         = pb.GetLikeCountReq
 	GetLikeCountResp        = pb.GetLikeCountResp
+	GetLikeListReq          = pb.GetLikeListReq
+	GetLikeListResp         = pb.GetLikeListResp
 	LikeReq                 = pb.LikeReq
 	LikeResp                = pb.LikeResp
 	UnfavoriteReq           = pb.UnfavoriteReq
@@ -58,6 +60,8 @@ type (
 		BatchCheckFavorited(ctx context.Context, in *BatchCheckFavoritedReq, opts ...grpc.CallOption) (*BatchCheckFavoritedResp, error)
 		// 获取收藏列表
 		GetFavoriteList(ctx context.Context, in *GetFavoriteListReq, opts ...grpc.CallOption) (*GetFavoriteListResp, error)
+		// 获取点赞列表（已点赞的帖子）
+		GetLikeList(ctx context.Context, in *GetLikeListReq, opts ...grpc.CallOption) (*GetLikeListResp, error)
 		// 获取互动统计
 		GetCounts(ctx context.Context, in *GetCountsReq, opts ...grpc.CallOption) (*GetCountsResp, error)
 	}
@@ -131,6 +135,12 @@ func (m *defaultInteractionService) BatchCheckFavorited(ctx context.Context, in 
 func (m *defaultInteractionService) GetFavoriteList(ctx context.Context, in *GetFavoriteListReq, opts ...grpc.CallOption) (*GetFavoriteListResp, error) {
 	client := pb.NewInteractionServiceClient(m.cli.Conn())
 	return client.GetFavoriteList(ctx, in, opts...)
+}
+
+// 获取点赞列表（已点赞的帖子）
+func (m *defaultInteractionService) GetLikeList(ctx context.Context, in *GetLikeListReq, opts ...grpc.CallOption) (*GetLikeListResp, error) {
+	client := pb.NewInteractionServiceClient(m.cli.Conn())
+	return client.GetLikeList(ctx, in, opts...)
 }
 
 // 获取互动统计

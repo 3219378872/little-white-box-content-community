@@ -2,9 +2,12 @@ package logic
 
 import (
 	"context"
+	"strings"
 
 	"esx/app/assistant/rpc/internal/svc"
+	"esx/app/assistant/rpc/internal/tool"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/app/assistant/watch"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,12 +30,13 @@ func (l *ListWatchHitsLogic) ListWatchHits(in *pb.ListWatchHitsReq) (*pb.ListWat
 		return nil, err
 	}
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
-		return &pb.ListWatchHitsResp{Hits: []*pb.WatchHit{}}, nil
+		return nil, unavailableUntilStore()
 	}
 	hits, err := l.svcCtx.Watch.ListHits(l.ctx, in.UserId, in.UnreadOnly)
 	if err != nil {
 		return nil, err
 	}
+	hits = redactUnavailableWatchHits(l.ctx, l.svcCtx, hits)
 	out := make([]*pb.WatchHit, 0, len(hits))
 	for _, hit := range hits {
 		out = append(out, &pb.WatchHit{
@@ -41,4 +45,41 @@ func (l *ListWatchHitsLogic) ListWatchHits(in *pb.ListWatchHitsReq) (*pb.ListWat
 		})
 	}
 	return &pb.ListWatchHitsResp{Hits: out}, nil
+}
+
+func redactUnavailableWatchHits(ctx context.Context, svcCtx *svc.ServiceContext, hits []watch.Hit) []watch.Hit {
+	if svcCtx == nil || svcCtx.ContentService == nil || len(hits) == 0 {
+		return hits
+	}
+	ids := make([]int64, 0, len(hits))
+	for _, hit := range hits {
+		if hit.PostID > 0 {
+			ids = append(ids, hit.PostID)
+		}
+	}
+	if len(ids) == 0 {
+		return hits
+	}
+	published, err := tool.PublishedPosts(ctx, svcCtx.ContentService, ids)
+	if err != nil {
+		logx.WithContext(ctx).Infow("watch hit visibility backfill failed", logx.Field("err", err.Error()))
+		return hits
+	}
+	out := make([]watch.Hit, len(hits))
+	copy(out, hits)
+	for i := range out {
+		if out[i].PostID <= 0 {
+			continue
+		}
+		info := published[out[i].PostID]
+		if info == nil {
+			out[i].Title = ""
+			out[i].Summary = ""
+			continue
+		}
+		if strings.TrimSpace(out[i].Title) == "" {
+			out[i].Title = info.Title
+		}
+	}
+	return out
 }

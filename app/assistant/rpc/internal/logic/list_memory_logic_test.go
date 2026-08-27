@@ -7,6 +7,7 @@ import (
 	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	"esx/pkg/errx"
 )
 
 func TestListMemoryReturnsStoredItems(t *testing.T) {
@@ -24,5 +25,13 @@ func TestListMemoryReturnsStoredItems(t *testing.T) {
 	}
 	if len(resp.Items) != 1 || resp.Items[0].Value != "剧情" || !resp.Items[0].Confirmed {
 		t.Fatalf("%+v", resp.Items)
+	}
+}
+
+func TestListMemoryNilStoreUnavailable(t *testing.T) {
+	logic := NewListMemoryLogic(t.Context(), &svc.ServiceContext{})
+	_, err := logic.ListMemory(&pb.ListMemoryReq{UserId: 2})
+	if !errx.Is(err, errx.ServiceUnavailable) {
+		t.Fatalf("got %v", err)
 	}
 }

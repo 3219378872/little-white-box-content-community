@@ -60,6 +60,8 @@ type Store interface {
 	ListHits(ctx context.Context, userID int64, unreadOnly bool) ([]Hit, error)
 	MarkRead(ctx context.Context, userID int64, ids []int64) error
 	RecordHit(ctx context.Context, hit Hit, eventKey string) error
+	RecordExecution(ctx context.Context, taskID int64, eventKey, status string, usedLLM bool) error
+	CountExecutions(ctx context.Context, taskID int64, eventKeyPrefix string) (int64, error)
 }
 
 func ValidateTask(task Task) error {
@@ -243,6 +245,21 @@ func (s *SQLStore) MarkRead(ctx context.Context, userID int64, ids []int64) erro
 	return err
 }
 
+func (s *SQLStore) RecordExecution(ctx context.Context, taskID int64, eventKey, status string, usedLLM bool) error {
+	_, err := s.conn.ExecCtx(ctx, `
+		INSERT IGNORE INTO watch_execution (task_id, event_key, hit, used_llm, status)
+		VALUES (?, ?, 0, ?, ?)`, taskID, eventKey, boolToInt(usedLLM), status)
+	return err
+}
+
+func (s *SQLStore) CountExecutions(ctx context.Context, taskID int64, eventKeyPrefix string) (int64, error) {
+	var total int64
+	err := s.conn.QueryRowCtx(ctx, &total,
+		`SELECT COUNT(*) FROM watch_execution WHERE task_id = ? AND event_key LIKE ?`,
+		taskID, eventKeyPrefix+"%")
+	return total, err
+}
+
 func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) error {
 	res, err := s.conn.ExecCtx(ctx, `
 		INSERT IGNORE INTO watch_execution (task_id, event_key, hit, used_llm, status)
@@ -264,12 +281,21 @@ func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) erro
 	return err
 }
 
+type execRow struct {
+	TaskID   int64
+	EventKey string
+	Hit      bool
+	UsedLLM  bool
+	Status   string
+}
+
 type MapStore struct {
 	mu    sync.Mutex
 	next  int64
 	tasks map[int64]Task
 	hits  map[int64]Hit
 	keys  map[string]struct{}
+	execs []execRow
 }
 
 func NewMapStore() *MapStore {
@@ -388,17 +414,44 @@ func executionKey(taskID int64, eventKey string) string {
 func (m *MapStore) RecordHit(_ context.Context, hit Hit, eventKey string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := executionKey(hit.TaskID, eventKey)
-	if _, ok := m.keys[key]; ok {
+	if !m.recordExecLocked(hit.TaskID, eventKey, "matched", true, false) {
 		return nil
 	}
-	m.keys[key] = struct{}{}
 	id := m.next
 	m.next++
 	hit.ID = id
 	hit.CreatedAt = time.Now().UnixMilli()
 	m.hits[id] = hit
 	return nil
+}
+
+func (m *MapStore) RecordExecution(_ context.Context, taskID int64, eventKey, status string, usedLLM bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.recordExecLocked(taskID, eventKey, status, false, usedLLM)
+	return nil
+}
+
+func (m *MapStore) CountExecutions(_ context.Context, taskID int64, eventKeyPrefix string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var total int64
+	for _, row := range m.execs {
+		if row.TaskID == taskID && strings.HasPrefix(row.EventKey, eventKeyPrefix) {
+			total++
+		}
+	}
+	return total, nil
+}
+
+func (m *MapStore) recordExecLocked(taskID int64, eventKey, status string, hit, usedLLM bool) bool {
+	key := executionKey(taskID, eventKey)
+	if _, ok := m.keys[key]; ok {
+		return false
+	}
+	m.keys[key] = struct{}{}
+	m.execs = append(m.execs, execRow{TaskID: taskID, EventKey: eventKey, Hit: hit, UsedLLM: usedLLM, Status: status})
+	return true
 }
 
 func boolToInt(v bool) int {

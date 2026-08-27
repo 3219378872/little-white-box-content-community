@@ -9,6 +9,7 @@ import (
 
 	"esx/app/assistant/watch"
 	"esx/pkg/event"
+	"esx/pkg/mqx"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -41,7 +42,7 @@ func msg(id string, body []byte) *primitive.MessageExt {
 
 func TestConsumeWatchBatch_MalformedJSON_Skips(t *testing.T) {
 	store := watch.NewMapStore()
-	result := consumeWatchBatch(context.Background(), store, msg("m1", []byte(`bad`)))
+	result := consumeWatchBatch(context.Background(), matcher{Store: store}, msg("m1", []byte(`bad`)))
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 }
 
@@ -55,7 +56,7 @@ func TestConsumeWatchBatch_PublishedCreate_RecordsHit(t *testing.T) {
 		EventID: 9, EventTime: 100, Type: event.PostEventCreated,
 		PostID: 21, AuthorID: 4, Title: "新帖", Status: 1,
 	}
-	result := consumeWatchBatch(context.Background(), store, msg("m2", mustMarshal(t, ev)))
+	result := consumeWatchBatch(context.Background(), matcher{Store: store}, msg("m2", mustMarshal(t, ev)))
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	hits, err := store.ListHits(context.Background(), 3, true)
 	require.NoError(t, err)
@@ -69,8 +70,39 @@ func TestConsumeWatchBatch_StoreError_Retries(t *testing.T) {
 		EventID: 1, EventTime: 1, Type: event.PostEventCreated,
 		PostID: 2, AuthorID: 3, Status: 1,
 	}
-	result := consumeWatchBatch(context.Background(), store, msg("m3", mustMarshal(t, ev)))
+	result := consumeWatchBatch(context.Background(), matcher{Store: store}, msg("m3", mustMarshal(t, ev)))
 	assert.Equal(t, consumer.ConsumeRetryLater, result)
+}
+
+func TestConsumeWatchBatch_CommentBelowSpikeThreshold_NoHit(t *testing.T) {
+	store := watch.NewMapStore()
+	_, err := store.Create(context.Background(), watch.Task{
+		UserID: 3, ConditionType: watch.DiscussionSpike, TargetType: "post", TargetID: 21,
+	})
+	require.NoError(t, err)
+	judgeCalls := 0
+	m := matcher{
+		Store:            store,
+		SpikeMinComments: 5,
+		SpikeJudge: func(context.Context, watch.Task, int64, int) (bool, error) {
+			judgeCalls++
+			return true, nil
+		},
+	}
+	ev := event.BehaviorEvent{
+		EventID: 4, ClientEventID: "c1", SchemaVersion: event.BehaviorSchemaVersion,
+		EventTime: 100, ReceivedAt: 100, Producer: "test", UserID: 9,
+		Action: event.BehaviorActionComment, TargetID: 21, TargetType: "post",
+	}
+	body := mustMarshal(t, ev)
+	msg := msg("m4", body)
+	msg.Topic = mqx.TopicUserBehaviorV2
+	result := consumeWatchBatch(context.Background(), m, msg)
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	assert.Equal(t, 0, judgeCalls)
+	hits, err := store.ListHits(context.Background(), 3, false)
+	require.NoError(t, err)
+	assert.Len(t, hits, 0)
 }
 
 func TestWatchEventLagSeconds(t *testing.T) {

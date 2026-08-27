@@ -29,6 +29,7 @@ const (
 	InteractionService_CheckFavorited_FullMethodName      = "/interaction.InteractionService/CheckFavorited"
 	InteractionService_BatchCheckFavorited_FullMethodName = "/interaction.InteractionService/BatchCheckFavorited"
 	InteractionService_GetFavoriteList_FullMethodName     = "/interaction.InteractionService/GetFavoriteList"
+	InteractionService_GetLikeList_FullMethodName         = "/interaction.InteractionService/GetLikeList"
 	InteractionService_GetCounts_FullMethodName           = "/interaction.InteractionService/GetCounts"
 )
 
@@ -58,6 +59,8 @@ type InteractionServiceClient interface {
 	BatchCheckFavorited(ctx context.Context, in *BatchCheckFavoritedReq, opts ...grpc.CallOption) (*BatchCheckFavoritedResp, error)
 	// 获取收藏列表
 	GetFavoriteList(ctx context.Context, in *GetFavoriteListReq, opts ...grpc.CallOption) (*GetFavoriteListResp, error)
+	// 获取点赞列表（已点赞的帖子）
+	GetLikeList(ctx context.Context, in *GetLikeListReq, opts ...grpc.CallOption) (*GetLikeListResp, error)
 	// 获取互动统计
 	GetCounts(ctx context.Context, in *GetCountsReq, opts ...grpc.CallOption) (*GetCountsResp, error)
 }
@@ -170,6 +173,16 @@ func (c *interactionServiceClient) GetFavoriteList(ctx context.Context, in *GetF
 	return out, nil
 }
 
+func (c *interactionServiceClient) GetLikeList(ctx context.Context, in *GetLikeListReq, opts ...grpc.CallOption) (*GetLikeListResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLikeListResp)
+	err := c.cc.Invoke(ctx, InteractionService_GetLikeList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *interactionServiceClient) GetCounts(ctx context.Context, in *GetCountsReq, opts ...grpc.CallOption) (*GetCountsResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetCountsResp)
@@ -206,6 +219,8 @@ type InteractionServiceServer interface {
 	BatchCheckFavorited(context.Context, *BatchCheckFavoritedReq) (*BatchCheckFavoritedResp, error)
 	// 获取收藏列表
 	GetFavoriteList(context.Context, *GetFavoriteListReq) (*GetFavoriteListResp, error)
+	// 获取点赞列表（已点赞的帖子）
+	GetLikeList(context.Context, *GetLikeListReq) (*GetLikeListResp, error)
 	// 获取互动统计
 	GetCounts(context.Context, *GetCountsReq) (*GetCountsResp, error)
 	mustEmbedUnimplementedInteractionServiceServer()
@@ -247,6 +262,9 @@ func (UnimplementedInteractionServiceServer) BatchCheckFavorited(context.Context
 }
 func (UnimplementedInteractionServiceServer) GetFavoriteList(context.Context, *GetFavoriteListReq) (*GetFavoriteListResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetFavoriteList not implemented")
+}
+func (UnimplementedInteractionServiceServer) GetLikeList(context.Context, *GetLikeListReq) (*GetLikeListResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetLikeList not implemented")
 }
 func (UnimplementedInteractionServiceServer) GetCounts(context.Context, *GetCountsReq) (*GetCountsResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCounts not implemented")
@@ -452,6 +470,24 @@ func _InteractionService_GetFavoriteList_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InteractionService_GetLikeList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLikeListReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InteractionServiceServer).GetLikeList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InteractionService_GetLikeList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InteractionServiceServer).GetLikeList(ctx, req.(*GetLikeListReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InteractionService_GetCounts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetCountsReq)
 	if err := dec(in); err != nil {
@@ -516,6 +552,10 @@ var InteractionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFavoriteList",
 			Handler:    _InteractionService_GetFavoriteList_Handler,
+		},
+		{
+			MethodName: "GetLikeList",
+			Handler:    _InteractionService_GetLikeList_Handler,
 		},
 		{
 			MethodName: "GetCounts",

@@ -176,6 +176,9 @@ func (contractInteractionService) Unfavorite(context.Context, *interactionservic
 func (contractInteractionService) GetFavoriteList(context.Context, *interactionservice.GetFavoriteListReq, ...grpc.CallOption) (*interactionservice.GetFavoriteListResp, error) {
 	return &interactionservice.GetFavoriteListResp{PostIds: []int64{11}, Total: 1}, nil
 }
+func (contractInteractionService) GetLikeList(context.Context, *interactionservice.GetLikeListReq, ...grpc.CallOption) (*interactionservice.GetLikeListResp, error) {
+	return &interactionservice.GetLikeListResp{PostIds: []int64{11}, Total: 1}, nil
+}
 func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
 	results := make(map[int64]bool, len(in.TargetIds))
 	for _, targetID := range in.TargetIds {
