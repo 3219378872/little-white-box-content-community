@@ -11,6 +11,7 @@ import (
 	"esx/app/assistant/rpc/internal/safety"
 	"esx/app/assistant/rpc/internal/store"
 	"esx/app/assistant/rpc/internal/tool"
+	"esx/app/assistant/rpc/internal/watch"
 	"esx/app/assistant/rpc/internal/websearch"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/media/rpc/mediaservice"
@@ -41,6 +42,7 @@ type ServiceContext struct {
 	AgentQuota    store.QuotaLimiter
 	UserService   userservice.UserService
 	Memory        memory.Store
+	Watch         watch.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -91,12 +93,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	memoryStore := buildMemoryStore(c)
+	watchStore := buildWatchStore(c)
 	return &ServiceContext{
 		Config: c, Tools: tools, Conversations: state, Quota: state,
 		Generator: generator, Safety: safetyFilter,
 		ContentService: contentService,
 		Memory:         memoryStore,
-		AgentTools:     buildAgentTools(c, searchService, contentService, mediaService, recommendService, memoryStore),
+		Watch:          watchStore,
+		AgentTools:     buildAgentTools(c, searchService, contentService, mediaService, recommendService, memoryStore, watchStore),
 		// AgentConfirms 始终可用：即使 runner 未启用，ConfirmToolCall 也应能明确拒绝过期凭据。
 		AgentConfirms: agent.NewRedisConfirmBroker(redisClient, c.StateKeyPrefix),
 		AgentRunner:   buildAgentRunner(c, memoryStore),
@@ -112,6 +116,13 @@ func buildMemoryStore(c config.Config) memory.Store {
 	return memory.NewSQLStore(sqlx.NewMysql(c.DataSource))
 }
 
+func buildWatchStore(c config.Config) watch.Store {
+	if strings.TrimSpace(c.DataSource) == "" {
+		return nil
+	}
+	return watch.NewSQLStore(sqlx.NewMysql(c.DataSource))
+}
+
 // buildAgentTools 构造 Agent 工具注册表；失败时返回 nil（agent 模式不可用），
 // 不阻断 enhanced_search 管线。
 func buildAgentTools(
@@ -121,6 +132,7 @@ func buildAgentTools(
 	mediaService mediaservice.MediaService,
 	recommendService recommendservice.RecommendService,
 	memoryStore memory.Store,
+	watchStore watch.Store,
 ) *agent.ToolRegistry {
 	if !c.Agent.Enabled {
 		return nil
@@ -131,6 +143,7 @@ func buildAgentTools(
 		Media:     mediaService,
 		Recommend: recommendService,
 		Memory:    memoryStore,
+		Watch:     watchStore,
 		Web: websearch.New(websearch.Config{
 			APIKey:     c.Agent.WebSearch.APIKey,
 			Endpoint:   c.Agent.WebSearch.Endpoint,

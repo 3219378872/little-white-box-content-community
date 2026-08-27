@@ -11,6 +11,7 @@ import (
 
 	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/rpc/internal/tool"
+	"esx/app/assistant/rpc/internal/watch"
 	"esx/app/assistant/rpc/internal/websearch"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/content/rpc/contentservice"
@@ -47,6 +48,7 @@ type Clients struct {
 	Recommend recommendservice.RecommendService
 	Web       websearch.Searcher
 	Memory    memory.Store
+	Watch     watch.Store
 }
 
 // Definition 描述一个工具的 schema 与执行器，供 Runner 转换为模型侧 function 定义。
@@ -220,6 +222,50 @@ func NewToolRegistry(clients Clients, allowed []string) (*ToolRegistry, error) {
 				"required": []string{"post_ids"},
 			},
 			executor: comparePostsExecutor(clients.Content),
+		},
+		{
+			Name:        ToolListWatchTasks,
+			Description: "列出当前用户的条件追踪任务。",
+			Parameters:  map[string]any{"type": "object", "properties": map[string]any{}},
+			executor:    listWatchTasksExecutor(clients.Watch),
+		},
+		{
+			Name:        ToolCreateWatchTask,
+			Description: "创建条件追踪：author_new_post/tag_new_post/keyword_new_post/post_revised。命中只进助手收件箱。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"condition_type": map[string]any{"type": "string"},
+					"target_type":    map[string]any{"type": "string"},
+					"target_id":      map[string]any{"type": "integer"},
+					"target_text":    map[string]any{"type": "string"},
+				},
+				"required": []string{"condition_type", "target_type"},
+			},
+			executor: createWatchTaskExecutor(clients.Watch),
+		},
+		{
+			Name:        ToolUpdateWatchTask,
+			Description: "启用或停用一条追踪。",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id":      map[string]any{"type": "integer"},
+					"enabled": map[string]any{"type": "boolean"},
+				},
+				"required": []string{"id", "enabled"},
+			},
+			executor: updateWatchTaskExecutor(clients.Watch),
+		},
+		{
+			Name:        ToolDeleteWatchTask,
+			Description: "删除一条追踪。",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"id": map[string]any{"type": "integer"}},
+				"required":   []string{"id"},
+			},
+			executor: deleteWatchTaskExecutor(clients.Watch),
 		},
 		{
 			Name:        ToolWebSearch,

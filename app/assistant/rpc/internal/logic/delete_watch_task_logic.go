@@ -17,11 +17,7 @@ type DeleteWatchTaskLogic struct {
 }
 
 func NewDeleteWatchTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteWatchTaskLogic {
-	return &DeleteWatchTaskLogic{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
-	}
+	return &DeleteWatchTaskLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
 func (l *DeleteWatchTaskLogic) DeleteWatchTask(in *pb.DeleteWatchTaskReq) (*pb.DeleteWatchTaskResp, error) {
@@ -34,5 +30,11 @@ func (l *DeleteWatchTaskLogic) DeleteWatchTask(in *pb.DeleteWatchTaskReq) (*pb.D
 	if in.Id <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	return nil, unavailableUntilStore()
+	if l.svcCtx == nil || l.svcCtx.Watch == nil {
+		return nil, unavailableUntilStore()
+	}
+	if err := l.svcCtx.Watch.Delete(l.ctx, in.UserId, in.Id); err != nil {
+		return nil, err
+	}
+	return &pb.DeleteWatchTaskResp{}, nil
 }

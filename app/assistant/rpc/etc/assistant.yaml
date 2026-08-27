@@ -84,6 +84,10 @@ Agent:
   - recommend_posts
   - similar_posts
   - compare_posts
+  - create_watch_task
+  - list_watch_tasks
+  - update_watch_task
+  - delete_watch_task
   - web_search
   - create_post
   - update_post

@@ -16,11 +16,7 @@ type ListWatchTasksLogic struct {
 }
 
 func NewListWatchTasksLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListWatchTasksLogic {
-	return &ListWatchTasksLogic{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
-	}
+	return &ListWatchTasksLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
 func (l *ListWatchTasksLogic) ListWatchTasks(in *pb.ListWatchTasksReq) (*pb.ListWatchTasksResp, error) {
@@ -30,5 +26,19 @@ func (l *ListWatchTasksLogic) ListWatchTasks(in *pb.ListWatchTasksReq) (*pb.List
 	if err := requireAgentUser(in.UserId); err != nil {
 		return nil, err
 	}
-	return &pb.ListWatchTasksResp{Tasks: []*pb.WatchTask{}}, nil
+	if l.svcCtx == nil || l.svcCtx.Watch == nil {
+		return &pb.ListWatchTasksResp{Tasks: []*pb.WatchTask{}}, nil
+	}
+	tasks, err := l.svcCtx.Watch.ListTasks(l.ctx, in.UserId)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*pb.WatchTask, 0, len(tasks))
+	for _, task := range tasks {
+		out = append(out, &pb.WatchTask{
+			Id: task.ID, ConditionType: task.ConditionType, TargetType: task.TargetType,
+			TargetId: task.TargetID, TargetText: task.TargetText, Enabled: task.Enabled, CreatedAt: task.CreatedAt,
+		})
+	}
+	return &pb.ListWatchTasksResp{Tasks: out}, nil
 }

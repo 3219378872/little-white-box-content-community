@@ -16,11 +16,7 @@ type MarkWatchHitsReadLogic struct {
 }
 
 func NewMarkWatchHitsReadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MarkWatchHitsReadLogic {
-	return &MarkWatchHitsReadLogic{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
-	}
+	return &MarkWatchHitsReadLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
 func (l *MarkWatchHitsReadLogic) MarkWatchHitsRead(in *pb.MarkWatchHitsReadReq) (*pb.MarkWatchHitsReadResp, error) {
@@ -30,5 +26,11 @@ func (l *MarkWatchHitsReadLogic) MarkWatchHitsRead(in *pb.MarkWatchHitsReadReq) 
 	if err := requireAgentUser(in.UserId); err != nil {
 		return nil, err
 	}
-	return nil, unavailableUntilStore()
+	if l.svcCtx == nil || l.svcCtx.Watch == nil {
+		return nil, unavailableUntilStore()
+	}
+	if err := l.svcCtx.Watch.MarkRead(l.ctx, in.UserId, in.HitIds); err != nil {
+		return nil, err
+	}
+	return &pb.MarkWatchHitsReadResp{}, nil
 }

@@ -17,11 +17,7 @@ type UpdateWatchTaskLogic struct {
 }
 
 func NewUpdateWatchTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateWatchTaskLogic {
-	return &UpdateWatchTaskLogic{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
-	}
+	return &UpdateWatchTaskLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
 }
 
 func (l *UpdateWatchTaskLogic) UpdateWatchTask(in *pb.UpdateWatchTaskReq) (*pb.UpdateWatchTaskResp, error) {
@@ -34,5 +30,11 @@ func (l *UpdateWatchTaskLogic) UpdateWatchTask(in *pb.UpdateWatchTaskReq) (*pb.U
 	if in.Id <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	return nil, unavailableUntilStore()
+	if l.svcCtx == nil || l.svcCtx.Watch == nil {
+		return nil, unavailableUntilStore()
+	}
+	if err := l.svcCtx.Watch.UpdateEnabled(l.ctx, in.UserId, in.Id, in.Enabled); err != nil {
+		return nil, err
+	}
+	return &pb.UpdateWatchTaskResp{}, nil
 }
