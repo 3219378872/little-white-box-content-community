@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -161,6 +162,62 @@ func TestRunnerFinalizesWithoutToolsAtHardLimit(t *testing.T) {
 	final := fake.requests[len(fake.requests)-1]
 	if _, has := final["tools"]; has {
 		t.Fatalf("finalize call must not carry tools")
+	}
+}
+
+func TestRunnerRejectsEmptyChoices(t *testing.T) {
+	fake := newFakeOpenAI(t, []string{`{"id":"chatcmpl-empty","object":"chat.completion","created":1,"model":"test-model","choices":[]}`})
+	registry, err := NewToolRegistry(Clients{}, []string{ToolSearchPosts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = fake.runner(t).Run(context.Background(), &Session{
+		UserID: 7, RequestID: "r", UserMessage: "q",
+		Budget: Budget{MaxStepsSoft: 8, MaxStepsHard: 12, StepTimeout: 5000},
+		Emit:   func(*pb.ChatEvent) error { return nil },
+		Tools:  registry,
+	})
+	if !errors.Is(err, ErrLLMUnavailable) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestRunnerIncludesClippedHistoryBeforeUserTurn(t *testing.T) {
+	fake := newFakeOpenAI(t, []string{textResponse("还有这几篇")})
+	registry, err := NewToolRegistry(Clients{}, []string{ToolSearchPosts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = fake.runner(t).Run(context.Background(), &Session{
+		UserID: 7, RequestID: "r", UserMessage: "还有吗",
+		History: []HistoryTurn{
+			{Role: "user", Content: "推荐几个周末攻略"},
+			{Role: "assistant", Content: "先看这三篇"},
+		},
+		Budget: Budget{MaxStepsSoft: 8, MaxStepsHard: 12, StepTimeout: 5000},
+		Emit:   func(*pb.ChatEvent) error { return nil },
+		Tools:  registry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(fake.requests[0]["messages"])
+	if !strings.Contains(string(raw), "推荐几个周末攻略") ||
+		!strings.Contains(string(raw), "先看这三篇") ||
+		!strings.Contains(string(raw), "还有吗") {
+		t.Fatalf("history not sent to model: %s", raw)
+	}
+}
+
+func TestClipHistoryKeepsNewestTurnsWithinBudget(t *testing.T) {
+	t.Parallel()
+	got := clipHistory([]HistoryTurn{
+		{Role: "user", Content: "old"},
+		{Role: "assistant", Content: "old-answer"},
+		{Role: "user", Content: "recent"},
+	}, 20, "sys", "还有吗")
+	if len(got) != 1 || got[0].Content != "recent" {
+		t.Fatalf("%+v", got)
 	}
 }
 

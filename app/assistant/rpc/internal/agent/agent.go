@@ -40,6 +40,12 @@ type Budget struct {
 // 传输已断开，Runner 应中止并透传该错误。
 type EmitFunc func(event *pb.ChatEvent) error
 
+// HistoryTurn 是注入本轮模型请求的截断会话历史（不含当前话轮）。
+type HistoryTurn struct {
+	Role    string
+	Content string
+}
+
 // Session 是单轮 Agent 执行的输入与运行时状态。消息历史由 Runner 内部持有；
 // Sources 在工具执行过程中累积，最终随 Result 返回供引用校验与落库复用。
 type Session struct {
@@ -47,6 +53,7 @@ type Session struct {
 	ConversationID string
 	RequestID      string
 	UserMessage    string
+	History        []HistoryTurn
 	Attachments    []Attachment
 	SystemPrompt   string
 	MemoryContext  string

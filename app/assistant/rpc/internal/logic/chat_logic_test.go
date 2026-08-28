@@ -406,6 +406,20 @@ func TestAppendSourceEvidenceEncodesCommunityMarkers(t *testing.T) {
 	}
 }
 
+func TestAppendSourceEvidenceIncludesCommentSources(t *testing.T) {
+	t.Parallel()
+	result := appendSourceEvidence("answer [post:999]", []tool.Source{
+		{Type: "comment", ID: "21", Title: "热评", Snippet: "评论摘录"},
+		{Type: "web", ID: "https://example.test", Title: "外网", Snippet: "忽略"},
+	}, 1000)
+	if strings.Contains(result, "[post:999]") || !strings.Contains(result, "［post:999］") {
+		t.Fatalf("model post marker not neutralized: %q", result)
+	}
+	if !strings.Contains(result, "SOURCE [comment:21]") || strings.Contains(result, "SOURCE [web:") {
+		t.Fatalf("comment source missing or web treated as evidence: %q", result)
+	}
+}
+
 func TestChatRejectsExhaustedDistributedQuotaBeforeToolExecution(t *testing.T) {
 	t.Parallel()
 	state := &fakeAssistantState{allowed: false}

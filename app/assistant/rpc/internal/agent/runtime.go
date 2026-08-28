@@ -190,7 +190,7 @@ func (r *Runtime) persistAudit(session *Session, latency time.Duration, runErr e
 }
 
 func (r *Runtime) persistMemory(session *Session) {
-	candidates := memory.Extract(session.UserMessage)
+	candidates := memoryCandidates(session)
 	if len(candidates) == 0 {
 		return
 	}
@@ -206,4 +206,34 @@ func (r *Runtime) persistMemory(session *Session) {
 			}
 		}
 	}()
+}
+
+const maxTaskIntentRunes = 512
+
+// memoryCandidates 把显式句式与 recommend 意图写成 Task，避免「推荐几个…」
+// 下一轮「还有吗」时没有可续写的开放任务（MEM-006）。continue_task 本身不建新任务。
+func memoryCandidates(session *Session) []memory.Candidate {
+	if session == nil {
+		return nil
+	}
+	candidates := memory.Extract(session.UserMessage)
+	if session.Plan.Intent != IntentRecommend {
+		return candidates
+	}
+	for _, candidate := range candidates {
+		if candidate.Layer == memory.LayerTask {
+			return candidates
+		}
+	}
+	value := strings.TrimSpace(session.UserMessage)
+	if runes := []rune(value); len(runes) > maxTaskIntentRunes {
+		value = string(runes[:maxTaskIntentRunes])
+	}
+	if value == "" || memory.ContainsPrivateValue(value) {
+		return candidates
+	}
+	return append(candidates, memory.Candidate{
+		Layer: memory.LayerTask, Dimension: "task", Value: value,
+		Score: 1, Source: memory.SourceConversation, Confidence: 0.85, Excerpt: value,
+	})
 }

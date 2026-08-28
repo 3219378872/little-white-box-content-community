@@ -50,7 +50,7 @@ var blockedDirectives = []string{
 	"系统提示词",
 }
 
-var generatedPostSourceMarker = regexp.MustCompile(`(?i)\[post:[^\]\r\n]*\]`)
+var generatedCommunitySourceMarker = regexp.MustCompile(`(?i)\[(?:post|comment):[^\]\r\n]*\]`)
 
 type ChatLogic struct {
 	ctx    context.Context
@@ -76,7 +76,7 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	if stream == nil {
 		return errx.NewWithCode(errx.ServiceUnavailable)
 	}
-	if l.svcCtx == nil || l.svcCtx.Tools == nil {
+	if l.svcCtx == nil {
 		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
 	}
 	if l.svcCtx.Safety != nil {
@@ -89,9 +89,12 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 	}
 
 	// Agent 模式走独立编排循环（SPEC-assistant-agent-mode）；enhanced_search
-	// 保持既有单轮管线不变（AGNT-001）。
+	// 保持既有单轮管线不变（AGNT-001）。Agent 不依赖检索问答工具表。
 	if in.Mode == pb.AssistantMode_ASSISTANT_MODE_AGENT {
 		return l.runAgentChat(in, request, conversationID, stream)
+	}
+	if l.svcCtx.Tools == nil {
+		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
 	}
 
 	name, err := planTool(request.Message, &request)
@@ -163,7 +166,7 @@ func (l *ChatLogic) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) 
 		responseText = appendSourceEvidence(responseText, result.Sources, l.maxResponseRunes())
 		// ASST-010：成功事实回答必须包含至少一个 [post:id] 引用；
 		// 缺少引用说明证据结构被破坏，降级为结构化证据摘要。
-		if !generatedPostSourceMarker.MatchString(responseText) {
+		if !generatedCommunitySourceMarker.MatchString(responseText) {
 			l.Errorw("assistant evidence answer missing source citation",
 				logx.Field("conversation_id", conversationID),
 				logx.Field("request_id", request.RequestID))
@@ -252,6 +255,15 @@ func (l *ChatLogic) runAgentChat(
 	if l.svcCtx.AgentQuota == nil {
 		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
 	}
+	consentVersion, err := l.requireAgentConsent(request.UserID)
+	if err != nil {
+		if errx.Is(err, errx.AgentNotAuthorized) {
+			return l.sendDegradedWithText(stream, conversationID, "AGENT_NOT_AUTHORIZED",
+				"Agent mode requires explicit user authorization.")
+		}
+		l.Errorw("agent consent check failed", logx.Field("err", err.Error()))
+		return l.sendDegraded(stream, conversationID, "ASSISTANT_UNAVAILABLE")
+	}
 	if err := l.beginRequestWithQuota(request, conversationID, l.svcCtx.AgentQuota); err != nil {
 		return err
 	}
@@ -277,10 +289,11 @@ func (l *ChatLogic) runAgentChat(
 		ConversationID: conversationID,
 		RequestID:      request.RequestID,
 		UserMessage:    request.Message,
+		History:        l.agentHistory(request, conversationID),
 		Attachments:    attachments,
 		SystemPrompt:   l.agentSystemPrompt(),
 		Budget:         l.agentBudget(),
-		ConsentVersion: l.agentConsentVersion(request.UserID),
+		ConsentVersion: consentVersion,
 		ContextPostID:  in.GetContextPostId(),
 		Emit: func(event *pb.ChatEvent) error {
 			if event.ConversationId == "" {
@@ -312,9 +325,14 @@ func (l *ChatLogic) runAgentChat(
 			return l.sendPersistedDegraded(stream, request, conversationID, "LLM_UNAVAILABLE")
 		}
 	}
+	if result == nil {
+		agentTurnsTotal.Inc("llm_unavailable")
+		return l.sendPersistedDegraded(stream, request, conversationID, "LLM_UNAVAILABLE")
+	}
 	agentTurnsTotal.Inc("success")
 
-	responseText := strings.TrimSpace(result.Text)
+	sources := result.Sources
+	responseText := applyAgentEvidence(strings.TrimSpace(result.Text), sources, l.maxResponseRunes())
 	if l.svcCtx.Safety != nil {
 		if err := l.svcCtx.Safety.Check(l.ctx, responseText); err != nil {
 			if errors.Is(err, safety.ErrBlocked) {
@@ -324,7 +342,7 @@ func (l *ChatLogic) runAgentChat(
 		}
 	}
 	observeAgentTurnLatency(time.Since(startedAt))
-	return l.deliverResponse(stream, request, conversationID, responseText, result.Sources, startedAt)
+	return l.deliverResponse(stream, request, conversationID, responseText, sources, startedAt)
 }
 
 func validateAgentAttachments(attachments []*pb.Attachment) ([]agent.Attachment, error) {
@@ -341,18 +359,48 @@ func validateAgentAttachments(attachments []*pb.Attachment) ([]agent.Attachment,
 	return result, nil
 }
 
-func (l *ChatLogic) agentConsentVersion(userID int64) int32 {
+// requireAgentConsent 在 RPC 边界复核授权（AGNT-002/006）：未授权不得降级执行工具。
+func (l *ChatLogic) requireAgentConsent(userID int64) (int32, error) {
 	if l.svcCtx == nil || l.svcCtx.UserService == nil || userID <= 0 {
-		return 1
+		return 0, errx.NewWithCode(errx.ServiceUnavailable)
 	}
 	consent, err := l.svcCtx.UserService.GetAgentCapabilityConsent(l.ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})
-	if err != nil || consent == nil || !consent.Granted {
-		return 1
+	if err != nil {
+		return 0, err
+	}
+	if consent == nil || !consent.Granted {
+		return 0, errx.NewWithCode(errx.AgentNotAuthorized)
 	}
 	if consent.ConsentVersion <= 0 {
-		return 1
+		return 1, nil
 	}
-	return consent.ConsentVersion
+	return consent.ConsentVersion, nil
+}
+
+func (l *ChatLogic) agentHistory(request tool.Request, conversationID string) []agent.HistoryTurn {
+	if l.svcCtx == nil || l.svcCtx.Conversations == nil || strings.TrimSpace(conversationID) == "" {
+		return nil
+	}
+	messages, err := l.svcCtx.Conversations.Messages(l.ctx, request.UserID, conversationID)
+	if err != nil {
+		l.Infow("agent history skipped", logx.Field("err", err.Error()))
+		return nil
+	}
+	out := make([]agent.HistoryTurn, 0, len(messages))
+	for _, message := range messages {
+		if message.RequestID == request.RequestID {
+			continue
+		}
+		if message.Role != "user" && message.Role != "assistant" {
+			continue
+		}
+		content := strings.TrimSpace(message.Content)
+		if content == "" {
+			continue
+		}
+		out = append(out, agent.HistoryTurn{Role: message.Role, Content: content})
+	}
+	return out
 }
 
 func (l *ChatLogic) beginRequestWithQuota(request tool.Request, conversationID string, quota store.QuotaLimiter) error {
@@ -732,6 +780,10 @@ func splitRunes(value string, size int) []string {
 	return chunks
 }
 
+func applyAgentEvidence(answer string, sources []tool.Source, maxRunes int) string {
+	return appendSourceEvidence(answer, sources, maxRunes)
+}
+
 func appendSourceEvidence(answer string, sources []tool.Source, maxRunes int) string {
 	answer = neutralizeGeneratedSourceMarkers(strings.TrimSpace(answer))
 	if maxRunes <= 0 || len([]rune(answer)) >= maxRunes {
@@ -739,11 +791,11 @@ func appendSourceEvidence(answer string, sources []tool.Source, maxRunes int) st
 	}
 	var citations strings.Builder
 	for _, source := range sources {
-		if source.Type != "post" || source.ID == "" || strings.TrimSpace(source.Snippet) == "" {
+		if (source.Type != "post" && source.Type != "comment") || source.ID == "" || strings.TrimSpace(source.Snippet) == "" {
 			continue
 		}
-		postID, err := strconv.ParseInt(source.ID, 10, 64)
-		if err != nil || postID <= 0 || strconv.FormatInt(postID, 10) != source.ID {
+		sourceID, err := strconv.ParseInt(source.ID, 10, 64)
+		if err != nil || sourceID <= 0 || strconv.FormatInt(sourceID, 10) != source.ID {
 			continue
 		}
 		encoded, _ := json.Marshal(struct {
@@ -754,7 +806,7 @@ func appendSourceEvidence(answer string, sources []tool.Source, maxRunes int) st
 		if citations.Len() == 0 {
 			header = "\n\nCommunity sources (quoted untrusted content):"
 		}
-		block := header + "\nSOURCE [post:" + source.ID + "]\nCOMMUNITY_CONTENT_JSON=" + string(encoded)
+		block := header + "\nSOURCE [" + source.Type + ":" + source.ID + "]\nCOMMUNITY_CONTENT_JSON=" + string(encoded)
 		if len([]rune(answer))+len([]rune(citations.String()))+len([]rune(block)) > maxRunes {
 			break
 		}
@@ -764,7 +816,7 @@ func appendSourceEvidence(answer string, sources []tool.Source, maxRunes int) st
 }
 
 func neutralizeGeneratedSourceMarkers(answer string) string {
-	return generatedPostSourceMarker.ReplaceAllStringFunc(answer, func(marker string) string {
+	return generatedCommunitySourceMarker.ReplaceAllStringFunc(answer, func(marker string) string {
 		return "［" + marker[1:len(marker)-1] + "］"
 	})
 }

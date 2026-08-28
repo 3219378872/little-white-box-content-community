@@ -188,14 +188,14 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
 | AGNT-001 mode=agent/enhanced_search，缺省 enhanced_search | aligned | 网关空/无法识别值走 `ASSISTANT_MODE_ENHANCED_SEARCH`；`TestEnhancedSearchIsDefaultMode` |
-| AGNT-002 未授权不得静默降级执行工具 | aligned | 网关在开流前查 consent，未授权只回 `AGENT_NOT_AUTHORIZED`；`agent_chat_gate_test.go` |
+| AGNT-002 未授权不得静默降级执行工具 | aligned | 网关开流前查 consent；RPC `requireAgentConsent` 再拦，未授权不落库不跑 Runner；`agent_chat_gate_test.go`、`TestAgentChatRejectsUnauthorizedBeforeSideEffects` |
 | AGNT-003 以当前用户身份、权限不超过本人 | aligned | 写帖 `AuthorId=session.UserID`；记忆/Watch 按 `user_id` 隔离；检索回源走当前用户可见性 |
 | AGNT-004 授权可查询、先查再确认 | aligned | `GET /assistant/consent` → User `GetAgentCapabilityConsent`；默认未授权 |
 | AGNT-005 授权说明披露工具清单 | aligned | 后端返回 `consentVersion`/`currentVersion`（当前披露版本常量 `2`）；说明文案由客户端展示，服务端不代替确认 |
 | AGNT-006 可随时撤销、立即生效 | aligned | `SetAgentCapabilityConsent` 持久化 `revoked_at`；之后 agent 请求按 AGNT-002 拒绝 |
 | AGNT-007 consent_version 与分组裁剪 | aligned | User 库 `consent_version`；v1 只保留 Write + `search_posts`/`web_search`；`TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
 | AGNT-010 分组白名单 | aligned | Search/Recommend/Memory/Watch/Write/UserState 已注册，配置可收缩；v1 consent 隐藏新分组；`TestRestrictHidesUserStateOnV1Consent` |
-| AGNT-011 帖子/评论回源 | aligned | `search_posts`/`get_post`/`get_post_comments` 回源 Content；未发布父帖拒绝评论；`search_test.go` |
+| AGNT-011 帖子/评论回源 | aligned | 工具回源 Content；终答 `applyAgentEvidence` 中和模型 `[post:]`/`[comment:]`，只附加已验证 post/comment，web 不进社区 SOURCE；`search_test.go`、`TestAgentChatNeutralizesForgedCitationsAndAppendsVerifiedSources` |
 | AGNT-012 web_search 非社区证据 | aligned | 来源 `type=web`，文案禁止当帖子证据；无 key 时工具不可用失败关闭 |
 | AGNT-013 写帖图片仅本会话附件 | aligned | `resolveAttachments` + `assertMediaOwnership`；会话外 mediaId 失败；`tools_test.go` |
 | AGNT-014 v2 乐观锁 | aligned | update/delete 走 `expected_revision`；缺省先读再写，冲突原样反馈 |
@@ -234,7 +234,7 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | MEM-003 同键一条当前记录+历史 | aligned | 唯一键 + `history_json`；`TestMapStoreConflictKeepsOneCurrentRecord` |
 | MEM-004 Interest 读取衰减 | aligned | `score * exp(-λ Δt)`，低于 0.05 不进 ContextBlock；`TestInterestDecayDropsBelowFloorInContext` |
 | MEM-005 Episodic 默认不注入 | partial | 默认 List 不含 episodic；ContextBlock 仅在 recommend/community_opinion 跳过 episodic，其它 intent 仍可能带上 |
-| MEM-006 “还有吗”续写 Task | aligned | `continue_task` 与推荐共用 `excludedPostIDs`：负向 Profile 帖 ID + 开放 Task `excluded_json`/看起来像帖 ID 的 value；`TestRecommendPostsExcludesOpenTaskIDs` |
+| MEM-006 “还有吗”续写 Task | aligned | 截断历史注入模型；`recommend` 写入开放 Task，`continue_task` 不新建；推荐硬过滤仍用 Task 排除 ID；`TestAgentChatInjectsPriorTurnsAndSkipsCurrentRequest`、`TestMemoryCandidatesWritesRecommendTaskAndSkipsContinueTask`、`TestRecommendPostsExcludesOpenTaskIDs` |
 | MEM-010 写入须校验合并 | partial | 显式句式 `Extract` + `Apply` 去重合并；无 LLM 候选 schema 路径 |
 | MEM-011 显式偏好高于行为推断 | aligned | 对话显式句式 `conversation` 置信度 0.9；工具写入 `explicit` 置信度 1 |
 | MEM-012 关闭个性化后 behavior 停用 | aligned | `enabled=false`、偏好 RPC 缺失或查询失败均 fail-closed：Apply 忽略 `behavior`，ContextBlock/推荐排除跳过 behavior 项；`TestBehaviorMemoryFailsClosedWithoutPreferenceState` |
@@ -342,7 +342,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | REL-A03 故障降级矩阵 | partial | 仅覆盖网关 RPC-FAIL 与推荐推理注入，不是 REL-054 全部十行 |
 | REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
-| AGNT-A01 未授权/授权/撤销网关行为 | aligned | `app/gateway/internal/logic/assistant/agent_chat_gate_test.go` |
+| AGNT-A01 未授权/授权/撤销网关行为 | aligned | 网关 `agent_chat_gate_test.go`；RPC `TestAgentChatRejectsUnauthorizedBeforeSideEffects` |
 | AGNT-A02 Write + search_posts/web_search 成功与失败 | aligned | `app/assistant/rpc/internal/agent/tools_test.go`、`app/assistant/rpc/internal/agent/search_test.go` |
 | AGNT-A03 删除确认同意/拒绝/超时/重放 | aligned | `app/assistant/rpc/internal/agent/confirm_test.go`、`TestDeletePostRequiresConfirmation` |
 | AGNT-A04 软限通知与硬限收尾 | aligned | `app/assistant/rpc/internal/agent/runner_openai_test.go` |
@@ -351,7 +351,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | AGNT-A07 Search/UserState/Recommend 成功与越权 | aligned | UserState 成功回源与忽略外来 `user_id`；Search/Recommend 既有路径；`userstate_test.go`、`recommend_test.go` |
 | AGNT-A08 旧客户端忽略未知事件/来源 | aligned | `TestAssistantChatUnknownEventsAreIgnored`；web 来源 type=web |
 | MEM-A01 显式写入/冲突合并 | aligned | `app/assistant/rpc/internal/memory/store_test.go`、`app/assistant/rpc/internal/agent/memory_tools_test.go` |
-| MEM-A02 Interest 衰减与“还有吗”续写 | aligned | 衰减已测；开放 Task 排除 ID 约束推荐；`TestRecommendPostsExcludesOpenTaskIDs` |
+| MEM-A02 Interest 衰减与“还有吗”续写 | aligned | 衰减已测；历史注入 + recommend Task upsert；开放 Task 排除 ID 约束推荐 |
 | MEM-A03 列表/修改/删除/不要记住 | partial | CRUD 与 suppressed 已实现；缺“删除后回答不得再引用”专项 |
 | MEM-A04 越权拒绝与存储不可用 | aligned | 他人记录 NotFound；工具与列表无库 503 |
 | MEM-A05 记忆不能当社区证据/不能存私密资料 | aligned | 工具不产出社区 Source；Extract/Apply 丢弃手机号/验证码/私信样值 |
@@ -407,5 +407,5 @@ Agent 单轮预算上调见
 `verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
 未覆盖边界：无 `DB_ASSISTANT` 时记忆/Watch 列表为空；ASST-050/051 人类冻结集
-与 live Gateway 评测不在本轮；UserState 工具、`agent_run` 落库、discussion_spike
-匹配与命中回源仍缺。
+与 live Gateway 评测不在本轮；记忆仍无 LLM schema 抽取；`WATCH_HIT`/`ACTIONS`
+事件未发出；`discussion_spike` 生产未接 Judge。

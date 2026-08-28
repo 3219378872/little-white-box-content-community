@@ -326,10 +326,27 @@ func (s *SQLStore) Apply(ctx context.Context, userID int64, candidate Candidate,
 			userID, candidate.Dimension, candidate.Value, candidate.Score, candidate.Source, candidate.Confidence, boolToInt(candidate.Suppressed), ms, ms)
 		return err
 	case LayerTask:
-		_, err := s.conn.ExecCtx(ctx, `
+		value := strings.TrimSpace(candidate.Value)
+		if runes := []rune(value); len(runes) > 512 {
+			value = string(runes[:512])
+		}
+		res, err := s.conn.ExecCtx(ctx, `
+			UPDATE task_memory SET updated_at_ms = ? WHERE user_id = ? AND status = 'open' AND intent_text = ?`,
+			ms, userID, value)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return nil
+		}
+		_, err = s.conn.ExecCtx(ctx, `
 			INSERT INTO task_memory (user_id, status, intent_text, constraints_json, excluded_json, updated_at_ms)
 			VALUES (?, 'open', ?, NULL, NULL, ?)`,
-			userID, candidate.Value, ms)
+			userID, value, ms)
 		return err
 	case LayerEpisodic:
 		_, err := s.conn.ExecCtx(ctx, `

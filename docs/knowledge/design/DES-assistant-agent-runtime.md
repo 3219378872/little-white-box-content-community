@@ -53,11 +53,16 @@ upstream:
 1. Intent Router：把用户话轮解析为 Query Plan（entity、intent、time_range、sources、
    filters）。无小模型时用当前 LLM；解析失败则 intent=`general`，工具表仍按 consent 分组。
 2. Context Builder：按 intent 装载 Profile / 未衰减 Interest / 开放 Task，以及最多数条
-   未读 Watch 命中。Episodic 只在追问历史时检索。不把 100 条聊天全塞进模型。
-3. Policy：校验 Agent 授权、consent_version、预算、安全过滤，计算本轮工具分组。
+   未读 Watch 命中。注入截断后的本会话历史（从最近话轮向前，受 `MaxContextRunes`
+   约束，不含当前请求）。Episodic 只在追问历史时检索。
+3. Policy：RPC 复核 `consent.Granted` 与 `consent_version`；未授权不得执行工具。
+   预算与安全过滤仍在 Executor / ChatLogic。
 4. Planner：把 plan 变成检索参数与本轮工具子集。
-5. Executor：既有 openai-go function calling 循环；高危确认、软硬预算不变。
-6. 回合成功结束后异步 Memory Writer，不阻塞 `DONE`。
+5. Executor：既有 openai-go function calling 循环；高危确认、软硬预算不变；空
+   `Choices` 视为 LLM 不可用。终答中和模型自造 `[post:]`/`[comment:]`，只附加本轮
+   已验证的 post/comment 来源。
+6. 回合成功结束后异步 Memory Writer，不阻塞 `DONE`。`recommend` 意图把当前话轮
+   upsert 为开放 Task；`continue_task` 不新建任务。
 
 Intent 取值（内容域）：`community_opinion`、`factual_lookup`、`recommend`、`watch`、
 `memory_query`、`continue_task`、`write_post`、`general`。

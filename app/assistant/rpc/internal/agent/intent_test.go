@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"esx/app/assistant/rpc/internal/memory"
 	"esx/app/assistant/watch"
 )
 
@@ -138,6 +139,44 @@ func TestRuntimePersistsAuditWithoutUserText(t *testing.T) {
 	}
 	if strings.Contains(runs[0].Tools[0].ArgDigest, "secret") {
 		t.Fatalf("raw args stored: %s", runs[0].Tools[0].ArgDigest)
+	}
+}
+
+func TestMemoryCandidatesWritesRecommendTaskAndSkipsContinueTask(t *testing.T) {
+	t.Parallel()
+	recommend := memoryCandidates(&Session{UserMessage: "推荐几个周末攻略", Plan: QueryPlan{Intent: IntentRecommend}})
+	if len(recommend) != 1 || recommend[0].Layer != "task" || recommend[0].Value != "推荐几个周末攻略" {
+		t.Fatalf("%+v", recommend)
+	}
+	cont := memoryCandidates(&Session{UserMessage: "还有吗", Plan: QueryPlan{Intent: IntentContinueTask}})
+	if len(cont) != 0 {
+		t.Fatalf("continue_task must not open a new task: %+v", cont)
+	}
+}
+
+func TestRuntimePersistsRecommendTask(t *testing.T) {
+	store := memory.NewMapStore()
+	runtime := NewRuntime(&fakeRunner{}, store)
+	if _, err := runtime.Run(context.Background(), &Session{
+		UserID: 2, UserMessage: "推荐几个周末攻略", Tools: mustRegistry(t),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	var items []memory.Item
+	for time.Now().Before(deadline) {
+		got, err := store.List(context.Background(), 2, memory.LayerTask, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) == 1 {
+			items = got
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(items) != 1 || items[0].Value != "推荐几个周末攻略" {
+		t.Fatalf("task=%+v", items)
 	}
 }
 

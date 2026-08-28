@@ -101,8 +101,12 @@ func (r *OpenAIRunner) Run(ctx context.Context, session *Session) (*Result, erro
 	if custom := strings.TrimSpace(session.SystemPrompt); custom != "" {
 		systemPrompt += "\n\n补充约束：\n" + custom
 	}
+	userTurn := session.userTurnText()
 	messages = append(messages, runnerMessage{role: "system", content: systemPrompt})
-	messages = append(messages, runnerMessage{role: "user", content: session.userTurnText()})
+	for _, turn := range clipHistory(session.History, r.maxContextRunes, systemPrompt, userTurn) {
+		messages = append(messages, runnerMessage{role: turn.Role, content: turn.Content})
+	}
+	messages = append(messages, runnerMessage{role: "user", content: userTurn})
 
 	definitions := session.Tools.Definitions()
 	tools := make([]openai.ChatCompletionToolParam, 0, len(definitions))
@@ -133,6 +137,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, session *Session) (*Result, erro
 		if err != nil {
 			logx.WithContext(ctx).Errorw("agent model call failed",
 				logx.Field("step", step), logx.Field("err", err.Error()))
+			return nil, ErrLLMUnavailable
+		}
+		if len(completion.Choices) == 0 {
 			return nil, ErrLLMUnavailable
 		}
 		message := completion.Choices[0].Message
@@ -271,6 +278,43 @@ func (r *OpenAIRunner) finalizeWithoutTools(ctx context.Context, messages []runn
 		return "", fmt.Errorf("agent: empty final answer")
 	}
 	return text, nil
+}
+
+// clipHistory 从最新话轮向前截取，使 system + 历史 + 当前用户话轮不超过 maxRunes。
+// 单条历史放不下时停止，避免跳过关键近邻回合去捡更早的短消息。
+func clipHistory(history []HistoryTurn, maxRunes int, reserved ...string) []HistoryTurn {
+	if maxRunes <= 0 || len(history) == 0 {
+		return nil
+	}
+	used := 0
+	for _, text := range reserved {
+		used += len([]rune(text))
+	}
+	remaining := maxRunes - used
+	if remaining <= 0 {
+		return nil
+	}
+	selected := make([]HistoryTurn, 0, len(history))
+	for i := len(history) - 1; i >= 0; i-- {
+		role := history[i].Role
+		if role != "user" && role != "assistant" {
+			continue
+		}
+		content := strings.TrimSpace(history[i].Content)
+		if content == "" {
+			continue
+		}
+		n := len([]rune(content))
+		if n > remaining {
+			break
+		}
+		remaining -= n
+		selected = append(selected, HistoryTurn{Role: role, Content: content})
+	}
+	for i, j := 0, len(selected)-1; i < j; i, j = i+1, j-1 {
+		selected[i], selected[j] = selected[j], selected[i]
+	}
+	return selected
 }
 
 func convertMessages(messages []runnerMessage) []openai.ChatCompletionMessageParamUnion {
