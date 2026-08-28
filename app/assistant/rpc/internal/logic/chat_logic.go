@@ -389,8 +389,8 @@ func (l *ChatLogic) agentBudget() agent.Budget {
 		MaxStepsSoft:        8,
 		MaxStepsHard:        12,
 		MaxToolCallsPerTurn: 12,
-		StepTimeout:         30000,
-		TurnTimeout:         120000,
+		StepTimeout:         90000,
+		TurnTimeout:         300000,
 		ConfirmTimeout:      120,
 	}
 	if l.svcCtx == nil {

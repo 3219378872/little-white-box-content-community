@@ -72,8 +72,8 @@ Agent:
   MaxStepsSoft: 8
   MaxStepsHard: 12
   MaxToolCallsPerTurn: 12
-  TurnTimeoutMs: 120000
-  StepTimeoutMs: 30000
+  TurnTimeoutMs: 300000
+  StepTimeoutMs: 90000
   ConfirmTimeoutSecs: 120
   QuotaRequests: 10
   AllowedTools:
@@ -126,7 +126,7 @@ LLM:
   TimeoutMs: 8000
   MaxContextRunes: 8000
   MaxOutputRunes: 8000
-  MaxOutputTokens: 4096
+  MaxOutputTokens: 32768
   PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
   CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}
 

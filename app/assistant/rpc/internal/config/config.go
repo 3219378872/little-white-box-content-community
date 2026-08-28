@@ -14,7 +14,7 @@ type LLMConfig struct {
 	TimeoutMs                      int64   `json:",default=8000,range=[100:60000]"`
 	MaxContextRunes                int     `json:",default=8000,range=[100:50000]"`
 	MaxOutputRunes                 int     `json:",default=8000,range=[100:50000]"`
-	MaxOutputTokens                int     `json:",default=4096,range=[1:32768]"`
+	MaxOutputTokens                int     `json:",default=32768,range=[1:32768]"`
 	PromptCostPerMillionTokens     float64 `json:",default=0"`
 	CompletionCostPerMillionTokens float64 `json:",default=0"`
 }
@@ -33,8 +33,8 @@ type AgentConfig struct {
 	MaxStepsSoft        int   `json:",default=8,range=[1:50]"`
 	MaxStepsHard        int   `json:",default=12,range=[2:100]"`
 	MaxToolCallsPerTurn int   `json:",default=12,range=[1:100]"`
-	TurnTimeoutMs       int64 `json:",default=120000,range=[1000:600000]"`
-	StepTimeoutMs       int64 `json:",default=30000,range=[1000:120000]"`
+	TurnTimeoutMs       int64 `json:",default=300000,range=[1000:600000]"`
+	StepTimeoutMs       int64 `json:",default=90000,range=[1000:120000]"`
 	ConfirmTimeoutSecs  int   `json:",default=120,range=[5:600]"`
 	QuotaRequests       int   `json:",default=10,range=[1:10000]"` // 独立配额，与 enhanced_search 分开计量（AGNT-032）
 	AllowedTools        []string

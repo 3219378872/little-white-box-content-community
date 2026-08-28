@@ -53,7 +53,7 @@ func NewOpenAIRunner(endpoint, apiKey, model string, maxContextRunes, maxOutputT
 		maxContextRunes = 8000
 	}
 	if maxOutputTokens <= 0 {
-		maxOutputTokens = 4096
+		maxOutputTokens = 32768
 	}
 	client := openai.NewClient(
 		option.WithAPIKey(apiKey),

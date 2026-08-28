@@ -211,7 +211,7 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | AGNT-030 软硬步数预算 | aligned | 默认软 8 / 硬 12；超软限注入剩余步数；`TestRunnerInjectsSoftLimitNotice` |
 | AGNT-031 硬限强制收尾 | aligned | 剥离工具再生成一次，失败 `AGENT_BUDGET_EXCEEDED`；`TestRunnerFinalizesWithoutToolsAtHardLimit` |
 | AGNT-032 独立配额 | aligned | Agent Redis 配额默认 10/60s，与 enhanced_search 分开 |
-| AGNT-033 单轮时长上限、已写入不回滚 | aligned | `TurnTimeoutMs` 默认 120s；取消/超时停止发送；已成功写保留 |
+| AGNT-033 单轮时长上限、已写入不回滚 | aligned | `TurnTimeoutMs` 默认 300s、`StepTimeoutMs` 默认 90s；`LLM.MaxOutputTokens` 默认 32768；取消/超时停止发送；已成功写保留 |
 | AGNT-040 会话附件仅当次请求 | aligned | ChatReq.attachments；网关校验 mediaId/url 与 ≤9 |
 | AGNT-041 图片 ≤9 | aligned | 附件与写帖均拒绝超出，不截断 |
 | AGNT-042 context_post_id 可选提示 | aligned | 缺省忽略；不授予额外权限 |
@@ -402,6 +402,8 @@ Watch matcher 接线见
 [2026-08-27-content-community-watch-matcher.md](evidence/2026-08-27-content-community-watch-matcher.md)。
 2026-08-28 安全与一致性修复见
 [2026-08-28-content-community-audit-fixes.md](evidence/2026-08-28-content-community-audit-fixes.md)。
+Agent 单轮预算上调见
+[2026-08-28-content-community-agent-budget.md](evidence/2026-08-28-content-community-agent-budget.md)。
 `verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
 未覆盖边界：无 `DB_ASSISTANT` 时记忆/Watch 列表为空；ASST-050/051 人类冻结集

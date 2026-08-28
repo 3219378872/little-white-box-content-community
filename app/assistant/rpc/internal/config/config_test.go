@@ -37,8 +37,11 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	if !c.LLM.Enabled {
 		t.Fatal("LLM environment switch was not loaded")
 	}
-	if c.LLM.WireAPI != "responses" || c.LLM.MaxOutputTokens != 4096 {
+	if c.LLM.WireAPI != "responses" || c.LLM.MaxOutputTokens != 32768 {
 		t.Fatalf("unexpected LLM protocol config: %+v", c.LLM)
+	}
+	if c.Agent.TurnTimeoutMs != 300000 || c.Agent.StepTimeoutMs != 90000 {
+		t.Fatalf("unexpected agent timeout config: turn=%d step=%d", c.Agent.TurnTimeoutMs, c.Agent.StepTimeoutMs)
 	}
 }
 
