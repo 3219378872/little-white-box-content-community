@@ -48,7 +48,7 @@ tracks:
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
 verified_at: 2026-08-28
-verified_commit: c65cd6854d749e0bd4626461d967d0d23363f281
+verified_commit: 648360f48c25283bf283406744ec80661c4db39c
 ---
 
 # 小白盒内容社区后端实现映射
@@ -404,6 +404,8 @@ Watch matcher 接线见
 [2026-08-28-content-community-audit-fixes.md](evidence/2026-08-28-content-community-audit-fixes.md)。
 Agent 单轮预算上调见
 [2026-08-28-content-community-agent-budget.md](evidence/2026-08-28-content-community-agent-budget.md)。
+Agent P0（授权/证据/历史）见
+[2026-08-28-content-community-agent-p0.md](evidence/2026-08-28-content-community-agent-p0.md)。
 `verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
 未覆盖边界：无 `DB_ASSISTANT` 时记忆/Watch 列表为空；ASST-050/051 人类冻结集

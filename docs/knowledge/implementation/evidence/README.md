@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-28-content-community-agent-p0.md](2026-08-28-content-community-agent-p0.md)：
+  Agent RPC 授权复核、终答证据中和、截断历史与 recommend Task，提交见 frontmatter。
 - [2026-08-28-content-community-agent-budget.md](2026-08-28-content-community-agent-budget.md)：
   Agent `TurnTimeoutMs` 300s、`StepTimeoutMs` 90s、`LLM.MaxOutputTokens` 32768，提交见 frontmatter。
 - [2026-08-28-content-community-audit-fixes.md](2026-08-28-content-community-audit-fixes.md)：
