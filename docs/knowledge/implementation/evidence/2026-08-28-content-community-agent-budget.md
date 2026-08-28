@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-28
-verified_commit: faa68a9
+verified_commit: c65cd6854d749e0bd4626461d967d0d23363f281
 commands:
   - go test ./app/assistant/rpc/internal/config/
   - go test ./app/assistant/rpc/internal/logic/ ./app/assistant/rpc/internal/agent/
