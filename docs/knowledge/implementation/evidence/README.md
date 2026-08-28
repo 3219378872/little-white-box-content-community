@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-28-content-community-audit-fixes.md](2026-08-28-content-community-audit-fixes.md)：
+  Gateway 日志/可信代理、Agent 上下文、Memory PATCH、Watch 一致性与生产迁移修复，提交见 frontmatter。
 - [2026-08-27-content-community-agent-closeout.md](2026-08-27-content-community-agent-closeout.md)：
   UserState / Watch 注入与预筛选 / 推荐卡 / 审计落库收口，提交见 frontmatter。
 - [2026-08-27-content-community-watch-matcher.md](2026-08-27-content-community-watch-matcher.md)：

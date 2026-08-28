@@ -47,8 +47,8 @@ tracks:
   - deploy/sql/patches/20260827_agent_consent_version.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
-verified_at: 2026-08-27
-verified_commit: 163bf1cbb71e2dda91cd35ee8801614b7b1e2052
+verified_at: 2026-08-28
+verified_commit: 249f766b6ffa1ba2669e1bfa7400739ad8a85076
 ---
 
 # 小白盒内容社区后端实现映射
@@ -78,7 +78,7 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| CORE-001 写操作验证调用者 | aligned | 所有写路由挂 `jwt: Auth`；logic 从上下文取 userId |
+| CORE-001 写操作验证调用者 | aligned | 所有写路由挂自有 `RequiredAuth`（避免框架鉴权失败 dump 完整请求）；logic 从强类型 JWT context 取 userId |
 | CORE-002 只能改自己内容 | aligned | update/delete 校验 author_id |
 | CORE-003 会话参与者才可读私信 | aligned | GetMessages/MarkRead 按 user_id 归属校验 |
 | CORE-004 注册登录资料维护 | aligned | user rpc；注销/申诉/后台不在范围 |
@@ -237,10 +237,10 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | MEM-006 “还有吗”续写 Task | aligned | `continue_task` 与推荐共用 `excludedPostIDs`：负向 Profile 帖 ID + 开放 Task `excluded_json`/看起来像帖 ID 的 value；`TestRecommendPostsExcludesOpenTaskIDs` |
 | MEM-010 写入须校验合并 | partial | 显式句式 `Extract` + `Apply` 去重合并；无 LLM 候选 schema 路径 |
 | MEM-011 显式偏好高于行为推断 | aligned | 对话显式句式 `conversation` 置信度 0.9；工具写入 `explicit` 置信度 1 |
-| MEM-012 关闭个性化后 behavior 停用 | aligned | `GetPersonalizationPreference enabled=false` 时 Apply 忽略 `behavior`，ContextBlock/推荐排除跳过 behavior 项；`TestApplyIgnoresBehaviorWhenPersonalizationDisabled` |
-| MEM-013 不得保存私密字段 | aligned | Extract/Apply 拒绝 11 位数字密集串、`验证码`、`私信`；`TestExtractAndApplyRejectPrivateValues` |
+| MEM-012 关闭个性化后 behavior 停用 | aligned | `enabled=false`、偏好 RPC 缺失或查询失败均 fail-closed：Apply 忽略 `behavior`，ContextBlock/推荐排除跳过 behavior 项；`TestBehaviorMemoryFailsClosedWithoutPreferenceState` |
+| MEM-013 不得保存私密字段 | aligned | Extract/Apply/Update 拒绝 11 位数字密集串、`验证码`、`私信`，分值限制在 [-1,1]；`TestUpdateRejectsPrivateOrOutOfRangeValues` |
 | MEM-020 可列出 Profile/Interest/Task | aligned | `GET /assistant/memory`；`confirmed` 区分高置信；episodic 按 layer 检索 |
-| MEM-021 修改/删除/不要记住 | aligned | PATCH/DELETE；`suppressed=1` 后 SQL 冲突更新保持禁止 |
+| MEM-021 修改/删除/不要记住 | aligned | PATCH 使用 proto3 optional 保留未提交字段；自然语言“不要记住”写 suppressed；`suppressed=1` 后自动候选不能恢复 |
 | MEM-022 只对所属用户开放 | aligned | JWT userId；store 按 user_id 过滤，他人记录 NotFound |
 | MEM-023 回答不得引用已删/失效记忆 | partial | ContextBlock 跳过 suppressed 与衰减 Interest；无“回答引用已删记忆”专项测试 |
 | MEM-030 Memory 工具只作用于当前用户 | aligned | `get/add/update/delete_memory`；add/update 走 `Apply`/`Update` |
@@ -257,14 +257,14 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | WCH-001 任务含稳定标识/类型/目标/启用 | aligned | `watch_task` + REST/工具 CRUD |
 | WCH-002 四种规则条件 | aligned | `author_new_post`/`tag_new_post`/`keyword_new_post`/`post_revised`；`TestMatchRules` |
 | WCH-003 discussion_spike 预筛选后才调模型 | partial | matcher 消费 `user-behavior-v2` comment/post；未达 `SpikeMinComments`（默认 5）记 skipped 且不调 Judge；过阈值无 LLM 记 failed **不写命中**；生产未接 LLM 判定 |
-| WCH-004 不可见/未发布不命中；目标不存在须创建失败 | aligned | 创建路径校验作者存在、帖已发布、标签可检索；关键词只要求文本；`TestCreateWatchTaskValidatesTargets` |
+| WCH-004 不可见/未发布不命中；目标不存在须创建失败 | aligned | 创建路径校验目标；matcher 在匹配前回源 Content，只有当前仍 published 且 revision 与事件一致才处理，延迟旧事件跳过 |
 | WCH-005 同用户同条件同目标不重复 | aligned | 唯一键；重复 `IdempotencyConflict`；`TestCreateRejectsUnknownConditionAndDuplicates` |
 | WCH-010 规则条件由事件驱动 | aligned | `app/assistant/mq` 订阅 `post-*`；`ApplyPostEvent` + `Match`；不轮询模型 |
-| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；命中与 spike skipped/failed 均写执行行；规则未匹配任务仍不写 skipped |
+| WCH-011 匹配执行记录与去重 | partial | `watch_execution(task_id,event_key)` 唯一；规则命中的 execution 与 watch_hit 同事务，第二步失败可整体重试；规则未匹配任务仍不写 skipped |
 | WCH-012 spike 未过阈值不调模型 | aligned | 低于阈值 `RecordExecution skipped` 且 Judge 不调用；`TestApplyBehaviorEventBelowThresholdDoesNotHitOrCallLLM` |
 | WCH-013 匹配失败不影响发帖主路径 | aligned | 独立消费者；发帖 outbox 不依赖 matcher；存储错误只重试本消费者 |
-| WCH-020 命中只进助手收件箱 | aligned | `watch_hit` + REST；Runtime 注入最多 5 条未读摘要到 SystemPrompt；不写私信/通知/推送；`TestRuntimeInjectsUnreadWatchHits` |
-| WCH-021 列表/已读且可见性过滤 | aligned | 按 user_id 列出/标记已读；列表回源 Content，未发布/缺失清空 Title/Summary；`TestListWatchHitsRedactsUnpublished` |
+| WCH-020 命中只进助手收件箱 | aligned | `watch_hit` + REST；Runtime 回源后把最多 5 条未读摘要编码为 `UNTRUSTED_PERSONAL_CONTEXT_JSON` 用户数据，不覆盖 system prompt；不写私信/通知/推送 |
+| WCH-021 列表/已读且可见性过滤 | aligned | REST 与 Runtime 注入均回源 Content；未发布、缺失或回源依赖不可用时 fail-closed 清空 Title/Summary |
 | WCH-022 命中不是社区证据 | aligned | 命中不自动变成 Source；事实陈述仍须回源引用 |
 | WCH-030 Watch 工具只作用于当前用户 | aligned | 四个工具 + RPC，均带 session/JWT userId |
 | WCH-031 不走删除确认；删任务停后续命中 | aligned | 工具非 HighRisk；删除任务后 `Match` 不再看到该任务；已有 hit 保留 |
@@ -291,7 +291,7 @@ Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
 | REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地；新增 `daily_aggregates` 去标识聚合表（TTL 365 天，ReplacingMergeTree 幂等）与 behavior-log 定时聚合任务（`AggregateIntervalSeconds`/`AggregateBackfillDays`）；修复既有 schema 在 DateTime64 列上的 TTL 建表错误（BAD_TTL_EXPRESSION），ClickHouse 集成测试现可初始化 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
-| REL-022 业务日志 30 天不泄密 | aligned | IgnoreContentMethods + Loki 30 天（镜像钉 `grafana/loki:3.7.6`，schema v13/tsdb，`compactor.delete_request_store`；禁止 `:latest`）；登录/注册/验证码日志不再写手机号 |
+| REL-022 业务日志 30 天不泄密 | aligned | Gateway 关闭会 dump header/body 的框架 REST Log，RequiredAuth 不记录 token，SafeAccessLog 仅方法/路径/状态/耗时；Gateway/Assistant/Watch RPC 客户端关闭默认 request dump，改用 SafeDuration；Loki 30 天 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030 SLO 分母口径 | partial | 口径在 spec_evals.py；缺真实月度数据 |
@@ -400,6 +400,8 @@ Agent Runtime 映射验证于 2026-08-27，见
 [2026-08-27-content-community-agent-runtime.md](evidence/2026-08-27-content-community-agent-runtime.md)。
 Watch matcher 接线见
 [2026-08-27-content-community-watch-matcher.md](evidence/2026-08-27-content-community-watch-matcher.md)。
+2026-08-28 安全与一致性修复见
+[2026-08-28-content-community-audit-fixes.md](evidence/2026-08-28-content-community-audit-fixes.md)。
 `verified_commit` 为本映射提交。历史全量套件证据仍以 `evidence/` 既有记录为准。
 
 未覆盖边界：无 `DB_ASSISTANT` 时记忆/Watch 列表为空；ASST-050/051 人类冻结集
