@@ -47,6 +47,7 @@ const (
 	KindMessage       = "message"
 	KindMemoryChanged = "memory_changed"
 	KindWatch         = "watch"
+	KindTool          = "tool"
 
 	SessionOpen   = "open"
 	SessionClosed = "closed"

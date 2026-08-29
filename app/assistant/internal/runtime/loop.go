@@ -89,6 +89,7 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 	}
 	started := time.Now()
 	firstToken := false
+	var reviewLive []prompt.Turn
 	registry := tool.ForSource(e.Tools, run.Source, tool.CurrentConsentVersion)
 	if registry == nil {
 		return e.fail(ctx, run, "TOOLS_UNAVAILABLE", "no tools")
@@ -125,9 +126,29 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 		}
 
 		history := HistoryTurns(visibleForPrompt(msgs))
+		if run.Source == store.SourceMemoryReview {
+			history = append(history, reviewLive...)
+		} else if open := unmatchedToolCalls(history); len(open) > 0 {
+			for _, call := range open {
+				if err := e.execTool(ctx, &run, registry, call, &reviewLive); err != nil {
+					return err
+				}
+				if run.CancelRequested {
+					return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED"})
+				}
+			}
+			msgs, _ = e.Store.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+			history = HistoryTurns(visibleForPrompt(msgs))
+		}
 		snap.History = history
 		turns := prompt.Messages(snap)
-		turns = append(turns, e.pendingUserTurns(ctx, run)...)
+		seen := make(map[int64]struct{}, len(msgs))
+		for _, msg := range msgs {
+			if !msg.Compacted {
+				seen[msg.ID] = struct{}{}
+			}
+		}
+		turns = append(turns, e.pendingUserTurns(ctx, run, seen)...)
 
 		run.Phase = store.PhaseModelRequest
 		run.LastActivityAtMs = now
@@ -183,10 +204,24 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 			return e.finish(ctx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text})
 		}
 
+		calls := make([]llm.ToolCall, 0, len(result.ToolCalls))
+		assistantTurn := prompt.Turn{Role: store.RoleAssistant, Content: strings.TrimSpace(result.Text)}
+		for i, call := range result.ToolCalls {
+			id := strings.TrimSpace(call.ID)
+			if id == "" {
+				id = "call_" + itoa(store.NowMs()) + "_" + itoa(int64(i+1))
+			}
+			args := canonical.UnwrapArgsJSON(call.Arguments)
+			calls = append(calls, llm.ToolCall{ID: id, Name: call.Name, Arguments: args})
+			assistantTurn.ToolCalls = append(assistantTurn.ToolCalls, prompt.ToolCall{ID: id, Name: call.Name, Arguments: args})
+		}
+		if err := e.recordTurn(ctx, run, assistantTurn, store.KindTool, false, &reviewLive); err != nil {
+			return err
+		}
 		run.Phase = store.PhaseToolExecuting
 		_ = e.Store.UpdateRun(ctx, run)
-		for _, call := range result.ToolCalls {
-			if err := e.execTool(ctx, &run, registry, call); err != nil {
+		for _, call := range calls {
+			if err := e.execTool(ctx, &run, registry, call, &reviewLive); err != nil {
 				return err
 			}
 			if run.CancelRequested {
@@ -207,18 +242,26 @@ func visibleForPrompt(msgs []store.Message) []store.Message {
 	return out
 }
 
-func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run) []prompt.Turn {
+func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) []prompt.Turn {
 	out := make([]prompt.Turn, 0)
 	if len(run.QueuedPayload) > 0 {
 		var payload struct {
-			Text string `json:"text"`
+			Text      string `json:"text"`
+			MessageID int64  `json:"message_id"`
 		}
 		if json.Unmarshal(run.QueuedPayload, &payload) == nil && payload.Text != "" {
-			out = append(out, prompt.Turn{Role: store.RoleUser, Content: payload.Text})
+			if payload.MessageID == 0 {
+				out = append(out, prompt.Turn{Role: store.RoleUser, Content: payload.Text})
+			} else if _, ok := seen[payload.MessageID]; !ok {
+				out = append(out, prompt.Turn{Role: store.RoleUser, Content: payload.Text})
+			}
 		}
 	}
 	items, _ := e.Store.ListQueue(ctx, run.ID)
 	for _, item := range items {
+		if _, ok := seen[item.MessageID]; ok {
+			continue
+		}
 		msg, err := e.Store.GetMessage(ctx, run.UserID, item.MessageID)
 		if err == nil && msg != nil {
 			out = append(out, prompt.Turn{Role: store.RoleUser, Content: msg.Content})
@@ -227,7 +270,8 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run) []prompt.T
 	return out
 }
 
-func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall) error {
+func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
+	call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
 	digest, _ := canonical.DigestArgs(call.Arguments)
 	_, _ = e.Store.InsertToolCall(ctx, store.ToolCall{
 		RunID: run.ID, CallID: call.ID, Tool: call.Name, ArgsJSON: call.Arguments,
@@ -238,9 +282,14 @@ func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Re
 	})
 	if journal, err := e.Store.GetJournal(ctx, run.UserID, run.RequestID, call.Name, digest); err == nil && journal != nil && journal.Status == store.JournalSuccess {
 		agentToolCalls.Inc(call.Name, "replay")
+		text := decodeToolResultText(journal.ResultJSON)
+		_ = e.Store.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: encodeToolResultJSON(text, nil)})
+		if err := e.recordTurn(ctx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); err != nil {
+			return err
+		}
 		_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
-			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "replay", PayloadJSON: journal.ResultJSON},
-			Text:     journal.ResultJSON,
+			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "replay", PayloadJSON: text},
+			Text:     text,
 		})
 		return nil
 	}
@@ -260,16 +309,20 @@ func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Re
 	run.ToolCalls++
 	run.LastActivityAtMs = store.NowMs()
 	_ = e.Store.UpdateRun(ctx, *run)
-	if sideEffect(call.Name) {
+	resultJSON := encodeToolResultJSON(text, err)
+	if sideEffect(call.Name) && err == nil {
 		row, reserved, jerr := e.Store.ReserveJournal(ctx, store.Journal{
 			UserID: run.UserID, RequestID: run.RequestID, Tool: call.Name, CanonicalArgsDigest: digest,
-			Status: store.JournalSuccess, ResultJSON: text, CreatedAtMs: store.NowMs(),
+			Status: store.JournalSuccess, ResultJSON: resultJSON, CreatedAtMs: store.NowMs(),
 		})
 		if jerr == nil && reserved && row != nil {
-			_ = e.Store.CompleteJournal(ctx, row.ID, store.JournalSuccess, text)
+			_ = e.Store.CompleteJournal(ctx, row.ID, store.JournalSuccess, resultJSON)
 		}
 	}
-	_ = e.Store.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: text})
+	_ = e.Store.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON})
+	if recErr := e.recordTurn(ctx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); recErr != nil {
+		return recErr
+	}
 	_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
 		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: text},
 		Text:     text,
@@ -278,6 +331,79 @@ func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Re
 		_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventSourceCard, store.EventPayload{SourceCard: &card})
 	}
 	return nil
+}
+
+func (e *Engine) recordTurn(ctx context.Context, run store.Run, turn prompt.Turn, kind string, visible bool, reviewLive *[]prompt.Turn) error {
+	if run.Source == store.SourceMemoryReview {
+		if reviewLive != nil {
+			*reviewLive = append(*reviewLive, turn)
+		}
+		return nil
+	}
+	_, err := e.Store.InsertMessage(ctx, store.Message{
+		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
+		Role: turn.Role, Kind: kind, Content: turn.Content, APIContent: prompt.EncodeTurn(turn),
+		Visible: visible, CreatedAtMs: store.NowMs(),
+	})
+	return err
+}
+
+func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
+	done := make(map[string]struct{})
+	for _, turn := range history {
+		if id := strings.TrimSpace(turn.ToolCallID); id != "" {
+			done[id] = struct{}{}
+		}
+	}
+	out := make([]llm.ToolCall, 0)
+	seen := make(map[string]struct{})
+	for _, turn := range history {
+		for _, call := range turn.ToolCalls {
+			id := strings.TrimSpace(call.ID)
+			if id == "" {
+				continue
+			}
+			if _, ok := done[id]; ok {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, llm.ToolCall{ID: id, Name: call.Name, Arguments: call.Arguments})
+		}
+	}
+	return out
+}
+
+func encodeToolResultJSON(text string, callErr error) string {
+	payload := map[string]any{"ok": callErr == nil, "text": text}
+	if callErr != nil {
+		payload["error"] = callErr.Error()
+		if text == "" {
+			payload["text"] = callErr.Error()
+		}
+	}
+	raw, _ := json.Marshal(payload)
+	return string(raw)
+}
+
+func decodeToolResultText(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	var payload struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal([]byte(raw), &payload) == nil && payload.Text != "" {
+		return payload.Text
+	}
+	var asString string
+	if json.Unmarshal([]byte(raw), &asString) == nil && asString != "" {
+		return asString
+	}
+	return raw
 }
 
 func sideEffect(name string) bool {
@@ -350,11 +476,20 @@ func (e *Engine) compact(ctx context.Context, run *store.Run, session *store.Ses
 			summary = result.Text
 		}
 	}
+	keepIDs := make(map[int64]struct{}, len(selected))
+	for _, msg := range selected {
+		keepIDs[msg.ID] = struct{}{}
+	}
 	ids := make([]int64, 0, len(msgs))
 	for _, msg := range msgs {
+		if _, keep := keepIDs[msg.ID]; keep {
+			continue
+		}
 		ids = append(ids, msg.ID)
 	}
-	_ = e.Store.MarkMessagesCompacted(ctx, ids)
+	if len(ids) > 0 {
+		_ = e.Store.MarkMessagesCompacted(ctx, ids)
+	}
 	var entries []memory.Entry
 	if e.Memory != nil {
 		entries, _ = e.Memory.Active(ctx, run.UserID)

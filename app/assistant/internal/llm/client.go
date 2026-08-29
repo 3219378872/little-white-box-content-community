@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"esx/app/assistant/internal/canonical"
 	"esx/app/assistant/internal/prompt"
 )
 
@@ -228,7 +229,45 @@ func (c *HTTPClient) marshal(req Request, maxTokens int) ([]byte, error) {
 func chatMessages(turns []prompt.Turn) []map[string]any {
 	out := make([]map[string]any, 0, len(turns))
 	for _, turn := range turns {
-		item := map[string]any{"role": turn.Role, "content": turn.Content}
+		if isToolResult(turn) {
+			item := map[string]any{
+				"role":         "tool",
+				"tool_call_id": turn.ToolCallID,
+				"content":      turn.Content,
+			}
+			if strings.TrimSpace(turn.Name) != "" {
+				item["name"] = turn.Name
+			}
+			out = append(out, item)
+			continue
+		}
+		item := map[string]any{"role": turn.Role}
+		if len(turn.ToolCalls) > 0 {
+			calls := make([]map[string]any, 0, len(turn.ToolCalls))
+			for _, call := range turn.ToolCalls {
+				args := call.Arguments
+				if strings.TrimSpace(args) == "" {
+					args = "{}"
+				}
+				calls = append(calls, map[string]any{
+					"id":   call.ID,
+					"type": "function",
+					"function": map[string]any{
+						"name":      call.Name,
+						"arguments": args,
+					},
+				})
+			}
+			item["tool_calls"] = calls
+			if strings.TrimSpace(turn.Content) == "" {
+				item["content"] = nil
+			} else {
+				item["content"] = turn.Content
+			}
+			out = append(out, item)
+			continue
+		}
+		item["content"] = turn.Content
 		out = append(out, item)
 	}
 	return out
@@ -265,6 +304,35 @@ func responsesTools(defs []prompt.ToolDef) []map[string]any {
 func responsesInput(turns []prompt.Turn) []map[string]any {
 	out := make([]map[string]any, 0, len(turns))
 	for _, turn := range turns {
+		if len(turn.ToolCalls) > 0 {
+			if strings.TrimSpace(turn.Content) != "" {
+				out = append(out, map[string]any{
+					"role":    "assistant",
+					"content": []map[string]string{{"type": "output_text", "text": turn.Content}},
+				})
+			}
+			for _, call := range turn.ToolCalls {
+				args := call.Arguments
+				if strings.TrimSpace(args) == "" {
+					args = "{}"
+				}
+				out = append(out, map[string]any{
+					"type":      "function_call",
+					"call_id":   call.ID,
+					"name":      call.Name,
+					"arguments": args,
+				})
+			}
+			continue
+		}
+		if isToolResult(turn) {
+			out = append(out, map[string]any{
+				"type":    "function_call_output",
+				"call_id": turn.ToolCallID,
+				"output":  turn.Content,
+			})
+			continue
+		}
 		role := strings.TrimSpace(turn.Role)
 		partType := "input_text"
 		if role == "assistant" {
@@ -276,6 +344,17 @@ func responsesInput(turns []prompt.Turn) []map[string]any {
 		})
 	}
 	return out
+}
+
+func isToolResult(turn prompt.Turn) bool {
+	return strings.TrimSpace(turn.ToolCallID) != "" || strings.TrimSpace(turn.Role) == "tool"
+}
+
+func normalizeToolArguments(raw json.RawMessage) string {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return "{}"
+	}
+	return canonical.UnwrapArgsJSON(string(raw))
 }
 
 func truncateForLog(raw []byte) string {
@@ -320,7 +399,11 @@ func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
 		if strings.TrimSpace(call.Function.Name) == "" {
 			continue
 		}
-		calls = append(calls, ToolCall{ID: call.ID, Name: call.Function.Name, Arguments: call.Function.Arguments})
+		calls = append(calls, ToolCall{
+			ID:        call.ID,
+			Name:      call.Function.Name,
+			Arguments: canonical.UnwrapArgsJSON(call.Function.Arguments),
+		})
 	}
 	text := strings.TrimSpace(msg.Content)
 	if text == "" && len(calls) == 0 {
@@ -338,6 +421,7 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			} `json:"content"`
+			ID        string          `json:"id"`
 			CallID    string          `json:"call_id"`
 			Name      string          `json:"name"`
 			Arguments json.RawMessage `json:"arguments"`
@@ -363,11 +447,11 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 				}
 			}
 		case "function_call", "tool_call":
-			args := string(item.Arguments)
-			if args == "" {
-				args = "{}"
+			id := strings.TrimSpace(item.CallID)
+			if id == "" {
+				id = strings.TrimSpace(item.ID)
 			}
-			calls = append(calls, ToolCall{ID: item.CallID, Name: item.Name, Arguments: args})
+			calls = append(calls, ToolCall{ID: id, Name: item.Name, Arguments: normalizeToolArguments(item.Arguments)})
 		}
 	}
 	text := strings.TrimSpace(strings.Join(texts, ""))

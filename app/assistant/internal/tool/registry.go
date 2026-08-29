@@ -288,6 +288,7 @@ func publishedPosts(ctx context.Context, client contentservice.ContentService, i
 }
 
 func strictUnmarshal(raw string, target any) error {
+	raw = canonical.UnwrapArgsJSON(raw)
 	if raw == "" {
 		raw = "{}"
 	}

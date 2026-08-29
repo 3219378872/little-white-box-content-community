@@ -170,7 +170,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `runtime.DecideDisposition`；`accept_test.go` |
 | AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
 | AGENT-014 未读 | aligned | Watch 计入；`memory_changed` unread=false |
-| AGENT-015 content/api_content 分离 | aligned | `assistant_message` |
+| AGENT-015 content/api_content 分离 | aligned | `assistant_message`；工具轮隐藏 `kind=tool` sidecar，下一轮按 `api_content` 重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
 | AGENT-021 lease 60s/10s | aligned | `internal/lease` SKIP LOCKED |
 | AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review |
@@ -182,15 +182,15 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-032 仅 delete_post 确认 | aligned | HighRisk + Confirm CAS |
 | AGENT-033 command journal | aligned | UNIQUE(user,request,tool,digest) |
 | AGENT-034 确认 CAS | aligned | `runtime.Confirm`；`confirm_test.go` |
-| AGENT-040 双 WireAPI 工具调用 | aligned | `internal/llm` httptest |
+| AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
 | AGENT-041 prompt 顺序 | aligned | `internal/prompt` |
 | AGENT-043 快照复用 | aligned | `builder_test.go` |
-| AGENT-050 compact 50%/keep 20% | aligned | `compact.go` 辅助；worker compact 阶段 |
+| AGENT-050 compact 50%/keep 20% | aligned | 只标记未保留消息 compacted；未完成 tool 强制保留 |
 | AGENT-052 memory-review 每 10 回合 | aligned | `maybeScheduleReview` |
 | AGENT-060/061 search_history | aligned | ES `assistant-history-v1` + MySQL 回源 |
 | AGENT-070/071 source ledger + present_sources | aligned | `tool/sources_test.go` |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
-| AGENT-A01~A06 验收 | partial | 单测覆盖 disposition/confirm/budget/source/prompt/llm；无 live LLM、无根真实栈 |
+| AGENT-A01~A06 验收 | partial | 单测覆盖 disposition/confirm/budget/source/prompt/llm/tool-round replay；无 live LLM、无根真实栈 |
 
 ## SPEC-agent-memory 追踪
 

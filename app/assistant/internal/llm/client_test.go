@@ -75,6 +75,28 @@ func TestResponsesToolCall(t *testing.T) {
 	if err != nil || len(result.ToolCalls) != 1 || result.ToolCalls[0].Name != "present_sources" {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}
+	if result.ToolCalls[0].Arguments != `{"handles":["h1"]}` {
+		t.Fatalf("arguments still wrapped: %q", result.ToolCalls[0].Arguments)
+	}
+}
+
+func TestDecodeResponsesArgumentsObjectOrString(t *testing.T) {
+	client := &HTTPClient{cfg: Config{Model: "m"}}
+	rawObject, _ := json.Marshal(map[string]any{
+		"status": "completed",
+		"output": []map[string]any{
+			{"type": "function_call", "call_id": "c1", "name": "search_posts", "arguments": map[string]any{"keyword": "go"}},
+		},
+	})
+	got, err := client.decodeResponses(rawObject)
+	if err != nil || len(got.ToolCalls) != 1 || got.ToolCalls[0].Arguments != `{"keyword":"go"}` {
+		t.Fatalf("object args=%+v err=%v", got, err)
+	}
+	rawString := []byte(`{"status":"completed","output":[{"type":"function_call","call_id":"c1","name":"search_posts","arguments":"{\"keyword\":\"go\"}"}]}`)
+	got, err = client.decodeResponses(rawString)
+	if err != nil || len(got.ToolCalls) != 1 || got.ToolCalls[0].Arguments != `{"keyword":"go"}` {
+		t.Fatalf("string args=%+v err=%v", got, err)
+	}
 }
 
 func TestResponsesInputAssistantUsesOutputText(t *testing.T) {
@@ -104,6 +126,50 @@ func TestResponsesInputAssistantUsesOutputText(t *testing.T) {
 	assertPartType(1, "user", "input_text")
 	assertPartType(2, "assistant", "output_text")
 	assertPartType(3, "user", "input_text")
+}
+
+func TestResponsesInputEmitsFunctionCallAndOutput(t *testing.T) {
+	got := responsesInput([]prompt.Turn{
+		{Role: "user", Content: "查猫粮"},
+		{Role: "assistant", ToolCalls: []prompt.ToolCall{{ID: "c1", Name: "search_posts", Arguments: `{"keyword":"猫粮"}`}}},
+		{Role: "tool", ToolCallID: "c1", Name: "search_posts", Content: "没有可展示的已发布帖子。"},
+	})
+	if len(got) != 3 {
+		t.Fatalf("len=%d %#v", len(got), got)
+	}
+	if got[1]["type"] != "function_call" || got[1]["call_id"] != "c1" || got[1]["arguments"] != `{"keyword":"猫粮"}` {
+		t.Fatalf("function_call=%#v", got[1])
+	}
+	if _, ok := got[1]["role"]; ok {
+		t.Fatalf("function_call should not have role: %#v", got[1])
+	}
+	if got[2]["type"] != "function_call_output" || got[2]["call_id"] != "c1" || got[2]["output"] != "没有可展示的已发布帖子。" {
+		t.Fatalf("function_call_output=%#v", got[2])
+	}
+}
+
+func TestChatMessagesEmitsToolCallsAndToolRole(t *testing.T) {
+	got := chatMessages([]prompt.Turn{
+		{Role: "user", Content: "查猫粮"},
+		{Role: "assistant", ToolCalls: []prompt.ToolCall{{ID: "c1", Name: "search_posts", Arguments: `{"keyword":"猫粮"}`}}},
+		{Role: "tool", ToolCallID: "c1", Name: "search_posts", Content: "none"},
+	})
+	if len(got) != 3 {
+		t.Fatalf("len=%d", len(got))
+	}
+	if got[1]["role"] != "assistant" {
+		t.Fatalf("assistant=%#v", got[1])
+	}
+	if got[1]["content"] != nil {
+		t.Fatalf("empty tool-call content want nil, got %#v", got[1]["content"])
+	}
+	calls, ok := got[1]["tool_calls"].([]map[string]any)
+	if !ok || len(calls) != 1 || calls[0]["id"] != "c1" {
+		t.Fatalf("tool_calls=%#v", got[1]["tool_calls"])
+	}
+	if got[2]["role"] != "tool" || got[2]["tool_call_id"] != "c1" || got[2]["content"] != "none" {
+		t.Fatalf("tool=%#v", got[2])
+	}
 }
 
 func TestCompleteSurfacesHTTPErrorBody(t *testing.T) {

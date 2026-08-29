@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // JSON returns a deterministic encoding: nested objects use sorted keys.
@@ -34,8 +35,33 @@ func DigestSHA256(v any) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// UnwrapArgsJSON peels a JSON-string-wrapped object (Responses `arguments` is a
+// string) so executors receive a JSON object. At most two layers are unwrapped.
+func UnwrapArgsJSON(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "{}"
+	}
+	for i := 0; i < 2; i++ {
+		if len(raw) < 2 || raw[0] != '"' {
+			return raw
+		}
+		var inner string
+		if err := json.Unmarshal([]byte(raw), &inner); err != nil {
+			return raw
+		}
+		inner = strings.TrimSpace(inner)
+		if inner == "" {
+			return "{}"
+		}
+		raw = inner
+	}
+	return raw
+}
+
 // DigestArgs parses tool argument JSON (object or empty) then digests it.
 func DigestArgs(raw string) (string, error) {
+	raw = UnwrapArgsJSON(raw)
 	if raw == "" {
 		raw = "{}"
 	}

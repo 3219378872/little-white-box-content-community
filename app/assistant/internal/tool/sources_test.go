@@ -30,4 +30,12 @@ func TestSourceHandleRunBindingAndPresentSources(t *testing.T) {
 	if len(cards) != 1 || cards[0].Handle != "src_ok" {
 		t.Fatalf("cards=%+v text=%s", cards, text)
 	}
+	quoted := `"{\"handles\":[\"src_ok\"]}"`
+	text, cards, err = reg.Call(ctx, sess, PresentSources, "c2", quoted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cards) != 1 || cards[0].Handle != "src_ok" {
+		t.Fatalf("quoted cards=%+v text=%s", cards, text)
+	}
 }

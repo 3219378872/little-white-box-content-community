@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-29-assistant-tool-context.md](2026-08-29-assistant-tool-context.md)：
+  工具轮 `api_content` 重放、Responses arguments 剥壳与合法 `result_json`，提交见 frontmatter。
 - [2026-08-29-assistant-agent-runtime.md](2026-08-29-assistant-agent-runtime.md)：
   Hermes 持久异步 Agent（worker/lease/SSE/Memory/Watch）硬切换，提交见 frontmatter。
 - [2026-08-28-content-community-agent-p0.md](2026-08-28-content-community-agent-p0.md)：

@@ -23,9 +23,37 @@ const ToolRules = `Agent 与工具规则：
 - 只有 delete_post 需要用户逐次确认；create/update、Memory 与 Watch 写走授权、schema、所有权和幂等校验。
 - 不确定时明确说不确定，不要编造帖子、用户、历史或工具结果。`
 
+type ToolCall struct {
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Arguments string `json:"arguments,omitempty"`
+}
+
 type Turn struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string     `json:"role,omitempty"`
+	Content    string     `json:"content,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Name       string     `json:"name,omitempty"`
+}
+
+func EncodeTurn(t Turn) []byte {
+	raw, _ := json.Marshal(t)
+	return raw
+}
+
+func DecodeTurn(raw []byte) (Turn, bool) {
+	if len(raw) == 0 {
+		return Turn{}, false
+	}
+	var turn Turn
+	if json.Unmarshal(raw, &turn) != nil {
+		return Turn{}, false
+	}
+	if turn.Role == "" && len(turn.ToolCalls) == 0 && turn.ToolCallID == "" {
+		return Turn{}, false
+	}
+	return turn, true
 }
 
 type MemoryLine struct {
