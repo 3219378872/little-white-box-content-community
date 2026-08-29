@@ -53,8 +53,12 @@ verified_commit: 648360f48c25283bf283406744ec80661c4db39c
 
 # 小白盒内容社区后端实现映射
 
-本页记录已批准规范到代码实现的映射与逐条状态（社区核心、发现、证据化
-Assistant、Agent 模式、记忆、条件追踪、反馈可靠性）。
+本页记录已批准规范到代码实现的映射与逐条状态。现有 Assistant/Agent、Memory 和 Watch
+表格是 2026-08-28 之前同步实现的历史快照；其中 `SPEC-grounded-assistant`、
+`SPEC-assistant-agent-mode` 及其 ASST/AGNT/MEM/WCH 条款已由 Hermes 规范退休，不再是当前
+产品约束。`SPEC-assistant-agent` 的持久异步 worker、虚拟线程、compact、BM25、source
+ledger 和主动 Watch 消息尚未实现或验证，故本页继续保持 `diverged`，不得把下方旧表格当作
+新契约的完成证据。
 设计见 [DES-content-community-backend](../design/DES-content-community-backend.md)
 与 [DES-assistant-agent-runtime](../design/DES-assistant-agent-runtime.md)；
 源码、`.api`、`.proto`、SQL 与测试高于本页。

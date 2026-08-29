@@ -140,5 +140,6 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 ## 验收策略
 
 代码行为类（CORE-A*、DISC-A01~A05、AGENT-A01~A06、REL-A01~A04 的接口部分）用 Go 测试
-落地，每个改动的 Logic 至少一条失败路径。DISC-A06、ASST-050/051、REL-A05 需要人类冻结
-集与真实观测，由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。
+落地，每个改动的 Logic 至少一条失败路径。DISC-A06 需要人类冻结集，REL-A05 需要真实观测；
+两者由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。Hermes Agent 的异步恢复、compact、
+历史召回和来源 ledger 以 `AGENT-A01~A06` 验收，当前实现尚未关闭这些新门禁。

@@ -2,20 +2,20 @@
 title: knowledge transition register
 owner: agent
 status: active
-observed_at: 2026-08-15
-observed_commit: a52eb89
+observed_at: 2026-08-29
+observed_commit: b9ca421
 ---
 
 # 知识迁移登记
 
 本页只记录迁移状态，不是意图、规范或设计。
 
-## 已完成迁移（2026-08-13）
+## 已完成迁移（2026-08-13，历史快照）
 
 - 意图层：`docs/knowledge/intent/INT-content-community-backend.md`（approved）。
 - 规范层：`SPEC-community-core`、`SPEC-content-discovery`、`SPEC-grounded-assistant`、
   `SPEC-assistant-agent-mode`、`SPEC-agent-memory`、`SPEC-agent-watch`、
-  `SPEC-feedback-reliability`（approved）。
+  `SPEC-feedback-reliability`（当时 approved；Assistant 两份旧规范现为 retired）。
 - 设计层：`docs/knowledge/design/DES-content-community-backend.md`（active）。
 - 实现层：`IMP-content-community-backend`、`IMP-architecture`、
   `IMP-engineering-conventions`、`IMP-development-quickstart`、`IMP-todo-blocked-gates`
@@ -32,13 +32,14 @@ observed_commit: a52eb89
 - 实现页 `aligned/diverged` 状态必须引用活跃 `DES-*` 并列出真实 `tracks`、提交和日期。
 - 未获授权的意图/规范建议只能写入 `docs/knowledge/proposals/`。
 
-## 2026-08-27 Agent 能力扩张
+## 2026-08-27 Agent 能力扩张（历史快照）
 
 - 意图：`INT-content-community-backend` 将 Agent 从发帖工具扩展为内容搜索综述、
   结构化记忆、可解释推荐与条件追踪；明确不做游戏库/价格/商城与通用通知中心。
 - 规范：修订 `SPEC-grounded-assistant`（评论证据、`ASST-042` 重批）、
   `SPEC-assistant-agent-mode`（分组白名单、`consent_version`）；新增
-  `SPEC-agent-memory`、`SPEC-agent-watch`。
+  `SPEC-agent-memory`、`SPEC-agent-watch`。这些是迁移前的历史版本，当前约束以
+  `SPEC-assistant-agent` 及重写后的 Memory/Watch 规范为准。
 - 设计与实现尚未对齐：活跃设计仍须在后续任务中引用新规范，实现状态在对齐前保持
   `diverged`。
 
