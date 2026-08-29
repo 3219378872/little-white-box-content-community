@@ -62,6 +62,10 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	logger := logx.WithContext(ctx)
 	if err := e.run(ctx, run); err != nil {
 		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+		if fresh, getErr := e.Store.GetRun(ctx, run.ID); getErr == nil && fresh != nil &&
+			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
+			_ = e.fail(ctx, *fresh, "RUN_FAILED", err.Error())
+		}
 	}
 }
 

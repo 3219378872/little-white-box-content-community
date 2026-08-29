@@ -442,14 +442,19 @@ func (s *SQLStore) RenewLease(ctx context.Context, runID int64, owner string, le
 }
 
 func (s *SQLStore) OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, error) {
-	var created sql.NullInt64
-	if err := s.exec.QueryRowCtx(ctx, &created, `SELECT MIN(created_at_ms) FROM agent_run WHERE status='queued'`); err != nil {
+	var row struct {
+		Created sql.NullInt64 `db:"created_at_ms"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT MIN(created_at_ms) AS created_at_ms FROM agent_run WHERE status='queued'`); err != nil {
+		if err == sqlx.ErrNotFound {
+			return 0, nil
+		}
 		return 0, err
 	}
-	if !created.Valid {
+	if !row.Created.Valid {
 		return 0, nil
 	}
-	age := nowMs - created.Int64
+	age := nowMs - row.Created.Int64
 	if age < 0 {
 		return 0, nil
 	}
@@ -457,10 +462,13 @@ func (s *SQLStore) OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, e
 }
 
 func (s *SQLStore) InsertEvent(ctx context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error) {
-	var seq int64
-	if err := s.exec.QueryRowCtx(ctx, &seq, `SELECT IFNULL(MAX(seq),0)+1 FROM agent_run_event WHERE run_id=?`, runID); err != nil {
+	var seqRow struct {
+		Seq int64 `db:"seq"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &seqRow, `SELECT IFNULL(MAX(seq),0)+1 AS seq FROM agent_run_event WHERE run_id=?`, runID); err != nil {
 		return Event{}, err
 	}
+	seq := seqRow.Seq
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run_event (run_id, seq, type, payload_json, created_at_ms) VALUES (?, ?, ?, ?, ?)`,
 		runID, seq, eventType, nullBytes(payload), createdAtMs)
 	if err != nil {
@@ -491,11 +499,16 @@ func (s *SQLStore) ListEventsAfter(ctx context.Context, runID, afterSeq int64) (
 }
 
 func (s *SQLStore) MaxEventSeq(ctx context.Context, runID int64) (int64, error) {
-	var seq sql.NullInt64
-	if err := s.exec.QueryRowCtx(ctx, &seq, `SELECT MAX(seq) FROM agent_run_event WHERE run_id=?`, runID); err != nil {
+	var row struct {
+		Seq int64 `db:"seq"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT IFNULL(MAX(seq),0) AS seq FROM agent_run_event WHERE run_id=?`, runID); err != nil {
+		if err == sqlx.ErrNotFound {
+			return 0, nil
+		}
 		return 0, err
 	}
-	return seq.Int64, nil
+	return row.Seq, nil
 }
 
 func (s *SQLStore) InsertToolCall(ctx context.Context, call ToolCall) (ToolCall, error) {
@@ -756,11 +769,13 @@ func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64,
 }
 
 func (s *SQLStore) CountQueue(ctx context.Context, runID int64) (int, error) {
-	var n int64
-	if err := s.exec.QueryRowCtx(ctx, &n, `SELECT COUNT(*) FROM agent_input_queue WHERE run_id=?`, runID); err != nil {
+	var row struct {
+		N int64 `db:"n"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT COUNT(*) AS n FROM agent_input_queue WHERE run_id=?`, runID); err != nil {
 		return 0, err
 	}
-	return int(n), nil
+	return int(row.N), nil
 }
 
 func (s *SQLStore) Enqueue(ctx context.Context, item QueueItem) (QueueItem, error) {
@@ -956,15 +971,17 @@ func (s *SQLStore) ResetUnsentBuckets(ctx context.Context, userID int64) error {
 }
 
 func (s *SQLStore) CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error) {
-	var n int64
-	if err := s.exec.QueryRowCtx(ctx, &n, `SELECT IFNULL(sent_count,0) FROM watch_send_stat
+	var row struct {
+		N int64 `db:"n"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT IFNULL(sent_count,0) AS n FROM watch_send_stat
 		WHERE user_id=? AND task_id=? AND period_kind=? AND period_start_ms=?`, userID, taskID, periodKind, periodStartMs); err != nil {
 		if err == sqlx.ErrNotFound {
 			return 0, nil
 		}
 		return 0, err
 	}
-	return int(n), nil
+	return int(row.N), nil
 }
 
 func (s *SQLStore) IncrSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) error {

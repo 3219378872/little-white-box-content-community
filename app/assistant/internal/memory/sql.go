@@ -438,10 +438,12 @@ func (s *SQLStore) insertChange(ctx context.Context, session sqlx.Session, userI
 		userID, entryID, op, encodeEntry(before), encodeEntry(after), resultVersion, requestID, nowMs)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			var id int64
-			if qerr := session.QueryRowCtx(ctx, &id, `SELECT id FROM memory_change WHERE user_id=? AND request_id=? AND entry_id=? AND op=?`,
+			var idRow struct {
+				ID int64 `db:"id"`
+			}
+			if qerr := session.QueryRowCtx(ctx, &idRow, `SELECT id FROM memory_change WHERE user_id=? AND request_id=? AND entry_id=? AND op=?`,
 				userID, requestID, entryID, op); qerr == nil {
-				return id, nil
+				return idRow.ID, nil
 			}
 		}
 		return 0, err
