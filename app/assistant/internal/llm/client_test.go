@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -254,5 +255,22 @@ func TestReadinessFailsIfToolsUnsupported(t *testing.T) {
 	}
 	if err := Ready(Unsupported(), false); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCompleteHonorsCanceledContext(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("canceled complete must not hit the provider")
+	}))
+	defer server.Close()
+	client, err := New(Config{Enabled: true, WireAPI: WireAPIChatCompletions, Endpoint: server.URL + "/v1", Model: "m", Timeout: time.Second, MaxOutputTokens: 128})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = client.Complete(ctx, Request{Messages: []prompt.Turn{{Role: "user", Content: "hi"}}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
 	}
 }

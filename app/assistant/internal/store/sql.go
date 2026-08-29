@@ -350,7 +350,7 @@ func (row runRow) toRun() Run {
 
 func (s *SQLStore) UpdateRun(ctx context.Context, run Run) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, phase=?, queued_payload=?, lease_owner=?, lease_until_ms=?,
-		heartbeat_at_ms=?, cancel_requested=?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
+		heartbeat_at_ms=?, cancel_requested=cancel_requested OR ?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
 		cache_tokens=?, cost_usd=?, started_at_ms=?, ended_at_ms=?, last_activity_at_ms=?, error_code=? WHERE id=?`,
 		run.Status, run.Phase, nullBytes(run.QueuedPayload), nullString(run.LeaseOwner), nullInt(run.LeaseUntilMs),
 		nullInt(run.HeartbeatAtMs), boolToInt(run.CancelRequested), run.PromptEpoch, nullString(run.Model), run.Rounds,

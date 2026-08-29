@@ -173,7 +173,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-015 content/api_content 分离 | aligned | `assistant_message`；工具轮隐藏 `kind=tool` sidecar，下一轮按 `api_content` 重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
 | AGENT-021 lease 60s/10s | aligned | `internal/lease` SKIP LOCKED |
-| AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review |
+| AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop 取消 work ctx 并 sticky `cancel_requested`（`loop_cancel_test.go`） |
 | AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | `runtime.Subscribe` |
 | AGENT-024 事件类型白名单 | aligned | `store.Event*` |
 | AGENT-025 唯一终止 | aligned | finish 写 done/error 后清 active_run_id |

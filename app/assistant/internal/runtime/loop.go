@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -40,6 +41,9 @@ var (
 		Help:    "Time from claim to first token event",
 		Buckets: []float64{0.1, 0.25, 0.5, 1, 2, 5, 10},
 	})
+
+	errRunCancelled     = errors.New("assistant run cancelled")
+	cancelWatchInterval = 50 * time.Millisecond
 )
 
 type Engine struct {
@@ -59,32 +63,106 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	if run.CreatedAtMs > 0 {
 		agentQueueAge.ObserveFloat(float64(store.NowMs()-run.CreatedAtMs) / 1000)
 	}
-	logger := logx.WithContext(ctx)
-	if err := e.run(ctx, run); err != nil {
+	persistCtx := ctx
+	workCtx, cancelWork := context.WithCancel(persistCtx)
+	defer cancelWork()
+	stopWatch := watchCancel(persistCtx, e.Store, run.ID, cancelWork)
+	defer stopWatch()
+
+	logger := logx.WithContext(persistCtx)
+	if err := e.run(workCtx, persistCtx, run); err != nil {
+		if errors.Is(err, errRunCancelled) {
+			if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
+				!store.IsTerminalStatus(fresh.Status) {
+				_ = e.cancel(persistCtx, *fresh)
+			}
+			return
+		}
 		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
-		if fresh, getErr := e.Store.GetRun(ctx, run.ID); getErr == nil && fresh != nil &&
+		if persistCtx.Err() != nil {
+			return
+		}
+		if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
 			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
-			_ = e.fail(ctx, *fresh, "RUN_FAILED", err.Error())
+			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", err.Error())
 		}
 	}
 }
 
-func (e *Engine) run(ctx context.Context, run store.Run) error {
-	session, err := e.Store.GetSession(ctx, run.SessionID)
+func watchCancel(persistCtx context.Context, st store.Store, runID int64, cancelWork context.CancelFunc) func() {
+	if st == nil {
+		return func() {}
+	}
+	watchCtx, stop := context.WithCancel(persistCtx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(cancelWatchInterval)
+		defer ticker.Stop()
+		check := func() bool {
+			run, err := st.GetRun(watchCtx, runID)
+			return err == nil && run != nil && run.CancelRequested
+		}
+		if check() {
+			cancelWork()
+			return
+		}
+		for {
+			select {
+			case <-watchCtx.Done():
+				return
+			case <-ticker.C:
+				if check() {
+					cancelWork()
+					return
+				}
+			}
+		}
+	}()
+	return func() {
+		stop()
+		<-done
+	}
+}
+
+func (e *Engine) cancelled(persistCtx context.Context, run *store.Run) bool {
+	if run == nil || e.Store == nil {
+		return false
+	}
+	fresh, err := e.Store.GetRun(persistCtx, run.ID)
+	if err != nil || fresh == nil {
+		return run.CancelRequested
+	}
+	if fresh.CancelRequested {
+		run.CancelRequested = true
+		return true
+	}
+	return run.CancelRequested
+}
+
+func (e *Engine) abortIfRequested(persistCtx context.Context, run store.Run) (bool, error) {
+	if !e.cancelled(persistCtx, &run) {
+		return false, nil
+	}
+	return true, e.cancel(persistCtx, run)
+}
+
+func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
+	session, err := e.Store.GetSession(persistCtx, run.SessionID)
 	if err != nil {
-		return e.fail(ctx, run, "SESSION_MISSING", err.Error())
+		return e.fail(persistCtx, run, "SESSION_MISSING", err.Error())
 	}
 	snap, ok := prompt.DecodeSnapshot(session.PromptSnapshot)
 	if !ok {
 		var entries []memory.Entry
 		if e.Memory != nil {
-			entries, _ = e.Memory.Active(ctx, run.UserID)
+			entries, _ = e.Memory.Active(persistCtx, run.UserID)
 		}
 		snap = prompt.BuildSnapshot(entries, nil, session.CompactSummary)
 		session.PromptSnapshot = prompt.EncodeSnapshot(snap)
-		_ = e.Store.UpdateSession(ctx, *session)
+		_ = e.Store.UpdateSession(persistCtx, *session)
 	}
-	if err := e.ensureStarted(ctx, run); err != nil {
+	if err := e.ensureStarted(persistCtx, run); err != nil {
 		return err
 	}
 	started := time.Now()
@@ -92,35 +170,38 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 	var reviewLive []prompt.Turn
 	registry := tool.ForSource(e.Tools, run.Source, tool.CurrentConsentVersion)
 	if registry == nil {
-		return e.fail(ctx, run, "TOOLS_UNAVAILABLE", "no tools")
+		return e.fail(persistCtx, run, "TOOLS_UNAVAILABLE", "no tools")
 	}
 	session.ToolSnapshot = prompt.EncodeTools(registry.Definitions())
-	_ = e.Store.UpdateSession(ctx, *session)
+	_ = e.Store.UpdateSession(persistCtx, *session)
 
 	for {
-		fresh, err := e.Store.GetRun(ctx, run.ID)
+		fresh, err := e.Store.GetRun(persistCtx, run.ID)
 		if err != nil {
 			return err
 		}
 		run = *fresh
-		if run.CancelRequested {
-			return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"})
+		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+			return abortErr
 		}
 		now := store.NowMs()
 		if HardLimitExceeded(run, now) {
-			return e.resourceLimit(ctx, run)
+			return e.resourceLimit(persistCtx, run)
 		}
-		convergence, _ := RecordAlarms(ctx, e.Store, run, now)
+		convergence, _ := RecordAlarms(persistCtx, e.Store, run, now)
 
-		msgs, _ := e.Store.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+		msgs, _ := e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
 		if e.Window == 0 && e.LLM != nil {
 			e.Window = e.LLM.ContextWindowTokens()
 		}
 		if ShouldCompact(msgs, e.Window) {
-			if err := e.compact(ctx, &run, session, msgs); err != nil {
+			if err := e.compact(workCtx, persistCtx, &run, session, msgs); err != nil {
+				if errors.Is(err, errRunCancelled) {
+					return e.cancel(persistCtx, run)
+				}
 				return err
 			}
-			session, _ = e.Store.GetSession(ctx, run.SessionID)
+			session, _ = e.Store.GetSession(persistCtx, run.SessionID)
 			snap, _ = prompt.DecodeSnapshot(session.PromptSnapshot)
 			continue
 		}
@@ -130,14 +211,17 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 			history = append(history, reviewLive...)
 		} else if open := unmatchedToolCalls(history); len(open) > 0 {
 			for _, call := range open {
-				if err := e.execTool(ctx, &run, registry, call, &reviewLive); err != nil {
+				if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+					return abortErr
+				}
+				if err := e.execTool(workCtx, persistCtx, &run, registry, call, &reviewLive); err != nil {
+					if errors.Is(err, errRunCancelled) {
+						return e.cancel(persistCtx, run)
+					}
 					return err
 				}
-				if run.CancelRequested {
-					return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED"})
-				}
 			}
-			msgs, _ = e.Store.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+			msgs, _ = e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
 			history = HistoryTurns(visibleForPrompt(msgs))
 		}
 		snap.History = history
@@ -148,26 +232,35 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 				seen[msg.ID] = struct{}{}
 			}
 		}
-		turns = append(turns, e.pendingUserTurns(ctx, run, seen)...)
+		turns = append(turns, e.pendingUserTurns(persistCtx, run, seen)...)
 
 		run.Phase = store.PhaseModelRequest
 		run.LastActivityAtMs = now
-		_ = e.Store.UpdateRun(ctx, run)
+		_ = e.Store.UpdateRun(persistCtx, run)
 
 		if e.LLM == nil {
-			return e.fail(ctx, run, "LLM_DISABLED", "model is not configured")
+			return e.fail(persistCtx, run, "LLM_DISABLED", "model is not configured")
 		}
-		result, err := e.LLM.Complete(ctx, llm.Request{
+		result, err := e.LLM.Complete(workCtx, llm.Request{
 			Messages:    turns,
 			Tools:       registry.Definitions(),
 			MaxTokens:   SingleOutputLimit(e.LLM.MaxOutputTokens()),
 			Convergence: convergence,
 		})
 		if err != nil {
+			if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+				return abortErr
+			}
+			if persistCtx.Err() != nil {
+				return err
+			}
 			agentLLMCalls.Inc("failure")
-			logx.WithContext(ctx).Errorw("assistant LLM complete failed",
+			logx.WithContext(persistCtx).Errorw("assistant LLM complete failed",
 				logx.Field("runId", run.ID), logx.Field("err", err.Error()))
-			return e.fail(ctx, run, "LLM_UNAVAILABLE", "model call failed")
+			return e.fail(persistCtx, run, "LLM_UNAVAILABLE", "model call failed")
+		}
+		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+			return abortErr
 		}
 		agentLLMCalls.Inc("success")
 		run.Rounds++
@@ -176,7 +269,10 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 		run.CacheTokens += result.Usage.CacheTokens
 		run.CostUSD += result.Usage.CostUSD
 		run.LastActivityAtMs = store.NowMs()
-		_ = e.Store.UpdateRun(ctx, run)
+		_ = e.Store.UpdateRun(persistCtx, run)
+		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+			return abortErr
+		}
 
 		if len(result.ToolCalls) == 0 {
 			text := strings.TrimSpace(result.Text)
@@ -184,24 +280,24 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 				agentFirstToken.ObserveFloat(time.Since(started).Seconds())
 				firstToken = true
 			}
-			_, _ = AppendEvent(ctx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: text})
+			_, _ = AppendEvent(persistCtx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: text})
 			if run.Source != store.SourceMemoryReview {
-				_, _ = e.Store.InsertMessage(ctx, store.Message{
+				_, _ = e.Store.InsertMessage(persistCtx, store.Message{
 					UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
 					Kind: store.KindMessage, Content: text, APIContent: result.Raw, Visible: true,
 					Unread: run.Source == store.SourceWatch, CreatedAtMs: store.NowMs(),
 				})
 				if run.Source == store.SourceWatch {
-					thread, _ := e.Store.GetThread(ctx, run.UserID)
+					thread, _ := e.Store.GetThread(persistCtx, run.UserID)
 					if thread != nil {
 						thread.UnreadCount++
 						thread.LastMessagePreview = store.Preview(text, 80)
 						thread.LastMessageAtMs = store.NowMs()
-						_ = e.Store.SaveThread(ctx, *thread)
+						_ = e.Store.SaveThread(persistCtx, *thread)
 					}
 				}
 			}
-			return e.finish(ctx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text})
+			return e.finish(persistCtx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text})
 		}
 
 		calls := make([]llm.ToolCall, 0, len(result.ToolCalls))
@@ -215,17 +311,20 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 			calls = append(calls, llm.ToolCall{ID: id, Name: call.Name, Arguments: args})
 			assistantTurn.ToolCalls = append(assistantTurn.ToolCalls, prompt.ToolCall{ID: id, Name: call.Name, Arguments: args})
 		}
-		if err := e.recordTurn(ctx, run, assistantTurn, store.KindTool, false, &reviewLive); err != nil {
+		if err := e.recordTurn(persistCtx, run, assistantTurn, store.KindTool, false, &reviewLive); err != nil {
 			return err
 		}
 		run.Phase = store.PhaseToolExecuting
-		_ = e.Store.UpdateRun(ctx, run)
+		_ = e.Store.UpdateRun(persistCtx, run)
 		for _, call := range calls {
-			if err := e.execTool(ctx, &run, registry, call, &reviewLive); err != nil {
-				return err
+			if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
+				return abortErr
 			}
-			if run.CancelRequested {
-				return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED"})
+			if err := e.execTool(workCtx, persistCtx, &run, registry, call, &reviewLive); err != nil {
+				if errors.Is(err, errRunCancelled) {
+					return e.cancel(persistCtx, run)
+				}
+				return err
 			}
 		}
 	}
@@ -270,65 +369,74 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 	return out
 }
 
-func (e *Engine) execTool(ctx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
+func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
 	call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
 	digest, _ := canonical.DigestArgs(call.Arguments)
-	_, _ = e.Store.InsertToolCall(ctx, store.ToolCall{
+	_, _ = e.Store.InsertToolCall(persistCtx, store.ToolCall{
 		RunID: run.ID, CallID: call.ID, Tool: call.Name, ArgsJSON: call.Arguments,
 		CanonicalArgsDigest: digest, Status: "running", CreatedAtMs: store.NowMs(),
 	})
-	_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventToolCall, store.EventPayload{
+	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolCall, store.EventPayload{
 		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: call.Arguments},
 	})
-	if journal, err := e.Store.GetJournal(ctx, run.UserID, run.RequestID, call.Name, digest); err == nil && journal != nil && journal.Status == store.JournalSuccess {
+	if journal, err := e.Store.GetJournal(persistCtx, run.UserID, run.RequestID, call.Name, digest); err == nil && journal != nil && journal.Status == store.JournalSuccess {
 		agentToolCalls.Inc(call.Name, "replay")
 		text := decodeToolResultText(journal.ResultJSON)
-		_ = e.Store.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: encodeToolResultJSON(text, nil)})
-		if err := e.recordTurn(ctx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); err != nil {
+		_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: encodeToolResultJSON(text, nil)})
+		if err := e.recordTurn(persistCtx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); err != nil {
 			return err
 		}
-		_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
+		_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
 			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "replay", PayloadJSON: text},
 			Text:     text,
 		})
 		return nil
 	}
 	if registry.HighRisk(call.Name) {
-		if err := e.requireConfirm(ctx, run, call, digest); err != nil {
+		if err := e.requireConfirm(workCtx, persistCtx, run, call, digest); err != nil {
 			return err
 		}
 	}
+	if e.cancelled(persistCtx, run) {
+		return errRunCancelled
+	}
 	sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID, Source: run.Source}
-	text, cards, err := registry.Call(ctx, sess, call.Name, call.ID, call.Arguments)
+	text, cards, err := registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
 	outcome := "success"
 	if err != nil {
+		if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
+			return errRunCancelled
+		}
 		outcome = "unavailable"
 		text = err.Error()
 	}
 	agentToolCalls.Inc(call.Name, outcome)
 	run.ToolCalls++
 	run.LastActivityAtMs = store.NowMs()
-	_ = e.Store.UpdateRun(ctx, *run)
+	_ = e.Store.UpdateRun(persistCtx, *run)
 	resultJSON := encodeToolResultJSON(text, err)
 	if sideEffect(call.Name) && err == nil {
-		row, reserved, jerr := e.Store.ReserveJournal(ctx, store.Journal{
+		row, reserved, jerr := e.Store.ReserveJournal(persistCtx, store.Journal{
 			UserID: run.UserID, RequestID: run.RequestID, Tool: call.Name, CanonicalArgsDigest: digest,
 			Status: store.JournalSuccess, ResultJSON: resultJSON, CreatedAtMs: store.NowMs(),
 		})
 		if jerr == nil && reserved && row != nil {
-			_ = e.Store.CompleteJournal(ctx, row.ID, store.JournalSuccess, resultJSON)
+			_ = e.Store.CompleteJournal(persistCtx, row.ID, store.JournalSuccess, resultJSON)
 		}
 	}
-	_ = e.Store.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON})
-	if recErr := e.recordTurn(ctx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); recErr != nil {
+	_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON})
+	if recErr := e.recordTurn(persistCtx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); recErr != nil {
 		return recErr
 	}
-	_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
+	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
 		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: text},
 		Text:     text,
 	})
 	for _, card := range cards {
-		_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventSourceCard, store.EventPayload{SourceCard: &card})
+		_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventSourceCard, store.EventPayload{SourceCard: &card})
+	}
+	if e.cancelled(persistCtx, run) {
+		return errRunCancelled
 	}
 	return nil
 }
@@ -416,22 +524,20 @@ func sideEffect(name string) bool {
 	}
 }
 
-func (e *Engine) requireConfirm(ctx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
-	_, _ = e.Store.InsertConfirmation(ctx, store.Confirmation{
+func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
+	_, _ = e.Store.InsertConfirmation(persistCtx, store.Confirmation{
 		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, CallID: call.ID, Tool: call.Name,
 		CanonicalArgsDigest: digest, Status: store.ConfirmPending, CreatedAtMs: store.NowMs(),
 	})
-	_, _ = AppendEvent(ctx, e.Store, e.Notify, *run, store.EventConfirmRequired, store.EventPayload{
+	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventConfirmRequired, store.EventPayload{
 		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "确认删除帖子", PayloadJSON: call.Arguments},
 	})
 	deadline := time.Now().Add(2 * time.Minute)
 	for time.Now().Before(deadline) {
-		fresh, _ := e.Store.GetRun(ctx, run.ID)
-		if fresh != nil && fresh.CancelRequested {
-			run.CancelRequested = true
-			return errx.NewWithCode(errx.AgentRunConflict)
+		if e.cancelled(persistCtx, run) {
+			return errRunCancelled
 		}
-		conf, _ := e.Store.GetConfirmation(ctx, run.ID, call.ID)
+		conf, _ := e.Store.GetConfirmation(persistCtx, run.ID, call.ID)
 		if conf != nil && conf.Status == store.ConfirmApproved {
 			return nil
 		}
@@ -439,17 +545,20 @@ func (e *Engine) requireConfirm(ctx context.Context, run *store.Run, call llm.To
 			return errx.New(errx.PermissionDenied, "delete_post rejected")
 		}
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-workCtx.Done():
+			if e.cancelled(persistCtx, run) {
+				return errRunCancelled
+			}
+			return workCtx.Err()
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
 	return errx.New(errx.ParamError, "delete_post confirmation expired")
 }
 
-func (e *Engine) compact(ctx context.Context, run *store.Run, session *store.Session, msgs []store.Message) error {
+func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, session *store.Session, msgs []store.Message) error {
 	run.Phase = store.PhaseCompact
-	_ = e.Store.UpdateRun(ctx, *run)
+	_ = e.Store.UpdateRun(persistCtx, *run)
 	keep := EstimateMessageTokens(msgs) / 5
 	if keep < 1 {
 		keep = 1
@@ -467,14 +576,21 @@ func (e *Engine) compact(ctx context.Context, run *store.Run, session *store.Ses
 			b.WriteString(store.Preview(msg.Content, 200))
 			b.WriteByte('\n')
 		}
-		result, err := e.LLM.Complete(ctx, llm.Request{
+		result, err := e.LLM.Complete(workCtx, llm.Request{
 			Messages:     []prompt.Turn{{Role: store.RoleSystem, Content: "用中文压缩以下会话，不要引入新事实。"}, {Role: store.RoleUser, Content: b.String()}},
 			DisableTools: true,
 			MaxTokens:    512,
 		})
-		if err == nil && strings.TrimSpace(result.Text) != "" {
+		if err != nil {
+			if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
+				return errRunCancelled
+			}
+		} else if strings.TrimSpace(result.Text) != "" {
 			summary = result.Text
 		}
+	}
+	if e.cancelled(persistCtx, run) {
+		return errRunCancelled
 	}
 	keepIDs := make(map[int64]struct{}, len(selected))
 	for _, msg := range selected {
@@ -488,22 +604,22 @@ func (e *Engine) compact(ctx context.Context, run *store.Run, session *store.Ses
 		ids = append(ids, msg.ID)
 	}
 	if len(ids) > 0 {
-		_ = e.Store.MarkMessagesCompacted(ctx, ids)
+		_ = e.Store.MarkMessagesCompacted(persistCtx, ids)
 	}
 	var entries []memory.Entry
 	if e.Memory != nil {
-		entries, _ = e.Memory.Active(ctx, run.UserID)
+		entries, _ = e.Memory.Active(persistCtx, run.UserID)
 	}
 	snap := prompt.BuildSnapshot(entries, HistoryTurns(selected), summary)
 	session.PromptEpoch++
 	session.PromptSnapshot = prompt.EncodeSnapshot(snap)
 	session.CompactSummary = summary
-	if err := e.Store.UpdateSession(ctx, *session); err != nil {
+	if err := e.Store.UpdateSession(persistCtx, *session); err != nil {
 		return err
 	}
 	run.PromptEpoch = session.PromptEpoch
 	run.Phase = store.PhaseModelRequest
-	return e.Store.UpdateRun(ctx, *run)
+	return e.Store.UpdateRun(persistCtx, *run)
 }
 
 func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
@@ -532,12 +648,20 @@ func (e *Engine) fail(ctx context.Context, run store.Run, code, text string) err
 	return e.finish(ctx, run, store.StatusError, store.EventError, store.EventPayload{ErrorCode: code, Text: text})
 }
 
+func (e *Engine) cancel(ctx context.Context, run store.Run) error {
+	run.CancelRequested = true
+	return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"})
+}
+
 func (e *Engine) finish(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload) error {
 	now := store.NowMs()
 	run.Status = status
 	run.Phase = store.PhaseDone
 	run.EndedAtMs = now
 	run.LastActivityAtMs = now
+	if status == store.StatusCancelled {
+		run.CancelRequested = true
+	}
 	if payload.ErrorCode != "" {
 		run.ErrorCode = payload.ErrorCode
 	}

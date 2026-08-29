@@ -280,6 +280,9 @@ func (m *MemoryStore) GetRunByRequestID(_ context.Context, userID int64, request
 func (m *MemoryStore) UpdateRun(_ context.Context, run Run) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if existing, ok := m.runs[run.ID]; ok {
+		run.CancelRequested = run.CancelRequested || existing.CancelRequested
+	}
 	m.runs[run.ID] = run
 	return nil
 }

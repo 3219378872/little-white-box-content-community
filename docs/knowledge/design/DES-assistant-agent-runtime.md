@@ -70,8 +70,11 @@ phase 写 steer；compact/attachment/unsafe phase 写最多 32 条 FIFO。无活
 user run。数据库提交前不报告 accepted。
 
 新 session 只结束当前 session、滚动 epoch 和创建空 session。clear history 逻辑删除 message、写 ES
-delete outbox、清 thread 可见摘要，不删 Memory/Watch。显式 Stop 设置 cancel_requested；worker 在模型
-和工具安全点检查，终止事件写库后才释放 active run。
+delete outbox、清 thread 可见摘要，不删 Memory/Watch。显式 Stop 只把 `cancel_requested` 置 1，该位
+一旦置位就不能被后续 `UpdateRun` 清掉。worker 为 in-flight 模型/工具请求单独派生 work context：
+轮询到取消位后立即 cancel 该 context（HTTP 随 request context 中止），并在每个模型/工具安全点
+重新读库；已取消则写 `CANCELLED` 终止事件，不得把随后返回的模型正文当 `done`。持久化用未取消的
+parent context，避免 Stop 把收尾 SQL 一并打断。
 
 ## Lease、步骤提交与恢复
 

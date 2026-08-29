@@ -79,7 +79,7 @@ func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	engine := &Engine{Store: mem}
-	if err := engine.compact(ctx, &run, &session, msgs); err != nil {
+	if err := engine.compact(ctx, ctx, &run, &session, msgs); err != nil {
 		t.Fatal(err)
 	}
 	listed, err := mem.ListSessionMessages(ctx, 1, session.ID, true)
