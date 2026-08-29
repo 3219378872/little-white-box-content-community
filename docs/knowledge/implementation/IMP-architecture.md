@@ -9,7 +9,7 @@ upstream:
 tracks:
   - app/
   - pkg/
-verified_at: 2026-08-27
+verified_at: 2026-08-29
 verified_commit: 88780fc23b24bdc2c1a11a2633256a6e4535a0e6
 ---
 
@@ -33,8 +33,10 @@ Client → Gateway (REST :8888) → User RPC (:9090)
 异步链路经 RocketMQ 驱动：内容变更 → search 索引 / embedding / feed fanout /
 count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
 推荐特征；权威业务事务通过 outbox 同事务投递。Assistant 记忆与 Watch 权威库是
-`xbh_assistant`（DSN `DB_ASSISTANT`）。Watch matcher 进程订阅 `post-create` /
-`post-update` / `post-delete`，消费组 `assistant-watch-matcher-group`。
+`xbh_assistant`（DSN `DB_ASSISTANT`）。`assistant-rpc` 只接受命令并读权威库；
+`assistant-agent` worker 通过 MySQL lease 执行 run。Watch matcher 进程订阅
+`post-create` / `post-update` / `post-delete` / `user-behavior-v2`，消费组
+`assistant-watch-matcher-group`，把命中写入内部 bucket 并调度 Watch run。
 
 ## 服务清单
 
@@ -50,7 +52,8 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 | Search | RPC + MQ | `app/search/rpc/search.go`、`app/search/mq/main.go` | `proto/search/search.proto` |
 | Recommend | RPC + MQ | `app/recommend/rpc/recommend.go`、`app/recommend/mq/main.go` | `proto/recommend/recommend.proto` |
 | Embedding | MQ + service | `app/embedding/mq/main.go`、`app/embedding/service` | `proto/embedding/embedding.proto` |
-| Assistant | RPC（SSE）+ 记忆/Watch 权威 | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
+| Assistant | RPC（命令/读模型/SSE replay） | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
+| Assistant Agent worker | 异步 run 执行器 | `app/assistant/worker/main.go` | `app/assistant/worker/etc/agent.yaml` |
 | Assistant Watch matcher | MQ 消费者 | `app/assistant/mq/main.go` | — |
 | Behavior | RPC | `app/behavior/rpc/behavior.go` | `proto/behavior/behavior.proto` |
 | Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |

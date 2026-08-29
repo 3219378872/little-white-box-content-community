@@ -3,64 +3,71 @@
 
 package types
 
-type AssistantAction struct {
-	Action      string `json:"action"`
-	PayloadJson string `json:"payloadJson"`
-}
-
 type AssistantAttachment struct {
 	MediaId int64  `json:"mediaId"`
 	Url     string `json:"url"`
 }
 
-type AssistantCard struct {
-	CardType    string `json:"cardType"`
-	PayloadJson string `json:"payloadJson"`
+type AssistantMemoryCapacity struct {
+	Target string `json:"target"`
+	Used   int32  `json:"used"`
+	Limit  int32  `json:"limit"`
 }
 
-type AssistantMemoryItem struct {
-	Id         int64   `json:"id"`
-	Layer      string  `json:"layer"`
-	Dimension  string  `json:"dimension"`
-	Value      string  `json:"value"`
-	Score      float64 `json:"score"`
-	Source     string  `json:"source"`
-	Confidence float64 `json:"confidence"`
-	Confirmed  bool    `json:"confirmed"`
-	Suppressed bool    `json:"suppressed"`
-	UpdatedAt  int64   `json:"updatedAt"`
+type AssistantMemoryEntry struct {
+	Id          int64  `json:"id"`
+	Target      string `json:"target"`
+	Content     string `json:"content"`
+	Version     int32  `json:"version"`
+	CreatedAtMs int64  `json:"createdAtMs"`
+	UpdatedAtMs int64  `json:"updatedAtMs"`
 }
 
-type AssistantSourceReference struct {
-	SourceType string `json:"sourceType"`
-	SourceId   string `json:"sourceId"`
-	Title      string `json:"title"`
-	Revision   int64  `json:"revision"`
+type AssistantMemoryOp struct {
+	Op      string `json:"op"`
+	Id      int64  `json:"id,optional"`
+	Target  string `json:"target,optional"`
+	Content string `json:"content,optional"`
+	Version int32  `json:"version,optional"`
+}
+
+type AssistantMessage struct {
+	Id          int64  `json:"id"`
+	SessionId   int64  `json:"sessionId"`
+	RunId       int64  `json:"runId"`
+	Role        string `json:"role"`
+	Kind        string `json:"kind"`
+	Content     string `json:"content"`
+	Unread      bool   `json:"unread"`
+	CreatedAtMs int64  `json:"createdAtMs"`
+	ChangeId    int64  `json:"changeId,optional"`
+}
+
+type AssistantSourceCard struct {
+	Handle      string `json:"handle"`
+	Kind        string `json:"kind"`
+	AuthorityId string `json:"authorityId"`
+	Title       string `json:"title"`
+	Revision    int64  `json:"revision"`
+	PayloadJson string `json:"payloadJson,optional"`
+}
+
+type AssistantThread struct {
+	SessionId          int64  `json:"sessionId"`
+	UnreadCount        int32  `json:"unreadCount"`
+	LastMessageId      int64  `json:"lastMessageId"`
+	LastMessagePreview string `json:"lastMessagePreview"`
+	LastMessageAtMs    int64  `json:"lastMessageAtMs"`
+	ActiveRunId        int64  `json:"activeRunId"`
+	ActiveRunStatus    string `json:"activeRunStatus,optional"`
+	ActiveRunPhase     string `json:"activeRunPhase,optional"`
 }
 
 type AssistantToolCallInfo struct {
 	CallId      string `json:"callId"`
 	Tool        string `json:"tool"`
 	Summary     string `json:"summary"`
-	PayloadJson string `json:"payloadJson"`
-}
-
-type AssistantWatchHit struct {
-	Id        int64  `json:"id"`
-	TaskId    int64  `json:"taskId"`
-	PostId    int64  `json:"postId"`
-	Title     string `json:"title,optional"`
-	Summary   string `json:"summary,optional"`
-	CreatedAt int64  `json:"createdAt"`
-	Read      bool   `json:"read"`
-}
-
-type AssistantWatchHitEvent struct {
-	HitId   int64  `json:"hitId"`
-	TaskId  int64  `json:"taskId"`
-	PostId  int64  `json:"postId"`
-	Title   string `json:"title,optional"`
-	Summary string `json:"summary,optional"`
+	PayloadJson string `json:"payloadJson,optional"`
 }
 
 type AssistantWatchTask struct {
@@ -70,6 +77,7 @@ type AssistantWatchTask struct {
 	TargetId      int64  `json:"targetId"`
 	TargetText    string `json:"targetText"`
 	Enabled       bool   `json:"enabled"`
+	Version       int32  `json:"version"`
 	CreatedAt     int64  `json:"createdAt"`
 }
 

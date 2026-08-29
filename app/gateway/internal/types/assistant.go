@@ -3,26 +3,15 @@
 
 package types
 
-type AssistantChatEvent struct {
-	Type           string                    `json:"type"`
-	Text           string                    `json:"text,optional"`
-	Source         *AssistantSourceReference `json:"source,optional"`
-	Degraded       bool                      `json:"degraded,optional"`
-	ErrorCode      string                    `json:"errorCode,optional"`
-	ConversationId string                    `json:"conversationId"`
-	ToolCall       *AssistantToolCallInfo    `json:"toolCall,optional"`
-	Card           *AssistantCard            `json:"card,optional"`
-	Actions        []AssistantAction         `json:"actions,optional"`
-	WatchHit       *AssistantWatchHitEvent   `json:"watchHit,optional"`
+type AddAssistantMemoryReq struct {
+	Target    string `json:"target"`
+	Content   string `json:"content"`
+	RequestId string `json:"requestId,optional"`
 }
 
-type AssistantChatReq struct {
-	ConversationId string                `json:"conversationId,optional"`
-	Message        string                `json:"message"`
-	RequestId      string                `json:"requestId,optional"`
-	Mode           string                `json:"mode,optional"`
-	Attachments    []AssistantAttachment `json:"attachments,optional"`
-	ContextPostId  int64                 `json:"contextPostId,optional"`
+type AddAssistantMemoryResp struct {
+	Entry    AssistantMemoryEntry `json:"entry"`
+	ChangeId int64                `json:"changeId"`
 }
 
 type AssistantRecommendFeedbackReq struct {
@@ -34,13 +23,52 @@ type AssistantRecommendFeedbackReq struct {
 type AssistantRecommendFeedbackResp struct {
 }
 
-type AssistantToolConfirmReq struct {
-	RequestId string `json:"requestId"`
-	CallId    string `json:"callId"`
-	Approved  bool   `json:"approved"`
+type AssistantRunEvent struct {
+	RunId      int64                  `json:"runId"`
+	Seq        int64                  `json:"seq"`
+	Type       string                 `json:"type"`
+	Text       string                 `json:"text,optional"`
+	Degraded   bool                   `json:"degraded,optional"`
+	ErrorCode  string                 `json:"errorCode,optional"`
+	SessionId  int64                  `json:"sessionId"`
+	ToolCall   *AssistantToolCallInfo `json:"toolCall,optional"`
+	SourceCard *AssistantSourceCard   `json:"sourceCard,optional"`
+	ChangeId   int64                  `json:"changeId,optional"`
 }
 
-type AssistantToolConfirmResp struct {
+type AssistantRunEventsReq struct {
+	Id       int64 `path:"id"`
+	AfterSeq int64 `form:"afterSeq,optional"`
+}
+
+type BatchAssistantMemoryReq struct {
+	RequestId string              `json:"requestId,optional"`
+	Ops       []AssistantMemoryOp `json:"ops"`
+}
+
+type BatchAssistantMemoryResp struct {
+	Entries   []AssistantMemoryEntry `json:"entries"`
+	ChangeIds []int64                `json:"changeIds"`
+}
+
+type CancelAssistantRunReq struct {
+	Id int64 `path:"id"`
+}
+
+type CancelAssistantRunResp struct {
+}
+
+type ConfirmAssistantRunReq struct {
+	Id       int64  `path:"id"`
+	CallId   string `json:"callId"`
+	Approved bool   `json:"approved"`
+}
+
+type ConfirmAssistantRunResp struct {
+}
+
+type CreateAssistantSessionResp struct {
+	SessionId int64 `json:"sessionId"`
 }
 
 type CreateAssistantWatchReq struct {
@@ -54,11 +82,7 @@ type CreateAssistantWatchResp struct {
 	Task AssistantWatchTask `json:"task"`
 }
 
-type DeleteAssistantMemoryReq struct {
-	Id int64 `path:"id"`
-}
-
-type DeleteAssistantMemoryResp struct {
+type DeleteAssistantHistoryResp struct {
 }
 
 type DeleteAssistantWatchReq struct {
@@ -76,20 +100,27 @@ type GetAgentConsentResp struct {
 	CurrentVersion int32 `json:"currentVersion"`
 }
 
+type GetAssistantThreadResp struct {
+	Thread AssistantThread `json:"thread"`
+}
+
 type ListAssistantMemoryReq struct {
-	Layer string `form:"layer,optional"`
+	Target string `form:"target,optional"`
 }
 
 type ListAssistantMemoryResp struct {
-	Items []AssistantMemoryItem `json:"items"`
+	Items      []AssistantMemoryEntry    `json:"items"`
+	Capacities []AssistantMemoryCapacity `json:"capacities"`
 }
 
-type ListAssistantWatchHitsReq struct {
-	UnreadOnly bool `form:"unreadOnly,optional"`
+type ListAssistantMessagesReq struct {
+	SessionId int64 `form:"sessionId,optional"`
+	AfterId   int64 `form:"afterId,optional"`
+	Limit     int32 `form:"limit,optional"`
 }
 
-type ListAssistantWatchHitsResp struct {
-	Hits []AssistantWatchHit `json:"hits"`
+type ListAssistantMessagesResp struct {
+	Messages []AssistantMessage `json:"messages"`
 }
 
 type ListAssistantWatchReq struct {
@@ -99,11 +130,44 @@ type ListAssistantWatchResp struct {
 	Tasks []AssistantWatchTask `json:"tasks"`
 }
 
-type MarkAssistantWatchHitsReadReq struct {
-	HitIds []int64 `json:"hitIds"`
+type MarkAssistantThreadReadResp struct {
+	UnreadCount int32 `json:"unreadCount"`
 }
 
-type MarkAssistantWatchHitsReadResp struct {
+type PostAssistantMessageReq struct {
+	Message       string                `json:"message"`
+	RequestId     string                `json:"requestId,optional"`
+	Attachments   []AssistantAttachment `json:"attachments,optional"`
+	ContextPostId int64                 `json:"contextPostId,optional"`
+}
+
+type PostAssistantMessageResp struct {
+	MessageId   int64  `json:"messageId"`
+	SessionId   int64  `json:"sessionId"`
+	RunId       int64  `json:"runId"`
+	Disposition string `json:"disposition"`
+}
+
+type RemoveAssistantMemoryReq struct {
+	Id        int64  `path:"id"`
+	Version   int32  `form:"version"`
+	RequestId string `form:"requestId,optional"`
+}
+
+type RemoveAssistantMemoryResp struct {
+	ChangeId int64 `json:"changeId"`
+}
+
+type ReplaceAssistantMemoryReq struct {
+	Id        int64  `path:"id"`
+	Content   string `json:"content"`
+	Version   int32  `json:"version"`
+	RequestId string `json:"requestId,optional"`
+}
+
+type ReplaceAssistantMemoryResp struct {
+	Entry    AssistantMemoryEntry `json:"entry"`
+	ChangeId int64                `json:"changeId"`
 }
 
 type SetAgentConsentReq struct {
@@ -113,14 +177,12 @@ type SetAgentConsentReq struct {
 type SetAgentConsentResp struct {
 }
 
-type UpdateAssistantMemoryReq struct {
-	Id         int64    `path:"id"`
-	Value      *string  `json:"value,optional"`
-	Score      *float64 `json:"score,optional"`
-	Suppressed *bool    `json:"suppressed,optional"`
+type UndoAssistantMemoryChangeReq struct {
+	Id int64 `path:"id"`
 }
 
-type UpdateAssistantMemoryResp struct {
+type UndoAssistantMemoryChangeResp struct {
+	Entry AssistantMemoryEntry `json:"entry"`
 }
 
 type UpdateAssistantWatchReq struct {

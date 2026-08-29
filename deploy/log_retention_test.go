@@ -124,7 +124,8 @@ func TestContentSensitiveMethodsAreIgnored(t *testing.T) {
 		config string
 		method string
 	}{
-		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/Chat"},
+		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/PostMessage"},
+		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/SubscribeRunEvents"},
 		{"../app/message/rpc/etc/message.yaml", "/message.MessageService/SendMessage"},
 		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreatePost"},
 		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreateComment"},

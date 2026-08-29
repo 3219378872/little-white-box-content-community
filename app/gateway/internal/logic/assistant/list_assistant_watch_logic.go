@@ -36,15 +36,7 @@ func (l *ListAssistantWatchLogic) ListAssistantWatch(_ *types.ListAssistantWatch
 		if task == nil {
 			continue
 		}
-		tasks = append(tasks, types.AssistantWatchTask{
-			Id:            task.Id,
-			ConditionType: task.ConditionType,
-			TargetType:    task.TargetType,
-			TargetId:      task.TargetId,
-			TargetText:    task.TargetText,
-			Enabled:       task.Enabled,
-			CreatedAt:     task.CreatedAt,
-		})
+		tasks = append(tasks, mapWatch(task))
 	}
 	return &types.ListAssistantWatchResp{Tasks: tasks}, nil
 }

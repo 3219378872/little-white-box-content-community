@@ -46,10 +46,10 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.RequiredAuth},
 			[]rest.Route{
 				{
-					// Assistant SSE 对话
-					Method:  http.MethodPost,
-					Path:    "/assistant/chat",
-					Handler: assistant.AssistantChatHandler(serverCtx),
+					// Assistant run SSE 事件
+					Method:  http.MethodGet,
+					Path:    "/assistant/runs/:id/events",
+					Handler: assistant.AssistantRunEventsHandler(serverCtx),
 				},
 			}...,
 		),
@@ -62,34 +62,70 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.RequiredAuth},
 			[]rest.Route{
 				{
-					// 查询 Agent 能力授权状态（AGNT-004）
+					// 查询 Agent 能力授权状态
 					Method:  http.MethodGet,
 					Path:    "/assistant/consent",
 					Handler: assistant.GetAgentConsentHandler(serverCtx),
 				},
 				{
-					// 记录或撤销 Agent 能力授权（AGNT-004/006）
+					// 记录或撤销 Agent 能力授权
 					Method:  http.MethodPost,
 					Path:    "/assistant/consent",
 					Handler: assistant.SetAgentConsentHandler(serverCtx),
 				},
 				{
-					// 列出当前用户的 Agent 记忆
+					// 清除 Assistant 历史
+					Method:  http.MethodDelete,
+					Path:    "/assistant/history",
+					Handler: assistant.DeleteAssistantHistoryHandler(serverCtx),
+				},
+				{
+					// 列出 MEMORY/USER 条目
 					Method:  http.MethodGet,
 					Path:    "/assistant/memory",
 					Handler: assistant.ListAssistantMemoryHandler(serverCtx),
 				},
 				{
-					// 修改一条 Agent 记忆
-					Method:  http.MethodPatch,
-					Path:    "/assistant/memory/:id",
-					Handler: assistant.UpdateAssistantMemoryHandler(serverCtx),
+					// 新增记忆条目
+					Method:  http.MethodPost,
+					Path:    "/assistant/memory",
+					Handler: assistant.AddAssistantMemoryHandler(serverCtx),
 				},
 				{
-					// 删除一条 Agent 记忆
+					// 替换记忆条目
+					Method:  http.MethodPatch,
+					Path:    "/assistant/memory/:id",
+					Handler: assistant.ReplaceAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 删除记忆条目
 					Method:  http.MethodDelete,
 					Path:    "/assistant/memory/:id",
-					Handler: assistant.DeleteAssistantMemoryHandler(serverCtx),
+					Handler: assistant.RemoveAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 批量记忆写入
+					Method:  http.MethodPost,
+					Path:    "/assistant/memory/batch",
+					Handler: assistant.BatchAssistantMemoryHandler(serverCtx),
+				},
+				{
+					// 撤销一次记忆变更
+					Method:  http.MethodPost,
+					Path:    "/assistant/memory/changes/:id/undo",
+					Handler: assistant.UndoAssistantMemoryChangeHandler(serverCtx),
+				},
+				{
+					// 列出 Assistant 消息
+					Method:  http.MethodGet,
+					Path:    "/assistant/messages",
+					Handler: assistant.ListAssistantMessagesHandler(serverCtx),
+				},
+				{
+					// 发送 Assistant 消息并接受异步 run
+					Method:  http.MethodPost,
+					Path:    "/assistant/messages",
+					Handler: assistant.PostAssistantMessageHandler(serverCtx),
 				},
 				{
 					// 提交 Agent 推荐反馈
@@ -98,10 +134,34 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx),
 				},
 				{
-					// Agent 高危操作确认回调（AGNT-020~022）
+					// 取消 Assistant run
 					Method:  http.MethodPost,
-					Path:    "/assistant/tool/confirm",
-					Handler: assistant.ConfirmAssistantToolHandler(serverCtx),
+					Path:    "/assistant/runs/:id/cancel",
+					Handler: assistant.CancelAssistantRunHandler(serverCtx),
+				},
+				{
+					// 确认或拒绝 delete_post
+					Method:  http.MethodPost,
+					Path:    "/assistant/runs/:id/confirm",
+					Handler: assistant.ConfirmAssistantRunHandler(serverCtx),
+				},
+				{
+					// 开始新会话
+					Method:  http.MethodPost,
+					Path:    "/assistant/sessions",
+					Handler: assistant.CreateAssistantSessionHandler(serverCtx),
+				},
+				{
+					// 虚拟线程摘要
+					Method:  http.MethodGet,
+					Path:    "/assistant/thread",
+					Handler: assistant.GetAssistantThreadHandler(serverCtx),
+				},
+				{
+					// 标记 Assistant 线程已读
+					Method:  http.MethodPost,
+					Path:    "/assistant/thread/read",
+					Handler: assistant.MarkAssistantThreadReadHandler(serverCtx),
 				},
 				{
 					// 列出 Watch 任务
@@ -126,18 +186,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodDelete,
 					Path:    "/assistant/watch/:id",
 					Handler: assistant.DeleteAssistantWatchHandler(serverCtx),
-				},
-				{
-					// 列出 Watch 命中
-					Method:  http.MethodGet,
-					Path:    "/assistant/watch/hits",
-					Handler: assistant.ListAssistantWatchHitsHandler(serverCtx),
-				},
-				{
-					// 标记 Watch 命中已读
-					Method:  http.MethodPost,
-					Path:    "/assistant/watch/hits/read",
-					Handler: assistant.MarkAssistantWatchHitsReadHandler(serverCtx),
 				},
 			}...,
 		),

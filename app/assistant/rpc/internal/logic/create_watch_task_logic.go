@@ -3,7 +3,7 @@ package logic
 import (
 	"context"
 
-	"esx/app/assistant/rpc/internal/agent"
+	"esx/app/assistant/internal/tool"
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/assistant/watch"
@@ -35,20 +35,16 @@ func (l *CreateWatchTaskLogic) CreateWatchTask(in *pb.CreateWatchTaskReq) (*pb.C
 		UserID: in.UserId, ConditionType: in.ConditionType, TargetType: in.TargetType,
 		TargetID: in.TargetId, TargetText: in.TargetText,
 	}
-	if err := agent.WatchLookups(agent.Clients{
-		Search:  l.svcCtx.SearchService,
-		Content: l.svcCtx.ContentService,
-		User:    l.svcCtx.UserService,
-	}).Validate(l.ctx, task); err != nil {
+	if err := tool.WatchLookups(l.svcCtx.WatchLookups()).Validate(l.ctx, task); err != nil {
 		return nil, err
 	}
 	created, err := l.svcCtx.Watch.Create(l.ctx, task)
 	if err != nil {
 		return nil, err
 	}
-	task = created
 	return &pb.CreateWatchTaskResp{Task: &pb.WatchTask{
-		Id: task.ID, ConditionType: task.ConditionType, TargetType: task.TargetType,
-		TargetId: task.TargetID, TargetText: task.TargetText, Enabled: task.Enabled, CreatedAt: task.CreatedAt,
+		Id: created.ID, ConditionType: created.ConditionType, TargetType: created.TargetType,
+		TargetId: created.TargetID, TargetText: created.TargetText, Enabled: created.Enabled,
+		Version: created.Version, CreatedAt: created.CreatedAt,
 	}}, nil
 }

@@ -14,53 +14,76 @@ import (
 )
 
 type (
-	Action                      = pb.Action
+	AddMemoryReq                = pb.AddMemoryReq
+	AddMemoryResp               = pb.AddMemoryResp
+	AssistantMessage            = pb.AssistantMessage
+	AssistantThread             = pb.AssistantThread
 	Attachment                  = pb.Attachment
-	Card                        = pb.Card
-	ChatEvent                   = pb.ChatEvent
-	ChatReq                     = pb.ChatReq
-	ConfirmToolCallReq          = pb.ConfirmToolCallReq
-	ConfirmToolCallResp         = pb.ConfirmToolCallResp
+	BatchMemoryReq              = pb.BatchMemoryReq
+	BatchMemoryResp             = pb.BatchMemoryResp
+	CancelRunReq                = pb.CancelRunReq
+	CancelRunResp               = pb.CancelRunResp
+	ConfirmRunToolReq           = pb.ConfirmRunToolReq
+	ConfirmRunToolResp          = pb.ConfirmRunToolResp
+	CreateSessionReq            = pb.CreateSessionReq
+	CreateSessionResp           = pb.CreateSessionResp
 	CreateWatchTaskReq          = pb.CreateWatchTaskReq
 	CreateWatchTaskResp         = pb.CreateWatchTaskResp
-	DeleteMemoryReq             = pb.DeleteMemoryReq
-	DeleteMemoryResp            = pb.DeleteMemoryResp
+	DeleteHistoryReq            = pb.DeleteHistoryReq
+	DeleteHistoryResp           = pb.DeleteHistoryResp
 	DeleteWatchTaskReq          = pb.DeleteWatchTaskReq
 	DeleteWatchTaskResp         = pb.DeleteWatchTaskResp
+	GetThreadReq                = pb.GetThreadReq
+	GetThreadResp               = pb.GetThreadResp
 	ListMemoryReq               = pb.ListMemoryReq
 	ListMemoryResp              = pb.ListMemoryResp
-	ListWatchHitsReq            = pb.ListWatchHitsReq
-	ListWatchHitsResp           = pb.ListWatchHitsResp
+	ListMessagesReq             = pb.ListMessagesReq
+	ListMessagesResp            = pb.ListMessagesResp
 	ListWatchTasksReq           = pb.ListWatchTasksReq
 	ListWatchTasksResp          = pb.ListWatchTasksResp
-	MarkWatchHitsReadReq        = pb.MarkWatchHitsReadReq
-	MarkWatchHitsReadResp       = pb.MarkWatchHitsReadResp
-	MemoryItem                  = pb.MemoryItem
-	SourceReference             = pb.SourceReference
+	MarkThreadReadReq           = pb.MarkThreadReadReq
+	MarkThreadReadResp          = pb.MarkThreadReadResp
+	MemoryCapacity              = pb.MemoryCapacity
+	MemoryEntry                 = pb.MemoryEntry
+	MemoryOp                    = pb.MemoryOp
+	PostMessageReq              = pb.PostMessageReq
+	PostMessageResp             = pb.PostMessageResp
+	RemoveMemoryReq             = pb.RemoveMemoryReq
+	RemoveMemoryResp            = pb.RemoveMemoryResp
+	ReplaceMemoryReq            = pb.ReplaceMemoryReq
+	ReplaceMemoryResp           = pb.ReplaceMemoryResp
+	RunEvent                    = pb.RunEvent
+	SourceCard                  = pb.SourceCard
 	SubmitRecommendFeedbackReq  = pb.SubmitRecommendFeedbackReq
 	SubmitRecommendFeedbackResp = pb.SubmitRecommendFeedbackResp
+	SubscribeRunEventsReq       = pb.SubscribeRunEventsReq
 	ToolCallInfo                = pb.ToolCallInfo
-	UpdateMemoryReq             = pb.UpdateMemoryReq
-	UpdateMemoryResp            = pb.UpdateMemoryResp
+	UndoMemoryChangeReq         = pb.UndoMemoryChangeReq
+	UndoMemoryChangeResp        = pb.UndoMemoryChangeResp
 	UpdateWatchTaskReq          = pb.UpdateWatchTaskReq
 	UpdateWatchTaskResp         = pb.UpdateWatchTaskResp
-	WatchHit                    = pb.WatchHit
-	WatchHitInfo                = pb.WatchHitInfo
 	WatchTask                   = pb.WatchTask
 
 	AssistantService interface {
-		Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (pb.AssistantService_ChatClient, error)
-		// Agent 模式高危操作确认回调（AGNT-020~022）
-		ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error)
+		GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error)
+		ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error)
+		PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error)
+		CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error)
+		MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error)
+		DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
+		SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (pb.AssistantService_SubscribeRunEventsClient, error)
+		CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
+		ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
 		ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
-		UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error)
-		DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error)
+		AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
+		ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error)
+		RemoveMemory(ctx context.Context, in *RemoveMemoryReq, opts ...grpc.CallOption) (*RemoveMemoryResp, error)
+		BatchMemory(ctx context.Context, in *BatchMemoryReq, opts ...grpc.CallOption) (*BatchMemoryResp, error)
+		UndoMemoryChange(ctx context.Context, in *UndoMemoryChangeReq, opts ...grpc.CallOption) (*UndoMemoryChangeResp, error)
 		ListWatchTasks(ctx context.Context, in *ListWatchTasksReq, opts ...grpc.CallOption) (*ListWatchTasksResp, error)
 		CreateWatchTask(ctx context.Context, in *CreateWatchTaskReq, opts ...grpc.CallOption) (*CreateWatchTaskResp, error)
 		UpdateWatchTask(ctx context.Context, in *UpdateWatchTaskReq, opts ...grpc.CallOption) (*UpdateWatchTaskResp, error)
 		DeleteWatchTask(ctx context.Context, in *DeleteWatchTaskReq, opts ...grpc.CallOption) (*DeleteWatchTaskResp, error)
-		ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error)
-		MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error)
 		SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error)
 	}
 
@@ -75,15 +98,49 @@ func NewAssistantService(cli zrpc.Client) AssistantService {
 	}
 }
 
-func (m *defaultAssistantService) Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (pb.AssistantService_ChatClient, error) {
+func (m *defaultAssistantService) GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.Chat(ctx, in, opts...)
+	return client.GetThread(ctx, in, opts...)
 }
 
-// Agent 模式高危操作确认回调（AGNT-020~022）
-func (m *defaultAssistantService) ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error) {
+func (m *defaultAssistantService) ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.ConfirmToolCall(ctx, in, opts...)
+	return client.ListMessages(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.PostMessage(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.CreateSession(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.MarkThreadRead(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.DeleteHistory(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (pb.AssistantService_SubscribeRunEventsClient, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.SubscribeRunEvents(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.CancelRun(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.ConfirmRunTool(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error) {
@@ -91,14 +148,29 @@ func (m *defaultAssistantService) ListMemory(ctx context.Context, in *ListMemory
 	return client.ListMemory(ctx, in, opts...)
 }
 
-func (m *defaultAssistantService) UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error) {
+func (m *defaultAssistantService) AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.UpdateMemory(ctx, in, opts...)
+	return client.AddMemory(ctx, in, opts...)
 }
 
-func (m *defaultAssistantService) DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error) {
+func (m *defaultAssistantService) ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.DeleteMemory(ctx, in, opts...)
+	return client.ReplaceMemory(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) RemoveMemory(ctx context.Context, in *RemoveMemoryReq, opts ...grpc.CallOption) (*RemoveMemoryResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.RemoveMemory(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) BatchMemory(ctx context.Context, in *BatchMemoryReq, opts ...grpc.CallOption) (*BatchMemoryResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.BatchMemory(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) UndoMemoryChange(ctx context.Context, in *UndoMemoryChangeReq, opts ...grpc.CallOption) (*UndoMemoryChangeResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.UndoMemoryChange(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) ListWatchTasks(ctx context.Context, in *ListWatchTasksReq, opts ...grpc.CallOption) (*ListWatchTasksResp, error) {
@@ -119,16 +191,6 @@ func (m *defaultAssistantService) UpdateWatchTask(ctx context.Context, in *Updat
 func (m *defaultAssistantService) DeleteWatchTask(ctx context.Context, in *DeleteWatchTaskReq, opts ...grpc.CallOption) (*DeleteWatchTaskResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
 	return client.DeleteWatchTask(ctx, in, opts...)
-}
-
-func (m *defaultAssistantService) ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error) {
-	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.ListWatchHits(ctx, in, opts...)
-}
-
-func (m *defaultAssistantService) MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error) {
-	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.MarkWatchHitsRead(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error) {

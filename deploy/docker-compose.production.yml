@@ -420,16 +420,6 @@ services:
       <<: [*etcd-env, *redis-env]
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
-      ASSISTANT_AGENT_ENABLED: ${ASSISTANT_AGENT_ENABLED:-false}
-      ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
-      ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-chat_completions}
-      ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}
-      ASSISTANT_LLM_API_KEY: ${ASSISTANT_LLM_API_KEY:-}
-      ASSISTANT_LLM_MODEL: ${ASSISTANT_LLM_MODEL:-}
-      ASSISTANT_LLM_MODEL_SMALL: ${ASSISTANT_LLM_MODEL_SMALL:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-      ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS:-0}
-      ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS:-0}
     expose: ["9024", "9124"]
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "9024"]
@@ -614,6 +604,44 @@ services:
       rocketmq-broker:
         condition: service_healthy
       content-rpc:
+        condition: service_healthy
+
+  assistant-agent:
+    <<: *go-service
+    image: xbh/assistant-agent:${IMAGE_TAG:-local}
+    build:
+      <<: *go-build
+      args:
+        SERVICE_PATH: app/assistant/worker
+        SERVICE_CONFIG: app/assistant/worker/etc/agent.yaml
+    environment:
+      <<: [*etcd-env, *redis-env, *es-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
+      DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
+      ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
+      ASSISTANT_LLM_WIRE_API: ${ASSISTANT_LLM_WIRE_API:-responses}
+      ASSISTANT_LLM_ENDPOINT: ${ASSISTANT_LLM_ENDPOINT:-}
+      ASSISTANT_LLM_API_KEY: ${ASSISTANT_LLM_API_KEY:-}
+      ASSISTANT_LLM_MODEL: ${ASSISTANT_LLM_MODEL:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS:-0}
+      ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS:-0}
+    expose: ["9136"]
+    healthcheck: *process-healthcheck
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+      assistant-rpc:
+        condition: service_healthy
+      search-rpc:
+        condition: service_healthy
+      content-rpc:
+        condition: service_healthy
+      user-rpc:
         condition: service_healthy
 
   gateway-a:

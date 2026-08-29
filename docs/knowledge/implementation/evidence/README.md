@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-29-assistant-agent-runtime.md](2026-08-29-assistant-agent-runtime.md)：
+  Hermes 持久异步 Agent（worker/lease/SSE/Memory/Watch）硬切换，提交见 frontmatter。
 - [2026-08-28-content-community-agent-p0.md](2026-08-28-content-community-agent-p0.md)：
   Agent RPC 授权复核、终答证据中和、截断历史与 recommend Task，提交见 frontmatter。
 - [2026-08-28-content-community-agent-budget.md](2026-08-28-content-community-agent-budget.md)：

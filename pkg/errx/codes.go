@@ -53,8 +53,11 @@ const (
 	SearchEmpty   = 5001
 	SearchTimeout = 5002
 
-	// Assistant Agent 相关错误码 6000-6999（SPEC-assistant-agent-mode）
+	// Assistant Agent 相关错误码 6000-6999（SPEC-assistant-agent）
 	AgentNotAuthorized = 6001
+	AgentResourceLimit = 6002
+	AgentQueueFull     = 6003
+	AgentRunConflict   = 6004
 )
 
 // 错误码消息映射
@@ -105,6 +108,9 @@ var codeMsg = map[int]string{
 	SearchTimeout: "搜索超时",
 
 	AgentNotAuthorized: "Agent 能力未授权",
+	AgentResourceLimit: "Agent 资源预算已耗尽",
+	AgentQueueFull:     "Agent 输入队列已满",
+	AgentRunConflict:   "Agent 运行状态冲突",
 }
 
 // GetMsg 获取错误码对应的消息

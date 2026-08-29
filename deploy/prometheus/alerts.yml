@@ -2,7 +2,7 @@ groups:
   - name: esx-runtime
     rules:
       - alert: EsxRuntimeMetricsTargetDown
-        expr: up{job=~"behavior-rpc|search-rpc|recommend-rpc|assistant-rpc|content-rpc|interaction-rpc|user-rpc|behavior-log-consumer|recommend-feature-consumer|search-index-consumer|embedding-index-consumer|assistant-watch-matcher"} == 0
+        expr: up{job=~"behavior-rpc|search-rpc|recommend-rpc|assistant-rpc|assistant-agent|content-rpc|interaction-rpc|user-rpc|behavior-log-consumer|recommend-feature-consumer|search-index-consumer|embedding-index-consumer|assistant-watch-matcher"} == 0
         for: 2m
         labels:
           severity: critical
@@ -47,9 +47,9 @@ groups:
 
       - alert: AssistantLLMFailureRateHigh
         expr: |
-          sum(rate(esx_assistant_rpc_llm_calls_total{outcome="failure"}[5m]))
+          sum(rate(esx_assistant_agent_llm_calls_total{outcome="failure"}[5m]))
           /
-          clamp_min(sum(rate(esx_assistant_rpc_llm_calls_total[5m])), 0.001)
+          clamp_min(sum(rate(esx_assistant_agent_llm_calls_total[5m])), 0.001)
           > 0.05
         for: 5m
         labels:
@@ -59,9 +59,9 @@ groups:
 
       - alert: AssistantToolFailureRateHigh
         expr: |
-          sum(rate(esx_assistant_rpc_tool_calls_total{outcome=~"timeout|unavailable|empty_result"}[5m]))
+          sum(rate(esx_assistant_agent_tool_calls_total{outcome=~"timeout|unavailable|empty_result"}[5m]))
           /
-          clamp_min(sum(rate(esx_assistant_rpc_tool_calls_total[5m])), 0.001)
+          clamp_min(sum(rate(esx_assistant_agent_tool_calls_total[5m])), 0.001)
           > 0.05
         for: 5m
         labels:
@@ -69,13 +69,29 @@ groups:
         annotations:
           summary: Assistant tool failure rate is above 5 percent
 
+      - alert: AssistantQueueAgeHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(esx_assistant_agent_queue_age_seconds_bucket[5m]))) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Assistant agent queue age p95 is above 30 seconds
+
+      - alert: AssistantLeaseRecoverHigh
+        expr: sum(rate(esx_assistant_agent_lease_recover_total[10m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Assistant agent is recovering expired leases frequently
+
       - alert: AssistantFirstTokenP95High
         expr: |
           histogram_quantile(
             0.95,
-            sum by (le) (rate(esx_assistant_rpc_first_token_seconds_bucket[5m]))
+            sum by (le) (rate(esx_assistant_agent_first_token_seconds_bucket[5m]))
           ) > 2
-          and sum(rate(esx_assistant_rpc_first_token_seconds_count[5m])) > 0
+          and sum(rate(esx_assistant_agent_first_token_seconds_count[5m])) > 0
         for: 5m
         labels:
           severity: warning

@@ -10,17 +10,7 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
-	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")
-	t.Setenv("ASSISTANT_LLM_ENDPOINT", "http://127.0.0.1:18080/v1/responses")
-	t.Setenv("ASSISTANT_LLM_API_KEY", "")
-	t.Setenv("ASSISTANT_LLM_MODEL", "test-model")
-	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
-	t.Setenv("ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS", "1.25")
-	t.Setenv("ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS", "5")
-	t.Setenv("ASSISTANT_AGENT_ENABLED", "false")
-	t.Setenv("TAVILY_API_KEY", "")
 	t.Setenv("DB_ASSISTANT", "")
-	t.Setenv("ASSISTANT_LLM_MODEL_SMALL", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
@@ -31,42 +21,30 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	if !c.Safety.Enabled || c.Safety.MaxScanRunes != 10000 || len(c.Safety.BlockedTerms) < 2 {
 		t.Fatalf("unexpected safety config: %+v", c.Safety)
 	}
-	if c.LLM.PromptCostPerMillionTokens != 1.25 || c.LLM.CompletionCostPerMillionTokens != 5 {
-		t.Fatalf("unexpected LLM cost config: %+v", c.LLM)
-	}
-	if !c.LLM.Enabled {
-		t.Fatal("LLM environment switch was not loaded")
-	}
-	if c.LLM.WireAPI != "responses" || c.LLM.MaxOutputTokens != 32768 {
-		t.Fatalf("unexpected LLM protocol config: %+v", c.LLM)
-	}
-	if c.Agent.TurnTimeoutMs != 300000 || c.Agent.StepTimeoutMs != 90000 {
-		t.Fatalf("unexpected agent timeout config: turn=%d step=%d", c.Agent.TurnTimeoutMs, c.Agent.StepTimeoutMs)
-	}
 }
 
-// REL-022：assistant 必须抑制框架自动内容日志（Chat 携带全量用户输入）。
-func TestAssistantConfigSuppressesChatContentLogging(t *testing.T) {
+func TestAssistantConfigSuppressesPostMessageContentLogging(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
-	t.Setenv("ASSISTANT_LLM_WIRE_API", "responses")
-	t.Setenv("ASSISTANT_LLM_ENDPOINT", "http://127.0.0.1:18080/v1/responses")
-	t.Setenv("ASSISTANT_LLM_API_KEY", "")
-	t.Setenv("ASSISTANT_LLM_MODEL", "test-model")
-	t.Setenv("ASSISTANT_LLM_ENABLED", "true")
-	t.Setenv("ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS", "1.25")
-	t.Setenv("ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS", "5")
-	t.Setenv("ASSISTANT_AGENT_ENABLED", "false")
-	t.Setenv("TAVILY_API_KEY", "")
 	t.Setenv("DB_ASSISTANT", "")
-	t.Setenv("ASSISTANT_LLM_MODEL_SMALL", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
 	}
 	methods := c.Middlewares.StatConf.IgnoreContentMethods
-	if len(methods) != 1 || methods[0] != "/assistant.AssistantService/Chat" {
-		t.Fatalf("expected Chat to be ignored from content logging, got %v", methods)
+	want := map[string]bool{
+		"/assistant.AssistantService/PostMessage":        false,
+		"/assistant.AssistantService/SubscribeRunEvents": false,
+	}
+	for _, method := range methods {
+		if _, ok := want[method]; ok {
+			want[method] = true
+		}
+	}
+	for method, ok := range want {
+		if !ok {
+			t.Fatalf("expected %s to be ignored from content logging, got %v", method, methods)
+		}
 	}
 }

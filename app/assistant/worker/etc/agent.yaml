@@ -1,0 +1,109 @@
+Name: assistant-agent
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9136
+  Path: /metrics
+
+DataSource: "${DB_ASSISTANT}"
+Redis:
+  Host: "${REDIS_HOST}"
+  Type: node
+  Pass: "${REDIS_PASSWORD}"
+  Key: assistant-agent
+
+Elasticsearch:
+  Addresses:
+  - "${ES_ADDRESS}"
+  Username: "${ES_USERNAME}"
+  Password: "${ES_PASSWORD}"
+
+SearchRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: search.rpc
+ContentRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: content.rpc
+MediaRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: media.rpc
+RecommendRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: recommend.rpc
+InteractionRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: interaction.rpc
+UserRpc:
+  Etcd:
+    Hosts:
+    - 127.0.0.1:2379
+    Key: user.rpc
+
+LeaseSeconds: 60
+RenewSeconds: 10
+AllowedTools:
+- search_posts
+- search_users
+- search_tags
+- get_post
+- get_post_comments
+- read_memory
+- add_memory
+- replace_memory
+- remove_memory
+- batch_memory
+- recommend_posts
+- similar_posts
+- compare_posts
+- get_my_favorites
+- get_my_likes
+- get_my_following
+- get_my_posts
+- create_watch_task
+- list_watch_tasks
+- update_watch_task
+- delete_watch_task
+- web_search
+- create_post
+- update_post
+- delete_post
+- search_history
+- present_sources
+WebSearch:
+  Provider: tavily
+  APIKey: "${TAVILY_API_KEY}"
+  TimeoutMs: 8000
+  MaxResults: 5
+Safety:
+  Enabled: true
+  MaxScanRunes: 10000
+  BlockedTerms:
+  - "build a bomb"
+  - "suicide instructions"
+  - "child sexual abuse"
+  - "制作炸弹"
+  - "自杀方法"
+  - "儿童色情"
+LLM:
+  Enabled: ${ASSISTANT_LLM_ENABLED}
+  WireAPI: "${ASSISTANT_LLM_WIRE_API}"
+  Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
+  APIKey: "${ASSISTANT_LLM_API_KEY}"
+  Model: "${ASSISTANT_LLM_MODEL}"
+  TimeoutMs: 90000
+  MaxOutputTokens: 32768
+  ContextWindowTokens: 128000
+  PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
+  CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}
+BackgroundReview:
+  Model: ""
+InternalSecret: ${RPC_INTERNAL_SECRET}

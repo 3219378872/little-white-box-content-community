@@ -48,6 +48,10 @@ func TestHTTPStatus_MapsEveryBusinessCode(t *testing.T) {
 		MediaProcessFailed:     http.StatusInternalServerError,
 		SearchEmpty:            http.StatusBadRequest,
 		SearchTimeout:          http.StatusGatewayTimeout,
+		AgentNotAuthorized:     http.StatusForbidden,
+		AgentResourceLimit:     http.StatusTooManyRequests,
+		AgentQueueFull:         http.StatusTooManyRequests,
+		AgentRunConflict:       http.StatusConflict,
 	}
 	for code, want := range expected {
 		got := (&BizError{Code: code}).HTTPStatus()

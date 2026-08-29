@@ -37,7 +37,8 @@ func (l *ListWatchTasksLogic) ListWatchTasks(in *pb.ListWatchTasksReq) (*pb.List
 	for _, task := range tasks {
 		out = append(out, &pb.WatchTask{
 			Id: task.ID, ConditionType: task.ConditionType, TargetType: task.TargetType,
-			TargetId: task.TargetID, TargetText: task.TargetText, Enabled: task.Enabled, CreatedAt: task.CreatedAt,
+			TargetId: task.TargetID, TargetText: task.TargetText, Enabled: task.Enabled,
+			Version: task.Version, CreatedAt: task.CreatedAt,
 		})
 	}
 	return &pb.ListWatchTasksResp{Tasks: out}, nil

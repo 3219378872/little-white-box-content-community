@@ -63,7 +63,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		"message-rpc", "behavior-rpc", "search-rpc", "recommend-rpc", "assistant-rpc",
 		"feed-consumer", "media-consumer", "behavior-log-consumer",
 		"recommend-consumer", "search-consumer", "embedding-consumer", "content-cleanup-consumer",
-		"assistant-watch-consumer",
+		"assistant-watch-consumer", "assistant-agent",
 		"embedding-service", "online-infer",
 	}
 	for _, name := range runtimeServices {
@@ -80,7 +80,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		}
 	}
 
-	goServices := runtimeServices[1:21]
+	goServices := runtimeServices[1:22]
 	for _, name := range goServices {
 		service := project.Services[name]
 		if service.Build == nil || service.Build.Dockerfile != "deploy/Dockerfile.service" {
@@ -115,11 +115,11 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	if got := project.Services["online-infer"].Environment["MODEL_TRAFFIC_JSON"]; got != "{}" {
 		t.Errorf("production online-infer static model traffic = %q, want disabled", got)
 	}
-	if got := project.Services["assistant-rpc"].Environment["ASSISTANT_LLM_WIRE_API"]; got != "responses" {
+	if got := project.Services["assistant-agent"].Environment["ASSISTANT_LLM_WIRE_API"]; got != "responses" {
 		t.Errorf("production assistant LLM wire API = %q, want responses", got)
 	}
-	if got := project.Services["assistant-rpc"].Environment["ASSISTANT_AGENT_ENABLED"]; got != "false" {
-		t.Errorf("production assistant Agent switch = %q, want explicit false default", got)
+	if _, ok := project.Services["assistant-agent"]; !ok {
+		t.Error("production assistant-agent worker is missing")
 	}
 	watch := project.Services["assistant-watch-consumer"]
 	if watch.Environment["ETCD_ENDPOINT"] == "" || watch.Environment["RPC_INTERNAL_SECRET"] == "" {

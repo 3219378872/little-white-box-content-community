@@ -21,157 +21,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// 助手模式（AGNT-001）：缺省或无法识别的值按 enhanced_search 处理
-type AssistantMode int32
-
-const (
-	AssistantMode_ASSISTANT_MODE_UNSPECIFIED     AssistantMode = 0
-	AssistantMode_ASSISTANT_MODE_ENHANCED_SEARCH AssistantMode = 1
-	AssistantMode_ASSISTANT_MODE_AGENT           AssistantMode = 2
-)
-
-// Enum value maps for AssistantMode.
-var (
-	AssistantMode_name = map[int32]string{
-		0: "ASSISTANT_MODE_UNSPECIFIED",
-		1: "ASSISTANT_MODE_ENHANCED_SEARCH",
-		2: "ASSISTANT_MODE_AGENT",
-	}
-	AssistantMode_value = map[string]int32{
-		"ASSISTANT_MODE_UNSPECIFIED":     0,
-		"ASSISTANT_MODE_ENHANCED_SEARCH": 1,
-		"ASSISTANT_MODE_AGENT":           2,
-	}
-)
-
-func (x AssistantMode) Enum() *AssistantMode {
-	p := new(AssistantMode)
-	*p = x
-	return p
-}
-
-func (x AssistantMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (AssistantMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_assistant_assistant_proto_enumTypes[0].Descriptor()
-}
-
-func (AssistantMode) Type() protoreflect.EnumType {
-	return &file_proto_assistant_assistant_proto_enumTypes[0]
-}
-
-func (x AssistantMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use AssistantMode.Descriptor instead.
-func (AssistantMode) EnumDescriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{0}
-}
-
-type ChatEventType int32
-
-const (
-	ChatEventType_CHAT_EVENT_TYPE_UNSPECIFIED ChatEventType = 0
-	ChatEventType_CHAT_EVENT_TYPE_TOKEN       ChatEventType = 1
-	ChatEventType_CHAT_EVENT_TYPE_SOURCE      ChatEventType = 2
-	ChatEventType_CHAT_EVENT_TYPE_DONE        ChatEventType = 3
-	ChatEventType_CHAT_EVENT_TYPE_ERROR       ChatEventType = 4
-	// agent 工具调用进度与高危确认请求（AGNT-060）
-	ChatEventType_CHAT_EVENT_TYPE_TOOL_CALL        ChatEventType = 5
-	ChatEventType_CHAT_EVENT_TYPE_CONFIRM_REQUIRED ChatEventType = 6
-	// 结构化卡片、动作与 Watch 命中；旧客户端必须忽略（AGNT-060）
-	ChatEventType_CHAT_EVENT_TYPE_CARD      ChatEventType = 7
-	ChatEventType_CHAT_EVENT_TYPE_ACTIONS   ChatEventType = 8
-	ChatEventType_CHAT_EVENT_TYPE_WATCH_HIT ChatEventType = 9
-)
-
-// Enum value maps for ChatEventType.
-var (
-	ChatEventType_name = map[int32]string{
-		0: "CHAT_EVENT_TYPE_UNSPECIFIED",
-		1: "CHAT_EVENT_TYPE_TOKEN",
-		2: "CHAT_EVENT_TYPE_SOURCE",
-		3: "CHAT_EVENT_TYPE_DONE",
-		4: "CHAT_EVENT_TYPE_ERROR",
-		5: "CHAT_EVENT_TYPE_TOOL_CALL",
-		6: "CHAT_EVENT_TYPE_CONFIRM_REQUIRED",
-		7: "CHAT_EVENT_TYPE_CARD",
-		8: "CHAT_EVENT_TYPE_ACTIONS",
-		9: "CHAT_EVENT_TYPE_WATCH_HIT",
-	}
-	ChatEventType_value = map[string]int32{
-		"CHAT_EVENT_TYPE_UNSPECIFIED":      0,
-		"CHAT_EVENT_TYPE_TOKEN":            1,
-		"CHAT_EVENT_TYPE_SOURCE":           2,
-		"CHAT_EVENT_TYPE_DONE":             3,
-		"CHAT_EVENT_TYPE_ERROR":            4,
-		"CHAT_EVENT_TYPE_TOOL_CALL":        5,
-		"CHAT_EVENT_TYPE_CONFIRM_REQUIRED": 6,
-		"CHAT_EVENT_TYPE_CARD":             7,
-		"CHAT_EVENT_TYPE_ACTIONS":          8,
-		"CHAT_EVENT_TYPE_WATCH_HIT":        9,
-	}
-)
-
-func (x ChatEventType) Enum() *ChatEventType {
-	p := new(ChatEventType)
-	*p = x
-	return p
-}
-
-func (x ChatEventType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ChatEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_assistant_assistant_proto_enumTypes[1].Descriptor()
-}
-
-func (ChatEventType) Type() protoreflect.EnumType {
-	return &file_proto_assistant_assistant_proto_enumTypes[1]
-}
-
-func (x ChatEventType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ChatEventType.Descriptor instead.
-func (ChatEventType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
-}
-
-type ChatReq struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserId         int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	Message        string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	RequestId      string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Mode           AssistantMode          `protobuf:"varint,5,opt,name=mode,proto3,enum=assistant.AssistantMode" json:"mode,omitempty"`
-	// 当前会话上传的图片附件，仅 agent 模式写帖工具可引用（AGNT-013/040）
-	Attachments []*Attachment `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	// 可选内容上下文，缺省忽略（AGNT-042）
-	ContextPostId int64 `protobuf:"varint,7,opt,name=context_post_id,json=contextPostId,proto3" json:"context_post_id,omitempty"`
+type GetThreadReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ChatReq) Reset() {
-	*x = ChatReq{}
+func (x *GetThreadReq) Reset() {
+	*x = GetThreadReq{}
 	mi := &file_proto_assistant_assistant_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ChatReq) String() string {
+func (x *GetThreadReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ChatReq) ProtoMessage() {}
+func (*GetThreadReq) ProtoMessage() {}
 
-func (x *ChatReq) ProtoReflect() protoreflect.Message {
+func (x *GetThreadReq) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_assistant_assistant_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -183,58 +53,380 @@ func (x *ChatReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ChatReq.ProtoReflect.Descriptor instead.
-func (*ChatReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetThreadReq.ProtoReflect.Descriptor instead.
+func (*GetThreadReq) Descriptor() ([]byte, []int) {
 	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ChatReq) GetUserId() int64 {
+func (x *GetThreadReq) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *ChatReq) GetConversationId() string {
+type AssistantThread struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SessionId          int64                  `protobuf:"varint,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	UnreadCount        int32                  `protobuf:"varint,2,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
+	LastMessageId      int64                  `protobuf:"varint,3,opt,name=last_message_id,json=lastMessageId,proto3" json:"last_message_id,omitempty"`
+	LastMessagePreview string                 `protobuf:"bytes,4,opt,name=last_message_preview,json=lastMessagePreview,proto3" json:"last_message_preview,omitempty"`
+	LastMessageAtMs    int64                  `protobuf:"varint,5,opt,name=last_message_at_ms,json=lastMessageAtMs,proto3" json:"last_message_at_ms,omitempty"`
+	ActiveRunId        int64                  `protobuf:"varint,6,opt,name=active_run_id,json=activeRunId,proto3" json:"active_run_id,omitempty"`
+	ActiveRunStatus    string                 `protobuf:"bytes,7,opt,name=active_run_status,json=activeRunStatus,proto3" json:"active_run_status,omitempty"`
+	ActiveRunPhase     string                 `protobuf:"bytes,8,opt,name=active_run_phase,json=activeRunPhase,proto3" json:"active_run_phase,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AssistantThread) Reset() {
+	*x = AssistantThread{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssistantThread) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssistantThread) ProtoMessage() {}
+
+func (x *AssistantThread) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
 	if x != nil {
-		return x.ConversationId
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssistantThread.ProtoReflect.Descriptor instead.
+func (*AssistantThread) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AssistantThread) GetSessionId() int64 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
+}
+
+func (x *AssistantThread) GetUnreadCount() int32 {
+	if x != nil {
+		return x.UnreadCount
+	}
+	return 0
+}
+
+func (x *AssistantThread) GetLastMessageId() int64 {
+	if x != nil {
+		return x.LastMessageId
+	}
+	return 0
+}
+
+func (x *AssistantThread) GetLastMessagePreview() string {
+	if x != nil {
+		return x.LastMessagePreview
 	}
 	return ""
 }
 
-func (x *ChatReq) GetMessage() string {
+func (x *AssistantThread) GetLastMessageAtMs() int64 {
 	if x != nil {
-		return x.Message
+		return x.LastMessageAtMs
+	}
+	return 0
+}
+
+func (x *AssistantThread) GetActiveRunId() int64 {
+	if x != nil {
+		return x.ActiveRunId
+	}
+	return 0
+}
+
+func (x *AssistantThread) GetActiveRunStatus() string {
+	if x != nil {
+		return x.ActiveRunStatus
 	}
 	return ""
 }
 
-func (x *ChatReq) GetRequestId() string {
+func (x *AssistantThread) GetActiveRunPhase() string {
 	if x != nil {
-		return x.RequestId
+		return x.ActiveRunPhase
 	}
 	return ""
 }
 
-func (x *ChatReq) GetMode() AssistantMode {
-	if x != nil {
-		return x.Mode
-	}
-	return AssistantMode_ASSISTANT_MODE_UNSPECIFIED
+type GetThreadResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Thread        *AssistantThread       `protobuf:"bytes,1,opt,name=thread,proto3" json:"thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ChatReq) GetAttachments() []*Attachment {
+func (x *GetThreadResp) Reset() {
+	*x = GetThreadResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadResp) ProtoMessage() {}
+
+func (x *GetThreadResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
 	if x != nil {
-		return x.Attachments
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadResp.ProtoReflect.Descriptor instead.
+func (*GetThreadResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetThreadResp) GetThread() *AssistantThread {
+	if x != nil {
+		return x.Thread
 	}
 	return nil
 }
 
-func (x *ChatReq) GetContextPostId() int64 {
+type ListMessagesReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	AfterId       int64                  `protobuf:"varint,3,opt,name=after_id,json=afterId,proto3" json:"after_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMessagesReq) Reset() {
+	*x = ListMessagesReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMessagesReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMessagesReq) ProtoMessage() {}
+
+func (x *ListMessagesReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
 	if x != nil {
-		return x.ContextPostId
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMessagesReq.ProtoReflect.Descriptor instead.
+func (*ListMessagesReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListMessagesReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
 	}
 	return 0
+}
+
+func (x *ListMessagesReq) GetSessionId() int64 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
+}
+
+func (x *ListMessagesReq) GetAfterId() int64 {
+	if x != nil {
+		return x.AfterId
+	}
+	return 0
+}
+
+func (x *ListMessagesReq) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type AssistantMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RunId         int64                  `protobuf:"varint,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Kind          string                 `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
+	Content       string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	Unread        bool                   `protobuf:"varint,7,opt,name=unread,proto3" json:"unread,omitempty"`
+	CreatedAtMs   int64                  `protobuf:"varint,8,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	ChangeId      int64                  `protobuf:"varint,9,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssistantMessage) Reset() {
+	*x = AssistantMessage{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssistantMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssistantMessage) ProtoMessage() {}
+
+func (x *AssistantMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssistantMessage.ProtoReflect.Descriptor instead.
+func (*AssistantMessage) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AssistantMessage) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *AssistantMessage) GetSessionId() int64 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
+}
+
+func (x *AssistantMessage) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *AssistantMessage) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *AssistantMessage) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AssistantMessage) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *AssistantMessage) GetUnread() bool {
+	if x != nil {
+		return x.Unread
+	}
+	return false
+}
+
+func (x *AssistantMessage) GetCreatedAtMs() int64 {
+	if x != nil {
+		return x.CreatedAtMs
+	}
+	return 0
+}
+
+func (x *AssistantMessage) GetChangeId() int64 {
+	if x != nil {
+		return x.ChangeId
+	}
+	return 0
+}
+
+type ListMessagesResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*AssistantMessage    `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMessagesResp) Reset() {
+	*x = ListMessagesResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMessagesResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMessagesResp) ProtoMessage() {}
+
+func (x *ListMessagesResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMessagesResp.ProtoReflect.Descriptor instead.
+func (*ListMessagesResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListMessagesResp) GetMessages() []*AssistantMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
 }
 
 type Attachment struct {
@@ -247,7 +439,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +451,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[1]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +464,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{1}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Attachment) GetMediaId() int64 {
@@ -289,31 +481,32 @@ func (x *Attachment) GetUrl() string {
 	return ""
 }
 
-type ConfirmToolCallReq struct {
+type PostMessageReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	CallId        string                 `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
-	Approved      bool                   `protobuf:"varint,4,opt,name=approved,proto3" json:"approved,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	RequestId     string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Attachments   []*Attachment          `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	ContextPostId int64                  `protobuf:"varint,5,opt,name=context_post_id,json=contextPostId,proto3" json:"context_post_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ConfirmToolCallReq) Reset() {
-	*x = ConfirmToolCallReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+func (x *PostMessageReq) Reset() {
+	*x = PostMessageReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ConfirmToolCallReq) String() string {
+func (x *PostMessageReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ConfirmToolCallReq) ProtoMessage() {}
+func (*PostMessageReq) ProtoMessage() {}
 
-func (x *ConfirmToolCallReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[2]
+func (x *PostMessageReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,60 +517,71 @@ func (x *ConfirmToolCallReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ConfirmToolCallReq.ProtoReflect.Descriptor instead.
-func (*ConfirmToolCallReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use PostMessageReq.ProtoReflect.Descriptor instead.
+func (*PostMessageReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ConfirmToolCallReq) GetUserId() int64 {
+func (x *PostMessageReq) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *ConfirmToolCallReq) GetRequestId() string {
+func (x *PostMessageReq) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *PostMessageReq) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
 	return ""
 }
 
-func (x *ConfirmToolCallReq) GetCallId() string {
+func (x *PostMessageReq) GetAttachments() []*Attachment {
 	if x != nil {
-		return x.CallId
+		return x.Attachments
 	}
-	return ""
+	return nil
 }
 
-func (x *ConfirmToolCallReq) GetApproved() bool {
+func (x *PostMessageReq) GetContextPostId() int64 {
 	if x != nil {
-		return x.Approved
+		return x.ContextPostId
 	}
-	return false
+	return 0
 }
 
-type ConfirmToolCallResp struct {
+type PostMessageResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     int64                  `protobuf:"varint,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RunId         int64                  `protobuf:"varint,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Disposition   string                 `protobuf:"bytes,4,opt,name=disposition,proto3" json:"disposition,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ConfirmToolCallResp) Reset() {
-	*x = ConfirmToolCallResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
+func (x *PostMessageResp) Reset() {
+	*x = PostMessageResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ConfirmToolCallResp) String() string {
+func (x *PostMessageResp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ConfirmToolCallResp) ProtoMessage() {}
+func (*PostMessageResp) ProtoMessage() {}
 
-func (x *ConfirmToolCallResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[3]
+func (x *PostMessageResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,36 +592,61 @@ func (x *ConfirmToolCallResp) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ConfirmToolCallResp.ProtoReflect.Descriptor instead.
-func (*ConfirmToolCallResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use PostMessageResp.ProtoReflect.Descriptor instead.
+func (*PostMessageResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{8}
 }
 
-type SourceReference struct {
+func (x *PostMessageResp) GetMessageId() int64 {
+	if x != nil {
+		return x.MessageId
+	}
+	return 0
+}
+
+func (x *PostMessageResp) GetSessionId() int64 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
+}
+
+func (x *PostMessageResp) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *PostMessageResp) GetDisposition() string {
+	if x != nil {
+		return x.Disposition
+	}
+	return ""
+}
+
+type CreateSessionReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SourceType    string                 `protobuf:"bytes,1,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
-	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Revision      int64                  `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SourceReference) Reset() {
-	*x = SourceReference{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
+func (x *CreateSessionReq) Reset() {
+	*x = CreateSessionReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SourceReference) String() string {
+func (x *CreateSessionReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SourceReference) ProtoMessage() {}
+func (*CreateSessionReq) ProtoMessage() {}
 
-func (x *SourceReference) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[4]
+func (x *CreateSessionReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,52 +657,303 @@ func (x *SourceReference) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SourceReference.ProtoReflect.Descriptor instead.
-func (*SourceReference) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{4}
+// Deprecated: Use CreateSessionReq.ProtoReflect.Descriptor instead.
+func (*CreateSessionReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SourceReference) GetSourceType() string {
+func (x *CreateSessionReq) GetUserId() int64 {
 	if x != nil {
-		return x.SourceType
+		return x.UserId
 	}
-	return ""
+	return 0
 }
 
-func (x *SourceReference) GetSourceId() string {
+type CreateSessionResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     int64                  `protobuf:"varint,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSessionResp) Reset() {
+	*x = CreateSessionResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSessionResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSessionResp) ProtoMessage() {}
+
+func (x *CreateSessionResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
 	if x != nil {
-		return x.SourceId
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return ""
+	return mi.MessageOf(x)
 }
 
-func (x *SourceReference) GetTitle() string {
+// Deprecated: Use CreateSessionResp.ProtoReflect.Descriptor instead.
+func (*CreateSessionResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateSessionResp) GetSessionId() int64 {
 	if x != nil {
-		return x.Title
+		return x.SessionId
 	}
-	return ""
+	return 0
 }
 
-func (x *SourceReference) GetRevision() int64 {
+type MarkThreadReadReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkThreadReadReq) Reset() {
+	*x = MarkThreadReadReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkThreadReadReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkThreadReadReq) ProtoMessage() {}
+
+func (x *MarkThreadReadReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
 	if x != nil {
-		return x.Revision
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkThreadReadReq.ProtoReflect.Descriptor instead.
+func (*MarkThreadReadReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *MarkThreadReadReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type MarkThreadReadResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UnreadCount   int32                  `protobuf:"varint,1,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkThreadReadResp) Reset() {
+	*x = MarkThreadReadResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkThreadReadResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkThreadReadResp) ProtoMessage() {}
+
+func (x *MarkThreadReadResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkThreadReadResp.ProtoReflect.Descriptor instead.
+func (*MarkThreadReadResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MarkThreadReadResp) GetUnreadCount() int32 {
+	if x != nil {
+		return x.UnreadCount
+	}
+	return 0
+}
+
+type DeleteHistoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteHistoryReq) Reset() {
+	*x = DeleteHistoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteHistoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteHistoryReq) ProtoMessage() {}
+
+func (x *DeleteHistoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteHistoryReq.ProtoReflect.Descriptor instead.
+func (*DeleteHistoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteHistoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type DeleteHistoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteHistoryResp) Reset() {
+	*x = DeleteHistoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteHistoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteHistoryResp) ProtoMessage() {}
+
+func (x *DeleteHistoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteHistoryResp.ProtoReflect.Descriptor instead.
+func (*DeleteHistoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{14}
+}
+
+type SubscribeRunEventsReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         int64                  `protobuf:"varint,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	AfterSeq      int64                  `protobuf:"varint,3,opt,name=after_seq,json=afterSeq,proto3" json:"after_seq,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRunEventsReq) Reset() {
+	*x = SubscribeRunEventsReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRunEventsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRunEventsReq) ProtoMessage() {}
+
+func (x *SubscribeRunEventsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRunEventsReq.ProtoReflect.Descriptor instead.
+func (*SubscribeRunEventsReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SubscribeRunEventsReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SubscribeRunEventsReq) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *SubscribeRunEventsReq) GetAfterSeq() int64 {
+	if x != nil {
+		return x.AfterSeq
 	}
 	return 0
 }
 
 type ToolCallInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CallId        string                 `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`                // 确认回传凭据，一次性绑定请求与调用（AGNT-022）
-	Tool          string                 `protobuf:"bytes,2,opt,name=tool,proto3" json:"tool,omitempty"`                                  // search_posts|web_search|create_post|update_post|delete_post
-	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`                            // 人可读摘要，客户端直接渲染
-	PayloadJson   string                 `protobuf:"bytes,4,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"` // 参数摘要 JSON
+	CallId        string                 `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	Tool          string                 `protobuf:"bytes,2,opt,name=tool,proto3" json:"tool,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,4,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ToolCallInfo) Reset() {
 	*x = ToolCallInfo{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -485,7 +965,7 @@ func (x *ToolCallInfo) String() string {
 func (*ToolCallInfo) ProtoMessage() {}
 
 func (x *ToolCallInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[5]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +978,7 @@ func (x *ToolCallInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCallInfo.ProtoReflect.Descriptor instead.
 func (*ToolCallInfo) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{5}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ToolCallInfo) GetCallId() string {
@@ -529,136 +1009,33 @@ func (x *ToolCallInfo) GetPayloadJson() string {
 	return ""
 }
 
-type Card struct {
+type SourceCard struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CardType      string                 `protobuf:"bytes,1,opt,name=card_type,json=cardType,proto3" json:"card_type,omitempty"`          // post | watch
-	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"` // 已验证对象的 JSON
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Card) Reset() {
-	*x = Card{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Card) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Card) ProtoMessage() {}
-
-func (x *Card) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Card.ProtoReflect.Descriptor instead.
-func (*Card) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *Card) GetCardType() string {
-	if x != nil {
-		return x.CardType
-	}
-	return ""
-}
-
-func (x *Card) GetPayloadJson() string {
-	if x != nil {
-		return x.PayloadJson
-	}
-	return ""
-}
-
-type Action struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Action        string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"` // open_post | favorite | watch_author | watch_tag
-	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Action) Reset() {
-	*x = Action{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Action) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Action) ProtoMessage() {}
-
-func (x *Action) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Action.ProtoReflect.Descriptor instead.
-func (*Action) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *Action) GetAction() string {
-	if x != nil {
-		return x.Action
-	}
-	return ""
-}
-
-func (x *Action) GetPayloadJson() string {
-	if x != nil {
-		return x.PayloadJson
-	}
-	return ""
-}
-
-type WatchHitInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	HitId         int64                  `protobuf:"varint,1,opt,name=hit_id,json=hitId,proto3" json:"hit_id,omitempty"`
-	TaskId        int64                  `protobuf:"varint,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	PostId        int64                  `protobuf:"varint,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	Handle        string                 `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	AuthorityId   string                 `protobuf:"bytes,3,opt,name=authority_id,json=authorityId,proto3" json:"authority_id,omitempty"`
 	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	Revision      int64                  `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,6,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WatchHitInfo) Reset() {
-	*x = WatchHitInfo{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
+func (x *SourceCard) Reset() {
+	*x = SourceCard{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WatchHitInfo) String() string {
+func (x *SourceCard) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WatchHitInfo) ProtoMessage() {}
+func (*SourceCard) ProtoMessage() {}
 
-func (x *WatchHitInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[8]
+func (x *SourceCard) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,77 +1046,84 @@ func (x *WatchHitInfo) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WatchHitInfo.ProtoReflect.Descriptor instead.
-func (*WatchHitInfo) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{8}
+// Deprecated: Use SourceCard.ProtoReflect.Descriptor instead.
+func (*SourceCard) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *WatchHitInfo) GetHitId() int64 {
+func (x *SourceCard) GetHandle() string {
 	if x != nil {
-		return x.HitId
+		return x.Handle
 	}
-	return 0
+	return ""
 }
 
-func (x *WatchHitInfo) GetTaskId() int64 {
+func (x *SourceCard) GetKind() string {
 	if x != nil {
-		return x.TaskId
+		return x.Kind
 	}
-	return 0
+	return ""
 }
 
-func (x *WatchHitInfo) GetPostId() int64 {
+func (x *SourceCard) GetAuthorityId() string {
 	if x != nil {
-		return x.PostId
+		return x.AuthorityId
 	}
-	return 0
+	return ""
 }
 
-func (x *WatchHitInfo) GetTitle() string {
+func (x *SourceCard) GetTitle() string {
 	if x != nil {
 		return x.Title
 	}
 	return ""
 }
 
-func (x *WatchHitInfo) GetSummary() string {
+func (x *SourceCard) GetRevision() int64 {
 	if x != nil {
-		return x.Summary
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *SourceCard) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
 	}
 	return ""
 }
 
-type ChatEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Type           ChatEventType          `protobuf:"varint,1,opt,name=type,proto3,enum=assistant.ChatEventType" json:"type,omitempty"`
-	Text           string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
-	Source         *SourceReference       `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
-	Degraded       bool                   `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"`
-	ErrorCode      string                 `protobuf:"bytes,5,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
-	ConversationId string                 `protobuf:"bytes,6,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
-	ToolCall       *ToolCallInfo          `protobuf:"bytes,7,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
-	Card           *Card                  `protobuf:"bytes,8,opt,name=card,proto3" json:"card,omitempty"`
-	Actions        []*Action              `protobuf:"bytes,9,rep,name=actions,proto3" json:"actions,omitempty"`
-	WatchHit       *WatchHitInfo          `protobuf:"bytes,10,opt,name=watch_hit,json=watchHit,proto3" json:"watch_hit,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+type RunEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         int64                  `protobuf:"varint,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Seq           int64                  `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Degraded      bool                   `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	ErrorCode     string                 `protobuf:"bytes,6,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	SessionId     int64                  `protobuf:"varint,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ToolCall      *ToolCallInfo          `protobuf:"bytes,8,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
+	SourceCard    *SourceCard            `protobuf:"bytes,9,opt,name=source_card,json=sourceCard,proto3" json:"source_card,omitempty"`
+	ChangeId      int64                  `protobuf:"varint,10,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ChatEvent) Reset() {
-	*x = ChatEvent{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
+func (x *RunEvent) Reset() {
+	*x = RunEvent{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ChatEvent) String() string {
+func (x *RunEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ChatEvent) ProtoMessage() {}
+func (*RunEvent) ProtoMessage() {}
 
-func (x *ChatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[9]
+func (x *RunEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,112 +1134,104 @@ func (x *ChatEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
-func (*ChatEvent) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{9}
+// Deprecated: Use RunEvent.ProtoReflect.Descriptor instead.
+func (*RunEvent) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *ChatEvent) GetType() ChatEventType {
+func (x *RunEvent) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *RunEvent) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *RunEvent) GetType() string {
 	if x != nil {
 		return x.Type
 	}
-	return ChatEventType_CHAT_EVENT_TYPE_UNSPECIFIED
+	return ""
 }
 
-func (x *ChatEvent) GetText() string {
+func (x *RunEvent) GetText() string {
 	if x != nil {
 		return x.Text
 	}
 	return ""
 }
 
-func (x *ChatEvent) GetSource() *SourceReference {
-	if x != nil {
-		return x.Source
-	}
-	return nil
-}
-
-func (x *ChatEvent) GetDegraded() bool {
+func (x *RunEvent) GetDegraded() bool {
 	if x != nil {
 		return x.Degraded
 	}
 	return false
 }
 
-func (x *ChatEvent) GetErrorCode() string {
+func (x *RunEvent) GetErrorCode() string {
 	if x != nil {
 		return x.ErrorCode
 	}
 	return ""
 }
 
-func (x *ChatEvent) GetConversationId() string {
+func (x *RunEvent) GetSessionId() int64 {
 	if x != nil {
-		return x.ConversationId
+		return x.SessionId
 	}
-	return ""
+	return 0
 }
 
-func (x *ChatEvent) GetToolCall() *ToolCallInfo {
+func (x *RunEvent) GetToolCall() *ToolCallInfo {
 	if x != nil {
 		return x.ToolCall
 	}
 	return nil
 }
 
-func (x *ChatEvent) GetCard() *Card {
+func (x *RunEvent) GetSourceCard() *SourceCard {
 	if x != nil {
-		return x.Card
+		return x.SourceCard
 	}
 	return nil
 }
 
-func (x *ChatEvent) GetActions() []*Action {
+func (x *RunEvent) GetChangeId() int64 {
 	if x != nil {
-		return x.Actions
+		return x.ChangeId
 	}
-	return nil
+	return 0
 }
 
-func (x *ChatEvent) GetWatchHit() *WatchHitInfo {
-	if x != nil {
-		return x.WatchHit
-	}
-	return nil
-}
-
-type MemoryItem struct {
+type CancelRunReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Layer         string                 `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"` // profile | interest | task | episodic
-	Dimension     string                 `protobuf:"bytes,3,opt,name=dimension,proto3" json:"dimension,omitempty"`
-	Value         string                 `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
-	Score         float64                `protobuf:"fixed64,5,opt,name=score,proto3" json:"score,omitempty"`
-	Source        string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
-	Confidence    float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
-	Confirmed     bool                   `protobuf:"varint,8,opt,name=confirmed,proto3" json:"confirmed,omitempty"` // 高置信已确认 vs 可能的偏好
-	Suppressed    bool                   `protobuf:"varint,9,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         int64                  `protobuf:"varint,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *MemoryItem) Reset() {
-	*x = MemoryItem{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
+func (x *CancelRunReq) Reset() {
+	*x = CancelRunReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *MemoryItem) String() string {
+func (x *CancelRunReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MemoryItem) ProtoMessage() {}
+func (*CancelRunReq) ProtoMessage() {}
 
-func (x *MemoryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[10]
+func (x *CancelRunReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -866,77 +1242,305 @@ func (x *MemoryItem) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MemoryItem.ProtoReflect.Descriptor instead.
-func (*MemoryItem) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{10}
+// Deprecated: Use CancelRunReq.ProtoReflect.Descriptor instead.
+func (*CancelRunReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *MemoryItem) GetId() int64 {
+func (x *CancelRunReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CancelRunReq) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+type CancelRunResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelRunResp) Reset() {
+	*x = CancelRunResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelRunResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelRunResp) ProtoMessage() {}
+
+func (x *CancelRunResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelRunResp.ProtoReflect.Descriptor instead.
+func (*CancelRunResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{20}
+}
+
+type ConfirmRunToolReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         int64                  `protobuf:"varint,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	CallId        string                 `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	Approved      bool                   `protobuf:"varint,4,opt,name=approved,proto3" json:"approved,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmRunToolReq) Reset() {
+	*x = ConfirmRunToolReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmRunToolReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmRunToolReq) ProtoMessage() {}
+
+func (x *ConfirmRunToolReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmRunToolReq.ProtoReflect.Descriptor instead.
+func (*ConfirmRunToolReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ConfirmRunToolReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ConfirmRunToolReq) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *ConfirmRunToolReq) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *ConfirmRunToolReq) GetApproved() bool {
+	if x != nil {
+		return x.Approved
+	}
+	return false
+}
+
+type ConfirmRunToolResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmRunToolResp) Reset() {
+	*x = ConfirmRunToolResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmRunToolResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmRunToolResp) ProtoMessage() {}
+
+func (x *ConfirmRunToolResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmRunToolResp.ProtoReflect.Descriptor instead.
+func (*ConfirmRunToolResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{22}
+}
+
+type MemoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Version       int32                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	CreatedAtMs   int64                  `protobuf:"varint,5,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	UpdatedAtMs   int64                  `protobuf:"varint,6,opt,name=updated_at_ms,json=updatedAtMs,proto3" json:"updated_at_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryEntry) Reset() {
+	*x = MemoryEntry{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryEntry) ProtoMessage() {}
+
+func (x *MemoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryEntry.ProtoReflect.Descriptor instead.
+func (*MemoryEntry) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *MemoryEntry) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-func (x *MemoryItem) GetLayer() string {
+func (x *MemoryEntry) GetTarget() string {
 	if x != nil {
-		return x.Layer
+		return x.Target
 	}
 	return ""
 }
 
-func (x *MemoryItem) GetDimension() string {
+func (x *MemoryEntry) GetContent() string {
 	if x != nil {
-		return x.Dimension
+		return x.Content
 	}
 	return ""
 }
 
-func (x *MemoryItem) GetValue() string {
+func (x *MemoryEntry) GetVersion() int32 {
 	if x != nil {
-		return x.Value
-	}
-	return ""
-}
-
-func (x *MemoryItem) GetScore() float64 {
-	if x != nil {
-		return x.Score
+		return x.Version
 	}
 	return 0
 }
 
-func (x *MemoryItem) GetSource() string {
+func (x *MemoryEntry) GetCreatedAtMs() int64 {
 	if x != nil {
-		return x.Source
-	}
-	return ""
-}
-
-func (x *MemoryItem) GetConfidence() float64 {
-	if x != nil {
-		return x.Confidence
+		return x.CreatedAtMs
 	}
 	return 0
 }
 
-func (x *MemoryItem) GetConfirmed() bool {
+func (x *MemoryEntry) GetUpdatedAtMs() int64 {
 	if x != nil {
-		return x.Confirmed
+		return x.UpdatedAtMs
 	}
-	return false
+	return 0
 }
 
-func (x *MemoryItem) GetSuppressed() bool {
-	if x != nil {
-		return x.Suppressed
-	}
-	return false
+type MemoryCapacity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Used          int32                  `protobuf:"varint,2,opt,name=used,proto3" json:"used,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *MemoryItem) GetUpdatedAt() int64 {
+func (x *MemoryCapacity) Reset() {
+	*x = MemoryCapacity{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryCapacity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryCapacity) ProtoMessage() {}
+
+func (x *MemoryCapacity) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
 	if x != nil {
-		return x.UpdatedAt
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryCapacity.ProtoReflect.Descriptor instead.
+func (*MemoryCapacity) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *MemoryCapacity) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *MemoryCapacity) GetUsed() int32 {
+	if x != nil {
+		return x.Used
+	}
+	return 0
+}
+
+func (x *MemoryCapacity) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
 	}
 	return 0
 }
@@ -944,14 +1548,14 @@ func (x *MemoryItem) GetUpdatedAt() int64 {
 type ListMemoryReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Layer         string                 `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"` // 空表示全部（不含默认全量 episodic）
+	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMemoryReq) Reset() {
 	*x = ListMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -963,7 +1567,7 @@ func (x *ListMemoryReq) String() string {
 func (*ListMemoryReq) ProtoMessage() {}
 
 func (x *ListMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[11]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -976,7 +1580,7 @@ func (x *ListMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoryReq.ProtoReflect.Descriptor instead.
 func (*ListMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{11}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListMemoryReq) GetUserId() int64 {
@@ -986,23 +1590,24 @@ func (x *ListMemoryReq) GetUserId() int64 {
 	return 0
 }
 
-func (x *ListMemoryReq) GetLayer() string {
+func (x *ListMemoryReq) GetTarget() string {
 	if x != nil {
-		return x.Layer
+		return x.Target
 	}
 	return ""
 }
 
 type ListMemoryResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*MemoryItem          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Items         []*MemoryEntry         `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Capacities    []*MemoryCapacity      `protobuf:"bytes,2,rep,name=capacities,proto3" json:"capacities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMemoryResp) Reset() {
 	*x = ListMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1014,7 +1619,7 @@ func (x *ListMemoryResp) String() string {
 func (*ListMemoryResp) ProtoMessage() {}
 
 func (x *ListMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[12]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,42 +1632,48 @@ func (x *ListMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoryResp.ProtoReflect.Descriptor instead.
 func (*ListMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{12}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *ListMemoryResp) GetItems() []*MemoryItem {
+func (x *ListMemoryResp) GetItems() []*MemoryEntry {
 	if x != nil {
 		return x.Items
 	}
 	return nil
 }
 
-type UpdateMemoryReq struct {
+func (x *ListMemoryResp) GetCapacities() []*MemoryCapacity {
+	if x != nil {
+		return x.Capacities
+	}
+	return nil
+}
+
+type AddMemoryReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	Value         *string                `protobuf:"bytes,3,opt,name=value,proto3,oneof" json:"value,omitempty"`
-	Score         *float64               `protobuf:"fixed64,4,opt,name=score,proto3,oneof" json:"score,omitempty"`
-	Suppressed    *bool                  `protobuf:"varint,5,opt,name=suppressed,proto3,oneof" json:"suppressed,omitempty"`
+	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	RequestId     string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UpdateMemoryReq) Reset() {
-	*x = UpdateMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+func (x *AddMemoryReq) Reset() {
+	*x = AddMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdateMemoryReq) String() string {
+func (x *AddMemoryReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdateMemoryReq) ProtoMessage() {}
+func (*AddMemoryReq) ProtoMessage() {}
 
-func (x *UpdateMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[13]
+func (x *AddMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,105 +1684,117 @@ func (x *UpdateMemoryReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdateMemoryReq.ProtoReflect.Descriptor instead.
-func (*UpdateMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{13}
+// Deprecated: Use AddMemoryReq.ProtoReflect.Descriptor instead.
+func (*AddMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *UpdateMemoryReq) GetUserId() int64 {
+func (x *AddMemoryReq) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *UpdateMemoryReq) GetId() int64 {
+func (x *AddMemoryReq) GetTarget() string {
 	if x != nil {
-		return x.Id
-	}
-	return 0
-}
-
-func (x *UpdateMemoryReq) GetValue() string {
-	if x != nil && x.Value != nil {
-		return *x.Value
+		return x.Target
 	}
 	return ""
 }
 
-func (x *UpdateMemoryReq) GetScore() float64 {
-	if x != nil && x.Score != nil {
-		return *x.Score
+func (x *AddMemoryReq) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *AddMemoryReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type AddMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *MemoryEntry           `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	ChangeId      int64                  `protobuf:"varint,2,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMemoryResp) Reset() {
+	*x = AddMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMemoryResp) ProtoMessage() {}
+
+func (x *AddMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMemoryResp.ProtoReflect.Descriptor instead.
+func (*AddMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AddMemoryResp) GetEntry() *MemoryEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+func (x *AddMemoryResp) GetChangeId() int64 {
+	if x != nil {
+		return x.ChangeId
 	}
 	return 0
 }
 
-func (x *UpdateMemoryReq) GetSuppressed() bool {
-	if x != nil && x.Suppressed != nil {
-		return *x.Suppressed
-	}
-	return false
-}
-
-type UpdateMemoryResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateMemoryResp) Reset() {
-	*x = UpdateMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateMemoryResp) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateMemoryResp) ProtoMessage() {}
-
-func (x *UpdateMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateMemoryResp.ProtoReflect.Descriptor instead.
-func (*UpdateMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{14}
-}
-
-type DeleteMemoryReq struct {
+type ReplaceMemoryReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Version       int32                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	RequestId     string                 `protobuf:"bytes,5,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DeleteMemoryReq) Reset() {
-	*x = DeleteMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+func (x *ReplaceMemoryReq) Reset() {
+	*x = ReplaceMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeleteMemoryReq) String() string {
+func (x *ReplaceMemoryReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeleteMemoryReq) ProtoMessage() {}
+func (*ReplaceMemoryReq) ProtoMessage() {}
 
-func (x *DeleteMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[15]
+func (x *ReplaceMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1182,46 +1805,69 @@ func (x *DeleteMemoryReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteMemoryReq.ProtoReflect.Descriptor instead.
-func (*DeleteMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{15}
+// Deprecated: Use ReplaceMemoryReq.ProtoReflect.Descriptor instead.
+func (*ReplaceMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *DeleteMemoryReq) GetUserId() int64 {
+func (x *ReplaceMemoryReq) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *DeleteMemoryReq) GetId() int64 {
+func (x *ReplaceMemoryReq) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
 	return 0
 }
 
-type DeleteMemoryResp struct {
+func (x *ReplaceMemoryReq) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ReplaceMemoryReq) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ReplaceMemoryReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type ReplaceMemoryResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *MemoryEntry           `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	ChangeId      int64                  `protobuf:"varint,2,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DeleteMemoryResp) Reset() {
-	*x = DeleteMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
+func (x *ReplaceMemoryResp) Reset() {
+	*x = ReplaceMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeleteMemoryResp) String() string {
+func (x *ReplaceMemoryResp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeleteMemoryResp) ProtoMessage() {}
+func (*ReplaceMemoryResp) ProtoMessage() {}
 
-func (x *DeleteMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[16]
+func (x *ReplaceMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1232,9 +1878,419 @@ func (x *DeleteMemoryResp) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteMemoryResp.ProtoReflect.Descriptor instead.
-func (*DeleteMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{16}
+// Deprecated: Use ReplaceMemoryResp.ProtoReflect.Descriptor instead.
+func (*ReplaceMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ReplaceMemoryResp) GetEntry() *MemoryEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+func (x *ReplaceMemoryResp) GetChangeId() int64 {
+	if x != nil {
+		return x.ChangeId
+	}
+	return 0
+}
+
+type RemoveMemoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	RequestId     string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveMemoryReq) Reset() {
+	*x = RemoveMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveMemoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveMemoryReq) ProtoMessage() {}
+
+func (x *RemoveMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveMemoryReq.ProtoReflect.Descriptor instead.
+func (*RemoveMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RemoveMemoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RemoveMemoryReq) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *RemoveMemoryReq) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *RemoveMemoryReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type RemoveMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChangeId      int64                  `protobuf:"varint,1,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveMemoryResp) Reset() {
+	*x = RemoveMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveMemoryResp) ProtoMessage() {}
+
+func (x *RemoveMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveMemoryResp.ProtoReflect.Descriptor instead.
+func (*RemoveMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RemoveMemoryResp) GetChangeId() int64 {
+	if x != nil {
+		return x.ChangeId
+	}
+	return 0
+}
+
+type MemoryOp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Op            string                 `protobuf:"bytes,1,opt,name=op,proto3" json:"op,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Target        string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	Version       int32                  `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryOp) Reset() {
+	*x = MemoryOp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryOp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryOp) ProtoMessage() {}
+
+func (x *MemoryOp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryOp.ProtoReflect.Descriptor instead.
+func (*MemoryOp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *MemoryOp) GetOp() string {
+	if x != nil {
+		return x.Op
+	}
+	return ""
+}
+
+func (x *MemoryOp) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *MemoryOp) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *MemoryOp) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *MemoryOp) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type BatchMemoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Ops           []*MemoryOp            `protobuf:"bytes,3,rep,name=ops,proto3" json:"ops,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchMemoryReq) Reset() {
+	*x = BatchMemoryReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchMemoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchMemoryReq) ProtoMessage() {}
+
+func (x *BatchMemoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchMemoryReq.ProtoReflect.Descriptor instead.
+func (*BatchMemoryReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *BatchMemoryReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *BatchMemoryReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *BatchMemoryReq) GetOps() []*MemoryOp {
+	if x != nil {
+		return x.Ops
+	}
+	return nil
+}
+
+type BatchMemoryResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*MemoryEntry         `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	ChangeIds     []int64                `protobuf:"varint,2,rep,packed,name=change_ids,json=changeIds,proto3" json:"change_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchMemoryResp) Reset() {
+	*x = BatchMemoryResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchMemoryResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchMemoryResp) ProtoMessage() {}
+
+func (x *BatchMemoryResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchMemoryResp.ProtoReflect.Descriptor instead.
+func (*BatchMemoryResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *BatchMemoryResp) GetEntries() []*MemoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *BatchMemoryResp) GetChangeIds() []int64 {
+	if x != nil {
+		return x.ChangeIds
+	}
+	return nil
+}
+
+type UndoMemoryChangeReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ChangeId      int64                  `protobuf:"varint,2,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UndoMemoryChangeReq) Reset() {
+	*x = UndoMemoryChangeReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UndoMemoryChangeReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UndoMemoryChangeReq) ProtoMessage() {}
+
+func (x *UndoMemoryChangeReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UndoMemoryChangeReq.ProtoReflect.Descriptor instead.
+func (*UndoMemoryChangeReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *UndoMemoryChangeReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UndoMemoryChangeReq) GetChangeId() int64 {
+	if x != nil {
+		return x.ChangeId
+	}
+	return 0
+}
+
+type UndoMemoryChangeResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *MemoryEntry           `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UndoMemoryChangeResp) Reset() {
+	*x = UndoMemoryChangeResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UndoMemoryChangeResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UndoMemoryChangeResp) ProtoMessage() {}
+
+func (x *UndoMemoryChangeResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UndoMemoryChangeResp.ProtoReflect.Descriptor instead.
+func (*UndoMemoryChangeResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *UndoMemoryChangeResp) GetEntry() *MemoryEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
 }
 
 type WatchTask struct {
@@ -1245,14 +2301,15 @@ type WatchTask struct {
 	TargetId      int64                  `protobuf:"varint,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	TargetText    string                 `protobuf:"bytes,5,opt,name=target_text,json=targetText,proto3" json:"target_text,omitempty"`
 	Enabled       bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Version       int32                  `protobuf:"varint,7,opt,name=version,proto3" json:"version,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WatchTask) Reset() {
 	*x = WatchTask{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1264,7 +2321,7 @@ func (x *WatchTask) String() string {
 func (*WatchTask) ProtoMessage() {}
 
 func (x *WatchTask) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1277,7 +2334,7 @@ func (x *WatchTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchTask.ProtoReflect.Descriptor instead.
 func (*WatchTask) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{17}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *WatchTask) GetId() int64 {
@@ -1322,6 +2379,13 @@ func (x *WatchTask) GetEnabled() bool {
 	return false
 }
 
+func (x *WatchTask) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
 func (x *WatchTask) GetCreatedAt() int64 {
 	if x != nil {
 		return x.CreatedAt
@@ -1338,7 +2402,7 @@ type ListWatchTasksReq struct {
 
 func (x *ListWatchTasksReq) Reset() {
 	*x = ListWatchTasksReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1350,7 +2414,7 @@ func (x *ListWatchTasksReq) String() string {
 func (*ListWatchTasksReq) ProtoMessage() {}
 
 func (x *ListWatchTasksReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1363,7 +2427,7 @@ func (x *ListWatchTasksReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchTasksReq.ProtoReflect.Descriptor instead.
 func (*ListWatchTasksReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{18}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListWatchTasksReq) GetUserId() int64 {
@@ -1382,7 +2446,7 @@ type ListWatchTasksResp struct {
 
 func (x *ListWatchTasksResp) Reset() {
 	*x = ListWatchTasksResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +2458,7 @@ func (x *ListWatchTasksResp) String() string {
 func (*ListWatchTasksResp) ProtoMessage() {}
 
 func (x *ListWatchTasksResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,7 +2471,7 @@ func (x *ListWatchTasksResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchTasksResp.ProtoReflect.Descriptor instead.
 func (*ListWatchTasksResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{19}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListWatchTasksResp) GetTasks() []*WatchTask {
@@ -1430,7 +2494,7 @@ type CreateWatchTaskReq struct {
 
 func (x *CreateWatchTaskReq) Reset() {
 	*x = CreateWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1442,7 +2506,7 @@ func (x *CreateWatchTaskReq) String() string {
 func (*CreateWatchTaskReq) ProtoMessage() {}
 
 func (x *CreateWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1455,7 +2519,7 @@ func (x *CreateWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*CreateWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{20}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *CreateWatchTaskReq) GetUserId() int64 {
@@ -1502,7 +2566,7 @@ type CreateWatchTaskResp struct {
 
 func (x *CreateWatchTaskResp) Reset() {
 	*x = CreateWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1514,7 +2578,7 @@ func (x *CreateWatchTaskResp) String() string {
 func (*CreateWatchTaskResp) ProtoMessage() {}
 
 func (x *CreateWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1527,7 +2591,7 @@ func (x *CreateWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*CreateWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{21}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CreateWatchTaskResp) GetTask() *WatchTask {
@@ -1548,7 +2612,7 @@ type UpdateWatchTaskReq struct {
 
 func (x *UpdateWatchTaskReq) Reset() {
 	*x = UpdateWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1560,7 +2624,7 @@ func (x *UpdateWatchTaskReq) String() string {
 func (*UpdateWatchTaskReq) ProtoMessage() {}
 
 func (x *UpdateWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1573,7 +2637,7 @@ func (x *UpdateWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*UpdateWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{22}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *UpdateWatchTaskReq) GetUserId() int64 {
@@ -1605,7 +2669,7 @@ type UpdateWatchTaskResp struct {
 
 func (x *UpdateWatchTaskResp) Reset() {
 	*x = UpdateWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1617,7 +2681,7 @@ func (x *UpdateWatchTaskResp) String() string {
 func (*UpdateWatchTaskResp) ProtoMessage() {}
 
 func (x *UpdateWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1630,7 +2694,7 @@ func (x *UpdateWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*UpdateWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{23}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{44}
 }
 
 type DeleteWatchTaskReq struct {
@@ -1643,7 +2707,7 @@ type DeleteWatchTaskReq struct {
 
 func (x *DeleteWatchTaskReq) Reset() {
 	*x = DeleteWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1655,7 +2719,7 @@ func (x *DeleteWatchTaskReq) String() string {
 func (*DeleteWatchTaskReq) ProtoMessage() {}
 
 func (x *DeleteWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1668,7 +2732,7 @@ func (x *DeleteWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*DeleteWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{24}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DeleteWatchTaskReq) GetUserId() int64 {
@@ -1693,7 +2757,7 @@ type DeleteWatchTaskResp struct {
 
 func (x *DeleteWatchTaskResp) Reset() {
 	*x = DeleteWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1705,7 +2769,7 @@ func (x *DeleteWatchTaskResp) String() string {
 func (*DeleteWatchTaskResp) ProtoMessage() {}
 
 func (x *DeleteWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1718,283 +2782,7 @@ func (x *DeleteWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*DeleteWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{25}
-}
-
-type WatchHit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	TaskId        int64                  `protobuf:"varint,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	PostId        int64                  `protobuf:"varint,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
-	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	Summary       string                 `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Read          bool                   `protobuf:"varint,7,opt,name=read,proto3" json:"read,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WatchHit) Reset() {
-	*x = WatchHit{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WatchHit) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WatchHit) ProtoMessage() {}
-
-func (x *WatchHit) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WatchHit.ProtoReflect.Descriptor instead.
-func (*WatchHit) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *WatchHit) GetId() int64 {
-	if x != nil {
-		return x.Id
-	}
-	return 0
-}
-
-func (x *WatchHit) GetTaskId() int64 {
-	if x != nil {
-		return x.TaskId
-	}
-	return 0
-}
-
-func (x *WatchHit) GetPostId() int64 {
-	if x != nil {
-		return x.PostId
-	}
-	return 0
-}
-
-func (x *WatchHit) GetTitle() string {
-	if x != nil {
-		return x.Title
-	}
-	return ""
-}
-
-func (x *WatchHit) GetSummary() string {
-	if x != nil {
-		return x.Summary
-	}
-	return ""
-}
-
-func (x *WatchHit) GetCreatedAt() int64 {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return 0
-}
-
-func (x *WatchHit) GetRead() bool {
-	if x != nil {
-		return x.Read
-	}
-	return false
-}
-
-type ListWatchHitsReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	UnreadOnly    bool                   `protobuf:"varint,2,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWatchHitsReq) Reset() {
-	*x = ListWatchHitsReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWatchHitsReq) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWatchHitsReq) ProtoMessage() {}
-
-func (x *ListWatchHitsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWatchHitsReq.ProtoReflect.Descriptor instead.
-func (*ListWatchHitsReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *ListWatchHitsReq) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
-}
-
-func (x *ListWatchHitsReq) GetUnreadOnly() bool {
-	if x != nil {
-		return x.UnreadOnly
-	}
-	return false
-}
-
-type ListWatchHitsResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Hits          []*WatchHit            `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWatchHitsResp) Reset() {
-	*x = ListWatchHitsResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWatchHitsResp) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWatchHitsResp) ProtoMessage() {}
-
-func (x *ListWatchHitsResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWatchHitsResp.ProtoReflect.Descriptor instead.
-func (*ListWatchHitsResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{28}
-}
-
-func (x *ListWatchHitsResp) GetHits() []*WatchHit {
-	if x != nil {
-		return x.Hits
-	}
-	return nil
-}
-
-type MarkWatchHitsReadReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	HitIds        []int64                `protobuf:"varint,2,rep,packed,name=hit_ids,json=hitIds,proto3" json:"hit_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MarkWatchHitsReadReq) Reset() {
-	*x = MarkWatchHitsReadReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MarkWatchHitsReadReq) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MarkWatchHitsReadReq) ProtoMessage() {}
-
-func (x *MarkWatchHitsReadReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MarkWatchHitsReadReq.ProtoReflect.Descriptor instead.
-func (*MarkWatchHitsReadReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *MarkWatchHitsReadReq) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
-}
-
-func (x *MarkWatchHitsReadReq) GetHitIds() []int64 {
-	if x != nil {
-		return x.HitIds
-	}
-	return nil
-}
-
-type MarkWatchHitsReadResp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MarkWatchHitsReadResp) Reset() {
-	*x = MarkWatchHitsReadResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MarkWatchHitsReadResp) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MarkWatchHitsReadResp) ProtoMessage() {}
-
-func (x *MarkWatchHitsReadResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MarkWatchHitsReadResp.ProtoReflect.Descriptor instead.
-func (*MarkWatchHitsReadResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{30}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{46}
 }
 
 type SubmitRecommendFeedbackReq struct {
@@ -2009,7 +2797,7 @@ type SubmitRecommendFeedbackReq struct {
 
 func (x *SubmitRecommendFeedbackReq) Reset() {
 	*x = SubmitRecommendFeedbackReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2021,7 +2809,7 @@ func (x *SubmitRecommendFeedbackReq) String() string {
 func (*SubmitRecommendFeedbackReq) ProtoMessage() {}
 
 func (x *SubmitRecommendFeedbackReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2034,7 +2822,7 @@ func (x *SubmitRecommendFeedbackReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRecommendFeedbackReq.ProtoReflect.Descriptor instead.
 func (*SubmitRecommendFeedbackReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{31}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *SubmitRecommendFeedbackReq) GetUserId() int64 {
@@ -2073,7 +2861,7 @@ type SubmitRecommendFeedbackResp struct {
 
 func (x *SubmitRecommendFeedbackResp) Reset() {
 	*x = SubmitRecommendFeedbackResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2085,7 +2873,7 @@ func (x *SubmitRecommendFeedbackResp) String() string {
 func (*SubmitRecommendFeedbackResp) ProtoMessage() {}
 
 func (x *SubmitRecommendFeedbackResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2098,109 +2886,185 @@ func (x *SubmitRecommendFeedbackResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRecommendFeedbackResp.ProtoReflect.Descriptor instead.
 func (*SubmitRecommendFeedbackResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{32}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{48}
 }
 
 var File_proto_assistant_assistant_proto protoreflect.FileDescriptor
 
 const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
-	"\x1fproto/assistant/assistant.proto\x12\tassistant\"\x93\x02\n" +
-	"\aChatReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12'\n" +
-	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1d\n" +
+	"\x1fproto/assistant/assistant.proto\x12\tassistant\"'\n" +
+	"\fGetThreadReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xd4\x02\n" +
+	"\x0fAssistantThread\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x04 \x01(\tR\trequestId\x12,\n" +
-	"\x04mode\x18\x05 \x01(\x0e2\x18.assistant.AssistantModeR\x04mode\x127\n" +
-	"\vattachments\x18\x06 \x03(\v2\x15.assistant.AttachmentR\vattachments\x12&\n" +
-	"\x0fcontext_post_id\x18\a \x01(\x03R\rcontextPostId\"9\n" +
+	"session_id\x18\x01 \x01(\x03R\tsessionId\x12!\n" +
+	"\funread_count\x18\x02 \x01(\x05R\vunreadCount\x12&\n" +
+	"\x0flast_message_id\x18\x03 \x01(\x03R\rlastMessageId\x120\n" +
+	"\x14last_message_preview\x18\x04 \x01(\tR\x12lastMessagePreview\x12+\n" +
+	"\x12last_message_at_ms\x18\x05 \x01(\x03R\x0flastMessageAtMs\x12\"\n" +
+	"\ractive_run_id\x18\x06 \x01(\x03R\vactiveRunId\x12*\n" +
+	"\x11active_run_status\x18\a \x01(\tR\x0factiveRunStatus\x12(\n" +
+	"\x10active_run_phase\x18\b \x01(\tR\x0eactiveRunPhase\"C\n" +
+	"\rGetThreadResp\x122\n" +
+	"\x06thread\x18\x01 \x01(\v2\x1a.assistant.AssistantThreadR\x06thread\"z\n" +
+	"\x0fListMessagesReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\x03R\tsessionId\x12\x19\n" +
+	"\bafter_id\x18\x03 \x01(\x03R\aafterId\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\xf3\x01\n" +
+	"\x10AssistantMessage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\x03R\tsessionId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\x03R\x05runId\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x12\n" +
+	"\x04kind\x18\x05 \x01(\tR\x04kind\x12\x18\n" +
+	"\acontent\x18\x06 \x01(\tR\acontent\x12\x16\n" +
+	"\x06unread\x18\a \x01(\bR\x06unread\x12\"\n" +
+	"\rcreated_at_ms\x18\b \x01(\x03R\vcreatedAtMs\x12\x1b\n" +
+	"\tchange_id\x18\t \x01(\x03R\bchangeId\"K\n" +
+	"\x10ListMessagesResp\x127\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1b.assistant.AssistantMessageR\bmessages\"9\n" +
 	"\n" +
 	"Attachment\x12\x19\n" +
 	"\bmedia_id\x18\x01 \x01(\x03R\amediaId\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\"\x81\x01\n" +
-	"\x12ConfirmToolCallReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\xc3\x01\n" +
+	"\x0ePostMessageReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x17\n" +
-	"\acall_id\x18\x03 \x01(\tR\x06callId\x12\x1a\n" +
-	"\bapproved\x18\x04 \x01(\bR\bapproved\"\x15\n" +
-	"\x13ConfirmToolCallResp\"\x81\x01\n" +
-	"\x0fSourceReference\x12\x1f\n" +
-	"\vsource_type\x18\x01 \x01(\tR\n" +
-	"sourceType\x12\x1b\n" +
-	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\x12\x1a\n" +
-	"\brevision\x18\x04 \x01(\x03R\brevision\"x\n" +
+	"request_id\x18\x03 \x01(\tR\trequestId\x127\n" +
+	"\vattachments\x18\x04 \x03(\v2\x15.assistant.AttachmentR\vattachments\x12&\n" +
+	"\x0fcontext_post_id\x18\x05 \x01(\x03R\rcontextPostId\"\x88\x01\n" +
+	"\x0fPostMessageResp\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\x03R\tsessionId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\x03R\x05runId\x12 \n" +
+	"\vdisposition\x18\x04 \x01(\tR\vdisposition\"+\n" +
+	"\x10CreateSessionReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"2\n" +
+	"\x11CreateSessionResp\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\x03R\tsessionId\",\n" +
+	"\x11MarkThreadReadReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"7\n" +
+	"\x12MarkThreadReadResp\x12!\n" +
+	"\funread_count\x18\x01 \x01(\x05R\vunreadCount\"+\n" +
+	"\x10DeleteHistoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\x13\n" +
+	"\x11DeleteHistoryResp\"d\n" +
+	"\x15SubscribeRunEventsReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\x03R\x05runId\x12\x1b\n" +
+	"\tafter_seq\x18\x03 \x01(\x03R\bafterSeq\"x\n" +
 	"\fToolCallInfo\x12\x17\n" +
 	"\acall_id\x18\x01 \x01(\tR\x06callId\x12\x12\n" +
 	"\x04tool\x18\x02 \x01(\tR\x04tool\x12\x18\n" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12!\n" +
-	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"F\n" +
-	"\x04Card\x12\x1b\n" +
-	"\tcard_type\x18\x01 \x01(\tR\bcardType\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"C\n" +
-	"\x06Action\x12\x16\n" +
-	"\x06action\x18\x01 \x01(\tR\x06action\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"\x87\x01\n" +
-	"\fWatchHitInfo\x12\x15\n" +
-	"\x06hit_id\x18\x01 \x01(\x03R\x05hitId\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x17\n" +
-	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x14\n" +
-	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
-	"\asummary\x18\x05 \x01(\tR\asummary\"\xa3\x03\n" +
-	"\tChatEvent\x12,\n" +
-	"\x04type\x18\x01 \x01(\x0e2\x18.assistant.ChatEventTypeR\x04type\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\x122\n" +
-	"\x06source\x18\x03 \x01(\v2\x1a.assistant.SourceReferenceR\x06source\x12\x1a\n" +
-	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x1d\n" +
+	"\fpayload_json\x18\x04 \x01(\tR\vpayloadJson\"\xb0\x01\n" +
 	"\n" +
-	"error_code\x18\x05 \x01(\tR\terrorCode\x12'\n" +
-	"\x0fconversation_id\x18\x06 \x01(\tR\x0econversationId\x124\n" +
-	"\ttool_call\x18\a \x01(\v2\x17.assistant.ToolCallInfoR\btoolCall\x12#\n" +
-	"\x04card\x18\b \x01(\v2\x0f.assistant.CardR\x04card\x12+\n" +
-	"\aactions\x18\t \x03(\v2\x11.assistant.ActionR\aactions\x124\n" +
-	"\twatch_hit\x18\n" +
-	" \x01(\v2\x17.assistant.WatchHitInfoR\bwatchHit\"\x91\x02\n" +
+	"SourceCard\x12\x16\n" +
+	"\x06handle\x18\x01 \x01(\tR\x06handle\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12!\n" +
+	"\fauthority_id\x18\x03 \x01(\tR\vauthorityId\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1a\n" +
+	"\brevision\x18\x05 \x01(\x03R\brevision\x12!\n" +
+	"\fpayload_json\x18\x06 \x01(\tR\vpayloadJson\"\xc0\x02\n" +
+	"\bRunEvent\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\x03R\x05runId\x12\x10\n" +
+	"\x03seq\x18\x02 \x01(\x03R\x03seq\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12\x1a\n" +
+	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x1d\n" +
 	"\n" +
-	"MemoryItem\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
-	"\x05layer\x18\x02 \x01(\tR\x05layer\x12\x1c\n" +
-	"\tdimension\x18\x03 \x01(\tR\tdimension\x12\x14\n" +
-	"\x05value\x18\x04 \x01(\tR\x05value\x12\x14\n" +
-	"\x05score\x18\x05 \x01(\x01R\x05score\x12\x16\n" +
-	"\x06source\x18\x06 \x01(\tR\x06source\x12\x1e\n" +
+	"error_code\x18\x06 \x01(\tR\terrorCode\x12\x1d\n" +
 	"\n" +
-	"confidence\x18\a \x01(\x01R\n" +
-	"confidence\x12\x1c\n" +
-	"\tconfirmed\x18\b \x01(\bR\tconfirmed\x12\x1e\n" +
-	"\n" +
-	"suppressed\x18\t \x01(\bR\n" +
-	"suppressed\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\n" +
-	" \x01(\x03R\tupdatedAt\">\n" +
+	"session_id\x18\a \x01(\x03R\tsessionId\x124\n" +
+	"\ttool_call\x18\b \x01(\v2\x17.assistant.ToolCallInfoR\btoolCall\x126\n" +
+	"\vsource_card\x18\t \x01(\v2\x15.assistant.SourceCardR\n" +
+	"sourceCard\x12\x1b\n" +
+	"\tchange_id\x18\n" +
+	" \x01(\x03R\bchangeId\">\n" +
+	"\fCancelRunReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\x03R\x05runId\"\x0f\n" +
+	"\rCancelRunResp\"x\n" +
+	"\x11ConfirmRunToolReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\x03R\x05runId\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\x12\x1a\n" +
+	"\bapproved\x18\x04 \x01(\bR\bapproved\"\x14\n" +
+	"\x12ConfirmRunToolResp\"\xb1\x01\n" +
+	"\vMemoryEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\x05R\aversion\x12\"\n" +
+	"\rcreated_at_ms\x18\x05 \x01(\x03R\vcreatedAtMs\x12\"\n" +
+	"\rupdated_at_ms\x18\x06 \x01(\x03R\vupdatedAtMs\"R\n" +
+	"\x0eMemoryCapacity\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +
+	"\x04used\x18\x02 \x01(\x05R\x04used\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"@\n" +
 	"\rListMemoryReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05layer\x18\x02 \x01(\tR\x05layer\"=\n" +
-	"\x0eListMemoryResp\x12+\n" +
-	"\x05items\x18\x01 \x03(\v2\x15.assistant.MemoryItemR\x05items\"\xb8\x01\n" +
-	"\x0fUpdateMemoryReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x19\n" +
-	"\x05value\x18\x03 \x01(\tH\x00R\x05value\x88\x01\x01\x12\x19\n" +
-	"\x05score\x18\x04 \x01(\x01H\x01R\x05score\x88\x01\x01\x12#\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\"y\n" +
+	"\x0eListMemoryResp\x12,\n" +
+	"\x05items\x18\x01 \x03(\v2\x16.assistant.MemoryEntryR\x05items\x129\n" +
 	"\n" +
-	"suppressed\x18\x05 \x01(\bH\x02R\n" +
-	"suppressed\x88\x01\x01B\b\n" +
-	"\x06_valueB\b\n" +
-	"\x06_scoreB\r\n" +
-	"\v_suppressed\"\x12\n" +
-	"\x10UpdateMemoryResp\":\n" +
-	"\x0fDeleteMemoryReq\x12\x17\n" +
+	"capacities\x18\x02 \x03(\v2\x19.assistant.MemoryCapacityR\n" +
+	"capacities\"x\n" +
+	"\fAddMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId\"Z\n" +
+	"\rAddMemoryResp\x12,\n" +
+	"\x05entry\x18\x01 \x01(\v2\x16.assistant.MemoryEntryR\x05entry\x12\x1b\n" +
+	"\tchange_id\x18\x02 \x01(\x03R\bchangeId\"\x8e\x01\n" +
+	"\x10ReplaceMemoryReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\x03R\x02id\"\x12\n" +
-	"\x10DeleteMemoryResp\"\xda\x01\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\x05R\aversion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x05 \x01(\tR\trequestId\"^\n" +
+	"\x11ReplaceMemoryResp\x12,\n" +
+	"\x05entry\x18\x01 \x01(\v2\x16.assistant.MemoryEntryR\x05entry\x12\x1b\n" +
+	"\tchange_id\x18\x02 \x01(\x03R\bchangeId\"s\n" +
+	"\x0fRemoveMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x05R\aversion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId\"/\n" +
+	"\x10RemoveMemoryResp\x12\x1b\n" +
+	"\tchange_id\x18\x01 \x01(\x03R\bchangeId\"v\n" +
+	"\bMemoryOp\x12\x0e\n" +
+	"\x02op\x18\x01 \x01(\tR\x02op\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\tR\x06target\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\x05R\aversion\"o\n" +
+	"\x0eBatchMemoryReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12%\n" +
+	"\x03ops\x18\x03 \x03(\v2\x13.assistant.MemoryOpR\x03ops\"b\n" +
+	"\x0fBatchMemoryResp\x120\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.assistant.MemoryEntryR\aentries\x12\x1d\n" +
+	"\n" +
+	"change_ids\x18\x02 \x03(\x03R\tchangeIds\"K\n" +
+	"\x13UndoMemoryChangeReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tchange_id\x18\x02 \x01(\x03R\bchangeId\"D\n" +
+	"\x14UndoMemoryChangeResp\x12,\n" +
+	"\x05entry\x18\x01 \x01(\v2\x16.assistant.MemoryEntryR\x05entry\"\xf4\x01\n" +
 	"\tWatchTask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12%\n" +
 	"\x0econdition_type\x18\x02 \x01(\tR\rconditionType\x12\x1f\n" +
@@ -2209,9 +3073,10 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\ttarget_id\x18\x04 \x01(\x03R\btargetId\x12\x1f\n" +
 	"\vtarget_text\x18\x05 \x01(\tR\n" +
 	"targetText\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x1d\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x18\n" +
+	"\aversion\x18\a \x01(\x05R\aversion\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\a \x01(\x03R\tcreatedAt\",\n" +
+	"created_at\x18\b \x01(\x03R\tcreatedAt\",\n" +
 	"\x11ListWatchTasksReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"@\n" +
 	"\x12ListWatchTasksResp\x12*\n" +
@@ -2234,61 +3099,35 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x12DeleteWatchTaskReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\x03R\x02id\"\x15\n" +
-	"\x13DeleteWatchTaskResp\"\xaf\x01\n" +
-	"\bWatchHit\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\x03R\x06taskId\x12\x17\n" +
-	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x14\n" +
-	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
-	"\asummary\x18\x05 \x01(\tR\asummary\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x12\n" +
-	"\x04read\x18\a \x01(\bR\x04read\"L\n" +
-	"\x10ListWatchHitsReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1f\n" +
-	"\vunread_only\x18\x02 \x01(\bR\n" +
-	"unreadOnly\"<\n" +
-	"\x11ListWatchHitsResp\x12'\n" +
-	"\x04hits\x18\x01 \x03(\v2\x13.assistant.WatchHitR\x04hits\"H\n" +
-	"\x14MarkWatchHitsReadReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x17\n" +
-	"\ahit_ids\x18\x02 \x03(\x03R\x06hitIds\"\x17\n" +
-	"\x15MarkWatchHitsReadResp\"\x85\x01\n" +
+	"\x13DeleteWatchTaskResp\"\x85\x01\n" +
 	"\x1aSubmitRecommendFeedbackReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x02 \x01(\tR\trequestId\x12\x17\n" +
 	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x1d\n" +
-	"\x1bSubmitRecommendFeedbackResp*m\n" +
-	"\rAssistantMode\x12\x1e\n" +
-	"\x1aASSISTANT_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
-	"\x1eASSISTANT_MODE_ENHANCED_SEARCH\x10\x01\x12\x18\n" +
-	"\x14ASSISTANT_MODE_AGENT\x10\x02*\xb7\x02\n" +
-	"\rChatEventType\x12\x1f\n" +
-	"\x1bCHAT_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15CHAT_EVENT_TYPE_TOKEN\x10\x01\x12\x1a\n" +
-	"\x16CHAT_EVENT_TYPE_SOURCE\x10\x02\x12\x18\n" +
-	"\x14CHAT_EVENT_TYPE_DONE\x10\x03\x12\x19\n" +
-	"\x15CHAT_EVENT_TYPE_ERROR\x10\x04\x12\x1d\n" +
-	"\x19CHAT_EVENT_TYPE_TOOL_CALL\x10\x05\x12$\n" +
-	" CHAT_EVENT_TYPE_CONFIRM_REQUIRED\x10\x06\x12\x18\n" +
-	"\x14CHAT_EVENT_TYPE_CARD\x10\a\x12\x1b\n" +
-	"\x17CHAT_EVENT_TYPE_ACTIONS\x10\b\x12\x1d\n" +
-	"\x19CHAT_EVENT_TYPE_WATCH_HIT\x10\t2\xc0\a\n" +
-	"\x10AssistantService\x122\n" +
-	"\x04Chat\x12\x12.assistant.ChatReq\x1a\x14.assistant.ChatEvent0\x01\x12P\n" +
-	"\x0fConfirmToolCall\x12\x1d.assistant.ConfirmToolCallReq\x1a\x1e.assistant.ConfirmToolCallResp\x12A\n" +
+	"\x1bSubmitRecommendFeedbackResp2\x88\f\n" +
+	"\x10AssistantService\x12>\n" +
+	"\tGetThread\x12\x17.assistant.GetThreadReq\x1a\x18.assistant.GetThreadResp\x12G\n" +
+	"\fListMessages\x12\x1a.assistant.ListMessagesReq\x1a\x1b.assistant.ListMessagesResp\x12D\n" +
+	"\vPostMessage\x12\x19.assistant.PostMessageReq\x1a\x1a.assistant.PostMessageResp\x12J\n" +
+	"\rCreateSession\x12\x1b.assistant.CreateSessionReq\x1a\x1c.assistant.CreateSessionResp\x12M\n" +
+	"\x0eMarkThreadRead\x12\x1c.assistant.MarkThreadReadReq\x1a\x1d.assistant.MarkThreadReadResp\x12J\n" +
+	"\rDeleteHistory\x12\x1b.assistant.DeleteHistoryReq\x1a\x1c.assistant.DeleteHistoryResp\x12M\n" +
+	"\x12SubscribeRunEvents\x12 .assistant.SubscribeRunEventsReq\x1a\x13.assistant.RunEvent0\x01\x12>\n" +
+	"\tCancelRun\x12\x17.assistant.CancelRunReq\x1a\x18.assistant.CancelRunResp\x12M\n" +
+	"\x0eConfirmRunTool\x12\x1c.assistant.ConfirmRunToolReq\x1a\x1d.assistant.ConfirmRunToolResp\x12A\n" +
 	"\n" +
-	"ListMemory\x12\x18.assistant.ListMemoryReq\x1a\x19.assistant.ListMemoryResp\x12G\n" +
-	"\fUpdateMemory\x12\x1a.assistant.UpdateMemoryReq\x1a\x1b.assistant.UpdateMemoryResp\x12G\n" +
-	"\fDeleteMemory\x12\x1a.assistant.DeleteMemoryReq\x1a\x1b.assistant.DeleteMemoryResp\x12M\n" +
+	"ListMemory\x12\x18.assistant.ListMemoryReq\x1a\x19.assistant.ListMemoryResp\x12>\n" +
+	"\tAddMemory\x12\x17.assistant.AddMemoryReq\x1a\x18.assistant.AddMemoryResp\x12J\n" +
+	"\rReplaceMemory\x12\x1b.assistant.ReplaceMemoryReq\x1a\x1c.assistant.ReplaceMemoryResp\x12G\n" +
+	"\fRemoveMemory\x12\x1a.assistant.RemoveMemoryReq\x1a\x1b.assistant.RemoveMemoryResp\x12D\n" +
+	"\vBatchMemory\x12\x19.assistant.BatchMemoryReq\x1a\x1a.assistant.BatchMemoryResp\x12S\n" +
+	"\x10UndoMemoryChange\x12\x1e.assistant.UndoMemoryChangeReq\x1a\x1f.assistant.UndoMemoryChangeResp\x12M\n" +
 	"\x0eListWatchTasks\x12\x1c.assistant.ListWatchTasksReq\x1a\x1d.assistant.ListWatchTasksResp\x12P\n" +
 	"\x0fCreateWatchTask\x12\x1d.assistant.CreateWatchTaskReq\x1a\x1e.assistant.CreateWatchTaskResp\x12P\n" +
 	"\x0fUpdateWatchTask\x12\x1d.assistant.UpdateWatchTaskReq\x1a\x1e.assistant.UpdateWatchTaskResp\x12P\n" +
-	"\x0fDeleteWatchTask\x12\x1d.assistant.DeleteWatchTaskReq\x1a\x1e.assistant.DeleteWatchTaskResp\x12J\n" +
-	"\rListWatchHits\x12\x1b.assistant.ListWatchHitsReq\x1a\x1c.assistant.ListWatchHitsResp\x12V\n" +
-	"\x11MarkWatchHitsRead\x12\x1f.assistant.MarkWatchHitsReadReq\x1a .assistant.MarkWatchHitsReadResp\x12h\n" +
+	"\x0fDeleteWatchTask\x12\x1d.assistant.DeleteWatchTaskReq\x1a\x1e.assistant.DeleteWatchTaskResp\x12h\n" +
 	"\x17SubmitRecommendFeedback\x12%.assistant.SubmitRecommendFeedbackReq\x1a&.assistant.SubmitRecommendFeedbackRespB\x18Z\x16xiaobaihe/assistant/pbb\x06proto3"
 
 var (
@@ -2303,87 +3142,118 @@ func file_proto_assistant_assistant_proto_rawDescGZIP() []byte {
 	return file_proto_assistant_assistant_proto_rawDescData
 }
 
-var file_proto_assistant_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_proto_assistant_assistant_proto_goTypes = []any{
-	(AssistantMode)(0),                  // 0: assistant.AssistantMode
-	(ChatEventType)(0),                  // 1: assistant.ChatEventType
-	(*ChatReq)(nil),                     // 2: assistant.ChatReq
-	(*Attachment)(nil),                  // 3: assistant.Attachment
-	(*ConfirmToolCallReq)(nil),          // 4: assistant.ConfirmToolCallReq
-	(*ConfirmToolCallResp)(nil),         // 5: assistant.ConfirmToolCallResp
-	(*SourceReference)(nil),             // 6: assistant.SourceReference
-	(*ToolCallInfo)(nil),                // 7: assistant.ToolCallInfo
-	(*Card)(nil),                        // 8: assistant.Card
-	(*Action)(nil),                      // 9: assistant.Action
-	(*WatchHitInfo)(nil),                // 10: assistant.WatchHitInfo
-	(*ChatEvent)(nil),                   // 11: assistant.ChatEvent
-	(*MemoryItem)(nil),                  // 12: assistant.MemoryItem
-	(*ListMemoryReq)(nil),               // 13: assistant.ListMemoryReq
-	(*ListMemoryResp)(nil),              // 14: assistant.ListMemoryResp
-	(*UpdateMemoryReq)(nil),             // 15: assistant.UpdateMemoryReq
-	(*UpdateMemoryResp)(nil),            // 16: assistant.UpdateMemoryResp
-	(*DeleteMemoryReq)(nil),             // 17: assistant.DeleteMemoryReq
-	(*DeleteMemoryResp)(nil),            // 18: assistant.DeleteMemoryResp
-	(*WatchTask)(nil),                   // 19: assistant.WatchTask
-	(*ListWatchTasksReq)(nil),           // 20: assistant.ListWatchTasksReq
-	(*ListWatchTasksResp)(nil),          // 21: assistant.ListWatchTasksResp
-	(*CreateWatchTaskReq)(nil),          // 22: assistant.CreateWatchTaskReq
-	(*CreateWatchTaskResp)(nil),         // 23: assistant.CreateWatchTaskResp
-	(*UpdateWatchTaskReq)(nil),          // 24: assistant.UpdateWatchTaskReq
-	(*UpdateWatchTaskResp)(nil),         // 25: assistant.UpdateWatchTaskResp
-	(*DeleteWatchTaskReq)(nil),          // 26: assistant.DeleteWatchTaskReq
-	(*DeleteWatchTaskResp)(nil),         // 27: assistant.DeleteWatchTaskResp
-	(*WatchHit)(nil),                    // 28: assistant.WatchHit
-	(*ListWatchHitsReq)(nil),            // 29: assistant.ListWatchHitsReq
-	(*ListWatchHitsResp)(nil),           // 30: assistant.ListWatchHitsResp
-	(*MarkWatchHitsReadReq)(nil),        // 31: assistant.MarkWatchHitsReadReq
-	(*MarkWatchHitsReadResp)(nil),       // 32: assistant.MarkWatchHitsReadResp
-	(*SubmitRecommendFeedbackReq)(nil),  // 33: assistant.SubmitRecommendFeedbackReq
-	(*SubmitRecommendFeedbackResp)(nil), // 34: assistant.SubmitRecommendFeedbackResp
+	(*GetThreadReq)(nil),                // 0: assistant.GetThreadReq
+	(*AssistantThread)(nil),             // 1: assistant.AssistantThread
+	(*GetThreadResp)(nil),               // 2: assistant.GetThreadResp
+	(*ListMessagesReq)(nil),             // 3: assistant.ListMessagesReq
+	(*AssistantMessage)(nil),            // 4: assistant.AssistantMessage
+	(*ListMessagesResp)(nil),            // 5: assistant.ListMessagesResp
+	(*Attachment)(nil),                  // 6: assistant.Attachment
+	(*PostMessageReq)(nil),              // 7: assistant.PostMessageReq
+	(*PostMessageResp)(nil),             // 8: assistant.PostMessageResp
+	(*CreateSessionReq)(nil),            // 9: assistant.CreateSessionReq
+	(*CreateSessionResp)(nil),           // 10: assistant.CreateSessionResp
+	(*MarkThreadReadReq)(nil),           // 11: assistant.MarkThreadReadReq
+	(*MarkThreadReadResp)(nil),          // 12: assistant.MarkThreadReadResp
+	(*DeleteHistoryReq)(nil),            // 13: assistant.DeleteHistoryReq
+	(*DeleteHistoryResp)(nil),           // 14: assistant.DeleteHistoryResp
+	(*SubscribeRunEventsReq)(nil),       // 15: assistant.SubscribeRunEventsReq
+	(*ToolCallInfo)(nil),                // 16: assistant.ToolCallInfo
+	(*SourceCard)(nil),                  // 17: assistant.SourceCard
+	(*RunEvent)(nil),                    // 18: assistant.RunEvent
+	(*CancelRunReq)(nil),                // 19: assistant.CancelRunReq
+	(*CancelRunResp)(nil),               // 20: assistant.CancelRunResp
+	(*ConfirmRunToolReq)(nil),           // 21: assistant.ConfirmRunToolReq
+	(*ConfirmRunToolResp)(nil),          // 22: assistant.ConfirmRunToolResp
+	(*MemoryEntry)(nil),                 // 23: assistant.MemoryEntry
+	(*MemoryCapacity)(nil),              // 24: assistant.MemoryCapacity
+	(*ListMemoryReq)(nil),               // 25: assistant.ListMemoryReq
+	(*ListMemoryResp)(nil),              // 26: assistant.ListMemoryResp
+	(*AddMemoryReq)(nil),                // 27: assistant.AddMemoryReq
+	(*AddMemoryResp)(nil),               // 28: assistant.AddMemoryResp
+	(*ReplaceMemoryReq)(nil),            // 29: assistant.ReplaceMemoryReq
+	(*ReplaceMemoryResp)(nil),           // 30: assistant.ReplaceMemoryResp
+	(*RemoveMemoryReq)(nil),             // 31: assistant.RemoveMemoryReq
+	(*RemoveMemoryResp)(nil),            // 32: assistant.RemoveMemoryResp
+	(*MemoryOp)(nil),                    // 33: assistant.MemoryOp
+	(*BatchMemoryReq)(nil),              // 34: assistant.BatchMemoryReq
+	(*BatchMemoryResp)(nil),             // 35: assistant.BatchMemoryResp
+	(*UndoMemoryChangeReq)(nil),         // 36: assistant.UndoMemoryChangeReq
+	(*UndoMemoryChangeResp)(nil),        // 37: assistant.UndoMemoryChangeResp
+	(*WatchTask)(nil),                   // 38: assistant.WatchTask
+	(*ListWatchTasksReq)(nil),           // 39: assistant.ListWatchTasksReq
+	(*ListWatchTasksResp)(nil),          // 40: assistant.ListWatchTasksResp
+	(*CreateWatchTaskReq)(nil),          // 41: assistant.CreateWatchTaskReq
+	(*CreateWatchTaskResp)(nil),         // 42: assistant.CreateWatchTaskResp
+	(*UpdateWatchTaskReq)(nil),          // 43: assistant.UpdateWatchTaskReq
+	(*UpdateWatchTaskResp)(nil),         // 44: assistant.UpdateWatchTaskResp
+	(*DeleteWatchTaskReq)(nil),          // 45: assistant.DeleteWatchTaskReq
+	(*DeleteWatchTaskResp)(nil),         // 46: assistant.DeleteWatchTaskResp
+	(*SubmitRecommendFeedbackReq)(nil),  // 47: assistant.SubmitRecommendFeedbackReq
+	(*SubmitRecommendFeedbackResp)(nil), // 48: assistant.SubmitRecommendFeedbackResp
 }
 var file_proto_assistant_assistant_proto_depIdxs = []int32{
-	0,  // 0: assistant.ChatReq.mode:type_name -> assistant.AssistantMode
-	3,  // 1: assistant.ChatReq.attachments:type_name -> assistant.Attachment
-	1,  // 2: assistant.ChatEvent.type:type_name -> assistant.ChatEventType
-	6,  // 3: assistant.ChatEvent.source:type_name -> assistant.SourceReference
-	7,  // 4: assistant.ChatEvent.tool_call:type_name -> assistant.ToolCallInfo
-	8,  // 5: assistant.ChatEvent.card:type_name -> assistant.Card
-	9,  // 6: assistant.ChatEvent.actions:type_name -> assistant.Action
-	10, // 7: assistant.ChatEvent.watch_hit:type_name -> assistant.WatchHitInfo
-	12, // 8: assistant.ListMemoryResp.items:type_name -> assistant.MemoryItem
-	19, // 9: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
-	19, // 10: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
-	28, // 11: assistant.ListWatchHitsResp.hits:type_name -> assistant.WatchHit
-	2,  // 12: assistant.AssistantService.Chat:input_type -> assistant.ChatReq
-	4,  // 13: assistant.AssistantService.ConfirmToolCall:input_type -> assistant.ConfirmToolCallReq
-	13, // 14: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
-	15, // 15: assistant.AssistantService.UpdateMemory:input_type -> assistant.UpdateMemoryReq
-	17, // 16: assistant.AssistantService.DeleteMemory:input_type -> assistant.DeleteMemoryReq
-	20, // 17: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
-	22, // 18: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
-	24, // 19: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
-	26, // 20: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
-	29, // 21: assistant.AssistantService.ListWatchHits:input_type -> assistant.ListWatchHitsReq
-	31, // 22: assistant.AssistantService.MarkWatchHitsRead:input_type -> assistant.MarkWatchHitsReadReq
-	33, // 23: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
-	11, // 24: assistant.AssistantService.Chat:output_type -> assistant.ChatEvent
-	5,  // 25: assistant.AssistantService.ConfirmToolCall:output_type -> assistant.ConfirmToolCallResp
-	14, // 26: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
-	16, // 27: assistant.AssistantService.UpdateMemory:output_type -> assistant.UpdateMemoryResp
-	18, // 28: assistant.AssistantService.DeleteMemory:output_type -> assistant.DeleteMemoryResp
-	21, // 29: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
-	23, // 30: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
-	25, // 31: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
-	27, // 32: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
-	30, // 33: assistant.AssistantService.ListWatchHits:output_type -> assistant.ListWatchHitsResp
-	32, // 34: assistant.AssistantService.MarkWatchHitsRead:output_type -> assistant.MarkWatchHitsReadResp
-	34, // 35: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
-	24, // [24:36] is the sub-list for method output_type
-	12, // [12:24] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	1,  // 0: assistant.GetThreadResp.thread:type_name -> assistant.AssistantThread
+	4,  // 1: assistant.ListMessagesResp.messages:type_name -> assistant.AssistantMessage
+	6,  // 2: assistant.PostMessageReq.attachments:type_name -> assistant.Attachment
+	16, // 3: assistant.RunEvent.tool_call:type_name -> assistant.ToolCallInfo
+	17, // 4: assistant.RunEvent.source_card:type_name -> assistant.SourceCard
+	23, // 5: assistant.ListMemoryResp.items:type_name -> assistant.MemoryEntry
+	24, // 6: assistant.ListMemoryResp.capacities:type_name -> assistant.MemoryCapacity
+	23, // 7: assistant.AddMemoryResp.entry:type_name -> assistant.MemoryEntry
+	23, // 8: assistant.ReplaceMemoryResp.entry:type_name -> assistant.MemoryEntry
+	33, // 9: assistant.BatchMemoryReq.ops:type_name -> assistant.MemoryOp
+	23, // 10: assistant.BatchMemoryResp.entries:type_name -> assistant.MemoryEntry
+	23, // 11: assistant.UndoMemoryChangeResp.entry:type_name -> assistant.MemoryEntry
+	38, // 12: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
+	38, // 13: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
+	0,  // 14: assistant.AssistantService.GetThread:input_type -> assistant.GetThreadReq
+	3,  // 15: assistant.AssistantService.ListMessages:input_type -> assistant.ListMessagesReq
+	7,  // 16: assistant.AssistantService.PostMessage:input_type -> assistant.PostMessageReq
+	9,  // 17: assistant.AssistantService.CreateSession:input_type -> assistant.CreateSessionReq
+	11, // 18: assistant.AssistantService.MarkThreadRead:input_type -> assistant.MarkThreadReadReq
+	13, // 19: assistant.AssistantService.DeleteHistory:input_type -> assistant.DeleteHistoryReq
+	15, // 20: assistant.AssistantService.SubscribeRunEvents:input_type -> assistant.SubscribeRunEventsReq
+	19, // 21: assistant.AssistantService.CancelRun:input_type -> assistant.CancelRunReq
+	21, // 22: assistant.AssistantService.ConfirmRunTool:input_type -> assistant.ConfirmRunToolReq
+	25, // 23: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
+	27, // 24: assistant.AssistantService.AddMemory:input_type -> assistant.AddMemoryReq
+	29, // 25: assistant.AssistantService.ReplaceMemory:input_type -> assistant.ReplaceMemoryReq
+	31, // 26: assistant.AssistantService.RemoveMemory:input_type -> assistant.RemoveMemoryReq
+	34, // 27: assistant.AssistantService.BatchMemory:input_type -> assistant.BatchMemoryReq
+	36, // 28: assistant.AssistantService.UndoMemoryChange:input_type -> assistant.UndoMemoryChangeReq
+	39, // 29: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
+	41, // 30: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
+	43, // 31: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
+	45, // 32: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
+	47, // 33: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
+	2,  // 34: assistant.AssistantService.GetThread:output_type -> assistant.GetThreadResp
+	5,  // 35: assistant.AssistantService.ListMessages:output_type -> assistant.ListMessagesResp
+	8,  // 36: assistant.AssistantService.PostMessage:output_type -> assistant.PostMessageResp
+	10, // 37: assistant.AssistantService.CreateSession:output_type -> assistant.CreateSessionResp
+	12, // 38: assistant.AssistantService.MarkThreadRead:output_type -> assistant.MarkThreadReadResp
+	14, // 39: assistant.AssistantService.DeleteHistory:output_type -> assistant.DeleteHistoryResp
+	18, // 40: assistant.AssistantService.SubscribeRunEvents:output_type -> assistant.RunEvent
+	20, // 41: assistant.AssistantService.CancelRun:output_type -> assistant.CancelRunResp
+	22, // 42: assistant.AssistantService.ConfirmRunTool:output_type -> assistant.ConfirmRunToolResp
+	26, // 43: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
+	28, // 44: assistant.AssistantService.AddMemory:output_type -> assistant.AddMemoryResp
+	30, // 45: assistant.AssistantService.ReplaceMemory:output_type -> assistant.ReplaceMemoryResp
+	32, // 46: assistant.AssistantService.RemoveMemory:output_type -> assistant.RemoveMemoryResp
+	35, // 47: assistant.AssistantService.BatchMemory:output_type -> assistant.BatchMemoryResp
+	37, // 48: assistant.AssistantService.UndoMemoryChange:output_type -> assistant.UndoMemoryChangeResp
+	40, // 49: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
+	42, // 50: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
+	44, // 51: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
+	46, // 52: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
+	48, // 53: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
+	34, // [34:54] is the sub-list for method output_type
+	14, // [14:34] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_proto_assistant_assistant_proto_init() }
@@ -2391,20 +3261,18 @@ func file_proto_assistant_assistant_proto_init() {
 	if File_proto_assistant_assistant_proto != nil {
 		return
 	}
-	file_proto_assistant_assistant_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_assistant_assistant_proto_rawDesc), len(file_proto_assistant_assistant_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   33,
+			NumEnums:      0,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_assistant_assistant_proto_goTypes,
 		DependencyIndexes: file_proto_assistant_assistant_proto_depIdxs,
-		EnumInfos:         file_proto_assistant_assistant_proto_enumTypes,
 		MessageInfos:      file_proto_assistant_assistant_proto_msgTypes,
 	}.Build()
 	File_proto_assistant_assistant_proto = out.File

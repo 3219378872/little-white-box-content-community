@@ -3,9 +3,10 @@ ListenOn: 0.0.0.0:9024
 Health: true
 Middlewares:
   StatConf:
-    # REL-022：不记录 Assistant 全量输入/回答内容，避免社区正文与用户输入进入业务日志。
+    # REL-022：不记录 Assistant 全量输入/事件内容。
     IgnoreContentMethods:
-      - /assistant.AssistantService/Chat
+      - /assistant.AssistantService/PostMessage
+      - /assistant.AssistantService/SubscribeRunEvents
 DevServer:
   Enabled: true
   Host: 0.0.0.0
@@ -52,60 +53,9 @@ Redis:
   Type: node
   Pass: "${REDIS_PASSWORD}"
   Key: assistant
-AllowedTools:
-- search
-- content
-- recommend
-ToolTimeoutMs: 1500
 MaxMessageRunes: 2000
-MaxSources: 5
-TokenChunkRunes: 64
-StateKeyPrefix: assistant:v2
-ConversationTTLSeconds: 2592000
-ConversationMaxMessages: 100
 QuotaWindowSeconds: 60
 QuotaRequests: 20
-# Agent 模式（SPEC-assistant-agent-mode）：默认关闭；Enabled 与 LLM.Enabled 同时
-# 为真才装配编排引擎。软/硬步数上限见 AGNT-030/031；web_search 未配置 key 时自动剔除。
-Agent:
-  Enabled: ${ASSISTANT_AGENT_ENABLED}
-  MaxStepsSoft: 8
-  MaxStepsHard: 12
-  MaxToolCallsPerTurn: 12
-  TurnTimeoutMs: 300000
-  StepTimeoutMs: 90000
-  ConfirmTimeoutSecs: 120
-  QuotaRequests: 10
-  AllowedTools:
-  - search_posts
-  - search_users
-  - search_tags
-  - get_post
-  - get_post_comments
-  - get_memory
-  - add_memory
-  - update_memory
-  - delete_memory
-  - recommend_posts
-  - similar_posts
-  - compare_posts
-  - get_my_favorites
-  - get_my_likes
-  - get_my_following
-  - get_my_posts
-  - create_watch_task
-  - list_watch_tasks
-  - update_watch_task
-  - delete_watch_task
-  - web_search
-  - create_post
-  - update_post
-  - delete_post
-  WebSearch:
-    Provider: tavily
-    APIKey: "${TAVILY_API_KEY}"
-    TimeoutMs: 8000
-    MaxResults: 5
 Safety:
   Enabled: true
   MaxScanRunes: 10000
@@ -116,19 +66,5 @@ Safety:
   - "制作炸弹"
   - "自杀方法"
   - "儿童色情"
-LLM:
-  Enabled: ${ASSISTANT_LLM_ENABLED}
-  WireAPI: "${ASSISTANT_LLM_WIRE_API}"
-  Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
-  APIKey: "${ASSISTANT_LLM_API_KEY}"
-  Model: "${ASSISTANT_LLM_MODEL}"
-  ModelSmall: "${ASSISTANT_LLM_MODEL_SMALL}"
-  TimeoutMs: 8000
-  MaxContextRunes: 8000
-  MaxOutputRunes: 8000
-  MaxOutputTokens: 32768
-  PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
-  CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}
 
-# 服务间内部鉴权共享密钥（HMAC），全服务一致
 InternalSecret: ${RPC_INTERNAL_SECRET}

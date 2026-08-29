@@ -563,57 +563,6 @@ type (
 )
 
 type (
-	AssistantChatReq {
-		ConversationId string                `json:"conversationId,optional"`
-		Message        string                `json:"message"`
-		RequestId      string                `json:"requestId,optional"`
-		Mode           string                `json:"mode,optional"`
-		Attachments    []AssistantAttachment `json:"attachments,optional"`
-		ContextPostId  int64                 `json:"contextPostId,optional"`
-	}
-	AssistantAttachment {
-		MediaId int64  `json:"mediaId"`
-		Url     string `json:"url"`
-	}
-	AssistantSourceReference {
-		SourceType string `json:"sourceType"`
-		SourceId   string `json:"sourceId"`
-		Title      string `json:"title"`
-		Revision   int64  `json:"revision"`
-	}
-	AssistantToolCallInfo {
-		CallId      string `json:"callId"`
-		Tool        string `json:"tool"`
-		Summary     string `json:"summary"`
-		PayloadJson string `json:"payloadJson"`
-	}
-	AssistantCard {
-		CardType    string `json:"cardType"`
-		PayloadJson string `json:"payloadJson"`
-	}
-	AssistantAction {
-		Action      string `json:"action"`
-		PayloadJson string `json:"payloadJson"`
-	}
-	AssistantWatchHitEvent {
-		HitId   int64  `json:"hitId"`
-		TaskId  int64  `json:"taskId"`
-		PostId  int64  `json:"postId"`
-		Title   string `json:"title,optional"`
-		Summary string `json:"summary,optional"`
-	}
-	AssistantChatEvent {
-		Type           string                    `json:"type"`
-		Text           string                    `json:"text,optional"`
-		Source         *AssistantSourceReference `json:"source,optional"`
-		Degraded       bool                      `json:"degraded,optional"`
-		ErrorCode      string                    `json:"errorCode,optional"`
-		ConversationId string                    `json:"conversationId"`
-		ToolCall       *AssistantToolCallInfo    `json:"toolCall,optional"`
-		Card           *AssistantCard            `json:"card,optional"`
-		Actions        []AssistantAction         `json:"actions,optional"`
-		WatchHit       *AssistantWatchHitEvent   `json:"watchHit,optional"`
-	}
 	GetAgentConsentResp {
 		Granted        bool  `json:"granted"`
 		GrantedAt      int64 `json:"grantedAt,optional"`
@@ -621,35 +570,173 @@ type (
 		ConsentVersion int32 `json:"consentVersion"`
 		CurrentVersion int32 `json:"currentVersion"`
 	}
-	AssistantMemoryItem {
-		Id         int64   `json:"id"`
-		Layer      string  `json:"layer"`
-		Dimension  string  `json:"dimension"`
-		Value      string  `json:"value"`
-		Score      float64 `json:"score"`
-		Source     string  `json:"source"`
-		Confidence float64 `json:"confidence"`
-		Confirmed  bool    `json:"confirmed"`
-		Suppressed bool    `json:"suppressed"`
-		UpdatedAt  int64   `json:"updatedAt"`
+	SetAgentConsentReq {
+		Granted bool `json:"granted"`
 	}
-	ListAssistantMemoryReq {
-		Layer string `form:"layer,optional"`
+	SetAgentConsentResp  {}
+	AssistantAttachment {
+		MediaId int64  `json:"mediaId"`
+		Url     string `json:"url"`
 	}
-	ListAssistantMemoryResp {
-		Items []AssistantMemoryItem `json:"items"`
+	AssistantThread {
+		SessionId          int64  `json:"sessionId"`
+		UnreadCount        int32  `json:"unreadCount"`
+		LastMessageId      int64  `json:"lastMessageId"`
+		LastMessagePreview string `json:"lastMessagePreview"`
+		LastMessageAtMs    int64  `json:"lastMessageAtMs"`
+		ActiveRunId        int64  `json:"activeRunId"`
+		ActiveRunStatus    string `json:"activeRunStatus,optional"`
+		ActiveRunPhase     string `json:"activeRunPhase,optional"`
 	}
-	UpdateAssistantMemoryReq {
-		Id         int64    `path:"id"`
-		Value      *string  `json:"value,optional"`
-		Score      *float64 `json:"score,optional"`
-		Suppressed *bool    `json:"suppressed,optional"`
+	GetAssistantThreadResp {
+		Thread AssistantThread `json:"thread"`
 	}
-	UpdateAssistantMemoryResp  {}
-	DeleteAssistantMemoryReq {
+	ListAssistantMessagesReq {
+		SessionId int64 `form:"sessionId,optional"`
+		AfterId   int64 `form:"afterId,optional"`
+		Limit     int32 `form:"limit,optional"`
+	}
+	AssistantMessage {
+		Id          int64  `json:"id"`
+		SessionId   int64  `json:"sessionId"`
+		RunId       int64  `json:"runId"`
+		Role        string `json:"role"`
+		Kind        string `json:"kind"`
+		Content     string `json:"content"`
+		Unread      bool   `json:"unread"`
+		CreatedAtMs int64  `json:"createdAtMs"`
+		ChangeId    int64  `json:"changeId,optional"`
+	}
+	ListAssistantMessagesResp {
+		Messages []AssistantMessage `json:"messages"`
+	}
+	PostAssistantMessageReq {
+		Message       string                `json:"message"`
+		RequestId     string                `json:"requestId,optional"`
+		Attachments   []AssistantAttachment `json:"attachments,optional"`
+		ContextPostId int64                 `json:"contextPostId,optional"`
+	}
+	PostAssistantMessageResp {
+		MessageId   int64  `json:"messageId"`
+		SessionId   int64  `json:"sessionId"`
+		RunId       int64  `json:"runId"`
+		Disposition string `json:"disposition"`
+	}
+	CreateAssistantSessionResp {
+		SessionId int64 `json:"sessionId"`
+	}
+	MarkAssistantThreadReadResp {
+		UnreadCount int32 `json:"unreadCount"`
+	}
+	DeleteAssistantHistoryResp  {}
+	AssistantRunEventsReq {
+		Id       int64 `path:"id"`
+		AfterSeq int64 `form:"afterSeq,optional"`
+	}
+	AssistantToolCallInfo {
+		CallId      string `json:"callId"`
+		Tool        string `json:"tool"`
+		Summary     string `json:"summary"`
+		PayloadJson string `json:"payloadJson,optional"`
+	}
+	AssistantSourceCard {
+		Handle      string `json:"handle"`
+		Kind        string `json:"kind"`
+		AuthorityId string `json:"authorityId"`
+		Title       string `json:"title"`
+		Revision    int64  `json:"revision"`
+		PayloadJson string `json:"payloadJson,optional"`
+	}
+	AssistantRunEvent {
+		RunId      int64                  `json:"runId"`
+		Seq        int64                  `json:"seq"`
+		Type       string                 `json:"type"`
+		Text       string                 `json:"text,optional"`
+		Degraded   bool                   `json:"degraded,optional"`
+		ErrorCode  string                 `json:"errorCode,optional"`
+		SessionId  int64                  `json:"sessionId"`
+		ToolCall   *AssistantToolCallInfo `json:"toolCall,optional"`
+		SourceCard *AssistantSourceCard   `json:"sourceCard,optional"`
+		ChangeId   int64                  `json:"changeId,optional"`
+	}
+	CancelAssistantRunReq {
 		Id int64 `path:"id"`
 	}
-	DeleteAssistantMemoryResp  {}
+	CancelAssistantRunResp  {}
+	ConfirmAssistantRunReq {
+		Id       int64  `path:"id"`
+		CallId   string `json:"callId"`
+		Approved bool   `json:"approved"`
+	}
+	ConfirmAssistantRunResp  {}
+	AssistantMemoryEntry {
+		Id          int64  `json:"id"`
+		Target      string `json:"target"`
+		Content     string `json:"content"`
+		Version     int32  `json:"version"`
+		CreatedAtMs int64  `json:"createdAtMs"`
+		UpdatedAtMs int64  `json:"updatedAtMs"`
+	}
+	AssistantMemoryCapacity {
+		Target string `json:"target"`
+		Used   int32  `json:"used"`
+		Limit  int32  `json:"limit"`
+	}
+	ListAssistantMemoryReq {
+		Target string `form:"target,optional"`
+	}
+	ListAssistantMemoryResp {
+		Items      []AssistantMemoryEntry    `json:"items"`
+		Capacities []AssistantMemoryCapacity `json:"capacities"`
+	}
+	AddAssistantMemoryReq {
+		Target    string `json:"target"`
+		Content   string `json:"content"`
+		RequestId string `json:"requestId,optional"`
+	}
+	AddAssistantMemoryResp {
+		Entry    AssistantMemoryEntry `json:"entry"`
+		ChangeId int64                `json:"changeId"`
+	}
+	ReplaceAssistantMemoryReq {
+		Id        int64  `path:"id"`
+		Content   string `json:"content"`
+		Version   int32  `json:"version"`
+		RequestId string `json:"requestId,optional"`
+	}
+	ReplaceAssistantMemoryResp {
+		Entry    AssistantMemoryEntry `json:"entry"`
+		ChangeId int64                `json:"changeId"`
+	}
+	RemoveAssistantMemoryReq {
+		Id        int64  `path:"id"`
+		Version   int32  `form:"version"`
+		RequestId string `form:"requestId,optional"`
+	}
+	RemoveAssistantMemoryResp {
+		ChangeId int64 `json:"changeId"`
+	}
+	AssistantMemoryOp {
+		Op      string `json:"op"`
+		Id      int64  `json:"id,optional"`
+		Target  string `json:"target,optional"`
+		Content string `json:"content,optional"`
+		Version int32  `json:"version,optional"`
+	}
+	BatchAssistantMemoryReq {
+		RequestId string              `json:"requestId,optional"`
+		Ops       []AssistantMemoryOp `json:"ops"`
+	}
+	BatchAssistantMemoryResp {
+		Entries   []AssistantMemoryEntry `json:"entries"`
+		ChangeIds []int64                `json:"changeIds"`
+	}
+	UndoAssistantMemoryChangeReq {
+		Id int64 `path:"id"`
+	}
+	UndoAssistantMemoryChangeResp {
+		Entry AssistantMemoryEntry `json:"entry"`
+	}
 	AssistantWatchTask {
 		Id            int64  `json:"id"`
 		ConditionType string `json:"conditionType"`
@@ -657,6 +744,7 @@ type (
 		TargetId      int64  `json:"targetId"`
 		TargetText    string `json:"targetText"`
 		Enabled       bool   `json:"enabled"`
+		Version       int32  `json:"version"`
 		CreatedAt     int64  `json:"createdAt"`
 	}
 	ListAssistantWatchReq  {}
@@ -681,41 +769,12 @@ type (
 		Id int64 `path:"id"`
 	}
 	DeleteAssistantWatchResp  {}
-	AssistantWatchHit {
-		Id        int64  `json:"id"`
-		TaskId    int64  `json:"taskId"`
-		PostId    int64  `json:"postId"`
-		Title     string `json:"title,optional"`
-		Summary   string `json:"summary,optional"`
-		CreatedAt int64  `json:"createdAt"`
-		Read      bool   `json:"read"`
-	}
-	ListAssistantWatchHitsReq {
-		UnreadOnly bool `form:"unreadOnly,optional"`
-	}
-	ListAssistantWatchHitsResp {
-		Hits []AssistantWatchHit `json:"hits"`
-	}
-	MarkAssistantWatchHitsReadReq {
-		HitIds []int64 `json:"hitIds"`
-	}
-	MarkAssistantWatchHitsReadResp  {}
 	AssistantRecommendFeedbackReq {
 		RequestId string `json:"requestId,optional"`
 		PostId    int64  `json:"postId"`
 		Reason    string `json:"reason"`
 	}
 	AssistantRecommendFeedbackResp  {}
-	SetAgentConsentReq {
-		Granted bool `json:"granted"`
-	}
-	SetAgentConsentResp  {}
-	AssistantToolConfirmReq {
-		RequestId string `json:"requestId"`
-		CallId    string `json:"callId"`
-		Approved  bool   `json:"approved"`
-	}
-	AssistantToolConfirmResp  {}
 )
 
 // ============================================
@@ -993,9 +1052,9 @@ service gateway {
 	sse:        true
 )
 service gateway {
-	@doc "Assistant SSE 对话"
-	@handler AssistantChat
-	post /assistant/chat (AssistantChatReq) returns (AssistantChatEvent)
+	@doc "Assistant run SSE 事件"
+	@handler AssistantRunEvents
+	get /assistant/runs/:id/events (AssistantRunEventsReq) returns (AssistantRunEvent)
 }
 
 @server (
@@ -1004,29 +1063,69 @@ service gateway {
 	middleware: RequiredAuth
 )
 service gateway {
-	@doc "查询 Agent 能力授权状态（AGNT-004）"
+	@doc "查询 Agent 能力授权状态"
 	@handler GetAgentConsent
 	get /assistant/consent returns (GetAgentConsentResp)
 
-	@doc "记录或撤销 Agent 能力授权（AGNT-004/006）"
+	@doc "记录或撤销 Agent 能力授权"
 	@handler SetAgentConsent
 	post /assistant/consent (SetAgentConsentReq) returns (SetAgentConsentResp)
 
-	@doc "Agent 高危操作确认回调（AGNT-020~022）"
-	@handler ConfirmAssistantTool
-	post /assistant/tool/confirm (AssistantToolConfirmReq) returns (AssistantToolConfirmResp)
+	@doc "虚拟线程摘要"
+	@handler GetAssistantThread
+	get /assistant/thread returns (GetAssistantThreadResp)
 
-	@doc "列出当前用户的 Agent 记忆"
+	@doc "列出 Assistant 消息"
+	@handler ListAssistantMessages
+	get /assistant/messages (ListAssistantMessagesReq) returns (ListAssistantMessagesResp)
+
+	@doc "发送 Assistant 消息并接受异步 run"
+	@handler PostAssistantMessage
+	post /assistant/messages (PostAssistantMessageReq) returns (PostAssistantMessageResp)
+
+	@doc "开始新会话"
+	@handler CreateAssistantSession
+	post /assistant/sessions returns (CreateAssistantSessionResp)
+
+	@doc "标记 Assistant 线程已读"
+	@handler MarkAssistantThreadRead
+	post /assistant/thread/read returns (MarkAssistantThreadReadResp)
+
+	@doc "清除 Assistant 历史"
+	@handler DeleteAssistantHistory
+	delete /assistant/history returns (DeleteAssistantHistoryResp)
+
+	@doc "取消 Assistant run"
+	@handler CancelAssistantRun
+	post /assistant/runs/:id/cancel (CancelAssistantRunReq) returns (CancelAssistantRunResp)
+
+	@doc "确认或拒绝 delete_post"
+	@handler ConfirmAssistantRun
+	post /assistant/runs/:id/confirm (ConfirmAssistantRunReq) returns (ConfirmAssistantRunResp)
+
+	@doc "列出 MEMORY/USER 条目"
 	@handler ListAssistantMemory
 	get /assistant/memory (ListAssistantMemoryReq) returns (ListAssistantMemoryResp)
 
-	@doc "修改一条 Agent 记忆"
-	@handler UpdateAssistantMemory
-	patch /assistant/memory/:id (UpdateAssistantMemoryReq) returns (UpdateAssistantMemoryResp)
+	@doc "新增记忆条目"
+	@handler AddAssistantMemory
+	post /assistant/memory (AddAssistantMemoryReq) returns (AddAssistantMemoryResp)
 
-	@doc "删除一条 Agent 记忆"
-	@handler DeleteAssistantMemory
-	delete /assistant/memory/:id (DeleteAssistantMemoryReq) returns (DeleteAssistantMemoryResp)
+	@doc "替换记忆条目"
+	@handler ReplaceAssistantMemory
+	patch /assistant/memory/:id (ReplaceAssistantMemoryReq) returns (ReplaceAssistantMemoryResp)
+
+	@doc "删除记忆条目"
+	@handler RemoveAssistantMemory
+	delete /assistant/memory/:id (RemoveAssistantMemoryReq) returns (RemoveAssistantMemoryResp)
+
+	@doc "批量记忆写入"
+	@handler BatchAssistantMemory
+	post /assistant/memory/batch (BatchAssistantMemoryReq) returns (BatchAssistantMemoryResp)
+
+	@doc "撤销一次记忆变更"
+	@handler UndoAssistantMemoryChange
+	post /assistant/memory/changes/:id/undo (UndoAssistantMemoryChangeReq) returns (UndoAssistantMemoryChangeResp)
 
 	@doc "列出 Watch 任务"
 	@handler ListAssistantWatch
@@ -1043,14 +1142,6 @@ service gateway {
 	@doc "删除 Watch 任务"
 	@handler DeleteAssistantWatch
 	delete /assistant/watch/:id (DeleteAssistantWatchReq) returns (DeleteAssistantWatchResp)
-
-	@doc "列出 Watch 命中"
-	@handler ListAssistantWatchHits
-	get /assistant/watch/hits (ListAssistantWatchHitsReq) returns (ListAssistantWatchHitsResp)
-
-	@doc "标记 Watch 命中已读"
-	@handler MarkAssistantWatchHitsRead
-	post /assistant/watch/hits/read (MarkAssistantWatchHitsReadReq) returns (MarkAssistantWatchHitsReadResp)
 
 	@doc "提交 Agent 推荐反馈"
 	@handler SubmitAssistantRecommendFeedback

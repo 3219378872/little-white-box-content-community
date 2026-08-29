@@ -23,15 +23,49 @@ func NewAssistantServiceServer(svcCtx *svc.ServiceContext) *AssistantServiceServ
 	}
 }
 
-func (s *AssistantServiceServer) Chat(in *pb.ChatReq, stream pb.AssistantService_ChatServer) error {
-	l := logic.NewChatLogic(stream.Context(), s.svcCtx)
-	return l.Chat(in, stream)
+func (s *AssistantServiceServer) GetThread(ctx context.Context, in *pb.GetThreadReq) (*pb.GetThreadResp, error) {
+	l := logic.NewGetThreadLogic(ctx, s.svcCtx)
+	return l.GetThread(in)
 }
 
-// Agent 模式高危操作确认回调（AGNT-020~022）
-func (s *AssistantServiceServer) ConfirmToolCall(ctx context.Context, in *pb.ConfirmToolCallReq) (*pb.ConfirmToolCallResp, error) {
-	l := logic.NewConfirmToolCallLogic(ctx, s.svcCtx)
-	return l.ConfirmToolCall(in)
+func (s *AssistantServiceServer) ListMessages(ctx context.Context, in *pb.ListMessagesReq) (*pb.ListMessagesResp, error) {
+	l := logic.NewListMessagesLogic(ctx, s.svcCtx)
+	return l.ListMessages(in)
+}
+
+func (s *AssistantServiceServer) PostMessage(ctx context.Context, in *pb.PostMessageReq) (*pb.PostMessageResp, error) {
+	l := logic.NewPostMessageLogic(ctx, s.svcCtx)
+	return l.PostMessage(in)
+}
+
+func (s *AssistantServiceServer) CreateSession(ctx context.Context, in *pb.CreateSessionReq) (*pb.CreateSessionResp, error) {
+	l := logic.NewCreateSessionLogic(ctx, s.svcCtx)
+	return l.CreateSession(in)
+}
+
+func (s *AssistantServiceServer) MarkThreadRead(ctx context.Context, in *pb.MarkThreadReadReq) (*pb.MarkThreadReadResp, error) {
+	l := logic.NewMarkThreadReadLogic(ctx, s.svcCtx)
+	return l.MarkThreadRead(in)
+}
+
+func (s *AssistantServiceServer) DeleteHistory(ctx context.Context, in *pb.DeleteHistoryReq) (*pb.DeleteHistoryResp, error) {
+	l := logic.NewDeleteHistoryLogic(ctx, s.svcCtx)
+	return l.DeleteHistory(in)
+}
+
+func (s *AssistantServiceServer) SubscribeRunEvents(in *pb.SubscribeRunEventsReq, stream pb.AssistantService_SubscribeRunEventsServer) error {
+	l := logic.NewSubscribeRunEventsLogic(stream.Context(), s.svcCtx)
+	return l.SubscribeRunEvents(in, stream)
+}
+
+func (s *AssistantServiceServer) CancelRun(ctx context.Context, in *pb.CancelRunReq) (*pb.CancelRunResp, error) {
+	l := logic.NewCancelRunLogic(ctx, s.svcCtx)
+	return l.CancelRun(in)
+}
+
+func (s *AssistantServiceServer) ConfirmRunTool(ctx context.Context, in *pb.ConfirmRunToolReq) (*pb.ConfirmRunToolResp, error) {
+	l := logic.NewConfirmRunToolLogic(ctx, s.svcCtx)
+	return l.ConfirmRunTool(in)
 }
 
 func (s *AssistantServiceServer) ListMemory(ctx context.Context, in *pb.ListMemoryReq) (*pb.ListMemoryResp, error) {
@@ -39,14 +73,29 @@ func (s *AssistantServiceServer) ListMemory(ctx context.Context, in *pb.ListMemo
 	return l.ListMemory(in)
 }
 
-func (s *AssistantServiceServer) UpdateMemory(ctx context.Context, in *pb.UpdateMemoryReq) (*pb.UpdateMemoryResp, error) {
-	l := logic.NewUpdateMemoryLogic(ctx, s.svcCtx)
-	return l.UpdateMemory(in)
+func (s *AssistantServiceServer) AddMemory(ctx context.Context, in *pb.AddMemoryReq) (*pb.AddMemoryResp, error) {
+	l := logic.NewAddMemoryLogic(ctx, s.svcCtx)
+	return l.AddMemory(in)
 }
 
-func (s *AssistantServiceServer) DeleteMemory(ctx context.Context, in *pb.DeleteMemoryReq) (*pb.DeleteMemoryResp, error) {
-	l := logic.NewDeleteMemoryLogic(ctx, s.svcCtx)
-	return l.DeleteMemory(in)
+func (s *AssistantServiceServer) ReplaceMemory(ctx context.Context, in *pb.ReplaceMemoryReq) (*pb.ReplaceMemoryResp, error) {
+	l := logic.NewReplaceMemoryLogic(ctx, s.svcCtx)
+	return l.ReplaceMemory(in)
+}
+
+func (s *AssistantServiceServer) RemoveMemory(ctx context.Context, in *pb.RemoveMemoryReq) (*pb.RemoveMemoryResp, error) {
+	l := logic.NewRemoveMemoryLogic(ctx, s.svcCtx)
+	return l.RemoveMemory(in)
+}
+
+func (s *AssistantServiceServer) BatchMemory(ctx context.Context, in *pb.BatchMemoryReq) (*pb.BatchMemoryResp, error) {
+	l := logic.NewBatchMemoryLogic(ctx, s.svcCtx)
+	return l.BatchMemory(in)
+}
+
+func (s *AssistantServiceServer) UndoMemoryChange(ctx context.Context, in *pb.UndoMemoryChangeReq) (*pb.UndoMemoryChangeResp, error) {
+	l := logic.NewUndoMemoryChangeLogic(ctx, s.svcCtx)
+	return l.UndoMemoryChange(in)
 }
 
 func (s *AssistantServiceServer) ListWatchTasks(ctx context.Context, in *pb.ListWatchTasksReq) (*pb.ListWatchTasksResp, error) {
@@ -67,16 +116,6 @@ func (s *AssistantServiceServer) UpdateWatchTask(ctx context.Context, in *pb.Upd
 func (s *AssistantServiceServer) DeleteWatchTask(ctx context.Context, in *pb.DeleteWatchTaskReq) (*pb.DeleteWatchTaskResp, error) {
 	l := logic.NewDeleteWatchTaskLogic(ctx, s.svcCtx)
 	return l.DeleteWatchTask(in)
-}
-
-func (s *AssistantServiceServer) ListWatchHits(ctx context.Context, in *pb.ListWatchHitsReq) (*pb.ListWatchHitsResp, error) {
-	l := logic.NewListWatchHitsLogic(ctx, s.svcCtx)
-	return l.ListWatchHits(in)
-}
-
-func (s *AssistantServiceServer) MarkWatchHitsRead(ctx context.Context, in *pb.MarkWatchHitsReadReq) (*pb.MarkWatchHitsReadResp, error) {
-	l := logic.NewMarkWatchHitsReadLogic(ctx, s.svcCtx)
-	return l.MarkWatchHitsRead(in)
 }
 
 func (s *AssistantServiceServer) SubmitRecommendFeedback(ctx context.Context, in *pb.SubmitRecommendFeedbackReq) (*pb.SubmitRecommendFeedbackResp, error) {

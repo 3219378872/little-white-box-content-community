@@ -94,13 +94,13 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusNotFound
 	case LoginRequired, TokenExpired, TokenInvalid, PasswordError:
 		return http.StatusUnauthorized
-	case PermissionDenied, ContentForbidden, FavoritesPrivate:
+	case PermissionDenied, ContentForbidden, FavoritesPrivate, AgentNotAuthorized:
 		return http.StatusForbidden
-	case TooManyReq:
+	case TooManyReq, AgentQueueFull, AgentResourceLimit:
 		return http.StatusTooManyRequests
 	case UserAlreadyExist:
 		return http.StatusConflict
-	case ContentVersionConflict, IdempotencyConflict:
+	case ContentVersionConflict, IdempotencyConflict, AgentRunConflict:
 		return http.StatusConflict
 	case AlreadyLiked, AlreadyFavorited, NotLikedYet, NotFavoritedYet,
 		CannotLikeSelf, CannotFollowSelf:

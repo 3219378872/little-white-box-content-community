@@ -19,17 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AssistantService_Chat_FullMethodName                    = "/assistant.AssistantService/Chat"
-	AssistantService_ConfirmToolCall_FullMethodName         = "/assistant.AssistantService/ConfirmToolCall"
+	AssistantService_GetThread_FullMethodName               = "/assistant.AssistantService/GetThread"
+	AssistantService_ListMessages_FullMethodName            = "/assistant.AssistantService/ListMessages"
+	AssistantService_PostMessage_FullMethodName             = "/assistant.AssistantService/PostMessage"
+	AssistantService_CreateSession_FullMethodName           = "/assistant.AssistantService/CreateSession"
+	AssistantService_MarkThreadRead_FullMethodName          = "/assistant.AssistantService/MarkThreadRead"
+	AssistantService_DeleteHistory_FullMethodName           = "/assistant.AssistantService/DeleteHistory"
+	AssistantService_SubscribeRunEvents_FullMethodName      = "/assistant.AssistantService/SubscribeRunEvents"
+	AssistantService_CancelRun_FullMethodName               = "/assistant.AssistantService/CancelRun"
+	AssistantService_ConfirmRunTool_FullMethodName          = "/assistant.AssistantService/ConfirmRunTool"
 	AssistantService_ListMemory_FullMethodName              = "/assistant.AssistantService/ListMemory"
-	AssistantService_UpdateMemory_FullMethodName            = "/assistant.AssistantService/UpdateMemory"
-	AssistantService_DeleteMemory_FullMethodName            = "/assistant.AssistantService/DeleteMemory"
+	AssistantService_AddMemory_FullMethodName               = "/assistant.AssistantService/AddMemory"
+	AssistantService_ReplaceMemory_FullMethodName           = "/assistant.AssistantService/ReplaceMemory"
+	AssistantService_RemoveMemory_FullMethodName            = "/assistant.AssistantService/RemoveMemory"
+	AssistantService_BatchMemory_FullMethodName             = "/assistant.AssistantService/BatchMemory"
+	AssistantService_UndoMemoryChange_FullMethodName        = "/assistant.AssistantService/UndoMemoryChange"
 	AssistantService_ListWatchTasks_FullMethodName          = "/assistant.AssistantService/ListWatchTasks"
 	AssistantService_CreateWatchTask_FullMethodName         = "/assistant.AssistantService/CreateWatchTask"
 	AssistantService_UpdateWatchTask_FullMethodName         = "/assistant.AssistantService/UpdateWatchTask"
 	AssistantService_DeleteWatchTask_FullMethodName         = "/assistant.AssistantService/DeleteWatchTask"
-	AssistantService_ListWatchHits_FullMethodName           = "/assistant.AssistantService/ListWatchHits"
-	AssistantService_MarkWatchHitsRead_FullMethodName       = "/assistant.AssistantService/MarkWatchHitsRead"
 	AssistantService_SubmitRecommendFeedback_FullMethodName = "/assistant.AssistantService/SubmitRecommendFeedback"
 )
 
@@ -37,18 +45,25 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AssistantServiceClient interface {
-	Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatEvent], error)
-	// Agent 模式高危操作确认回调（AGNT-020~022）
-	ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error)
+	GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error)
+	ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error)
+	PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error)
+	CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error)
+	MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error)
+	DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
+	SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunEvent], error)
+	CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
+	ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
 	ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
-	UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error)
-	DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error)
+	AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
+	ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error)
+	RemoveMemory(ctx context.Context, in *RemoveMemoryReq, opts ...grpc.CallOption) (*RemoveMemoryResp, error)
+	BatchMemory(ctx context.Context, in *BatchMemoryReq, opts ...grpc.CallOption) (*BatchMemoryResp, error)
+	UndoMemoryChange(ctx context.Context, in *UndoMemoryChangeReq, opts ...grpc.CallOption) (*UndoMemoryChangeResp, error)
 	ListWatchTasks(ctx context.Context, in *ListWatchTasksReq, opts ...grpc.CallOption) (*ListWatchTasksResp, error)
 	CreateWatchTask(ctx context.Context, in *CreateWatchTaskReq, opts ...grpc.CallOption) (*CreateWatchTaskResp, error)
 	UpdateWatchTask(ctx context.Context, in *UpdateWatchTaskReq, opts ...grpc.CallOption) (*UpdateWatchTaskResp, error)
 	DeleteWatchTask(ctx context.Context, in *DeleteWatchTaskReq, opts ...grpc.CallOption) (*DeleteWatchTaskResp, error)
-	ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error)
-	MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error)
 	SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error)
 }
 
@@ -60,13 +75,73 @@ func NewAssistantServiceClient(cc grpc.ClientConnInterface) AssistantServiceClie
 	return &assistantServiceClient{cc}
 }
 
-func (c *assistantServiceClient) Chat(ctx context.Context, in *ChatReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatEvent], error) {
+func (c *assistantServiceClient) GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &AssistantService_ServiceDesc.Streams[0], AssistantService_Chat_FullMethodName, cOpts...)
+	out := new(GetThreadResp)
+	err := c.cc.Invoke(ctx, AssistantService_GetThread_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[ChatReq, ChatEvent]{ClientStream: stream}
+	return out, nil
+}
+
+func (c *assistantServiceClient) ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMessagesResp)
+	err := c.cc.Invoke(ctx, AssistantService_ListMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PostMessageResp)
+	err := c.cc.Invoke(ctx, AssistantService_PostMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateSessionResp)
+	err := c.cc.Invoke(ctx, AssistantService_CreateSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MarkThreadReadResp)
+	err := c.cc.Invoke(ctx, AssistantService_MarkThreadRead_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteHistoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_DeleteHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AssistantService_ServiceDesc.Streams[0], AssistantService_SubscribeRunEvents_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeRunEventsReq, RunEvent]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -77,12 +152,22 @@ func (c *assistantServiceClient) Chat(ctx context.Context, in *ChatReq, opts ...
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type AssistantService_ChatClient = grpc.ServerStreamingClient[ChatEvent]
+type AssistantService_SubscribeRunEventsClient = grpc.ServerStreamingClient[RunEvent]
 
-func (c *assistantServiceClient) ConfirmToolCall(ctx context.Context, in *ConfirmToolCallReq, opts ...grpc.CallOption) (*ConfirmToolCallResp, error) {
+func (c *assistantServiceClient) CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ConfirmToolCallResp)
-	err := c.cc.Invoke(ctx, AssistantService_ConfirmToolCall_FullMethodName, in, out, cOpts...)
+	out := new(CancelRunResp)
+	err := c.cc.Invoke(ctx, AssistantService_CancelRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmRunToolResp)
+	err := c.cc.Invoke(ctx, AssistantService_ConfirmRunTool_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -99,20 +184,50 @@ func (c *assistantServiceClient) ListMemory(ctx context.Context, in *ListMemoryR
 	return out, nil
 }
 
-func (c *assistantServiceClient) UpdateMemory(ctx context.Context, in *UpdateMemoryReq, opts ...grpc.CallOption) (*UpdateMemoryResp, error) {
+func (c *assistantServiceClient) AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateMemoryResp)
-	err := c.cc.Invoke(ctx, AssistantService_UpdateMemory_FullMethodName, in, out, cOpts...)
+	out := new(AddMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_AddMemory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *assistantServiceClient) DeleteMemory(ctx context.Context, in *DeleteMemoryReq, opts ...grpc.CallOption) (*DeleteMemoryResp, error) {
+func (c *assistantServiceClient) ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteMemoryResp)
-	err := c.cc.Invoke(ctx, AssistantService_DeleteMemory_FullMethodName, in, out, cOpts...)
+	out := new(ReplaceMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_ReplaceMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) RemoveMemory(ctx context.Context, in *RemoveMemoryReq, opts ...grpc.CallOption) (*RemoveMemoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_RemoveMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) BatchMemory(ctx context.Context, in *BatchMemoryReq, opts ...grpc.CallOption) (*BatchMemoryResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BatchMemoryResp)
+	err := c.cc.Invoke(ctx, AssistantService_BatchMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) UndoMemoryChange(ctx context.Context, in *UndoMemoryChangeReq, opts ...grpc.CallOption) (*UndoMemoryChangeResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UndoMemoryChangeResp)
+	err := c.cc.Invoke(ctx, AssistantService_UndoMemoryChange_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,26 +274,6 @@ func (c *assistantServiceClient) DeleteWatchTask(ctx context.Context, in *Delete
 	return out, nil
 }
 
-func (c *assistantServiceClient) ListWatchHits(ctx context.Context, in *ListWatchHitsReq, opts ...grpc.CallOption) (*ListWatchHitsResp, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListWatchHitsResp)
-	err := c.cc.Invoke(ctx, AssistantService_ListWatchHits_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *assistantServiceClient) MarkWatchHitsRead(ctx context.Context, in *MarkWatchHitsReadReq, opts ...grpc.CallOption) (*MarkWatchHitsReadResp, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MarkWatchHitsReadResp)
-	err := c.cc.Invoke(ctx, AssistantService_MarkWatchHitsRead_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *assistantServiceClient) SubmitRecommendFeedback(ctx context.Context, in *SubmitRecommendFeedbackReq, opts ...grpc.CallOption) (*SubmitRecommendFeedbackResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SubmitRecommendFeedbackResp)
@@ -193,18 +288,25 @@ func (c *assistantServiceClient) SubmitRecommendFeedback(ctx context.Context, in
 // All implementations must embed UnimplementedAssistantServiceServer
 // for forward compatibility.
 type AssistantServiceServer interface {
-	Chat(*ChatReq, grpc.ServerStreamingServer[ChatEvent]) error
-	// Agent 模式高危操作确认回调（AGNT-020~022）
-	ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error)
+	GetThread(context.Context, *GetThreadReq) (*GetThreadResp, error)
+	ListMessages(context.Context, *ListMessagesReq) (*ListMessagesResp, error)
+	PostMessage(context.Context, *PostMessageReq) (*PostMessageResp, error)
+	CreateSession(context.Context, *CreateSessionReq) (*CreateSessionResp, error)
+	MarkThreadRead(context.Context, *MarkThreadReadReq) (*MarkThreadReadResp, error)
+	DeleteHistory(context.Context, *DeleteHistoryReq) (*DeleteHistoryResp, error)
+	SubscribeRunEvents(*SubscribeRunEventsReq, grpc.ServerStreamingServer[RunEvent]) error
+	CancelRun(context.Context, *CancelRunReq) (*CancelRunResp, error)
+	ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error)
 	ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error)
-	UpdateMemory(context.Context, *UpdateMemoryReq) (*UpdateMemoryResp, error)
-	DeleteMemory(context.Context, *DeleteMemoryReq) (*DeleteMemoryResp, error)
+	AddMemory(context.Context, *AddMemoryReq) (*AddMemoryResp, error)
+	ReplaceMemory(context.Context, *ReplaceMemoryReq) (*ReplaceMemoryResp, error)
+	RemoveMemory(context.Context, *RemoveMemoryReq) (*RemoveMemoryResp, error)
+	BatchMemory(context.Context, *BatchMemoryReq) (*BatchMemoryResp, error)
+	UndoMemoryChange(context.Context, *UndoMemoryChangeReq) (*UndoMemoryChangeResp, error)
 	ListWatchTasks(context.Context, *ListWatchTasksReq) (*ListWatchTasksResp, error)
 	CreateWatchTask(context.Context, *CreateWatchTaskReq) (*CreateWatchTaskResp, error)
 	UpdateWatchTask(context.Context, *UpdateWatchTaskReq) (*UpdateWatchTaskResp, error)
 	DeleteWatchTask(context.Context, *DeleteWatchTaskReq) (*DeleteWatchTaskResp, error)
-	ListWatchHits(context.Context, *ListWatchHitsReq) (*ListWatchHitsResp, error)
-	MarkWatchHitsRead(context.Context, *MarkWatchHitsReadReq) (*MarkWatchHitsReadResp, error)
 	SubmitRecommendFeedback(context.Context, *SubmitRecommendFeedbackReq) (*SubmitRecommendFeedbackResp, error)
 	mustEmbedUnimplementedAssistantServiceServer()
 }
@@ -216,20 +318,50 @@ type AssistantServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAssistantServiceServer struct{}
 
-func (UnimplementedAssistantServiceServer) Chat(*ChatReq, grpc.ServerStreamingServer[ChatEvent]) error {
-	return status.Error(codes.Unimplemented, "method Chat not implemented")
+func (UnimplementedAssistantServiceServer) GetThread(context.Context, *GetThreadReq) (*GetThreadResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetThread not implemented")
 }
-func (UnimplementedAssistantServiceServer) ConfirmToolCall(context.Context, *ConfirmToolCallReq) (*ConfirmToolCallResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method ConfirmToolCall not implemented")
+func (UnimplementedAssistantServiceServer) ListMessages(context.Context, *ListMessagesReq) (*ListMessagesResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMessages not implemented")
+}
+func (UnimplementedAssistantServiceServer) PostMessage(context.Context, *PostMessageReq) (*PostMessageResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method PostMessage not implemented")
+}
+func (UnimplementedAssistantServiceServer) CreateSession(context.Context, *CreateSessionReq) (*CreateSessionResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
+}
+func (UnimplementedAssistantServiceServer) MarkThreadRead(context.Context, *MarkThreadReadReq) (*MarkThreadReadResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method MarkThreadRead not implemented")
+}
+func (UnimplementedAssistantServiceServer) DeleteHistory(context.Context, *DeleteHistoryReq) (*DeleteHistoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteHistory not implemented")
+}
+func (UnimplementedAssistantServiceServer) SubscribeRunEvents(*SubscribeRunEventsReq, grpc.ServerStreamingServer[RunEvent]) error {
+	return status.Error(codes.Unimplemented, "method SubscribeRunEvents not implemented")
+}
+func (UnimplementedAssistantServiceServer) CancelRun(context.Context, *CancelRunReq) (*CancelRunResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelRun not implemented")
+}
+func (UnimplementedAssistantServiceServer) ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmRunTool not implemented")
 }
 func (UnimplementedAssistantServiceServer) ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListMemory not implemented")
 }
-func (UnimplementedAssistantServiceServer) UpdateMemory(context.Context, *UpdateMemoryReq) (*UpdateMemoryResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateMemory not implemented")
+func (UnimplementedAssistantServiceServer) AddMemory(context.Context, *AddMemoryReq) (*AddMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddMemory not implemented")
 }
-func (UnimplementedAssistantServiceServer) DeleteMemory(context.Context, *DeleteMemoryReq) (*DeleteMemoryResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteMemory not implemented")
+func (UnimplementedAssistantServiceServer) ReplaceMemory(context.Context, *ReplaceMemoryReq) (*ReplaceMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReplaceMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) RemoveMemory(context.Context, *RemoveMemoryReq) (*RemoveMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) BatchMemory(context.Context, *BatchMemoryReq) (*BatchMemoryResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method BatchMemory not implemented")
+}
+func (UnimplementedAssistantServiceServer) UndoMemoryChange(context.Context, *UndoMemoryChangeReq) (*UndoMemoryChangeResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method UndoMemoryChange not implemented")
 }
 func (UnimplementedAssistantServiceServer) ListWatchTasks(context.Context, *ListWatchTasksReq) (*ListWatchTasksResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListWatchTasks not implemented")
@@ -242,12 +374,6 @@ func (UnimplementedAssistantServiceServer) UpdateWatchTask(context.Context, *Upd
 }
 func (UnimplementedAssistantServiceServer) DeleteWatchTask(context.Context, *DeleteWatchTaskReq) (*DeleteWatchTaskResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteWatchTask not implemented")
-}
-func (UnimplementedAssistantServiceServer) ListWatchHits(context.Context, *ListWatchHitsReq) (*ListWatchHitsResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListWatchHits not implemented")
-}
-func (UnimplementedAssistantServiceServer) MarkWatchHitsRead(context.Context, *MarkWatchHitsReadReq) (*MarkWatchHitsReadResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method MarkWatchHitsRead not implemented")
 }
 func (UnimplementedAssistantServiceServer) SubmitRecommendFeedback(context.Context, *SubmitRecommendFeedbackReq) (*SubmitRecommendFeedbackResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method SubmitRecommendFeedback not implemented")
@@ -273,31 +399,157 @@ func RegisterAssistantServiceServer(s grpc.ServiceRegistrar, srv AssistantServic
 	s.RegisterService(&AssistantService_ServiceDesc, srv)
 }
 
-func _AssistantService_Chat_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ChatReq)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(AssistantServiceServer).Chat(m, &grpc.GenericServerStream[ChatReq, ChatEvent]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type AssistantService_ChatServer = grpc.ServerStreamingServer[ChatEvent]
-
-func _AssistantService_ConfirmToolCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ConfirmToolCallReq)
+func _AssistantService_GetThread_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetThreadReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AssistantServiceServer).ConfirmToolCall(ctx, in)
+		return srv.(AssistantServiceServer).GetThread(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AssistantService_ConfirmToolCall_FullMethodName,
+		FullMethod: AssistantService_GetThread_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).ConfirmToolCall(ctx, req.(*ConfirmToolCallReq))
+		return srv.(AssistantServiceServer).GetThread(ctx, req.(*GetThreadReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_ListMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMessagesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ListMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ListMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ListMessages(ctx, req.(*ListMessagesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_PostMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PostMessageReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).PostMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_PostMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).PostMessage(ctx, req.(*PostMessageReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_CreateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSessionReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).CreateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_CreateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).CreateSession(ctx, req.(*CreateSessionReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_MarkThreadRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkThreadReadReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).MarkThreadRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_MarkThreadRead_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).MarkThreadRead(ctx, req.(*MarkThreadReadReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_DeleteHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteHistoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).DeleteHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_DeleteHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).DeleteHistory(ctx, req.(*DeleteHistoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_SubscribeRunEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeRunEventsReq)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AssistantServiceServer).SubscribeRunEvents(m, &grpc.GenericServerStream[SubscribeRunEventsReq, RunEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AssistantService_SubscribeRunEventsServer = grpc.ServerStreamingServer[RunEvent]
+
+func _AssistantService_CancelRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelRunReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).CancelRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_CancelRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).CancelRun(ctx, req.(*CancelRunReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_ConfirmRunTool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmRunToolReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).ConfirmRunTool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_ConfirmRunTool_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).ConfirmRunTool(ctx, req.(*ConfirmRunToolReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -320,38 +572,92 @@ func _AssistantService_ListMemory_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AssistantService_UpdateMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateMemoryReq)
+func _AssistantService_AddMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddMemoryReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AssistantServiceServer).UpdateMemory(ctx, in)
+		return srv.(AssistantServiceServer).AddMemory(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AssistantService_UpdateMemory_FullMethodName,
+		FullMethod: AssistantService_AddMemory_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).UpdateMemory(ctx, req.(*UpdateMemoryReq))
+		return srv.(AssistantServiceServer).AddMemory(ctx, req.(*AddMemoryReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AssistantService_DeleteMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteMemoryReq)
+func _AssistantService_ReplaceMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplaceMemoryReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AssistantServiceServer).DeleteMemory(ctx, in)
+		return srv.(AssistantServiceServer).ReplaceMemory(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AssistantService_DeleteMemory_FullMethodName,
+		FullMethod: AssistantService_ReplaceMemory_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).DeleteMemory(ctx, req.(*DeleteMemoryReq))
+		return srv.(AssistantServiceServer).ReplaceMemory(ctx, req.(*ReplaceMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_RemoveMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveMemoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).RemoveMemory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_RemoveMemory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).RemoveMemory(ctx, req.(*RemoveMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_BatchMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchMemoryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).BatchMemory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_BatchMemory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).BatchMemory(ctx, req.(*BatchMemoryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_UndoMemoryChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UndoMemoryChangeReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).UndoMemoryChange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_UndoMemoryChange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).UndoMemoryChange(ctx, req.(*UndoMemoryChangeReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -428,42 +734,6 @@ func _AssistantService_DeleteWatchTask_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AssistantService_ListWatchHits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListWatchHitsReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AssistantServiceServer).ListWatchHits(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AssistantService_ListWatchHits_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).ListWatchHits(ctx, req.(*ListWatchHitsReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AssistantService_MarkWatchHitsRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MarkWatchHitsReadReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AssistantServiceServer).MarkWatchHitsRead(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AssistantService_MarkWatchHitsRead_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).MarkWatchHitsRead(ctx, req.(*MarkWatchHitsReadReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _AssistantService_SubmitRecommendFeedback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SubmitRecommendFeedbackReq)
 	if err := dec(in); err != nil {
@@ -490,20 +760,60 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AssistantServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ConfirmToolCall",
-			Handler:    _AssistantService_ConfirmToolCall_Handler,
+			MethodName: "GetThread",
+			Handler:    _AssistantService_GetThread_Handler,
+		},
+		{
+			MethodName: "ListMessages",
+			Handler:    _AssistantService_ListMessages_Handler,
+		},
+		{
+			MethodName: "PostMessage",
+			Handler:    _AssistantService_PostMessage_Handler,
+		},
+		{
+			MethodName: "CreateSession",
+			Handler:    _AssistantService_CreateSession_Handler,
+		},
+		{
+			MethodName: "MarkThreadRead",
+			Handler:    _AssistantService_MarkThreadRead_Handler,
+		},
+		{
+			MethodName: "DeleteHistory",
+			Handler:    _AssistantService_DeleteHistory_Handler,
+		},
+		{
+			MethodName: "CancelRun",
+			Handler:    _AssistantService_CancelRun_Handler,
+		},
+		{
+			MethodName: "ConfirmRunTool",
+			Handler:    _AssistantService_ConfirmRunTool_Handler,
 		},
 		{
 			MethodName: "ListMemory",
 			Handler:    _AssistantService_ListMemory_Handler,
 		},
 		{
-			MethodName: "UpdateMemory",
-			Handler:    _AssistantService_UpdateMemory_Handler,
+			MethodName: "AddMemory",
+			Handler:    _AssistantService_AddMemory_Handler,
 		},
 		{
-			MethodName: "DeleteMemory",
-			Handler:    _AssistantService_DeleteMemory_Handler,
+			MethodName: "ReplaceMemory",
+			Handler:    _AssistantService_ReplaceMemory_Handler,
+		},
+		{
+			MethodName: "RemoveMemory",
+			Handler:    _AssistantService_RemoveMemory_Handler,
+		},
+		{
+			MethodName: "BatchMemory",
+			Handler:    _AssistantService_BatchMemory_Handler,
+		},
+		{
+			MethodName: "UndoMemoryChange",
+			Handler:    _AssistantService_UndoMemoryChange_Handler,
 		},
 		{
 			MethodName: "ListWatchTasks",
@@ -522,22 +832,14 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AssistantService_DeleteWatchTask_Handler,
 		},
 		{
-			MethodName: "ListWatchHits",
-			Handler:    _AssistantService_ListWatchHits_Handler,
-		},
-		{
-			MethodName: "MarkWatchHitsRead",
-			Handler:    _AssistantService_MarkWatchHitsRead_Handler,
-		},
-		{
 			MethodName: "SubmitRecommendFeedback",
 			Handler:    _AssistantService_SubmitRecommendFeedback_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Chat",
-			Handler:       _AssistantService_Chat_Handler,
+			StreamName:    "SubscribeRunEvents",
+			Handler:       _AssistantService_SubscribeRunEvents_Handler,
 			ServerStreams: true,
 		},
 	},

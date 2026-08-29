@@ -3,6 +3,7 @@ package watch
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ type Task struct {
 	TargetID      int64
 	TargetText    string
 	Enabled       bool
+	Version       int32
 	CreatedAt     int64
 }
 
@@ -137,10 +139,11 @@ func (s *SQLStore) ListTasks(ctx context.Context, userID int64) ([]Task, error) 
 		TargetID      int64  `db:"target_id"`
 		TargetText    string `db:"target_text"`
 		Enabled       int64  `db:"enabled"`
+		Version       int64  `db:"version"`
 		CreatedAt     int64  `db:"created_at_ms"`
 	}
 	err := s.conn.QueryRowsCtx(ctx, &rows,
-		`SELECT id, user_id, condition_type, target_type, target_id, target_text, enabled, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
+		`SELECT id, user_id, condition_type, target_type, target_id, target_text, enabled, version, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
 		 FROM watch_task WHERE user_id = ? ORDER BY id DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -148,7 +151,7 @@ func (s *SQLStore) ListTasks(ctx context.Context, userID int64) ([]Task, error) 
 	out := make([]Task, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, Task{ID: row.ID, UserID: row.UserID, ConditionType: row.ConditionType, TargetType: row.TargetType,
-			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, CreatedAt: row.CreatedAt})
+			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, Version: int32(row.Version), CreatedAt: row.CreatedAt})
 	}
 	return out, nil
 }
@@ -162,10 +165,11 @@ func (s *SQLStore) ListEnabled(ctx context.Context) ([]Task, error) {
 		TargetID      int64  `db:"target_id"`
 		TargetText    string `db:"target_text"`
 		Enabled       int64  `db:"enabled"`
+		Version       int64  `db:"version"`
 		CreatedAt     int64  `db:"created_at_ms"`
 	}
 	err := s.conn.QueryRowsCtx(ctx, &rows,
-		`SELECT id, user_id, condition_type, target_type, target_id, target_text, enabled, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
+		`SELECT id, user_id, condition_type, target_type, target_id, target_text, enabled, version, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
 		 FROM watch_task WHERE enabled = 1`)
 	if err != nil {
 		return nil, err
@@ -173,7 +177,7 @@ func (s *SQLStore) ListEnabled(ctx context.Context) ([]Task, error) {
 	out := make([]Task, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, Task{ID: row.ID, UserID: row.UserID, ConditionType: row.ConditionType, TargetType: row.TargetType,
-			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, CreatedAt: row.CreatedAt})
+			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, Version: int32(row.Version), CreatedAt: row.CreatedAt})
 	}
 	return out, nil
 }
@@ -287,10 +291,21 @@ func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) erro
 		if err != nil || n == 0 {
 			return err
 		}
-		_, err = session.ExecCtx(ctx, `
+		now := time.Now().UnixMilli()
+		resHit, err := session.ExecCtx(ctx, `
 			INSERT INTO watch_hit (user_id, task_id, post_id, title, summary, created_at_ms)
 			VALUES (?, ?, ?, ?, ?, ?)`,
-			hit.UserID, hit.TaskID, hit.PostID, hit.Title, hit.Summary, time.Now().UnixMilli())
+			hit.UserID, hit.TaskID, hit.PostID, hit.Title, hit.Summary, now)
+		if err != nil {
+			return err
+		}
+		hitID, _ := resHit.LastInsertId()
+		window := now / 120000 * 120000
+		payload, _ := json.Marshal([]int64{hitID})
+		_, err = session.ExecCtx(ctx, `INSERT INTO watch_delivery_bucket (user_id, window_start_ms, status, hit_ids, run_id, created_at_ms)
+			VALUES (?, ?, 'pending', ?, 0, ?)
+			ON DUPLICATE KEY UPDATE hit_ids = JSON_ARRAY_APPEND(IFNULL(hit_ids, JSON_ARRAY()), '$', ?)`,
+			hit.UserID, window, string(payload), now, hitID)
 		return err
 	})
 }
@@ -371,6 +386,9 @@ func (m *MapStore) Create(_ context.Context, task Task) (Task, error) {
 	m.next++
 	task.ID = id
 	task.Enabled = true
+	if task.Version == 0 {
+		task.Version = 1
+	}
 	task.CreatedAt = time.Now().UnixMilli()
 	m.tasks[id] = task
 	return task, nil

@@ -303,13 +303,13 @@ func (contractMessageService) GetUnreadCount(_ context.Context, in *messageservi
 type contractAssistantStream struct {
 	grpc.ClientStream
 	ctx    context.Context
-	events []*assistantpb.ChatEvent
+	events []*assistantpb.RunEvent
 	index  int
 }
 
 func (s *contractAssistantStream) Context() context.Context { return s.ctx }
 
-func (s *contractAssistantStream) Recv() (*assistantpb.ChatEvent, error) {
+func (s *contractAssistantStream) Recv() (*assistantpb.RunEvent, error) {
 	if s.index >= len(s.events) {
 		return nil, io.EOF
 	}
@@ -322,32 +322,57 @@ type contractAssistantService struct {
 	assistantservice.AssistantService
 }
 
-func (contractAssistantService) ConfirmToolCall(context.Context, *assistantservice.ConfirmToolCallReq, ...grpc.CallOption) (*assistantpb.ConfirmToolCallResp, error) {
-	return &assistantpb.ConfirmToolCallResp{}, nil
+func (contractAssistantService) GetThread(context.Context, *assistantservice.GetThreadReq, ...grpc.CallOption) (*assistantpb.GetThreadResp, error) {
+	return &assistantpb.GetThreadResp{Thread: &assistantpb.AssistantThread{SessionId: 1}}, nil
 }
-
-func (contractAssistantService) Chat(ctx context.Context, in *assistantservice.ChatReq, _ ...grpc.CallOption) (assistantpb.AssistantService_ChatClient, error) {
-	return &contractAssistantStream{ctx: ctx, events: []*assistantpb.ChatEvent{
-		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_TOKEN, Text: "answer", ConversationId: in.ConversationId},
-		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_SOURCE, Source: &assistantpb.SourceReference{SourceType: "post", SourceId: "11", Title: "title"}, ConversationId: in.ConversationId},
-		{Type: assistantpb.ChatEventType_CHAT_EVENT_TYPE_DONE, ConversationId: in.ConversationId},
+func (contractAssistantService) ListMessages(context.Context, *assistantservice.ListMessagesReq, ...grpc.CallOption) (*assistantpb.ListMessagesResp, error) {
+	return &assistantpb.ListMessagesResp{}, nil
+}
+func (contractAssistantService) PostMessage(context.Context, *assistantservice.PostMessageReq, ...grpc.CallOption) (*assistantpb.PostMessageResp, error) {
+	return &assistantpb.PostMessageResp{MessageId: 1, SessionId: 1, RunId: 9, Disposition: "started"}, nil
+}
+func (contractAssistantService) CreateSession(context.Context, *assistantservice.CreateSessionReq, ...grpc.CallOption) (*assistantpb.CreateSessionResp, error) {
+	return &assistantpb.CreateSessionResp{SessionId: 1}, nil
+}
+func (contractAssistantService) MarkThreadRead(context.Context, *assistantservice.MarkThreadReadReq, ...grpc.CallOption) (*assistantpb.MarkThreadReadResp, error) {
+	return &assistantpb.MarkThreadReadResp{}, nil
+}
+func (contractAssistantService) DeleteHistory(context.Context, *assistantservice.DeleteHistoryReq, ...grpc.CallOption) (*assistantpb.DeleteHistoryResp, error) {
+	return &assistantpb.DeleteHistoryResp{}, nil
+}
+func (contractAssistantService) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+	return &contractAssistantStream{ctx: ctx, events: []*assistantpb.RunEvent{
+		{RunId: 9, Seq: 1, Type: "run_started", SessionId: 1},
+		{RunId: 9, Seq: 2, Type: "token", Text: "answer", SessionId: 1},
+		{RunId: 9, Seq: 3, Type: "done", SessionId: 1},
 	}}, nil
 }
-
+func (contractAssistantService) CancelRun(context.Context, *assistantservice.CancelRunReq, ...grpc.CallOption) (*assistantpb.CancelRunResp, error) {
+	return &assistantpb.CancelRunResp{}, nil
+}
+func (contractAssistantService) ConfirmRunTool(context.Context, *assistantservice.ConfirmRunToolReq, ...grpc.CallOption) (*assistantpb.ConfirmRunToolResp, error) {
+	return &assistantpb.ConfirmRunToolResp{}, nil
+}
 func (contractAssistantService) ListMemory(context.Context, *assistantservice.ListMemoryReq, ...grpc.CallOption) (*assistantpb.ListMemoryResp, error) {
 	return &assistantpb.ListMemoryResp{}, nil
 }
+func (contractAssistantService) AddMemory(context.Context, *assistantservice.AddMemoryReq, ...grpc.CallOption) (*assistantpb.AddMemoryResp, error) {
+	return &assistantpb.AddMemoryResp{Entry: &assistantpb.MemoryEntry{Id: 1, Target: "memory", Content: "x", Version: 1}}, nil
+}
+func (contractAssistantService) ReplaceMemory(context.Context, *assistantservice.ReplaceMemoryReq, ...grpc.CallOption) (*assistantpb.ReplaceMemoryResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) RemoveMemory(context.Context, *assistantservice.RemoveMemoryReq, ...grpc.CallOption) (*assistantpb.RemoveMemoryResp, error) {
+	return nil, errx.NewWithCode(errx.ServiceUnavailable)
+}
+func (contractAssistantService) BatchMemory(context.Context, *assistantservice.BatchMemoryReq, ...grpc.CallOption) (*assistantpb.BatchMemoryResp, error) {
+	return &assistantpb.BatchMemoryResp{}, nil
+}
+func (contractAssistantService) UndoMemoryChange(context.Context, *assistantservice.UndoMemoryChangeReq, ...grpc.CallOption) (*assistantpb.UndoMemoryChangeResp, error) {
+	return &assistantpb.UndoMemoryChangeResp{}, nil
+}
 func (contractAssistantService) ListWatchTasks(context.Context, *assistantservice.ListWatchTasksReq, ...grpc.CallOption) (*assistantpb.ListWatchTasksResp, error) {
 	return &assistantpb.ListWatchTasksResp{}, nil
-}
-func (contractAssistantService) ListWatchHits(context.Context, *assistantservice.ListWatchHitsReq, ...grpc.CallOption) (*assistantpb.ListWatchHitsResp, error) {
-	return &assistantpb.ListWatchHitsResp{}, nil
-}
-func (contractAssistantService) UpdateMemory(context.Context, *assistantservice.UpdateMemoryReq, ...grpc.CallOption) (*assistantpb.UpdateMemoryResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
-}
-func (contractAssistantService) DeleteMemory(context.Context, *assistantservice.DeleteMemoryReq, ...grpc.CallOption) (*assistantpb.DeleteMemoryResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
 func (contractAssistantService) CreateWatchTask(context.Context, *assistantservice.CreateWatchTaskReq, ...grpc.CallOption) (*assistantpb.CreateWatchTaskResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
@@ -356,9 +381,6 @@ func (contractAssistantService) UpdateWatchTask(context.Context, *assistantservi
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
 func (contractAssistantService) DeleteWatchTask(context.Context, *assistantservice.DeleteWatchTaskReq, ...grpc.CallOption) (*assistantpb.DeleteWatchTaskResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
-}
-func (contractAssistantService) MarkWatchHitsRead(context.Context, *assistantservice.MarkWatchHitsReadReq, ...grpc.CallOption) (*assistantpb.MarkWatchHitsReadResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
 func (contractAssistantService) SubmitRecommendFeedback(context.Context, *assistantservice.SubmitRecommendFeedbackReq, ...grpc.CallOption) (*assistantpb.SubmitRecommendFeedbackResp, error) {
@@ -531,17 +553,25 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "POST-DELETE-V2-VALID", method: http.MethodDelete, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "AGENT-CONSENT-GET-VALID", method: http.MethodGet, path: "/api/v2/assistant/consent", auth: true, wantStatus: http.StatusOK},
 		{id: "AGENT-CONSENT-SET-VALID", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{"granted":true}`), auth: true, wantStatus: http.StatusOK},
-		{id: "AGENT-TOOL-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/assistant/tool/confirm", body: jsonBody(`{"requestId":"request-1","callId":"call-1","approved":true}`), auth: true, wantStatus: http.StatusOK},
-		{id: "ASSISTANT-CHAT-VALID", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{"conversationId":"conversation-1","message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantSSE: true},
+		{id: "ASSISTANT-THREAD-VALID", method: http.MethodGet, path: "/api/v2/assistant/thread", auth: true, wantStatus: http.StatusOK, wantFields: []string{"thread"}},
+		{id: "ASSISTANT-MESSAGES-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/messages", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messages"}},
+		{id: "ASSISTANT-MESSAGE-VALID", method: http.MethodPost, path: "/api/v2/assistant/messages", body: jsonBody(`{"message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageId", "sessionId", "runId", "disposition"}},
+		{id: "ASSISTANT-SESSION-VALID", method: http.MethodPost, path: "/api/v2/assistant/sessions", auth: true, wantStatus: http.StatusOK, wantFields: []string{"sessionId"}},
+		{id: "ASSISTANT-THREAD-READ-VALID", method: http.MethodPost, path: "/api/v2/assistant/thread/read", auth: true, wantStatus: http.StatusOK},
+		{id: "ASSISTANT-HISTORY-DELETE-VALID", method: http.MethodDelete, path: "/api/v2/assistant/history", auth: true, wantStatus: http.StatusOK},
+		{id: "ASSISTANT-RUN-EVENTS-VALID", method: http.MethodGet, path: "/api/v2/assistant/runs/9/events", routePath: "/api/v2/assistant/runs/:id/events", auth: true, wantStatus: http.StatusOK, wantSSE: true},
+		{id: "ASSISTANT-RUN-CANCEL-VALID", method: http.MethodPost, path: "/api/v2/assistant/runs/9/cancel", routePath: "/api/v2/assistant/runs/:id/cancel", auth: true, wantStatus: http.StatusOK},
+		{id: "ASSISTANT-RUN-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/assistant/runs/9/confirm", routePath: "/api/v2/assistant/runs/:id/confirm", body: jsonBody(`{"callId":"c1","approved":true}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-MEMORY-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/memory", auth: true, wantStatus: http.StatusOK, wantFields: []string{"items"}},
+		{id: "ASSISTANT-MEMORY-ADD-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory", body: jsonBody(`{"target":"memory","content":"喜欢步行"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"entry", "changeId"}},
+		{id: "ASSISTANT-MEMORY-BATCH-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/batch", body: jsonBody(`{"ops":[{"op":"add","target":"memory","content":"x"}]}`), auth: true, wantStatus: http.StatusOK},
+		{id: "ASSISTANT-MEMORY-UNDO-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/changes/1/undo", routePath: "/api/v2/assistant/memory/changes/:id/undo", auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-WATCH-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch", auth: true, wantStatus: http.StatusOK, wantFields: []string{"tasks"}},
-		{id: "ASSISTANT-WATCH-HITS-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch/hits", auth: true, wantStatus: http.StatusOK, wantFields: []string{"hits"}},
-		{id: "ASSISTANT-MEMORY-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"value":"rpg"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-MEMORY-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-MEMORY-REPLACE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"content":"rpg","version":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-MEMORY-REMOVE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1?version=1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-WATCH-CREATE-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{"conditionType":"author_new_post","targetType":"author","targetId":2}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-WATCH-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-WATCH-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-HITS-READ-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch/hits/read", body: jsonBody(`{"hitIds":[1]}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-RECOMMEND-FEEDBACK-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{"postId":11,"reason":"not_interested"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 	}
 
@@ -613,16 +643,14 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MESSAGE-LIST-BAD-QUERY", method: http.MethodGet, path: "/api/v2/messages/conversations/41?pageSize=bad", routePath: "/api/v2/messages/conversations/:id", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "MESSAGE-SEND-MALFORMED", method: http.MethodPost, path: "/api/v2/messages", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "MESSAGE-MARK-READ-BAD-PATH", method: http.MethodPost, path: "/api/v2/messages/conversations/not-a-number/read", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-CHAT-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/chat", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-MESSAGE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/messages", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "AGENT-CONSENT-SET-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "AGENT-TOOL-CONFIRM-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/tool/confirm", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-MEMORY-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-MEMORY-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-RUN-CONFIRM-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/runs/9/confirm", routePath: "/api/v2/assistant/runs/:id/confirm", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-MEMORY-REPLACE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-MEMORY-REMOVE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/watch/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-HITS-BAD-QUERY", method: http.MethodGet, path: "/api/v2/assistant/watch/hits?unreadOnly=bad", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-HITS-READ-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch/hits/read", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-RECOMMEND-FEEDBACK-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 	)
 
@@ -681,7 +709,7 @@ func TestRESTDecisionTable(t *testing.T) {
 					t.Fatalf("content-type=%q want text/event-stream", got)
 				}
 				body := string(payload)
-				if !strings.Contains(body, `"type":"token"`) || !strings.Contains(body, `"type":"source"`) || !strings.Contains(body, `"type":"done"`) {
+				if !strings.Contains(body, `"type":"token"`) || !strings.Contains(body, `"type":"done"`) {
 					t.Fatalf("missing SSE events: %s", payload)
 				}
 			} else if decision.wantStatus == http.StatusOK || decision.wantStatus == http.StatusAccepted {
@@ -713,8 +741,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 53 {
-		t.Fatalf("route inventory drift: got %d success rules, want 53", len(successes))
+	if len(successes) != 61 {
+		t.Fatalf("route inventory drift: got %d success rules, want 61", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

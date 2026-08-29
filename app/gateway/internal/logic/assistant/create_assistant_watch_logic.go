@@ -45,13 +45,5 @@ func (l *CreateAssistantWatchLogic) CreateAssistantWatch(req *types.CreateAssist
 	if task == nil {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	return &types.CreateAssistantWatchResp{Task: types.AssistantWatchTask{
-		Id:            task.Id,
-		ConditionType: task.ConditionType,
-		TargetType:    task.TargetType,
-		TargetId:      task.TargetId,
-		TargetText:    task.TargetText,
-		Enabled:       task.Enabled,
-		CreatedAt:     task.CreatedAt,
-	}}, nil
+	return &types.CreateAssistantWatchResp{Task: mapWatch(task)}, nil
 }

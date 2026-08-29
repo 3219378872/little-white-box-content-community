@@ -4,41 +4,72 @@ package assistant;
 option go_package = "xiaobaihe/assistant/pb";
 
 service AssistantService {
-  rpc Chat(ChatReq) returns (stream ChatEvent);
-  // Agent 模式高危操作确认回调（AGNT-020~022）
-  rpc ConfirmToolCall(ConfirmToolCallReq) returns (ConfirmToolCallResp);
+  rpc GetThread(GetThreadReq) returns (GetThreadResp);
+  rpc ListMessages(ListMessagesReq) returns (ListMessagesResp);
+  rpc PostMessage(PostMessageReq) returns (PostMessageResp);
+  rpc CreateSession(CreateSessionReq) returns (CreateSessionResp);
+  rpc MarkThreadRead(MarkThreadReadReq) returns (MarkThreadReadResp);
+  rpc DeleteHistory(DeleteHistoryReq) returns (DeleteHistoryResp);
+
+  rpc SubscribeRunEvents(SubscribeRunEventsReq) returns (stream RunEvent);
+  rpc CancelRun(CancelRunReq) returns (CancelRunResp);
+  rpc ConfirmRunTool(ConfirmRunToolReq) returns (ConfirmRunToolResp);
 
   rpc ListMemory(ListMemoryReq) returns (ListMemoryResp);
-  rpc UpdateMemory(UpdateMemoryReq) returns (UpdateMemoryResp);
-  rpc DeleteMemory(DeleteMemoryReq) returns (DeleteMemoryResp);
+  rpc AddMemory(AddMemoryReq) returns (AddMemoryResp);
+  rpc ReplaceMemory(ReplaceMemoryReq) returns (ReplaceMemoryResp);
+  rpc RemoveMemory(RemoveMemoryReq) returns (RemoveMemoryResp);
+  rpc BatchMemory(BatchMemoryReq) returns (BatchMemoryResp);
+  rpc UndoMemoryChange(UndoMemoryChangeReq) returns (UndoMemoryChangeResp);
 
   rpc ListWatchTasks(ListWatchTasksReq) returns (ListWatchTasksResp);
   rpc CreateWatchTask(CreateWatchTaskReq) returns (CreateWatchTaskResp);
   rpc UpdateWatchTask(UpdateWatchTaskReq) returns (UpdateWatchTaskResp);
   rpc DeleteWatchTask(DeleteWatchTaskReq) returns (DeleteWatchTaskResp);
-  rpc ListWatchHits(ListWatchHitsReq) returns (ListWatchHitsResp);
-  rpc MarkWatchHitsRead(MarkWatchHitsReadReq) returns (MarkWatchHitsReadResp);
 
   rpc SubmitRecommendFeedback(SubmitRecommendFeedbackReq) returns (SubmitRecommendFeedbackResp);
 }
 
-// 助手模式（AGNT-001）：缺省或无法识别的值按 enhanced_search 处理
-enum AssistantMode {
-  ASSISTANT_MODE_UNSPECIFIED = 0;
-  ASSISTANT_MODE_ENHANCED_SEARCH = 1;
-  ASSISTANT_MODE_AGENT = 2;
+message GetThreadReq {
+  int64 user_id = 1;
 }
 
-message ChatReq {
+message AssistantThread {
+  int64 session_id = 1;
+  int32 unread_count = 2;
+  int64 last_message_id = 3;
+  string last_message_preview = 4;
+  int64 last_message_at_ms = 5;
+  int64 active_run_id = 6;
+  string active_run_status = 7;
+  string active_run_phase = 8;
+}
+
+message GetThreadResp {
+  AssistantThread thread = 1;
+}
+
+message ListMessagesReq {
   int64 user_id = 1;
-  string conversation_id = 2;
-  string message = 3;
-  string request_id = 4;
-  AssistantMode mode = 5;
-  // 当前会话上传的图片附件，仅 agent 模式写帖工具可引用（AGNT-013/040）
-  repeated Attachment attachments = 6;
-  // 可选内容上下文，缺省忽略（AGNT-042）
-  int64 context_post_id = 7;
+  int64 session_id = 2;
+  int64 after_id = 3;
+  int32 limit = 4;
+}
+
+message AssistantMessage {
+  int64 id = 1;
+  int64 session_id = 2;
+  int64 run_id = 3;
+  string role = 4;
+  string kind = 5;
+  string content = 6;
+  bool unread = 7;
+  int64 created_at_ms = 8;
+  int64 change_id = 9;
+}
+
+message ListMessagesResp {
+  repeated AssistantMessage messages = 1;
 }
 
 message Attachment {
@@ -46,122 +77,192 @@ message Attachment {
   string url = 2;
 }
 
-message ConfirmToolCallReq {
+message PostMessageReq {
   int64 user_id = 1;
-  string request_id = 2;
+  string message = 2;
+  string request_id = 3;
+  repeated Attachment attachments = 4;
+  int64 context_post_id = 5;
+}
+
+message PostMessageResp {
+  int64 message_id = 1;
+  int64 session_id = 2;
+  int64 run_id = 3;
+  string disposition = 4;
+}
+
+message CreateSessionReq {
+  int64 user_id = 1;
+}
+
+message CreateSessionResp {
+  int64 session_id = 1;
+}
+
+message MarkThreadReadReq {
+  int64 user_id = 1;
+}
+
+message MarkThreadReadResp {
+  int32 unread_count = 1;
+}
+
+message DeleteHistoryReq {
+  int64 user_id = 1;
+}
+
+message DeleteHistoryResp {}
+
+message SubscribeRunEventsReq {
+  int64 user_id = 1;
+  int64 run_id = 2;
+  int64 after_seq = 3;
+}
+
+message ToolCallInfo {
+  string call_id = 1;
+  string tool = 2;
+  string summary = 3;
+  string payload_json = 4;
+}
+
+message SourceCard {
+  string handle = 1;
+  string kind = 2;
+  string authority_id = 3;
+  string title = 4;
+  int64 revision = 5;
+  string payload_json = 6;
+}
+
+message RunEvent {
+  int64 run_id = 1;
+  int64 seq = 2;
+  string type = 3;
+  string text = 4;
+  bool degraded = 5;
+  string error_code = 6;
+  int64 session_id = 7;
+  ToolCallInfo tool_call = 8;
+  SourceCard source_card = 9;
+  int64 change_id = 10;
+}
+
+message CancelRunReq {
+  int64 user_id = 1;
+  int64 run_id = 2;
+}
+
+message CancelRunResp {}
+
+message ConfirmRunToolReq {
+  int64 user_id = 1;
+  int64 run_id = 2;
   string call_id = 3;
   bool approved = 4;
 }
 
-message ConfirmToolCallResp {}
+message ConfirmRunToolResp {}
 
-enum ChatEventType {
-  CHAT_EVENT_TYPE_UNSPECIFIED = 0;
-  CHAT_EVENT_TYPE_TOKEN = 1;
-  CHAT_EVENT_TYPE_SOURCE = 2;
-  CHAT_EVENT_TYPE_DONE = 3;
-  CHAT_EVENT_TYPE_ERROR = 4;
-  // agent 工具调用进度与高危确认请求（AGNT-060）
-  CHAT_EVENT_TYPE_TOOL_CALL = 5;
-  CHAT_EVENT_TYPE_CONFIRM_REQUIRED = 6;
-  // 结构化卡片、动作与 Watch 命中；旧客户端必须忽略（AGNT-060）
-  CHAT_EVENT_TYPE_CARD = 7;
-  CHAT_EVENT_TYPE_ACTIONS = 8;
-  CHAT_EVENT_TYPE_WATCH_HIT = 9;
+message MemoryEntry {
+  int64 id = 1;
+  string target = 2;
+  string content = 3;
+  int32 version = 4;
+  int64 created_at_ms = 5;
+  int64 updated_at_ms = 6;
 }
 
-message SourceReference {
-  string source_type = 1;
-  string source_id = 2;
-  string title = 3;
-  int64  revision = 4;
-}
-
-message ToolCallInfo {
-  string call_id = 1;      // 确认回传凭据，一次性绑定请求与调用（AGNT-022）
-  string tool = 2;         // search_posts|web_search|create_post|update_post|delete_post
-  string summary = 3;      // 人可读摘要，客户端直接渲染
-  string payload_json = 4; // 参数摘要 JSON
-}
-
-message Card {
-  string card_type = 1;     // post | watch
-  string payload_json = 2;  // 已验证对象的 JSON
-}
-
-message Action {
-  string action = 1;        // open_post | favorite | watch_author | watch_tag
-  string payload_json = 2;
-}
-
-message WatchHitInfo {
-  int64  hit_id = 1;
-  int64  task_id = 2;
-  int64  post_id = 3;
-  string title = 4;
-  string summary = 5;
-}
-
-message ChatEvent {
-  ChatEventType type = 1;
-  string text = 2;
-  SourceReference source = 3;
-  bool degraded = 4;
-  string error_code = 5;
-  string conversation_id = 6;
-  ToolCallInfo tool_call = 7;
-  Card card = 8;
-  repeated Action actions = 9;
-  WatchHitInfo watch_hit = 10;
-}
-
-message MemoryItem {
-  int64  id = 1;
-  string layer = 2;       // profile | interest | task | episodic
-  string dimension = 3;
-  string value = 4;
-  double score = 5;
-  string source = 6;
-  double confidence = 7;
-  bool   confirmed = 8;   // 高置信已确认 vs 可能的偏好
-  bool   suppressed = 9;
-  int64  updated_at = 10;
+message MemoryCapacity {
+  string target = 1;
+  int32 used = 2;
+  int32 limit = 3;
 }
 
 message ListMemoryReq {
-  int64  user_id = 1;
-  string layer = 2; // 空表示全部（不含默认全量 episodic）
+  int64 user_id = 1;
+  string target = 2;
 }
 
 message ListMemoryResp {
-  repeated MemoryItem items = 1;
+  repeated MemoryEntry items = 1;
+  repeated MemoryCapacity capacities = 2;
 }
 
-message UpdateMemoryReq {
-  int64  user_id = 1;
-  int64  id = 2;
-  optional string value = 3;
-  optional double score = 4;
-  optional bool   suppressed = 5;
+message AddMemoryReq {
+  int64 user_id = 1;
+  string target = 2;
+  string content = 3;
+  string request_id = 4;
 }
 
-message UpdateMemoryResp {}
+message AddMemoryResp {
+  MemoryEntry entry = 1;
+  int64 change_id = 2;
+}
 
-message DeleteMemoryReq {
+message ReplaceMemoryReq {
   int64 user_id = 1;
   int64 id = 2;
+  string content = 3;
+  int32 version = 4;
+  string request_id = 5;
 }
 
-message DeleteMemoryResp {}
+message ReplaceMemoryResp {
+  MemoryEntry entry = 1;
+  int64 change_id = 2;
+}
+
+message RemoveMemoryReq {
+  int64 user_id = 1;
+  int64 id = 2;
+  int32 version = 3;
+  string request_id = 4;
+}
+
+message RemoveMemoryResp {
+  int64 change_id = 1;
+}
+
+message MemoryOp {
+  string op = 1;
+  int64 id = 2;
+  string target = 3;
+  string content = 4;
+  int32 version = 5;
+}
+
+message BatchMemoryReq {
+  int64 user_id = 1;
+  string request_id = 2;
+  repeated MemoryOp ops = 3;
+}
+
+message BatchMemoryResp {
+  repeated MemoryEntry entries = 1;
+  repeated int64 change_ids = 2;
+}
+
+message UndoMemoryChangeReq {
+  int64 user_id = 1;
+  int64 change_id = 2;
+}
+
+message UndoMemoryChangeResp {
+  MemoryEntry entry = 1;
+}
 
 message WatchTask {
-  int64  id = 1;
+  int64 id = 1;
   string condition_type = 2;
   string target_type = 3;
-  int64  target_id = 4;
+  int64 target_id = 4;
   string target_text = 5;
-  bool   enabled = 6;
-  int64  created_at = 7;
+  bool enabled = 6;
+  int32 version = 7;
+  int64 created_at = 8;
 }
 
 message ListWatchTasksReq {
@@ -173,10 +274,10 @@ message ListWatchTasksResp {
 }
 
 message CreateWatchTaskReq {
-  int64  user_id = 1;
+  int64 user_id = 1;
   string condition_type = 2;
   string target_type = 3;
-  int64  target_id = 4;
+  int64 target_id = 4;
   string target_text = 5;
 }
 
@@ -187,7 +288,7 @@ message CreateWatchTaskResp {
 message UpdateWatchTaskReq {
   int64 user_id = 1;
   int64 id = 2;
-  bool  enabled = 3;
+  bool enabled = 3;
 }
 
 message UpdateWatchTaskResp {}
@@ -199,36 +300,10 @@ message DeleteWatchTaskReq {
 
 message DeleteWatchTaskResp {}
 
-message WatchHit {
-  int64  id = 1;
-  int64  task_id = 2;
-  int64  post_id = 3;
-  string title = 4;
-  string summary = 5;
-  int64  created_at = 6;
-  bool   read = 7;
-}
-
-message ListWatchHitsReq {
-  int64 user_id = 1;
-  bool  unread_only = 2;
-}
-
-message ListWatchHitsResp {
-  repeated WatchHit hits = 1;
-}
-
-message MarkWatchHitsReadReq {
-  int64 user_id = 1;
-  repeated int64 hit_ids = 2;
-}
-
-message MarkWatchHitsReadResp {}
-
 message SubmitRecommendFeedbackReq {
-  int64  user_id = 1;
+  int64 user_id = 1;
   string request_id = 2;
-  int64  post_id = 3;
+  int64 post_id = 3;
   string reason = 4;
 }
 
