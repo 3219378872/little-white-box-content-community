@@ -2,13 +2,18 @@
 id: SPEC-assistant-agent-mode
 layer: spec
 title: Assistant Agent 模式规范
-status: approved
+status: retired
 owner: human
 upstream:
   - INT-content-community-backend
+deprecated: true
+deprecated_by: SPEC-assistant-agent
 ---
 
 # Assistant Agent 模式规范
+
+> Deprecated：本规范只保留历史契约。模式开关、同步 Chat 流、轮内软硬步数和旧确认凭据已由
+> `SPEC-assistant-agent` 的统一持久异步运行、command journal、数据库 CAS 与长期预算接替。
 
 ## 范围与模式契约
 

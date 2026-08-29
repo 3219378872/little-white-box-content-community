@@ -42,6 +42,15 @@ observed_commit: a52eb89
 - 设计与实现尚未对齐：活跃设计仍须在后续任务中引用新规范，实现状态在对齐前保持
   `diverged`。
 
+## 2026-08-29 Hermes 式长期 Agent
+
+- `INT-content-community-backend` 已批准 Assistant 虚拟消息线程、通用异步 Agent、主动 Watch、
+  双文档自然语言记忆、compact/BM25 与可选来源语义。
+- `SPEC-assistant-agent` 接替 retired/deprecated 的 `SPEC-grounded-assistant` 与
+  `SPEC-assistant-agent-mode`；`SPEC-agent-memory`、`SPEC-agent-watch` 和可靠性规范同步重写。
+- `DES-assistant-agent-runtime` 已改为 assistant-rpc read model + MySQL lease worker + Watch 调度设计。
+  实现未全部验证前 `IMP-content-community-backend` 继续保持 `diverged`。
+
 ## 后续待办
 
 1. 两名人类评审者产出正式冻结评测集；现有 LLM 合成集不能关闭 DISC-060 / ASST-050。

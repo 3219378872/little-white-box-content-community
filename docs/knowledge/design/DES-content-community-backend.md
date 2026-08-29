@@ -7,8 +7,7 @@ owner: agent
 upstream:
   - SPEC-community-core
   - SPEC-content-discovery
-  - SPEC-grounded-assistant
-  - SPEC-assistant-agent-mode
+  - SPEC-assistant-agent
   - SPEC-agent-memory
   - SPEC-agent-watch
   - SPEC-feedback-reliability
@@ -16,7 +15,7 @@ upstream:
 
 # 小白盒内容社区后端设计
 
-本设计说明如何以 go-zero 工程结构满足社区核心、发现、证据化 Assistant、Agent 模式与
+本设计说明如何以 go-zero 工程结构满足社区核心、发现、持久异步 Assistant Agent 与
 反馈可靠性规范。Agent Runtime、记忆与 Watch 的细节以
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) 为准。实现对齐状态以
 [IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
@@ -28,7 +27,7 @@ upstream:
   状态在 Gateway 回填 Interaction，不把 Interaction 客户端放进 Content。收藏隐私、回源过滤
   也在 Gateway 组合，因为没有独立 favorites 读模型跨库。
 - RPC：user / content / interaction / media / message / feed / search / recommend /
-  assistant / behavior，各自持有权威库与事务。
+  assistant / behavior，各自持有权威库与事务；独立 assistant-agent worker 只拥有运行执行职责。
 - MQ：search 索引、embedding、feed fanout、行为管道、推荐特征、媒体清理、内容计数同步。
 - 算法旁路（`algorithm/`）：可选在线推理与离线训练。推荐在超时或不可用时规则降级
   （DISC-036）；算法不拥有可见性。
@@ -84,17 +83,14 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。候选特征按 `revision` 单调覆盖，
 旧快照不回写。
 
-### Assistant
+### Assistant Agent
 
-只对认证用户开放。工具检索 published 候选后必须 Content 重读正文。无正文证据则固定拒答。
-事实段落强制 `[post:id]`，对外 SOURCE 只含回源验证过来源。LLM 不可用返回证据摘要；
-检索或回源失败关闭。会话按用户隔离，Redis 限流 20/60s，历史 100 条 / 30 天。
-
-### Assistant Agent 模式（AGNT-*）
-
-编排仍在 assistant RPC 内，不开新业务服务。版本 1 的五工具循环、高危确认、软硬预算与
-`agent_capability_consent` 授权保持有效。版本 2 起的 Runtime、分组工具、记忆、推荐解释
-与 Watch 见 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md)。
+消息页虚拟线程由 assistant RPC 提供独立 read model，不创建 message 用户。所有用户输入先写
+`xbh_assistant`，独立 worker 通过 MySQL lease 执行；断线不取消，事件从 MySQL 按序重放，Redis 仅
+作通知。模型可直接对话并自主调用受授权工具，不再有 enhanced_search、模式字段或 Intent Router。
+检索结果必须回源，只有 `present_sources` 选择的 run-local handle 成为来源卡，但来源不是回答门禁。
+完整运行、Memory、Watch、历史 BM25、compact 与预算设计见
+[DES-assistant-agent-runtime](DES-assistant-agent-runtime.md)。
 
 ### 写入与私信
 
@@ -126,10 +122,10 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 - 部分推荐来源不可用：规则降级并标记。
 - 可见性不可用：发现与 Assistant 失败关闭。
 - 帖子搜索索引不可用：搜索 503。
-- LLM 不可用但有证据：证据摘要降级。
-- Agent 轮内预算耗尽且无法收尾：结构化 `AGENT_BUDGET_EXCEEDED` 错误事件，已成功写入保留。
-- Agent 确认等待超时：视为拒绝并反馈模型，流不挂起。
-- Assistant 状态存储不可用：一次性降级、不续接。
+- LLM 不可用：run 明确错误终止，保留已提交文本、来源卡与副作用摘要。
+- Agent 触达任一硬预算：`AGENT_RESOURCE_LIMIT`，已成功副作用保留且可审计。
+- Agent 确认等待超时：数据库 CAS 拒绝，run 可继续收尾或明确终止。
+- Assistant MySQL 不可用：拒绝接受新 run，不同步执行；Redis 不可用则 SSE 轮询 MySQL。
 - 指标后端不可用：业务继续。
 
 ## 取舍
@@ -143,6 +139,6 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 
 ## 验收策略
 
-代码行为类（CORE-A*、DISC-A01~A05、ASST-A01~A04、REL-A01~A04 的接口部分）用 Go 测试
+代码行为类（CORE-A*、DISC-A01~A05、AGENT-A01~A06、REL-A01~A04 的接口部分）用 Go 测试
 落地，每个改动的 Logic 至少一条失败路径。DISC-A06、ASST-050/051、REL-A05 需要人类冻结
 集与真实观测，由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。

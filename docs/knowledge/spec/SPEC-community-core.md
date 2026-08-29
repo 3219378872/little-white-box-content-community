@@ -15,7 +15,7 @@ upstream:
 本规范定义身份、资料、内容生命周期、评论、点赞、收藏、关注、媒体和一对一私信的可观察行为。
 账户注销、内容申诉、管理后台、群聊、消息撤回、消息删除，以及点赞/评论/关注的站内通知中心
 不在当前范围。关注流、搜索和推荐由 `SPEC-content-discovery` 约束，Assistant 由
-`SPEC-grounded-assistant` 约束。
+`SPEC-assistant-agent` 约束。
 
 ## 术语与访问边界
 

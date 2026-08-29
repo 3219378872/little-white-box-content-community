@@ -2,13 +2,18 @@
 id: SPEC-grounded-assistant
 layer: spec
 title: 社区内容证据化 Assistant 规范
-status: approved
+status: retired
 owner: human
 upstream:
   - INT-content-community-backend
+deprecated: true
+deprecated_by: SPEC-assistant-agent
 ---
 
 # 社区内容证据化 Assistant 规范
+
+> Deprecated：本规范只保留历史契约。同步 enhanced_search、事实回答来源硬门禁与
+> `/api/v2/assistant/chat` 已由 `SPEC-assistant-agent` 的统一异步 Agent 和可选来源语义接替。
 
 ## 范围与证据边界
 

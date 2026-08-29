@@ -19,4 +19,4 @@
 - [PROP-20260822-comment-reply-thread](PROP-20260822-comment-reply-thread.md)：
   楼中楼回复读取与计数一致性（open，拟 CORE-070，待人类决定是否纳入规范）。
 - [PROP-20260827-agent-spec-closure](PROP-20260827-agent-spec-closure.md)：
-  08-27 Agent 扩张后意图与规范收口（open；SLO、网页来源、记忆/Watch 保留期等待人类逐项决定）。
+  旧双模式 Agent 收口提案（superseded；由 2026-08-29 已批准长期 Agent 规范接替）。

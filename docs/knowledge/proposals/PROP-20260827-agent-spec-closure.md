@@ -2,7 +2,7 @@
 id: PROP-20260827-agent-spec-closure
 layer: proposal
 title: 08-27 Agent 扩张后意图与规范收口
-status: open
+status: superseded
 owner: agent
 target_layer: spec
 upstream:
@@ -17,6 +17,9 @@ upstream:
 ---
 
 # 08-27 Agent 扩张后意图与规范收口
+
+> 2026-08-29 superseded：本提案针对旧双模式 Agent 的收口选项，已被人类批准的 Hermes 式长期
+> Agent 重构整体接替。当前正式语义见 `SPEC-assistant-agent`、重写后的 Memory/Watch 与可靠性规范。
 
 本提案不是正式上游。未经人类逐项接受前，不得改写已批准 `INT-*` / `SPEC-*`，
 也不得被设计或实现引用为约束。
