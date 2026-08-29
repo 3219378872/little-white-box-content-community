@@ -122,6 +122,66 @@ func TestCompleteSurfacesHTTPErrorBody(t *testing.T) {
 	}
 }
 
+func TestCompleteSetsResponsesClientHeaders(t *testing.T) {
+	var gotUA, gotBeta, gotAccept string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		gotBeta = r.Header.Get("OpenAI-Beta")
+		gotAccept = r.Header.Get("Accept")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "completed",
+			"output": []map[string]any{
+				{"type": "message", "content": []map[string]string{{"type": "output_text", "text": "ok"}}},
+			},
+		})
+	}))
+	defer server.Close()
+	client, err := New(Config{Enabled: true, WireAPI: WireAPIResponses, Endpoint: server.URL + "/v1", Model: "m", Timeout: time.Second, MaxOutputTokens: 128})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Complete(context.Background(), Request{Messages: []prompt.Turn{{Role: "user", Content: "hi"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if gotUA != responsesUserAgent {
+		t.Fatalf("User-Agent=%q", gotUA)
+	}
+	if gotBeta != responsesBeta {
+		t.Fatalf("OpenAI-Beta=%q", gotBeta)
+	}
+	if gotAccept != "application/json" {
+		t.Fatalf("Accept=%q", gotAccept)
+	}
+}
+
+func TestDecodeResponsesIncompleteWithText(t *testing.T) {
+	raw, _ := json.Marshal(map[string]any{
+		"status": "incomplete",
+		"output": []map[string]any{
+			{"type": "reasoning", "content": []map[string]string{}},
+			{"type": "message", "role": "assistant", "content": []map[string]string{{"type": "output_text", "text": "pong"}}},
+		},
+	})
+	got, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Text != "pong" {
+		t.Fatalf("text=%q", got.Text)
+	}
+}
+
+func TestDecodeResponsesIncompleteEmptyFails(t *testing.T) {
+	raw, _ := json.Marshal(map[string]any{
+		"status": "incomplete",
+		"output": []map[string]any{{"type": "reasoning"}},
+	})
+	_, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
+	if err == nil || !strings.Contains(err.Error(), "incomplete") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestReadinessFailsIfToolsUnsupported(t *testing.T) {
 	if err := Ready(Unsupported(), true); err == nil {
 		t.Fatal("expected readiness failure")

@@ -18,6 +18,10 @@ const (
 	WireAPIChatCompletions = "chat_completions"
 	WireAPIResponses       = "responses"
 	maxResponseBytes       = 8 << 20
+	// GLM's mine upstream 403s Go's default client signature; match a browser UA
+	// plus the Responses beta header that Codex/other tools send.
+	responsesUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+	responsesBeta      = "responses=v1"
 )
 
 type ToolCall struct {
@@ -162,6 +166,11 @@ func (c *HTTPClient) Complete(ctx context.Context, req Request) (Result, error) 
 		return Result{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+	httpReq.Header.Set("User-Agent", responsesUserAgent)
+	if c.cfg.WireAPI == WireAPIResponses {
+		httpReq.Header.Set("OpenAI-Beta", responsesBeta)
+	}
 	if c.cfg.APIKey != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	}
@@ -343,9 +352,6 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return Result{}, fmt.Errorf("decode responses: %w", err)
 	}
-	if parsed.Status != "" && parsed.Status != "completed" {
-		return Result{}, fmt.Errorf("assistant LLM response status=%s", parsed.Status)
-	}
 	var texts []string
 	var calls []ToolCall
 	for _, item := range parsed.Output {
@@ -368,7 +374,13 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 	if text == "" {
 		text = strings.TrimSpace(parsed.OutputText)
 	}
-	if text == "" && len(calls) == 0 {
+	usable := text != "" || len(calls) > 0
+	if parsed.Status != "" && parsed.Status != "completed" {
+		if parsed.Status != "incomplete" || !usable {
+			return Result{}, fmt.Errorf("assistant LLM response status=%s", parsed.Status)
+		}
+	}
+	if !usable {
 		return Result{}, fmt.Errorf("assistant LLM returned an empty response")
 	}
 	return Result{Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw, Usage: c.usage(parsed.Usage.InputTokens, parsed.Usage.OutputTokens, parsed.Usage.TotalTokens)}, nil
