@@ -144,6 +144,8 @@ func (e *Engine) run(ctx context.Context, run store.Run) error {
 		})
 		if err != nil {
 			agentLLMCalls.Inc("failure")
+			logx.WithContext(ctx).Errorw("assistant LLM complete failed",
+				logx.Field("runId", run.ID), logx.Field("err", err.Error()))
 			return e.fail(ctx, run, "LLM_UNAVAILABLE", "model call failed")
 		}
 		agentLLMCalls.Inc("success")

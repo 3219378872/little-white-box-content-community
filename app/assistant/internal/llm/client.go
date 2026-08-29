@@ -178,7 +178,7 @@ func (c *HTTPClient) Complete(ctx context.Context, req Request) (Result, error) 
 		return Result{}, fmt.Errorf("assistant LLM response exceeds the byte limit")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Result{}, fmt.Errorf("assistant LLM status=%s", resp.Status)
+		return Result{}, fmt.Errorf("assistant LLM status=%s body=%s", resp.Status, truncateForLog(raw))
 	}
 	if c.cfg.WireAPI == WireAPIResponses {
 		return c.decodeResponses(raw)
@@ -256,18 +256,26 @@ func responsesTools(defs []prompt.ToolDef) []map[string]any {
 func responsesInput(turns []prompt.Turn) []map[string]any {
 	out := make([]map[string]any, 0, len(turns))
 	for _, turn := range turns {
-		role := turn.Role
-		if role == "system" {
-			out = append(out, map[string]any{
-				"role": "system", "content": []map[string]string{{"type": "input_text", "text": turn.Content}},
-			})
-			continue
+		role := strings.TrimSpace(turn.Role)
+		partType := "input_text"
+		if role == "assistant" {
+			// Responses API rejects input_text on assistant items; history must be output_text.
+			partType = "output_text"
 		}
 		out = append(out, map[string]any{
-			"role": role, "content": []map[string]string{{"type": "input_text", "text": turn.Content}},
+			"role": role, "content": []map[string]string{{"type": partType, "text": turn.Content}},
 		})
 	}
 	return out
+}
+
+func truncateForLog(raw []byte) string {
+	const n = 400
+	s := strings.Join(strings.Fields(string(raw)), " ")
+	if len(s) > n {
+		return s[:n] + "..."
+	}
+	return s
 }
 
 func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
