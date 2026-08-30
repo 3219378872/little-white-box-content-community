@@ -688,10 +688,34 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	if err := e.finishToolStep(persistCtx, run, call, text, callErr, cards, sess.ChangeIDs, journal, true, outcome, reviewLive); err != nil {
 		return err
 	}
+	if run.Source == store.SourceWatch && repeatedWatchRead(persistCtx, e.Store, run.ID, call.Name, digest) {
+		// A provider that keeps re-issuing the same read cannot make progress
+		// (large Snowflake IDs are a common cause). Deliver a truthful degraded
+		// notification rather than burning the run budget indefinitely.
+		return e.completeWatch(persistCtx, *run,
+			"检测到一条新的关注动态，但当前无法完成内容核验，暂不展示具体详情。", nil)
+	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
 	return nil
+}
+
+func repeatedWatchRead(ctx context.Context, st store.Store, runID int64, toolName, digest string) bool {
+	if st == nil || runID <= 0 || digest == "" {
+		return false
+	}
+	calls, err := st.ListToolCalls(ctx, runID)
+	if err != nil {
+		return false
+	}
+	count := 0
+	for _, call := range calls {
+		if call.Tool == toolName && call.CanonicalArgsDigest == digest && call.Status != "running" {
+			count++
+		}
+	}
+	return count >= 2
 }
 
 func (e *Engine) toolSession(run store.Run) *tool.Session {

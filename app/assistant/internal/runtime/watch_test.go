@@ -85,6 +85,51 @@ func TestWatchRunFailureRequeuesBucket(t *testing.T) {
 	}
 }
 
+func TestWatchRepeatedReadIsSafelyDeliveredWithoutRunLoop(t *testing.T) {
+	ctx := context.Background()
+	mem := store.NewMemoryStore()
+	watchStore, bucket, _ := watchFixture(t, mem)
+	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+		t.Fatal(err)
+	}
+	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
+	run, err := mem.Claim(ctx, "watch-worker", store.NowMs(), 60_000)
+	if err != nil || run == nil || run.ID != scheduled.RunID {
+		t.Fatalf("claim=%+v scheduled=%+v err=%v", run, scheduled, err)
+	}
+	reg, err := tool.NewRegistry(tool.Clients{Store: mem}, []string{tool.GetPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := llm.ToolCall{ID: "read-1", Name: tool.GetPost, Arguments: `{"post_id":99}`}
+	model := &scriptedLLM{replies: []llm.Result{
+		{ToolCalls: []llm.ToolCall{call}},
+		{ToolCalls: []llm.ToolCall{{ID: "read-2", Name: tool.GetPost, Arguments: `{"post_id":99}`}}},
+	}}
+	engine := &Engine{Store: mem, Watch: watchStore, Tools: reg, LLM: model, Window: 128000}
+	engine.Execute(ctx, *run, false)
+	fresh, err := mem.GetRun(ctx, run.ID)
+	if err != nil || fresh.Status != store.StatusDone {
+		t.Fatalf("run=%+v err=%v", fresh, err)
+	}
+	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	visible := 0
+	for _, message := range messages {
+		if message.Visible && message.Role == store.RoleAssistant {
+			visible++
+			if message.Content == "" {
+				t.Fatalf("empty watch fallback message=%+v", message)
+			}
+		}
+	}
+	if visible != 1 {
+		t.Fatalf("watch fallback visible messages=%d all=%+v", visible, messages)
+	}
+}
+
 func TestWatchBucketWithoutCurrentConsentIsDeferred(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
