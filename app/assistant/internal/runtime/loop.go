@@ -699,11 +699,16 @@ func (e *Engine) toolSession(run store.Run) *tool.Session {
 		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID,
 		Source: run.Source, ConsentVersion: run.ConsentVersion, Fence: run.Fence(),
 	}
-	payload := decodeInputPayload(run.QueuedPayload)
-	sess.ContextPostID = payload.ContextPostID
-	sess.Attachments = make([]tool.Attachment, 0, len(payload.Attachments))
-	for _, item := range payload.Attachments {
-		sess.Attachments = append(sess.Attachments, tool.Attachment{MediaID: item.MediaID, URL: item.URL})
+	if run.Source == store.SourceWatch {
+		watchPayload := decodeWatchRunPayload(run.QueuedPayload)
+		sess.WatchPostIDs = append([]int64(nil), watchPayload.PostIDs...)
+	} else {
+		payload := decodeInputPayload(run.QueuedPayload)
+		sess.ContextPostID = payload.ContextPostID
+		sess.Attachments = make([]tool.Attachment, 0, len(payload.Attachments))
+		for _, item := range payload.Attachments {
+			sess.Attachments = append(sess.Attachments, tool.Attachment{MediaID: item.MediaID, URL: item.URL})
+		}
 	}
 	return sess
 }

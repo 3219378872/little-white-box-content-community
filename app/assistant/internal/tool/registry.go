@@ -107,6 +107,7 @@ type Session struct {
 	ConsentVersion int32
 	Attachments    []Attachment
 	ContextPostID  int64
+	WatchPostIDs   []int64
 	ChangeIDs      []int64
 	Fence          store.LeaseFence
 	Recovery       bool

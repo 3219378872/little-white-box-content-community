@@ -197,6 +197,7 @@ func getPostExecutor(content contentservice.ContentService) executorFunc {
 		if err := strictUnmarshal(argsJSON, &args); err != nil || args.PostID <= 0 {
 			return "", nil, errx.New(errx.ParamError, "get_post requires post_id")
 		}
+		args.PostID = normalizeWatchPostID(session, args.PostID)
 		userID := int64(0)
 		if session != nil {
 			userID = session.UserID
@@ -226,6 +227,7 @@ func getPostCommentsExecutor(content contentservice.ContentService) executorFunc
 		if err := strictUnmarshal(argsJSON, &args); err != nil || args.PostID <= 0 {
 			return "", nil, errx.New(errx.ParamError, "get_post_comments requires post_id")
 		}
+		args.PostID = normalizeWatchPostID(session, args.PostID)
 		userID := int64(0)
 		if session != nil {
 			userID = session.UserID
@@ -261,6 +263,39 @@ func getPostCommentsExecutor(content contentservice.ContentService) executorFunc
 		}
 		return strings.TrimRight(b.String(), "\n"), sources, nil
 	}
+}
+
+// LLMs commonly round large Snowflake IDs when copying them from a prompt.
+// A Watch run may correct only to one of its own persisted hit IDs, keeping
+// the normal ownership/visibility checks intact and preventing arbitrary
+// nearby post lookups.
+func normalizeWatchPostID(session *Session, requested int64) int64 {
+	if session == nil || session.Source != "watch" || requested <= 0 || len(session.WatchPostIDs) == 0 {
+		return requested
+	}
+	var candidate int64
+	var distance int64 = 1025
+	for _, id := range session.WatchPostIDs {
+		if id <= 0 {
+			continue
+		}
+		if id == requested {
+			return id
+		}
+		delta := id - requested
+		if delta < 0 {
+			delta = -delta
+		}
+		if delta < distance {
+			candidate, distance = id, delta
+		} else if delta == distance {
+			candidate = 0
+		}
+	}
+	if candidate > 0 {
+		return candidate
+	}
+	return requested
 }
 
 func recommendPostsExecutor(clients Clients) executorFunc {

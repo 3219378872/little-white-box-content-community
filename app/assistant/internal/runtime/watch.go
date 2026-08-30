@@ -23,6 +23,7 @@ type watchRunPayload struct {
 	BucketID int64   `json:"bucket_id"`
 	HitIDs   []int64 `json:"hit_ids"`
 	TaskIDs  []int64 `json:"task_ids,omitempty"`
+	PostIDs  []int64 `json:"post_ids,omitempty"`
 }
 
 func ScheduleDueWatchRuns(ctx context.Context, st store.Store, watchStore watch.Store, consent ConsentChecker) {
@@ -76,6 +77,7 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 		return fmt.Errorf("watch bucket %d has no hit store or hit ids", bucket.ID)
 	}
 	taskIDs := make([]int64, 0)
+	postIDs := make([]int64, 0)
 	if watchStore != nil && len(bucket.HitIDs) > 0 {
 		hits, listErr := watchStore.GetHitsByIDs(ctx, bucket.UserID, bucket.HitIDs)
 		if listErr != nil {
@@ -89,6 +91,7 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 			byID[hit.ID] = hit
 		}
 		seen := map[int64]struct{}{}
+		seenPosts := map[int64]struct{}{}
 		for _, id := range bucket.HitIDs {
 			hit, ok := byID[id]
 			if !ok {
@@ -99,6 +102,12 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 			}
 			seen[hit.TaskID] = struct{}{}
 			taskIDs = append(taskIDs, hit.TaskID)
+			if hit.PostID > 0 {
+				if _, exists := seenPosts[hit.PostID]; !exists {
+					seenPosts[hit.PostID] = struct{}{}
+					postIDs = append(postIDs, hit.PostID)
+				}
+			}
 			hourly, err := st.CountSent(ctx, bucket.UserID, hit.TaskID, "hour", hourStart)
 			if err != nil {
 				return err
@@ -110,7 +119,8 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 		}
 	}
 	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
-	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: bucket.HitIDs, TaskIDs: taskIDs})
+	sort.Slice(postIDs, func(i, j int) bool { return postIDs[i] < postIDs[j] })
+	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: bucket.HitIDs, TaskIDs: taskIDs, PostIDs: postIDs})
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		lockedVersion, stillGranted, err := tx.AgentConsent(ctx, bucket.UserID)
 		if err != nil {
@@ -167,11 +177,12 @@ func (e *Engine) watchInputTurn(ctx context.Context, run store.Run) (prompt.Turn
 		return prompt.Turn{}, fmt.Errorf("watch run %d has invalid bucket payload", run.ID)
 	}
 	type promptHit struct {
-		HitID   int64  `json:"hit_id"`
-		TaskID  int64  `json:"task_id"`
-		PostID  int64  `json:"post_id"`
-		Title   string `json:"title,omitempty"`
-		Summary string `json:"summary,omitempty"`
+		HitID       int64  `json:"hit_id"`
+		TaskID      int64  `json:"task_id"`
+		PostID      int64  `json:"post_id"`
+		PostIDExact string `json:"post_id_exact,omitempty"`
+		Title       string `json:"title,omitempty"`
+		Summary     string `json:"summary,omitempty"`
 	}
 	hits := make([]promptHit, 0, len(payload.HitIDs))
 	if e.Watch == nil {
@@ -192,7 +203,19 @@ func (e *Engine) watchInputTurn(ctx context.Context, run store.Run) (prompt.Turn
 		if _, ok := wanted[hit.ID]; !ok || hit.UserID != run.UserID {
 			continue
 		}
-		hits = append(hits, promptHit{HitID: hit.ID, TaskID: hit.TaskID, PostID: hit.PostID, Title: hit.Title, Summary: hit.Summary})
+		hits = append(hits, promptHit{HitID: hit.ID, TaskID: hit.TaskID, PostID: hit.PostID, PostIDExact: itoa(hit.PostID), Title: hit.Title, Summary: hit.Summary})
+		if hit.PostID > 0 {
+			found := false
+			for _, id := range payload.PostIDs {
+				if id == hit.PostID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				payload.PostIDs = append(payload.PostIDs, hit.PostID)
+			}
+		}
 	}
 	contextJSON, _ := json.Marshal(struct {
 		BucketID int64       `json:"bucket_id"`
