@@ -1,8 +1,10 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-30
-verified_commit: e83e3da6f318
+verified_commit: 41b40c2fc34d3adf04bc1dd5a7b3214203fffa62
 commands:
+  - PATH=/tmp/xbh-assistant-generate-venv/bin:$PATH make generate
+  - make check
   - make test
   - make fmt-check
   - make vet
@@ -17,8 +19,8 @@ result: partial
 
 ## 环境与范围
 
-验证在 `task/assistant-safety` 工作树执行；frontmatter 的 commit 是验证时工作树基线，安全修复尚未
-集成到该 commit。覆盖 Assistant worker、Store、Content update/delete 内部 RPC 幂等、Gateway 撤权
+验证在 `task/assistant-safety` 工作树执行；frontmatter 的 commit 包含完整性分支 rebase 后的安全修复
+和输入接收幂等收尾。覆盖 Assistant worker、Store、Content update/delete 内部 RPC 幂等、Gateway 撤权
 联动和已有 v3 数据卷升级；没有调用 live provider，也没有运行根目录真实浏览器/E2E。
 
 ## 通过结果
@@ -27,6 +29,7 @@ result: partial
   Content RPC 已成功但 journal 未完成、redirect 丢弃旧响应、模型调用中撤权、delete revision 确认、
   Watch terminal bucket/stat 与唯一终态测试。
 - `make fmt-check`、`make vet`、`make lint ARGS="--timeout 5m"`：通过，lint 为 `0 issues`。
+- `make generate`、`make check`：完整生成、知识策略、vet 和 lint 通过。
 - `make integration-critical`：通过 interaction logic、user logic、user model 三个隔离 MySQL 包。
 - Assistant Store MySQL integration：通过旧 generation fencing、journal takeover，以及 terminal 唯一键
   失败时 run/message/outbox/thread 全事务回滚。
@@ -36,12 +39,12 @@ result: partial
   `20260830_assistant_run_fencing.sql` 均成功；检查得到 run 新列 3 项、terminal 唯一索引、journal 新列
   3 项和 Memory command 去重索引。临时数据库随后删除并确认不存在。
 - `goctl rpc protoc` 分别重新生成 Assistant 与 Content protobuf/zrpc，相关全包测试通过。
+- `assistant_input_command` 保存每个用户 requestId 的 message/run/disposition；redirect/steer/queued
+  重试返回同一接受结果，不重复消息或再次改写 input version。FIFO 只删除本次已读取到的队列范围，
+  不误删并发新输入，已消费条目不永久占用 32 条上限。
 
 ## 部分与未覆盖
 
-- `make generate` 未全量执行：环境缺少仓库既有开发依赖 `grpc_tools.protoc`；未安装新依赖。所涉及的
-  Assistant/Content proto 已用对应 `goctl rpc protoc` 命令生成并经编译测试。
-- `make check` 在本批修改前即存在的知识迁移问题处停止：两份 2026-08-29 evidence 使用非 SHA
-  `verified_commit`、实现页缺退休规范标题、历史页面引用已删除路径。fmt/vet/lint 已拆分执行并通过；
-  这些知识问题等待并入同步完成度分支后重跑。
+- 宿主环境原本缺 `grpc_tools.protoc`；复用完整性分支在 `/tmp` 创建的一次性 venv 后完整
+  `make generate` 已通过，未修改仓库依赖。
 - 未验证 live LLM、真实 SSE 代理、根栈浏览器流程、生产 profile 或生产迁移。

@@ -171,8 +171,8 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-003 无 Intent Router | aligned | worker 直接把工具 schema 交给模型 |
 | AGENT-004 身份边界 | aligned | user run 当前用户；Watch 只读；memory-review 仅 Memory 工具 |
 | AGENT-010 线程/消息 API | aligned | `GetThread`；`ListMessages` 默认最新一页，`beforeId` 向前翻页，`afterId` 增量读取，两种游标互斥 |
-| AGENT-011 异步 PostMessage | aligned | 事务写消息与 run，返回 disposition |
-| AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；`redirect_consent_test.go`；steer/FIFO 见 `accept_test.go` |
+| AGENT-011 异步 PostMessage | aligned | 事务写消息与 run，返回 disposition；`assistant_input_command` 使 started/redirected/steered/queued 接受结果按 requestId 原样重放 |
+| AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；FIFO 按已读取最大 id 消费，不误删并发新输入或永久占满；`redirect_consent_test.go`、`accept_test.go` |
 | AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
 | AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
 | AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload，恢复与 FIFO 按原字节重放 |
