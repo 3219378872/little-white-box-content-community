@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-30-agent-provider-reliability.md](2026-08-30-agent-provider-reliability.md)：
+  provider stream/retry/fallback/canary、capability/tool 快照、严格 schema、sidecar 与 compact/usage 持久化。
 - [2026-08-30-assistant-single-session.md](2026-08-30-assistant-single-session.md)：
   永久前台 session、删除 `POST /sessions`、30 分钟冷拼接。
 - [2026-08-30-assistant-watch-input-sidecar.md](2026-08-30-assistant-watch-input-sidecar.md)：

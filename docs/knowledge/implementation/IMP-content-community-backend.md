@@ -48,10 +48,11 @@ tracks:
   - deploy/sql/patches/20260827_agent_consent_version.sql
   - deploy/sql/patches/20260830_assistant_message_change_id.sql
   - deploy/sql/patches/20260830_watch_bucket_not_before.sql
+  - deploy/sql/patches/20260830_agent_provider_reliability.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
 verified_at: 2026-08-30
-verified_commit: 0db627fbb8a94401e4aecf84c33e508b127c9a0f
+verified_commit: 1992b06c955a812f25b0cad8ec096ca1a883f564
 ---
 
 # 小白盒内容社区后端实现映射
@@ -73,7 +74,7 @@ Watch 内部 bucket）。仍偏离处：
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
 - `REL-A03` 未注入 `REL-054` 全部十行。
 - `discussion_spike` 生产 matcher 未接 LLM 判定（过阈值且无模型记 failed，不写规则命中）。
-- AGENT-A01~A06 / MEM-A04 / WCH-A02 缺少 live LLM 与根真实栈。
+- AGENT-A01~A09 / MEM-A04~A06 / WCH-A02 缺少外部 live LLM 与生产真实流量；确定性根栈验收另见本轮证据。
 
 ## 规格追踪
 
@@ -175,28 +176,34 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；FIFO 按已读取最大 id 消费，不误删并发新输入或永久占满；`redirect_consent_test.go`、`accept_test.go` |
 | AGENT-013 永久 session/冷拼接/清历史 | aligned | `splice.go` 30min 可见空闲后新建 run 滚 epoch；DeleteHistory 逻辑删消息；`POST /sessions` 已删除 |
 | AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
-| AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload；Watch 命中写入隐藏 `watch_input` sidecar；`HistoryTurns` 重放全部 `api_content`，恢复与 FIFO 按原字节重放 |
+| AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload；MEMORY/USER 与 compact summary 进入独立不可信 user sidecar；Watch 命中写入隐藏 `watch_input` sidecar；恢复按原始 `api_content`/snapshot 字节重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
 | AGENT-021 lease 60s/10s | aligned | 每进程唯一 owner；claim 递增 `lease_generation`；`RunStep` 对 owner/generation/expiry 加锁校验；续租失效立即 cancel Engine；`fencing_test.go`、`lease_test.go`、SQL integration |
 | AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop、撤权或 lease 丢失取消 work ctx，`cancel_requested` sticky（`loop_cancel_test.go`、`redirect_consent_test.go`） |
 | AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | MySQL replay + Redis/轮询；HTTP 取 `max(afterSeq, Last-Event-ID)`、输出 `id:`，每 25s comment heartbeat |
-| AGENT-024 事件类型白名单 | aligned | `store.Event*` |
+| AGENT-024 事件类型白名单 | aligned | 公开事件含 `response_reset`；内部 `provider_attempt` 只持久审计并由 `Subscribe` 过滤 |
 | AGENT-025 唯一终止 | aligned | incomplete 以 reason + partial 写 error；final message/outbox/thread/Watch bucket+stat/run/terminal event 单事务；`terminal_run_id` 唯一索引；SQL failure integration 证明失败全回滚 |
+| AGENT-026 stream writer fencing | aligned | `stream_writer.go` 以 run/lease/input/model-round/attempt 生成 `streamId`，首 delta 即提交、后续 200ms/2KiB 批量；retry、redirect 与 lease recovery 在旧流已有公开 token 时先写 `response_reset`；SQL replay 与根 fixture 覆盖 |
 | AGENT-030 consent | aligned | 接收事务冻结 `consent_version`；worker 持续复核当前授权；撤权取消所有开放 run，Watch 调度在共享锁事务内复核并 defer |
 | AGENT-031 工具分组 | aligned | `tool.ForSource` |
 | AGENT-032 仅 delete_post 确认 | aligned | HighRisk + Confirm CAS |
 | AGENT-033 command journal | aligned | 副作用前 reserve pending；journal 绑定 lease generation；接管后以稳定下游幂等键恢复；Content update/delete 与 outbox 原子，Memory/Watch 重放可返回已提交结果；崩溃窗口测试验证副作用仅一次 |
 | AGENT-034 确认 CAS | aligned | update/delete 省略 revision 时先回源冻结再算 digest；delete confirmation 绑定真实 target revision，批准后执行前复核；`confirmation_revision_test.go`、`revision_prepare_test.go` |
-| AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
-| AGENT-041 prompt 顺序 | aligned | `internal/prompt`；Watch 第二轮为 hits → tool_call → tool_result，命中 JSON 不重复追加 |
-| AGENT-043 快照复用 | aligned | `builder_test.go`；冷拼接与 compact 才重建，redirect/恢复不重写 |
-| AGENT-050 compact 50%/keep 20% | aligned | token 估算排除 compacted；强制保留 unmatched tool call 与当前 Watch run 的 `watch_input` sidecar，已完成工具轮可压缩，无法再缩的单条消息不重复 compact |
+| AGENT-036 工具 metadata | aligned | `tool.Definition.Metadata` 统一派生 effect/source/consent/confirmation/availability/idempotency/output limit/poller；新 epoch 排除依赖不可用工具，恢复只取冻结定义且执行时继续按当前策略收紧 |
+| AGENT-037 严格 schema/no-progress | aligned | `decodeStrictValue` + `validateSchemaValue` 拒绝未知字段、缺 required、类型/enum 错误与尾随 JSON；canonical 保留 `json.Number`；user/Watch/review 共用相同调用摘要 guard，第三次无进展以 `TOOL_NO_PROGRESS` 终止 |
+| AGENT-040 双 WireAPI/canary | aligned | Chat Completions 与 Responses 均支持非流式/流式 tool call；启动 canary 强制无副作用工具并重放 tool result，所有启用 route 失败即 readiness false |
+| AGENT-041 prompt 顺序 | aligned | system 仅含平台安全/SOUL/tool rules；MEMORY/USER 与 compact summary 为结构化不可信 user sidecar，标签经 JSON HTML 转义；输出在非流式与跨 chunk 流式路径 scrub |
+| AGENT-043 快照复用 | aligned | session 冻结 system/sidecar/tool/provider capability；redirect/恢复不重写，新 fallback 或工具扩张不进入旧 epoch；compact 成功才滚动 |
+| AGENT-044 typed retry/fallback | aligned | provider error 分类、最多三次有界抖动、上限内 Retry-After；fallback 仅选择同 boundary 且工具/流式/窗口/输出兼容的冻结 route；生产环境可显式启用一个默认关闭 fallback |
+| AGENT-045 usage 规范化 | aligned | input/output/cache-read/cache-write/reasoning 分桶与独立成本；`agent_run` 持久化 cache write/reasoning/last prompt/usage estimated，缺 usage 明确置估算标志 |
+| AGENT-050 compact 50%/keep 20% | aligned | 优先以 `last_prompt_tokens` 锚定增量；无 usage 时 CJK 按至少 1 字符/token；摘要按总预算选完整消息，强制保留 unmatched tool call/确认/Watch sidecar，无收益或仍超目标时拒绝提交 |
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
+| AGENT-054 辅助模型 | aligned | compact 可用 `LLM.AuxModel`、review 可用 `BackgroundReview.Model`，未配置时回退冻结主 route；辅助 client 继承 typed retry/usage 且不改前台 capability snapshot |
 | AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL 回源；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
 | AGENT-070/071/072 source ledger | aligned | `app/assistant/internal/tool/sources_test.go`；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
-| AGENT-A01~A06 验收 | partial | 单测/race/SQL integration 覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE、Watch 工具轮上下文顺序、generation fencing、lease cancel、redirect、撤权、journal 崩溃窗口、confirm revision 与终态回滚；仍无 live LLM、无根真实栈 |
+| AGENT-A01~A09 验收 | partial | 单测/race/SQL integration 与确定性 provider/root fixture 覆盖 capability snapshot、canary、双 WireAPI stream、typed retry/fallback、cache usage、strict schema、no-progress、sidecar scrub、attempt reset/replay 与既有安全矩阵；仍无外部 live LLM、生产 profile/迁移和生产流量 |
 
 ## SPEC-agent-memory 追踪
 
@@ -210,8 +217,9 @@ Watch 内部 bucket）。仍偏离处：
 | MEM-011 version CAS | aligned | replace/remove 期望 version |
 | MEM-012 规范化去重 | aligned | 同 target 规范化内容返回已有条目 |
 | MEM-013 undo CAS | aligned | `memory_change` result_version |
-| MEM-020/021 快照冻结 | aligned | 普通写不热更新 prompt snapshot |
+| MEM-020/021 快照冻结 | aligned | MEMORY/USER 仅进入独立不可信 user sidecar；普通写不热更新，未 compact 恢复复用保存字节 |
 | MEM-022/023 memory-review | aligned | 10 回合调度与预算；前台抢占；结构化 change IDs 生成 `memory_changed` 系统行，unread=false，可调用既有 undo API |
+| MEM-025 sidecar 安全边界 | aligned | Go JSON HTML 转义阻止闭合标签注入；非流式与跨 chunk 流式 scrub 覆盖标签/平台 notice；MySQL 仍是唯一 Memory provider |
 | MEM-030 API 字段 | aligned | List/Add/Replace/Remove/Batch/Undo |
 | MEM-032 存储不可用失败 | aligned | store=nil → 503 |
 | MEM-033 不能当 source card | aligned | Memory 工具不写 source ledger |
@@ -315,6 +323,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | MEM-A03 prompt 冻结与 compact 刷新 | aligned | `app/assistant/internal/prompt/builder_test.go`、`app/assistant/internal/runtime/compact_test.go` |
 | MEM-A04 review 隔离/抢占/memory_changed | aligned | `app/assistant/internal/runtime/completion_test.go`、`loop_cancel_test.go` |
 | MEM-A05 存储失败与非来源 | partial | 工具不生成 source handle；真实存储故障未做集成注入 |
+| MEM-A06 sidecar/旧快照 | aligned | `builder_test.go` 覆盖 Memory 不进 system、标签转义、sidecar 字节稳定、跨 chunk scrub；legacy prompt 保持旧格式直到新 epoch |
 | WCH-A01 四种规则命中与不可见不命中 | aligned | `TestMatchRules`、`TestApplyPostEvent*`；草稿 Status!=1 不命中；消费者 `TestConsumeWatchBatch_PublishedCreate_RecordsHit` |
 | WCH-A02 两分钟合并/小时与每日上限 | aligned | `app/assistant/internal/runtime/watch_test.go`；延迟窗口不改 merge unique key，计数仅成功增加 |
 | WCH-A03 只读工具/用户抢占重排 | partial | 只读 registry 与失败/取消重排已实现；真实并发抢占未做 MySQL 集成测试 |
@@ -338,11 +347,14 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
   `pkg/idempotencyx/idempotency.go`（共享幂等，CORE-050）。
 - 推荐：`app/recommend/rpc/internal/logic/get_recommend_posts_logic.go`、`helpers.go`、
   `app/recommend/mq/internal/store/behavior_store.go`。
-- Assistant runtime：`app/assistant/internal/{store,lease,memory,prompt,llm,tool,runtime,index}`；
+- Assistant runtime：`app/assistant/internal/{store,lease,memory,prompt,llm,tool,runtime,index}`；provider 重点入口
+  `app/assistant/internal/llm/{stream,resilient,errors,canary}.go`，流归属
+  `app/assistant/internal/runtime/stream_writer.go`，严格工具治理 `app/assistant/internal/tool/registry.go`；
   RPC 命令/读模型 `app/assistant/rpc`；worker `app/assistant/worker`；Watch `app/assistant/watch` + matcher `app/assistant/mq`。
 - Assistant 权威库：`deploy/sql/xbh_assistant.sql` v3，破坏性 marker
   `deploy/sql/patches/20260829_assistant_runtime_v3.sql`；已有 v3 的幂等安全升级
-  `deploy/sql/patches/20260830_assistant_run_fencing.sql`；DSN `DB_ASSISTANT`。
+  `deploy/sql/patches/20260830_assistant_run_fencing.sql`；provider usage/compact 锚点升级
+  `deploy/sql/patches/20260830_agent_provider_reliability.sql`；DSN `DB_ASSISTANT`。
 - 网关 Assistant REST：`app/gateway/internal/logic/assistant/`（messages/runs/consent/memory/watch）；
   契约 `proto/assistant/assistant.proto`、`app/gateway/gateway.api`。
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
@@ -362,4 +374,6 @@ Assistant 并发、幂等、授权和 redirect 安全修复见
 [2026-08-30-assistant-runtime-safety.md](evidence/2026-08-30-assistant-runtime-safety.md)。
 永久前台 session 与 30 分钟冷拼接见
 [2026-08-30-assistant-single-session.md](evidence/2026-08-30-assistant-single-session.md)。
+Provider、capability、stream reset、严格工具与 sidecar 证据见
+[2026-08-30-agent-provider-reliability.md](evidence/2026-08-30-agent-provider-reliability.md)。
 历史 Agent Runtime 证据仍保留在 `evidence/`，不再作为当前契约完成证明。
