@@ -11,6 +11,8 @@
 
 - [2026-08-30-assistant-runtime-completeness.md](2026-08-30-assistant-runtime-completeness.md)：
   compact/incomplete、Watch 投递、上下文恢复、历史 outbox、来源回源、memory_changed、分页与 SSE heartbeat 修复。
+- [2026-08-30-assistant-runtime-safety.md](2026-08-30-assistant-runtime-safety.md)：
+  Assistant lease fencing、command journal 崩溃恢复、授权撤销、revision 确认、redirect 与原子终态。
 - [2026-08-29-assistant-tool-context.md](2026-08-29-assistant-tool-context.md)：
   工具轮 `api_content` 重放、Responses arguments 剥壳与合法 `result_json`，提交见 frontmatter。
 - [2026-08-29-assistant-agent-runtime.md](2026-08-29-assistant-agent-runtime.md)：

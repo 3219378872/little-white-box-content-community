@@ -172,21 +172,21 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-004 身份边界 | aligned | user run 当前用户；Watch 只读；memory-review 仅 Memory 工具 |
 | AGENT-010 线程/消息 API | aligned | `GetThread`；`ListMessages` 默认最新一页，`beforeId` 向前翻页，`afterId` 增量读取，两种游标互斥 |
 | AGENT-011 异步 PostMessage | aligned | 事务写消息与 run，返回 disposition |
-| AGENT-012 单前台 run + redirect/steer/FIFO32 | partial | disposition/FIFO 已测；redirect 仍需由独立修复证明在途模型取消与第二条输入必答 |
+| AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；`redirect_consent_test.go`；steer/FIFO 见 `accept_test.go` |
 | AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
 | AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
 | AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload，恢复与 FIFO 按原字节重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
-| AGENT-021 lease 60s/10s | partial | 60s/10s 与 SKIP LOCKED 已有；多 worker fencing token/CAS 由独立修复关闭前不得标 aligned |
-| AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop 取消 work ctx 并 sticky `cancel_requested`（`loop_cancel_test.go`） |
+| AGENT-021 lease 60s/10s | aligned | 每进程唯一 owner；claim 递增 `lease_generation`；`RunStep` 对 owner/generation/expiry 加锁校验；续租失效立即 cancel Engine；`fencing_test.go`、`lease_test.go`、SQL integration |
+| AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop、撤权或 lease 丢失取消 work ctx，`cancel_requested` sticky（`loop_cancel_test.go`、`redirect_consent_test.go`） |
 | AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | MySQL replay + Redis/轮询；HTTP 取 `max(afterSeq, Last-Event-ID)`、输出 `id:`，每 25s comment heartbeat |
 | AGENT-024 事件类型白名单 | aligned | `store.Event*` |
-| AGENT-025 唯一终止 | partial | Responses incomplete 以 reason + partial 写 error，不能转 done；多 worker 唯一终态仍依赖 fencing/终态 CAS 修复 |
-| AGENT-030 consent | partial | PostMessage 与 Watch 调度检查 granted + 当前版本；撤销活跃 run 的完整边界由独立修复关闭 |
+| AGENT-025 唯一终止 | aligned | incomplete 以 reason + partial 写 error；final message/outbox/thread/Watch bucket+stat/run/terminal event 单事务；`terminal_run_id` 唯一索引；SQL failure integration 证明失败全回滚 |
+| AGENT-030 consent | aligned | 接收事务冻结 `consent_version`；worker 持续复核当前授权；撤权取消所有开放 run，Watch 调度在共享锁事务内复核并 defer |
 | AGENT-031 工具分组 | aligned | `tool.ForSource` |
 | AGENT-032 仅 delete_post 确认 | aligned | HighRisk + Confirm CAS |
-| AGENT-033 command journal | partial | 唯一键存在；副作用前 reserve 与结果提交边界由独立修复关闭 |
-| AGENT-034 确认 CAS | partial | confirm status CAS 已有；确认绑定权威 target revision 由独立修复关闭 |
+| AGENT-033 command journal | aligned | 副作用前 reserve pending；journal 绑定 lease generation；接管后以稳定下游幂等键恢复；Content update/delete 与 outbox 原子，Memory/Watch 重放可返回已提交结果；崩溃窗口测试验证副作用仅一次 |
+| AGENT-034 确认 CAS | aligned | update/delete 省略 revision 时先回源冻结再算 digest；delete confirmation 绑定真实 target revision，批准后执行前复核；`confirmation_revision_test.go`、`revision_prepare_test.go` |
 | AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
 | AGENT-041 prompt 顺序 | aligned | `internal/prompt` |
 | AGENT-043 快照复用 | aligned | `builder_test.go` |
@@ -196,7 +196,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-070/071/072 source ledger | aligned | `app/assistant/internal/tool/sources_test.go`；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
-| AGENT-A01~A06 验收 | partial | 定向单测覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE；无 live LLM、无根真实栈 |
+| AGENT-A01~A06 验收 | partial | 单测/race/SQL integration 覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE、generation fencing、lease cancel、redirect、撤权、journal 崩溃窗口、confirm revision 与终态回滚；仍无 live LLM、无根真实栈 |
 
 ## SPEC-agent-memory 追踪
 
@@ -206,7 +206,7 @@ Watch 内部 bucket）。仍偏离处：
 | MEM-002 容量 2200/1375 | aligned | `memory.store_test.go` |
 | MEM-003 用户隔离 | aligned | SQL/MapStore 按 user_id |
 | MEM-004 威胁扫描 | aligned | safety.Filter + 指令扫描 |
-| MEM-010 add/replace/remove/batch | aligned | RPC + 工具共用 `internal/memory` |
+| MEM-010 add/replace/remove/batch | aligned | RPC + 工具共用 `internal/memory`；非匿名 request id 可重放已提交 replace/remove/batch，避免 journal 接管后再次变更 |
 | MEM-011 version CAS | aligned | replace/remove 期望 version |
 | MEM-012 规范化去重 | aligned | 同 target 规范化内容返回已有条目 |
 | MEM-013 undo CAS | aligned | `memory_change` result_version |
@@ -228,7 +228,7 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
 | WCH-012 用户抢占/失败重排 | aligned | PostMessage 抢占、error/cancel finish 与 scheduler reconciliation 均把绑定 run 的未发送 bucket 重置 pending |
 | WCH-013 成功写 assistant 消息+未读 | aligned | validated hit context 进入模型；token/message/outbox/unread/bucket sent/rate stats/done 在同一事务提交 |
-| WCH-023 consent 撤销 | partial | scheduler 无当前版本 consent 不创建 run；已调度/活跃 run 的撤销竞态由独立修复关闭 |
+| WCH-023 consent 撤销 | aligned | scheduler 在调度事务内复核 frozen/current consent；撤权取消已调度和活跃 run，未发送 bucket 退回 pending |
 | WCH-020 删除 hits API | aligned | proto/gateway 已无 ListHits/MarkRead |
 | WCH-021 任务不走 delete_post 确认 | aligned | Watch 工具非 HighRisk |
 | WCH-A01~A05 | partial | 规则匹配与内部 RecordHit 单测保留；主动消息与限额依赖 worker |
@@ -341,7 +341,8 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 - Assistant runtime：`app/assistant/internal/{store,lease,memory,prompt,llm,tool,runtime,index}`；
   RPC 命令/读模型 `app/assistant/rpc`；worker `app/assistant/worker`；Watch `app/assistant/watch` + matcher `app/assistant/mq`。
 - Assistant 权威库：`deploy/sql/xbh_assistant.sql` v3，破坏性 marker
-  `deploy/sql/patches/20260829_assistant_runtime_v3.sql`；DSN `DB_ASSISTANT`。
+  `deploy/sql/patches/20260829_assistant_runtime_v3.sql`；已有 v3 的幂等安全升级
+  `deploy/sql/patches/20260830_assistant_run_fencing.sql`；DSN `DB_ASSISTANT`。
 - 网关 Assistant REST：`app/gateway/internal/logic/assistant/`（messages/runs/consent/memory/watch）；
   契约 `proto/assistant/assistant.proto`、`app/gateway/gateway.api`。
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
@@ -357,4 +358,6 @@ Hermes 异步 Agent 硬切换见
 [2026-08-29-assistant-agent-runtime.md](evidence/2026-08-29-assistant-agent-runtime.md)。
 2026-08-30 runtime 完整性复查与定向修复见
 [2026-08-30-assistant-runtime-completeness.md](evidence/2026-08-30-assistant-runtime-completeness.md)。
+Assistant 并发、幂等、授权和 redirect 安全修复见
+[2026-08-30-assistant-runtime-safety.md](evidence/2026-08-30-assistant-runtime-safety.md)。
 历史 Agent Runtime 证据仍保留在 `evidence/`，不再作为当前契约完成证明。
