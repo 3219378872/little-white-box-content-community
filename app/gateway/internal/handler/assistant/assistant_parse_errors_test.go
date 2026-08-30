@@ -56,7 +56,6 @@ func TestAssistantListHandlersRejectAnonymousRequests(t *testing.T) {
 		{name: "watch", handler: ListAssistantWatchHandler, method: http.MethodGet, target: "/api/v2/assistant/watch"},
 		{name: "consent", handler: GetAgentConsentHandler, method: http.MethodGet, target: "/api/v2/assistant/consent"},
 		{name: "thread", handler: GetAssistantThreadHandler, method: http.MethodGet, target: "/api/v2/assistant/thread"},
-
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
