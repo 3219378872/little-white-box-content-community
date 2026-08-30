@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
@@ -57,6 +58,19 @@ func newFaultingInferenceRanker(t *testing.T, mode string) model.InferenceRanker
 		server.Stop()
 		listener.Close()
 		t.Fatalf("connect to faulting inference server: %v", err)
+	}
+	readyCtx, cancelReady := context.WithTimeout(context.Background(), time.Second)
+	defer cancelReady()
+	connection.Connect()
+	for connection.GetState() != connectivity.Ready {
+		state := connection.GetState()
+		if !connection.WaitForStateChange(readyCtx, state) {
+			_ = connection.Close()
+			server.Stop()
+			_ = listener.Close()
+			<-serveResult
+			t.Fatalf("faulting inference channel did not become ready: %s", state)
+		}
 	}
 	t.Cleanup(func() {
 		_ = connection.Close()
