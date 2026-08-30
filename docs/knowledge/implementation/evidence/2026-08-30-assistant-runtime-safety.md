@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-30
-verified_commit: 397b9eb630b9ea5626d24483fdf9f79ae9c1678f
+verified_commit: f503187f8f5b692d414a29c286bc1aa77500c4d0
 commands:
   - PATH=/tmp/xbh-assistant-generate-venv/bin:$PATH make generate
   - make check
@@ -45,6 +45,10 @@ result: partial
 - `assistant_input_command` 保存每个用户 requestId 的 message/run/disposition；redirect/steer/queued
   重试返回同一接受结果，不重复消息或再次改写 input version。FIFO 只删除本次已读取到的队列范围，
   不误删并发新输入，已消费条目不永久占用 32 条上限。
+- Watch payload 持久化精确命中帖子 ID，并在 provider 历史写入隐藏 `watch_input` sidecar；模型复制
+  大 Snowflake ID 时只在本 run 命中集合内纠正，重复读取受保护，不会无限消耗轮次。
+- `assistant-rpc`、`assistant-watch` 和 `assistant-agent` 均关闭 go-zero 插值 SQL 日志；运行时日志由
+  根编排启动前清理并以 `0600` 保存。
 
 ## 部分与未覆盖
 
