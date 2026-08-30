@@ -81,6 +81,44 @@ func TestSQLLeaseGenerationAndJournalTakeover(t *testing.T) {
 	}
 }
 
+func TestSQLRunPersistsNormalizedProviderUsage(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "agent_run_event", "agent_run")
+	ctx := context.Background()
+	st := newAssistantTestStore()
+	run, err := st.InsertRun(ctx, Run{
+		UserID: 9, SessionID: 7, RequestID: "usage-roundtrip", Source: SourceUser,
+		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		InputTokens: 100, OutputTokens: 20, CacheTokens: 40, CacheWriteTokens: 8,
+		ReasoningTokens: 6, LastPromptTokens: 96, UsageEstimated: true, CostUSD: 0.0123, CreatedAtMs: NowMs(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertUsage := func(got *Run, cacheWrite, reasoning, lastPrompt int64, estimated bool) {
+		t.Helper()
+		if got.CacheWriteTokens != cacheWrite || got.ReasoningTokens != reasoning || got.LastPromptTokens != lastPrompt || got.UsageEstimated != estimated {
+			t.Fatalf("usage roundtrip=%+v", got)
+		}
+	}
+	loaded, err := st.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertUsage(loaded, 8, 6, 96, true)
+	loaded.CacheWriteTokens = 12
+	loaded.ReasoningTokens = 9
+	loaded.LastPromptTokens = 144
+	loaded.UsageEstimated = false
+	if err := st.UpdateRun(ctx, *loaded); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = st.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertUsage(loaded, 12, 9, 144, false)
+}
+
 func TestSQLTerminalFailureRollsBackRunMessageOutboxAndThread(t *testing.T) {
 	assistantTestEnv.TruncateAll(t, "assistant_index_outbox", "assistant_message", "assistant_thread", "assistant_session", "agent_run_event", "agent_run")
 	ctx := context.Background()

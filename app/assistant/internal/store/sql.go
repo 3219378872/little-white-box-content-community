@@ -307,11 +307,12 @@ func (s *SQLStore) InsertRun(ctx context.Context, run Run) (Run, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run
 		(user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner, lease_generation, lease_until_ms,
 		 heartbeat_at_ms, cancel_requested, consent_version, input_version, prompt_epoch, model, rounds, tool_calls, input_tokens,
-		 output_tokens, cache_tokens, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 output_tokens, cache_tokens, cache_write_tokens, reasoning_tokens, last_prompt_tokens, usage_estimated, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		run.UserID, run.SessionID, run.RequestID, run.Source, run.Status, run.Phase, run.Priority, nullBytes(run.QueuedPayload),
 		nullString(run.LeaseOwner), run.LeaseGeneration, nullInt(run.LeaseUntilMs), nullInt(run.HeartbeatAtMs), boolToInt(run.CancelRequested),
 		run.ConsentVersion, run.InputVersion, run.PromptEpoch, nullString(run.Model), run.Rounds, run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens,
+		run.CacheWriteTokens, run.ReasoningTokens, run.LastPromptTokens, boolToInt(run.UsageEstimated),
 		run.CostUSD, nullInt(run.StartedAtMs), nullInt(run.EndedAtMs), nullInt(run.LastActivityAtMs), nullString(run.ErrorCode), run.CreatedAtMs)
 	if err != nil {
 		return Run{}, err
@@ -331,7 +332,7 @@ func (s *SQLStore) GetRunByRequestID(ctx context.Context, userID int64, requestI
 
 const runSelect = `SELECT id, user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner,
 	lease_generation, lease_until_ms, heartbeat_at_ms, cancel_requested, consent_version, input_version, prompt_epoch, model, rounds, tool_calls, input_tokens, output_tokens,
-	cache_tokens, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms FROM agent_run`
+	cache_tokens, cache_write_tokens, reasoning_tokens, last_prompt_tokens, usage_estimated, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms FROM agent_run`
 
 func (s *SQLStore) scanRun(ctx context.Context, query string, args ...any) (*Run, error) {
 	var row runRow
@@ -366,6 +367,10 @@ type runRow struct {
 	InputTokens      int64          `db:"input_tokens"`
 	OutputTokens     int64          `db:"output_tokens"`
 	CacheTokens      int64          `db:"cache_tokens"`
+	CacheWriteTokens int64          `db:"cache_write_tokens"`
+	ReasoningTokens  int64          `db:"reasoning_tokens"`
+	LastPromptTokens int64          `db:"last_prompt_tokens"`
+	UsageEstimated   int            `db:"usage_estimated"`
 	CostUSD          float64        `db:"cost_usd"`
 	StartedAtMs      sql.NullInt64  `db:"started_at_ms"`
 	EndedAtMs        sql.NullInt64  `db:"ended_at_ms"`
@@ -382,7 +387,8 @@ func (row runRow) toRun() Run {
 		CancelRequested: row.CancelRequested == 1, ConsentVersion: row.ConsentVersion, InputVersion: row.InputVersion,
 		PromptEpoch: int(row.PromptEpoch), Model: row.Model.String,
 		Rounds: int(row.Rounds), ToolCalls: int(row.ToolCalls), InputTokens: row.InputTokens, OutputTokens: row.OutputTokens,
-		CacheTokens: row.CacheTokens, CostUSD: row.CostUSD, StartedAtMs: row.StartedAtMs.Int64, EndedAtMs: row.EndedAtMs.Int64,
+		CacheTokens: row.CacheTokens, CacheWriteTokens: row.CacheWriteTokens, ReasoningTokens: row.ReasoningTokens,
+		LastPromptTokens: row.LastPromptTokens, UsageEstimated: row.UsageEstimated == 1, CostUSD: row.CostUSD, StartedAtMs: row.StartedAtMs.Int64, EndedAtMs: row.EndedAtMs.Int64,
 		LastActivityAtMs: row.LastActivityAtMs.Int64, ErrorCode: row.ErrorCode.String, CreatedAtMs: row.CreatedAtMs,
 	}
 }
@@ -390,9 +396,10 @@ func (row runRow) toRun() Run {
 func (s *SQLStore) UpdateRun(ctx context.Context, run Run) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, phase=?,
 		cancel_requested=cancel_requested OR ?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
-		cache_tokens=?, cost_usd=?, started_at_ms=?, ended_at_ms=?, last_activity_at_ms=?, error_code=? WHERE id=?`,
+		cache_tokens=?, cache_write_tokens=?, reasoning_tokens=?, last_prompt_tokens=?, usage_estimated=?, cost_usd=?, started_at_ms=?, ended_at_ms=?, last_activity_at_ms=?, error_code=? WHERE id=?`,
 		run.Status, run.Phase, boolToInt(run.CancelRequested), run.PromptEpoch, nullString(run.Model), run.Rounds,
-		run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens, run.CostUSD, nullInt(run.StartedAtMs),
+		run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens, run.CacheWriteTokens, run.ReasoningTokens,
+		run.LastPromptTokens, boolToInt(run.UsageEstimated), run.CostUSD, nullInt(run.StartedAtMs),
 		nullInt(run.EndedAtMs), nullInt(run.LastActivityAtMs), nullString(run.ErrorCode), run.ID)
 	return err
 }

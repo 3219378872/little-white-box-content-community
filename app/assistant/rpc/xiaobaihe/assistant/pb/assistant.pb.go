@@ -1041,6 +1041,7 @@ type RunEvent struct {
 	ToolCall      *ToolCallInfo          `protobuf:"bytes,8,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
 	SourceCard    *SourceCard            `protobuf:"bytes,9,opt,name=source_card,json=sourceCard,proto3" json:"source_card,omitempty"`
 	ChangeId      int64                  `protobuf:"varint,10,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	StreamId      string                 `protobuf:"bytes,11,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1143,6 +1144,13 @@ func (x *RunEvent) GetChangeId() int64 {
 		return x.ChangeId
 	}
 	return 0
+}
+
+func (x *RunEvent) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
 }
 
 type CancelRunReq struct {
@@ -2987,7 +2995,7 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\fauthority_id\x18\x03 \x01(\tR\vauthorityId\x12\x14\n" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1a\n" +
 	"\brevision\x18\x05 \x01(\x03R\brevision\x12!\n" +
-	"\fpayload_json\x18\x06 \x01(\tR\vpayloadJson\"\xc0\x02\n" +
+	"\fpayload_json\x18\x06 \x01(\tR\vpayloadJson\"\xdd\x02\n" +
 	"\bRunEvent\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\x03R\x05runId\x12\x10\n" +
 	"\x03seq\x18\x02 \x01(\x03R\x03seq\x12\x12\n" +
@@ -3002,7 +3010,8 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\vsource_card\x18\t \x01(\v2\x15.assistant.SourceCardR\n" +
 	"sourceCard\x12\x1b\n" +
 	"\tchange_id\x18\n" +
-	" \x01(\x03R\bchangeId\">\n" +
+	" \x01(\x03R\bchangeId\x12\x1b\n" +
+	"\tstream_id\x18\v \x01(\tR\bstreamId\">\n" +
 	"\fCancelRunReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\x03R\x05runId\"\x0f\n" +

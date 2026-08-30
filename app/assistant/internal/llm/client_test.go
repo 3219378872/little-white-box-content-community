@@ -173,7 +173,7 @@ func TestChatMessagesEmitsToolCallsAndToolRole(t *testing.T) {
 	}
 }
 
-func TestCompleteSurfacesHTTPErrorBody(t *testing.T) {
+func TestCompleteClassifiesHTTPErrorWithoutLeakingBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"error":{"code":"invalid_value","message":"Invalid value: 'input_text'"}}`))
@@ -184,7 +184,9 @@ func TestCompleteSurfacesHTTPErrorBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = client.Complete(context.Background(), Request{Messages: []prompt.Turn{{Role: "user", Content: "hi"}}})
-	if err == nil || !strings.Contains(err.Error(), "400") || !strings.Contains(err.Error(), "invalid_value") {
+	var providerErr *ProviderError
+	if !errors.As(err, &providerErr) || providerErr.Kind != ErrorInvalidRequest ||
+		!strings.Contains(err.Error(), "400") || strings.Contains(err.Error(), "invalid_value") {
 		t.Fatalf("err=%v", err)
 	}
 }

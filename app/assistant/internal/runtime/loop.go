@@ -45,18 +45,22 @@ var (
 
 	errRunCancelled     = errors.New("assistant run cancelled")
 	errRunRedirected    = errors.New("assistant run redirected")
+	errRunTerminated    = errors.New("assistant run terminated")
+	errCompactNoGain    = errors.New("assistant compact did not reduce context")
 	cancelWatchInterval = 50 * time.Millisecond
 )
 
 type Engine struct {
-	Store    store.Store
-	Memory   memory.Store
-	Watch    watch.Store
-	Tools    *tool.Registry
-	LLM      llm.Client
-	Notify   store.Notifier
-	Window   int
-	Provider int
+	Store     store.Store
+	Memory    memory.Store
+	Watch     watch.Store
+	Tools     *tool.Registry
+	LLM       llm.Client
+	AuxLLM    llm.Client
+	ReviewLLM llm.Client
+	Notify    store.Notifier
+	Window    int
+	Provider  int
 }
 
 func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
@@ -73,8 +77,17 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	defer stopWatch()
 
 	logger := logx.WithContext(persistCtx)
+	if recovered {
+		if err := e.resetRecoveredStreams(persistCtx, run); err != nil && !errors.Is(err, store.ErrLeaseLost) {
+			logger.Errorw("assistant-agent reset recovered stream failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+			return
+		}
+	}
 	if err := e.run(workCtx, persistCtx, run); err != nil {
 		if errors.Is(err, store.ErrLeaseLost) || persistCtx.Err() != nil {
+			return
+		}
+		if errors.Is(err, errRunTerminated) {
 			return
 		}
 		if errors.Is(err, errRunCancelled) {
@@ -233,15 +246,12 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	}
 	started := time.Now()
 	var reviewLive []prompt.Turn
-	registry := tool.ForSource(e.Tools, run.Source, run.ConsentVersion)
-	if registry == nil {
-		return e.fail(persistCtx, run, "TOOLS_UNAVAILABLE", "no tools")
-	}
-	session.ToolSnapshot = prompt.EncodeTools(registry.Definitions())
-	if err := e.step(persistCtx, run, func(ctx context.Context, tx store.Store) error {
-		return tx.UpdateSession(ctx, *session)
-	}); err != nil {
+	registry, modelClient, err := e.loadCapabilities(persistCtx, run, session)
+	if err != nil {
 		return err
+	}
+	if run.Source == store.SourceMemoryReview && e.ReviewLLM != nil {
+		modelClient = e.ReviewLLM
 	}
 
 	for {
@@ -276,13 +286,20 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if err != nil {
 			return err
 		}
-		if e.Window == 0 && e.LLM != nil {
-			e.Window = e.LLM.ContextWindowTokens()
+		window := e.Window
+		if modelClient != nil && modelClient.ContextWindowTokens() > 0 {
+			window = modelClient.ContextWindowTokens()
 		}
-		if ShouldCompact(msgs, e.Window, run.ID) {
-			if err := e.compact(workCtx, persistCtx, &run, session, msgs); err != nil {
+		if ShouldCompactWithAnchor(msgs, window, run.ID, run.LastPromptTokens) {
+			if err := e.compact(workCtx, persistCtx, &run, session, msgs, modelClient); err != nil {
 				if errors.Is(err, errRunCancelled) {
 					return e.cancel(persistCtx, run)
+				}
+				if errors.Is(err, errCompactNoGain) {
+					if finishErr := e.fail(persistCtx, run, "COMPACT_NO_GAIN", "会话压缩未能降低上下文"); finishErr != nil {
+						return finishErr
+					}
+					return errRunTerminated
 				}
 				return err
 			}
@@ -294,6 +311,13 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			snap, decoded = prompt.DecodeSnapshot(session.PromptSnapshot)
 			if !decoded {
 				return errors.New("compacted prompt snapshot is invalid")
+			}
+			registry, modelClient, err = e.loadCapabilities(persistCtx, run, session)
+			if err != nil {
+				return err
+			}
+			if run.Source == store.SourceMemoryReview && e.ReviewLLM != nil {
+				modelClient = e.ReviewLLM
 			}
 			continue
 		}
@@ -346,13 +370,13 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			return err
 		}
 
-		if e.LLM == nil {
+		if modelClient == nil {
 			return e.fail(persistCtx, run, "LLM_DISABLED", "model is not configured")
 		}
-		result, err := e.completeModel(workCtx, persistCtx, run, llm.Request{
+		result, err := e.completeModel(workCtx, persistCtx, run, modelClient, llm.Request{
 			Messages:    turns,
 			Tools:       registry.Definitions(),
-			MaxTokens:   SingleOutputLimit(e.LLM.MaxOutputTokens()),
+			MaxTokens:   SingleOutputLimit(modelClient.MaxOutputTokens()),
 			Convergence: convergence,
 		})
 		if err != nil {
@@ -371,6 +395,11 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			agentLLMCalls.Inc("failure")
 			logx.WithContext(persistCtx).Errorw("assistant LLM complete failed",
 				logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+			if strings.TrimSpace(result.Text) != "" && run.Source != store.SourceMemoryReview {
+				payload := store.EventPayload{ErrorCode: "LLM_UNAVAILABLE", Text: "模型调用失败", Partial: result.Text}
+				return e.finishWithMessageEvent(persistCtx, run, store.StatusError, store.EventError, payload,
+					result.Text, prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: result.Text}), !result.Streamed, result.StreamID)
+			}
 			return e.fail(persistCtx, run, "LLM_UNAVAILABLE", "model call failed")
 		}
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
@@ -380,8 +409,15 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		run.InputTokens += result.Usage.PromptTokens
 		run.OutputTokens += result.Usage.CompletionTokens
 		run.CacheTokens += result.Usage.CacheTokens
+		run.CacheWriteTokens += result.Usage.CacheWriteTokens
+		run.ReasoningTokens += result.Usage.ReasoningTokens
+		run.UsageEstimated = run.UsageEstimated || result.Usage.Estimated
+		if result.Usage.PromptTokens > 0 {
+			run.LastPromptTokens = result.Usage.PromptTokens
+		}
 		run.CostUSD += result.Usage.CostUSD
 		run.LastActivityAtMs = store.NowMs()
+		result.Text = prompt.SanitizeOutput(result.Text)
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 			return abortErr
 		}
@@ -437,6 +473,63 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	}
 }
 
+func (e *Engine) loadCapabilities(ctx context.Context, run store.Run, session *store.Session) (*tool.Registry, llm.Client, error) {
+	if session == nil {
+		return nil, nil, errors.New("assistant session is nil")
+	}
+	capability, ok := prompt.DecodeCapabilities(session.ToolSnapshot)
+	changed := false
+	if !ok {
+		var buildErr error
+		capability, buildErr = e.buildCapabilitySnapshot(run)
+		if buildErr != nil {
+			return nil, nil, e.fail(ctx, run, "TOOLS_UNAVAILABLE", buildErr.Error())
+		}
+		changed = true
+	} else if capability.Version == 0 {
+		capability.Version = prompt.CapabilitySnapshotVersion
+		capability.Provider = llm.Capability(e.LLM)
+		changed = true
+	}
+	if !capability.Provider.Tools || strings.TrimSpace(capability.Provider.RouteID) == "" {
+		return nil, nil, e.fail(ctx, run, "PROVIDER_CAPABILITY_UNAVAILABLE", "frozen provider route is unavailable")
+	}
+	base := e.Tools.ResolveDefinitions(capability.Tools)
+	registry := tool.ForSource(base, run.Source, run.ConsentVersion)
+	if registry == nil || (run.Source == store.SourceMemoryReview && len(registry.Definitions()) == 0) {
+		return nil, nil, e.fail(ctx, run, "TOOLS_UNAVAILABLE", "no frozen tools for run source")
+	}
+	client, routeOK := llm.SelectCapability(e.LLM, capability.Provider)
+	if !routeOK {
+		return nil, nil, e.fail(ctx, run, "PROVIDER_ROUTE_UNAVAILABLE", "frozen provider route is unavailable")
+	}
+	if changed {
+		session.ToolSnapshot = prompt.EncodeCapabilities(capability)
+		if err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+			return tx.UpdateSession(ctx, *session)
+		}); err != nil {
+			return nil, nil, err
+		}
+	}
+	return registry, client, nil
+}
+
+func (e *Engine) buildCapabilitySnapshot(run store.Run) (prompt.CapabilitySnapshot, error) {
+	base := tool.ForSource(e.Tools, store.SourceUser, run.ConsentVersion)
+	if base == nil {
+		return prompt.CapabilitySnapshot{}, errors.New("no available tools")
+	}
+	provider := llm.Capability(e.LLM)
+	if !provider.Tools || strings.TrimSpace(provider.RouteID) == "" {
+		return prompt.CapabilitySnapshot{}, errors.New("provider capability is unavailable")
+	}
+	return prompt.CapabilitySnapshot{
+		Version:  prompt.CapabilitySnapshotVersion,
+		Tools:    base.Definitions(),
+		Provider: provider,
+	}, nil
+}
+
 func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Result) error {
 	partial := strings.TrimSpace(result.Text)
 	reason := "UNKNOWN"
@@ -452,7 +545,8 @@ func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Resul
 		Partial:   partial,
 	}
 	if partial != "" && run.Source == store.SourceUser {
-		return e.finishWithMessage(ctx, run, store.StatusError, store.EventError, payload, partial, result.Raw)
+		return e.finishWithMessageEvent(ctx, run, store.StatusError, store.EventError, payload, partial,
+			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: partial}), !result.Streamed, result.StreamID)
 	}
 	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
@@ -468,7 +562,7 @@ func visibleForPrompt(msgs []store.Message) []store.Message {
 	return out
 }
 
-func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Run, req llm.Request) (llm.Result, error) {
+func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Run, client llm.Client, req llm.Request) (llm.Result, error) {
 	if err := e.step(persistCtx, run, func(context.Context, store.Store) error { return nil }); err != nil {
 		return llm.Result{}, err
 	}
@@ -487,7 +581,38 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 	}
 	callCtx, cancelCall := context.WithCancel(workCtx)
 	stop := watchInputChange(persistCtx, e.Store, run.ID, run.InputVersion, cancelCall)
-	result, err := e.LLM.Complete(callCtx, req)
+	writer := newModelStreamWriter(e, persistCtx, run)
+	req.AttemptPrefix = writer.prefix
+	previousObserver := req.Observer
+	req.Observer = func(event llm.AttemptEvent) error {
+		if err := writer.Observe(event); err != nil {
+			return err
+		}
+		if previousObserver != nil {
+			return previousObserver(event)
+		}
+		return nil
+	}
+	var result llm.Result
+	if streaming, ok := client.(llm.StreamingClient); ok {
+		result, err = streaming.CompleteStream(callCtx, req, writer.Delta)
+		if flushErr := writer.Finish(); err == nil && flushErr != nil {
+			err = flushErr
+		}
+		if writer.Emitted() {
+			result.Text = writer.Text()
+			result.Streamed = true
+			result.StreamID = writer.StreamID()
+		}
+		if err == nil && len(result.ToolCalls) > 0 && writer.Emitted() {
+			if resetErr := writer.ResetWithRun(run); resetErr != nil {
+				err = resetErr
+			}
+		}
+	} else {
+		result, err = client.Complete(callCtx, req)
+		result.Text = prompt.SanitizeOutput(result.Text)
+	}
 	stop()
 	fresh, getErr := e.Store.GetRun(persistCtx, run.ID)
 	if getErr != nil {
@@ -500,6 +625,7 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 		return llm.Result{}, store.ErrLeaseLost
 	}
 	if fresh.InputVersion != run.InputVersion {
+		_ = writer.ResetWithRun(*fresh)
 		return llm.Result{}, errRunRedirected
 	}
 	return result, err
@@ -620,7 +746,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 		digest = "invalid:" + call.ID
 	}
 
-	journal, reserved, err := e.startToolStep(persistCtx, *run, call, digest, prepErr == nil && sideEffect(call.Name))
+	journal, reserved, err := e.startToolStep(persistCtx, *run, call, digest, prepErr == nil && registry.SideEffect(call.Name))
 	if err != nil {
 		return err
 	}
@@ -628,14 +754,20 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 		agentToolCalls.Inc(call.Name, "replay")
 		text := decodeToolResultText(journal.ResultJSON)
 		sess.ChangeIDs = decodeToolResultChangeIDs(journal.ResultJSON)
-		return e.finishToolStep(persistCtx, run, call, text, nil, nil, sess.ChangeIDs, journal, false, "replay", reviewLive)
+		if err := e.finishToolStep(persistCtx, run, call, text, nil, nil, sess.ChangeIDs, journal, false, "replay", reviewLive); err != nil {
+			return err
+		}
+		return e.guardToolProgress(persistCtx, run, registry, call, reviewLive)
 	}
 	if journal != nil && !reserved && journal.Status == store.JournalPending {
 		return errors.New("side effect command is already in progress")
 	}
 	if prepErr != nil {
 		text := prepErr.Error()
-		return e.finishToolStep(persistCtx, run, call, text, prepErr, nil, nil, journal, true, "invalid", reviewLive)
+		if err := e.finishToolStep(persistCtx, run, call, text, prepErr, nil, nil, journal, true, "invalid", reviewLive); err != nil {
+			return err
+		}
+		return e.guardToolProgress(persistCtx, run, registry, call, reviewLive)
 	}
 	sess.Recovery = journal != nil && journal.Takeover
 	if registry.HighRisk(call.Name) {
@@ -668,7 +800,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	invoke := func() {
 		text, cards, callErr = registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
 	}
-	if sideEffect(call.Name) {
+	if registry.SideEffect(call.Name) {
 		if err := e.step(persistCtx, *run, func(context.Context, store.Store) error {
 			invoke()
 			return nil
@@ -693,12 +825,8 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	if err := e.finishToolStep(persistCtx, run, call, text, callErr, cards, sess.ChangeIDs, journal, true, outcome, reviewLive); err != nil {
 		return err
 	}
-	if run.Source == store.SourceWatch && repeatedWatchRead(persistCtx, e.Store, run.ID, call.Name, digest) {
-		// A provider that keeps re-issuing the same read cannot make progress
-		// (large Snowflake IDs are a common cause). Deliver a truthful degraded
-		// notification rather than burning the run budget indefinitely.
-		return e.completeWatch(persistCtx, *run,
-			"检测到一条新的关注动态，但当前无法完成内容核验，暂不展示具体详情。", nil)
+	if err := e.guardToolProgress(persistCtx, run, registry, call, reviewLive); err != nil {
+		return err
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
@@ -706,21 +834,64 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	return nil
 }
 
-func repeatedWatchRead(ctx context.Context, st store.Store, runID int64, toolName, digest string) bool {
-	if st == nil || runID <= 0 || digest == "" {
-		return false
+func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry *tool.Registry, current llm.ToolCall, reviewLive *[]prompt.Turn) error {
+	if run == nil || registry == nil || registry.Poller(current.Name) {
+		return nil
 	}
-	calls, err := st.ListToolCalls(ctx, runID)
+	calls, err := e.Store.ListToolCalls(ctx, run.ID)
 	if err != nil {
-		return false
+		return err
+	}
+	var currentRow *store.ToolCall
+	for i := range calls {
+		if calls[i].CallID == current.ID {
+			currentRow = &calls[i]
+			break
+		}
+	}
+	if currentRow == nil || currentRow.Status == "running" || currentRow.ResultJSON == "" {
+		return nil
+	}
+	resultDigest, err := canonical.DigestArgs(currentRow.ResultJSON)
+	if err != nil {
+		resultDigest = strings.Join(strings.Fields(currentRow.ResultJSON), " ")
 	}
 	count := 0
 	for _, call := range calls {
-		if call.Tool == toolName && call.CanonicalArgsDigest == digest && call.Status != "running" {
+		if call.Tool != currentRow.Tool || call.CanonicalArgsDigest != currentRow.CanonicalArgsDigest || call.Status == "running" {
+			continue
+		}
+		digest, digestErr := canonical.DigestArgs(call.ResultJSON)
+		if digestErr != nil {
+			digest = strings.Join(strings.Fields(call.ResultJSON), " ")
+		}
+		if digest == resultDigest {
 			count++
 		}
 	}
-	return count >= 2
+	if count < 2 {
+		return nil
+	}
+	if count == 2 {
+		turn := prompt.Turn{Role: store.RoleSystem, Content: "工具无进展：相同工具、参数和结果已重复。请改变方法、根据现有结果作答，或明确说明限制；不要原样再次调用。"}
+		if run.Source == store.SourceMemoryReview {
+			if reviewLive != nil {
+				*reviewLive = append(*reviewLive, turn)
+			}
+			return nil
+		}
+		return e.step(ctx, *run, func(ctx context.Context, tx store.Store) error {
+			_, err := tx.InsertMessage(ctx, store.Message{
+				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleSystem,
+				Kind: store.KindTool, Content: "", APIContent: prompt.EncodeTurn(turn), Visible: false, CreatedAtMs: store.NowMs(),
+			})
+			return err
+		})
+	}
+	if err := e.fail(ctx, *run, "TOOL_NO_PROGRESS", "工具调用连续重复且没有进展"); err != nil {
+		return err
+	}
+	return errRunTerminated
 }
 
 func (e *Engine) toolSession(run store.Run) *tool.Session {
@@ -933,16 +1104,6 @@ func decodeToolResultText(raw string) string {
 	return raw
 }
 
-func sideEffect(name string) bool {
-	switch name {
-	case tool.CreatePost, tool.UpdatePost, tool.DeletePost, tool.AddMemory, tool.ReplaceMemory, tool.RemoveMemory, tool.BatchMemory,
-		tool.CreateWatchTask, tool.UpdateWatchTask, tool.DeleteWatchTask:
-		return true
-	default:
-		return false
-	}
-}
-
 func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
 	targetRevision, err := expectedRevision(call.Arguments)
 	if err != nil || targetRevision <= 0 {
@@ -1017,7 +1178,7 @@ func expectedRevision(argsJSON string) (int64, error) {
 	return args.ExpectedRevision, nil
 }
 
-func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, session *store.Session, msgs []store.Message) error {
+func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, session *store.Session, msgs []store.Message, mainClient llm.Client) error {
 	run.Phase = store.PhaseCompact
 	if err := e.updateRun(persistCtx, *run); err != nil {
 		return err
@@ -1028,38 +1189,63 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 		keep = 1
 	}
 	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs), run.ID)
-	summary := "压缩摘要：保留最近对话与未完成工具。"
-	if e.LLM != nil {
-		var b strings.Builder
-		for _, msg := range msgs {
-			if !msg.Visible {
-				continue
-			}
-			b.WriteString(msg.Role)
-			b.WriteString(": ")
-			b.WriteString(store.Preview(msg.Content, 200))
-			b.WriteByte('\n')
+	keepIDs := make(map[int64]struct{}, len(selected))
+	for _, msg := range selected {
+		keepIDs[msg.ID] = struct{}{}
+	}
+	dropped := make([]store.Message, 0, len(msgs)-len(selected))
+	for _, msg := range msgs {
+		if _, keep := keepIDs[msg.ID]; !keep {
+			dropped = append(dropped, msg)
 		}
-		result, err := e.LLM.Complete(workCtx, llm.Request{
-			Messages:     []prompt.Turn{{Role: store.RoleSystem, Content: "用中文压缩以下会话，不要引入新事实。"}, {Role: store.RoleUser, Content: b.String()}},
-			DisableTools: true,
-			MaxTokens:    512,
-		})
-		if err != nil {
-			if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
-				return errRunCancelled
+	}
+	summary := "压缩摘要：较早对话未包含可保留的用户可见内容。"
+	summaryClient := e.AuxLLM
+	if summaryClient == nil {
+		summaryClient = mainClient
+	}
+	if summaryClient != nil {
+		budget := summaryClient.ContextWindowTokens() / 4
+		if budget <= 0 || budget > 32_000 {
+			budget = 32_000
+		}
+		if budget < 2_000 {
+			budget = 2_000
+		}
+		input := SummaryInput(dropped, budget)
+		if input != "" {
+			result, err := summaryClient.Complete(workCtx, llm.Request{
+				Messages:     []prompt.Turn{{Role: store.RoleSystem, Content: "用中文压缩以下会话，不要引入新事实。"}, {Role: store.RoleUser, Content: input}},
+				DisableTools: true,
+				MaxTokens:    512,
+			})
+			if err != nil {
+				if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
+					return errRunCancelled
+				}
+				return err
 			}
-		} else if strings.TrimSpace(result.Text) != "" {
-			summary = result.Text
+			if strings.TrimSpace(result.Text) == "" {
+				return errCompactNoGain
+			}
+			summary = prompt.SanitizeOutput(result.Text)
+			run.InputTokens += result.Usage.PromptTokens
+			run.OutputTokens += result.Usage.CompletionTokens
+			run.CacheTokens += result.Usage.CacheTokens
+			run.CacheWriteTokens += result.Usage.CacheWriteTokens
+			run.ReasoningTokens += result.Usage.ReasoningTokens
+			run.UsageEstimated = run.UsageEstimated || result.Usage.Estimated
+			run.CostUSD += result.Usage.CostUSD
 		}
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
-	keepIDs := make(map[int64]struct{}, len(selected))
-	for _, msg := range selected {
-		keepIDs[msg.ID] = struct{}{}
+	capability, err := e.buildCapabilitySnapshot(*run)
+	if err != nil {
+		return err
 	}
+	toolSnapshot := prompt.EncodeCapabilities(capability)
 	ids := make([]int64, 0, len(msgs))
 	for _, msg := range msgs {
 		if msg.Compacted {
@@ -1079,10 +1265,33 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 		}
 	}
 	snap := prompt.BuildSnapshot(entries, HistoryTurns(selected), summary)
+	beforeSnapshot, ok := prompt.DecodeSnapshot(session.PromptSnapshot)
+	if !ok {
+		return errors.New("assistant prompt snapshot is invalid before compact")
+	}
+	beforeSnapshot.History = HistoryTurns(msgs)
+	beforeTokens := EstimatePromptTokens(prompt.Messages(beforeSnapshot)) + EstimateTokens(string(session.ToolSnapshot))
+	if run.LastPromptTokens > int64(beforeTokens) {
+		beforeTokens = int(run.LastPromptTokens)
+	}
+	afterTokens := EstimatePromptTokens(prompt.Messages(snap)) + EstimateTokens(string(toolSnapshot))
+	window := e.Window
+	if mainClient != nil && mainClient.ContextWindowTokens() > 0 {
+		window = mainClient.ContextWindowTokens()
+	}
+	target := window / 2
+	if target <= 0 {
+		target = 64_000
+	}
+	if afterTokens >= beforeTokens || afterTokens >= target {
+		return errCompactNoGain
+	}
 	session.PromptEpoch++
 	session.PromptSnapshot = prompt.EncodeSnapshot(snap)
+	session.ToolSnapshot = toolSnapshot
 	session.CompactSummary = summary
 	run.PromptEpoch = session.PromptEpoch
+	run.LastPromptTokens = int64(afterTokens)
 	run.Phase = store.PhaseModelRequest
 	return e.step(persistCtx, *run, func(ctx context.Context, tx store.Store) error {
 		if len(ids) > 0 {
@@ -1143,6 +1352,19 @@ func (e *Engine) finishWithMessage(
 	message string,
 	apiContent []byte,
 ) error {
+	return e.finishWithMessageEvent(ctx, run, status, eventType, payload, message, apiContent, true, "")
+}
+
+func (e *Engine) finishWithMessageEvent(
+	ctx context.Context,
+	run store.Run,
+	status, eventType string,
+	payload store.EventPayload,
+	message string,
+	apiContent []byte,
+	emitToken bool,
+	streamID string,
+) error {
 	now := store.NowMs()
 	run.Status = status
 	run.Phase = store.PhaseDone
@@ -1163,8 +1385,16 @@ func (e *Engine) finishWithMessage(
 			return err
 		}
 		if message != "" && run.Source != store.SourceMemoryReview {
-			if _, err := AppendEvent(ctx, tx, nil, run, store.EventToken, store.EventPayload{Text: message}); err != nil {
-				return err
+			if emitToken {
+				if _, err := AppendEvent(ctx, tx, nil, run, store.EventToken, store.EventPayload{Text: message, StreamID: streamID}); err != nil {
+					return err
+				}
+			}
+			if len(apiContent) == 0 {
+				apiContent = prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: message})
+			}
+			if streamID != "" && payload.StreamID == "" {
+				payload.StreamID = streamID
 			}
 			msg, err := tx.InsertMessage(ctx, store.Message{
 				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,

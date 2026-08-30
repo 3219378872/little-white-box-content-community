@@ -43,8 +43,8 @@ upstream:
 - `AGENT-014`：`POST /api/v2/assistant/thread/read` 更新 Assistant 未读；主动 Watch 消息计入未读，
   `memory_changed` 系统行不计未读。
 - `AGENT-015`：消息正文 `content` 与真实 provider-bound `api_content` 分离保存。`content` 仅用于
-  用户可见历史；恢复 run 必须重放原始 `api_content` 字节，不能把 Memory、BM25 或 Watch 注入
-  反写到可见正文。
+  用户可见历史；恢复 run 必须重放原始 `api_content` 字节。冻结 MEMORY/USER、BM25、Watch 与其它
+  平台上下文只能进入结构化 sidecar，不能反写到可见正文或在恢复时重新拼接成不同字节。
 
 ## 异步运行与恢复
 
@@ -57,9 +57,15 @@ upstream:
 - `AGENT-023`：SSE 事件先以单调 `seq` 写 MySQL，再尝试 Redis 通知。`Last-Event-ID` 后的事件必须
   补齐；Redis 不可用时以 MySQL 轮询降级，且不得丢失终止事件。
 - `AGENT-024`：`GET /api/v2/assistant/runs/:id/events` 只允许 run 所属用户读取；持久事件类型为
-  `run_started|token|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+  `run_started|token|response_reset|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
+  `token` 与 `response_reset` 必须携带同一 model attempt 的稳定 `streamId`；旧客户端仍按未知事件忽略
+  `response_reset`，不得因此中断 SSE。
 - `AGENT-025`：run 只有一个终止状态。错误终止保留已经提交的部分文本、已完成副作用摘要和完整
   事件序列，不得先完成后报错或伪造成功。
+- `AGENT-026`：每次 provider stream writer 绑定
+  `(run_id, lease_generation, input_version, model_round, attempt)`。新 attempt、lease 接管或输入 redirect
+  必须 fence 掉旧 writer；若旧 attempt 已产生持久 token，重试前先提交 `response_reset`，确保事件重放
+  只组装最终获胜 attempt。token 允许按时间或字节批量提交，不得逐 token 热写 MySQL。
 
 ## 授权、工具和副作用
 
@@ -76,28 +82,50 @@ upstream:
   服务端用数据库 CAS 裁决。跨 run、参数变化、revision 变化、重复确认或过期确认一律无效。
 - `AGENT-035`：工具输入和工具返回均是不可信数据，不得改变系统安全规则、可用工具、归属校验、
   确认或预算。平台不得提供账户 secret、验证码、普通私信、其它用户记忆或未发布内容工具。
+- `AGENT-036`：每个工具由单一 metadata 声明 schema、effect=read|write、允许 run source、最低 consent、
+  confirmation、availability、幂等类型和最大结果大小；模型广告、执行授权、journal、确认与结果上限
+  必须由该 metadata 派生，不能在 runtime 另设副作用白名单。依赖不可用的工具不得进入新 prompt epoch。
+- `AGENT-037`：工具参数按声明 schema 严格解码；未知字段、尾随第二个 JSON 值、类型错误和越界值必须
+  拒绝。所有 run 对重复失败或无进展调用执行统一 guard：按工具、规范化参数和规范化结果/错误识别，
+  第二次给模型不可见收敛提示，第三次仍无进展时以 `TOOL_NO_PROGRESS` 明确终止；轮询型工具可显式豁免。
 
 ## 模型传输与 Prompt
 
-- `AGENT-040`：同时支持 Responses 与 Chat Completions。配置选择的协议必须实际支持工具调用；
-  不支持时启动/readiness 失败，不能静默降级成无工具模型。
+- `AGENT-040`：同时支持 Responses 与 Chat Completions。每个 provider/model 以声明式 capability profile
+  记录 route、WireAPI、工具与流式支持、上下文窗口和输出上限；启用 LLM 时启动阶段使用强制无副作用
+  工具调用 canary 验证 schema/call/result，失败则 readiness false，不能静默降级成无工具模型。
 - `AGENT-041`：Prompt 顺序固定为：不可覆盖的平台安全规则 → 仓库版本化 `SOUL.md` → Agent/tool
-  规则 → 冻结 MEMORY/USER → 当前会话历史。
+  规则 → 结构化且明确标为不可信数据的冻结 MEMORY/USER sidecar → 当前会话历史。MEMORY/USER 不得作为
+  system 指令或 authoritative source，sidecar 标签和内部说明不得出现在用户可见输出。
 - `AGENT-042`：`SOUL.md` 为 human-owned 仓库资产，用户不能编辑；默认人格为温暖伙伴。新 SOUL
   仅在冷对话拼接、无快照冷启动或 compact 成功提交的新 prompt epoch 生效。
-- `AGENT-043`：system prompt 在冷对话拼接或无快照冷启动时构建并按字节保存；恢复未 compact
-  session 必须复用原始快照，不受仓库、Memory 或工具表随后变化影响。
+- `AGENT-043`：system prompt、Memory sidecar、工具定义和 provider capability 在冷对话拼接或无快照
+  冷启动时构建并按字节保存；恢复未 compact session 必须复用原始快照，不受仓库、Memory、工具表
+  或默认 provider 随后变化影响。实时撤权仍直接取消 run，不能靠修改已冻结快照表达。
+- `AGENT-044`：provider 错误统一分类为 auth、invalid_request、context_overflow、rate_limit、timeout、
+  overloaded、server_error、content_policy 或 unknown，并携带状态码、可重试性与有界 `Retry-After`。
+  rate limit/timeout/5xx 最多重试三次并使用有上限的抖动退避；确定性 4xx 不重试。fallback 只允许切到
+  工具、流式、上下文、数据地域和隐私边界兼容的已配置 route，每个 attempt 必须持久审计。
+- `AGENT-045`：Responses、Chat Completions 与兼容网关 usage 统一规范化 input、output、cache-read、
+  cache-write 与 reasoning token；总 input 不得与 cache bucket 重复累计，成本使用各自配置价格。provider
+  缺失 usage 时明确标为估算，不能把 cache 命中默认为零后声称 cache 观测有效。
 
 ## Compact 与后台审查
 
-- `AGENT-050`：估算上下文达到模型窗口 50% 时 compact；保留最近 20% token、未完成工具调用与确认，
-  并加入压缩摘要。compact 成功提交后滚动 prompt epoch，重新加载 SOUL、MEMORY/USER 与工具快照。
+- `AGENT-050`：以上一次 provider 真实 prompt usage 为锚点并估算其后新增内容；无 usage 时使用对 CJK
+  至少按一字符一 token 的保守估算。达到模型窗口 50% 时 compact，保留最近 20% token、未完成工具
+  调用与确认，并加入压缩摘要。摘要输入按总预算选择完整消息，不能固定截断每条消息。只有压缩后
+  token 确实下降且低于目标阈值才提交；成功后滚动 prompt epoch，重新加载 SOUL、MEMORY/USER、工具
+  与 provider capability 快照。
 - `AGENT-051`：compact 前原始消息不删除，继续保留一年并可被 `search_history` 召回；摘要不能覆盖
   权威消息，也不能把不可信历史提升为系统规则。
 - `AGENT-052`：每 10 个成功且未中断的用户回合调度 memory-review run；最多 16 轮、累计输入最多
   600,000 token，仅允许 Memory 工具，不写主会话。新前台消息优先取消未完成的审查。
 - `AGENT-053`：后台审查成功写入后增加不计未读的 `memory_changed` 系统行并提供撤销；审查失败不
   改判主会话成功状态。
+- `AGENT-054`：memory-review 使用 `BackgroundReview.Model` 配置的同边界辅助 route，compact 优先使用
+  `LLM.AuxModel`；未配置时使用冻结主 route。辅助调用继承超时、错误分类和 usage 审计，但不得改变
+  前台 session 的冻结 provider capability。
 
 ## 历史 BM25
 
@@ -143,3 +171,9 @@ upstream:
 - `AGENT-A04`：覆盖 BM25 用户隔离、四种历史调用、365 天回源、rebuild/delete 与私信永不入索引。
 - `AGENT-A05`：覆盖 source handle run 绑定、`present_sources`、正文伪造来源无效与可选来源回答。
 - `AGENT-A06`：覆盖两种 LLM transport 的工具调用，以及硬预算触顶与每维每级只告警一次。
+- `AGENT-A07`：覆盖两种 WireAPI 的真实流式 fixture、跨 chunk tool call、attempt reset、lease/input
+  fencing、断线重放，以及前端最终文本只包含获胜 attempt。
+- `AGENT-A08`：覆盖 capability snapshot 恢复、启动 canary、typed retry/Retry-After/fallback、cache usage
+  规范化、中文 compact 与压缩无收益拒绝提交。
+- `AGENT-A09`：覆盖严格工具 schema、availability/output limit、普通 user/Watch/review 的 no-progress
+  guard，以及 Memory sidecar 不能覆盖系统规则或泄漏到流式/非流式输出。

@@ -50,3 +50,22 @@ func TestUnwrapArgsJSONPeelsStringWrappedObject(t *testing.T) {
 		t.Fatalf("quoted digest %s != object digest %s", a, b)
 	}
 }
+
+func TestDigestPreservesLargeIntegerAndRejectsTrailingJSON(t *testing.T) {
+	large := `{"post_id":9223372036854770000}`
+	other := `{"post_id":9223372036854770001}`
+	a, err := DigestArgs(large)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := DigestArgs(other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == b {
+		t.Fatalf("large integer digests collided: %s", a)
+	}
+	if _, err := DigestArgs(`{"post_id":1} {"post_id":2}`); err == nil {
+		t.Fatal("trailing JSON was accepted")
+	}
+}

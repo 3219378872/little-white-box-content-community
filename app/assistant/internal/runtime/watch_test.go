@@ -89,7 +89,7 @@ func TestWatchRunFailureRequeuesBucket(t *testing.T) {
 	}
 }
 
-func TestWatchRepeatedReadIsSafelyDeliveredWithoutRunLoop(t *testing.T) {
+func TestWatchRepeatedReadTerminatesWithNoProgress(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
@@ -109,28 +109,26 @@ func TestWatchRepeatedReadIsSafelyDeliveredWithoutRunLoop(t *testing.T) {
 	model := &scriptedLLM{replies: []llm.Result{
 		{ToolCalls: []llm.ToolCall{call}},
 		{ToolCalls: []llm.ToolCall{{ID: "read-2", Name: tool.GetPost, Arguments: `{"post_id":99}`}}},
+		{ToolCalls: []llm.ToolCall{{ID: "read-3", Name: tool.GetPost, Arguments: `{"post_id":99}`}}},
 	}}
 	engine := &Engine{Store: mem, Watch: watchStore, Tools: reg, LLM: model, Window: 128000}
 	engine.Execute(ctx, *run, false)
 	fresh, err := mem.GetRun(ctx, run.ID)
-	if err != nil || fresh.Status != store.StatusDone {
+	if err != nil || fresh.Status != store.StatusError || fresh.ErrorCode != "TOOL_NO_PROGRESS" {
 		t.Fatalf("run=%+v err=%v", fresh, err)
 	}
 	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	visible := 0
+	hints := 0
 	for _, message := range messages {
-		if message.Visible && message.Role == store.RoleAssistant {
-			visible++
-			if message.Content == "" {
-				t.Fatalf("empty watch fallback message=%+v", message)
-			}
+		if !message.Visible && message.Role == store.RoleSystem && strings.Contains(string(message.APIContent), "工具无进展") {
+			hints++
 		}
 	}
-	if visible != 1 {
-		t.Fatalf("watch fallback visible messages=%d all=%+v", visible, messages)
+	if hints != 1 {
+		t.Fatalf("convergence hints=%d all=%+v", hints, messages)
 	}
 }
 

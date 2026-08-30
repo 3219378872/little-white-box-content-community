@@ -52,7 +52,7 @@ func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 	}
 	out := &types.AssistantRunEvent{
 		RunId: in.RunId, Seq: in.Seq, Type: in.Type, Text: in.Text, Degraded: in.Degraded,
-		ErrorCode: in.ErrorCode, SessionId: in.SessionId, ChangeId: in.ChangeId,
+		ErrorCode: in.ErrorCode, SessionId: in.SessionId, ChangeId: in.ChangeId, StreamId: in.StreamId,
 	}
 	if in.ToolCall != nil {
 		out.ToolCall = &types.AssistantToolCallInfo{

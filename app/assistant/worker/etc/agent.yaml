@@ -95,6 +95,8 @@ Safety:
   - "儿童色情"
 LLM:
   Enabled: ${ASSISTANT_LLM_ENABLED}
+  RouteID: primary
+  Boundary: default
   WireAPI: "${ASSISTANT_LLM_WIRE_API}"
   Endpoint: "${ASSISTANT_LLM_ENDPOINT}"
   APIKey: "${ASSISTANT_LLM_API_KEY}"
@@ -102,8 +104,33 @@ LLM:
   TimeoutMs: 90000
   MaxOutputTokens: 32768
   ContextWindowTokens: 128000
+  AuxModel: "${ASSISTANT_LLM_MODEL_SMALL}"
+  CanaryEnabled: true
+  RetryMaxAttempts: 3
+  RetryBaseDelayMs: 250
+  RetryMaxDelayMs: 5000
+  RetryAfterMaxMs: 30000
   PromptCostPerMillionTokens: ${ASSISTANT_LLM_PROMPT_COST_PER_MILLION_TOKENS}
   CompletionCostPerMillionTokens: ${ASSISTANT_LLM_COMPLETION_COST_PER_MILLION_TOKENS}
+  CacheReadCostPerMillionTokens: ${ASSISTANT_LLM_CACHE_READ_COST_PER_MILLION_TOKENS}
+  CacheWriteCostPerMillionTokens: ${ASSISTANT_LLM_CACHE_WRITE_COST_PER_MILLION_TOKENS}
+  ReasoningCostPerMillionTokens: ${ASSISTANT_LLM_REASONING_COST_PER_MILLION_TOKENS}
+  Fallbacks:
+    - Enabled: ${ASSISTANT_LLM_FALLBACK_ENABLED}
+      RouteID: "${ASSISTANT_LLM_FALLBACK_ROUTE_ID}"
+      Boundary: "${ASSISTANT_LLM_FALLBACK_BOUNDARY}"
+      WireAPI: "${ASSISTANT_LLM_FALLBACK_WIRE_API}"
+      Endpoint: "${ASSISTANT_LLM_FALLBACK_ENDPOINT}"
+      APIKey: "${ASSISTANT_LLM_FALLBACK_API_KEY}"
+      Model: "${ASSISTANT_LLM_FALLBACK_MODEL}"
+      TimeoutMs: 90000
+      MaxOutputTokens: 32768
+      ContextWindowTokens: 128000
+      PromptCostPerMillionTokens: ${ASSISTANT_LLM_FALLBACK_PROMPT_COST_PER_MILLION_TOKENS}
+      CompletionCostPerMillionTokens: ${ASSISTANT_LLM_FALLBACK_COMPLETION_COST_PER_MILLION_TOKENS}
+      CacheReadCostPerMillionTokens: ${ASSISTANT_LLM_FALLBACK_CACHE_READ_COST_PER_MILLION_TOKENS}
+      CacheWriteCostPerMillionTokens: ${ASSISTANT_LLM_FALLBACK_CACHE_WRITE_COST_PER_MILLION_TOKENS}
+      ReasoningCostPerMillionTokens: ${ASSISTANT_LLM_FALLBACK_REASONING_COST_PER_MILLION_TOKENS}
 BackgroundReview:
-  Model: ""
+  Model: "${ASSISTANT_LLM_REVIEW_MODEL}"
 InternalSecret: ${RPC_INTERNAL_SECRET}

@@ -37,16 +37,22 @@ type Usage struct {
 	PromptTokens     int64
 	CompletionTokens int64
 	CacheTokens      int64
+	CacheWriteTokens int64
+	ReasoningTokens  int64
 	TotalTokens      int64
 	CostUSD          float64
+	Estimated        bool
 }
 
 type Request struct {
-	Messages     []prompt.Turn
-	Tools        []prompt.ToolDef
-	MaxTokens    int
-	Convergence  string
-	DisableTools bool
+	Messages      []prompt.Turn
+	Tools         []prompt.ToolDef
+	MaxTokens     int
+	Convergence   string
+	DisableTools  bool
+	RequiredTool  string
+	AttemptPrefix string
+	Observer      AttemptObserver
 }
 
 type Result struct {
@@ -56,6 +62,9 @@ type Result struct {
 	Raw              []byte
 	Usage            Usage
 	IncompleteReason string
+	StreamID         string
+	Attempts         int
+	Streamed         bool
 }
 
 type Client interface {
@@ -68,6 +77,8 @@ type Client interface {
 
 type Config struct {
 	Enabled                        bool
+	RouteID                        string
+	Boundary                       string
 	WireAPI                        string
 	Endpoint                       string
 	APIKey                         string
@@ -77,6 +88,9 @@ type Config struct {
 	ContextWindowTokens            int
 	PromptCostPerMillionTokens     float64
 	CompletionCostPerMillionTokens float64
+	CacheReadCostPerMillionTokens  float64
+	CacheWriteCostPerMillionTokens float64
+	ReasoningCostPerMillionTokens  float64
 }
 
 type HTTPClient struct {
@@ -114,6 +128,15 @@ func New(cfg Config) (*HTTPClient, error) {
 	if cfg.ContextWindowTokens <= 0 {
 		cfg.ContextWindowTokens = 128000
 	}
+	if cfg.CacheReadCostPerMillionTokens == 0 {
+		cfg.CacheReadCostPerMillionTokens = cfg.PromptCostPerMillionTokens
+	}
+	if cfg.CacheWriteCostPerMillionTokens == 0 {
+		cfg.CacheWriteCostPerMillionTokens = cfg.PromptCostPerMillionTokens
+	}
+	if cfg.ReasoningCostPerMillionTokens == 0 {
+		cfg.ReasoningCostPerMillionTokens = cfg.CompletionCostPerMillionTokens
+	}
 	cfg.WireAPI = wire
 	cfg.Endpoint = endpoint
 	cfg.Model = strings.TrimSpace(cfg.Model)
@@ -140,6 +163,168 @@ func (c *HTTPClient) ContextWindowTokens() int {
 	return c.cfg.ContextWindowTokens
 }
 
+func (c *HTTPClient) RouteID() string {
+	if c == nil {
+		return ""
+	}
+	if strings.TrimSpace(c.cfg.RouteID) == "" {
+		return "primary"
+	}
+	return strings.TrimSpace(c.cfg.RouteID)
+}
+
+func (c *HTTPClient) ModelName() string {
+	if c == nil {
+		return ""
+	}
+	return c.cfg.Model
+}
+
+func (c *HTTPClient) Boundary() string {
+	if c == nil {
+		return ""
+	}
+	return strings.TrimSpace(c.cfg.Boundary)
+}
+
+type capabilityClient interface {
+	RouteID() string
+	ModelName() string
+	Boundary() string
+	SupportsStreaming() bool
+}
+
+type fallbackCapabilityClient interface {
+	FallbackRouteIDs() []string
+}
+
+func Capability(client Client) prompt.ProviderCapability {
+	if client == nil {
+		return prompt.ProviderCapability{}
+	}
+	capability := prompt.ProviderCapability{
+		RouteID: "primary", WireAPI: client.WireAPI(), ContextTokens: client.ContextWindowTokens(),
+		MaxOutputTokens: client.MaxOutputTokens(), Tools: client.SupportsTools(),
+	}
+	if detailed, ok := client.(capabilityClient); ok {
+		capability.RouteID = detailed.RouteID()
+		capability.Model = detailed.ModelName()
+		capability.Boundary = detailed.Boundary()
+		capability.Streaming = detailed.SupportsStreaming()
+	}
+	if fallbacks, ok := client.(fallbackCapabilityClient); ok {
+		capability.FallbackRouteIDs = append([]string(nil), fallbacks.FallbackRouteIDs()...)
+	}
+	return capability
+}
+
+type RouteSelector interface {
+	ForRoute(routeID string) (Client, bool)
+}
+
+type exactRouteSelector interface {
+	ExactRoute(routeID string) (Client, bool)
+}
+
+type capabilityRouteSelector interface {
+	ForCapability(capability prompt.ProviderCapability) (Client, bool)
+}
+
+func SelectRoute(client Client, routeID string) (Client, bool) {
+	if client == nil {
+		return nil, false
+	}
+	if selector, ok := client.(RouteSelector); ok {
+		return selector.ForRoute(routeID)
+	}
+	capability := Capability(client)
+	return client, routeID == "" || capability.RouteID == routeID
+}
+
+func SelectExactRoute(client Client, routeID string) (Client, bool) {
+	if client == nil {
+		return nil, false
+	}
+	if selector, ok := client.(exactRouteSelector); ok {
+		return selector.ExactRoute(routeID)
+	}
+	capability := Capability(client)
+	return client, routeID == "" || capability.RouteID == routeID
+}
+
+func SelectCapability(client Client, frozen prompt.ProviderCapability) (Client, bool) {
+	if client == nil || strings.TrimSpace(frozen.RouteID) == "" {
+		return nil, false
+	}
+	var selected Client
+	var ok bool
+	if selector, selectable := client.(capabilityRouteSelector); selectable {
+		selected, ok = selector.ForCapability(frozen)
+	} else {
+		selected, ok = SelectRoute(client, frozen.RouteID)
+	}
+	if !ok || !supportsFrozenCapability(selected, frozen) {
+		return nil, false
+	}
+	bound := &frozenClient{base: selected, capability: frozen}
+	if frozen.Streaming {
+		return &frozenStreamingClient{frozenClient: bound}, true
+	}
+	return bound, true
+}
+
+func supportsFrozenCapability(client Client, frozen prompt.ProviderCapability) bool {
+	actual := Capability(client)
+	if actual.RouteID != frozen.RouteID || (frozen.Tools && !actual.Tools) ||
+		(frozen.Streaming && !actual.Streaming) {
+		return false
+	}
+	if frozen.WireAPI != "" && actual.WireAPI != frozen.WireAPI {
+		return false
+	}
+	if frozen.Model != "" && actual.Model != frozen.Model {
+		return false
+	}
+	if strings.TrimSpace(actual.Boundary) != strings.TrimSpace(frozen.Boundary) {
+		return false
+	}
+	if frozen.ContextTokens > 0 && actual.ContextTokens < frozen.ContextTokens {
+		return false
+	}
+	return frozen.MaxOutputTokens <= 0 || actual.MaxOutputTokens >= frozen.MaxOutputTokens
+}
+
+type frozenClient struct {
+	base       Client
+	capability prompt.ProviderCapability
+}
+
+func (c *frozenClient) Complete(ctx context.Context, req Request) (Result, error) {
+	return c.base.Complete(ctx, req)
+}
+func (c *frozenClient) SupportsTools() bool      { return c.capability.Tools }
+func (c *frozenClient) WireAPI() string          { return c.capability.WireAPI }
+func (c *frozenClient) MaxOutputTokens() int     { return c.capability.MaxOutputTokens }
+func (c *frozenClient) ContextWindowTokens() int { return c.capability.ContextTokens }
+func (c *frozenClient) RouteID() string          { return c.capability.RouteID }
+func (c *frozenClient) ModelName() string        { return c.capability.Model }
+func (c *frozenClient) Boundary() string         { return c.capability.Boundary }
+func (*frozenClient) SupportsStreaming() bool    { return false }
+
+type frozenStreamingClient struct {
+	*frozenClient
+}
+
+func (c *frozenStreamingClient) CompleteStream(ctx context.Context, req Request, emit func(Delta) error) (Result, error) {
+	stream, ok := c.base.(StreamingClient)
+	if !ok {
+		return Result{}, fmt.Errorf("frozen assistant LLM route no longer supports streaming")
+	}
+	return stream.CompleteStream(ctx, req, emit)
+}
+
+func (*frozenStreamingClient) SupportsStreaming() bool { return true }
+
 func Ready(client Client, enabled bool) error {
 	if !enabled {
 		return nil
@@ -161,7 +346,7 @@ func (c *HTTPClient) Complete(ctx context.Context, req Request) (Result, error) 
 	if maxTokens > 65536 {
 		maxTokens = 65536
 	}
-	payload, err := c.marshal(req, maxTokens)
+	payload, err := c.marshal(req, maxTokens, false)
 	if err != nil {
 		return Result{}, err
 	}
@@ -180,7 +365,7 @@ func (c *HTTPClient) Complete(ctx context.Context, req Request) (Result, error) 
 	}
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return Result{}, err
+		return Result{}, ClassifyError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
@@ -191,15 +376,21 @@ func (c *HTTPClient) Complete(ctx context.Context, req Request) (Result, error) 
 		return Result{}, fmt.Errorf("assistant LLM response exceeds the byte limit")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Result{}, fmt.Errorf("assistant LLM status=%s body=%s", resp.Status, truncateForLog(raw))
+		return Result{}, classifyHTTPError(resp.StatusCode, resp.Header, raw)
 	}
+	var result Result
 	if c.cfg.WireAPI == WireAPIResponses {
-		return c.decodeResponses(raw)
+		result, err = c.decodeResponses(raw)
+	} else {
+		result, err = c.decodeChat(raw)
 	}
-	return c.decodeChat(raw)
+	if err == nil {
+		result.Text = strings.TrimSpace(prompt.SanitizeOutput(result.Text))
+	}
+	return result, err
 }
 
-func (c *HTTPClient) marshal(req Request, maxTokens int) ([]byte, error) {
+func (c *HTTPClient) marshal(req Request, maxTokens int, stream bool) ([]byte, error) {
 	messages := req.Messages
 	if strings.TrimSpace(req.Convergence) != "" {
 		messages = append(append([]prompt.Turn{}, messages...), prompt.Turn{Role: "system", Content: req.Convergence})
@@ -209,11 +400,14 @@ func (c *HTTPClient) marshal(req Request, maxTokens int) ([]byte, error) {
 			"model":             c.cfg.Model,
 			"input":             responsesInput(messages),
 			"max_output_tokens": maxTokens,
-			"stream":            false,
+			"stream":            stream,
 			"store":             false,
 		}
 		if !req.DisableTools && len(req.Tools) > 0 {
 			body["tools"] = responsesTools(req.Tools)
+			if strings.TrimSpace(req.RequiredTool) != "" {
+				body["tool_choice"] = map[string]any{"type": "function", "name": strings.TrimSpace(req.RequiredTool)}
+			}
 		}
 		return json.Marshal(body)
 	}
@@ -221,10 +415,18 @@ func (c *HTTPClient) marshal(req Request, maxTokens int) ([]byte, error) {
 		"model":      c.cfg.Model,
 		"messages":   chatMessages(messages),
 		"max_tokens": maxTokens,
-		"stream":     false,
+		"stream":     stream,
+	}
+	if stream {
+		body["stream_options"] = map[string]any{"include_usage": true}
 	}
 	if !req.DisableTools && len(req.Tools) > 0 {
 		body["tools"] = chatTools(req.Tools)
+		if strings.TrimSpace(req.RequiredTool) != "" {
+			body["tool_choice"] = map[string]any{
+				"type": "function", "function": map[string]any{"name": strings.TrimSpace(req.RequiredTool)},
+			}
+		}
 	}
 	return json.Marshal(body)
 }
@@ -360,13 +562,31 @@ func normalizeToolArguments(raw json.RawMessage) string {
 	return canonical.UnwrapArgsJSON(string(raw))
 }
 
-func truncateForLog(raw []byte) string {
-	const n = 400
-	s := strings.Join(strings.Fields(string(raw)), " ")
-	if len(s) > n {
-		return s[:n] + "..."
-	}
-	return s
+type chatUsage struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+	TotalTokens      int64 `json:"total_tokens"`
+	PromptDetails    struct {
+		CachedTokens     int64 `json:"cached_tokens"`
+		CacheWriteTokens int64 `json:"cache_write_tokens"`
+	} `json:"prompt_tokens_details"`
+	CompletionDetails struct {
+		ReasoningTokens int64 `json:"reasoning_tokens"`
+	} `json:"completion_tokens_details"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
+}
+
+type responsesUsage struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+	TotalTokens  int64 `json:"total_tokens"`
+	InputDetails struct {
+		CachedTokens     int64 `json:"cached_tokens"`
+		CacheWriteTokens int64 `json:"cache_write_tokens"`
+	} `json:"input_tokens_details"`
+	OutputDetails struct {
+		ReasoningTokens int64 `json:"reasoning_tokens"`
+	} `json:"output_tokens_details"`
 }
 
 func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
@@ -384,11 +604,7 @@ func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
 				} `json:"tool_calls"`
 			} `json:"message"`
 		} `json:"choices"`
-		Usage struct {
-			PromptTokens     int64 `json:"prompt_tokens"`
-			CompletionTokens int64 `json:"completion_tokens"`
-			TotalTokens      int64 `json:"total_tokens"`
-		} `json:"usage"`
+		Usage chatUsage `json:"usage"`
 	}
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return Result{}, fmt.Errorf("decode chat completions: %w", err)
@@ -412,7 +628,7 @@ func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
 	if text == "" && len(calls) == 0 {
 		return Result{}, fmt.Errorf("assistant LLM returned an empty response")
 	}
-	return Result{Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw, Usage: c.usage(parsed.Usage.PromptTokens, parsed.Usage.CompletionTokens, parsed.Usage.TotalTokens)}, nil
+	return Result{Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw, Usage: c.chatUsage(parsed.Usage)}, nil
 }
 
 func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
@@ -432,12 +648,8 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 			Name      string          `json:"name"`
 			Arguments json.RawMessage `json:"arguments"`
 		} `json:"output"`
-		OutputText string `json:"output_text"`
-		Usage      struct {
-			InputTokens  int64 `json:"input_tokens"`
-			OutputTokens int64 `json:"output_tokens"`
-			TotalTokens  int64 `json:"total_tokens"`
-		} `json:"usage"`
+		OutputText string         `json:"output_text"`
+		Usage      responsesUsage `json:"usage"`
 	}
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return Result{}, fmt.Errorf("decode responses: %w", err)
@@ -475,22 +687,50 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 		}
 		return Result{
 			Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw,
-			Usage:            c.usage(parsed.Usage.InputTokens, parsed.Usage.OutputTokens, parsed.Usage.TotalTokens),
+			Usage:            c.responsesUsage(parsed.Usage),
 			IncompleteReason: reason,
 		}, nil
 	}
 	if !usable {
 		return Result{}, fmt.Errorf("assistant LLM returned an empty response")
 	}
-	return Result{Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw, Usage: c.usage(parsed.Usage.InputTokens, parsed.Usage.OutputTokens, parsed.Usage.TotalTokens)}, nil
+	return Result{Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw, Usage: c.responsesUsage(parsed.Usage)}, nil
 }
 
-func (c *HTTPClient) usage(promptTokens, completionTokens, totalTokens int64) Usage {
-	if totalTokens == 0 {
-		totalTokens = promptTokens + completionTokens
+func (c *HTTPClient) chatUsage(raw chatUsage) Usage {
+	cacheWrite := raw.PromptDetails.CacheWriteTokens
+	if cacheWrite == 0 {
+		cacheWrite = raw.CacheCreationInputTokens
 	}
-	cost := (float64(promptTokens)*c.cfg.PromptCostPerMillionTokens + float64(completionTokens)*c.cfg.CompletionCostPerMillionTokens) / 1_000_000
-	return Usage{PromptTokens: promptTokens, CompletionTokens: completionTokens, TotalTokens: totalTokens, CostUSD: cost}
+	return c.usage(raw.PromptTokens, raw.CompletionTokens, raw.TotalTokens, raw.PromptDetails.CachedTokens, cacheWrite, raw.CompletionDetails.ReasoningTokens)
+}
+
+func (c *HTTPClient) responsesUsage(raw responsesUsage) Usage {
+	return c.usage(raw.InputTokens, raw.OutputTokens, raw.TotalTokens, raw.InputDetails.CachedTokens, raw.InputDetails.CacheWriteTokens, raw.OutputDetails.ReasoningTokens)
+}
+
+func (c *HTTPClient) usage(inputTokens, outputTokens, totalTokens, cacheRead, cacheWrite, reasoning int64) Usage {
+	if totalTokens == 0 {
+		totalTokens = inputTokens + outputTokens
+	}
+	regularInput := inputTokens - cacheRead - cacheWrite
+	if regularInput < 0 {
+		regularInput = 0
+	}
+	regularOutput := outputTokens - reasoning
+	if regularOutput < 0 {
+		regularOutput = 0
+	}
+	cost := (float64(regularInput)*c.cfg.PromptCostPerMillionTokens +
+		float64(cacheRead)*c.cfg.CacheReadCostPerMillionTokens +
+		float64(cacheWrite)*c.cfg.CacheWriteCostPerMillionTokens +
+		float64(regularOutput)*c.cfg.CompletionCostPerMillionTokens +
+		float64(reasoning)*c.cfg.ReasoningCostPerMillionTokens) / 1_000_000
+	return Usage{
+		PromptTokens: inputTokens, CompletionTokens: outputTokens, CacheTokens: cacheRead,
+		CacheWriteTokens: cacheWrite, ReasoningTokens: reasoning, TotalTokens: totalTokens,
+		CostUSD: cost, Estimated: inputTokens == 0 && outputTokens == 0,
+	}
 }
 
 func normalizeEndpoint(endpoint, wireAPI string) (string, error) {

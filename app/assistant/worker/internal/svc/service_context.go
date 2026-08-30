@@ -84,17 +84,43 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 	notify := store.NewRedisNotifier(redisClient)
 
-	client, err := llm.New(llm.Config{
-		Enabled: c.LLM.Enabled, WireAPI: c.LLM.WireAPI, Endpoint: c.LLM.Endpoint, APIKey: c.LLM.APIKey,
-		Model: c.LLM.Model, Timeout: time.Duration(c.LLM.TimeoutMs) * time.Millisecond,
-		MaxOutputTokens: c.LLM.MaxOutputTokens, ContextWindowTokens: c.LLM.ContextWindowTokens,
-		PromptCostPerMillionTokens: c.LLM.PromptCostPerMillionTokens, CompletionCostPerMillionTokens: c.LLM.CompletionCostPerMillionTokens,
-	})
+	client, routeIDs, err := buildLLMClient(c.LLM)
 	if err != nil {
 		return nil, err
 	}
 	if err := llm.Ready(client, c.LLM.Enabled); err != nil {
 		return nil, err
+	}
+	auxClient, err := buildAuxiliaryClient(c.LLM, c.LLM.AuxModel, "aux")
+	if err != nil {
+		return nil, err
+	}
+	reviewClient, err := buildAuxiliaryClient(c.LLM, c.BackgroundReview.Model, "review")
+	if err != nil {
+		return nil, err
+	}
+	if c.LLM.Enabled && c.LLM.CanaryEnabled {
+		canaryTimeout := minDuration(time.Duration(c.LLM.TimeoutMs)*time.Millisecond, 30*time.Second)
+		for _, routeID := range routeIDs {
+			routeClient, ok := llm.SelectExactRoute(client, routeID)
+			if !ok {
+				return nil, fmt.Errorf("assistant-agent: LLM route %q cannot be selected", routeID)
+			}
+			if err := runLLMCanary(canaryTimeout, routeClient); err != nil {
+				return nil, fmt.Errorf("assistant-agent: LLM route %q readiness: %w", routeID, err)
+			}
+		}
+		for _, auxiliaryRoute := range []struct {
+			name   string
+			client llm.Client
+		}{{name: "aux", client: auxClient}, {name: "review", client: reviewClient}} {
+			routeID, auxiliary := auxiliaryRoute.name, auxiliaryRoute.client
+			if auxiliary != nil {
+				if err := runLLMCanary(canaryTimeout, auxiliary); err != nil {
+					return nil, fmt.Errorf("assistant-agent: LLM %s readiness: %w", routeID, err)
+				}
+			}
+		}
 	}
 	history, err := index.New(c.Elasticsearch.Addresses, c.Elasticsearch.Username, c.Elasticsearch.Password, st)
 	if err != nil {
@@ -116,7 +142,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 	engine := &runtime.Engine{
-		Store: st, Memory: mem, Watch: watchStore, Tools: registry, LLM: client, Notify: notify,
+		Store: st, Memory: mem, Watch: watchStore, Tools: registry, LLM: client, AuxLLM: auxClient, ReviewLLM: reviewClient, Notify: notify,
 		Window: c.LLM.ContextWindowTokens, Provider: c.LLM.MaxOutputTokens,
 	}
 	return &ServiceContext{
@@ -131,6 +157,86 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 			return currentConsentGranted(consent), nil
 		},
 	}, nil
+}
+
+func buildLLMClient(c config.LLMConfig) (llm.Client, []string, error) {
+	primary, err := llm.New(primaryLLMConfig(c, c.Model, c.RouteID))
+	if err != nil || primary == nil {
+		return primary, nil, err
+	}
+	routes := []llm.Route{{ID: primary.RouteID(), Boundary: c.Boundary, Client: primary}}
+	routeIDs := []string{primary.RouteID()}
+	for _, fallback := range c.Fallbacks {
+		if !fallback.Enabled {
+			continue
+		}
+		candidate, candidateErr := llm.New(llm.Config{
+			Enabled: true, RouteID: fallback.RouteID, Boundary: fallback.Boundary,
+			WireAPI: fallback.WireAPI, Endpoint: fallback.Endpoint, APIKey: fallback.APIKey, Model: fallback.Model,
+			Timeout:         time.Duration(fallback.TimeoutMs) * time.Millisecond,
+			MaxOutputTokens: fallback.MaxOutputTokens, ContextWindowTokens: fallback.ContextWindowTokens,
+			PromptCostPerMillionTokens:     fallback.PromptCostPerMillionTokens,
+			CompletionCostPerMillionTokens: fallback.CompletionCostPerMillionTokens,
+			CacheReadCostPerMillionTokens:  fallback.CacheReadCostPerMillionTokens,
+			CacheWriteCostPerMillionTokens: fallback.CacheWriteCostPerMillionTokens,
+			ReasoningCostPerMillionTokens:  fallback.ReasoningCostPerMillionTokens,
+		})
+		if candidateErr != nil {
+			return nil, nil, candidateErr
+		}
+		routes = append(routes, llm.Route{ID: candidate.RouteID(), Boundary: fallback.Boundary, Client: candidate})
+		routeIDs = append(routeIDs, candidate.RouteID())
+	}
+	resilient, err := llm.NewResilient(routes, llm.RetryOptions{
+		MaxAttempts: c.RetryMaxAttempts, BaseDelay: time.Duration(c.RetryBaseDelayMs) * time.Millisecond,
+		MaxDelay: time.Duration(c.RetryMaxDelayMs) * time.Millisecond, MaxRetryAfter: time.Duration(c.RetryAfterMaxMs) * time.Millisecond,
+	})
+	return resilient, routeIDs, err
+}
+
+func buildAuxiliaryClient(c config.LLMConfig, model, suffix string) (llm.Client, error) {
+	model = strings.TrimSpace(model)
+	if !c.Enabled || model == "" {
+		return nil, nil
+	}
+	routeID := strings.TrimSpace(c.RouteID)
+	if routeID == "" {
+		routeID = "primary"
+	}
+	httpClient, err := llm.New(primaryLLMConfig(c, model, routeID+"-"+suffix))
+	if err != nil {
+		return nil, err
+	}
+	return llm.NewResilient([]llm.Route{{ID: httpClient.RouteID(), Boundary: c.Boundary, Client: httpClient}}, llm.RetryOptions{
+		MaxAttempts: c.RetryMaxAttempts, BaseDelay: time.Duration(c.RetryBaseDelayMs) * time.Millisecond,
+		MaxDelay: time.Duration(c.RetryMaxDelayMs) * time.Millisecond, MaxRetryAfter: time.Duration(c.RetryAfterMaxMs) * time.Millisecond,
+	})
+}
+
+func primaryLLMConfig(c config.LLMConfig, model, routeID string) llm.Config {
+	return llm.Config{
+		Enabled: c.Enabled, RouteID: routeID, Boundary: c.Boundary, WireAPI: c.WireAPI,
+		Endpoint: c.Endpoint, APIKey: c.APIKey, Model: model, Timeout: time.Duration(c.TimeoutMs) * time.Millisecond,
+		MaxOutputTokens: c.MaxOutputTokens, ContextWindowTokens: c.ContextWindowTokens,
+		PromptCostPerMillionTokens:     c.PromptCostPerMillionTokens,
+		CompletionCostPerMillionTokens: c.CompletionCostPerMillionTokens,
+		CacheReadCostPerMillionTokens:  c.CacheReadCostPerMillionTokens,
+		CacheWriteCostPerMillionTokens: c.CacheWriteCostPerMillionTokens,
+		ReasoningCostPerMillionTokens:  c.ReasoningCostPerMillionTokens,
+	}
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a > 0 && a < b {
+		return a
+	}
+	return b
+}
+
+func runLLMCanary(timeout time.Duration, client llm.Client) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return llm.Canary(ctx, client)
 }
 
 func currentConsentGranted(consent *userservice.GetAgentCapabilityConsentResp) bool {

@@ -11,7 +11,7 @@ import (
 )
 
 var publicEventTypes = map[string]struct{}{
-	store.EventRunStarted: {}, store.EventToken: {}, store.EventToolCall: {},
+	store.EventRunStarted: {}, store.EventToken: {}, store.EventResponseReset: {}, store.EventToolCall: {},
 	store.EventToolResult: {}, store.EventConfirmRequired: {}, store.EventSourceCard: {},
 	store.EventMemoryChanged: {}, store.EventDone: {}, store.EventError: {},
 }
@@ -37,7 +37,7 @@ func ToPB(ev store.Event) *pb.RunEvent {
 	_ = json.Unmarshal(ev.PayloadJSON, &payload)
 	out := &pb.RunEvent{
 		RunId: ev.RunID, Seq: ev.Seq, Type: ev.Type, Text: payload.Text, Degraded: payload.Degraded,
-		ErrorCode: payload.ErrorCode, SessionId: payload.SessionID, ChangeId: payload.ChangeID,
+		ErrorCode: payload.ErrorCode, SessionId: payload.SessionID, ChangeId: payload.ChangeID, StreamId: payload.StreamID,
 	}
 	if payload.ToolCall != nil {
 		out.ToolCall = &pb.ToolCallInfo{

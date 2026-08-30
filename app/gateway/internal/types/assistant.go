@@ -34,6 +34,7 @@ type AssistantRunEvent struct {
 	ToolCall   *AssistantToolCallInfo `json:"toolCall,optional"`
 	SourceCard *AssistantSourceCard   `json:"sourceCard,optional"`
 	ChangeId   int64                  `json:"changeId,optional"`
+	StreamId   string                 `json:"streamId,optional"`
 }
 
 type AssistantRunEventsReq struct {

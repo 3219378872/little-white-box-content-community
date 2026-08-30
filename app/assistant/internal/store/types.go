@@ -34,6 +34,8 @@ const (
 
 	EventRunStarted      = "run_started"
 	EventToken           = "token"
+	EventResponseReset   = "response_reset"
+	EventProviderAttempt = "provider_attempt"
 	EventToolCall        = "tool_call"
 	EventToolResult      = "tool_result"
 	EventConfirmRequired = "confirm_required"
@@ -143,6 +145,10 @@ type Run struct {
 	InputTokens      int64
 	OutputTokens     int64
 	CacheTokens      int64
+	CacheWriteTokens int64
+	ReasoningTokens  int64
+	LastPromptTokens int64
+	UsageEstimated   bool
 	CostUSD          float64
 	StartedAtMs      int64
 	EndedAtMs        int64
@@ -170,6 +176,12 @@ type EventPayload struct {
 	ChangeID   int64      `json:"change_id,omitempty"`
 	Partial    string     `json:"partial,omitempty"`
 	Journal    string     `json:"journal,omitempty"`
+	StreamID   string     `json:"stream_id,omitempty"`
+	RouteID    string     `json:"route_id,omitempty"`
+	Attempt    int        `json:"attempt,omitempty"`
+	ErrorClass string     `json:"error_class,omitempty"`
+	StatusCode int        `json:"status_code,omitempty"`
+	Retryable  bool       `json:"retryable,omitempty"`
 }
 
 type ToolInfo struct {

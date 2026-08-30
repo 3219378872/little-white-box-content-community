@@ -142,6 +142,7 @@ message RunEvent {
   ToolCallInfo tool_call = 8;
   SourceCard source_card = 9;
   int64 change_id = 10;
+  string stream_id = 11;
 }
 
 message CancelRunReq {

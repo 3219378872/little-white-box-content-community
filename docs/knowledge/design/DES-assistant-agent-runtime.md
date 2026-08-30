@@ -84,7 +84,9 @@ parent context，避免 Stop 把收尾 SQL 一并打断。
 worker 用 `SELECT ... FOR UPDATE SKIP LOCKED` claim `queued` 或租约过期 `running` run，将租约设为 60 秒；
 独立续租循环每 10 秒 CAS `lease_owner`。每个 provider 回答、工具请求/结果、compact 和终止均作为 step
 事务提交。恢复从最后完整 step 重建 provider messages，使用 session prompt 快照与 message
-`api_content` 原字节；未完整提交的 provider 调用可重试，副作用由 journal 去重。
+`api_content` 原字节；未完整提交的 provider 调用可重试，副作用由 journal 去重。provider stream 的
+writer identity 为 run/lease/input/model-round/attempt；token 以小批次提交。重试前若已有公开 delta，
+先写 `response_reset(streamId)`，恢复时顺序重放 token/reset 后只得到获胜 attempt。
 
 用户 run 优先于 Watch、后者优先于 memory-review。claim 按 priority/created_at；前台消息可设置后台
 run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
@@ -93,22 +95,31 @@ run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
 
 每个事件先锁 run 分配 `seq=max+1` 并写 MySQL，然后 best-effort `PUBLISH assistant:run:<id>`。SSE 先按
 `Last-Event-ID` 查询 `seq > cursor`，之后通知唤醒再查询；没有通知时每秒轮询。客户端断线只结束读
-循环，不写 cancel。运行中超过 30 秒没有业务事件时 worker 写内部 heartbeat event；API 可用它维持
+循环，不写 cancel。`token` 与 `response_reset` 携带 streamId；前者追加，后者清空指定 run 的临时回答。
+运行中超过 30 秒没有业务事件时 worker 写内部 heartbeat event；API 可用它维持
 流活跃，但 thread 不渲染为消息。
 
 ## Prompt、模型与 Compact
 
-仓库 `app/assistant/agent/SOUL.md` 是 human-owned 默认温暖伙伴资产。Prompt builder 固定拼接平台安全
-规则、SOUL、Agent/tool 规则、按 target/id 排序的 MEMORY/USER、会话历史，结果与工具定义序列化后
-保存在 session。普通恢复绝不重新生成。冷对话拼接与 compact 成功提交才重写持久层快照。
+仓库 `app/assistant/agent/SOUL.md` 是 human-owned 默认温暖伙伴资产。Prompt builder 把平台安全规则、
+SOUL 与 Agent/tool 规则冻结为 system 原字节；按 target/id 排序的 MEMORY/USER 经 JSON 编码后进入独立
+`<untrusted-memory-context>` user sidecar，Go JSON 的 HTML 转义阻止条目伪造闭合标签。system、sidecar、
+工具 schema 与 provider capability 一并序列化到 session；普通恢复绝不重新生成。旧格式 snapshot 按旧
+字节恢复，冷对话拼接与 compact 成功提交才升级格式。
 
-Provider adapter 实现 Chat Completions 与 Responses 的统一 message/tool-call step。启动时执行协议能力
-检查；未能表达工具 schema/call/result 时 readiness false。旧 `LLM.ModelSmall` 删除；可选
-`BackgroundReview.Model` 只用于 memory-review，缺省主模型。
+Provider adapter 实现 Chat Completions 与 Responses 的统一 message/tool-call/stream step。route profile
+声明 WireAPI、模型、窗口、输出、流式与工具能力；启动 canary 强制调用无副作用虚拟工具。resilient
+client 将错误分类后最多三次有界抖动退避，尊重上限内 Retry-After，并只向 capability/privacy 兼容的
+route fallback。attempt 结果以内部 run event 审计，不向 SSE 暴露 provider 错误正文。
 
-token estimator 达窗口 50% 时进入 compact phase：选择最新 20% token、所有未完成 tool/confirm，以及
-当前仍在跑的 Watch run 隐藏 `watch_input` sidecar；模型生成摘要；事务提交摘要、新 prompt epoch 和
-compact 标志。提交后重新载入 SOUL、Memory 与工具快照。原 message 保留并通过 outbox 可检索。
+usage adapter 分离 input/output/cache-read/cache-write/reasoning，并按独立价格计算。可选
+`BackgroundReview.Model` 只用于 memory-review，`LLM.AuxModel` 用于 compact；缺省使用冻结主 route。
+
+compact 优先以上一次 provider prompt usage 为锚点，只估算后续新增消息；无 usage 时 ASCII 约四字符
+一 token、非 ASCII 至少一字符一 token。达到窗口 50% 后选择最新 20% token、所有未完成 tool/confirm，
+以及当前 Watch 的隐藏 `watch_input` sidecar；摘要模型接收预算内的完整消息。压缩结果必须比输入小并
+低于目标阈值，否则保留原消息并明确失败。事务成功后才提交摘要、新 prompt epoch/sidecar/capability
+快照和 compact 标志。原 message 保留并通过 outbox 可检索。
 隐藏 sidecar（工具轮与 Watch 注入）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
 
 ## Memory Review
@@ -126,10 +137,12 @@ session、recent。ES 查询必须带 userId，但仍逐条以 messageId 回源 
 
 ## 工具、Journal、确认与来源
 
-模型直接看到按 run source 裁剪的 registry，不再有 `ClassifyIntent`/`QueryPlan`/Planner。user tools 根据
-consent version；Watch 只读；review 只 Memory。每次 call 先严格 JSON schema 和 canonical JSON；有副作用
-则 reserve journal，已成功行直接回放结果，执行后在同一业务边界提交结果。create/update 继续使用下游
-幂等、revision 与 ownership。
+模型只看到 prompt epoch 冻结的 registry snapshot，不再有 `ClassifyIntent`/`QueryPlan`/Planner。单一
+metadata 声明 effect、source、consent、confirmation、availability、幂等类型与最大输出；它派生广告、
+授权、journal 与 guard。每次 call 严格拒绝未知字段和尾随 JSON，再 canonicalize；有副作用则 reserve
+journal，已成功行直接回放结果，执行后在同一业务边界提交结果。相同规范参数与规范结果/错误连续出现
+时第二次注入收敛提示，第三次以 `TOOL_NO_PROGRESS` 终止。create/update 继续使用下游幂等、revision
+与 ownership。
 
 delete_post 在执行前写数据库 confirmation，绑定 user/session/run/call/tool/digest/revision；confirm API
 使用 `pending -> approved|rejected` CAS。worker 只消费一次 approved，并在执行前复核 revision。
@@ -161,5 +174,6 @@ confirmation、compact、BM25/outbox、Watch bucket/rate、review、Redis notify
 - 纯逻辑：disposition state machine、预算、canonical digest、source handles、Memory 容量/version/undo。
 - MySQL 集成：lease crash recovery、journal、confirm CAS、event replay、compact transaction、Watch bucket。
 - Redis/ES：通知故障轮询、history rebuild/delete、user isolation 与回源剔除。
-- provider contract：Chat Completions 与 Responses 真实 tool-call fixture/readiness。
+- provider contract：Chat Completions 与 Responses 的非流式/流式 tool-call fixture、cache usage、错误分类、
+  Retry-After、fallback、canary 与跨 chunk scrub。
 - 根真实栈：授权、异步发送、断线重连、删除确认、memory-review、compact 新 epoch、history、Watch 主动消息。

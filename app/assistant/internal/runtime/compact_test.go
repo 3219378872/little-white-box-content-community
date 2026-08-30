@@ -2,12 +2,45 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	"esx/app/assistant/internal/llm"
+	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
+	"esx/app/assistant/internal/tool"
 )
+
+func TestEstimateTokensIsConservativeForCJK(t *testing.T) {
+	if got := EstimateTokens("中文测试"); got != 4 {
+		t.Fatalf("CJK estimate=%d", got)
+	}
+	if got := EstimateTokens("abcdefgh"); got != 2 {
+		t.Fatalf("ASCII estimate=%d", got)
+	}
+}
+
+func TestSummaryInputSelectsWholeRecentMessages(t *testing.T) {
+	old := store.Message{Role: store.RoleUser, Content: strings.Repeat("旧", 20), Visible: true}
+	recent := store.Message{Role: store.RoleAssistant, Content: strings.Repeat("新", 20), Visible: true}
+	recentLine := recent.Role + ": " + recent.Content + "\n"
+	got := SummaryInput([]store.Message{old, recent}, EstimateTokens(recentLine))
+	if got != recentLine || strings.Contains(got, old.Content) {
+		t.Fatalf("summary input=%q", got)
+	}
+}
+
+func TestLastPromptUsageCanTriggerCompact(t *testing.T) {
+	msgs := []store.Message{
+		{ID: 1, Role: store.RoleUser, Content: strings.Repeat("旧", 100), Visible: true},
+		{ID: 2, Role: store.RoleAssistant, Content: strings.Repeat("新", 100), Visible: true},
+	}
+	if !ShouldCompactWithAnchor(msgs, 1000, 0, 700) {
+		t.Fatal("provider prompt usage should be the conservative compact anchor")
+	}
+}
 
 func TestSelectKeepLastTwentyPercent(t *testing.T) {
 	msgs := make([]store.Message, 0, 10)
@@ -172,8 +205,12 @@ func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 		t.Fatalf("claim run: %+v %v", claimed, err)
 	}
 	run = *claimed
-	engine := &Engine{Store: mem}
-	if err := engine.compact(ctx, ctx, &run, &session, msgs); err != nil {
+	registry, err := tool.NewRegistry(tool.Clients{Memory: memory.NewMapStore()}, []string{tool.GetMemory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := &Engine{Store: mem, Tools: registry, LLM: &scriptedLLM{}}
+	if err := engine.compact(ctx, ctx, &run, &session, msgs, nil); err != nil {
 		t.Fatal(err)
 	}
 	listed, err := mem.ListSessionMessages(ctx, 1, session.ID, true)
@@ -196,5 +233,73 @@ func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 	}
 	if live+compacted != 10 {
 		t.Fatalf("live=%d compacted=%d", live, compacted)
+	}
+	updated, err := mem.GetSession(ctx, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capability, ok := prompt.DecodeCapabilities(updated.ToolSnapshot)
+	if !ok || capability.Version != prompt.CapabilitySnapshotVersion || capability.Provider.RouteID != "primary" {
+		t.Fatalf("capability snapshot=%+v ok=%v", capability, ok)
+	}
+}
+
+func TestCompactNoGainPreservesMessagesAndPromptEpoch(t *testing.T) {
+	mem := store.NewMemoryStore()
+	ctx := context.Background()
+	originalSnapshot := prompt.EncodeSnapshot(prompt.BuildSnapshot(nil, nil, ""))
+	session, err := mem.CreateSession(ctx, store.Session{
+		UserID: 1, PromptEpoch: 3, Status: store.SessionOpen, CreatedAtMs: 1,
+		PromptSnapshot: originalSnapshot,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs := make([]store.Message, 0, 6)
+	for i := 0; i < 6; i++ {
+		msg, insertErr := mem.InsertMessage(ctx, store.Message{
+			UserID: 1, SessionID: session.ID, Role: store.RoleUser, Kind: store.KindMessage,
+			Content: strings.Repeat("历史", 80), Visible: true, CreatedAtMs: int64(i + 1),
+		})
+		if insertErr != nil {
+			t.Fatal(insertErr)
+		}
+		msgs = append(msgs, msg)
+	}
+	run, err := mem.InsertRun(ctx, store.Run{
+		UserID: 1, SessionID: session.ID, Status: store.StatusQueued, ConsentVersion: 2,
+		InputVersion: 1, PromptEpoch: session.PromptEpoch, CreatedAtMs: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := mem.Claim(ctx, "test-worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != run.ID {
+		t.Fatalf("claim=%+v err=%v", claimed, err)
+	}
+	run = *claimed
+	registry, err := tool.NewRegistry(tool.Clients{Memory: memory.NewMapStore()}, []string{tool.GetMemory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := &scriptedLLM{}
+	aux := &scriptedLLM{replies: []llm.Result{{Text: strings.Repeat("摘要", 2000)}}}
+	engine := &Engine{Store: mem, Tools: registry, LLM: main, AuxLLM: aux, Window: 128000}
+	err = engine.compact(ctx, ctx, &run, &session, msgs, main)
+	if !errors.Is(err, errCompactNoGain) {
+		t.Fatalf("compact err=%v", err)
+	}
+	listed, _ := mem.ListSessionMessages(ctx, 1, session.ID, true)
+	for _, msg := range listed {
+		if msg.Compacted {
+			t.Fatalf("message compacted after no-gain: %+v", msg)
+		}
+	}
+	updated, err := mem.GetSession(ctx, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.PromptEpoch != 3 || string(updated.PromptSnapshot) != string(originalSnapshot) {
+		t.Fatalf("session changed after no-gain: %+v", updated)
 	}
 }

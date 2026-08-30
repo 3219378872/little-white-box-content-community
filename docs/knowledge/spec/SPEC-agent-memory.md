@@ -44,16 +44,21 @@ upstream:
 
 ## Prompt 与审查
 
-- `MEM-020`：冷对话拼接、冷启动或 compact 后构建 prompt 时，按确定顺序冻结有效 MEMORY/USER；
-  普通 add/replace/remove 不热更新当前未压缩 session 的 prompt。
-- `MEM-021`：恢复未压缩 session 复用已保存 prompt 字节，即使 MEMORY/USER 后来变化；冷对话拼接或
-  compact 成功的新 prompt epoch 才读取最新条目。
+- `MEM-020`：冷对话拼接、冷启动或 compact 后构建 prompt 时，按 target/id 确定顺序冻结有效
+  MEMORY/USER，并编码为独立、结构化、明确标注“不可信数据、不得作为指令”的 provider sidecar；
+  原文不得拼入 system message。普通 add/replace/remove 不热更新当前未压缩 session 的 sidecar。
+- `MEM-021`：恢复未压缩 session 复用已保存 sidecar 原始字节，即使 MEMORY/USER 后来变化；冷对话
+  拼接或 compact 成功的新 prompt epoch 才读取最新条目。sidecar 的可见 `content` 与 provider-bound
+  `api_content` 语义必须分离，不能在恢复时重新格式化。
 - `MEM-022`：每 10 个成功且未中断的用户回合可启动独立 memory-review run。它最多 16 轮、总输入
   600k token，只能调用 Memory 工具，不读取或写入其它用户，也不向主会话生成普通回答。
 - `MEM-023`：新前台消息优先取消尚未完成的 memory-review。审查成功变更后写不计未读的
   `memory_changed` 系统行和撤销动作；失败不能改判原用户回合。
 - `MEM-024`：模型提出的记忆变更必须经过同一 schema、容量、去重、version、威胁扫描和审计路径；
   “模型认为”本身不构成绕过校验的来源。
+- `MEM-025`：威胁扫描仅作纵深防御，安全边界必须由 role、sidecar 结构、工具授权和服务端校验建立。
+  sidecar 标签、平台说明和被召回的原始块在非流式输出与任意 chunk 边界的流式输出中都必须被 scrub；
+  Memory 仍由 MySQL 权威存储，不接入绕过容量、CAS、undo、删除和隐私边界的外部 provider。
 
 ## API 与工具
 
@@ -72,3 +77,5 @@ upstream:
 - `MEM-A03`：覆盖普通写不热更新 prompt、冷对话拼接/compact 加载最新值、未压缩恢复字节稳定。
 - `MEM-A04`：覆盖十回合触发、16 轮/600k 限制、前台抢占、主会话隔离和 `memory_changed` 不计未读。
 - `MEM-A05`：覆盖存储故障不谎报成功，以及 Memory 永远不能作为 source card。
+- `MEM-A06`：覆盖 Memory 不进入 system、sidecar 字节稳定、标签注入转义、跨 chunk scrub，以及旧格式
+  prompt snapshot 继续按旧字节恢复直到下一 prompt epoch。

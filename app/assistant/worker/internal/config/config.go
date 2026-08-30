@@ -8,6 +8,33 @@ import (
 
 type LLMConfig struct {
 	Enabled                        bool
+	RouteID                        string `json:",default=primary"`
+	Boundary                       string `json:",optional"`
+	WireAPI                        string `json:",default=chat_completions"`
+	Endpoint                       string
+	APIKey                         string `json:",optional"`
+	Model                          string
+	TimeoutMs                      int64            `json:",default=90000,range=[1000:600000]"`
+	MaxOutputTokens                int              `json:",default=32768,range=[1:65536]"`
+	ContextWindowTokens            int              `json:",default=128000,range=[1000:2000000]"`
+	PromptCostPerMillionTokens     float64          `json:",default=0"`
+	CompletionCostPerMillionTokens float64          `json:",default=0"`
+	CacheReadCostPerMillionTokens  float64          `json:",default=0"`
+	CacheWriteCostPerMillionTokens float64          `json:",default=0"`
+	ReasoningCostPerMillionTokens  float64          `json:",default=0"`
+	AuxModel                       string           `json:",optional"`
+	CanaryEnabled                  bool             `json:",default=true"`
+	RetryMaxAttempts               int              `json:",default=3,range=[1:3]"`
+	RetryBaseDelayMs               int64            `json:",default=250,range=[1:30000]"`
+	RetryMaxDelayMs                int64            `json:",default=5000,range=[1:60000]"`
+	RetryAfterMaxMs                int64            `json:",default=30000,range=[1:120000]"`
+	Fallbacks                      []LLMRouteConfig `json:",optional"`
+}
+
+type LLMRouteConfig struct {
+	Enabled                        bool `json:",default=true"`
+	RouteID                        string
+	Boundary                       string `json:",optional"`
 	WireAPI                        string `json:",default=chat_completions"`
 	Endpoint                       string
 	APIKey                         string `json:",optional"`
@@ -17,6 +44,9 @@ type LLMConfig struct {
 	ContextWindowTokens            int     `json:",default=128000,range=[1000:2000000]"`
 	PromptCostPerMillionTokens     float64 `json:",default=0"`
 	CompletionCostPerMillionTokens float64 `json:",default=0"`
+	CacheReadCostPerMillionTokens  float64 `json:",default=0"`
+	CacheWriteCostPerMillionTokens float64 `json:",default=0"`
+	ReasoningCostPerMillionTokens  float64 `json:",default=0"`
 }
 
 type SafetyConfig struct {

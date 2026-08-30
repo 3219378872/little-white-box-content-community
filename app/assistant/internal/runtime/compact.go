@@ -1,29 +1,67 @@
 package runtime
 
 import (
+	"strings"
+
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
-	"unicode/utf8"
 )
 
 func EstimateTokens(text string) int {
-	n := utf8.RuneCountInString(text)
-	if n <= 0 {
+	ascii := 0
+	nonASCII := 0
+	for _, r := range text {
+		if r <= 0x7f {
+			ascii++
+		} else {
+			nonASCII++
+		}
+	}
+	if ascii == 0 && nonASCII == 0 {
 		return 0
 	}
-	est := (n + 3) / 4
+	est := (ascii+3)/4 + nonASCII
 	if est < 1 {
 		return 1
 	}
 	return est
 }
 
+func SummaryInput(messages []store.Message, budgetTokens int) string {
+	if budgetTokens <= 0 {
+		return ""
+	}
+	selected := make([]string, 0, len(messages))
+	used := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		if !msg.Visible || msg.DeletedAtMs != 0 || msg.Compacted {
+			continue
+		}
+		line := msg.Role + ": " + msg.Content + "\n"
+		cost := EstimateTokens(line)
+		if cost > budgetTokens || used+cost > budgetTokens {
+			continue
+		}
+		selected = append([]string{line}, selected...)
+		used += cost
+	}
+	return strings.Join(selected, "")
+}
+
 func ShouldCompact(messages []store.Message, windowTokens int, runID int64) bool {
+	return ShouldCompactWithAnchor(messages, windowTokens, runID, 0)
+}
+
+func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, runID int64, lastPromptTokens int64) bool {
 	if windowTokens <= 0 {
 		windowTokens = 128000
 	}
 	live := liveMessages(messages)
 	total := EstimateMessageTokens(live)
+	if lastPromptTokens > int64(total) {
+		total = int(lastPromptTokens)
+	}
 	if total < windowTokens/2 {
 		return false
 	}
@@ -41,6 +79,14 @@ func EstimateMessageTokens(messages []store.Message) int {
 			continue
 		}
 		total += estimateStoredTokens(msg)
+	}
+	return total
+}
+
+func EstimatePromptTokens(turns []prompt.Turn) int {
+	total := 0
+	for _, turn := range turns {
+		total += EstimateTokens(string(prompt.EncodeTurn(turn)))
 	}
 	return total
 }

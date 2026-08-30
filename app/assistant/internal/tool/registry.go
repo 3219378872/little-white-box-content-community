@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
 	"strings"
+	"unicode/utf8"
 
 	"esx/app/assistant/internal/canonical"
 	"esx/app/assistant/internal/memory"
@@ -65,6 +68,15 @@ const (
 	maxPostImages                 = 9
 	publishedPostStatus     int32 = 1
 	commentActiveStatus     int32 = 1
+	defaultMaxResultBytes         = 32 << 10
+)
+
+const (
+	EffectRead  = "read"
+	EffectWrite = "write"
+
+	IdempotencyNone    = "none"
+	IdempotencyRequest = "request"
 )
 
 func Version1Tools() []string {
@@ -129,39 +141,56 @@ type Definition struct {
 	Name        string
 	Description string
 	Parameters  map[string]any
-	HighRisk    bool
+	Metadata    Metadata
 	executor    executorFunc
 	prepare     prepareFunc
 }
+
+type Metadata struct {
+	Effect         string
+	Sources        []string
+	MinConsent     int32
+	Confirmation   bool
+	Available      bool
+	Idempotency    string
+	MaxResultBytes int
+	Poller         bool
+}
+
+type UnavailableError struct {
+	Tool string
+}
+
+func (e *UnavailableError) Error() string { return "agent tool is unavailable" }
 
 type executorFunc func(ctx context.Context, session *Session, callID, argsJSON string) (string, []store.SourceRef, error)
 type prepareFunc func(ctx context.Context, session *Session, argsJSON string) (string, error)
 
 type Registry struct {
-	definitions []Definition
-	executors   map[string]executorFunc
-	highRisk    map[string]struct{}
-	preparers   map[string]prepareFunc
-	allowed     map[string]struct{}
-	store       store.Store
+	definitions       []Definition
+	frozenDefinitions []prompt.ToolDef
+	frozen            bool
+	executors         map[string]executorFunc
+	preparers         map[string]prepareFunc
+	metadata          map[string]Metadata
+	allowed           map[string]struct{}
+	store             store.Store
 }
 
 func NewRegistry(clients Clients, allowed []string) (*Registry, error) {
 	defs := allDefinitions(clients)
 	reg := &Registry{
 		executors: make(map[string]executorFunc, len(defs)),
-		highRisk:  map[string]struct{}{},
 		preparers: map[string]prepareFunc{},
+		metadata:  map[string]Metadata{},
 		allowed:   map[string]struct{}{},
 		store:     clients.Store,
 	}
 	for _, def := range defs {
 		reg.executors[def.Name] = def.executor
+		reg.metadata[def.Name] = def.Metadata
 		if def.prepare != nil {
 			reg.preparers[def.Name] = def.prepare
-		}
-		if def.HighRisk {
-			reg.highRisk[def.Name] = struct{}{}
 		}
 		if len(allowed) == 0 {
 			reg.allowed[def.Name] = struct{}{}
@@ -190,27 +219,42 @@ func (r *Registry) Restrict(names []string) *Registry {
 			allowed[name] = struct{}{}
 		}
 	}
-	if len(allowed) == 0 {
+	return &Registry{
+		definitions: r.definitions, frozenDefinitions: filterFrozenDefinitions(r.frozenDefinitions, allowed),
+		frozen: r.frozen, executors: r.executors, preparers: r.preparers, metadata: r.metadata, allowed: allowed, store: r.store,
+	}
+}
+
+func (r *Registry) ResolveDefinitions(defs []prompt.ToolDef) *Registry {
+	if r == nil {
 		return nil
 	}
-	return &Registry{definitions: r.definitions, executors: r.executors, preparers: r.preparers, highRisk: r.highRisk, allowed: allowed, store: r.store}
+	allowed := make(map[string]struct{}, len(defs))
+	for _, def := range defs {
+		if strings.TrimSpace(def.Name) != "" {
+			allowed[def.Name] = struct{}{}
+		}
+	}
+	return &Registry{
+		definitions: r.definitions, frozenDefinitions: append([]prompt.ToolDef(nil), defs...),
+		frozen: true, executors: r.executors, preparers: r.preparers, metadata: r.metadata, allowed: allowed, store: r.store,
+	}
 }
 
 func (r *Registry) Prepare(ctx context.Context, session *Session, name, argsJSON string) (string, error) {
 	argsJSON = canonical.UnwrapArgsJSON(argsJSON)
-	if r == nil || !r.Has(name) {
+	if r == nil || !r.Has(name) || !r.currentlyAuthorized(session, name) {
 		return "", errx.New(errx.PermissionDenied, "agent tool is not allowed")
+	}
+	canonicalArgs, err := r.validateArguments(name, argsJSON)
+	if err != nil {
+		return "", errx.New(errx.ParamError, "tool arguments are invalid")
 	}
 	prepare := r.preparers[name]
 	if prepare == nil {
-		var generic any
-		if err := json.Unmarshal([]byte(argsJSON), &generic); err != nil {
-			return "", errx.New(errx.ParamError, "tool arguments are invalid")
-		}
-		raw, err := canonical.JSON(generic)
-		return string(raw), err
+		return canonicalArgs, nil
 	}
-	return prepare(ctx, session, argsJSON)
+	return prepare(ctx, session, canonicalArgs)
 }
 
 func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry {
@@ -221,14 +265,38 @@ func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry
 }
 
 func ForSource(registry *Registry, source string, consentVersion int32) *Registry {
-	switch source {
-	case store.SourceWatch:
-		return registry.Restrict(WatchTools())
-	case store.SourceMemoryReview:
-		return registry.Restrict(ReviewTools())
-	default:
-		return RestrictToolsForConsent(registry, consentVersion)
+	if registry == nil {
+		return nil
 	}
+	if registry.frozen {
+		names := make([]string, 0, len(registry.frozenDefinitions))
+		for _, def := range registry.frozenDefinitions {
+			if _, configured := registry.allowed[def.Name]; !configured {
+				continue
+			}
+			if len(def.Sources) == 0 {
+				meta, ok := registry.metadata[def.Name]
+				if ok && consentVersion >= meta.MinConsent && containsString(meta.Sources, source) {
+					names = append(names, def.Name)
+				}
+				continue
+			}
+			if consentVersion >= def.MinConsent && containsString(def.Sources, source) {
+				names = append(names, def.Name)
+			}
+		}
+		return registry.Restrict(names)
+	}
+	names := make([]string, 0, len(registry.metadata))
+	for name, meta := range registry.metadata {
+		if !meta.Available || consentVersion < meta.MinConsent || !containsString(meta.Sources, source) {
+			continue
+		}
+		if _, configured := registry.allowed[name]; configured {
+			names = append(names, name)
+		}
+	}
+	return registry.Restrict(names)
 }
 
 func (r *Registry) Has(name string) bool {
@@ -243,43 +311,329 @@ func (r *Registry) HighRisk(name string) bool {
 	if r == nil {
 		return false
 	}
-	_, ok := r.highRisk[name]
-	return ok
+	current := r.metadata[name].Confirmation
+	frozen, ok := r.frozenMetadata(name)
+	return current || (ok && frozen.Confirmation)
+}
+
+func (r *Registry) SideEffect(name string) bool {
+	if r == nil {
+		return false
+	}
+	current := r.metadata[name].Effect == EffectWrite
+	frozen, ok := r.frozenMetadata(name)
+	return current || (ok && frozen.Effect == EffectWrite)
+}
+
+func (r *Registry) Poller(name string) bool {
+	if r == nil || !r.metadata[name].Poller {
+		return false
+	}
+	frozen, ok := r.frozenMetadata(name)
+	return !ok || frozen.Poller
+}
+
+func (r *Registry) Metadata(name string) (Metadata, bool) {
+	if r == nil {
+		return Metadata{}, false
+	}
+	meta, ok := r.metadata[name]
+	return meta, ok
 }
 
 func (r *Registry) Definitions() []prompt.ToolDef {
 	if r == nil {
 		return nil
 	}
+	if r.frozen {
+		return filterFrozenDefinitions(r.frozenDefinitions, r.allowed)
+	}
 	out := make([]prompt.ToolDef, 0)
 	for _, def := range r.definitions {
 		if _, ok := r.allowed[def.Name]; !ok {
 			continue
 		}
-		out = append(out, prompt.ToolDef{Name: def.Name, Description: def.Description, Parameters: def.Parameters})
+		meta := def.Metadata
+		if !meta.Available {
+			continue
+		}
+		out = append(out, prompt.ToolDef{
+			Name: def.Name, Description: def.Description, Parameters: def.Parameters,
+			Effect: meta.Effect, Sources: append([]string(nil), meta.Sources...), MinConsent: meta.MinConsent,
+			Confirmation: meta.Confirmation, Idempotency: meta.Idempotency,
+			MaxResultBytes: meta.MaxResultBytes, Poller: meta.Poller,
+		})
 	}
 	return out
 }
 
 func (r *Registry) Call(ctx context.Context, session *Session, name, callID, argsJSON string) (string, []store.SourceRef, error) {
-	if !r.Has(name) {
+	if !r.Has(name) || !r.currentlyAuthorized(session, name) {
 		return "", nil, errx.New(errx.PermissionDenied, "agent tool is not allowed")
 	}
+	if _, err := r.validateArguments(name, argsJSON); err != nil {
+		return "", nil, errx.New(errx.ParamError, "tool arguments are invalid")
+	}
+	meta, metaOK := r.metadata[name]
 	handle, ok := r.executors[name]
-	if !ok {
-		return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
+	if !ok || !metaOK || !meta.Available || handle == nil {
+		return unavailableResult(name), nil, &UnavailableError{Tool: name}
 	}
 	text, sources, err := handle(ctx, session, callID, argsJSON)
 	if err != nil {
 		return "", nil, err
 	}
+	limit := r.resultLimit(name, meta.MaxResultBytes)
 	if name == PresentSources {
-		return text, sources, nil
+		return limitResult(text, limit), sources, nil
 	}
 	if len(sources) > 0 && r.store != nil && session != nil {
 		text = r.bindSources(ctx, session, sources, text)
 	}
-	return text, nil, nil
+	return limitResult(text, limit), nil, nil
+}
+
+// validateArguments applies the frozen tool schema before any executor sees
+// model-controlled JSON. Executors still decode into their concrete structs,
+// but this central gate guarantees unknown fields, trailing values and basic
+// type mismatches are handled consistently for every tool.
+func (r *Registry) validateArguments(name, raw string) (string, error) {
+	if r == nil {
+		return "", fmt.Errorf("nil tool registry")
+	}
+	raw = canonical.UnwrapArgsJSON(raw)
+	if raw == "" {
+		raw = "{}"
+	}
+	value, err := decodeStrictValue(raw)
+	if err != nil {
+		return "", err
+	}
+	definition, ok := r.definition(name)
+	if !ok {
+		return "", fmt.Errorf("unknown tool %q", name)
+	}
+	if err := validateSchemaValue(value, definition.Parameters, "$"); err != nil {
+		return "", err
+	}
+	// A recovered run uses the schema captured in its prompt epoch. Validate
+	// against the current definition as well so removed fields cannot silently
+	// reach a newer executor implementation.
+	for _, frozen := range r.frozenDefinitions {
+		if frozen.Name != name || reflect.DeepEqual(frozen.Parameters, definition.Parameters) {
+			continue
+		}
+		if err := validateSchemaValue(value, frozen.Parameters, "$"); err != nil {
+			return "", err
+		}
+	}
+	canonicalValue, err := canonical.JSON(value)
+	if err != nil {
+		return "", err
+	}
+	return string(canonicalValue), nil
+}
+
+func (r *Registry) definition(name string) (Definition, bool) {
+	for _, definition := range r.definitions {
+		if definition.Name == name {
+			return definition, true
+		}
+	}
+	return Definition{}, false
+}
+
+func decodeStrictValue(raw string) (any, error) {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("trailing JSON value")
+		}
+		return nil, err
+	}
+	return value, nil
+}
+
+func validateSchemaValue(value any, schema map[string]any, path string) error {
+	if schema == nil {
+		return nil
+	}
+	typeName, _ := schema["type"].(string)
+	switch typeName {
+	case "object":
+		object, ok := value.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s must be an object", path)
+		}
+		properties := schemaProperties(schema["properties"])
+		for key, item := range object {
+			property, exists := properties[key]
+			if !exists {
+				return fmt.Errorf("%s.%s is not allowed", path, key)
+			}
+			propertySchema, ok := property.(map[string]any)
+			if !ok {
+				return fmt.Errorf("%s.%s has an invalid schema", path, key)
+			}
+			if err := validateSchemaValue(item, propertySchema, path+"."+key); err != nil {
+				return err
+			}
+		}
+		for _, required := range schemaRequired(schema["required"]) {
+			if _, exists := object[required]; !exists {
+				return fmt.Errorf("%s.%s is required", path, required)
+			}
+		}
+	case "array":
+		array, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("%s must be an array", path)
+		}
+		itemSchema, _ := schema["items"].(map[string]any)
+		for index, item := range array {
+			if err := validateSchemaValue(item, itemSchema, fmt.Sprintf("%s[%d]", path, index)); err != nil {
+				return err
+			}
+		}
+	case "string":
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("%s must be a string", path)
+		}
+	case "integer":
+		if !isJSONInteger(value) {
+			return fmt.Errorf("%s must be an integer", path)
+		}
+	case "boolean":
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("%s must be a boolean", path)
+		}
+	case "number":
+		if !isJSONNumber(value) {
+			return fmt.Errorf("%s must be a number", path)
+		}
+	}
+	if enum, ok := schema["enum"]; ok && !enumContains(enum, value) {
+		return fmt.Errorf("%s has an invalid value", path)
+	}
+	return nil
+}
+
+func schemaProperties(raw any) map[string]any {
+	if properties, ok := raw.(map[string]any); ok {
+		return properties
+	}
+	return map[string]any{}
+}
+
+func schemaRequired(raw any) []string {
+	switch values := raw.(type) {
+	case []string:
+		return values
+	case []any:
+		out := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				out = append(out, text)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func isJSONInteger(value any) bool {
+	number, ok := value.(json.Number)
+	if !ok {
+		return false
+	}
+	_, err := number.Int64()
+	return err == nil
+}
+
+func isJSONNumber(value any) bool {
+	if number, ok := value.(json.Number); ok {
+		_, err := number.Float64()
+		return err == nil
+	}
+	return false
+}
+
+func enumContains(raw, value any) bool {
+	switch values := raw.(type) {
+	case []string:
+		text, ok := value.(string)
+		if !ok {
+			return false
+		}
+		for _, candidate := range values {
+			if candidate == text {
+				return true
+			}
+		}
+	case []any:
+		for _, candidate := range values {
+			if fmt.Sprint(candidate) == fmt.Sprint(value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *Registry) currentlyAuthorized(session *Session, name string) bool {
+	if r == nil {
+		return false
+	}
+	meta, ok := r.metadata[name]
+	if !ok {
+		return false
+	}
+	source := store.SourceUser
+	consent := CurrentConsentVersion
+	if session != nil {
+		if strings.TrimSpace(session.Source) != "" {
+			source = session.Source
+		}
+		if session.ConsentVersion > 0 {
+			consent = session.ConsentVersion
+		}
+	}
+	return consent >= meta.MinConsent && containsString(meta.Sources, source)
+}
+
+func (r *Registry) frozenMetadata(name string) (Metadata, bool) {
+	if r == nil || !r.frozen {
+		return Metadata{}, false
+	}
+	for _, def := range r.frozenDefinitions {
+		if def.Name != name {
+			continue
+		}
+		return Metadata{
+			Effect: def.Effect, Sources: append([]string(nil), def.Sources...), MinConsent: def.MinConsent,
+			Confirmation: def.Confirmation, Idempotency: def.Idempotency,
+			MaxResultBytes: def.MaxResultBytes, Poller: def.Poller,
+		}, true
+	}
+	return Metadata{}, false
+}
+
+func (r *Registry) resultLimit(name string, current int) int {
+	frozen, ok := r.frozenMetadata(name)
+	if !ok || frozen.MaxResultBytes <= 0 {
+		return current
+	}
+	if current <= 0 || frozen.MaxResultBytes < current {
+		return frozen.MaxResultBytes
+	}
+	return current
 }
 
 func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) string {
@@ -330,9 +684,17 @@ func strictUnmarshal(raw string, target any) error {
 		raw = "{}"
 	}
 	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.UseNumber()
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(target); err != nil {
-		return json.Unmarshal([]byte(raw), target)
+		return err
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("tool arguments contain a trailing JSON value")
+		}
+		return err
 	}
 	return nil
 }
@@ -357,7 +719,7 @@ func CanonicalDigest(argsJSON string) (string, error) {
 }
 
 func allDefinitions(clients Clients) []Definition {
-	return []Definition{
+	defs := []Definition{
 		{Name: SearchPosts, Description: "搜索站内已发布帖子。结果以 source handle 返回。", Parameters: objectSchema(map[string]any{
 			"keyword": map[string]any{"type": "string"}, "page": map[string]any{"type": "integer"},
 			"page_size": map[string]any{"type": "integer"}, "tags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
@@ -405,7 +767,7 @@ func allDefinitions(clients Clients) []Definition {
 			"image_media_ids": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
 			"status":          map[string]any{"type": "integer"}, "expected_revision": map[string]any{"type": "integer"},
 		}, []string{"post_id"}), executor: updatePostExecutor(clients.Content, clients.Media), prepare: postRevisionPreparer(clients.Content)},
-		{Name: DeletePost, Description: "删除本人帖子，执行前需用户逐次确认。", HighRisk: true, Parameters: objectSchema(map[string]any{
+		{Name: DeletePost, Description: "删除本人帖子，执行前需用户逐次确认。", Parameters: objectSchema(map[string]any{
 			"post_id": map[string]any{"type": "integer"}, "expected_revision": map[string]any{"type": "integer"},
 		}, []string{"post_id"}), executor: deletePostExecutor(clients.Content), prepare: postRevisionPreparer(clients.Content)},
 		{Name: SearchHistory, Description: "在当前用户 Assistant 历史中做 BM25 召回。shape=keywords|around|session|recent。", Parameters: objectSchema(map[string]any{
@@ -416,6 +778,156 @@ func allDefinitions(clients Clients) []Definition {
 			"handles": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		}, []string{"handles"}), executor: presentSourcesExecutor(clients)},
 	}
+	decorateDefinitions(defs, clients)
+	return defs
+}
+
+func decorateDefinitions(defs []Definition, clients Clients) {
+	writeTools := stringSet(CreatePost, UpdatePost, DeletePost, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory,
+		CreateWatchTask, UpdateWatchTask, DeleteWatchTask)
+	versionOne := stringSet(Version1Tools()...)
+	watchTools := stringSet(WatchTools()...)
+	reviewTools := stringSet(ReviewTools()...)
+	for i := range defs {
+		def := &defs[i]
+		meta := Metadata{
+			Effect: EffectRead, Sources: []string{store.SourceUser}, MinConsent: CurrentConsentVersion,
+			Available: definitionAvailable(def.Name, clients), Idempotency: IdempotencyNone,
+			MaxResultBytes: defaultMaxResultBytes,
+		}
+		if _, ok := writeTools[def.Name]; ok {
+			meta.Effect = EffectWrite
+			meta.Idempotency = IdempotencyRequest
+		}
+		if _, ok := versionOne[def.Name]; ok {
+			meta.MinConsent = 1
+		}
+		if _, ok := watchTools[def.Name]; ok {
+			meta.Sources = append(meta.Sources, store.SourceWatch)
+		}
+		if _, ok := reviewTools[def.Name]; ok {
+			meta.Sources = append(meta.Sources, store.SourceMemoryReview)
+		}
+		meta.Confirmation = def.Name == DeletePost
+		def.Metadata = meta
+	}
+}
+
+func definitionAvailable(name string, clients Clients) bool {
+	switch name {
+	case SearchPosts:
+		return nonNil(clients.Search) && nonNil(clients.Content)
+	case SearchUsers, SearchTags:
+		return nonNil(clients.Search)
+	case GetPost, GetPostComments, ComparePosts, GetMyPosts, UpdatePost, DeletePost:
+		return nonNil(clients.Content)
+	case GetMemory, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory:
+		return nonNil(clients.Memory)
+	case RecommendPosts, SimilarPosts:
+		return nonNil(clients.Recommend) && nonNil(clients.Content)
+	case GetMyFavorites, GetMyLikes:
+		return nonNil(clients.Interaction) && nonNil(clients.Content)
+	case GetMyFollowing:
+		return nonNil(clients.User)
+	case ListWatchTasks, UpdateWatchTask, DeleteWatchTask:
+		return nonNil(clients.Watch)
+	case CreateWatchTask:
+		return nonNil(clients.Watch)
+	case WebSearch:
+		return nonNil(clients.Web)
+	case CreatePost:
+		return nonNil(clients.Content) && nonNil(clients.Media)
+	case SearchHistory:
+		return nonNil(clients.History)
+	case PresentSources:
+		return nonNil(clients.Store) && nonNil(clients.Content)
+	default:
+		return false
+	}
+}
+
+func nonNil(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return !rv.IsNil()
+	default:
+		return true
+	}
+}
+
+func unavailableResult(name string) string {
+	raw, _ := json.Marshal(map[string]any{
+		"ok":    false,
+		"error": map[string]any{"code": "TOOL_UNAVAILABLE", "tool": name, "message": "工具当前不可用，请改用其它能力或直接说明限制。"},
+	})
+	return string(raw)
+}
+
+func limitResult(text string, limit int) string {
+	if limit <= 0 {
+		limit = defaultMaxResultBytes
+	}
+	if len(text) <= limit {
+		return text
+	}
+	const reserve = 256
+	maxText := limit - reserve
+	if maxText < 0 {
+		maxText = 0
+	}
+	truncated := truncateUTF8Bytes(text, maxText)
+	raw, _ := json.Marshal(map[string]any{
+		"ok": true, "truncated": true, "original_bytes": len(text), "text": truncated,
+	})
+	if len(raw) <= limit {
+		return string(raw)
+	}
+	return `{"ok":true,"truncated":true,"text":""}`
+}
+
+func truncateUTF8Bytes(text string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	if len(text) <= limit {
+		return text
+	}
+	text = text[:limit]
+	for !utf8.ValidString(text) {
+		text = text[:len(text)-1]
+	}
+	return text
+}
+
+func filterFrozenDefinitions(defs []prompt.ToolDef, allowed map[string]struct{}) []prompt.ToolDef {
+	out := make([]prompt.ToolDef, 0, len(defs))
+	for _, def := range defs {
+		if _, ok := allowed[def.Name]; ok {
+			out = append(out, def)
+		}
+	}
+	return out
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func stringSet(values ...string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		out[value] = struct{}{}
+	}
+	return out
 }
 
 func objectSchema(properties map[string]any, required []string) map[string]any {

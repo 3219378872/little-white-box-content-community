@@ -1,10 +1,12 @@
 package canonical
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -14,8 +16,8 @@ func JSON(v any) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("canonical json: %w", err)
 	}
-	var generic any
-	if err := json.Unmarshal(raw, &generic); err != nil {
+	generic, err := decodeJSON(raw)
+	if err != nil {
 		return nil, fmt.Errorf("canonical json decode: %w", err)
 	}
 	out, err := json.Marshal(generic)
@@ -65,9 +67,29 @@ func DigestArgs(raw string) (string, error) {
 	if raw == "" {
 		raw = "{}"
 	}
-	var generic any
-	if err := json.Unmarshal([]byte(raw), &generic); err != nil {
+	generic, err := decodeJSON([]byte(raw))
+	if err != nil {
 		return "", fmt.Errorf("canonical args: %w", err)
 	}
 	return DigestSHA256(generic)
+}
+
+// decodeJSON keeps integer lexemes as json.Number. Decoding through the
+// default interface path would round large snowflake IDs through float64 and
+// make retries hash a different command than the original request.
+func decodeJSON(raw []byte) (any, error) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("trailing JSON value")
+		}
+		return nil, err
+	}
+	return value, nil
 }

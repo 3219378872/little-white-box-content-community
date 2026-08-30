@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"esx/app/assistant/internal/llm"
+	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 )
@@ -15,16 +16,18 @@ func (e *Engine) completeModelText(ctx context.Context, run store.Run, result ll
 	text := result.Text
 	switch run.Source {
 	case store.SourceWatch:
-		return e.completeWatch(ctx, run, text, result.Raw)
+		return e.completeWatchWithStream(ctx, run, text,
+			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
 	case store.SourceMemoryReview:
 		return e.completeMemoryReview(ctx, run)
 	default:
-		return e.finishWithMessage(ctx, run, store.StatusDone, store.EventDone,
-			store.EventPayload{Text: text}, text, result.Raw)
+		return e.finishWithMessageEvent(ctx, run, store.StatusDone, store.EventDone,
+			store.EventPayload{Text: text, StreamID: result.StreamID}, text,
+			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
 	}
 }
 
-func (e *Engine) completeWatch(ctx context.Context, run store.Run, text string, apiContent []byte) error {
+func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, text string, apiContent []byte, emitToken bool, streamID string) error {
 	payload := decodeWatchRunPayload(run.QueuedPayload)
 	if payload.BucketID <= 0 {
 		return e.fail(ctx, run, "WATCH_BUCKET_MISSING", "watch delivery bucket is missing")
@@ -32,8 +35,8 @@ func (e *Engine) completeWatch(ctx context.Context, run store.Run, text string, 
 	taskIDs := e.watchTaskIDs(ctx, run, payload)
 	now := store.NowMs()
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
-		if text != "" {
-			if _, err := appendEventTx(ctx, tx, run, store.EventToken, store.EventPayload{Text: text}, now); err != nil {
+		if text != "" && emitToken {
+			if _, err := appendEventTx(ctx, tx, run, store.EventToken, store.EventPayload{Text: text, StreamID: streamID}, now); err != nil {
 				return err
 			}
 		}
@@ -72,7 +75,7 @@ func (e *Engine) completeWatch(ctx context.Context, run store.Run, text string, 
 				return err
 			}
 		}
-		_, finishErr := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text}, now)
+		_, finishErr := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text, StreamID: streamID}, now)
 		return finishErr
 	})
 	if err != nil {
