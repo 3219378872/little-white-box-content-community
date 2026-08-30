@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -58,5 +59,36 @@ func TestWatchTerminalCommitMarksBucketAndDailyStat(t *testing.T) {
 	count, err := mem.CountSent(ctx, 7, 0, "day", dayStart)
 	if err != nil || count != 1 {
 		t.Fatalf("daily count=%d err=%v", count, err)
+	}
+}
+
+func TestWatchCancellationStillTerminatesAfterBucketWasReturned(t *testing.T) {
+	ctx := context.Background()
+	mem := store.NewMemoryStore()
+	now := store.NowMs()
+	bucket, err := mem.UpsertDeliveryBucket(ctx, 7, 101, now-watchWindow.Milliseconds(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds()); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]any{"bucket_id": bucket.ID, "hit_ids": []int64{101}})
+	queued, err := mem.InsertRun(ctx, store.Run{UserID: 7, SessionID: 1, RequestID: "watch-cancel", Source: store.SourceWatch,
+		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 2, InputVersion: 1, QueuedPayload: payload, CreatedAtMs: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := mem.Claim(ctx, "worker", now, 60_000)
+	if err != nil || run == nil || run.ID != queued.ID {
+		t.Fatalf("claim=%+v err=%v", run, err)
+	}
+	engine := &Engine{Store: mem}
+	if err := engine.cancel(ctx, *run); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := mem.GetRun(ctx, run.ID)
+	if err != nil || fresh.Status != store.StatusCancelled {
+		t.Fatalf("run=%+v err=%v", fresh, err)
 	}
 }

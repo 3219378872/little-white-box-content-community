@@ -1171,9 +1171,11 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 		return err
 	}
 	if bucket == nil {
-		return sqlx.ErrNotFound
+		// A user Stop/foreground message may have already returned this bucket
+		// to pending. That is a valid terminal cleanup outcome for the run.
+		return nil
 	}
-	if bucket.Status == "sent" {
+	if bucket.Status == "sent" || bucket.Status == "pending" || bucket.Status == "deferred" {
 		return nil
 	}
 	if bucket.Status != "scheduled" {

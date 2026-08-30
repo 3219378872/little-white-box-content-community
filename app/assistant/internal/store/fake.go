@@ -936,11 +936,14 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	bucket, ok := m.buckets[id]
-	if !ok || bucket.UserID != userID || bucket.RunID != runID {
+	if !ok || bucket.UserID != userID {
 		return sqlx.ErrNotFound
 	}
-	if bucket.Status == "sent" {
+	if bucket.Status == "sent" || bucket.Status == "pending" || bucket.Status == "deferred" {
 		return nil
+	}
+	if bucket.RunID != runID {
+		return sqlx.ErrNotFound
 	}
 	if bucket.Status != "scheduled" {
 		return errors.New("watch bucket is not scheduled")
