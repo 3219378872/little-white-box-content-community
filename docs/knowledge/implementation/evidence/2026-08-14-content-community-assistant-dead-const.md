@@ -13,10 +13,12 @@ result: passed
 
 ## 本批次改动
 
-- `app/assistant/rpc/internal/tool/registry.go`：删除 `Name.User`（`"user"`）
+- 当时的 Assistant tool registry 删除 `Name.User`（`"user"`）
   常量。`NewRegistry` 只注册 `search`/`content`/`recommend` 三个工具，
   `user` 从未实现且全仓（含测试）零引用；`AllowedTools` 配置也不包含
   `user`。
+
+该实现路径已随 Hermes 异步迁移移除；本文件只保留历史清理记录。
 
 ## 审查证据（本轮复查）
 

@@ -20,9 +20,11 @@ result: passed
 
 ## 修复
 
-- `app/assistant/rpc/internal/logic/chat_logic.go`：新增 `sendEvidenceDegraded`——持久化证据摘要
-  与来源，流式发送：证据摘要 TOKEN 片段 + SOURCE 来源引用 + 降级
+- 当时的同步 Assistant chat logic 新增 `sendEvidenceDegraded`，持久化证据摘要
+  与来源并流式发送：证据摘要 TOKEN 片段 + SOURCE 来源引用 + 降级
   ERROR 结束事件（ASST-022 协议：失败以唯一降级事件结束）。
+
+该实现路径已随 Hermes 异步迁移移除；本文件只保留历史结果，不作为当前代码证据。
 
 ## 测试
 

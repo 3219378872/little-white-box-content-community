@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-29
-verified_commit: task/agent-tool-context
+verified_commit: de258c24d64894d5c0e462540c3d9262b3026639
 commands:
   - go test ./app/assistant/internal/canonical ./app/assistant/internal/llm ./app/assistant/internal/prompt ./app/assistant/internal/runtime ./app/assistant/internal/tool
   - go test ./app/assistant/...

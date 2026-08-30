@@ -20,11 +20,13 @@ result: passed
 
 ## 修复
 
-- `app/assistant/rpc/internal/store/state.go`：`ConversationStore` 新增
-  `RemoveUnavailableSourceTitles`；RedisState 以 Lua 脚本遍历会话消息，
+- 当时的 Assistant Redis `ConversationStore` 新增 `RemoveUnavailableSourceTitles`，
+  以 Lua 脚本遍历会话消息，
   将不可用 post 来源的 `title`/`snippet` 置空（来源 id 保留用于标记）。
-- `app/assistant/rpc/internal/logic/chat_logic.go`：`verifyHistoricalSources` 检测到不可用来源后
+- 当时的同步 chat logic 在 `verifyHistoricalSources` 检测到不可用来源后
   实际调用清理，再发警告。
+
+这些实现路径已随 Hermes 异步迁移移除；本文件只保留历史结果，不作为当前代码证据。
 
 ## 测试
 

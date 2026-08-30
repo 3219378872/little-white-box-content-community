@@ -46,20 +46,20 @@ tracks:
   - deploy/sql/xbh_assistant.sql
   - deploy/sql/patches/20260827_assistant_runtime.sql
   - deploy/sql/patches/20260827_agent_consent_version.sql
+  - deploy/sql/patches/20260830_assistant_message_change_id.sql
+  - deploy/sql/patches/20260830_watch_bucket_not_before.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
-verified_at: 2026-08-28
-verified_commit: 648360f48c25283bf283406744ec80661c4db39c
+verified_at: 2026-08-30
+verified_commit: 7dc602795fee18182105d67e3e0f5f32e85f38d5
 ---
 
 # 小白盒内容社区后端实现映射
 
-本页记录已批准规范到代码实现的映射与逐条状态。现有 Assistant/Agent、Memory 和 Watch
-表格是 2026-08-28 之前同步实现的历史快照；其中 `SPEC-grounded-assistant`、
-`SPEC-assistant-agent-mode` 及其 ASST/AGNT/MEM/WCH 条款已由 Hermes 规范退休，不再是当前
-产品约束。`SPEC-assistant-agent` 的持久异步 worker、虚拟线程、compact、BM25、source
-ledger 和主动 Watch 消息尚未实现或验证，故本页继续保持 `diverged`，不得把下方旧表格当作
-新契约的完成证据。
+本页记录已批准规范到代码实现的映射与逐条状态。`SPEC-grounded-assistant` 与
+`SPEC-assistant-agent-mode` 已由 Hermes 规范退休，其历史 ASST/AGNT 条目不再代表当前产品约束。
+持久异步 worker、虚拟线程和相关存储已落地，但 2026-08-30 复查证实部分早期 `aligned` 结论超前；
+本页按当前源码、契约、SQL 和实际测试重新区分 `aligned` 与 `partial`。
 设计见 [DES-content-community-backend](../design/DES-content-community-backend.md)
 与 [DES-assistant-agent-runtime](../design/DES-assistant-agent-runtime.md)；
 源码、`.api`、`.proto`、SQL 与测试高于本页。
@@ -154,6 +154,11 @@ Watch 内部 bucket）。仍偏离处：
 | DISC-062 学习模型门槛 | aligned | 未达 1 万曝光/1 千身份，不宣称学习改善 |
 | DISC-063 推荐相对提升 | partial | 规则基线相对提升 0，如实未达标 |
 
+## SPEC-grounded-assistant 追踪
+
+`SPEC-grounded-assistant` 已退休，由 `SPEC-assistant-agent` 接替。本节仅保留 heading 供知识迁移
+完整性检查定位；旧 ASST 条款不得作为当前能力验收结论。
+
 ## SPEC-assistant-agent 追踪
 
 已 retired 的 `SPEC-grounded-assistant` / `SPEC-assistant-agent-mode` 不再作为当前约束。
@@ -165,32 +170,33 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-002 无 mode 开关 | aligned | `/assistant/chat` 与 `mode` 已删除；`POST /assistant/messages` |
 | AGENT-003 无 Intent Router | aligned | worker 直接把工具 schema 交给模型 |
 | AGENT-004 身份边界 | aligned | user run 当前用户；Watch 只读；memory-review 仅 Memory 工具 |
-| AGENT-010 线程/消息 API | aligned | `GetThread`/`ListMessages` |
+| AGENT-010 线程/消息 API | aligned | `GetThread`；`ListMessages` 默认最新一页，`beforeId` 向前翻页，`afterId` 增量读取，两种游标互斥 |
 | AGENT-011 异步 PostMessage | aligned | 事务写消息与 run，返回 disposition |
-| AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `runtime.DecideDisposition`；`accept_test.go` |
+| AGENT-012 单前台 run + redirect/steer/FIFO32 | partial | disposition/FIFO 已测；redirect 仍需由独立修复证明在途模型取消与第二条输入必答 |
 | AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
-| AGENT-014 未读 | aligned | Watch 计入；`memory_changed` unread=false |
-| AGENT-015 content/api_content 分离 | aligned | `assistant_message`；工具轮隐藏 `kind=tool` sidecar，下一轮按 `api_content` 重放 |
+| AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
+| AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload，恢复与 FIFO 按原字节重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
-| AGENT-021 lease 60s/10s | aligned | `internal/lease` SKIP LOCKED |
+| AGENT-021 lease 60s/10s | partial | 60s/10s 与 SKIP LOCKED 已有；多 worker fencing token/CAS 由独立修复关闭前不得标 aligned |
 | AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop 取消 work ctx 并 sticky `cancel_requested`（`loop_cancel_test.go`） |
-| AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | `runtime.Subscribe` |
+| AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | MySQL replay + Redis/轮询；HTTP 取 `max(afterSeq, Last-Event-ID)`、输出 `id:`，每 25s comment heartbeat |
 | AGENT-024 事件类型白名单 | aligned | `store.Event*` |
-| AGENT-025 唯一终止 | aligned | finish 写 done/error 后清 active_run_id |
-| AGENT-030 consent | aligned | PostMessage 查 UserService.GetAgentCapabilityConsent |
+| AGENT-025 唯一终止 | partial | Responses incomplete 以 reason + partial 写 error，不能转 done；多 worker 唯一终态仍依赖 fencing/终态 CAS 修复 |
+| AGENT-030 consent | partial | PostMessage 与 Watch 调度检查 granted + 当前版本；撤销活跃 run 的完整边界由独立修复关闭 |
 | AGENT-031 工具分组 | aligned | `tool.ForSource` |
 | AGENT-032 仅 delete_post 确认 | aligned | HighRisk + Confirm CAS |
-| AGENT-033 command journal | aligned | UNIQUE(user,request,tool,digest) |
-| AGENT-034 确认 CAS | aligned | `runtime.Confirm`；`confirm_test.go` |
+| AGENT-033 command journal | partial | 唯一键存在；副作用前 reserve 与结果提交边界由独立修复关闭 |
+| AGENT-034 确认 CAS | partial | confirm status CAS 已有；确认绑定权威 target revision 由独立修复关闭 |
 | AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
 | AGENT-041 prompt 顺序 | aligned | `internal/prompt` |
 | AGENT-043 快照复用 | aligned | `builder_test.go` |
-| AGENT-050 compact 50%/keep 20% | aligned | 只标记未保留消息 compacted；未完成 tool 强制保留 |
-| AGENT-052 memory-review 每 10 回合 | aligned | `maybeScheduleReview` |
-| AGENT-060/061 search_history | aligned | ES `assistant-history-v1` + MySQL 回源 |
-| AGENT-070/071 source ledger + present_sources | aligned | `tool/sources_test.go` |
+| AGENT-050 compact 50%/keep 20% | aligned | token 估算排除 compacted；只强制保留 unmatched tool call，已完成工具轮可压缩，无法再缩的单条消息不重复 compact |
+| AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
+| AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL 回源；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
+| AGENT-070/071/072 source ledger | aligned | `app/assistant/internal/tool/sources_test.go`；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
-| AGENT-A01~A06 验收 | partial | 单测覆盖 disposition/confirm/budget/source/prompt/llm/tool-round replay；无 live LLM、无根真实栈 |
+| AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
+| AGENT-A01~A06 验收 | partial | 定向单测覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE；无 live LLM、无根真实栈 |
 
 ## SPEC-agent-memory 追踪
 
@@ -205,7 +211,7 @@ Watch 内部 bucket）。仍偏离处：
 | MEM-012 规范化去重 | aligned | 同 target 规范化内容返回已有条目 |
 | MEM-013 undo CAS | aligned | `memory_change` result_version |
 | MEM-020/021 快照冻结 | aligned | 普通写不热更新 prompt snapshot |
-| MEM-022/023 memory-review | aligned | 10 回合调度；前台抢占；memory_changed unread=false |
+| MEM-022/023 memory-review | aligned | 10 回合调度与预算；前台抢占；结构化 change IDs 生成 `memory_changed` 系统行，unread=false，可调用既有 undo API |
 | MEM-030 API 字段 | aligned | List/Add/Replace/Remove/Batch/Undo |
 | MEM-032 存储不可用失败 | aligned | store=nil → 503 |
 | MEM-033 不能当 source card | aligned | Memory 工具不写 source ledger |
@@ -218,10 +224,11 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-002 规则条件 | aligned | 四种规则 + discussion_spike 预筛选 |
 | WCH-003 不可见不命中 | aligned | matcher 回源 published |
 | WCH-004 内部 hit 90 天 | aligned | `watch_hit` 非用户收件箱 |
-| WCH-010 两分钟合并与限额 | aligned | `watch_delivery_bucket` + `watch_send_stat` |
+| WCH-010 两分钟合并与限额 | aligned | 两分钟 bucket；独立 `not_before_ms` 延迟且不撞 merge unique key；小时/日计数仅在成功投递事务增加 |
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
-| WCH-012 用户抢占重置 bucket | aligned | PostMessage `ResetUnsentBuckets` |
-| WCH-013 成功写 assistant 消息+未读 | aligned | worker Watch run 同事务 |
+| WCH-012 用户抢占/失败重排 | aligned | PostMessage 抢占、error/cancel finish 与 scheduler reconciliation 均把绑定 run 的未发送 bucket 重置 pending |
+| WCH-013 成功写 assistant 消息+未读 | aligned | validated hit context 进入模型；token/message/outbox/unread/bucket sent/rate stats/done 在同一事务提交 |
+| WCH-023 consent 撤销 | partial | scheduler 无当前版本 consent 不创建 run；已调度/活跃 run 的撤销竞态由独立修复关闭 |
 | WCH-020 删除 hits API | aligned | proto/gateway 已无 ListHits/MarkRead |
 | WCH-021 任务不走 delete_post 确认 | aligned | Watch 工具非 HighRisk |
 | WCH-A01~A05 | partial | 规则匹配与内部 RecordHit 单测保留；主动消息与限额依赖 worker |
@@ -286,33 +293,33 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | DISC-A04 游标/配额/负反馈/降级 | aligned | `app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A05 曝光关联 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | DISC-A06 冻结集复现门禁 | partial | 现有 live 结果基于 LLM 合成集，不满足人类双评审 |
-| ASST-A01 证据/无结果/元数据/来源变化 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go`、`app/assistant/rpc/internal/tool/registry_test.go`；live 冒烟验证证据引用/冲突呈现/拒答 |
-| ASST-A02 候选重读与无资料工具 | aligned | `registry_test.go`、`chat_logic_test.go`；Agent 评论：父帖未发布拒绝、无效评论不附带（`search_test.go`） |
-| ASST-A03 注入与伪造引用 | aligned | `app/assistant/rpc/internal/logic/chat_logic_test.go` |
-| ASST-A04 完成/取消/降级/越权 | aligned | `app/gateway/internal/logic/assistant/assistant_chat_logic_test.go`、`app/assistant/rpc/internal/logic/chat_logic_test.go` |
+| ASST-A01 证据/无结果/元数据/来源变化 | n/a | retired `SPEC-grounded-assistant` 验收项；当前来源验收见 AGENT-A05 |
+| ASST-A02 候选重读与无资料工具 | n/a | retired `SPEC-grounded-assistant` 验收项；当前回源与工具边界见 AGENT-A02/A05 |
+| ASST-A03 注入与伪造引用 | n/a | retired `SPEC-grounded-assistant` 验收项；当前注入边界见 AGENT-A02/A05 |
+| ASST-A04 完成/取消/降级/越权 | n/a | retired `SPEC-grounded-assistant` 验收项；当前异步运行验收见 AGENT-A01/A06 |
 | REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | REL-A02 链路归因 | aligned | `integration/behavior_pipeline_integration_test.go`、`app/pipeline/behaviorlog` |
 | REL-A03 故障降级矩阵 | partial | 仅覆盖网关 RPC-FAIL 与推荐推理注入，不是 REL-054 全部十行 |
 | REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
-| AGNT-A01 未授权/授权/撤销网关行为 | aligned | 网关 `agent_chat_gate_test.go`；RPC `TestAgentChatRejectsUnauthorizedBeforeSideEffects` |
-| AGNT-A02 Write + search_posts/web_search 成功与失败 | aligned | `app/assistant/rpc/internal/agent/tools_test.go`、`app/assistant/rpc/internal/agent/search_test.go` |
-| AGNT-A03 删除确认同意/拒绝/超时/重放 | aligned | `app/assistant/rpc/internal/agent/confirm_test.go`、`TestDeletePostRequiresConfirmation` |
-| AGNT-A04 软限通知与硬限收尾 | aligned | `app/assistant/rpc/internal/agent/runner_openai_test.go` |
-| AGNT-A05 注入不能触发白名单外操作 | partial | enhanced_search 注入单测仍绿；Agent 系统提示约束不可信内容，缺专门的白名单外工具注入用例 |
-| AGNT-A06 consent_version=1 新分组不可见 | aligned | `TestRestrictToolsForConsentKeepsV1Set`、`TestRestrictHidesNewSearchToolsOnV1Consent` |
-| AGNT-A07 Search/UserState/Recommend 成功与越权 | aligned | UserState 成功回源与忽略外来 `user_id`；Search/Recommend 既有路径；`userstate_test.go`、`recommend_test.go` |
-| AGNT-A08 旧客户端忽略未知事件/来源 | aligned | `TestAssistantChatUnknownEventsAreIgnored`；web 来源 type=web |
-| MEM-A01 显式写入/冲突合并 | aligned | `app/assistant/rpc/internal/memory/store_test.go`、`app/assistant/rpc/internal/agent/memory_tools_test.go` |
-| MEM-A02 Interest 衰减与“还有吗”续写 | aligned | 衰减已测；历史注入 + recommend Task upsert；开放 Task 排除 ID 约束推荐 |
-| MEM-A03 列表/修改/删除/不要记住 | partial | CRUD 与 suppressed 已实现；缺“删除后回答不得再引用”专项 |
-| MEM-A04 越权拒绝与存储不可用 | aligned | 他人记录 NotFound；工具与列表无库 503 |
-| MEM-A05 记忆不能当社区证据/不能存私密资料 | aligned | 工具不产出社区 Source；Extract/Apply 丢弃手机号/验证码/私信样值 |
+| AGNT-A01 未授权/授权/撤销网关行为 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前授权验收见 AGENT-A01/A02 |
+| AGNT-A02 Write + search_posts/web_search 成功与失败 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前工具验收见 AGENT-A02/A05 |
+| AGNT-A03 删除确认同意/拒绝/超时/重放 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前确认验收见 AGENT-A02 |
+| AGNT-A04 软限通知与硬限收尾 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前预算验收见 AGENT-A06 |
+| AGNT-A05 注入不能触发白名单外操作 | n/a | retired `SPEC-assistant-agent-mode` 验收项 |
+| AGNT-A06 consent_version=1 新分组不可见 | n/a | retired `SPEC-assistant-agent-mode` 验收项 |
+| AGNT-A07 Search/UserState/Recommend 成功与越权 | n/a | retired `SPEC-assistant-agent-mode` 验收项 |
+| AGNT-A08 旧客户端忽略未知事件/来源 | n/a | retired `SPEC-assistant-agent-mode` 验收项 |
+| MEM-A01 双 target 操作/容量/冲突 | aligned | `app/assistant/internal/memory/store_test.go` |
+| MEM-A02 扫描/隔离/undo CAS | aligned | Memory store 定向测试与 `app/assistant/internal/runtime/completion_test.go` |
+| MEM-A03 prompt 冻结与 compact 刷新 | aligned | `app/assistant/internal/prompt/builder_test.go`、`app/assistant/internal/runtime/compact_test.go` |
+| MEM-A04 review 隔离/抢占/memory_changed | aligned | `app/assistant/internal/runtime/completion_test.go`、`loop_cancel_test.go` |
+| MEM-A05 存储失败与非来源 | partial | 工具不生成 source handle；真实存储故障未做集成注入 |
 | WCH-A01 四种规则命中与不可见不命中 | aligned | `TestMatchRules`、`TestApplyPostEvent*`；草稿 Status!=1 不命中；消费者 `TestConsumeWatchBatch_PublishedCreate_RecordsHit` |
-| WCH-A02 重复任务/越权/未知类型 | aligned | `TestCreateRejectsUnknownConditionAndDuplicates`；store 按 user_id |
-| WCH-A03 discussion_spike 预筛选 | aligned | 未过阈值不调模型、不命中；过阈值无模型/模型否定不命中；`apply_test.go` |
-| WCH-A04 命中仅本人收件箱、事件不重复未读 | aligned | hit 按 user 隔离、同事件去重；下次对话注入未读摘要 |
-| WCH-A05 停用/删除后不再命中且不影响发帖 | aligned | disabled 任务不进入 `ListEnabled`；发帖主路径独立 |
+| WCH-A02 两分钟合并/小时与每日上限 | aligned | `app/assistant/internal/runtime/watch_test.go`；延迟窗口不改 merge unique key，计数仅成功增加 |
+| WCH-A03 只读工具/用户抢占重排 | partial | 只读 registry 与失败/取消重排已实现；真实并发抢占未做 MySQL 集成测试 |
+| WCH-A04 主动消息/未读/非普通私信 | aligned | `app/assistant/internal/runtime/watch_test.go` 覆盖 Assistant message、未读、outbox 与终态 |
+| WCH-A05 CRUD/恢复可见性 | partial | CRUD 归属与停用已有测试；90 天后恢复及不可见内容补投仍缺集成验证 |
 
 
 ## 代码入口
@@ -348,4 +355,6 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 
 Hermes 异步 Agent 硬切换见
 [2026-08-29-assistant-agent-runtime.md](evidence/2026-08-29-assistant-agent-runtime.md)。
+2026-08-30 runtime 完整性复查与定向修复见
+[2026-08-30-assistant-runtime-completeness.md](evidence/2026-08-30-assistant-runtime-completeness.md)。
 历史 Agent Runtime 证据仍保留在 `evidence/`，不再作为当前契约完成证明。

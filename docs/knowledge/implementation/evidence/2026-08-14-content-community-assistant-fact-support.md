@@ -45,12 +45,14 @@ assistant 门禁此前只测量来源有效率、证据不足召回、可回答�
 
 - 端到端离线模拟（冻结数据集 + 模拟 run_case）：回答逐字转写全部期望事实 →
   `fact_support_rate=1.000`，门禁通过；无关文本回答 → `0.000`，门禁失败。
-- ASST-A02（推荐候选重读验证）：`app/assistant/rpc/internal/tool/registry.go`
-  `recommendHandler` 仅用推荐选候选，随后 `visibility.PublishedByIDs` 重读正文
+- ASST-A02（推荐候选重读验证）：当时的 Assistant tool registry 中，
+  `recommendHandler` 仅用推荐选候选，随后以共享可见性逻辑重读正文
   并验证 published 后才成为证据；`TestRegistryRecommendRereadsAndVerifiesPostsBeforeEvidence`
   与 `TestRegistryRecommendFailsClosedWhenContentUnavailable` 覆盖。
 - ASST-034（安全拒绝不泄露）：`blockedDirectives` 检测 + `toolErrorCode` 稳定
   错误码映射，客户端仅收到错误码不泄露内部细节。
+
+当时的 tool registry 路径已随 Hermes 异步迁移移除；本文件只保留历史评测结果。
 - `gen_recommend_samples.py` / `gen_frozen_evals.py`：LLM 部分按已登记口径
   （温度 0.7 + 双评审元数据，冻结文件为准）；规则基线排名与本次事实派生均为
   确定性逻辑，重复执行结果一致。

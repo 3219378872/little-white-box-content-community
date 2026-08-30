@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-29
-verified_commit: worktree-local
+verified_commit: c36e59555601dc37a54efe136525d04a98365a5c
 commands:
   - go test ./app/assistant/... ./app/gateway/... ./deploy/... ./pkg/errx/...
 result: passed
