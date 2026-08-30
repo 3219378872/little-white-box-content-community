@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-30-assistant-watch-input-sidecar.md](2026-08-30-assistant-watch-input-sidecar.md)：
+  Watch 命中 JSON 隐藏 sidecar、provider 历史重放与工具轮顺序，提交见 frontmatter。
 - [2026-08-30-assistant-runtime-completeness.md](2026-08-30-assistant-runtime-completeness.md)：
   compact/incomplete、Watch 投递、上下文恢复、历史 outbox、来源回源、memory_changed、分页与 SSE heartbeat 修复。
 - [2026-08-30-assistant-runtime-safety.md](2026-08-30-assistant-runtime-safety.md)：
