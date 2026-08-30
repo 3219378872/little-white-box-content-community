@@ -12,6 +12,11 @@ commands:
   - NO_PROXY="$NO_PROXY,172.28.0.1" no_proxy="$no_proxy,172.28.0.1" go test -tags=integration -count=1 -run '^TestESIndexer_Delete_RemovesDoc$' -timeout=10m ./app/search/mq/internal/indexer
   - NO_PROXY="$NO_PROXY,172.28.0.1" no_proxy="$no_proxy,172.28.0.1" go test -tags=integration -count=1 -run '^TestBehaviorRPCFanoutPersistsCorrelatedRawEventAndFeaturesExactlyOnce$' -timeout=12m ./integration
   - go test -race ./app/assistant/internal/canonical ./app/assistant/internal/llm ./app/assistant/internal/prompt ./app/assistant/internal/runtime ./app/assistant/internal/store ./app/assistant/internal/tool ./app/assistant/worker/internal/config ./app/assistant/worker/internal/svc ./app/gateway/internal/logic/assistant ./deploy
+  - root: just up
+  - root: just status
+  - root: just e2e-agent-reset
+  - root: just e2e deploy/dev/e2e/test_assistant.py
+  - root: just e2e
 result: partial
 ---
 
@@ -42,10 +47,15 @@ Hermes profile、外部 Memory、cron/subagent/MoA、terminal/browser/code execu
 - runtime/tool 测试覆盖首 delta 持久化、retry/reset、redirect/lease fencing、恢复重放、严格 schema、
   Snowflake canonical digest、结构化结果截断，以及 user/Watch/review 的 no-progress guard。
 - ES 删除与 Behavior 全链路两个既有集成夹具已按 revision 与内部 HMAC 契约修正，定向复跑通过。
+- 三仓 fast-forward 后 `just up` 成功重放 10 个幂等 SQL patch 并从合并源码重建应用；`just status`
+  确认 20 个应用进程存活，`:3002`、`:3003`、`:8888` 与 Agent `:9136` 探测符合预期。
+- `just e2e-agent-reset` 通过（1 passed）：确定性 Responses fixture 在首流输出后截断，验证
+  `response_reset`、新 `streamId`、SSE replay 与最终正文，并成功恢复原 Agent provider。
+- Assistant 黑盒套件 14 passed、1 skipped；全量真实栈黑盒套件 116 passed、1 skipped。
 
 ## 部分与未覆盖
 
-- 合并后三仓根真实栈的 `just up`、`just status`、确定性 reset gate 与 Assistant E2E 尚待执行。
+- 未用浏览器驱动 Flutter 客户端消费真实 reset 流；客户端 notifier 行为目前由前端单测覆盖。
 - 未调用外部 live provider，不证明特定供应商网关的真实流式兼容、限流头或计费字段。
 - 未执行 production profile、真实生产迁移或生产流量；fallback 默认关闭，启用时必须显式配置同
   boundary route，并由启动 canary 验证。
