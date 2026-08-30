@@ -13,8 +13,15 @@ import (
 )
 
 type Attachment struct {
-	MediaID int64
-	URL     string
+	MediaID int64  `json:"media_id"`
+	URL     string `json:"url"`
+}
+
+type inputPayload struct {
+	Text          string       `json:"text"`
+	MessageID     int64        `json:"message_id"`
+	Attachments   []Attachment `json:"attachments,omitempty"`
+	ContextPostID int64        `json:"context_post_id,omitempty"`
 }
 
 type AcceptInput struct {
@@ -84,7 +91,7 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		return AcceptResult{MessageID: 0, SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
 	}
 
-	api := mustJSON(map[string]any{"role": store.RoleUser, "content": text})
+	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: providerUserContent(text, in.Attachments, in.ContextPostID)})
 	msg, err := tx.InsertMessage(ctx, store.Message{
 		UserID: in.UserID, SessionID: session.ID, Role: store.RoleUser, Kind: store.KindMessage,
 		Content: text, APIContent: api, Visible: true, Unread: false, CreatedAtMs: now,
@@ -116,9 +123,7 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		}
 	}
 	disposition := DecideDisposition(active)
-	payload := mustJSON(map[string]any{
-		"message_id": msg.ID, "text": text, "attachments": in.Attachments, "context_post_id": in.ContextPostID,
-	})
+	payload := mustJSON(inputPayload{Text: text, MessageID: msg.ID, Attachments: in.Attachments, ContextPostID: in.ContextPostID})
 	var runID int64
 	switch disposition {
 	case store.DispositionStarted:
@@ -276,6 +281,23 @@ func (a *Acceptor) MarkRead(ctx context.Context, userID int64) (int32, error) {
 func mustJSON(v any) []byte {
 	raw, _ := json.Marshal(v)
 	return raw
+}
+
+func providerUserContent(text string, attachments []Attachment, contextPostID int64) string {
+	if len(attachments) == 0 && contextPostID <= 0 {
+		return text
+	}
+	contextJSON, _ := json.Marshal(struct {
+		Attachments   []Attachment `json:"attachments,omitempty"`
+		ContextPostID int64        `json:"context_post_id,omitempty"`
+	}{Attachments: attachments, ContextPostID: contextPostID})
+	return text + "\n\nUNTRUSTED_USER_INPUT_CONTEXT_JSON:\n" + string(contextJSON)
+}
+
+func decodeInputPayload(raw []byte) inputPayload {
+	var payload inputPayload
+	_ = json.Unmarshal(raw, &payload)
+	return payload
 }
 
 func itoa(v int64) string {

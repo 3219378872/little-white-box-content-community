@@ -223,7 +223,8 @@ func TestCompleteSetsResponsesClientHeaders(t *testing.T) {
 
 func TestDecodeResponsesIncompleteWithText(t *testing.T) {
 	raw, _ := json.Marshal(map[string]any{
-		"status": "incomplete",
+		"status":             "incomplete",
+		"incomplete_details": map[string]any{"reason": "max_output_tokens"},
 		"output": []map[string]any{
 			{"type": "reasoning", "content": []map[string]string{}},
 			{"type": "message", "role": "assistant", "content": []map[string]string{{"type": "output_text", "text": "pong"}}},
@@ -233,8 +234,8 @@ func TestDecodeResponsesIncompleteWithText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Text != "pong" {
-		t.Fatalf("text=%q", got.Text)
+	if got.Text != "pong" || got.IncompleteReason != "max_output_tokens" {
+		t.Fatalf("result=%+v", got)
 	}
 }
 
@@ -243,9 +244,9 @@ func TestDecodeResponsesIncompleteEmptyFails(t *testing.T) {
 		"status": "incomplete",
 		"output": []map[string]any{{"type": "reasoning"}},
 	})
-	_, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
-	if err == nil || !strings.Contains(err.Error(), "incomplete") {
-		t.Fatalf("err=%v", err)
+	got, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
+	if err != nil || got.IncompleteReason != "unknown" {
+		t.Fatalf("result=%+v err=%v", got, err)
 	}
 }
 

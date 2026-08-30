@@ -33,7 +33,8 @@ func (s *fakeRunStream) Recv() (*assistantpb.RunEvent, error) {
 
 type fakeAssistant struct {
 	assistantservice.AssistantService
-	posted *assistantservice.PostMessageReq
+	posted     *assistantservice.PostMessageReq
+	subscribed *assistantservice.SubscribeRunEventsReq
 }
 
 func (f *fakeAssistant) PostMessage(_ context.Context, in *assistantservice.PostMessageReq, _ ...grpc.CallOption) (*assistantpb.PostMessageResp, error) {
@@ -41,7 +42,8 @@ func (f *fakeAssistant) PostMessage(_ context.Context, in *assistantservice.Post
 	return &assistantpb.PostMessageResp{MessageId: 3, SessionId: 2, RunId: 9, Disposition: "started"}, nil
 }
 
-func (f *fakeAssistant) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+func (f *fakeAssistant) SubscribeRunEvents(ctx context.Context, req *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+	f.subscribed = req
 	return &fakeRunStream{ctx: ctx, events: []*assistantpb.RunEvent{
 		{RunId: 9, Seq: 1, Type: "token", Text: "hi", SessionId: 2},
 		{RunId: 9, Seq: 2, Type: "done", SessionId: 2},
@@ -67,12 +69,16 @@ func TestPostAssistantMessageRequiresAuthAndConsentPath(t *testing.T) {
 
 func TestAssistantRunEventsStreams(t *testing.T) {
 	ctx := jwtx.WithUserIdContext(context.Background(), 7)
-	logic := NewAssistantRunEventsLogic(ctx, &svc.ServiceContext{AssistantService: &fakeAssistant{}})
+	fake := &fakeAssistant{}
+	logic := NewAssistantRunEventsLogic(ctx, &svc.ServiceContext{AssistantService: fake})
 	client := make(chan *types.AssistantRunEvent, 8)
-	if err := logic.AssistantRunEvents(&types.AssistantRunEventsReq{Id: 9}, client); err != nil {
+	if err := logic.AssistantRunEvents(&types.AssistantRunEventsReq{Id: 9, AfterSeq: 17}, client); err != nil {
 		t.Fatal(err)
 	}
 	if len(client) != 2 {
 		t.Fatalf("events=%d", len(client))
+	}
+	if fake.subscribed == nil || fake.subscribed.UserId != 7 || fake.subscribed.AfterSeq != 17 {
+		t.Fatalf("subscribed=%+v", fake.subscribed)
 	}
 }

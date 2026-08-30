@@ -594,6 +594,7 @@ type (
 	ListAssistantMessagesReq {
 		SessionId int64 `form:"sessionId,optional"`
 		AfterId   int64 `form:"afterId,optional"`
+		BeforeId  int64 `form:"beforeId,optional"`
 		Limit     int32 `form:"limit,optional"`
 	}
 	AssistantMessage {
@@ -608,7 +609,9 @@ type (
 		ChangeId    int64  `json:"changeId,optional"`
 	}
 	ListAssistantMessagesResp {
-		Messages []AssistantMessage `json:"messages"`
+		Messages     []AssistantMessage `json:"messages"`
+		HasMore      bool               `json:"hasMore"`
+		NextBeforeId int64              `json:"nextBeforeId,optional"`
 	}
 	PostAssistantMessageReq {
 		Message       string                `json:"message"`

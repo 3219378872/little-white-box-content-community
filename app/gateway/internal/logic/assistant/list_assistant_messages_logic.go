@@ -29,7 +29,7 @@ func (l *ListAssistantMessagesLogic) ListAssistantMessages(req *types.ListAssist
 	}
 	in := &assistantservice.ListMessagesReq{UserId: userID}
 	if req != nil {
-		in.SessionId, in.AfterId, in.Limit = req.SessionId, req.AfterId, req.Limit
+		in.SessionId, in.AfterId, in.BeforeId, in.Limit = req.SessionId, req.AfterId, req.BeforeId, req.Limit
 	}
 	result, err := l.svcCtx.AssistantService.ListMessages(l.ctx, in)
 	if err != nil {
@@ -39,5 +39,5 @@ func (l *ListAssistantMessagesLogic) ListAssistantMessages(req *types.ListAssist
 	for _, item := range result.GetMessages() {
 		msgs = append(msgs, mapMessage(item))
 	}
-	return &types.ListAssistantMessagesResp{Messages: msgs}, nil
+	return &types.ListAssistantMessagesResp{Messages: msgs, HasMore: result.GetHasMore(), NextBeforeId: result.GetNextBeforeId()}, nil
 }

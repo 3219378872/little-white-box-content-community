@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -30,14 +31,15 @@ import (
 )
 
 type ServiceContext struct {
-	Config config.Config
-	Store  store.Store
-	Memory memory.Store
-	Watch  watch.Store
-	Lease  *lease.Manager
-	Engine *runtime.Engine
-	Index  *index.Client
-	LLM    llm.Client
+	Config  config.Config
+	Store   store.Store
+	Memory  memory.Store
+	Watch   watch.Store
+	Lease   *lease.Manager
+	Engine  *runtime.Engine
+	Index   *index.Client
+	LLM     llm.Client
+	Consent runtime.ConsentChecker
 }
 
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
@@ -111,12 +113,30 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 	engine := &runtime.Engine{
-		Store: st, Memory: mem, Tools: registry, LLM: client, Notify: notify,
+		Store: st, Memory: mem, Watch: watchStore, Tools: registry, LLM: client, Notify: notify,
 		Window: c.LLM.ContextWindowTokens, Provider: c.LLM.MaxOutputTokens,
 	}
 	return &ServiceContext{
 		Config: c, Store: st, Memory: mem, Watch: watchStore,
 		Lease:  &lease.Manager{Store: st, Owner: c.Name, Lease: time.Duration(c.LeaseSeconds) * time.Second, Renew: time.Duration(c.RenewSeconds) * time.Second},
 		Engine: engine, Index: history, LLM: client,
+		Consent: func(ctx context.Context, userID int64) (bool, error) {
+			consent, err := userService.GetAgentCapabilityConsent(ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})
+			if err != nil {
+				return false, err
+			}
+			return currentConsentGranted(consent), nil
+		},
 	}, nil
+}
+
+func currentConsentGranted(consent *userservice.GetAgentCapabilityConsentResp) bool {
+	if consent == nil || !consent.Granted {
+		return false
+	}
+	requiredVersion := consent.CurrentVersion
+	if requiredVersion < tool.CurrentConsentVersion {
+		requiredVersion = tool.CurrentConsentVersion
+	}
+	return consent.ConsentVersion >= requiredVersion
 }

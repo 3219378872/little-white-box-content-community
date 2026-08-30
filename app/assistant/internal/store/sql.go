@@ -148,10 +148,10 @@ func (s *SQLStore) CloseSession(ctx context.Context, id int64, closedAtMs int64)
 
 func (s *SQLStore) InsertMessage(ctx context.Context, msg Message) (Message, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_message
-		(user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, deleted_at_ms, created_at_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, change_id, deleted_at_ms, created_at_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		msg.UserID, msg.SessionID, msg.RunID, msg.Role, msg.Kind, msg.Content, nullBytes(msg.APIContent),
-		boolToInt(msg.Visible), boolToInt(msg.Unread), boolToInt(msg.Compacted), nullInt(msg.DeletedAtMs), msg.CreatedAtMs)
+		boolToInt(msg.Visible), boolToInt(msg.Unread), boolToInt(msg.Compacted), msg.ChangeID, nullInt(msg.DeletedAtMs), msg.CreatedAtMs)
 	if err != nil {
 		return Message{}, err
 	}
@@ -161,7 +161,7 @@ func (s *SQLStore) InsertMessage(ctx context.Context, msg Message) (Message, err
 }
 
 func (s *SQLStore) GetMessage(ctx context.Context, userID, id int64) (*Message, error) {
-	rows, err := s.scanMessages(ctx, `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, deleted_at_ms, created_at_ms
+	rows, err := s.scanMessages(ctx, `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, change_id, deleted_at_ms, created_at_ms
 		FROM assistant_message WHERE user_id=? AND id=?`, userID, id)
 	if err != nil {
 		return nil, err
@@ -172,11 +172,11 @@ func (s *SQLStore) GetMessage(ctx context.Context, userID, id int64) (*Message, 
 	return &rows[0], nil
 }
 
-func (s *SQLStore) ListMessages(ctx context.Context, userID, sessionID, afterID int64, limit int) ([]Message, error) {
-	if limit <= 0 || limit > 100 {
+func (s *SQLStore) ListMessages(ctx context.Context, userID, sessionID, beforeID, afterID int64, limit int) ([]Message, error) {
+	if limit <= 0 || limit > 101 {
 		limit = 50
 	}
-	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, deleted_at_ms, created_at_ms
+	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, change_id, deleted_at_ms, created_at_ms
 		FROM assistant_message WHERE user_id=? AND deleted_at_ms IS NULL AND visible=1`
 	args := []any{userID}
 	if sessionID > 0 {
@@ -186,13 +186,21 @@ func (s *SQLStore) ListMessages(ctx context.Context, userID, sessionID, afterID 
 	if afterID > 0 {
 		query += ` AND id>?`
 		args = append(args, afterID)
+		query += ` ORDER BY id ASC LIMIT ` + strconv.Itoa(limit)
+		return s.scanMessages(ctx, query, args...)
 	}
-	query += ` ORDER BY id ASC LIMIT ` + strconv.Itoa(limit)
-	return s.scanMessages(ctx, query, args...)
+	if beforeID > 0 {
+		query += ` AND id<?`
+		args = append(args, beforeID)
+	}
+	query += ` ORDER BY id DESC LIMIT ` + strconv.Itoa(limit)
+	rows, err := s.scanMessages(ctx, query, args...)
+	reverseMessages(rows)
+	return rows, err
 }
 
 func (s *SQLStore) ListSessionMessages(ctx context.Context, userID, sessionID int64, includeHidden bool) ([]Message, error) {
-	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, deleted_at_ms, created_at_ms
+	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, change_id, deleted_at_ms, created_at_ms
 		FROM assistant_message WHERE user_id=? AND session_id=? AND deleted_at_ms IS NULL`
 	if !includeHidden {
 		query += ` AND visible=1`
@@ -205,7 +213,7 @@ func (s *SQLStore) GetMessagesByIDs(ctx context.Context, userID int64, ids []int
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, deleted_at_ms, created_at_ms
+	query := `SELECT id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread, compacted, change_id, deleted_at_ms, created_at_ms
 		FROM assistant_message WHERE user_id=? AND id IN (` + placeholders(len(ids)) + `)`
 	args := append([]any{userID}, intsToAny(ids)...)
 	return s.scanMessages(ctx, query, args...)
@@ -224,6 +232,7 @@ func (s *SQLStore) scanMessages(ctx context.Context, query string, args ...any) 
 		Visible     int64         `db:"visible"`
 		Unread      int64         `db:"unread"`
 		Compacted   int64         `db:"compacted"`
+		ChangeID    int64         `db:"change_id"`
 		DeletedAtMs sql.NullInt64 `db:"deleted_at_ms"`
 		CreatedAtMs int64         `db:"created_at_ms"`
 	}
@@ -235,7 +244,7 @@ func (s *SQLStore) scanMessages(ctx context.Context, query string, args ...any) 
 		out = append(out, Message{
 			ID: row.ID, UserID: row.UserID, SessionID: row.SessionID, RunID: row.RunID, Role: row.Role, Kind: row.Kind,
 			Content: row.Content, APIContent: row.APIContent, Visible: row.Visible == 1, Unread: row.Unread == 1,
-			Compacted: row.Compacted == 1, DeletedAtMs: row.DeletedAtMs.Int64, CreatedAtMs: row.CreatedAtMs,
+			Compacted: row.Compacted == 1, ChangeID: row.ChangeID, DeletedAtMs: row.DeletedAtMs.Int64, CreatedAtMs: row.CreatedAtMs,
 		})
 	}
 	return out, nil
@@ -888,16 +897,17 @@ func (s *SQLStore) UpsertDeliveryBucket(ctx context.Context, userID, hitID, wind
 			ID            int64  `db:"id"`
 			UserID        int64  `db:"user_id"`
 			WindowStartMs int64  `db:"window_start_ms"`
+			NotBeforeMs   int64  `db:"not_before_ms"`
 			Status        string `db:"status"`
 			HitIDs        []byte `db:"hit_ids"`
 			RunID         int64  `db:"run_id"`
 			CreatedAtMs   int64  `db:"created_at_ms"`
 		}
-		if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, window_start_ms, status, hit_ids, run_id, created_at_ms
+		if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
 			FROM watch_delivery_bucket WHERE user_id=? AND window_start_ms=?`, userID, windowStartMs); err != nil {
 			return DeliveryBucket{}, err
 		}
-		existing = DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, Status: row.Status,
+		existing = DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, NotBeforeMs: row.NotBeforeMs, Status: row.Status,
 			HitIDs: decodeInt64s(row.HitIDs), RunID: row.RunID, CreatedAtMs: row.CreatedAtMs}
 		return existing, nil
 	}
@@ -905,11 +915,11 @@ func (s *SQLStore) UpsertDeliveryBucket(ctx context.Context, userID, hitID, wind
 }
 
 func (s *SQLStore) GetBucket(ctx context.Context, id int64) (*DeliveryBucket, error) {
-	return s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, status, hit_ids, run_id, created_at_ms FROM watch_delivery_bucket WHERE id=?`, id)
+	return s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms FROM watch_delivery_bucket WHERE id=?`, id)
 }
 
 func (s *SQLStore) GetPendingBucket(ctx context.Context, userID int64) (*DeliveryBucket, error) {
-	return s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, status, hit_ids, run_id, created_at_ms
+	return s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
 		FROM watch_delivery_bucket WHERE user_id=? AND status IN ('pending','deferred') ORDER BY window_start_ms ASC LIMIT 1`, userID)
 }
 
@@ -918,18 +928,21 @@ func (s *SQLStore) ListDueBuckets(ctx context.Context, nowMs, windowMs int64) ([
 		ID            int64  `db:"id"`
 		UserID        int64  `db:"user_id"`
 		WindowStartMs int64  `db:"window_start_ms"`
+		NotBeforeMs   int64  `db:"not_before_ms"`
 		Status        string `db:"status"`
 		HitIDs        []byte `db:"hit_ids"`
 		RunID         int64  `db:"run_id"`
 		CreatedAtMs   int64  `db:"created_at_ms"`
 	}
-	if err := s.exec.QueryRowsCtx(ctx, &rows, `SELECT id, user_id, window_start_ms, status, hit_ids, run_id, created_at_ms
-		FROM watch_delivery_bucket WHERE status IN ('pending','deferred') AND window_start_ms + ? <= ? ORDER BY window_start_ms ASC LIMIT 50`, windowMs, nowMs); err != nil {
+	if err := s.exec.QueryRowsCtx(ctx, &rows, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
+		FROM watch_delivery_bucket WHERE status IN ('pending','deferred')
+		AND ((not_before_ms=0 AND window_start_ms + ? <= ?) OR (not_before_ms>0 AND not_before_ms <= ?))
+		ORDER BY window_start_ms ASC LIMIT 50`, windowMs, nowMs, nowMs); err != nil {
 		return nil, err
 	}
 	out := make([]DeliveryBucket, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, Status: row.Status,
+		out = append(out, DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, NotBeforeMs: row.NotBeforeMs, Status: row.Status,
 			HitIDs: decodeInt64s(row.HitIDs), RunID: row.RunID, CreatedAtMs: row.CreatedAtMs})
 	}
 	return out, nil
@@ -940,6 +953,7 @@ func (s *SQLStore) scanBucket(ctx context.Context, query string, args ...any) (*
 		ID            int64  `db:"id"`
 		UserID        int64  `db:"user_id"`
 		WindowStartMs int64  `db:"window_start_ms"`
+		NotBeforeMs   int64  `db:"not_before_ms"`
 		Status        string `db:"status"`
 		HitIDs        []byte `db:"hit_ids"`
 		RunID         int64  `db:"run_id"`
@@ -951,22 +965,59 @@ func (s *SQLStore) scanBucket(ctx context.Context, query string, args ...any) (*
 		}
 		return nil, err
 	}
-	return &DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, Status: row.Status,
+	return &DeliveryBucket{ID: row.ID, UserID: row.UserID, WindowStartMs: row.WindowStartMs, NotBeforeMs: row.NotBeforeMs, Status: row.Status,
 		HitIDs: decodeInt64s(row.HitIDs), RunID: row.RunID, CreatedAtMs: row.CreatedAtMs}, nil
 }
 
 func (s *SQLStore) MarkBucketScheduled(ctx context.Context, id, runID int64) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='scheduled', run_id=? WHERE id=?`, runID, id)
+	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='scheduled', run_id=?, not_before_ms=0 WHERE id=? AND status IN ('pending','deferred')`, runID, id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("watch bucket %d is no longer schedulable", id)
+	}
+	return nil
+}
+
+func (s *SQLStore) MarkBucketSent(ctx context.Context, id, runID int64) error {
+	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='sent' WHERE id=? AND run_id=? AND status='scheduled'`, id, runID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("watch bucket %d is not scheduled for run %d", id, runID)
+	}
+	return nil
+}
+
+func (s *SQLStore) DeferBucket(ctx context.Context, id, notBeforeMs int64) error {
+	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='deferred', run_id=0, not_before_ms=? WHERE id=? AND status IN ('pending','deferred')`, notBeforeMs, id)
 	return err
 }
 
-func (s *SQLStore) MarkBucketSent(ctx context.Context, id int64) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='sent' WHERE id=?`, id)
+func (s *SQLStore) ResetBucket(ctx context.Context, id, runID int64) error {
+	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0 WHERE id=? AND run_id=? AND status='scheduled'`, id, runID)
+	return err
+}
+
+func (s *SQLStore) RequeueFailedBuckets(ctx context.Context) error {
+	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket b JOIN agent_run r ON r.id=b.run_id
+		SET b.status='pending', b.run_id=0, b.not_before_ms=0
+		WHERE b.status='scheduled' AND r.status IN ('error','cancelled')`)
 	return err
 }
 
 func (s *SQLStore) ResetUnsentBuckets(ctx context.Context, userID int64) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0 WHERE user_id=? AND status IN ('scheduled')`, userID)
+	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0 WHERE user_id=? AND status IN ('scheduled')`, userID)
 	return err
 }
 
@@ -1054,4 +1105,10 @@ func decodeInt64s(raw []byte) []int64 {
 	var out []int64
 	_ = json.Unmarshal(raw, &out)
 	return out
+}
+
+func reverseMessages(rows []Message) {
+	for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
+		rows[i], rows[j] = rows[j], rows[i]
+	}
 }

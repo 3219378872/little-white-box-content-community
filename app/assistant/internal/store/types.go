@@ -251,6 +251,7 @@ type DeliveryBucket struct {
 	ID            int64
 	UserID        int64
 	WindowStartMs int64
+	NotBeforeMs   int64
 	Status        string
 	HitIDs        []int64
 	RunID         int64

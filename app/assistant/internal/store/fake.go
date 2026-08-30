@@ -148,7 +148,7 @@ func (m *MemoryStore) GetMessage(_ context.Context, userID, id int64) (*Message,
 	return &cp, nil
 }
 
-func (m *MemoryStore) ListMessages(_ context.Context, userID, sessionID, afterID int64, limit int) ([]Message, error) {
+func (m *MemoryStore) ListMessages(_ context.Context, userID, sessionID, beforeID, afterID int64, limit int) ([]Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if limit <= 0 {
@@ -165,11 +165,18 @@ func (m *MemoryStore) ListMessages(_ context.Context, userID, sessionID, afterID
 		if msg.ID <= afterID {
 			continue
 		}
+		if afterID == 0 && beforeID > 0 && msg.ID >= beforeID {
+			continue
+		}
 		out = append(out, msg)
 	}
 	sortMessages(out)
 	if len(out) > limit {
-		out = out[:limit]
+		if afterID > 0 {
+			out = out[:limit]
+		} else {
+			out = out[len(out)-limit:]
+		}
 	}
 	return out, nil
 }
@@ -329,7 +336,9 @@ func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int6
 	}
 	var best *Run
 	for _, run := range m.runs {
-		if run.Status != StatusQueued && !(run.Status == StatusRunning && (run.LeaseUntilMs == 0 || run.LeaseUntilMs < nowMs)) {
+		claimable := run.Status == StatusQueued ||
+			(run.Status == StatusRunning && (run.LeaseUntilMs == 0 || run.LeaseUntilMs < nowMs))
+		if !claimable {
 			continue
 		}
 		cp := run
@@ -432,7 +441,14 @@ func (m *MemoryStore) GetToolCall(_ context.Context, runID int64, callID string)
 func (m *MemoryStore) UpdateToolCall(_ context.Context, call ToolCall) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.toolCalls[toolKey(call.RunID, call.CallID)] = call
+	key := toolKey(call.RunID, call.CallID)
+	if existing, ok := m.toolCalls[key]; ok {
+		existing.Status = call.Status
+		existing.ResultJSON = call.ResultJSON
+		m.toolCalls[key] = existing
+		return nil
+	}
+	m.toolCalls[key] = call
 	return nil
 }
 
@@ -683,7 +699,8 @@ func (m *MemoryStore) ListDueBuckets(_ context.Context, nowMs, windowMs int64) (
 	defer m.mu.Unlock()
 	out := make([]DeliveryBucket, 0)
 	for _, b := range m.buckets {
-		if (b.Status == "pending" || b.Status == "deferred") && b.WindowStartMs+windowMs <= nowMs {
+		due := (b.NotBeforeMs == 0 && b.WindowStartMs+windowMs <= nowMs) || (b.NotBeforeMs > 0 && b.NotBeforeMs <= nowMs)
+		if (b.Status == "pending" || b.Status == "deferred") && due {
 			out = append(out, b)
 		}
 	}
@@ -710,18 +727,64 @@ func (m *MemoryStore) MarkBucketScheduled(_ context.Context, id, runID int64) er
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	b := m.buckets[id]
+	if b.Status != "pending" && b.Status != "deferred" {
+		return sqlx.ErrNotFound
+	}
 	b.Status = "scheduled"
 	b.RunID = runID
+	b.NotBeforeMs = 0
 	m.buckets[id] = b
 	return nil
 }
 
-func (m *MemoryStore) MarkBucketSent(_ context.Context, id int64) error {
+func (m *MemoryStore) MarkBucketSent(_ context.Context, id, runID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	b := m.buckets[id]
+	if b.Status != "scheduled" || b.RunID != runID {
+		return sqlx.ErrNotFound
+	}
 	b.Status = "sent"
 	m.buckets[id] = b
+	return nil
+}
+
+func (m *MemoryStore) DeferBucket(_ context.Context, id, notBeforeMs int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b := m.buckets[id]
+	b.Status = "deferred"
+	b.RunID = 0
+	b.NotBeforeMs = notBeforeMs
+	m.buckets[id] = b
+	return nil
+}
+
+func (m *MemoryStore) ResetBucket(_ context.Context, id, runID int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b := m.buckets[id]
+	if b.Status == "scheduled" && b.RunID == runID {
+		b.Status = "pending"
+		b.RunID = 0
+		b.NotBeforeMs = 0
+		m.buckets[id] = b
+	}
+	return nil
+}
+
+func (m *MemoryStore) RequeueFailedBuckets(_ context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, b := range m.buckets {
+		run, ok := m.runs[b.RunID]
+		if b.Status == "scheduled" && ok && (run.Status == StatusError || run.Status == StatusCancelled) {
+			b.Status = "pending"
+			b.RunID = 0
+			b.NotBeforeMs = 0
+			m.buckets[id] = b
+		}
+	}
 	return nil
 }
 
@@ -732,6 +795,7 @@ func (m *MemoryStore) ResetUnsentBuckets(_ context.Context, userID int64) error 
 		if b.UserID == userID && b.Status == "scheduled" {
 			b.Status = "pending"
 			b.RunID = 0
+			b.NotBeforeMs = 0
 			m.buckets[id] = b
 		}
 	}

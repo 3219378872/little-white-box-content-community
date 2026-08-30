@@ -5,11 +5,24 @@ import (
 	"testing"
 
 	"esx/app/assistant/internal/store"
+	"esx/app/content/rpc/contentservice"
+
+	"google.golang.org/grpc"
 )
+
+type sourceContent struct {
+	contentservice.ContentService
+	posts []*contentservice.PostInfo
+}
+
+func (s *sourceContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	return &contentservice.GetPostsByIdsResp{Posts: s.posts}, nil
+}
 
 func TestSourceHandleRunBindingAndPresentSources(t *testing.T) {
 	mem := store.NewMemoryStore()
-	reg, err := NewRegistry(Clients{Store: mem}, []string{PresentSources, SearchPosts})
+	content := &sourceContent{posts: []*contentservice.PostInfo{{Id: 9, Status: 1, Revision: 1, Title: "仍可见", Content: "当前正文"}}}
+	reg, err := NewRegistry(Clients{Store: mem, Content: content}, []string{PresentSources, SearchPosts})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,5 +50,13 @@ func TestSourceHandleRunBindingAndPresentSources(t *testing.T) {
 	}
 	if len(cards) != 1 || cards[0].Handle != "src_ok" {
 		t.Fatalf("quoted cards=%+v text=%s", cards, text)
+	}
+	content.posts[0].Revision = 2
+	text, cards, err = reg.Call(ctx, sess, PresentSources, "c3", `{"handles":["src_ok"]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cards) != 0 || text == "" {
+		t.Fatalf("revision-changed cards=%+v text=%s", cards, text)
 	}
 }

@@ -215,6 +215,7 @@ type ListMessagesReq struct {
 	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	AfterId       int64                  `protobuf:"varint,3,opt,name=after_id,json=afterId,proto3" json:"after_id,omitempty"`
 	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	BeforeId      int64                  `protobuf:"varint,5,opt,name=before_id,json=beforeId,proto3" json:"before_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -273,6 +274,13 @@ func (x *ListMessagesReq) GetAfterId() int64 {
 func (x *ListMessagesReq) GetLimit() int32 {
 	if x != nil {
 		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListMessagesReq) GetBeforeId() int64 {
+	if x != nil {
+		return x.BeforeId
 	}
 	return 0
 }
@@ -388,6 +396,8 @@ func (x *AssistantMessage) GetChangeId() int64 {
 type ListMessagesResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Messages      []*AssistantMessage    `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	HasMore       bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	NextBeforeId  int64                  `protobuf:"varint,3,opt,name=next_before_id,json=nextBeforeId,proto3" json:"next_before_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -427,6 +437,20 @@ func (x *ListMessagesResp) GetMessages() []*AssistantMessage {
 		return x.Messages
 	}
 	return nil
+}
+
+func (x *ListMessagesResp) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+func (x *ListMessagesResp) GetNextBeforeId() int64 {
+	if x != nil {
+		return x.NextBeforeId
+	}
+	return 0
 }
 
 type Attachment struct {
@@ -2907,13 +2931,14 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x11active_run_status\x18\a \x01(\tR\x0factiveRunStatus\x12(\n" +
 	"\x10active_run_phase\x18\b \x01(\tR\x0eactiveRunPhase\"C\n" +
 	"\rGetThreadResp\x122\n" +
-	"\x06thread\x18\x01 \x01(\v2\x1a.assistant.AssistantThreadR\x06thread\"z\n" +
+	"\x06thread\x18\x01 \x01(\v2\x1a.assistant.AssistantThreadR\x06thread\"\x97\x01\n" +
 	"\x0fListMessagesReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\x03R\tsessionId\x12\x19\n" +
 	"\bafter_id\x18\x03 \x01(\x03R\aafterId\x12\x14\n" +
-	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\xf3\x01\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x1b\n" +
+	"\tbefore_id\x18\x05 \x01(\x03R\bbeforeId\"\xf3\x01\n" +
 	"\x10AssistantMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -2924,9 +2949,11 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\acontent\x18\x06 \x01(\tR\acontent\x12\x16\n" +
 	"\x06unread\x18\a \x01(\bR\x06unread\x12\"\n" +
 	"\rcreated_at_ms\x18\b \x01(\x03R\vcreatedAtMs\x12\x1b\n" +
-	"\tchange_id\x18\t \x01(\x03R\bchangeId\"K\n" +
+	"\tchange_id\x18\t \x01(\x03R\bchangeId\"\x8c\x01\n" +
 	"\x10ListMessagesResp\x127\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1b.assistant.AssistantMessageR\bmessages\"9\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1b.assistant.AssistantMessageR\bmessages\x12\x19\n" +
+	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12$\n" +
+	"\x0enext_before_id\x18\x03 \x01(\x03R\fnextBeforeId\"9\n" +
 	"\n" +
 	"Attachment\x12\x19\n" +
 	"\bmedia_id\x18\x01 \x01(\x03R\amediaId\x12\x10\n" +

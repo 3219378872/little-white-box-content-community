@@ -61,6 +61,7 @@ type Store interface {
 	UpdateEnabled(ctx context.Context, userID, id int64, enabled bool) error
 	Delete(ctx context.Context, userID, id int64) error
 	ListHits(ctx context.Context, userID int64, unreadOnly bool) ([]Hit, error)
+	GetHitsByIDs(ctx context.Context, userID int64, ids []int64) ([]Hit, error)
 	MarkRead(ctx context.Context, userID int64, ids []int64) error
 	RecordHit(ctx context.Context, hit Hit, eventKey string) error
 	RecordExecution(ctx context.Context, taskID int64, eventKey, status string, usedLLM bool) error
@@ -255,6 +256,34 @@ func (s *SQLStore) ListHits(ctx context.Context, userID int64, unreadOnly bool) 
 	return hits, nil
 }
 
+func (s *SQLStore) GetHitsByIDs(ctx context.Context, userID int64, ids []int64) ([]Hit, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	query := `SELECT id, user_id, task_id, post_id, title, summary, created_at_ms, IF(read_at_ms IS NULL, 0, 1) AS read_flag
+		FROM watch_hit WHERE user_id = ? AND id IN (` + placeholders(len(ids)) + `)`
+	var rows []struct {
+		ID          int64  `db:"id"`
+		UserID      int64  `db:"user_id"`
+		TaskID      int64  `db:"task_id"`
+		PostID      int64  `db:"post_id"`
+		Title       string `db:"title"`
+		Summary     string `db:"summary"`
+		CreatedAtMs int64  `db:"created_at_ms"`
+		ReadFlag    int64  `db:"read_flag"`
+	}
+	args := append([]any{userID}, intsToAny(ids)...)
+	if err := s.conn.QueryRowsCtx(ctx, &rows, query, args...); err != nil {
+		return nil, err
+	}
+	hits := make([]Hit, 0, len(rows))
+	for _, row := range rows {
+		hits = append(hits, Hit{ID: row.ID, UserID: row.UserID, TaskID: row.TaskID, PostID: row.PostID,
+			Title: row.Title, Summary: row.Summary, CreatedAt: row.CreatedAtMs, Read: row.ReadFlag == 1})
+	}
+	return hits, nil
+}
+
 func (s *SQLStore) MarkRead(ctx context.Context, userID int64, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -426,6 +455,19 @@ func (m *MapStore) ListHits(_ context.Context, userID int64, unreadOnly bool) ([
 			continue
 		}
 		out = append(out, hit)
+	}
+	return out, nil
+}
+
+func (m *MapStore) GetHitsByIDs(_ context.Context, userID int64, ids []int64) ([]Hit, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]Hit, 0, len(ids))
+	for _, id := range ids {
+		hit, ok := m.hits[id]
+		if ok && hit.UserID == userID {
+			out = append(out, hit)
+		}
 	}
 	return out, nil
 }

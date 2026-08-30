@@ -11,7 +11,18 @@ import (
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
+	"esx/app/content/rpc/contentservice"
+
+	"google.golang.org/grpc"
 )
+
+type runtimeContent struct {
+	contentservice.ContentService
+}
+
+func (*runtimeContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+	return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 9, Status: 1, Revision: 1, Title: "猫粮", Content: "来源正文"}}}, nil
+}
 
 type scriptedLLM struct {
 	reqs    []llm.Request
@@ -35,7 +46,7 @@ func (s *scriptedLLM) ContextWindowTokens() int { return 128000 }
 func TestToolRoundIsReplayedOnNextComplete(t *testing.T) {
 	mem := store.NewMemoryStore()
 	ctx := context.Background()
-	reg, err := tool.NewRegistry(tool.Clients{Store: mem}, []string{tool.PresentSources})
+	reg, err := tool.NewRegistry(tool.Clients{Store: mem, Content: &runtimeContent{}}, []string{tool.PresentSources})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +94,13 @@ func TestToolRoundIsReplayedOnNextComplete(t *testing.T) {
 	if visibleAssistant != 1 {
 		t.Fatalf("final assistant visible=%d userMsg=%d", visibleAssistant, userMsg.ID)
 	}
+	outbox, err := mem.ListUnpublishedOutbox(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outbox) != 1 || outbox[0].MessageID == 0 {
+		t.Fatalf("assistant history outbox=%+v", outbox)
+	}
 	call, err := mem.GetToolCall(ctx, run.ID, "c1")
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +113,7 @@ func TestToolRoundIsReplayedOnNextComplete(t *testing.T) {
 func TestResumeExecutesUnmatchedToolCalls(t *testing.T) {
 	mem := store.NewMemoryStore()
 	ctx := context.Background()
-	reg, err := tool.NewRegistry(tool.Clients{Store: mem}, []string{tool.PresentSources})
+	reg, err := tool.NewRegistry(tool.Clients{Store: mem, Content: &runtimeContent{}}, []string{tool.PresentSources})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,6 +138,39 @@ func TestResumeExecutesUnmatchedToolCalls(t *testing.T) {
 	}
 	if !hasToolResult(script.reqs[0].Messages, "c1", "h1") && !hasToolResult(script.reqs[0].Messages, "c1", "来源") {
 		t.Fatalf("resume did not feed tool result: %+v", script.reqs[0].Messages)
+	}
+}
+
+func TestIncompleteResponsePersistsPartialAndEndsError(t *testing.T) {
+	mem := store.NewMemoryStore()
+	_, run, _ := mustStartRun(t, mem, "long answer")
+	reg, err := tool.NewRegistry(tool.Clients{Store: mem}, []string{tool.PresentSources})
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := &scriptedLLM{replies: []llm.Result{{Text: "partial body", Raw: []byte(`{"status":"incomplete"}`), IncompleteReason: "content_filter"}}}
+	engine := &Engine{Store: mem, Tools: reg, LLM: script, Window: 128000}
+	engine.Execute(context.Background(), run, false)
+	fresh, err := mem.GetRun(context.Background(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.Status != store.StatusError || fresh.ErrorCode != "LLM_INCOMPLETE_CONTENT_FILTER" {
+		t.Fatalf("run=%+v", fresh)
+	}
+	events, _ := mem.ListEventsAfter(context.Background(), run.ID, 0)
+	if len(events) < 3 || events[len(events)-1].Type != store.EventError {
+		t.Fatalf("events=%+v", events)
+	}
+	msgs, _ := mem.ListSessionMessages(context.Background(), 1, run.SessionID, true)
+	partial := 0
+	for _, msg := range msgs {
+		if msg.Role == store.RoleAssistant && msg.Content == "partial body" && msg.Visible {
+			partial++
+		}
+	}
+	if partial != 1 {
+		t.Fatalf("partial messages=%d messages=%+v", partial, msgs)
 	}
 }
 

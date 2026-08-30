@@ -2,8 +2,10 @@ package runtime
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/pkg/errx"
 )
@@ -47,5 +49,30 @@ func TestAcceptDispositionAndFIFO(t *testing.T) {
 	}
 	if _, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "nope", RequestID: "x", ConsentOK: false}); !errx.Is(err, errx.AgentNotAuthorized) {
 		t.Fatalf("consent: %v", err)
+	}
+}
+
+func TestAcceptPersistsAttachmentAndContextForReplay(t *testing.T) {
+	mem := store.NewMemoryStore()
+	a := &Acceptor{Store: mem}
+	got, err := a.Accept(context.Background(), AcceptInput{
+		UserID: 1, Message: "use this", RequestID: "context-1", ConsentOK: true,
+		Attachments: []Attachment{{MediaID: 91, URL: "https://media.example/91"}}, ContextPostID: 77,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := mem.GetMessage(context.Background(), 1, got.MessageID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, ok := prompt.DecodeTurn(msg.APIContent)
+	if !ok || !strings.Contains(turn.Content, `"context_post_id":77`) || !strings.Contains(turn.Content, `"media_id":91`) {
+		t.Fatalf("api_content=%s turn=%+v", msg.APIContent, turn)
+	}
+	run, _ := mem.GetRun(context.Background(), got.RunID)
+	sess := (&Engine{}).toolSession(*run)
+	if sess.ContextPostID != 77 || len(sess.Attachments) != 1 || sess.Attachments[0].MediaID != 91 {
+		t.Fatalf("tool session=%+v", sess)
 	}
 }

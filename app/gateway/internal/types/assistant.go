@@ -116,11 +116,14 @@ type ListAssistantMemoryResp struct {
 type ListAssistantMessagesReq struct {
 	SessionId int64 `form:"sessionId,optional"`
 	AfterId   int64 `form:"afterId,optional"`
+	BeforeId  int64 `form:"beforeId,optional"`
 	Limit     int32 `form:"limit,optional"`
 }
 
 type ListAssistantMessagesResp struct {
-	Messages []AssistantMessage `json:"messages"`
+	Messages     []AssistantMessage `json:"messages"`
+	HasMore      bool               `json:"hasMore"`
+	NextBeforeId int64              `json:"nextBeforeId,optional"`
 }
 
 type ListAssistantWatchReq struct {

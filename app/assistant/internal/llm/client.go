@@ -48,11 +48,12 @@ type Request struct {
 }
 
 type Result struct {
-	Text      string
-	ToolCalls []ToolCall
-	Model     string
-	Raw       []byte
-	Usage     Usage
+	Text             string
+	ToolCalls        []ToolCall
+	Model            string
+	Raw              []byte
+	Usage            Usage
+	IncompleteReason string
 }
 
 type Client interface {
@@ -414,7 +415,10 @@ func (c *HTTPClient) decodeChat(raw []byte) (Result, error) {
 
 func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 	var parsed struct {
-		Status string `json:"status"`
+		Status            string `json:"status"`
+		IncompleteDetails struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details"`
 		Output []struct {
 			Type    string `json:"type"`
 			Content []struct {
@@ -460,9 +464,18 @@ func (c *HTTPClient) decodeResponses(raw []byte) (Result, error) {
 	}
 	usable := text != "" || len(calls) > 0
 	if parsed.Status != "" && parsed.Status != "completed" {
-		if parsed.Status != "incomplete" || !usable {
+		if parsed.Status != "incomplete" {
 			return Result{}, fmt.Errorf("assistant LLM response status=%s", parsed.Status)
 		}
+		reason := strings.TrimSpace(parsed.IncompleteDetails.Reason)
+		if reason == "" {
+			reason = "unknown"
+		}
+		return Result{
+			Text: text, ToolCalls: calls, Model: c.cfg.Model, Raw: raw,
+			Usage:            c.usage(parsed.Usage.InputTokens, parsed.Usage.OutputTokens, parsed.Usage.TotalTokens),
+			IncompleteReason: reason,
+		}, nil
 	}
 	if !usable {
 		return Result{}, fmt.Errorf("assistant LLM returned an empty response")

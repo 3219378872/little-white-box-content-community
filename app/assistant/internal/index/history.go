@@ -228,7 +228,7 @@ func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.Histo
 		rank++
 		fmt.Fprintf(&b, "%d. session=%d message=%d %s: %s\n", rank, msg.SessionID, msg.ID, msg.Role, store.Preview(msg.Content, 160))
 		if rank == 1 {
-			around, _ := c.store.ListMessages(ctx, sess.UserID, msg.SessionID, 0, 50)
+			around, _ := c.store.ListMessages(ctx, sess.UserID, msg.SessionID, 0, 0, 50)
 			b.WriteString("  上下文：")
 			for _, item := range around {
 				if item.ID == msg.ID {

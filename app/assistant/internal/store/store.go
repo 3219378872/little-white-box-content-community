@@ -17,7 +17,7 @@ type Store interface {
 
 	InsertMessage(ctx context.Context, msg Message) (Message, error)
 	GetMessage(ctx context.Context, userID, id int64) (*Message, error)
-	ListMessages(ctx context.Context, userID, sessionID, afterID int64, limit int) ([]Message, error)
+	ListMessages(ctx context.Context, userID, sessionID, beforeID, afterID int64, limit int) ([]Message, error)
 	ListSessionMessages(ctx context.Context, userID, sessionID int64, includeHidden bool) ([]Message, error)
 	SoftDeleteMessages(ctx context.Context, userID, deletedAtMs int64) (ids []int64, err error)
 	MarkMessagesRead(ctx context.Context, userID int64) error
@@ -72,7 +72,10 @@ type Store interface {
 	GetPendingBucket(ctx context.Context, userID int64) (*DeliveryBucket, error)
 	ListDueBuckets(ctx context.Context, nowMs, windowMs int64) ([]DeliveryBucket, error)
 	MarkBucketScheduled(ctx context.Context, id, runID int64) error
-	MarkBucketSent(ctx context.Context, id int64) error
+	MarkBucketSent(ctx context.Context, id, runID int64) error
+	DeferBucket(ctx context.Context, id, notBeforeMs int64) error
+	ResetBucket(ctx context.Context, id, runID int64) error
+	RequeueFailedBuckets(ctx context.Context) error
 	ResetUnsentBuckets(ctx context.Context, userID int64) error
 	CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error)
 	IncrSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) error

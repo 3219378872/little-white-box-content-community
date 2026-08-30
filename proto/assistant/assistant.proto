@@ -54,6 +54,7 @@ message ListMessagesReq {
   int64 session_id = 2;
   int64 after_id = 3;
   int32 limit = 4;
+  int64 before_id = 5;
 }
 
 message AssistantMessage {
@@ -70,6 +71,8 @@ message AssistantMessage {
 
 message ListMessagesResp {
   repeated AssistantMessage messages = 1;
+  bool has_more = 2;
+  int64 next_before_id = 3;
 }
 
 message Attachment {

@@ -107,6 +107,7 @@ type Session struct {
 	ConsentVersion int32
 	Attachments    []Attachment
 	ContextPostID  int64
+	ChangeIDs      []int64
 }
 
 type History interface {
@@ -377,7 +378,7 @@ func allDefinitions(clients Clients) []Definition {
 		}, nil), executor: searchHistoryExecutor(clients.History)},
 		{Name: PresentSources, Description: "把本 run 已验证的至多 10 个 source handle 展示为 source_card。", Parameters: objectSchema(map[string]any{
 			"handles": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-		}, []string{"handles"}), executor: presentSourcesExecutor(clients.Store)},
+		}, []string{"handles"}), executor: presentSourcesExecutor(clients)},
 	}
 }
 

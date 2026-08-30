@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"esx/app/gateway/internal/logic/assistant"
 	"esx/app/gateway/internal/svc"
@@ -17,6 +18,8 @@ import (
 	"github.com/zeromicro/go-zero/core/threading"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
+
+const assistantSSEHeartbeatInterval = 25 * time.Second
 
 // Assistant run SSE 事件
 func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
@@ -27,22 +30,13 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		// Buffer size of 16 is chosen as a reasonable default to balance throughput and memory usage.
-		// You can change this based on your application's needs.
-		// if your go-zero version less than 1.8.1, you need to add 3 lines below.
-		// w.Header().Set("Content-Type", "text/event-stream")
-		// w.Header().Set("Cache-Control", "no-cache")
-		// w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
 		client := make(chan *types.AssistantRunEvent, 16)
 
 		ctx := r.Context()
-		if req.AfterSeq == 0 {
-			if header := strings.TrimSpace(r.Header.Get("Last-Event-ID")); header != "" {
-				if seq, convErr := strconv.ParseInt(header, 10, 64); convErr == nil {
-					req.AfterSeq = seq
-				}
-			}
-		}
+		req.AfterSeq = resumeAfterSeq(req.AfterSeq, r.Header.Get("Last-Event-ID"))
 		l := assistant.NewAssistantRunEventsLogic(ctx, svcCtx)
 		threading.GoSafeCtx(ctx, func() {
 			defer close(client)
@@ -53,6 +47,8 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			}
 		})
 
+		heartbeat := time.NewTicker(assistantSSEHeartbeatInterval)
+		defer heartbeat.Stop()
 		for {
 			select {
 			case data, ok := <-client:
@@ -65,8 +61,15 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 					continue
 				}
 
-				if _, err := fmt.Fprintf(w, "data: %s\n\n", string(output)); err != nil {
+				if _, err := fmt.Fprintf(w, "id: %d\ndata: %s\n\n", data.Seq, string(output)); err != nil {
 					logc.Errorw(r.Context(), "AssistantRunEventsHandler", logc.Field("error", err))
+					return
+				}
+				if flusher, ok := w.(http.Flusher); ok {
+					flusher.Flush()
+				}
+			case <-heartbeat.C:
+				if err := writeAssistantSSEHeartbeat(w); err != nil {
 					return
 				}
 				if flusher, ok := w.(http.Flusher); ok {
@@ -77,4 +80,22 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			}
 		}
 	}
+}
+
+func writeAssistantSSEHeartbeat(w http.ResponseWriter) error {
+	_, err := fmt.Fprint(w, ": heartbeat\n\n")
+	return err
+}
+
+func resumeAfterSeq(query int64, lastEventID string) int64 {
+	header := int64(0)
+	if raw := strings.TrimSpace(lastEventID); raw != "" {
+		if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil && parsed > 0 {
+			header = parsed
+		}
+	}
+	if header > query {
+		return header
+	}
+	return query
 }

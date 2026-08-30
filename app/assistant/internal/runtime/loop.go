@@ -13,6 +13,7 @@ import (
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
+	"esx/app/assistant/watch"
 	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -49,6 +50,7 @@ var (
 type Engine struct {
 	Store    store.Store
 	Memory   memory.Store
+	Watch    watch.Store
 	Tools    *tool.Registry
 	LLM      llm.Client
 	Notify   store.Notifier
@@ -166,7 +168,6 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		return err
 	}
 	started := time.Now()
-	firstToken := false
 	var reviewLive []prompt.Turn
 	registry := tool.ForSource(e.Tools, run.Source, tool.CurrentConsentVersion)
 	if registry == nil {
@@ -232,7 +233,11 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 				seen[msg.ID] = struct{}{}
 			}
 		}
-		turns = append(turns, e.pendingUserTurns(persistCtx, run, seen)...)
+		pending, err := e.pendingUserTurns(persistCtx, run, seen)
+		if err != nil {
+			return err
+		}
+		turns = append(turns, pending...)
 
 		run.Phase = store.PhaseModelRequest
 		run.LastActivityAtMs = now
@@ -262,7 +267,6 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 			return abortErr
 		}
-		agentLLMCalls.Inc("success")
 		run.Rounds++
 		run.InputTokens += result.Usage.PromptTokens
 		run.OutputTokens += result.Usage.CompletionTokens
@@ -273,31 +277,22 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 			return abortErr
 		}
+		if result.IncompleteReason != "" {
+			agentLLMCalls.Inc("incomplete")
+			return e.incomplete(persistCtx, run, result)
+		}
+		agentLLMCalls.Inc("success")
 
 		if len(result.ToolCalls) == 0 {
 			text := strings.TrimSpace(result.Text)
-			if !firstToken {
-				agentFirstToken.ObserveFloat(time.Since(started).Seconds())
-				firstToken = true
-			}
-			_, _ = AppendEvent(persistCtx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: text})
-			if run.Source != store.SourceMemoryReview {
-				_, _ = e.Store.InsertMessage(persistCtx, store.Message{
-					UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
-					Kind: store.KindMessage, Content: text, APIContent: result.Raw, Visible: true,
-					Unread: run.Source == store.SourceWatch, CreatedAtMs: store.NowMs(),
-				})
-				if run.Source == store.SourceWatch {
-					thread, _ := e.Store.GetThread(persistCtx, run.UserID)
-					if thread != nil {
-						thread.UnreadCount++
-						thread.LastMessagePreview = store.Preview(text, 80)
-						thread.LastMessageAtMs = store.NowMs()
-						_ = e.Store.SaveThread(persistCtx, *thread)
-					}
+			result.Text = text
+			agentFirstToken.ObserveFloat(time.Since(started).Seconds())
+			if run.Source == store.SourceUser && text != "" {
+				if _, err := AppendEvent(persistCtx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: text}); err != nil {
+					return err
 				}
 			}
-			return e.finish(persistCtx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text})
+			return e.completeModelText(persistCtx, run, result)
 		}
 
 		calls := make([]llm.ToolCall, 0, len(result.ToolCalls))
@@ -330,6 +325,32 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	}
 }
 
+func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Result) error {
+	partial := strings.TrimSpace(result.Text)
+	if partial != "" && run.Source == store.SourceUser {
+		if _, err := AppendEvent(ctx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: partial}); err != nil {
+			return err
+		}
+		if run.Source == store.SourceUser {
+			if err := e.persistVisibleAssistant(ctx, run, partial, result.Raw, store.KindMessage); err != nil {
+				return err
+			}
+		}
+	}
+	reason := "UNKNOWN"
+	switch strings.ToLower(strings.TrimSpace(result.IncompleteReason)) {
+	case "max_output_tokens":
+		reason = "MAX_OUTPUT_TOKENS"
+	case "content_filter":
+		reason = "CONTENT_FILTER"
+	}
+	return e.finish(ctx, run, store.StatusError, store.EventError, store.EventPayload{
+		ErrorCode: "LLM_INCOMPLETE_" + reason,
+		Text:      "模型响应未完整完成",
+		Partial:   partial,
+	})
+}
+
 func visibleForPrompt(msgs []store.Message) []store.Message {
 	out := make([]store.Message, 0, len(msgs))
 	for _, msg := range msgs {
@@ -341,18 +362,22 @@ func visibleForPrompt(msgs []store.Message) []store.Message {
 	return out
 }
 
-func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) []prompt.Turn {
+func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, error) {
 	out := make([]prompt.Turn, 0)
-	if len(run.QueuedPayload) > 0 {
-		var payload struct {
-			Text      string `json:"text"`
-			MessageID int64  `json:"message_id"`
+	if run.Source == store.SourceWatch {
+		turn, err := e.watchInputTurn(ctx, run)
+		if err != nil {
+			return nil, err
 		}
-		if json.Unmarshal(run.QueuedPayload, &payload) == nil && payload.Text != "" {
+		out = append(out, turn)
+	} else if len(run.QueuedPayload) > 0 {
+		payload := decodeInputPayload(run.QueuedPayload)
+		if payload.Text != "" {
+			content := providerUserContent(payload.Text, payload.Attachments, payload.ContextPostID)
 			if payload.MessageID == 0 {
-				out = append(out, prompt.Turn{Role: store.RoleUser, Content: payload.Text})
+				out = append(out, prompt.Turn{Role: store.RoleUser, Content: content})
 			} else if _, ok := seen[payload.MessageID]; !ok {
-				out = append(out, prompt.Turn{Role: store.RoleUser, Content: payload.Text})
+				out = append(out, prompt.Turn{Role: store.RoleUser, Content: content})
 			}
 		}
 	}
@@ -363,10 +388,14 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 		}
 		msg, err := e.Store.GetMessage(ctx, run.UserID, item.MessageID)
 		if err == nil && msg != nil {
-			out = append(out, prompt.Turn{Role: store.RoleUser, Content: msg.Content})
+			if turn, ok := turnFromMessage(*msg); ok {
+				out = append(out, turn)
+			} else {
+				out = append(out, prompt.Turn{Role: store.RoleUser, Content: msg.Content})
+			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
@@ -382,7 +411,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	if journal, err := e.Store.GetJournal(persistCtx, run.UserID, run.RequestID, call.Name, digest); err == nil && journal != nil && journal.Status == store.JournalSuccess {
 		agentToolCalls.Inc(call.Name, "replay")
 		text := decodeToolResultText(journal.ResultJSON)
-		_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: encodeToolResultJSON(text, nil)})
+		_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: journal.ResultJSON})
 		if err := e.recordTurn(persistCtx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); err != nil {
 			return err
 		}
@@ -400,7 +429,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
-	sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID, Source: run.Source}
+	sess := e.toolSession(*run)
 	text, cards, err := registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
 	outcome := "success"
 	if err != nil {
@@ -414,7 +443,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	run.ToolCalls++
 	run.LastActivityAtMs = store.NowMs()
 	_ = e.Store.UpdateRun(persistCtx, *run)
-	resultJSON := encodeToolResultJSON(text, err)
+	resultJSON := encodeToolResultJSONWithChanges(text, err, sess.ChangeIDs)
 	if sideEffect(call.Name) && err == nil {
 		row, reserved, jerr := e.Store.ReserveJournal(persistCtx, store.Journal{
 			UserID: run.UserID, RequestID: run.RequestID, Tool: call.Name, CanonicalArgsDigest: digest,
@@ -439,6 +468,17 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 		return errRunCancelled
 	}
 	return nil
+}
+
+func (e *Engine) toolSession(run store.Run) *tool.Session {
+	sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID, Source: run.Source}
+	payload := decodeInputPayload(run.QueuedPayload)
+	sess.ContextPostID = payload.ContextPostID
+	sess.Attachments = make([]tool.Attachment, 0, len(payload.Attachments))
+	for _, item := range payload.Attachments {
+		sess.Attachments = append(sess.Attachments, tool.Attachment{MediaID: item.MediaID, URL: item.URL})
+	}
+	return sess
 }
 
 func (e *Engine) recordTurn(ctx context.Context, run store.Run, turn prompt.Turn, kind string, visible bool, reviewLive *[]prompt.Turn) error {
@@ -484,8 +524,11 @@ func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
 	return out
 }
 
-func encodeToolResultJSON(text string, callErr error) string {
+func encodeToolResultJSONWithChanges(text string, callErr error, changeIDs []int64) string {
 	payload := map[string]any{"ok": callErr == nil, "text": text}
+	if len(changeIDs) > 0 {
+		payload["change_ids"] = changeIDs
+	}
 	if callErr != nil {
 		payload["error"] = callErr.Error()
 		if text == "" {
@@ -559,11 +602,12 @@ func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.
 func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, session *store.Session, msgs []store.Message) error {
 	run.Phase = store.PhaseCompact
 	_ = e.Store.UpdateRun(persistCtx, *run)
+	msgs = liveMessages(msgs)
 	keep := EstimateMessageTokens(msgs) / 5
 	if keep < 1 {
 		keep = 1
 	}
-	selected := SelectKeep(msgs, keep, nil)
+	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs))
 	summary := "压缩摘要：保留最近对话与未完成工具。"
 	if e.LLM != nil {
 		var b strings.Builder
@@ -598,6 +642,9 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 	}
 	ids := make([]int64, 0, len(msgs))
 	for _, msg := range msgs {
+		if msg.Compacted {
+			continue
+		}
 		if _, keep := keepIDs[msg.ID]; keep {
 			continue
 		}
@@ -655,24 +702,33 @@ func (e *Engine) cancel(ctx context.Context, run store.Run) error {
 
 func (e *Engine) finish(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload) error {
 	now := store.NowMs()
-	run.Status = status
-	run.Phase = store.PhaseDone
-	run.EndedAtMs = now
-	run.LastActivityAtMs = now
-	if status == store.StatusCancelled {
-		run.CancelRequested = true
+	err := e.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+		if _, err := finishRunTx(ctx, tx, run, status, eventType, payload, now); err != nil {
+			return err
+		}
+		thread, err := tx.LockThread(ctx, run.UserID)
+		if err != nil {
+			return err
+		}
+		if thread.ActiveRunID == run.ID {
+			thread.ActiveRunID = 0
+			thread.UpdatedAtMs = now
+			if err := tx.SaveThread(ctx, *thread); err != nil {
+				return err
+			}
+		}
+		if run.Source == store.SourceWatch && status != store.StatusDone {
+			watchPayload := decodeWatchRunPayload(run.QueuedPayload)
+			if watchPayload.BucketID > 0 {
+				return tx.ResetBucket(ctx, watchPayload.BucketID, run.ID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	if payload.ErrorCode != "" {
-		run.ErrorCode = payload.ErrorCode
-	}
-	_ = e.Store.UpdateRun(ctx, run)
-	_, _ = AppendEvent(ctx, e.Store, e.Notify, run, eventType, payload)
-	thread, err := e.Store.GetThread(ctx, run.UserID)
-	if err == nil && thread != nil && thread.ActiveRunID == run.ID {
-		thread.ActiveRunID = 0
-		thread.UpdatedAtMs = now
-		_ = e.Store.SaveThread(ctx, *thread)
-	}
+	e.wake(ctx, run.ID)
 	if run.Source == store.SourceUser && status == store.StatusDone {
 		e.maybeScheduleReview(ctx, run)
 	}

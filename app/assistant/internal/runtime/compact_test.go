@@ -28,6 +28,58 @@ func TestSelectKeepLastTwentyPercent(t *testing.T) {
 	}
 }
 
+func TestCompactedMessagesDoNotRetriggerCompact(t *testing.T) {
+	msgs := []store.Message{
+		{ID: 1, Role: store.RoleUser, Content: strings.Repeat("旧", 400), Visible: true, Compacted: true},
+		{ID: 2, Role: store.RoleUser, Content: strings.Repeat("新", 40), Visible: true},
+	}
+	if got := EstimateMessageTokens(msgs); got != EstimateMessageTokens(msgs[1:]) {
+		t.Fatalf("compacted message counted: got=%d live=%d", got, EstimateMessageTokens(msgs[1:]))
+	}
+	if ShouldCompact(msgs, 400) {
+		t.Fatal("already compacted history must not trigger another compact pass")
+	}
+}
+
+func TestSingleOversizedLiveMessageDoesNotCompactForever(t *testing.T) {
+	msgs := []store.Message{{ID: 1, Role: store.RoleUser, Content: strings.Repeat("字", 1000), Visible: true}}
+	if ShouldCompact(msgs, 400) {
+		t.Fatal("a message that cannot be reduced must not retrigger compact")
+	}
+}
+
+func TestCompletedToolRoundCanBeCompacted(t *testing.T) {
+	call := prompt.Turn{Role: store.RoleAssistant, ToolCalls: []prompt.ToolCall{{ID: "done-call", Name: "get_post", Arguments: `{"post_id":1}`}}}
+	result := prompt.Turn{Role: store.RoleTool, ToolCallID: "done-call", Name: "get_post", Content: strings.Repeat("结果", 400)}
+	msgs := []store.Message{
+		{ID: 1, Role: store.RoleAssistant, Kind: store.KindTool, APIContent: prompt.EncodeTurn(call)},
+		{ID: 2, Role: store.RoleTool, Kind: store.KindTool, APIContent: prompt.EncodeTurn(result)},
+		{ID: 3, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
+	}
+	if !ShouldCompact(msgs, 300) {
+		t.Fatal("a completed tool round must remain eligible for compact")
+	}
+	selected := SelectKeep(msgs, EstimateMessageTokens(msgs)/5, unfinishedCallIDs(msgs))
+	if len(selected) >= len(msgs) {
+		t.Fatalf("completed tool messages were force-kept: %+v", selected)
+	}
+}
+
+func TestUnfinishedToolCallIsKept(t *testing.T) {
+	call := prompt.Turn{Role: store.RoleAssistant, ToolCalls: []prompt.ToolCall{{ID: "open-call", Name: "get_post", Arguments: `{"post_id":1}`}}}
+	msgs := []store.Message{
+		{ID: 1, Role: store.RoleAssistant, Kind: store.KindTool, APIContent: prompt.EncodeTurn(call)},
+		{ID: 2, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
+	}
+	selected := SelectKeep(msgs, 1, unfinishedCallIDs(msgs))
+	for _, msg := range selected {
+		if msg.ID == 1 {
+			return
+		}
+	}
+	t.Fatalf("unfinished tool call was dropped: %+v", selected)
+}
+
 func TestHistoryTurnsReplaysHiddenToolSidecar(t *testing.T) {
 	assistant := prompt.Turn{Role: store.RoleAssistant, ToolCalls: []prompt.ToolCall{
 		{ID: "c1", Name: "search_posts", Arguments: `{"keyword":"猫粮"}`},
