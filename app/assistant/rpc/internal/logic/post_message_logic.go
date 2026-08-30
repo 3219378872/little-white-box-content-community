@@ -33,12 +33,16 @@ func (l *PostMessageLogic) PostMessage(in *pb.PostMessageReq) (*pb.PostMessageRe
 		return nil, unavailableUntilStore()
 	}
 	consentOK := false
+	var consentVersion int32
 	if l.svcCtx.UserService != nil {
 		consent, err := l.svcCtx.UserService.GetAgentCapabilityConsent(l.ctx, &userservice.GetAgentCapabilityConsentReq{UserId: in.UserId})
 		if err != nil {
 			return nil, errx.FromRPCError(err)
 		}
-		consentOK = consent != nil && consent.Granted
+		consentOK = consent != nil && consent.Granted && consent.ConsentVersion > 0
+		if consent != nil {
+			consentVersion = consent.ConsentVersion
+		}
 	}
 	attachments := make([]runtime.Attachment, 0, len(in.Attachments))
 	for _, item := range in.Attachments {
@@ -48,7 +52,7 @@ func (l *PostMessageLogic) PostMessage(in *pb.PostMessageReq) (*pb.PostMessageRe
 	}
 	result, err := l.svcCtx.Acceptor.Accept(l.ctx, runtime.AcceptInput{
 		UserID: in.UserId, Message: in.Message, RequestID: in.RequestId,
-		Attachments: attachments, ContextPostID: in.ContextPostId, ConsentOK: consentOK,
+		Attachments: attachments, ContextPostID: in.ContextPostId, ConsentOK: consentOK, ConsentVersion: consentVersion,
 	})
 	if err != nil {
 		return nil, err

@@ -46,13 +46,21 @@ func ScheduleDueWatchRuns(ctx context.Context, st store.Store, watchStore watch.
 }
 
 func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store, consent ConsentChecker, bucket store.DeliveryBucket, now int64) error {
-	granted := false
-	var err error
-	if consent != nil {
-		granted, err = consent(ctx, bucket.UserID)
+	consentVersion, granted, err := st.AgentConsent(ctx, bucket.UserID)
+	if err != nil {
+		return err
 	}
-	if err != nil || !granted {
+	if !granted || consentVersion <= 0 {
 		return st.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds())
+	}
+	if consent != nil {
+		externalGranted, consentErr := consent(ctx, bucket.UserID)
+		if consentErr != nil {
+			return consentErr
+		}
+		if !externalGranted {
+			return st.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds())
+		}
 	}
 	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
 	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
@@ -104,6 +112,20 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
 	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: bucket.HitIDs, TaskIDs: taskIDs})
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+		lockedVersion, stillGranted, err := tx.AgentConsent(ctx, bucket.UserID)
+		if err != nil {
+			return err
+		}
+		if !stillGranted || lockedVersion != consentVersion {
+			return tx.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds())
+		}
+		freshBucket, err := tx.GetBucket(ctx, bucket.ID)
+		if err != nil {
+			return err
+		}
+		if freshBucket == nil || (freshBucket.Status != "pending" && freshBucket.Status != "deferred") {
+			return nil
+		}
 		thread, err := tx.LockThread(ctx, bucket.UserID)
 		if err != nil {
 			return err
@@ -123,7 +145,8 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 		run, insertErr := tx.InsertRun(ctx, store.Run{
 			UserID: bucket.UserID, SessionID: sessionID, RequestID: "watch-" + itoa(bucket.ID) + "-" + itoa(now),
 			Source: store.SourceWatch, Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityWatch,
-			QueuedPayload: payload, CreatedAtMs: now, LastActivityAtMs: now,
+			QueuedPayload: payload, ConsentVersion: consentVersion, InputVersion: 1,
+			CreatedAtMs: now, LastActivityAtMs: now,
 		})
 		if insertErr != nil {
 			return insertErr

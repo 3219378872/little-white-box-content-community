@@ -583,6 +583,7 @@ type UpdatePostReq struct {
 	Status           *int32                 `protobuf:"varint,7,opt,name=status,proto3,oneof" json:"status,omitempty"`                                       // 显式状态变更；draft(0) ⇄ published(1)
 	ExpectedRevision int64                  `protobuf:"varint,8,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"` // 调用者最后读取的预期 revision，冲突返回 409
 	MediaIds         []int64                `protobuf:"varint,9,rep,packed,name=media_ids,json=mediaIds,proto3" json:"media_ids,omitempty"`                  // 引用的已上传媒体标识（CORE-024）
+	IdempotencyKey   string                 `protobuf:"bytes,10,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`       // 可选稳定命令键；与 revision CAS 在同一事务提交
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -680,6 +681,13 @@ func (x *UpdatePostReq) GetMediaIds() []int64 {
 	return nil
 }
 
+func (x *UpdatePostReq) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
 // 更新帖子响应
 type UpdatePostResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -739,6 +747,7 @@ type DeletePostReq struct {
 	PostId           int64                  `protobuf:"varint,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
 	AuthorId         int64                  `protobuf:"varint,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
 	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"` // 调用者最后读取的预期 revision，冲突返回 409
+	IdempotencyKey   string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`        // 可选稳定命令键；与软删除和 outbox 在同一事务提交
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -792,6 +801,13 @@ func (x *DeletePostReq) GetExpectedRevision() int64 {
 		return x.ExpectedRevision
 	}
 	return 0
+}
+
+func (x *DeletePostReq) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 // 删除帖子响应
@@ -2039,7 +2055,7 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\vGetPostResp\x12%\n" +
 	"\x04post\x18\x01 \x01(\v2\x11.content.PostInfoR\x04post\x12\x19\n" +
 	"\bis_liked\x18\x02 \x01(\bR\aisLiked\x12!\n" +
-	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\x93\x02\n" +
+	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\xbc\x02\n" +
 	"\rUpdatePostReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12\x14\n" +
@@ -2049,15 +2065,18 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\x04tags\x18\x06 \x03(\tR\x04tags\x12\x1b\n" +
 	"\x06status\x18\a \x01(\x05H\x00R\x06status\x88\x01\x01\x12+\n" +
 	"\x11expected_revision\x18\b \x01(\x03R\x10expectedRevision\x12\x1b\n" +
-	"\tmedia_ids\x18\t \x03(\x03R\bmediaIdsB\t\n" +
+	"\tmedia_ids\x18\t \x03(\x03R\bmediaIds\x12'\n" +
+	"\x0fidempotency_key\x18\n" +
+	" \x01(\tR\x0eidempotencyKeyB\t\n" +
 	"\a_status\"D\n" +
 	"\x0eUpdatePostResp\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\x03R\brevision\"r\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\"\x9b\x01\n" +
 	"\rDeletePostReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12+\n" +
-	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x10\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\x10\n" +
 	"\x0eDeletePostResp\"w\n" +
 	"\x0eGetPostListReq\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x17\n" +

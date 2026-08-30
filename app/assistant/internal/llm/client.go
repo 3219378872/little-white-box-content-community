@@ -26,9 +26,11 @@ const (
 )
 
 type ToolCall struct {
-	ID        string
-	Name      string
-	Arguments string
+	ID           string
+	Name         string
+	Arguments    string
+	Prepared     bool
+	PrepareError error
 }
 
 type Usage struct {

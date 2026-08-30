@@ -52,6 +52,8 @@ type (
 	RemoveMemoryResp            = pb.RemoveMemoryResp
 	ReplaceMemoryReq            = pb.ReplaceMemoryReq
 	ReplaceMemoryResp           = pb.ReplaceMemoryResp
+	RevokeConsentReq            = pb.RevokeConsentReq
+	RevokeConsentResp           = pb.RevokeConsentResp
 	RunEvent                    = pb.RunEvent
 	SourceCard                  = pb.SourceCard
 	SubmitRecommendFeedbackReq  = pb.SubmitRecommendFeedbackReq
@@ -73,6 +75,7 @@ type (
 		DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
 		SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (pb.AssistantService_SubscribeRunEventsClient, error)
 		CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
+		RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error)
 		ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
 		ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
 		AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
@@ -136,6 +139,11 @@ func (m *defaultAssistantService) SubscribeRunEvents(ctx context.Context, in *Su
 func (m *defaultAssistantService) CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
 	return client.CancelRun(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.RevokeConsent(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error) {

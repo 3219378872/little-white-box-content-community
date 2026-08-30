@@ -2,14 +2,17 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/errx"
 	"esx/pkg/event"
+	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,6 +35,26 @@ func NewDeletePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delete
 func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, error) {
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	idem, err := deletePostIdempotency(in)
+	if err != nil {
+		return nil, err
+	}
+	idemModel, idemEnabled := l.svcCtx.PostCommandModel.(model.IdempotentPostCommandModel)
+	if idem.Key != "" {
+		if !idemEnabled {
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		_, found, replayErr := idemModel.ReplayPostCommand(l.ctx, idem)
+		if replayErr != nil {
+			if errors.Is(replayErr, idempotencyx.ErrIdempotencyConflict) {
+				return nil, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		if found {
+			return &pb.DeletePostResp{}, nil
+		}
 	}
 
 	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
@@ -71,9 +94,17 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent, in.ExpectedRevision); err != nil {
+	if idem.Key != "" {
+		_, err = idemModel.DeletePostIdempotent(l.ctx, post.Id, outboxEvent, in.ExpectedRevision, post.Revision+1, idem)
+	} else {
+		err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent, in.ExpectedRevision)
+	}
+	if err != nil {
 		if errors.Is(err, model.ErrVersionConflict) {
 			return nil, errx.NewWithCode(errx.ContentVersionConflict)
+		}
+		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
+			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("delete post transaction failed",
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
@@ -85,4 +116,22 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	}
 
 	return &pb.DeletePostResp{}, nil
+}
+
+func deletePostIdempotency(in *pb.DeletePostReq) (idempotencyx.IdempotencyRecord, error) {
+	key := strings.TrimSpace(in.GetIdempotencyKey())
+	payload, err := json.Marshal(struct {
+		PostID           int64 `json:"post_id"`
+		AuthorID         int64 `json:"author_id"`
+		ExpectedRevision int64 `json:"expected_revision"`
+	}{in.PostId, in.AuthorId, in.ExpectedRevision})
+	if err != nil {
+		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
+	}
+	row := idempotencyx.IdempotencyRecord{Scope: "post:delete", UserID: in.AuthorId,
+		Key: key, CommandHash: idempotencyx.CommandHash(string(payload))}
+	if !row.Valid() {
+		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
+	}
+	return row, nil
 }

@@ -13,6 +13,7 @@ service AssistantService {
 
   rpc SubscribeRunEvents(SubscribeRunEventsReq) returns (stream RunEvent);
   rpc CancelRun(CancelRunReq) returns (CancelRunResp);
+  rpc RevokeConsent(RevokeConsentReq) returns (RevokeConsentResp);
   rpc ConfirmRunTool(ConfirmRunToolReq) returns (ConfirmRunToolResp);
 
   rpc ListMemory(ListMemoryReq) returns (ListMemoryResp);
@@ -158,6 +159,12 @@ message CancelRunReq {
 }
 
 message CancelRunResp {}
+
+message RevokeConsentReq {
+  int64 user_id = 1;
+}
+
+message RevokeConsentResp {}
 
 message ConfirmRunToolReq {
   int64 user_id = 1;

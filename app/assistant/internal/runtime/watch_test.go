@@ -21,9 +21,9 @@ func TestWatchRunReceivesHitsAndCountsOnlyAfterSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
-	run, err := mem.GetRun(ctx, scheduled.RunID)
-	if err != nil {
-		t.Fatal(err)
+	run, err := mem.Claim(ctx, "watch-worker", now, 60_000)
+	if err != nil || run == nil || run.ID != scheduled.RunID {
+		t.Fatalf("claim=%+v err=%v", run, err)
 	}
 	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
 	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
@@ -72,7 +72,10 @@ func TestWatchRunFailureRequeuesBucket(t *testing.T) {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
-	run, _ := mem.GetRun(ctx, scheduled.RunID)
+	run, err := mem.Claim(ctx, "watch-worker", store.NowMs(), 60_000)
+	if err != nil || run == nil || run.ID != scheduled.RunID {
+		t.Fatalf("claim=%+v err=%v", run, err)
+	}
 	reg, _ := tool.NewRegistry(tool.Clients{Store: mem}, []string{tool.PresentSources})
 	engine := &Engine{Store: mem, Watch: watchStore, Tools: reg, LLM: &scriptedLLM{}, Window: 128000}
 	engine.Execute(ctx, *run, false)

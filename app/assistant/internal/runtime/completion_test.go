@@ -23,7 +23,7 @@ func TestMemoryReviewWritesUndoableMemoryChangedMessage(t *testing.T) {
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 7, SessionID: session.ID, RequestID: "review-1", Source: store.SourceMemoryReview,
-		Status: store.StatusRunning, Phase: store.PhaseModelRequest, CreatedAtMs: 1,
+		Status: store.StatusQueued, Phase: store.PhaseModelRequest, ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -34,6 +34,11 @@ func TestMemoryReviewWritesUndoableMemoryChangedMessage(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	claimed, err := mem.Claim(ctx, "review-worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != run.ID {
+		t.Fatalf("claim=%+v err=%v", claimed, err)
+	}
+	run = *claimed
 	engine := &Engine{Store: mem, Memory: memoryStore}
 	if err := engine.completeMemoryReview(ctx, run); err != nil {
 		t.Fatal(err)

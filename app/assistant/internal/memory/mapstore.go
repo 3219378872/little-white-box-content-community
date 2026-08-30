@@ -99,6 +99,24 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 }
 
 func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID string, op Op, nowMs int64) (*Entry, int64, error) {
+	if requestID != "" && requestID != "anon" {
+		for _, change := range m.changes {
+			if change.UserID != userID || change.RequestID != requestID {
+				continue
+			}
+			if !memoryReplayMatches(op, change) {
+				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			if strings.EqualFold(strings.TrimSpace(op.Op), OpRemove) {
+				return nil, change.ID, nil
+			}
+			if change.After == nil {
+				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			entry := *change.After
+			return &entry, change.ID, nil
+		}
+	}
 	switch strings.ToLower(strings.TrimSpace(op.Op)) {
 	case OpAdd, "":
 		if !ValidTarget(op.Target) {

@@ -2,12 +2,14 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/errx"
 	"esx/pkg/event"
+	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
 	"esx/pkg/util"
 	"esx/pkg/visibilityx"
@@ -61,6 +63,27 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if in.Title == "" && in.Content == "" && in.Images == nil && in.Tags == nil &&
 		in.Status == nil && len(in.MediaIds) == 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	idem, err := updatePostIdempotency(in)
+	if err != nil {
+		return nil, err
+	}
+	idemModel, idemEnabled := l.svcCtx.PostCommandModel.(model.IdempotentPostCommandModel)
+	if idem.Key != "" {
+		if !idemEnabled {
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		result, found, replayErr := idemModel.ReplayPostCommand(l.ctx, idem)
+		if replayErr != nil {
+			if errors.Is(replayErr, idempotencyx.ErrIdempotencyConflict) {
+				return nil, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		if found {
+			status, revision := decodePostCommandResult(result)
+			return &pb.UpdatePostResp{Status: status, Revision: revision}, nil
+		}
 	}
 	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
 		return nil, err
@@ -193,9 +216,18 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	if err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, modelTags, modelTagIDs, outboxEvent, in.ExpectedRevision, replaceTags); err != nil {
+	if idem.Key != "" {
+		_, err = idemModel.UpdatePostIdempotent(l.ctx, post.Id, fields, modelTags, modelTagIDs, outboxEvent,
+			in.ExpectedRevision, replaceTags, encodePostCommandResult(int32(newStatus), post.Revision+1), idem)
+	} else {
+		err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, modelTags, modelTagIDs, outboxEvent, in.ExpectedRevision, replaceTags)
+	}
+	if err != nil {
 		if errors.Is(err, model.ErrVersionConflict) {
 			return nil, errx.NewWithCode(errx.ContentVersionConflict)
+		}
+		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
+			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("update post transaction failed",
 			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
@@ -210,4 +242,35 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		Status:   int32(newStatus),
 		Revision: post.Revision + 1,
 	}, nil
+}
+
+func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord, error) {
+	key := strings.TrimSpace(in.GetIdempotencyKey())
+	payload, err := json.Marshal(struct {
+		PostID           int64    `json:"post_id"`
+		AuthorID         int64    `json:"author_id"`
+		Title            string   `json:"title"`
+		Content          string   `json:"content"`
+		Images           []string `json:"images"`
+		Tags             []string `json:"tags"`
+		Status           *int32   `json:"status"`
+		ExpectedRevision int64    `json:"expected_revision"`
+		MediaIDs         []int64  `json:"media_ids"`
+	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds})
+	if err != nil {
+		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
+	}
+	row := idempotencyx.IdempotencyRecord{Scope: "post:update", UserID: in.AuthorId, Key: key, CommandHash: idempotencyx.CommandHash(string(payload))}
+	if !row.Valid() {
+		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
+	}
+	return row, nil
+}
+
+func encodePostCommandResult(status int32, revision int64) int64 {
+	return revision*10 + int64(status)
+}
+
+func decodePostCommandResult(result int64) (int32, int64) {
+	return int32(result % 10), result / 10
 }

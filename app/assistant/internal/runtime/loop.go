@@ -44,6 +44,7 @@ var (
 	})
 
 	errRunCancelled     = errors.New("assistant run cancelled")
+	errRunRedirected    = errors.New("assistant run redirected")
 	cancelWatchInterval = 50 * time.Millisecond
 )
 
@@ -68,11 +69,14 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	persistCtx := ctx
 	workCtx, cancelWork := context.WithCancel(persistCtx)
 	defer cancelWork()
-	stopWatch := watchCancel(persistCtx, e.Store, run.ID, cancelWork)
+	stopWatch := watchCancel(persistCtx, e.Store, run, cancelWork)
 	defer stopWatch()
 
 	logger := logx.WithContext(persistCtx)
 	if err := e.run(workCtx, persistCtx, run); err != nil {
+		if errors.Is(err, store.ErrLeaseLost) || persistCtx.Err() != nil {
+			return
+		}
 		if errors.Is(err, errRunCancelled) {
 			if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
 				!store.IsTerminalStatus(fresh.Status) {
@@ -81,9 +85,6 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 			return
 		}
 		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
-		if persistCtx.Err() != nil {
-			return
-		}
 		if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
 			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
 			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", err.Error())
@@ -91,7 +92,30 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	}
 }
 
-func watchCancel(persistCtx context.Context, st store.Store, runID int64, cancelWork context.CancelFunc) func() {
+func (e *Engine) step(ctx context.Context, run store.Run, fn func(context.Context, store.Store) error) error {
+	return e.Store.RunStep(ctx, run.Fence(), fn)
+}
+
+func (e *Engine) updateRun(ctx context.Context, run store.Run) error {
+	return e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		return tx.UpdateRun(ctx, run)
+	})
+}
+
+func (e *Engine) appendEvent(ctx context.Context, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
+	var event store.Event
+	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		var err error
+		event, err = AppendEvent(ctx, tx, nil, run, eventType, payload)
+		return err
+	})
+	if err == nil && e.Notify != nil {
+		_ = e.Notify.Wake(ctx, run.ID)
+	}
+	return event, err
+}
+
+func watchCancel(persistCtx context.Context, st store.Store, claimed store.Run, cancelWork context.CancelFunc) func() {
 	if st == nil {
 		return func() {}
 	}
@@ -102,8 +126,19 @@ func watchCancel(persistCtx context.Context, st store.Store, runID int64, cancel
 		ticker := time.NewTicker(cancelWatchInterval)
 		defer ticker.Stop()
 		check := func() bool {
-			run, err := st.GetRun(watchCtx, runID)
-			return err == nil && run != nil && run.CancelRequested
+			run, err := st.GetRun(watchCtx, claimed.ID)
+			if err == nil && run != nil && run.CancelRequested {
+				return true
+			}
+			version, granted, consentErr := st.AgentConsent(watchCtx, claimed.UserID)
+			if consentErr != nil {
+				return true
+			}
+			if !granted || version != claimed.ConsentVersion {
+				_ = st.RequestCancel(watchCtx, claimed.UserID, claimed.ID)
+				return true
+			}
+			return false
 		}
 		if check() {
 			cancelWork()
@@ -132,7 +167,11 @@ func (e *Engine) cancelled(persistCtx context.Context, run *store.Run) bool {
 		return false
 	}
 	fresh, err := e.Store.GetRun(persistCtx, run.ID)
-	if err != nil || fresh == nil {
+	if err != nil {
+		run.CancelRequested = true
+		return true
+	}
+	if fresh == nil {
 		return run.CancelRequested
 	}
 	if fresh.CancelRequested {
@@ -149,7 +188,25 @@ func (e *Engine) abortIfRequested(persistCtx context.Context, run store.Run) (bo
 	return true, e.cancel(persistCtx, run)
 }
 
+func (e *Engine) requireFrozenConsent(ctx context.Context, run *store.Run) error {
+	if run == nil {
+		return nil
+	}
+	version, granted, err := e.Store.AgentConsent(ctx, run.UserID)
+	if err != nil {
+		return err
+	}
+	if !granted || version <= 0 || version != run.ConsentVersion {
+		run.CancelRequested = true
+		return errRunCancelled
+	}
+	return nil
+}
+
 func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
+	if err := e.requireFrozenConsent(persistCtx, &run); err != nil {
+		return err
+	}
 	session, err := e.Store.GetSession(persistCtx, run.SessionID)
 	if err != nil {
 		return e.fail(persistCtx, run, "SESSION_MISSING", err.Error())
@@ -158,23 +215,34 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	if !ok {
 		var entries []memory.Entry
 		if e.Memory != nil {
-			entries, _ = e.Memory.Active(persistCtx, run.UserID)
+			entries, err = e.Memory.Active(persistCtx, run.UserID)
+			if err != nil {
+				return err
+			}
 		}
 		snap = prompt.BuildSnapshot(entries, nil, session.CompactSummary)
 		session.PromptSnapshot = prompt.EncodeSnapshot(snap)
-		_ = e.Store.UpdateSession(persistCtx, *session)
+		if err := e.step(persistCtx, run, func(ctx context.Context, tx store.Store) error {
+			return tx.UpdateSession(ctx, *session)
+		}); err != nil {
+			return err
+		}
 	}
 	if err := e.ensureStarted(persistCtx, run); err != nil {
 		return err
 	}
 	started := time.Now()
 	var reviewLive []prompt.Turn
-	registry := tool.ForSource(e.Tools, run.Source, tool.CurrentConsentVersion)
+	registry := tool.ForSource(e.Tools, run.Source, run.ConsentVersion)
 	if registry == nil {
 		return e.fail(persistCtx, run, "TOOLS_UNAVAILABLE", "no tools")
 	}
 	session.ToolSnapshot = prompt.EncodeTools(registry.Definitions())
-	_ = e.Store.UpdateSession(persistCtx, *session)
+	if err := e.step(persistCtx, run, func(ctx context.Context, tx store.Store) error {
+		return tx.UpdateSession(ctx, *session)
+	}); err != nil {
+		return err
+	}
 
 	for {
 		fresh, err := e.Store.GetRun(persistCtx, run.ID)
@@ -182,6 +250,9 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			return err
 		}
 		run = *fresh
+		if err := e.requireFrozenConsent(persistCtx, &run); err != nil {
+			return err
+		}
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 			return abortErr
 		}
@@ -189,9 +260,19 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if HardLimitExceeded(run, now) {
 			return e.resourceLimit(persistCtx, run)
 		}
-		convergence, _ := RecordAlarms(persistCtx, e.Store, run, now)
+		var convergence string
+		if err := e.step(persistCtx, run, func(ctx context.Context, tx store.Store) error {
+			var err error
+			convergence, err = RecordAlarms(ctx, tx, run, now)
+			return err
+		}); err != nil {
+			return err
+		}
 
-		msgs, _ := e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
+		msgs, err := e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
+		if err != nil {
+			return err
+		}
 		if e.Window == 0 && e.LLM != nil {
 			e.Window = e.LLM.ContextWindowTokens()
 		}
@@ -202,8 +283,15 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 				}
 				return err
 			}
-			session, _ = e.Store.GetSession(persistCtx, run.SessionID)
-			snap, _ = prompt.DecodeSnapshot(session.PromptSnapshot)
+			session, err = e.Store.GetSession(persistCtx, run.SessionID)
+			if err != nil {
+				return err
+			}
+			var decoded bool
+			snap, decoded = prompt.DecodeSnapshot(session.PromptSnapshot)
+			if !decoded {
+				return errors.New("compacted prompt snapshot is invalid")
+			}
 			continue
 		}
 
@@ -222,7 +310,10 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 					return err
 				}
 			}
-			msgs, _ = e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
+			msgs, err = e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
+			if err != nil {
+				return err
+			}
 			history = HistoryTurns(visibleForPrompt(msgs))
 		}
 		snap.History = history
@@ -241,18 +332,26 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 
 		run.Phase = store.PhaseModelRequest
 		run.LastActivityAtMs = now
-		_ = e.Store.UpdateRun(persistCtx, run)
+		if err := e.updateRun(persistCtx, run); err != nil {
+			return err
+		}
 
 		if e.LLM == nil {
 			return e.fail(persistCtx, run, "LLM_DISABLED", "model is not configured")
 		}
-		result, err := e.LLM.Complete(workCtx, llm.Request{
+		result, err := e.completeModel(workCtx, persistCtx, run, llm.Request{
 			Messages:    turns,
 			Tools:       registry.Definitions(),
 			MaxTokens:   SingleOutputLimit(e.LLM.MaxOutputTokens()),
 			Convergence: convergence,
 		})
 		if err != nil {
+			if errors.Is(err, errRunRedirected) {
+				continue
+			}
+			if errors.Is(err, errRunCancelled) {
+				return e.cancel(persistCtx, run)
+			}
 			if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 				return abortErr
 			}
@@ -273,7 +372,6 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		run.CacheTokens += result.Usage.CacheTokens
 		run.CostUSD += result.Usage.CostUSD
 		run.LastActivityAtMs = store.NowMs()
-		_ = e.Store.UpdateRun(persistCtx, run)
 		if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 			return abortErr
 		}
@@ -287,11 +385,6 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			text := strings.TrimSpace(result.Text)
 			result.Text = text
 			agentFirstToken.ObserveFloat(time.Since(started).Seconds())
-			if run.Source == store.SourceUser && text != "" {
-				if _, err := AppendEvent(persistCtx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: text}); err != nil {
-					return err
-				}
-			}
 			return e.completeModelText(persistCtx, run, result)
 		}
 
@@ -303,14 +396,23 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 				id = "call_" + itoa(store.NowMs()) + "_" + itoa(int64(i+1))
 			}
 			args := canonical.UnwrapArgsJSON(call.Arguments)
-			calls = append(calls, llm.ToolCall{ID: id, Name: call.Name, Arguments: args})
-			assistantTurn.ToolCalls = append(assistantTurn.ToolCalls, prompt.ToolCall{ID: id, Name: call.Name, Arguments: args})
-		}
-		if err := e.recordTurn(persistCtx, run, assistantTurn, store.KindTool, false, &reviewLive); err != nil {
-			return err
+			sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
+				RequestID: run.RequestID, Source: run.Source, ConsentVersion: run.ConsentVersion}
+			preparedOK := false
+			var prepareErr error
+			if prepared, prepErr := registry.Prepare(workCtx, sess, call.Name, args); prepErr == nil {
+				args = prepared
+				preparedOK = true
+			} else {
+				prepareErr = prepErr
+			}
+			calls = append(calls, llm.ToolCall{ID: id, Name: call.Name, Arguments: args, Prepared: preparedOK, PrepareError: prepareErr})
+			assistantTurn.ToolCalls = append(assistantTurn.ToolCalls, prompt.ToolCall{ID: id, Name: call.Name, Arguments: args, Prepared: preparedOK})
 		}
 		run.Phase = store.PhaseToolExecuting
-		_ = e.Store.UpdateRun(persistCtx, run)
+		if err := e.recordModelToolStep(persistCtx, run, assistantTurn, &reviewLive); err != nil {
+			return err
+		}
 		for _, call := range calls {
 			if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
 				return abortErr
@@ -327,16 +429,6 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 
 func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Result) error {
 	partial := strings.TrimSpace(result.Text)
-	if partial != "" && run.Source == store.SourceUser {
-		if _, err := AppendEvent(ctx, e.Store, e.Notify, run, store.EventToken, store.EventPayload{Text: partial}); err != nil {
-			return err
-		}
-		if run.Source == store.SourceUser {
-			if err := e.persistVisibleAssistant(ctx, run, partial, result.Raw, store.KindMessage); err != nil {
-				return err
-			}
-		}
-	}
 	reason := "UNKNOWN"
 	switch strings.ToLower(strings.TrimSpace(result.IncompleteReason)) {
 	case "max_output_tokens":
@@ -344,11 +436,15 @@ func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Resul
 	case "content_filter":
 		reason = "CONTENT_FILTER"
 	}
-	return e.finish(ctx, run, store.StatusError, store.EventError, store.EventPayload{
+	payload := store.EventPayload{
 		ErrorCode: "LLM_INCOMPLETE_" + reason,
 		Text:      "模型响应未完整完成",
 		Partial:   partial,
-	})
+	}
+	if partial != "" && run.Source == store.SourceUser {
+		return e.finishWithMessage(ctx, run, store.StatusError, store.EventError, payload, partial, result.Raw)
+	}
+	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
 
 func visibleForPrompt(msgs []store.Message) []store.Message {
@@ -360,6 +456,90 @@ func visibleForPrompt(msgs []store.Message) []store.Message {
 		out = append(out, msg)
 	}
 	return out
+}
+
+func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Run, req llm.Request) (llm.Result, error) {
+	if err := e.step(persistCtx, run, func(context.Context, store.Store) error { return nil }); err != nil {
+		return llm.Result{}, err
+	}
+	before, err := e.Store.GetRun(persistCtx, run.ID)
+	if err != nil {
+		return llm.Result{}, err
+	}
+	if before.CancelRequested {
+		return llm.Result{}, errRunCancelled
+	}
+	if before.LeaseOwner != run.LeaseOwner || before.LeaseGeneration != run.LeaseGeneration {
+		return llm.Result{}, store.ErrLeaseLost
+	}
+	if before.InputVersion != run.InputVersion {
+		return llm.Result{}, errRunRedirected
+	}
+	callCtx, cancelCall := context.WithCancel(workCtx)
+	stop := watchInputChange(persistCtx, e.Store, run.ID, run.InputVersion, cancelCall)
+	result, err := e.LLM.Complete(callCtx, req)
+	stop()
+	fresh, getErr := e.Store.GetRun(persistCtx, run.ID)
+	if getErr != nil {
+		return llm.Result{}, getErr
+	}
+	if fresh.CancelRequested {
+		return llm.Result{}, errRunCancelled
+	}
+	if fresh.LeaseOwner != run.LeaseOwner || fresh.LeaseGeneration != run.LeaseGeneration {
+		return llm.Result{}, store.ErrLeaseLost
+	}
+	if fresh.InputVersion != run.InputVersion {
+		return llm.Result{}, errRunRedirected
+	}
+	return result, err
+}
+
+func watchInputChange(ctx context.Context, st store.Store, runID, inputVersion int64, cancel context.CancelFunc) func() {
+	watchCtx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(cancelWatchInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-watchCtx.Done():
+				return
+			case <-ticker.C:
+				run, err := st.GetRun(watchCtx, runID)
+				if err == nil && run != nil && (run.CancelRequested || run.InputVersion != inputVersion) {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	return func() {
+		stop()
+		<-done
+		cancel()
+	}
+}
+
+func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn prompt.Turn, reviewLive *[]prompt.Turn) error {
+	if run.Source == store.SourceMemoryReview {
+		if reviewLive != nil {
+			*reviewLive = append(*reviewLive, turn)
+		}
+		return e.updateRun(ctx, run)
+	}
+	return e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		if err := tx.UpdateRun(ctx, run); err != nil {
+			return err
+		}
+		_, err := tx.InsertMessage(ctx, store.Message{
+			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
+			Role: turn.Role, Kind: store.KindTool, Content: turn.Content, APIContent: prompt.EncodeTurn(turn),
+			Visible: false, CreatedAtMs: store.NowMs(),
+		})
+		return err
+	})
 }
 
 func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, error) {
@@ -381,13 +561,19 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 			}
 		}
 	}
-	items, _ := e.Store.ListQueue(ctx, run.ID)
+	items, err := e.Store.ListQueue(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
 	for _, item := range items {
 		if _, ok := seen[item.MessageID]; ok {
 			continue
 		}
 		msg, err := e.Store.GetMessage(ctx, run.UserID, item.MessageID)
-		if err == nil && msg != nil {
+		if err != nil {
+			return nil, err
+		}
+		if msg != nil {
 			if turn, ok := turnFromMessage(*msg); ok {
 				out = append(out, turn)
 			} else {
@@ -399,70 +585,97 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 }
 
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
-	call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
-	digest, _ := canonical.DigestArgs(call.Arguments)
-	_, _ = e.Store.InsertToolCall(persistCtx, store.ToolCall{
-		RunID: run.ID, CallID: call.ID, Tool: call.Name, ArgsJSON: call.Arguments,
-		CanonicalArgsDigest: digest, Status: "running", CreatedAtMs: store.NowMs(),
-	})
-	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolCall, store.EventPayload{
-		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: call.Arguments},
-	})
-	if journal, err := e.Store.GetJournal(persistCtx, run.UserID, run.RequestID, call.Name, digest); err == nil && journal != nil && journal.Status == store.JournalSuccess {
+	sess := e.toolSession(*run)
+	prepErr := call.PrepareError
+	if !call.Prepared && prepErr == nil {
+		prepared, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
+		prepErr = err
+		if prepErr == nil {
+			call.Arguments = prepared
+			call.Prepared = true
+		} else {
+			call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
+		}
+	} else {
+		call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
+	}
+	digest, digestErr := canonical.DigestArgs(call.Arguments)
+	if digestErr != nil {
+		digest = "invalid:" + call.ID
+	}
+
+	journal, reserved, err := e.startToolStep(persistCtx, *run, call, digest, prepErr == nil && sideEffect(call.Name))
+	if err != nil {
+		return err
+	}
+	if journal != nil && journal.Status == store.JournalSuccess {
 		agentToolCalls.Inc(call.Name, "replay")
 		text := decodeToolResultText(journal.ResultJSON)
-		_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: journal.ResultJSON})
-		if err := e.recordTurn(persistCtx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); err != nil {
-			return err
-		}
-		_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
-			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "replay", PayloadJSON: text},
-			Text:     text,
-		})
-		return nil
+		sess.ChangeIDs = decodeToolResultChangeIDs(journal.ResultJSON)
+		return e.finishToolStep(persistCtx, run, call, text, nil, nil, sess.ChangeIDs, journal, false, "replay", reviewLive)
 	}
+	if journal != nil && !reserved && journal.Status == store.JournalPending {
+		return errors.New("side effect command is already in progress")
+	}
+	if prepErr != nil {
+		text := prepErr.Error()
+		return e.finishToolStep(persistCtx, run, call, text, prepErr, nil, nil, journal, true, "invalid", reviewLive)
+	}
+	sess.Recovery = journal != nil && journal.Takeover
 	if registry.HighRisk(call.Name) {
 		if err := e.requireConfirm(workCtx, persistCtx, run, call, digest); err != nil {
 			return err
+		}
+		if journal == nil || !journal.Takeover {
+			rechecked, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
+			if err != nil {
+				return err
+			}
+			recheckedDigest, err := canonical.DigestArgs(rechecked)
+			if err != nil || recheckedDigest != digest {
+				return errx.New(errx.ContentVersionConflict, "delete_post changed after confirmation")
+			}
+			call.Arguments = rechecked
 		}
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
-	sess := e.toolSession(*run)
-	text, cards, err := registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
+	if err := e.requireFrozenConsent(persistCtx, run); err != nil {
+		return err
+	}
+	var (
+		text    string
+		cards   []store.SourceRef
+		callErr error
+	)
+	invoke := func() {
+		text, cards, callErr = registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
+	}
+	if sideEffect(call.Name) {
+		if err := e.step(persistCtx, *run, func(context.Context, store.Store) error {
+			invoke()
+			return nil
+		}); err != nil {
+			return err
+		}
+	} else {
+		if err := e.step(persistCtx, *run, func(context.Context, store.Store) error { return nil }); err != nil {
+			return err
+		}
+		invoke()
+	}
 	outcome := "success"
-	if err != nil {
-		if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
+	if callErr != nil {
+		if errors.Is(callErr, context.Canceled) && e.cancelled(persistCtx, run) {
 			return errRunCancelled
 		}
 		outcome = "unavailable"
-		text = err.Error()
+		text = callErr.Error()
 	}
 	agentToolCalls.Inc(call.Name, outcome)
-	run.ToolCalls++
-	run.LastActivityAtMs = store.NowMs()
-	_ = e.Store.UpdateRun(persistCtx, *run)
-	resultJSON := encodeToolResultJSONWithChanges(text, err, sess.ChangeIDs)
-	if sideEffect(call.Name) && err == nil {
-		row, reserved, jerr := e.Store.ReserveJournal(persistCtx, store.Journal{
-			UserID: run.UserID, RequestID: run.RequestID, Tool: call.Name, CanonicalArgsDigest: digest,
-			Status: store.JournalSuccess, ResultJSON: resultJSON, CreatedAtMs: store.NowMs(),
-		})
-		if jerr == nil && reserved && row != nil {
-			_ = e.Store.CompleteJournal(persistCtx, row.ID, store.JournalSuccess, resultJSON)
-		}
-	}
-	_ = e.Store.UpdateToolCall(persistCtx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON})
-	if recErr := e.recordTurn(persistCtx, *run, prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}, store.KindTool, false, reviewLive); recErr != nil {
-		return recErr
-	}
-	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventToolResult, store.EventPayload{
-		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: text},
-		Text:     text,
-	})
-	for _, card := range cards {
-		_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventSourceCard, store.EventPayload{SourceCard: &card})
+	if err := e.finishToolStep(persistCtx, run, call, text, callErr, cards, sess.ChangeIDs, journal, true, outcome, reviewLive); err != nil {
+		return err
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
@@ -471,7 +684,10 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 }
 
 func (e *Engine) toolSession(run store.Run) *tool.Session {
-	sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID, Source: run.Source}
+	sess := &tool.Session{
+		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID,
+		Source: run.Source, ConsentVersion: run.ConsentVersion, Fence: run.Fence(),
+	}
 	payload := decodeInputPayload(run.QueuedPayload)
 	sess.ContextPostID = payload.ContextPostID
 	sess.Attachments = make([]tool.Attachment, 0, len(payload.Attachments))
@@ -481,19 +697,134 @@ func (e *Engine) toolSession(run store.Run) *tool.Session {
 	return sess
 }
 
-func (e *Engine) recordTurn(ctx context.Context, run store.Run, turn prompt.Turn, kind string, visible bool, reviewLive *[]prompt.Turn) error {
-	if run.Source == store.SourceMemoryReview {
-		if reviewLive != nil {
-			*reviewLive = append(*reviewLive, turn)
+func (e *Engine) startToolStep(
+	ctx context.Context,
+	run store.Run,
+	call llm.ToolCall,
+	digest string,
+	reserveSideEffect bool,
+) (*store.Journal, bool, error) {
+	var (
+		journal  *store.Journal
+		reserved bool
+		newCall  bool
+	)
+	now := store.NowMs()
+	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		existing, err := tx.GetToolCall(ctx, run.ID, call.ID)
+		if err != nil {
+			return err
+		}
+		if existing == nil {
+			if _, err := tx.InsertToolCall(ctx, store.ToolCall{
+				RunID: run.ID, CallID: call.ID, Tool: call.Name, ArgsJSON: call.Arguments,
+				CanonicalArgsDigest: digest, Status: "running", CreatedAtMs: now,
+			}); err != nil {
+				return err
+			}
+			newCall = true
+			if _, err := AppendEvent(ctx, tx, nil, run, store.EventToolCall, store.EventPayload{
+				ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: call.Arguments},
+			}); err != nil {
+				return err
+			}
+		} else if existing.Tool != call.Name || existing.CanonicalArgsDigest != digest {
+			return errx.New(errx.PermissionDenied, "tool call identity changed during recovery")
+		}
+		if !reserveSideEffect {
+			return nil
+		}
+		journal, reserved, err = tx.ReserveJournal(ctx, store.Journal{
+			UserID: run.UserID, RequestID: run.RequestID, Tool: call.Name, CanonicalArgsDigest: digest,
+			RunID: run.ID, LeaseGeneration: run.LeaseGeneration, Status: store.JournalPending,
+			CreatedAtMs: now, UpdatedAtMs: now,
+		})
+		return err
+	})
+	if err == nil && newCall && e.Notify != nil {
+		_ = e.Notify.Wake(ctx, run.ID)
+	}
+	return journal, reserved, err
+}
+
+func (e *Engine) finishToolStep(
+	ctx context.Context,
+	run *store.Run,
+	call llm.ToolCall,
+	text string,
+	callErr error,
+	cards []store.SourceRef,
+	changeIDs []int64,
+	journal *store.Journal,
+	countCall bool,
+	outcome string,
+	reviewLive *[]prompt.Turn,
+) error {
+	if countCall {
+		run.ToolCalls++
+	}
+	run.LastActivityAtMs = store.NowMs()
+	resultJSON := encodeToolResultJSONWithChanges(text, callErr, changeIDs)
+	turn := prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}
+	err := e.step(ctx, *run, func(ctx context.Context, tx store.Store) error {
+		if err := tx.UpdateRun(ctx, *run); err != nil {
+			return err
+		}
+		if journal != nil {
+			status := store.JournalSuccess
+			if callErr != nil {
+				status = store.JournalError
+			}
+			if err := tx.CompleteJournal(ctx, journal.ID, status, resultJSON); err != nil {
+				return err
+			}
+		}
+		if err := tx.UpdateToolCall(ctx, store.ToolCall{
+			RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON,
+		}); err != nil {
+			return err
+		}
+		if run.Source != store.SourceMemoryReview {
+			if _, err := tx.InsertMessage(ctx, store.Message{
+				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
+				Role: turn.Role, Kind: store.KindTool, Content: turn.Content, APIContent: prompt.EncodeTurn(turn),
+				Visible: false, CreatedAtMs: store.NowMs(),
+			}); err != nil {
+				return err
+			}
+		}
+		if _, err := AppendEvent(ctx, tx, nil, *run, store.EventToolResult, store.EventPayload{
+			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: outcome, PayloadJSON: text}, Text: text,
+		}); err != nil {
+			return err
+		}
+		for i := range cards {
+			if _, err := AppendEvent(ctx, tx, nil, *run, store.EventSourceCard, store.EventPayload{SourceCard: &cards[i]}); err != nil {
+				return err
+			}
 		}
 		return nil
-	}
-	_, err := e.Store.InsertMessage(ctx, store.Message{
-		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
-		Role: turn.Role, Kind: kind, Content: turn.Content, APIContent: prompt.EncodeTurn(turn),
-		Visible: visible, CreatedAtMs: store.NowMs(),
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if run.Source == store.SourceMemoryReview && reviewLive != nil {
+		*reviewLive = append(*reviewLive, turn)
+	}
+	if e.Notify != nil {
+		_ = e.Notify.Wake(ctx, run.ID)
+	}
+	return nil
+}
+
+func decodeToolResultChangeIDs(raw string) []int64 {
+	var payload struct {
+		ChangeIDs []int64 `json:"change_ids"`
+	}
+	if json.Unmarshal([]byte(raw), &payload) != nil {
+		return nil
+	}
+	return payload.ChangeIDs
 }
 
 func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
@@ -518,7 +849,7 @@ func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
 				continue
 			}
 			seen[id] = struct{}{}
-			out = append(out, llm.ToolCall{ID: id, Name: call.Name, Arguments: call.Arguments})
+			out = append(out, llm.ToolCall{ID: id, Name: call.Name, Arguments: call.Arguments, Prepared: call.Prepared})
 		}
 	}
 	return out
@@ -568,19 +899,51 @@ func sideEffect(name string) bool {
 }
 
 func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
-	_, _ = e.Store.InsertConfirmation(persistCtx, store.Confirmation{
-		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, CallID: call.ID, Tool: call.Name,
-		CanonicalArgsDigest: digest, Status: store.ConfirmPending, CreatedAtMs: store.NowMs(),
+	targetRevision, err := expectedRevision(call.Arguments)
+	if err != nil || targetRevision <= 0 {
+		return errx.New(errx.ParamError, "delete_post confirmation requires a concrete revision")
+	}
+	created := false
+	err = e.step(persistCtx, *run, func(ctx context.Context, tx store.Store) error {
+		existing, err := tx.GetConfirmation(ctx, run.ID, call.ID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			if existing.UserID != run.UserID || existing.SessionID != run.SessionID ||
+				existing.Tool != call.Name || existing.CanonicalArgsDigest != digest || existing.TargetRevision != targetRevision {
+				return errx.NewWithCode(errx.PermissionDenied)
+			}
+			return nil
+		}
+		if _, err := tx.InsertConfirmation(ctx, store.Confirmation{
+			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, CallID: call.ID, Tool: call.Name,
+			CanonicalArgsDigest: digest, TargetRevision: targetRevision,
+			Status: store.ConfirmPending, CreatedAtMs: store.NowMs(),
+		}); err != nil {
+			return err
+		}
+		created = true
+		_, err = AppendEvent(ctx, tx, nil, *run, store.EventConfirmRequired, store.EventPayload{
+			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "确认删除帖子", PayloadJSON: call.Arguments},
+		})
+		return err
 	})
-	_, _ = AppendEvent(persistCtx, e.Store, e.Notify, *run, store.EventConfirmRequired, store.EventPayload{
-		ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "确认删除帖子", PayloadJSON: call.Arguments},
-	})
+	if err != nil {
+		return err
+	}
+	if created && e.Notify != nil {
+		_ = e.Notify.Wake(persistCtx, run.ID)
+	}
 	deadline := time.Now().Add(2 * time.Minute)
 	for time.Now().Before(deadline) {
 		if e.cancelled(persistCtx, run) {
 			return errRunCancelled
 		}
-		conf, _ := e.Store.GetConfirmation(persistCtx, run.ID, call.ID)
+		conf, err := e.Store.GetConfirmation(persistCtx, run.ID, call.ID)
+		if err != nil {
+			return err
+		}
 		if conf != nil && conf.Status == store.ConfirmApproved {
 			return nil
 		}
@@ -599,9 +962,21 @@ func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.
 	return errx.New(errx.ParamError, "delete_post confirmation expired")
 }
 
+func expectedRevision(argsJSON string) (int64, error) {
+	var args struct {
+		ExpectedRevision int64 `json:"expected_revision"`
+	}
+	if err := json.Unmarshal([]byte(canonical.UnwrapArgsJSON(argsJSON)), &args); err != nil {
+		return 0, err
+	}
+	return args.ExpectedRevision, nil
+}
+
 func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, session *store.Session, msgs []store.Message) error {
 	run.Phase = store.PhaseCompact
-	_ = e.Store.UpdateRun(persistCtx, *run)
+	if err := e.updateRun(persistCtx, *run); err != nil {
+		return err
+	}
 	msgs = liveMessages(msgs)
 	keep := EstimateMessageTokens(msgs) / 5
 	if keep < 1 {
@@ -650,23 +1025,31 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 		}
 		ids = append(ids, msg.ID)
 	}
-	if len(ids) > 0 {
-		_ = e.Store.MarkMessagesCompacted(persistCtx, ids)
-	}
 	var entries []memory.Entry
 	if e.Memory != nil {
-		entries, _ = e.Memory.Active(persistCtx, run.UserID)
+		var err error
+		entries, err = e.Memory.Active(persistCtx, run.UserID)
+		if err != nil {
+			return err
+		}
 	}
 	snap := prompt.BuildSnapshot(entries, HistoryTurns(selected), summary)
 	session.PromptEpoch++
 	session.PromptSnapshot = prompt.EncodeSnapshot(snap)
 	session.CompactSummary = summary
-	if err := e.Store.UpdateSession(persistCtx, *session); err != nil {
-		return err
-	}
 	run.PromptEpoch = session.PromptEpoch
 	run.Phase = store.PhaseModelRequest
-	return e.Store.UpdateRun(persistCtx, *run)
+	return e.step(persistCtx, *run, func(ctx context.Context, tx store.Store) error {
+		if len(ids) > 0 {
+			if err := tx.MarkMessagesCompacted(ctx, ids); err != nil {
+				return err
+			}
+		}
+		if err := tx.UpdateSession(ctx, *session); err != nil {
+			return err
+		}
+		return tx.UpdateRun(ctx, *run)
+	})
 }
 
 func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
@@ -675,13 +1058,16 @@ func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
 		return err
 	}
 	if seq == 0 {
-		_, err = AppendEvent(ctx, e.Store, e.Notify, run, store.EventRunStarted, store.EventPayload{})
+		_, err = e.appendEvent(ctx, run, store.EventRunStarted, store.EventPayload{})
 	}
 	return err
 }
 
 func (e *Engine) resourceLimit(ctx context.Context, run store.Run) error {
-	journals, _ := e.Store.ListSuccessfulJournal(ctx, run.UserID, run.RequestID)
+	journals, err := e.Store.ListSuccessfulJournal(ctx, run.UserID, run.RequestID)
+	if err != nil {
+		return err
+	}
 	summary := make([]string, 0, len(journals))
 	for _, row := range journals {
 		summary = append(summary, row.Tool)
@@ -701,55 +1087,119 @@ func (e *Engine) cancel(ctx context.Context, run store.Run) error {
 }
 
 func (e *Engine) finish(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload) error {
+	return e.finishWithMessage(ctx, run, status, eventType, payload, "", nil)
+}
+
+func (e *Engine) finishWithMessage(
+	ctx context.Context,
+	run store.Run,
+	status, eventType string,
+	payload store.EventPayload,
+	message string,
+	apiContent []byte,
+) error {
 	now := store.NowMs()
-	err := e.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
-		if _, err := finishRunTx(ctx, tx, run, status, eventType, payload, now); err != nil {
+	run.Status = status
+	run.Phase = store.PhaseDone
+	run.EndedAtMs = now
+	run.LastActivityAtMs = now
+	if status == store.StatusCancelled {
+		run.CancelRequested = true
+	}
+	if payload.ErrorCode != "" {
+		run.ErrorCode = payload.ErrorCode
+	}
+	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		if err := tx.UpdateRun(ctx, run); err != nil {
 			return err
 		}
 		thread, err := tx.LockThread(ctx, run.UserID)
 		if err != nil {
 			return err
 		}
-		if thread.ActiveRunID == run.ID {
-			thread.ActiveRunID = 0
-			thread.UpdatedAtMs = now
-			if err := tx.SaveThread(ctx, *thread); err != nil {
+		if message != "" && run.Source != store.SourceMemoryReview {
+			if _, err := AppendEvent(ctx, tx, nil, run, store.EventToken, store.EventPayload{Text: message}); err != nil {
 				return err
 			}
-		}
-		if run.Source == store.SourceWatch && status != store.StatusDone {
-			watchPayload := decodeWatchRunPayload(run.QueuedPayload)
-			if watchPayload.BucketID > 0 {
-				return tx.ResetBucket(ctx, watchPayload.BucketID, run.ID)
+			msg, err := tx.InsertMessage(ctx, store.Message{
+				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
+				Kind: store.KindMessage, Content: message, APIContent: apiContent, Visible: true,
+				Unread: run.Source == store.SourceWatch, CreatedAtMs: now,
+			})
+			if err != nil {
+				return err
+			}
+			if err := tx.InsertOutbox(ctx, store.Outbox{
+				UserID: run.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
+				PayloadJSON: string(mustJSON(map[string]any{
+					"userId": run.UserID, "sessionId": run.SessionID, "messageId": msg.ID,
+					"role": store.RoleAssistant, "content": message, "createdAtMs": now,
+				})), CreatedAtMs: now,
+			}); err != nil {
+				return err
+			}
+			thread.LastMessageID = msg.ID
+			thread.LastMessagePreview = store.Preview(message, 80)
+			thread.LastMessageAtMs = now
+			if run.Source == store.SourceWatch {
+				thread.UnreadCount++
 			}
 		}
-		return nil
+		if thread.ActiveRunID == run.ID {
+			thread.ActiveRunID = 0
+		}
+		thread.UpdatedAtMs = now
+		if err := tx.SaveThread(ctx, *thread); err != nil {
+			return err
+		}
+		if run.Source == store.SourceUser && status == store.StatusDone {
+			session, err := tx.GetSession(ctx, run.SessionID)
+			if err != nil {
+				return err
+			}
+			session.SuccessfulUserTurns++
+			if err := tx.UpdateSession(ctx, *session); err != nil {
+				return err
+			}
+			if session.SuccessfulUserTurns%10 == 0 {
+				if _, err := tx.InsertRun(ctx, store.Run{
+					UserID: run.UserID, SessionID: run.SessionID, RequestID: "review-" + itoa(now),
+					Source: store.SourceMemoryReview, Status: store.StatusQueued, Phase: store.PhaseQueued,
+					Priority: store.PriorityMemoryReview, ConsentVersion: run.ConsentVersion, InputVersion: 1,
+					PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+		if run.Source == store.SourceWatch {
+			bucketID := watchBucketID(run.QueuedPayload)
+			if bucketID > 0 {
+				if err := tx.FinishWatchDelivery(ctx, bucketID, run.UserID, run.ID, status == store.StatusDone, now); err != nil {
+					return err
+				}
+			}
+		}
+		_, err = AppendEvent(ctx, tx, nil, run, eventType, payload)
+		return err
 	})
 	if err != nil {
 		return err
 	}
-	e.wake(ctx, run.ID)
-	if run.Source == store.SourceUser && status == store.StatusDone {
-		e.maybeScheduleReview(ctx, run)
+	if e.Notify != nil {
+		_ = e.Notify.Wake(ctx, run.ID)
 	}
 	return nil
 }
 
-func (e *Engine) maybeScheduleReview(ctx context.Context, run store.Run) {
-	session, err := e.Store.GetSession(ctx, run.SessionID)
-	if err != nil || session == nil {
-		return
+func watchBucketID(payload []byte) int64 {
+	var parsed struct {
+		BucketID int64 `json:"bucket_id"`
 	}
-	session.SuccessfulUserTurns++
-	_ = e.Store.UpdateSession(ctx, *session)
-	if session.SuccessfulUserTurns == 0 || session.SuccessfulUserTurns%10 != 0 {
-		return
+	if json.Unmarshal(payload, &parsed) != nil {
+		return 0
 	}
-	_, _ = e.Store.InsertRun(ctx, store.Run{
-		UserID: run.UserID, SessionID: run.SessionID, RequestID: "review-" + itoa(store.NowMs()),
-		Source: store.SourceMemoryReview, Status: store.StatusQueued, Phase: store.PhaseQueued,
-		Priority: store.PriorityMemoryReview, PromptEpoch: session.PromptEpoch, CreatedAtMs: store.NowMs(),
-	})
+	return parsed.BucketID
 }
 
 func ObserveQueueAge(seconds float64) { agentQueueAge.ObserveFloat(seconds) }

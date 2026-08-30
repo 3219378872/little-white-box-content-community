@@ -6,6 +6,7 @@ package assistant
 import (
 	"context"
 
+	"esx/app/assistant/rpc/assistantservice"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/user/rpc/userservice"
@@ -45,6 +46,12 @@ func (l *SetAgentConsentLogic) SetAgentConsent(req *types.SetAgentConsentReq) (r
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
+	}
+	if !req.Granted {
+		if _, err := l.svcCtx.AssistantService.RevokeConsent(l.ctx, &assistantservice.RevokeConsentReq{UserId: userID}); err != nil {
+			l.Errorw("AssistantService.RevokeConsent RPC failed", logx.Field("userId", userID), logx.Field("err", err.Error()))
+			return nil, errx.FromRPCError(err)
+		}
 	}
 	return &types.SetAgentConsentResp{}, nil
 }

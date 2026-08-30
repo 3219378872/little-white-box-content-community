@@ -95,7 +95,46 @@ func (s *SQLStore) mutate(ctx context.Context, userID int64, requestID string, o
 		entries, changeIDs = out, ids
 		return err
 	})
+	if err != nil && requestID != "" {
+		if replayed, ids, found, replayErr := s.replayOps(ctx, s.conn, userID, requestID, ops); replayErr != nil {
+			return nil, nil, replayErr
+		} else if found {
+			return replayed, ids, nil
+		}
+	}
 	return entries, changeIDs, err
+}
+
+func (s *SQLStore) replayOps(
+	ctx context.Context,
+	q rowQuerier,
+	userID int64,
+	requestID string,
+	ops []Op,
+) ([]Entry, []int64, bool, error) {
+	entries := make([]Entry, 0, len(ops))
+	changeIDs := make([]int64, 0, len(ops))
+	for i, op := range ops {
+		req := requestID
+		if len(ops) > 1 {
+			req += "#" + itoa(int64(i))
+		}
+		change, err := s.findChangeByRequest(ctx, q, userID, req)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		if change == nil {
+			return nil, nil, false, nil
+		}
+		if !memoryReplayMatches(op, *change) {
+			return nil, nil, false, errx.NewWithCode(errx.IdempotencyConflict)
+		}
+		if change.After != nil && !strings.EqualFold(strings.TrimSpace(op.Op), OpRemove) {
+			entries = append(entries, *change.After)
+		}
+		changeIDs = append(changeIDs, change.ID)
+	}
+	return entries, changeIDs, true, nil
 }
 
 func (s *SQLStore) applyOps(ctx context.Context, session sqlx.Session, userID int64, requestID string, ops []Op, nowMs int64) ([]Entry, []int64, error) {
@@ -124,6 +163,25 @@ func (s *SQLStore) applyOps(ctx context.Context, session sqlx.Session, userID in
 }
 
 func (s *SQLStore) applyOne(ctx context.Context, session sqlx.Session, userID int64, requestID string, op Op, nowMs int64) (*Entry, int64, error) {
+	if requestID != "" && requestID != "anon" {
+		change, err := s.findChangeByRequest(ctx, session, userID, requestID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if change != nil {
+			if !memoryReplayMatches(op, *change) {
+				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			if strings.EqualFold(strings.TrimSpace(op.Op), OpRemove) {
+				return nil, change.ID, nil
+			}
+			if change.After == nil {
+				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+			}
+			entry := *change.After
+			return &entry, change.ID, nil
+		}
+	}
 	switch strings.ToLower(strings.TrimSpace(op.Op)) {
 	case OpAdd, "":
 		return s.addOne(ctx, session, userID, op.Target, op.Content, requestID, nowMs)
@@ -134,6 +192,54 @@ func (s *SQLStore) applyOne(ctx context.Context, session sqlx.Session, userID in
 		return nil, changeID, err
 	default:
 		return nil, 0, errx.New(errx.ParamError, "unknown memory op")
+	}
+}
+
+func (s *SQLStore) findChangeByRequest(ctx context.Context, q rowQuerier, userID int64, requestID string) (*Change, error) {
+	var row struct {
+		ID            int64          `db:"id"`
+		EntryID       int64          `db:"entry_id"`
+		Op            string         `db:"op"`
+		BeforeJSON    sql.NullString `db:"before_json"`
+		AfterJSON     sql.NullString `db:"after_json"`
+		ResultVersion int64          `db:"result_version"`
+		Undone        int64          `db:"undone"`
+		CreatedAtMs   int64          `db:"created_at_ms"`
+	}
+	err := q.QueryRowCtx(ctx, &row, `SELECT id, entry_id, op, before_json, after_json, result_version, undone, created_at_ms
+		FROM memory_change WHERE user_id=? AND request_id=? ORDER BY id ASC LIMIT 1`, userID, requestID)
+	if err == sqlx.ErrNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &Change{
+		ID: row.ID, UserID: userID, EntryID: row.EntryID, Op: row.Op,
+		Before: decodeEntry(row.BeforeJSON.String), After: decodeEntry(row.AfterJSON.String),
+		ResultVersion: int32(row.ResultVersion), RequestID: requestID, Undone: row.Undone == 1, CreatedAtMs: row.CreatedAtMs,
+	}, nil
+}
+
+func memoryReplayMatches(op Op, change Change) bool {
+	wantOp := strings.ToLower(strings.TrimSpace(op.Op))
+	if wantOp == "" {
+		wantOp = OpAdd
+	}
+	if change.Op != wantOp || change.Undone {
+		return false
+	}
+	switch wantOp {
+	case OpAdd:
+		return change.After != nil && change.After.Target == op.Target && Normalize(change.After.Content) == Normalize(op.Content)
+	case OpReplace:
+		return change.Before != nil && change.After != nil && change.EntryID == op.ID &&
+			change.Before.Version == op.Version && Normalize(change.After.Content) == Normalize(op.Content)
+	case OpRemove:
+		return change.Before != nil && change.After != nil && change.EntryID == op.ID &&
+			change.Before.Version == op.Version && change.After.Deleted
+	default:
+		return false
 	}
 }
 

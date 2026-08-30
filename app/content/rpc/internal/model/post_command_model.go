@@ -2,7 +2,9 @@ package model
 
 import (
 	"context"
+	"errors"
 	"esx/pkg/idempotencyx"
+	"esx/pkg/util"
 	"fmt"
 	"sort"
 	"strings"
@@ -22,6 +24,14 @@ type PostCommandModel interface {
 	// 仅更新字段与 outbox 事件。
 	UpdatePost(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64, event outboxx.Event, expectedRevision int64, replaceTags bool) error
 	DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error
+}
+
+type IdempotentPostCommandModel interface {
+	ReplayPostCommand(ctx context.Context, idem idempotencyx.IdempotencyRecord) (result int64, found bool, err error)
+	UpdatePostIdempotent(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64,
+		event outboxx.Event, expectedRevision int64, replaceTags bool, result int64, idem idempotencyx.IdempotencyRecord) (applied bool, err error)
+	DeletePostIdempotent(ctx context.Context, postID int64, event outboxx.Event, expectedRevision, result int64,
+		idem idempotencyx.IdempotencyRecord) (applied bool, err error)
 }
 
 type postCommandModel struct {
@@ -101,6 +111,78 @@ func (m *postCommandModel) UpdatePost(
 	})
 }
 
+func (m *postCommandModel) ReplayPostCommand(ctx context.Context, idem idempotencyx.IdempotencyRecord) (int64, bool, error) {
+	if idem.Key == "" {
+		return 0, false, nil
+	}
+	if !idem.Valid() || m.conn == nil {
+		return 0, false, fmt.Errorf("content command model is not configured")
+	}
+	var row struct {
+		ResourceID  int64  `db:"resource_id"`
+		CommandHash string `db:"command_hash"`
+	}
+	err := m.conn.QueryRowCtx(ctx, &row, "SELECT resource_id, command_hash FROM idempotency "+
+		"WHERE scope=? AND user_id=? AND `key`=? LIMIT 1", idem.Scope, idem.UserID, idem.Key)
+	if errors.Is(err, sqlx.ErrNotFound) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	if row.CommandHash != idem.CommandHash {
+		return 0, false, idempotencyx.ErrIdempotencyConflict
+	}
+	return row.ResourceID, true, nil
+}
+
+func (m *postCommandModel) UpdatePostIdempotent(
+	ctx context.Context,
+	postID int64,
+	fields map[string]any,
+	tags []string,
+	tagIDs []int64,
+	event outboxx.Event,
+	expectedRevision int64,
+	replaceTags bool,
+	result int64,
+	idem idempotencyx.IdempotencyRecord,
+) (applied bool, err error) {
+	if postID <= 0 || m.conn == nil || m.outbox == nil || !idem.Valid() || idem.Key == "" {
+		return false, fmt.Errorf("content command model is not configured")
+	}
+	if len(tags) != len(tagIDs) {
+		return false, fmt.Errorf("tags and tag ids length mismatch")
+	}
+	recordID, err := util.NextID()
+	if err != nil {
+		return false, err
+	}
+	err = m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		_, shouldApply, resolveErr := idempotencyx.ResolveIdempotencySession(ctx, session, idem, recordID, result)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if !shouldApply {
+			return nil
+		}
+		if err := updatePostFieldsSession(ctx, session, postID, fields, expectedRevision); err != nil {
+			return err
+		}
+		if replaceTags {
+			if _, err := session.ExecCtx(ctx, "DELETE FROM `post_tag` WHERE `post_id` = ?", postID); err != nil {
+				return err
+			}
+			if err := insertPostTagsSession(ctx, session, postID, tags, tagIDs); err != nil {
+				return err
+			}
+		}
+		applied = true
+		return m.outbox.Enqueue(ctx, session, event)
+	})
+	return applied, err
+}
+
 func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error {
 	if postID <= 0 || m.conn == nil || m.outbox == nil {
 		return fmt.Errorf("content command model is not configured")
@@ -130,6 +212,54 @@ func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event o
 		}
 		return m.outbox.Enqueue(ctx, session, event)
 	})
+}
+
+func (m *postCommandModel) DeletePostIdempotent(
+	ctx context.Context,
+	postID int64,
+	event outboxx.Event,
+	expectedRevision, result int64,
+	idem idempotencyx.IdempotencyRecord,
+) (applied bool, err error) {
+	if postID <= 0 || m.conn == nil || m.outbox == nil || !idem.Valid() || idem.Key == "" {
+		return false, fmt.Errorf("content command model is not configured")
+	}
+	recordID, err := util.NextID()
+	if err != nil {
+		return false, err
+	}
+	err = m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		_, shouldApply, resolveErr := idempotencyx.ResolveIdempotencySession(ctx, session, idem, recordID, result)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if !shouldApply {
+			return nil
+		}
+		var changedResult interface{ RowsAffected() (int64, error) }
+		var updateErr error
+		if expectedRevision > 0 {
+			changedResult, updateErr = session.ExecCtx(ctx,
+				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
+				postID, expectedRevision)
+		} else {
+			changedResult, updateErr = session.ExecCtx(ctx,
+				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2", postID)
+		}
+		if updateErr != nil {
+			return updateErr
+		}
+		changed, rowsErr := changedResult.RowsAffected()
+		if rowsErr != nil {
+			return rowsErr
+		}
+		if changed != 1 {
+			return ErrVersionConflict
+		}
+		applied = true
+		return m.outbox.Enqueue(ctx, session, event)
+	})
+	return applied, err
 }
 
 func insertPostSession(ctx context.Context, session sqlx.Session, post *Post) error {

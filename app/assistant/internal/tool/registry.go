@@ -108,6 +108,8 @@ type Session struct {
 	Attachments    []Attachment
 	ContextPostID  int64
 	ChangeIDs      []int64
+	Fence          store.LeaseFence
+	Recovery       bool
 }
 
 type History interface {
@@ -128,14 +130,17 @@ type Definition struct {
 	Parameters  map[string]any
 	HighRisk    bool
 	executor    executorFunc
+	prepare     prepareFunc
 }
 
 type executorFunc func(ctx context.Context, session *Session, callID, argsJSON string) (string, []store.SourceRef, error)
+type prepareFunc func(ctx context.Context, session *Session, argsJSON string) (string, error)
 
 type Registry struct {
 	definitions []Definition
 	executors   map[string]executorFunc
 	highRisk    map[string]struct{}
+	preparers   map[string]prepareFunc
 	allowed     map[string]struct{}
 	store       store.Store
 }
@@ -145,11 +150,15 @@ func NewRegistry(clients Clients, allowed []string) (*Registry, error) {
 	reg := &Registry{
 		executors: make(map[string]executorFunc, len(defs)),
 		highRisk:  map[string]struct{}{},
+		preparers: map[string]prepareFunc{},
 		allowed:   map[string]struct{}{},
 		store:     clients.Store,
 	}
 	for _, def := range defs {
 		reg.executors[def.Name] = def.executor
+		if def.prepare != nil {
+			reg.preparers[def.Name] = def.prepare
+		}
 		if def.HighRisk {
 			reg.highRisk[def.Name] = struct{}{}
 		}
@@ -183,7 +192,24 @@ func (r *Registry) Restrict(names []string) *Registry {
 	if len(allowed) == 0 {
 		return nil
 	}
-	return &Registry{definitions: r.definitions, executors: r.executors, highRisk: r.highRisk, allowed: allowed, store: r.store}
+	return &Registry{definitions: r.definitions, executors: r.executors, preparers: r.preparers, highRisk: r.highRisk, allowed: allowed, store: r.store}
+}
+
+func (r *Registry) Prepare(ctx context.Context, session *Session, name, argsJSON string) (string, error) {
+	argsJSON = canonical.UnwrapArgsJSON(argsJSON)
+	if r == nil || !r.Has(name) {
+		return "", errx.New(errx.PermissionDenied, "agent tool is not allowed")
+	}
+	prepare := r.preparers[name]
+	if prepare == nil {
+		var generic any
+		if err := json.Unmarshal([]byte(argsJSON), &generic); err != nil {
+			return "", errx.New(errx.ParamError, "tool arguments are invalid")
+		}
+		raw, err := canonical.JSON(generic)
+		return string(raw), err
+	}
+	return prepare(ctx, session, argsJSON)
 }
 
 func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry {
@@ -265,10 +291,19 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 			handle = randomHandle()
 		}
 		payload, _ := json.Marshal(src)
-		_, err := r.store.InsertSource(ctx, store.Source{
-			RunID: session.RunID, Handle: handle, Kind: src.Kind, AuthorityID: src.AuthorityID,
-			Revision: src.Revision, PayloadJSON: string(payload), CreatedAtMs: store.NowMs(),
-		})
+		insert := func(ctx context.Context, target store.Store) error {
+			_, err := target.InsertSource(ctx, store.Source{
+				RunID: session.RunID, Handle: handle, Kind: src.Kind, AuthorityID: src.AuthorityID,
+				Revision: src.Revision, PayloadJSON: string(payload), CreatedAtMs: store.NowMs(),
+			})
+			return err
+		}
+		var err error
+		if session.Fence.Generation > 0 {
+			err = r.store.RunStep(ctx, session.Fence, insert)
+		} else {
+			err = insert(ctx, r.store)
+		}
 		if err != nil {
 			logx.WithContext(ctx).Infow("source ledger insert failed", logx.Field("err", err.Error()))
 			continue
@@ -368,10 +403,10 @@ func allDefinitions(clients Clients) []Definition {
 			"tags":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 			"image_media_ids": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
 			"status":          map[string]any{"type": "integer"}, "expected_revision": map[string]any{"type": "integer"},
-		}, []string{"post_id"}), executor: updatePostExecutor(clients.Content, clients.Media)},
+		}, []string{"post_id"}), executor: updatePostExecutor(clients.Content, clients.Media), prepare: postRevisionPreparer(clients.Content)},
 		{Name: DeletePost, Description: "删除本人帖子，执行前需用户逐次确认。", HighRisk: true, Parameters: objectSchema(map[string]any{
 			"post_id": map[string]any{"type": "integer"}, "expected_revision": map[string]any{"type": "integer"},
-		}, []string{"post_id"}), executor: deletePostExecutor(clients.Content)},
+		}, []string{"post_id"}), executor: deletePostExecutor(clients.Content), prepare: postRevisionPreparer(clients.Content)},
 		{Name: SearchHistory, Description: "在当前用户 Assistant 历史中做 BM25 召回。shape=keywords|around|session|recent。", Parameters: objectSchema(map[string]any{
 			"shape": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"},
 			"message_id": map[string]any{"type": "integer"}, "session_id": map[string]any{"type": "integer"}, "limit": map[string]any{"type": "integer"},

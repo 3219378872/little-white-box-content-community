@@ -73,9 +73,12 @@ CREATE TABLE IF NOT EXISTS `agent_run` (
     `priority` INT NOT NULL DEFAULT 100,
     `queued_payload` JSON DEFAULT NULL,
     `lease_owner` VARCHAR(64) DEFAULT NULL,
+    `lease_generation` BIGINT NOT NULL DEFAULT 0,
     `lease_until_ms` BIGINT DEFAULT NULL,
     `heartbeat_at_ms` BIGINT DEFAULT NULL,
     `cancel_requested` TINYINT NOT NULL DEFAULT 0,
+    `consent_version` INT NOT NULL DEFAULT 0,
+    `input_version` BIGINT NOT NULL DEFAULT 1,
     `prompt_epoch` INT NOT NULL DEFAULT 1,
     `model` VARCHAR(128) DEFAULT NULL,
     `rounds` INT NOT NULL DEFAULT 0,
@@ -102,10 +105,12 @@ CREATE TABLE IF NOT EXISTS `agent_run_event` (
     `run_id` BIGINT NOT NULL,
     `seq` BIGINT NOT NULL,
     `type` VARCHAR(32) NOT NULL,
+    `terminal_run_id` BIGINT DEFAULT NULL,
     `payload_json` JSON DEFAULT NULL,
     `created_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_run_seq` (`run_id`, `seq`)
+    UNIQUE KEY `uk_run_seq` (`run_id`, `seq`),
+    UNIQUE KEY `uk_run_terminal` (`terminal_run_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='持久 SSE 事件';
 
 CREATE TABLE IF NOT EXISTS `agent_tool_call` (
@@ -129,9 +134,12 @@ CREATE TABLE IF NOT EXISTS `agent_command_journal` (
     `request_id` VARCHAR(64) NOT NULL,
     `tool` VARCHAR(64) NOT NULL,
     `canonical_args_digest` VARCHAR(128) NOT NULL,
+    `run_id` BIGINT NOT NULL,
+    `lease_generation` BIGINT NOT NULL,
     `result_json` JSON DEFAULT NULL,
     `status` VARCHAR(32) NOT NULL,
     `created_at_ms` BIGINT NOT NULL,
+    `updated_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_journal` (`user_id`, `request_id`, `tool`, `canonical_args_digest`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工具副作用幂等日记';
@@ -207,10 +215,13 @@ CREATE TABLE IF NOT EXISTS `memory_change` (
     `after_json` JSON DEFAULT NULL,
     `result_version` INT NOT NULL,
     `request_id` VARCHAR(64) NOT NULL,
+    `dedupe_request_id` VARCHAR(64) GENERATED ALWAYS AS
+      (CASE WHEN `request_id` IN ('', 'anon') THEN NULL ELSE `request_id` END) STORED,
     `undone` TINYINT NOT NULL DEFAULT 0,
     `created_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_mem_change_req` (`user_id`, `request_id`, `entry_id`, `op`),
+    UNIQUE KEY `uk_mem_change_command` (`user_id`, `dedupe_request_id`),
     KEY `idx_mem_change_user` (`user_id`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='记忆变更与撤销';
 

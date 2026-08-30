@@ -25,12 +25,13 @@ type inputPayload struct {
 }
 
 type AcceptInput struct {
-	UserID        int64
-	Message       string
-	RequestID     string
-	Attachments   []Attachment
-	ContextPostID int64
-	ConsentOK     bool
+	UserID         int64
+	Message        string
+	RequestID      string
+	Attachments    []Attachment
+	ContextPostID  int64
+	ConsentOK      bool
+	ConsentVersion int32
 }
 
 type AcceptResult struct {
@@ -51,7 +52,7 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 	if in.UserID <= 0 {
 		return AcceptResult{}, errx.NewWithCode(errx.LoginRequired)
 	}
-	if !in.ConsentOK {
+	if !in.ConsentOK || in.ConsentVersion <= 0 {
 		return AcceptResult{}, errx.NewWithCode(errx.AgentNotAuthorized)
 	}
 	text := strings.TrimSpace(in.Message)
@@ -83,6 +84,13 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if err != nil {
 		return AcceptResult{}, err
 	}
+	consentVersion, granted, err := tx.AgentConsent(ctx, in.UserID)
+	if err != nil {
+		return AcceptResult{}, err
+	}
+	if !granted || consentVersion != in.ConsentVersion {
+		return AcceptResult{}, errx.NewWithCode(errx.AgentNotAuthorized)
+	}
 	session, err := a.ensureSession(ctx, tx, thread, now)
 	if err != nil {
 		return AcceptResult{}, err
@@ -99,11 +107,13 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if err != nil {
 		return AcceptResult{}, err
 	}
-	_ = tx.InsertOutbox(ctx, store.Outbox{
+	if err := tx.InsertOutbox(ctx, store.Outbox{
 		UserID: in.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
 		PayloadJSON: string(mustJSON(map[string]any{"userId": in.UserID, "sessionId": session.ID, "messageId": msg.ID, "role": store.RoleUser, "content": text, "createdAtMs": now})),
 		CreatedAtMs: now,
-	})
+	}); err != nil {
+		return AcceptResult{}, err
+	}
 	thread.LastMessageID = msg.ID
 	thread.LastMessagePreview = store.Preview(text, 80)
 	thread.LastMessageAtMs = now
@@ -113,7 +123,9 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceWatch, store.SourceMemoryReview}); err != nil {
 		return AcceptResult{}, err
 	}
-	_ = tx.ResetUnsentBuckets(ctx, in.UserID)
+	if err := tx.ResetUnsentBuckets(ctx, in.UserID); err != nil {
+		return AcceptResult{}, err
+	}
 
 	var active *store.Run
 	if thread.ActiveRunID > 0 {
@@ -130,7 +142,8 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		run, err := tx.InsertRun(ctx, store.Run{
 			UserID: in.UserID, SessionID: session.ID, RequestID: in.RequestID, Source: store.SourceUser,
 			Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityUser,
-			QueuedPayload: payload, PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
+			QueuedPayload: payload, ConsentVersion: in.ConsentVersion, InputVersion: 1,
+			PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
 		})
 		if err != nil {
 			return AcceptResult{}, err
@@ -138,12 +151,9 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		runID = run.ID
 		thread.ActiveRunID = run.ID
 		msg.RunID = run.ID
-		_ = tx.UpdateRun(ctx, run)
 	case store.DispositionRedirected, store.DispositionSteered:
 		runID = active.ID
-		active.QueuedPayload = payload
-		active.LastActivityAtMs = now
-		if err := tx.UpdateRun(ctx, *active); err != nil {
+		if err := tx.SetRunInput(ctx, active.ID, payload, now); err != nil {
 			return AcceptResult{}, err
 		}
 	case store.DispositionQueued:

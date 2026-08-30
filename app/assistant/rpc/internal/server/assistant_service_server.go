@@ -63,6 +63,11 @@ func (s *AssistantServiceServer) CancelRun(ctx context.Context, in *pb.CancelRun
 	return l.CancelRun(in)
 }
 
+func (s *AssistantServiceServer) RevokeConsent(ctx context.Context, in *pb.RevokeConsentReq) (*pb.RevokeConsentResp, error) {
+	l := logic.NewRevokeConsentLogic(ctx, s.svcCtx)
+	return l.RevokeConsent(in)
+}
+
 func (s *AssistantServiceServer) ConfirmRunTool(ctx context.Context, in *pb.ConfirmRunToolReq) (*pb.ConfirmRunToolResp, error) {
 	l := logic.NewConfirmRunToolLogic(ctx, s.svcCtx)
 	return l.ConfirmRunTool(in)

@@ -195,12 +195,17 @@ func mustStartRun(t *testing.T, mem *store.MemoryStore, text string) (store.Sess
 	payload, _ := json.Marshal(map[string]any{"text": text, "message_id": userMsg.ID})
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 1, SessionID: session.ID, RequestID: "r1", Source: store.SourceUser,
-		Status: store.StatusRunning, Phase: store.PhaseModelRequest, QueuedPayload: payload, CreatedAtMs: 1,
+		Status: store.StatusQueued, Phase: store.PhaseModelRequest, QueuedPayload: payload,
+		ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return session, run, userMsg
+	claimed, err := mem.Claim(ctx, "test-worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != run.ID {
+		t.Fatalf("claim run: %+v %v", claimed, err)
+	}
+	return session, *claimed, userMsg
 }
 
 func countUserText(turns []prompt.Turn, text string) int {

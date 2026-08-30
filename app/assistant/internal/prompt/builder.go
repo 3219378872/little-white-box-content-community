@@ -27,6 +27,7 @@ type ToolCall struct {
 	ID        string `json:"id,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Arguments string `json:"arguments,omitempty"`
+	Prepared  bool   `json:"prepared,omitempty"`
 }
 
 type Turn struct {

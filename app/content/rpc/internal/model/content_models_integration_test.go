@@ -284,6 +284,62 @@ func TestPostCommandModelDeletePostSoftDeletesOnce(t *testing.T) {
 	require.ErrorIs(t, err, ErrVersionConflict)
 }
 
+func TestPostCommandModelUpdatePostIdempotencySurvivesLostResponse(t *testing.T) {
+	testEnv.TruncateAll(t, "post_tag", "post", "idempotency")
+	testEnv.DB.ExecContext(context.Background(), "TRUNCATE TABLE `event_outbox`")
+	ctx := context.Background()
+	conn := newTestConn()
+	command := NewPostCommandModel(conn, outboxx.NewSQLStore(conn)).(IdempotentPostCommandModel)
+	postID := nextID(t)
+	seedPost(t, postID, 7, 1, 5, "before")
+	idem := idempotencyx.IdempotencyRecord{
+		Scope: "post:update", UserID: 7, Key: "agent-update-lost-response",
+		CommandHash: idempotencyx.CommandHash("same-command"),
+	}
+	beforeOutbox := countOutboxRows(t)
+	applied, err := command.UpdatePostIdempotent(ctx, postID, map[string]any{"title": "after"}, nil, nil,
+		outboxEvent(t, "content-post-update-v1"), 5, false, 6, idem)
+	require.NoError(t, err)
+	require.True(t, applied)
+	applied, err = command.UpdatePostIdempotent(ctx, postID, map[string]any{"title": "after"}, nil, nil,
+		outboxEvent(t, "content-post-update-v1"), 5, false, 6, idem)
+	require.NoError(t, err)
+	require.False(t, applied)
+	var revision int64
+	require.NoError(t, conn.QueryRowCtx(ctx, &revision, "SELECT revision FROM post WHERE id=?", postID))
+	assert.Equal(t, int64(6), revision)
+	assert.Equal(t, beforeOutbox+1, countOutboxRows(t))
+}
+
+func TestPostCommandModelDeletePostIdempotencySurvivesLostResponse(t *testing.T) {
+	testEnv.TruncateAll(t, "post_tag", "post", "idempotency")
+	testEnv.DB.ExecContext(context.Background(), "TRUNCATE TABLE `event_outbox`")
+	ctx := context.Background()
+	conn := newTestConn()
+	command := NewPostCommandModel(conn, outboxx.NewSQLStore(conn)).(IdempotentPostCommandModel)
+	postID := nextID(t)
+	seedPost(t, postID, 7, 1, 5, "before")
+	idem := idempotencyx.IdempotencyRecord{
+		Scope: "post:delete", UserID: 7, Key: "agent-delete-lost-response",
+		CommandHash: idempotencyx.CommandHash("same-command"),
+	}
+	beforeOutbox := countOutboxRows(t)
+	applied, err := command.DeletePostIdempotent(ctx, postID, outboxEvent(t, "content-post-delete-v1"), 5, 6, idem)
+	require.NoError(t, err)
+	require.True(t, applied)
+	applied, err = command.DeletePostIdempotent(ctx, postID, outboxEvent(t, "content-post-delete-v1"), 5, 6, idem)
+	require.NoError(t, err)
+	require.False(t, applied)
+	var row struct {
+		Status   int64 `db:"status"`
+		Revision int64 `db:"revision"`
+	}
+	require.NoError(t, conn.QueryRowCtx(ctx, &row, "SELECT status, revision FROM post WHERE id=?", postID))
+	assert.Equal(t, int64(2), row.Status)
+	assert.Equal(t, int64(6), row.Revision)
+	assert.Equal(t, beforeOutbox+1, countOutboxRows(t))
+}
+
 func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 	testEnv.TruncateAll(t, "comment", "post_tag", "post", "idempotency")
 	ctx := context.Background()

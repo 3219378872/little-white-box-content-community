@@ -27,6 +27,7 @@ const (
 	AssistantService_DeleteHistory_FullMethodName           = "/assistant.AssistantService/DeleteHistory"
 	AssistantService_SubscribeRunEvents_FullMethodName      = "/assistant.AssistantService/SubscribeRunEvents"
 	AssistantService_CancelRun_FullMethodName               = "/assistant.AssistantService/CancelRun"
+	AssistantService_RevokeConsent_FullMethodName           = "/assistant.AssistantService/RevokeConsent"
 	AssistantService_ConfirmRunTool_FullMethodName          = "/assistant.AssistantService/ConfirmRunTool"
 	AssistantService_ListMemory_FullMethodName              = "/assistant.AssistantService/ListMemory"
 	AssistantService_AddMemory_FullMethodName               = "/assistant.AssistantService/AddMemory"
@@ -53,6 +54,7 @@ type AssistantServiceClient interface {
 	DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
 	SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunEvent], error)
 	CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
+	RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error)
 	ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
 	ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
 	AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
@@ -158,6 +160,16 @@ func (c *assistantServiceClient) CancelRun(ctx context.Context, in *CancelRunReq
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CancelRunResp)
 	err := c.cc.Invoke(ctx, AssistantService_CancelRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeConsentResp)
+	err := c.cc.Invoke(ctx, AssistantService_RevokeConsent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -296,6 +308,7 @@ type AssistantServiceServer interface {
 	DeleteHistory(context.Context, *DeleteHistoryReq) (*DeleteHistoryResp, error)
 	SubscribeRunEvents(*SubscribeRunEventsReq, grpc.ServerStreamingServer[RunEvent]) error
 	CancelRun(context.Context, *CancelRunReq) (*CancelRunResp, error)
+	RevokeConsent(context.Context, *RevokeConsentReq) (*RevokeConsentResp, error)
 	ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error)
 	ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error)
 	AddMemory(context.Context, *AddMemoryReq) (*AddMemoryResp, error)
@@ -341,6 +354,9 @@ func (UnimplementedAssistantServiceServer) SubscribeRunEvents(*SubscribeRunEvent
 }
 func (UnimplementedAssistantServiceServer) CancelRun(context.Context, *CancelRunReq) (*CancelRunResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method CancelRun not implemented")
+}
+func (UnimplementedAssistantServiceServer) RevokeConsent(context.Context, *RevokeConsentReq) (*RevokeConsentResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeConsent not implemented")
 }
 func (UnimplementedAssistantServiceServer) ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmRunTool not implemented")
@@ -532,6 +548,24 @@ func _AssistantService_CancelRun_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AssistantServiceServer).CancelRun(ctx, req.(*CancelRunReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_RevokeConsent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeConsentReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).RevokeConsent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_RevokeConsent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).RevokeConsent(ctx, req.(*RevokeConsentReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -786,6 +820,10 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelRun",
 			Handler:    _AssistantService_CancelRun_Handler,
+		},
+		{
+			MethodName: "RevokeConsent",
+			Handler:    _AssistantService_RevokeConsent_Handler,
 		},
 		{
 			MethodName: "ConfirmRunTool",

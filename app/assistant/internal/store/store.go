@@ -5,6 +5,7 @@ import "context"
 // Store is the MySQL authority for Assistant threads, runs, events and side tables.
 type Store interface {
 	Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+	RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error
 
 	LockThread(ctx context.Context, userID int64) (*Thread, error)
 	GetThread(ctx context.Context, userID int64) (*Thread, error)
@@ -28,11 +29,14 @@ type Store interface {
 	GetRun(ctx context.Context, id int64) (*Run, error)
 	GetRunByRequestID(ctx context.Context, userID int64, requestID string) (*Run, error)
 	UpdateRun(ctx context.Context, run Run) error
+	SetRunInput(ctx context.Context, runID int64, payload []byte, lastActivityMs int64) error
 	RequestCancel(ctx context.Context, userID, runID int64) error
+	RequestCancelAll(ctx context.Context, userID int64) error
 	CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error)
 	Claim(ctx context.Context, owner string, nowMs, leaseMs int64) (*Run, error)
-	RenewLease(ctx context.Context, runID int64, owner string, leaseUntilMs, heartbeatMs int64) (bool, error)
+	RenewLease(ctx context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error)
 	OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, error)
+	AgentConsent(ctx context.Context, userID int64) (version int32, granted bool, err error)
 
 	InsertEvent(ctx context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error)
 	ListEventsAfter(ctx context.Context, runID, afterSeq int64) ([]Event, error)
@@ -76,6 +80,7 @@ type Store interface {
 	DeferBucket(ctx context.Context, id, notBeforeMs int64) error
 	ResetBucket(ctx context.Context, id, runID int64) error
 	RequeueFailedBuckets(ctx context.Context) error
+	FinishWatchDelivery(ctx context.Context, id, userID, runID int64, delivered bool, nowMs int64) error
 	ResetUnsentBuckets(ctx context.Context, userID int64) error
 	CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error)
 	IncrSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) error

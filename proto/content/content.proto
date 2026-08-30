@@ -113,6 +113,7 @@ message UpdatePostReq {
   optional int32  status    = 7; // 显式状态变更；draft(0) ⇄ published(1)
   int64           expected_revision = 8; // 调用者最后读取的预期 revision，冲突返回 409
   repeated int64  media_ids = 9; // 引用的已上传媒体标识（CORE-024）
+  string          idempotency_key = 10; // 可选稳定命令键；与 revision CAS 在同一事务提交
 }
 
 // 更新帖子响应
@@ -126,6 +127,7 @@ message DeletePostReq {
   int64 post_id   = 1;
   int64 author_id = 2;
   int64 expected_revision = 3; // 调用者最后读取的预期 revision，冲突返回 409
+  string idempotency_key = 4; // 可选稳定命令键；与软删除和 outbox 在同一事务提交
 }
 
 // 删除帖子响应
@@ -260,4 +262,3 @@ message GetPostsByIdsReq {
 message GetPostsByIdsResp {
   repeated PostInfo posts = 1;
 }
-

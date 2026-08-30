@@ -19,36 +19,9 @@ func (e *Engine) completeModelText(ctx context.Context, run store.Run, result ll
 	case store.SourceMemoryReview:
 		return e.completeMemoryReview(ctx, run)
 	default:
-		if err := e.persistVisibleAssistant(ctx, run, text, result.Raw, store.KindMessage); err != nil {
-			return err
-		}
-		return e.finish(ctx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text})
+		return e.finishWithMessage(ctx, run, store.StatusDone, store.EventDone,
+			store.EventPayload{Text: text}, text, result.Raw)
 	}
-}
-
-func (e *Engine) persistVisibleAssistant(ctx context.Context, run store.Run, text string, apiContent []byte, kind string) error {
-	return e.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
-		now := store.NowMs()
-		msg, err := tx.InsertMessage(ctx, store.Message{
-			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
-			Kind: kind, Content: text, APIContent: apiContent, Visible: true, CreatedAtMs: now,
-		})
-		if err != nil {
-			return err
-		}
-		if err := insertMessageOutbox(ctx, tx, msg); err != nil {
-			return err
-		}
-		thread, err := tx.LockThread(ctx, run.UserID)
-		if err != nil {
-			return err
-		}
-		thread.LastMessageID = msg.ID
-		thread.LastMessagePreview = store.Preview(text, 80)
-		thread.LastMessageAtMs = now
-		thread.UpdatedAtMs = now
-		return tx.SaveThread(ctx, *thread)
-	})
 }
 
 func (e *Engine) completeWatch(ctx context.Context, run store.Run, text string, apiContent []byte) error {
@@ -58,7 +31,7 @@ func (e *Engine) completeWatch(ctx context.Context, run store.Run, text string, 
 	}
 	taskIDs := e.watchTaskIDs(ctx, run, payload)
 	now := store.NowMs()
-	err := e.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
 		if text != "" {
 			if _, err := appendEventTx(ctx, tx, run, store.EventToken, store.EventPayload{Text: text}, now); err != nil {
 				return err
@@ -138,12 +111,19 @@ func (e *Engine) watchTaskIDs(ctx context.Context, run store.Run, payload watchR
 }
 
 func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error {
+	fresh, err := e.Store.GetRun(ctx, run.ID)
+	if err != nil {
+		return err
+	}
+	if fresh != nil && fresh.Status == store.StatusDone {
+		return nil
+	}
 	changeIDs, err := e.memoryChangeIDs(ctx, run.ID)
 	if err != nil {
 		return err
 	}
 	now := store.NowMs()
-	err = e.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+	err = e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
 		existing, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
 		if err != nil {
 			return err

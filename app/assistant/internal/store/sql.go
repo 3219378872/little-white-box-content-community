@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -32,6 +33,31 @@ func (s *SQLStore) Transact(ctx context.Context, fn func(ctx context.Context, tx
 	}
 	return s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
 		return fn(ctx, &SQLStore{exec: session})
+	})
+}
+
+func (s *SQLStore) RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error {
+	if fence.RunID <= 0 || strings.TrimSpace(fence.Owner) == "" || fence.Generation <= 0 {
+		return ErrLeaseLost
+	}
+	return s.Transact(ctx, func(ctx context.Context, tx Store) error {
+		sqlTx, ok := tx.(*SQLStore)
+		if !ok {
+			return fmt.Errorf("run step requires SQL store")
+		}
+		var row struct {
+			ID int64 `db:"id"`
+		}
+		err := sqlTx.exec.QueryRowCtx(ctx, &row, `SELECT id FROM agent_run
+			WHERE id=? AND lease_owner=? AND lease_generation=? AND status='running' AND lease_until_ms>=?
+			FOR UPDATE`, fence.RunID, fence.Owner, fence.Generation, NowMs())
+		if err == sqlx.ErrNotFound {
+			return ErrLeaseLost
+		}
+		if err != nil {
+			return err
+		}
+		return fn(ctx, tx)
 	})
 }
 
@@ -279,13 +305,13 @@ func (s *SQLStore) MarkMessagesCompacted(ctx context.Context, ids []int64) error
 
 func (s *SQLStore) InsertRun(ctx context.Context, run Run) (Run, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run
-		(user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner, lease_until_ms,
-		 heartbeat_at_ms, cancel_requested, prompt_epoch, model, rounds, tool_calls, input_tokens, output_tokens, cache_tokens,
-		 cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner, lease_generation, lease_until_ms,
+		 heartbeat_at_ms, cancel_requested, consent_version, input_version, prompt_epoch, model, rounds, tool_calls, input_tokens,
+		 output_tokens, cache_tokens, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		run.UserID, run.SessionID, run.RequestID, run.Source, run.Status, run.Phase, run.Priority, nullBytes(run.QueuedPayload),
-		nullString(run.LeaseOwner), nullInt(run.LeaseUntilMs), nullInt(run.HeartbeatAtMs), boolToInt(run.CancelRequested),
-		run.PromptEpoch, nullString(run.Model), run.Rounds, run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens,
+		nullString(run.LeaseOwner), run.LeaseGeneration, nullInt(run.LeaseUntilMs), nullInt(run.HeartbeatAtMs), boolToInt(run.CancelRequested),
+		run.ConsentVersion, run.InputVersion, run.PromptEpoch, nullString(run.Model), run.Rounds, run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens,
 		run.CostUSD, nullInt(run.StartedAtMs), nullInt(run.EndedAtMs), nullInt(run.LastActivityAtMs), nullString(run.ErrorCode), run.CreatedAtMs)
 	if err != nil {
 		return Run{}, err
@@ -304,7 +330,7 @@ func (s *SQLStore) GetRunByRequestID(ctx context.Context, userID int64, requestI
 }
 
 const runSelect = `SELECT id, user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner,
-	lease_until_ms, heartbeat_at_ms, cancel_requested, prompt_epoch, model, rounds, tool_calls, input_tokens, output_tokens,
+	lease_generation, lease_until_ms, heartbeat_at_ms, cancel_requested, consent_version, input_version, prompt_epoch, model, rounds, tool_calls, input_tokens, output_tokens,
 	cache_tokens, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms FROM agent_run`
 
 func (s *SQLStore) scanRun(ctx context.Context, query string, args ...any) (*Run, error) {
@@ -327,9 +353,12 @@ type runRow struct {
 	Priority         int64          `db:"priority"`
 	QueuedPayload    []byte         `db:"queued_payload"`
 	LeaseOwner       sql.NullString `db:"lease_owner"`
+	LeaseGeneration  int64          `db:"lease_generation"`
 	LeaseUntilMs     sql.NullInt64  `db:"lease_until_ms"`
 	HeartbeatAtMs    sql.NullInt64  `db:"heartbeat_at_ms"`
 	CancelRequested  int64          `db:"cancel_requested"`
+	ConsentVersion   int32          `db:"consent_version"`
+	InputVersion     int64          `db:"input_version"`
 	PromptEpoch      int64          `db:"prompt_epoch"`
 	Model            sql.NullString `db:"model"`
 	Rounds           int64          `db:"rounds"`
@@ -349,8 +378,9 @@ func (row runRow) toRun() Run {
 	return Run{
 		ID: row.ID, UserID: row.UserID, SessionID: row.SessionID, RequestID: row.RequestID, Source: row.Source,
 		Status: row.Status, Phase: row.Phase, Priority: int(row.Priority), QueuedPayload: row.QueuedPayload,
-		LeaseOwner: row.LeaseOwner.String, LeaseUntilMs: row.LeaseUntilMs.Int64, HeartbeatAtMs: row.HeartbeatAtMs.Int64,
-		CancelRequested: row.CancelRequested == 1, PromptEpoch: int(row.PromptEpoch), Model: row.Model.String,
+		LeaseOwner: row.LeaseOwner.String, LeaseGeneration: row.LeaseGeneration, LeaseUntilMs: row.LeaseUntilMs.Int64, HeartbeatAtMs: row.HeartbeatAtMs.Int64,
+		CancelRequested: row.CancelRequested == 1, ConsentVersion: row.ConsentVersion, InputVersion: row.InputVersion,
+		PromptEpoch: int(row.PromptEpoch), Model: row.Model.String,
 		Rounds: int(row.Rounds), ToolCalls: int(row.ToolCalls), InputTokens: row.InputTokens, OutputTokens: row.OutputTokens,
 		CacheTokens: row.CacheTokens, CostUSD: row.CostUSD, StartedAtMs: row.StartedAtMs.Int64, EndedAtMs: row.EndedAtMs.Int64,
 		LastActivityAtMs: row.LastActivityAtMs.Int64, ErrorCode: row.ErrorCode.String, CreatedAtMs: row.CreatedAtMs,
@@ -358,14 +388,30 @@ func (row runRow) toRun() Run {
 }
 
 func (s *SQLStore) UpdateRun(ctx context.Context, run Run) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, phase=?, queued_payload=?, lease_owner=?, lease_until_ms=?,
-		heartbeat_at_ms=?, cancel_requested=cancel_requested OR ?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
+	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, phase=?,
+		cancel_requested=cancel_requested OR ?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
 		cache_tokens=?, cost_usd=?, started_at_ms=?, ended_at_ms=?, last_activity_at_ms=?, error_code=? WHERE id=?`,
-		run.Status, run.Phase, nullBytes(run.QueuedPayload), nullString(run.LeaseOwner), nullInt(run.LeaseUntilMs),
-		nullInt(run.HeartbeatAtMs), boolToInt(run.CancelRequested), run.PromptEpoch, nullString(run.Model), run.Rounds,
+		run.Status, run.Phase, boolToInt(run.CancelRequested), run.PromptEpoch, nullString(run.Model), run.Rounds,
 		run.ToolCalls, run.InputTokens, run.OutputTokens, run.CacheTokens, run.CostUSD, nullInt(run.StartedAtMs),
 		nullInt(run.EndedAtMs), nullInt(run.LastActivityAtMs), nullString(run.ErrorCode), run.ID)
 	return err
+}
+
+func (s *SQLStore) SetRunInput(ctx context.Context, runID int64, payload []byte, lastActivityMs int64) error {
+	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run
+		SET queued_payload=?, input_version=input_version+1, last_activity_at_ms=?
+		WHERE id=? AND status='running'`, nullBytes(payload), lastActivityMs, runID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sqlx.ErrNotFound
+	}
+	return nil
 }
 
 func (s *SQLStore) RequestCancel(ctx context.Context, userID, runID int64) error {
@@ -381,6 +427,12 @@ func (s *SQLStore) RequestCancel(ctx context.Context, userID, runID int64) error
 		return sqlx.ErrNotFound
 	}
 	return nil
+}
+
+func (s *SQLStore) RequestCancelAll(ctx context.Context, userID int64) error {
+	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET cancel_requested=1
+		WHERE user_id=? AND status IN ('queued','running')`, userID)
+	return err
 }
 
 func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error) {
@@ -425,10 +477,14 @@ func (s *SQLStore) Claim(ctx context.Context, owner string, nowMs, leaseMs int64
 			run.StartedAtMs = nowMs
 		}
 		run.LeaseOwner = owner
+		run.LeaseGeneration++
 		run.LeaseUntilMs = nowMs + leaseMs
 		run.HeartbeatAtMs = nowMs
 		run.LastActivityAtMs = nowMs
-		if err := sqlTx.UpdateRun(ctx, run); err != nil {
+		if _, err := sqlTx.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, lease_owner=?, lease_generation=?,
+			lease_until_ms=?, heartbeat_at_ms=?, started_at_ms=?, last_activity_at_ms=? WHERE id=?`,
+			run.Status, run.LeaseOwner, run.LeaseGeneration, run.LeaseUntilMs, run.HeartbeatAtMs,
+			run.StartedAtMs, run.LastActivityAtMs, run.ID); err != nil {
 			return err
 		}
 		claimed = &run
@@ -440,14 +496,31 @@ func (s *SQLStore) Claim(ctx context.Context, owner string, nowMs, leaseMs int64
 	return claimed, err
 }
 
-func (s *SQLStore) RenewLease(ctx context.Context, runID int64, owner string, leaseUntilMs, heartbeatMs int64) (bool, error) {
-	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET lease_until_ms=?, heartbeat_at_ms=? WHERE id=? AND lease_owner=? AND status='running'`,
-		leaseUntilMs, heartbeatMs, runID, owner)
+func (s *SQLStore) RenewLease(ctx context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error) {
+	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET lease_until_ms=?, heartbeat_at_ms=?
+		WHERE id=? AND lease_owner=? AND lease_generation=? AND status='running' AND lease_until_ms>=?`,
+		leaseUntilMs, heartbeatMs, runID, owner, generation, heartbeatMs)
 	if err != nil {
 		return false, err
 	}
 	n, err := res.RowsAffected()
 	return n > 0, err
+}
+
+func (s *SQLStore) AgentConsent(ctx context.Context, userID int64) (int32, bool, error) {
+	var row struct {
+		Granted        int64 `db:"granted"`
+		ConsentVersion int32 `db:"consent_version"`
+	}
+	err := s.exec.QueryRowCtx(ctx, &row, `SELECT granted, consent_version
+		FROM xbh_user.agent_capability_consent WHERE user_id=? LIMIT 1 FOR SHARE`, userID)
+	if err == sqlx.ErrNotFound {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return row.ConsentVersion, row.Granted == 1 && row.ConsentVersion > 0, nil
 }
 
 func (s *SQLStore) OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, error) {
@@ -478,8 +551,13 @@ func (s *SQLStore) InsertEvent(ctx context.Context, runID int64, eventType strin
 		return Event{}, err
 	}
 	seq := seqRow.Seq
-	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run_event (run_id, seq, type, payload_json, created_at_ms) VALUES (?, ?, ?, ?, ?)`,
-		runID, seq, eventType, nullBytes(payload), createdAtMs)
+	terminalRunID := int64(0)
+	if eventType == EventDone || eventType == EventError {
+		terminalRunID = runID
+	}
+	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run_event
+		(run_id, seq, type, terminal_run_id, payload_json, created_at_ms) VALUES (?, ?, ?, ?, ?, ?)`,
+		runID, seq, eventType, nullInt(terminalRunID), nullBytes(payload), createdAtMs)
 	if err != nil {
 		return Event{}, err
 	}
@@ -546,6 +624,9 @@ func (s *SQLStore) GetToolCall(ctx context.Context, runID int64, callID string) 
 	}
 	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, run_id, call_id, tool, args_json, canonical_args_digest, status, result_json, created_at_ms
 		FROM agent_tool_call WHERE run_id=? AND call_id=?`, runID, callID); err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &ToolCall{
@@ -593,11 +674,15 @@ func (s *SQLStore) GetJournal(ctx context.Context, userID int64, requestID, tool
 		RequestID           string         `db:"request_id"`
 		Tool                string         `db:"tool"`
 		CanonicalArgsDigest string         `db:"canonical_args_digest"`
+		RunID               int64          `db:"run_id"`
+		LeaseGeneration     int64          `db:"lease_generation"`
 		ResultJSON          sql.NullString `db:"result_json"`
 		Status              string         `db:"status"`
 		CreatedAtMs         int64          `db:"created_at_ms"`
+		UpdatedAtMs         int64          `db:"updated_at_ms"`
 	}
-	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, request_id, tool, canonical_args_digest, result_json, status, created_at_ms
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, request_id, tool, canonical_args_digest, run_id,
+		lease_generation, result_json, status, created_at_ms, updated_at_ms
 		FROM agent_command_journal WHERE user_id=? AND request_id=? AND tool=? AND canonical_args_digest=?`,
 		userID, requestID, tool, digest); err != nil {
 		if err == sqlx.ErrNotFound {
@@ -607,7 +692,8 @@ func (s *SQLStore) GetJournal(ctx context.Context, userID int64, requestID, tool
 	}
 	return &Journal{
 		ID: row.ID, UserID: row.UserID, RequestID: row.RequestID, Tool: row.Tool, CanonicalArgsDigest: row.CanonicalArgsDigest,
-		ResultJSON: row.ResultJSON.String, Status: row.Status, CreatedAtMs: row.CreatedAtMs,
+		RunID: row.RunID, LeaseGeneration: row.LeaseGeneration, ResultJSON: row.ResultJSON.String,
+		Status: row.Status, CreatedAtMs: row.CreatedAtMs, UpdatedAtMs: row.UpdatedAtMs,
 	}, nil
 }
 
@@ -617,11 +703,34 @@ func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, b
 		return nil, false, err
 	}
 	if existing != nil {
+		if existing.Status != JournalSuccess && existing.LeaseGeneration < row.LeaseGeneration {
+			res, updateErr := s.exec.ExecCtx(ctx, `UPDATE agent_command_journal
+				SET run_id=?, lease_generation=?, status=?, result_json=NULL, updated_at_ms=?
+				WHERE id=? AND status<>? AND lease_generation<?`, row.RunID, row.LeaseGeneration,
+				JournalPending, row.UpdatedAtMs, existing.ID, JournalSuccess, row.LeaseGeneration)
+			if updateErr != nil {
+				return nil, false, updateErr
+			}
+			n, rowsErr := res.RowsAffected()
+			if rowsErr != nil {
+				return nil, false, rowsErr
+			}
+			if n == 1 {
+				row.ID = existing.ID
+				row.CreatedAtMs = existing.CreatedAtMs
+				row.Status = JournalPending
+				row.ResultJSON = ""
+				row.Takeover = true
+				return &row, true, nil
+			}
+		}
 		return existing, false, nil
 	}
-	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_command_journal (user_id, request_id, tool, canonical_args_digest, result_json, status, created_at_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest, nullString(row.ResultJSON), row.Status, row.CreatedAtMs)
+	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_command_journal
+		(user_id, request_id, tool, canonical_args_digest, run_id, lease_generation, result_json, status, created_at_ms, updated_at_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest, row.RunID, row.LeaseGeneration,
+		nullString(row.ResultJSON), row.Status, row.CreatedAtMs, row.UpdatedAtMs)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			existing, err = s.GetJournal(ctx, row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest)
@@ -635,7 +744,8 @@ func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, b
 }
 
 func (s *SQLStore) CompleteJournal(ctx context.Context, id int64, status, resultJSON string) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_command_journal SET status=?, result_json=? WHERE id=?`, status, resultJSON, id)
+	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_command_journal SET status=?, result_json=?, updated_at_ms=? WHERE id=?`,
+		status, resultJSON, NowMs(), id)
 	return err
 }
 
@@ -646,11 +756,15 @@ func (s *SQLStore) ListSuccessfulJournal(ctx context.Context, userID int64, requ
 		RequestID           string         `db:"request_id"`
 		Tool                string         `db:"tool"`
 		CanonicalArgsDigest string         `db:"canonical_args_digest"`
+		RunID               int64          `db:"run_id"`
+		LeaseGeneration     int64          `db:"lease_generation"`
 		ResultJSON          sql.NullString `db:"result_json"`
 		Status              string         `db:"status"`
 		CreatedAtMs         int64          `db:"created_at_ms"`
+		UpdatedAtMs         int64          `db:"updated_at_ms"`
 	}
-	if err := s.exec.QueryRowsCtx(ctx, &rows, `SELECT id, user_id, request_id, tool, canonical_args_digest, result_json, status, created_at_ms
+	if err := s.exec.QueryRowsCtx(ctx, &rows, `SELECT id, user_id, request_id, tool, canonical_args_digest, run_id,
+		lease_generation, result_json, status, created_at_ms, updated_at_ms
 		FROM agent_command_journal WHERE user_id=? AND request_id=? AND status=?`, userID, requestID, JournalSuccess); err != nil {
 		return nil, err
 	}
@@ -658,7 +772,8 @@ func (s *SQLStore) ListSuccessfulJournal(ctx context.Context, userID int64, requ
 	for _, row := range rows {
 		out = append(out, Journal{
 			ID: row.ID, UserID: row.UserID, RequestID: row.RequestID, Tool: row.Tool, CanonicalArgsDigest: row.CanonicalArgsDigest,
-			ResultJSON: row.ResultJSON.String, Status: row.Status, CreatedAtMs: row.CreatedAtMs,
+			RunID: row.RunID, LeaseGeneration: row.LeaseGeneration, ResultJSON: row.ResultJSON.String,
+			Status: row.Status, CreatedAtMs: row.CreatedAtMs, UpdatedAtMs: row.UpdatedAtMs,
 		})
 	}
 	return out, nil
@@ -970,7 +1085,8 @@ func (s *SQLStore) scanBucket(ctx context.Context, query string, args ...any) (*
 }
 
 func (s *SQLStore) MarkBucketScheduled(ctx context.Context, id, runID int64) error {
-	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='scheduled', run_id=?, not_before_ms=0 WHERE id=? AND status IN ('pending','deferred')`, runID, id)
+	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='scheduled', run_id=?, not_before_ms=0
+		WHERE id=? AND status IN ('pending','deferred') AND run_id=0`, runID, id)
 	if err != nil {
 		return err
 	}
@@ -979,7 +1095,7 @@ func (s *SQLStore) MarkBucketScheduled(ctx context.Context, id, runID int64) err
 		return err
 	}
 	if n != 1 {
-		return fmt.Errorf("watch bucket %d is no longer schedulable", id)
+		return fmt.Errorf("watch bucket %d schedule CAS failed", id)
 	}
 	return nil
 }
@@ -1014,6 +1130,57 @@ func (s *SQLStore) RequeueFailedBuckets(ctx context.Context) error {
 		SET b.status='pending', b.run_id=0, b.not_before_ms=0
 		WHERE b.status='scheduled' AND r.status IN ('error','cancelled')`)
 	return err
+}
+
+func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID int64, delivered bool, nowMs int64) error {
+	bucket, err := s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
+		FROM watch_delivery_bucket WHERE id=? AND user_id=? AND run_id=? FOR UPDATE`, id, userID, runID)
+	if err != nil {
+		return err
+	}
+	if bucket.Status == "sent" {
+		return nil
+	}
+	if bucket.Status != "scheduled" {
+		return fmt.Errorf("watch bucket %d is not scheduled", id)
+	}
+	if !delivered {
+		_, err = s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0
+			WHERE id=? AND user_id=? AND run_id=? AND status='scheduled'`, id, userID, runID)
+		return err
+	}
+	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='sent'
+		WHERE id=? AND user_id=? AND run_id=? AND status='scheduled'`, id, userID, runID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("watch bucket %d delivery CAS failed", id)
+	}
+	dayStart := nowMs / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+	if err := s.IncrSent(ctx, userID, 0, "day", dayStart); err != nil {
+		return err
+	}
+	if len(bucket.HitIDs) == 0 {
+		return nil
+	}
+	var taskIDs []int64
+	args := append([]any{userID}, intsToAny(bucket.HitIDs)...)
+	if err := s.exec.QueryRowsCtx(ctx, &taskIDs, `SELECT DISTINCT task_id FROM watch_hit
+		WHERE user_id=? AND id IN (`+placeholders(len(bucket.HitIDs))+`)`, args...); err != nil {
+		return err
+	}
+	hourStart := nowMs / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
+	for _, taskID := range taskIDs {
+		if err := s.IncrSent(ctx, userID, taskID, "hour", hourStart); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) ResetUnsentBuckets(ctx context.Context, userID int64) error {

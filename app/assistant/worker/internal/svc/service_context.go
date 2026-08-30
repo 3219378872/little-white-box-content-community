@@ -66,6 +66,9 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	interactionService := interactionservice.NewInteractionService(newClient(c.InteractionRpc))
 	userService := userservice.NewUserService(newClient(c.UserRpc))
 
+	// SQL arguments may contain prompts and tool payloads. Metrics remain enabled,
+	// but statement logging is disabled for this worker process.
+	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	st := store.NewSQLStore(conn)
 	var safetyFilter safety.Filter
@@ -118,7 +121,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	}
 	return &ServiceContext{
 		Config: c, Store: st, Memory: mem, Watch: watchStore,
-		Lease:  &lease.Manager{Store: st, Owner: c.Name, Lease: time.Duration(c.LeaseSeconds) * time.Second, Renew: time.Duration(c.RenewSeconds) * time.Second},
+		Lease:  &lease.Manager{Store: st, Owner: lease.NewOwner(c.Name), Lease: time.Duration(c.LeaseSeconds) * time.Second, Renew: time.Duration(c.RenewSeconds) * time.Second},
 		Engine: engine, Index: history, LLM: client,
 		Consent: func(ctx context.Context, userID int64) (bool, error) {
 			consent, err := userService.GetAgentCapabilityConsent(ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})

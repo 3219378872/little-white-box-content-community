@@ -126,10 +126,16 @@ func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 		}
 		msgs = append(msgs, msg)
 	}
-	run, err := mem.InsertRun(ctx, store.Run{UserID: 1, SessionID: session.ID, Status: store.StatusRunning, CreatedAtMs: 1})
+	run, err := mem.InsertRun(ctx, store.Run{UserID: 1, SessionID: session.ID, Status: store.StatusQueued,
+		ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
+	claimed, err := mem.Claim(ctx, "test-worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != run.ID {
+		t.Fatalf("claim run: %+v %v", claimed, err)
+	}
+	run = *claimed
 	engine := &Engine{Store: mem}
 	if err := engine.compact(ctx, ctx, &run, &session, msgs); err != nil {
 		t.Fatal(err)

@@ -1,6 +1,9 @@
 package store
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 const (
 	SourceUser         = "user"
@@ -66,6 +69,14 @@ const (
 	IndexOpDelete = "delete"
 )
 
+var ErrLeaseLost = errors.New("assistant run lease lost")
+
+type LeaseFence struct {
+	RunID      int64
+	Owner      string
+	Generation int64
+}
+
 type Thread struct {
 	UserID             int64
 	SessionID          int64
@@ -118,9 +129,12 @@ type Run struct {
 	Priority         int
 	QueuedPayload    []byte
 	LeaseOwner       string
+	LeaseGeneration  int64
 	LeaseUntilMs     int64
 	HeartbeatAtMs    int64
 	CancelRequested  bool
+	ConsentVersion   int32
+	InputVersion     int64
 	PromptEpoch      int
 	Model            string
 	Rounds           int
@@ -192,9 +206,17 @@ type Journal struct {
 	RequestID           string
 	Tool                string
 	CanonicalArgsDigest string
+	RunID               int64
+	LeaseGeneration     int64
 	ResultJSON          string
 	Status              string
 	CreatedAtMs         int64
+	UpdatedAtMs         int64
+	Takeover            bool
+}
+
+func (r Run) Fence() LeaseFence {
+	return LeaseFence{RunID: r.ID, Owner: r.LeaseOwner, Generation: r.LeaseGeneration}
 }
 
 type Source struct {

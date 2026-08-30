@@ -56,7 +56,7 @@ func main() {
 				continue
 			}
 			runCtx, runCancel := context.WithCancel(ctx)
-			go svcCtx.Lease.RenewLoop(runCtx, run.ID)
+			go svcCtx.Lease.RenewLoop(runCtx, *run, runCancel)
 			svcCtx.Engine.Execute(runCtx, *run, recovered)
 			runCancel()
 		}

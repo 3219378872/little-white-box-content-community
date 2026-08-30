@@ -3,13 +3,16 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 // MemoryStore is an in-memory Store for unit tests.
 type MemoryStore struct {
+	stepMu      sync.Mutex
 	mu          sync.Mutex
 	next        int64
 	threads     map[int64]Thread
@@ -28,6 +31,7 @@ type MemoryStore struct {
 	bucketByKey map[string]int64
 	sent        map[string]int
 	claimFail   bool
+	consents    map[int64]int32
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -47,6 +51,7 @@ func NewMemoryStore() *MemoryStore {
 		buckets:     map[int64]DeliveryBucket{},
 		bucketByKey: map[string]int64{},
 		sent:        map[string]int{},
+		consents:    map[int64]int32{},
 	}
 }
 
@@ -57,6 +62,20 @@ func (m *MemoryStore) nextID() int64 {
 }
 
 func (m *MemoryStore) Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
+	return fn(ctx, m)
+}
+
+func (m *MemoryStore) RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
+	m.mu.Lock()
+	run, ok := m.runs[fence.RunID]
+	valid := ok && run.Status == StatusRunning && run.LeaseOwner == fence.Owner &&
+		run.LeaseGeneration == fence.Generation && run.LeaseUntilMs >= NowMs()
+	m.mu.Unlock()
+	if !valid {
+		return ErrLeaseLost
+	}
 	return fn(ctx, m)
 }
 
@@ -289,12 +308,47 @@ func (m *MemoryStore) UpdateRun(_ context.Context, run Run) error {
 	defer m.mu.Unlock()
 	if existing, ok := m.runs[run.ID]; ok {
 		run.CancelRequested = run.CancelRequested || existing.CancelRequested
+		run.QueuedPayload = append([]byte(nil), existing.QueuedPayload...)
+		run.LeaseOwner = existing.LeaseOwner
+		run.LeaseGeneration = existing.LeaseGeneration
+		run.LeaseUntilMs = existing.LeaseUntilMs
+		run.HeartbeatAtMs = existing.HeartbeatAtMs
+		run.ConsentVersion = existing.ConsentVersion
+		run.InputVersion = existing.InputVersion
 	}
 	m.runs[run.ID] = run
 	return nil
 }
 
+func (m *MemoryStore) ExpireLease(runID, leaseUntilMs int64) {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	run := m.runs[runID]
+	run.LeaseUntilMs = leaseUntilMs
+	m.runs[runID] = run
+}
+
+func (m *MemoryStore) SetRunInput(_ context.Context, runID int64, payload []byte, lastActivityMs int64) error {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	run, ok := m.runs[runID]
+	if !ok || run.Status != StatusRunning {
+		return sqlx.ErrNotFound
+	}
+	run.QueuedPayload = append([]byte(nil), payload...)
+	run.InputVersion++
+	run.LastActivityAtMs = lastActivityMs
+	m.runs[runID] = run
+	return nil
+}
+
 func (m *MemoryStore) RequestCancel(_ context.Context, userID, runID int64) error {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	run, ok := m.runs[runID]
@@ -303,6 +357,20 @@ func (m *MemoryStore) RequestCancel(_ context.Context, userID, runID int64) erro
 	}
 	run.CancelRequested = true
 	m.runs[runID] = run
+	return nil
+}
+
+func (m *MemoryStore) RequestCancelAll(_ context.Context, userID int64) error {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, run := range m.runs {
+		if run.UserID == userID && !IsTerminalStatus(run.Status) {
+			run.CancelRequested = true
+			m.runs[id] = run
+		}
+	}
 	return nil
 }
 
@@ -329,6 +397,8 @@ func (m *MemoryStore) CancelOpenBackground(_ context.Context, userID int64, sour
 }
 
 func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int64) (*Run, error) {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.claimFail {
@@ -354,6 +424,7 @@ func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int6
 		best.StartedAtMs = nowMs
 	}
 	best.LeaseOwner = owner
+	best.LeaseGeneration++
 	best.LeaseUntilMs = nowMs + leaseMs
 	best.HeartbeatAtMs = nowMs
 	best.LastActivityAtMs = nowMs
@@ -361,17 +432,35 @@ func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int6
 	return best, nil
 }
 
-func (m *MemoryStore) RenewLease(_ context.Context, runID int64, owner string, leaseUntilMs, heartbeatMs int64) (bool, error) {
+func (m *MemoryStore) RenewLease(_ context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error) {
+	m.stepMu.Lock()
+	defer m.stepMu.Unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	run, ok := m.runs[runID]
-	if !ok || run.LeaseOwner != owner || run.Status != StatusRunning {
+	if !ok || run.LeaseOwner != owner || run.LeaseGeneration != generation || run.Status != StatusRunning || run.LeaseUntilMs < heartbeatMs {
 		return false, nil
 	}
 	run.LeaseUntilMs = leaseUntilMs
 	run.HeartbeatAtMs = heartbeatMs
 	m.runs[runID] = run
 	return true, nil
+}
+
+func (m *MemoryStore) AgentConsent(_ context.Context, userID int64) (int32, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	version, ok := m.consents[userID]
+	if !ok {
+		return 2, true, nil
+	}
+	return version, version > 0, nil
+}
+
+func (m *MemoryStore) SetAgentConsent(userID int64, version int32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.consents[userID] = version
 }
 
 func (m *MemoryStore) OldestQueuedAgeMs(_ context.Context, nowMs int64) (int64, error) {
@@ -395,6 +484,13 @@ func (m *MemoryStore) OldestQueuedAgeMs(_ context.Context, nowMs int64) (int64, 
 func (m *MemoryStore) InsertEvent(_ context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if eventType == EventDone || eventType == EventError {
+		for _, existing := range m.events[runID] {
+			if existing.Type == EventDone || existing.Type == EventError {
+				return Event{}, errors.New("duplicate terminal event")
+			}
+		}
+	}
 	seq := int64(len(m.events[runID]) + 1)
 	ev := Event{ID: m.nextID(), RunID: runID, Seq: seq, Type: eventType, PayloadJSON: payload, CreatedAtMs: createdAtMs}
 	m.events[runID] = append(m.events[runID], ev)
@@ -432,7 +528,7 @@ func (m *MemoryStore) GetToolCall(_ context.Context, runID int64, callID string)
 	defer m.mu.Unlock()
 	call, ok := m.toolCalls[toolKey(runID, callID)]
 	if !ok {
-		return nil, sqlx.ErrNotFound
+		return nil, nil
 	}
 	cp := call
 	return &cp, nil
@@ -442,13 +538,13 @@ func (m *MemoryStore) UpdateToolCall(_ context.Context, call ToolCall) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := toolKey(call.RunID, call.CallID)
-	if existing, ok := m.toolCalls[key]; ok {
-		existing.Status = call.Status
-		existing.ResultJSON = call.ResultJSON
-		m.toolCalls[key] = existing
-		return nil
+	existing, ok := m.toolCalls[key]
+	if !ok {
+		return sqlx.ErrNotFound
 	}
-	m.toolCalls[key] = call
+	existing.Status = call.Status
+	existing.ResultJSON = call.ResultJSON
+	m.toolCalls[key] = existing
 	return nil
 }
 
@@ -480,6 +576,15 @@ func (m *MemoryStore) ReserveJournal(_ context.Context, row Journal) (*Journal, 
 	defer m.mu.Unlock()
 	key := journalKey(row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest)
 	if existing, ok := m.journals[key]; ok {
+		if existing.Status != JournalSuccess && existing.LeaseGeneration < row.LeaseGeneration {
+			row.ID = existing.ID
+			row.CreatedAtMs = existing.CreatedAtMs
+			row.Status = JournalPending
+			row.ResultJSON = ""
+			row.Takeover = true
+			m.journals[key] = row
+			return &row, true, nil
+		}
 		cp := existing
 		return &cp, false, nil
 	}
@@ -495,6 +600,7 @@ func (m *MemoryStore) CompleteJournal(_ context.Context, id int64, status, resul
 		if row.ID == id {
 			row.Status = status
 			row.ResultJSON = resultJSON
+			row.UpdatedAtMs = NowMs()
 			m.journals[key] = row
 			return nil
 		}
@@ -726,9 +832,9 @@ func (m *MemoryStore) GetPendingBucket(_ context.Context, userID int64) (*Delive
 func (m *MemoryStore) MarkBucketScheduled(_ context.Context, id, runID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	b := m.buckets[id]
-	if b.Status != "pending" && b.Status != "deferred" {
-		return sqlx.ErrNotFound
+	b, ok := m.buckets[id]
+	if !ok || (b.Status != "pending" && b.Status != "deferred") || b.RunID != 0 {
+		return errors.New("watch bucket schedule CAS failed")
 	}
 	b.Status = "scheduled"
 	b.RunID = runID
@@ -785,6 +891,33 @@ func (m *MemoryStore) RequeueFailedBuckets(_ context.Context) error {
 			m.buckets[id] = b
 		}
 	}
+	return nil
+}
+
+func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID int64, delivered bool, nowMs int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	bucket, ok := m.buckets[id]
+	if !ok || bucket.UserID != userID || bucket.RunID != runID {
+		return sqlx.ErrNotFound
+	}
+	if bucket.Status == "sent" {
+		return nil
+	}
+	if bucket.Status != "scheduled" {
+		return errors.New("watch bucket is not scheduled")
+	}
+	if !delivered {
+		bucket.Status = "pending"
+		bucket.RunID = 0
+		bucket.NotBeforeMs = 0
+		m.buckets[id] = bucket
+		return nil
+	}
+	bucket.Status = "sent"
+	m.buckets[id] = bucket
+	dayStart := nowMs / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+	m.sent[sentKey(userID, 0, "day", dayStart)]++
 	return nil
 }
 

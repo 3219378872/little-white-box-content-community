@@ -145,11 +145,17 @@ func newCancelTestEngine(t *testing.T, mem *store.MemoryStore, model llm.Client)
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 1, SessionID: session.ID, RequestID: "r1", Source: store.SourceUser,
-		Status: store.StatusRunning, Phase: store.PhaseQueued, CreatedAtMs: store.NowMs(),
+		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	claimed, err := mem.Claim(ctx, "test-worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != run.ID {
+		t.Fatalf("claim run: %+v %v", claimed, err)
+	}
+	run = *claimed
 	thread, _ := mem.GetThread(ctx, 1)
 	thread.ActiveRunID = run.ID
 	_ = mem.SaveThread(ctx, *thread)

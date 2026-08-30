@@ -2,12 +2,14 @@ package tool
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"esx/app/assistant/internal/canonical"
 	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/websearch"
@@ -547,7 +549,7 @@ func addMemoryExecutor(mem memory.Store) executorFunc {
 		if err := strictUnmarshal(argsJSON, &args); err != nil {
 			return "", nil, errx.New(errx.ParamError, "add_memory arguments are invalid")
 		}
-		entry, changeID, err := mem.Add(ctx, userID, args.Target, args.Content, session.RequestID+":"+callID, store.NowMs())
+		entry, changeID, err := mem.Add(ctx, userID, args.Target, args.Content, deriveMemoryRequestID(session.RequestID, callID), store.NowMs())
 		if err != nil {
 			return "", nil, err
 		}
@@ -575,7 +577,7 @@ func replaceMemoryExecutor(mem memory.Store) executorFunc {
 		if err := strictUnmarshal(argsJSON, &args); err != nil {
 			return "", nil, errx.New(errx.ParamError, "replace_memory arguments are invalid")
 		}
-		entry, changeID, err := mem.Replace(ctx, userID, args.ID, args.Content, args.Version, session.RequestID+":"+callID, store.NowMs())
+		entry, changeID, err := mem.Replace(ctx, userID, args.ID, args.Content, args.Version, deriveMemoryRequestID(session.RequestID, callID), store.NowMs())
 		if err != nil {
 			return "", nil, err
 		}
@@ -602,7 +604,7 @@ func removeMemoryExecutor(mem memory.Store) executorFunc {
 		if err := strictUnmarshal(argsJSON, &args); err != nil {
 			return "", nil, errx.New(errx.ParamError, "remove_memory arguments are invalid")
 		}
-		changeID, err := mem.Remove(ctx, userID, args.ID, args.Version, session.RequestID+":"+callID, store.NowMs())
+		changeID, err := mem.Remove(ctx, userID, args.ID, args.Version, deriveMemoryRequestID(session.RequestID, callID), store.NowMs())
 		if err != nil {
 			return "", nil, err
 		}
@@ -628,7 +630,7 @@ func batchMemoryExecutor(mem memory.Store) executorFunc {
 		if err := strictUnmarshal(argsJSON, &args); err != nil {
 			return "", nil, errx.New(errx.ParamError, "batch_memory arguments are invalid")
 		}
-		_, ids, err := mem.Batch(ctx, userID, session.RequestID+":"+callID, args.Ops, store.NowMs())
+		_, ids, err := mem.Batch(ctx, userID, deriveMemoryRequestID(session.RequestID, callID), args.Ops, store.NowMs())
 		if err != nil {
 			return "", nil, err
 		}
@@ -677,6 +679,18 @@ func createWatchTaskExecutor(clients Clients) executorFunc {
 		}
 		created, err := clients.Watch.Create(ctx, task)
 		if err != nil {
+			if session.Recovery && errx.Is(err, errx.IdempotencyConflict) {
+				tasks, listErr := clients.Watch.ListTasks(ctx, session.UserID)
+				if listErr != nil {
+					return "", nil, listErr
+				}
+				for _, existing := range tasks {
+					if existing.ConditionType == task.ConditionType && existing.TargetType == task.TargetType &&
+						existing.TargetID == task.TargetID && strings.TrimSpace(existing.TargetText) == strings.TrimSpace(task.TargetText) {
+						return fmt.Sprintf("已创建追踪 #%d（%s）。", existing.ID, existing.ConditionType), nil, nil
+					}
+				}
+			}
 			return "", nil, err
 		}
 		return fmt.Sprintf("已创建追踪 #%d（%s）。", created.ID, created.ConditionType), nil, nil
@@ -763,6 +777,9 @@ func deleteWatchTaskExecutor(w watch.Store) executorFunc {
 			return "", nil, errx.New(errx.ParamError, "delete_watch_task arguments are invalid")
 		}
 		if err := w.Delete(ctx, session.UserID, args.ID); err != nil {
+			if session.Recovery && errx.Is(err, errx.NotFound) {
+				return "追踪已删除。", nil, nil
+			}
 			return "", nil, err
 		}
 		return "追踪已删除。", nil, nil
@@ -845,7 +862,7 @@ func createPostExecutor(content contentservice.ContentService, media mediaservic
 }
 
 func updatePostExecutor(content contentservice.ContentService, media mediaservice.MediaService) executorFunc {
-	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
+	return func(ctx context.Context, session *Session, callID string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
 			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
@@ -869,7 +886,10 @@ func updatePostExecutor(content contentservice.ContentService, media mediaservic
 			}
 			expected = current.GetPost().GetRevision()
 		}
-		req := &contentservice.UpdatePostReq{PostId: args.PostID, AuthorId: session.UserID, ExpectedRevision: expected}
+		req := &contentservice.UpdatePostReq{
+			PostId: args.PostID, AuthorId: session.UserID, ExpectedRevision: expected,
+			IdempotencyKey: deriveIdempotencyKey(session.RequestID, callID, "update"),
+		}
 		if title := strings.TrimSpace(args.Title); title != "" {
 			req.Title = title
 		}
@@ -903,7 +923,7 @@ func updatePostExecutor(content contentservice.ContentService, media mediaservic
 }
 
 func deletePostExecutor(content contentservice.ContentService) executorFunc {
-	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
+	return func(ctx context.Context, session *Session, callID string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
 			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
@@ -922,10 +942,65 @@ func deletePostExecutor(content contentservice.ContentService) executorFunc {
 			}
 			expected = current.GetPost().GetRevision()
 		}
-		if _, err := content.DeletePost(ctx, &contentservice.DeletePostReq{PostId: args.PostID, AuthorId: session.UserID, ExpectedRevision: expected}); err != nil {
+		if _, err := content.DeletePost(ctx, &contentservice.DeletePostReq{
+			PostId: args.PostID, AuthorId: session.UserID, ExpectedRevision: expected,
+			IdempotencyKey: deriveIdempotencyKey(session.RequestID, callID, "delete"),
+		}); err != nil {
 			return "", nil, errx.FromRPCError(err)
 		}
 		return fmt.Sprintf("帖子 #%d 已删除。", args.PostID), nil, nil
+	}
+}
+
+func postRevisionPreparer(content contentservice.ContentService) prepareFunc {
+	return func(ctx context.Context, session *Session, argsJSON string) (string, error) {
+		if content == nil || session == nil || session.UserID <= 0 {
+			return "", errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		var args map[string]any
+		if err := strictUnmarshal(argsJSON, &args); err != nil {
+			return "", errx.New(errx.ParamError, "post tool arguments are invalid")
+		}
+		postID, ok := numericInt64(args["post_id"])
+		if !ok || postID <= 0 {
+			return "", errx.New(errx.ParamError, "post tool requires post_id")
+		}
+		expected, _ := numericInt64(args["expected_revision"])
+		current, err := content.GetPost(ctx, &contentservice.GetPostReq{PostId: postID, UserId: session.UserID})
+		if err != nil {
+			return "", errx.FromRPCError(err)
+		}
+		post := current.GetPost()
+		if post == nil || post.GetAuthorId() != session.UserID || post.GetRevision() <= 0 {
+			return "", errx.NewWithCode(errx.ContentForbidden)
+		}
+		if expected <= 0 {
+			expected = post.GetRevision()
+			args["expected_revision"] = expected
+		} else if expected != post.GetRevision() {
+			return "", errx.NewWithCode(errx.ContentVersionConflict)
+		}
+		raw, err := canonical.JSON(args)
+		if err != nil {
+			return "", errx.New(errx.ParamError, "post tool arguments are invalid")
+		}
+		return string(raw), nil
+	}
+}
+
+func numericInt64(value any) (int64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return int64(typed), typed == float64(int64(typed))
+	case json.Number:
+		v, err := typed.Int64()
+		return v, err == nil
+	case int64:
+		return typed, true
+	case int:
+		return int64(typed), true
+	default:
+		return 0, false
 	}
 }
 
@@ -1123,11 +1198,13 @@ func sanitizeTags(tags []string) []string {
 }
 
 func deriveIdempotencyKey(requestID, callID, action string) string {
-	key := fmt.Sprintf("agent:%s:%s:%s", action, requestID, callID)
-	if len(key) > 128 {
-		key = key[:128]
-	}
-	return key
+	sum := sha256.Sum256([]byte(requestID + "\x00" + callID))
+	return fmt.Sprintf("agent:%s:%x", action, sum[:])
+}
+
+func deriveMemoryRequestID(requestID, callID string) string {
+	sum := sha256.Sum256([]byte(requestID + "\x00" + callID))
+	return fmt.Sprintf("agent-memory:%x", sum[:24])
 }
 
 var _ = logx.WithContext
