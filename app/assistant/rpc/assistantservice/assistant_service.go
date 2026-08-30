@@ -25,8 +25,6 @@ type (
 	CancelRunResp               = pb.CancelRunResp
 	ConfirmRunToolReq           = pb.ConfirmRunToolReq
 	ConfirmRunToolResp          = pb.ConfirmRunToolResp
-	CreateSessionReq            = pb.CreateSessionReq
-	CreateSessionResp           = pb.CreateSessionResp
 	CreateWatchTaskReq          = pb.CreateWatchTaskReq
 	CreateWatchTaskResp         = pb.CreateWatchTaskResp
 	DeleteHistoryReq            = pb.DeleteHistoryReq
@@ -70,7 +68,6 @@ type (
 		GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error)
 		ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error)
 		PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error)
-		CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error)
 		MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error)
 		DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
 		SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (pb.AssistantService_SubscribeRunEventsClient, error)
@@ -114,11 +111,6 @@ func (m *defaultAssistantService) ListMessages(ctx context.Context, in *ListMess
 func (m *defaultAssistantService) PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
 	return client.PostMessage(ctx, in, opts...)
-}
-
-func (m *defaultAssistantService) CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error) {
-	client := pb.NewAssistantServiceClient(m.cli.Conn())
-	return client.CreateSession(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error) {

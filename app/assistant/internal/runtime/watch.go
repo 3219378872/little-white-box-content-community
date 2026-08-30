@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/watch"
@@ -29,7 +30,7 @@ type watchRunPayload struct {
 	PostIDs  []int64 `json:"post_ids,omitempty"`
 }
 
-func ScheduleDueWatchRuns(ctx context.Context, st store.Store, watchStore watch.Store, consent ConsentChecker) {
+func ScheduleDueWatchRuns(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker) {
 	if st == nil {
 		return
 	}
@@ -43,13 +44,13 @@ func ScheduleDueWatchRuns(ctx context.Context, st store.Store, watchStore watch.
 		return
 	}
 	for _, bucket := range buckets {
-		if err := scheduleBucket(ctx, st, watchStore, consent, bucket, now); err != nil {
+		if err := scheduleBucket(ctx, st, memories, watchStore, consent, bucket, now); err != nil {
 			logx.WithContext(ctx).Errorw("schedule watch run failed", logx.Field("bucket", bucket.ID), logx.Field("err", err.Error()))
 		}
 	}
 }
 
-func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store, consent ConsentChecker, bucket store.DeliveryBucket, now int64) error {
+func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker, bucket store.DeliveryBucket, now int64) error {
 	consentVersion, granted, err := st.AgentConsent(ctx, bucket.UserID)
 	if err != nil {
 		return err
@@ -143,22 +144,21 @@ func scheduleBucket(ctx context.Context, st store.Store, watchStore watch.Store,
 		if err != nil {
 			return err
 		}
-		sessionID := thread.SessionID
-		if sessionID == 0 {
-			created, createErr := tx.CreateSession(ctx, store.Session{UserID: bucket.UserID, PromptEpoch: 1, Status: store.SessionOpen, CreatedAtMs: now})
-			if createErr != nil {
-				return createErr
-			}
-			sessionID = created.ID
-			thread.SessionID = sessionID
-			if saveErr := tx.SaveThread(ctx, *thread); saveErr != nil {
-				return saveErr
-			}
+		session, sessErr := ensureForegroundSession(ctx, tx, memories, thread, now)
+		if sessErr != nil {
+			return sessErr
+		}
+		session, sessErr = spliceIfCold(ctx, tx, memories, thread, session, now)
+		if sessErr != nil {
+			return sessErr
+		}
+		if saveErr := tx.SaveThread(ctx, *thread); saveErr != nil {
+			return saveErr
 		}
 		run, insertErr := tx.InsertRun(ctx, store.Run{
-			UserID: bucket.UserID, SessionID: sessionID, RequestID: "watch-" + itoa(bucket.ID) + "-" + itoa(now),
+			UserID: bucket.UserID, SessionID: session.ID, RequestID: "watch-" + itoa(bucket.ID) + "-" + itoa(now),
 			Source: store.SourceWatch, Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityWatch,
-			QueuedPayload: payload, ConsentVersion: consentVersion, InputVersion: 1,
+			QueuedPayload: payload, ConsentVersion: consentVersion, InputVersion: 1, PromptEpoch: session.PromptEpoch,
 			CreatedAtMs: now, LastActivityAtMs: now,
 		})
 		if insertErr != nil {

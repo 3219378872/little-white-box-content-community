@@ -91,10 +91,11 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if !granted || consentVersion != in.ConsentVersion {
 		return AcceptResult{}, errx.NewWithCode(errx.AgentNotAuthorized)
 	}
-	session, err := a.ensureSession(ctx, tx, thread, now)
+	session, err := ensureForegroundSession(ctx, tx, a.Memory, thread, now)
 	if err != nil {
 		return AcceptResult{}, err
 	}
+	cold := isColdConversation(thread, now)
 	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
@@ -144,6 +145,12 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	var runID int64
 	switch disposition {
 	case store.DispositionStarted:
+		if cold {
+			session, err = spliceColdSession(ctx, tx, a.Memory, session)
+			if err != nil {
+				return AcceptResult{}, err
+			}
+		}
 		run, err := tx.InsertRun(ctx, store.Run{
 			UserID: in.UserID, SessionID: session.ID, RequestID: in.RequestID, Source: store.SourceUser,
 			Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityUser,
@@ -184,72 +191,6 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		return AcceptResult{}, err
 	}
 	return AcceptResult{MessageID: msg.ID, SessionID: session.ID, RunID: runID, Disposition: disposition}, nil
-}
-
-func (a *Acceptor) ensureSession(ctx context.Context, tx store.Store, thread *store.Thread, now int64) (*store.Session, error) {
-	if thread.SessionID > 0 {
-		session, err := tx.GetSession(ctx, thread.SessionID)
-		if err == nil && session != nil && session.Status != store.SessionClosed {
-			return session, nil
-		}
-	}
-	session, err := a.newSession(ctx, tx, thread.UserID, now)
-	if err != nil {
-		return nil, err
-	}
-	thread.SessionID = session.ID
-	return &session, nil
-}
-
-func (a *Acceptor) newSession(ctx context.Context, tx store.Store, userID, now int64) (store.Session, error) {
-	var entries []memory.Entry
-	if a.Memory != nil {
-		listed, err := a.Memory.Active(ctx, userID)
-		if err == nil {
-			entries = listed
-		}
-	}
-	snap := prompt.BuildSnapshot(entries, nil, "")
-	return tx.CreateSession(ctx, store.Session{
-		UserID: userID, PromptEpoch: 1, PromptSnapshot: prompt.EncodeSnapshot(snap),
-		Status: store.SessionOpen, CreatedAtMs: now,
-	})
-}
-
-func (a *Acceptor) CreateSession(ctx context.Context, userID int64) (int64, error) {
-	if userID <= 0 {
-		return 0, errx.NewWithCode(errx.LoginRequired)
-	}
-	var id int64
-	err := a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
-		now := store.NowMs()
-		thread, err := tx.LockThread(ctx, userID)
-		if err != nil {
-			return err
-		}
-		if thread.SessionID > 0 {
-			session, err := tx.GetSession(ctx, thread.SessionID)
-			if err == nil && session != nil {
-				session.PromptEpoch++
-				session.Status = store.SessionClosed
-				session.ClosedAtMs = now
-				if err := tx.UpdateSession(ctx, *session); err != nil {
-					return err
-				}
-			} else {
-				_ = tx.CloseSession(ctx, thread.SessionID, now)
-			}
-		}
-		created, err := a.newSession(ctx, tx, userID, now)
-		if err != nil {
-			return err
-		}
-		thread.SessionID = created.ID
-		thread.UpdatedAtMs = now
-		id = created.ID
-		return tx.SaveThread(ctx, *thread)
-	})
-	return id, err
 }
 
 func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {

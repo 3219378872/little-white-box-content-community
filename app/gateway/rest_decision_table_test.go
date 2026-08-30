@@ -331,9 +331,6 @@ func (contractAssistantService) ListMessages(context.Context, *assistantservice.
 func (contractAssistantService) PostMessage(context.Context, *assistantservice.PostMessageReq, ...grpc.CallOption) (*assistantpb.PostMessageResp, error) {
 	return &assistantpb.PostMessageResp{MessageId: 1, SessionId: 1, RunId: 9, Disposition: "started"}, nil
 }
-func (contractAssistantService) CreateSession(context.Context, *assistantservice.CreateSessionReq, ...grpc.CallOption) (*assistantpb.CreateSessionResp, error) {
-	return &assistantpb.CreateSessionResp{SessionId: 1}, nil
-}
 func (contractAssistantService) MarkThreadRead(context.Context, *assistantservice.MarkThreadReadReq, ...grpc.CallOption) (*assistantpb.MarkThreadReadResp, error) {
 	return &assistantpb.MarkThreadReadResp{}, nil
 }
@@ -556,7 +553,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ASSISTANT-THREAD-VALID", method: http.MethodGet, path: "/api/v2/assistant/thread", auth: true, wantStatus: http.StatusOK, wantFields: []string{"thread"}},
 		{id: "ASSISTANT-MESSAGES-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/messages", auth: true, wantStatus: http.StatusOK, wantFields: []string{"messages"}},
 		{id: "ASSISTANT-MESSAGE-VALID", method: http.MethodPost, path: "/api/v2/assistant/messages", body: jsonBody(`{"message":"hello","requestId":"request-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"messageId", "sessionId", "runId", "disposition"}},
-		{id: "ASSISTANT-SESSION-VALID", method: http.MethodPost, path: "/api/v2/assistant/sessions", auth: true, wantStatus: http.StatusOK, wantFields: []string{"sessionId"}},
 		{id: "ASSISTANT-THREAD-READ-VALID", method: http.MethodPost, path: "/api/v2/assistant/thread/read", auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-HISTORY-DELETE-VALID", method: http.MethodDelete, path: "/api/v2/assistant/history", auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-RUN-EVENTS-VALID", method: http.MethodGet, path: "/api/v2/assistant/runs/9/events", routePath: "/api/v2/assistant/runs/:id/events", auth: true, wantStatus: http.StatusOK, wantSSE: true},
@@ -741,7 +737,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 61 {
+	if len(successes) != 60 {
 		t.Fatalf("route inventory drift: got %d success rules, want 61", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))

@@ -7,7 +7,6 @@ service AssistantService {
   rpc GetThread(GetThreadReq) returns (GetThreadResp);
   rpc ListMessages(ListMessagesReq) returns (ListMessagesResp);
   rpc PostMessage(PostMessageReq) returns (PostMessageResp);
-  rpc CreateSession(CreateSessionReq) returns (CreateSessionResp);
   rpc MarkThreadRead(MarkThreadReadReq) returns (MarkThreadReadResp);
   rpc DeleteHistory(DeleteHistoryReq) returns (DeleteHistoryResp);
 
@@ -94,14 +93,6 @@ message PostMessageResp {
   int64 session_id = 2;
   int64 run_id = 3;
   string disposition = 4;
-}
-
-message CreateSessionReq {
-  int64 user_id = 1;
-}
-
-message CreateSessionResp {
-  int64 session_id = 1;
 }
 
 message MarkThreadReadReq {

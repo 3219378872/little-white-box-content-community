@@ -21,7 +21,7 @@ func TestWatchRunReceivesHitsAndCountsOnlyAfterSuccess(t *testing.T) {
 	mem := store.NewMemoryStore()
 	watchStore, bucket, taskID := watchFixture(t, mem)
 	now := store.NowMs()
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -72,7 +72,7 @@ func TestWatchRunFailureRequeuesBucket(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -93,7 +93,7 @@ func TestWatchRepeatedReadIsSafelyDeliveredWithoutRunLoop(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -150,7 +150,7 @@ func TestWatchToolRoundKeepsHitsBeforeResults(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -228,7 +228,7 @@ func TestWatchInputSidecarIsIdempotentOnResume(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -273,7 +273,7 @@ func TestWatchBucketWithoutCurrentConsentIsDeferred(t *testing.T) {
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
 	now := store.NowMs()
-	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return false, nil }, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, func(context.Context, int64) (bool, error) { return false, nil }, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	deferred, _ := mem.GetBucket(ctx, bucket.ID)

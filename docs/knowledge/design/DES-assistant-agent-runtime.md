@@ -33,8 +33,8 @@ assistant-watch matcher
   -> content/behavior events -> two-minute buckets -> Watch run queue
 ```
 
-- `assistant-rpc`：鉴权、校验、接受 message/session/read/cancel/confirm/memory/watch 命令，读取 thread、
-  messages、events；不在请求内调用模型。
+- `assistant-rpc`：鉴权、校验、接受 message/read/cancel/confirm/memory/watch 命令，读取 thread、
+  messages、events；不在请求内调用模型。不提供新 session API。
 - `assistant-agent`：独立二进制，claim/renew/execute/recover run。进程可以横向扩展，数据库租约保证
   同一 run 同时只有一个 owner。
 - `assistant-watch`：保留事件匹配，写内部 execution/hit 并按用户两分钟 bucket 调度只读 Watch run；
@@ -69,7 +69,10 @@ consent、旧 Redis namespace 与旧 ES 索引；marker 提交后重复 patch �
 phase 写 steer；compact/attachment/unsafe phase 写最多 32 条 FIFO。无活跃前台 run 则创建 queued
 user run。数据库提交前不报告 accepted。
 
-新 session 只结束当前 session、滚动 epoch 和创建空 session。clear history 逻辑删除 message、写 ES
+每用户一条永久前台 session：缺失则创建，遗留 `closed` 行 reopen，不再因用户操作关闭并另开一行。
+线程 `last_message_at_ms` 距今不少于 30 分钟后，下一次新建 user 或 Watch run 在同一 session 上滚动
+prompt epoch，重建 Safety/SOUL/工具规则/MEMORY，并保留 `compact_summary`。redirect、steer、FIFO
+和崩溃恢复复用已保存快照。clear history 逻辑删除 message、写 ES
 delete outbox、清 thread 可见摘要，不删 Memory/Watch。显式 Stop 只把 `cancel_requested` 置 1，该位
 一旦置位就不能被后续 `UpdateRun` 清掉。worker 为 in-flight 模型/工具请求单独派生 work context：
 轮询到取消位后立即 cancel 该 context（HTTP 随 request context 中止），并在每个模型/工具安全点
@@ -97,7 +100,7 @@ run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
 
 仓库 `app/assistant/agent/SOUL.md` 是 human-owned 默认温暖伙伴资产。Prompt builder 固定拼接平台安全
 规则、SOUL、Agent/tool 规则、按 target/id 排序的 MEMORY/USER、会话历史，结果与工具定义序列化后
-保存在 session。普通恢复绝不重新生成。
+保存在 session。普通恢复绝不重新生成。冷对话拼接与 compact 成功提交才重写持久层快照。
 
 Provider adapter 实现 Chat Completions 与 Responses 的统一 message/tool-call step。启动时执行协议能力
 检查；未能表达工具 schema/call/result 时 readiness false。旧 `LLM.ModelSmall` 删除；可选

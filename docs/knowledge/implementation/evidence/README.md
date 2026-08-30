@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-30-assistant-single-session.md](2026-08-30-assistant-single-session.md)：
+  永久前台 session、删除 `POST /sessions`、30 分钟冷拼接。
 - [2026-08-30-assistant-watch-input-sidecar.md](2026-08-30-assistant-watch-input-sidecar.md)：
   Watch 命中 JSON 隐藏 sidecar、provider 历史重放与工具轮顺序，提交见 frontmatter。
 - [2026-08-30-assistant-runtime-completeness.md](2026-08-30-assistant-runtime-completeness.md)：

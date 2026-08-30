@@ -22,7 +22,6 @@ const (
 	AssistantService_GetThread_FullMethodName               = "/assistant.AssistantService/GetThread"
 	AssistantService_ListMessages_FullMethodName            = "/assistant.AssistantService/ListMessages"
 	AssistantService_PostMessage_FullMethodName             = "/assistant.AssistantService/PostMessage"
-	AssistantService_CreateSession_FullMethodName           = "/assistant.AssistantService/CreateSession"
 	AssistantService_MarkThreadRead_FullMethodName          = "/assistant.AssistantService/MarkThreadRead"
 	AssistantService_DeleteHistory_FullMethodName           = "/assistant.AssistantService/DeleteHistory"
 	AssistantService_SubscribeRunEvents_FullMethodName      = "/assistant.AssistantService/SubscribeRunEvents"
@@ -49,7 +48,6 @@ type AssistantServiceClient interface {
 	GetThread(ctx context.Context, in *GetThreadReq, opts ...grpc.CallOption) (*GetThreadResp, error)
 	ListMessages(ctx context.Context, in *ListMessagesReq, opts ...grpc.CallOption) (*ListMessagesResp, error)
 	PostMessage(ctx context.Context, in *PostMessageReq, opts ...grpc.CallOption) (*PostMessageResp, error)
-	CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error)
 	MarkThreadRead(ctx context.Context, in *MarkThreadReadReq, opts ...grpc.CallOption) (*MarkThreadReadResp, error)
 	DeleteHistory(ctx context.Context, in *DeleteHistoryReq, opts ...grpc.CallOption) (*DeleteHistoryResp, error)
 	SubscribeRunEvents(ctx context.Context, in *SubscribeRunEventsReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RunEvent], error)
@@ -101,16 +99,6 @@ func (c *assistantServiceClient) PostMessage(ctx context.Context, in *PostMessag
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PostMessageResp)
 	err := c.cc.Invoke(ctx, AssistantService_PostMessage_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *assistantServiceClient) CreateSession(ctx context.Context, in *CreateSessionReq, opts ...grpc.CallOption) (*CreateSessionResp, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateSessionResp)
-	err := c.cc.Invoke(ctx, AssistantService_CreateSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +291,6 @@ type AssistantServiceServer interface {
 	GetThread(context.Context, *GetThreadReq) (*GetThreadResp, error)
 	ListMessages(context.Context, *ListMessagesReq) (*ListMessagesResp, error)
 	PostMessage(context.Context, *PostMessageReq) (*PostMessageResp, error)
-	CreateSession(context.Context, *CreateSessionReq) (*CreateSessionResp, error)
 	MarkThreadRead(context.Context, *MarkThreadReadReq) (*MarkThreadReadResp, error)
 	DeleteHistory(context.Context, *DeleteHistoryReq) (*DeleteHistoryResp, error)
 	SubscribeRunEvents(*SubscribeRunEventsReq, grpc.ServerStreamingServer[RunEvent]) error
@@ -339,9 +326,6 @@ func (UnimplementedAssistantServiceServer) ListMessages(context.Context, *ListMe
 }
 func (UnimplementedAssistantServiceServer) PostMessage(context.Context, *PostMessageReq) (*PostMessageResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method PostMessage not implemented")
-}
-func (UnimplementedAssistantServiceServer) CreateSession(context.Context, *CreateSessionReq) (*CreateSessionResp, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
 }
 func (UnimplementedAssistantServiceServer) MarkThreadRead(context.Context, *MarkThreadReadReq) (*MarkThreadReadResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method MarkThreadRead not implemented")
@@ -465,24 +449,6 @@ func _AssistantService_PostMessage_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AssistantServiceServer).PostMessage(ctx, req.(*PostMessageReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AssistantService_CreateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateSessionReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AssistantServiceServer).CreateSession(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AssistantService_CreateSession_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AssistantServiceServer).CreateSession(ctx, req.(*CreateSessionReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -804,10 +770,6 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PostMessage",
 			Handler:    _AssistantService_PostMessage_Handler,
-		},
-		{
-			MethodName: "CreateSession",
-			Handler:    _AssistantService_CreateSession_Handler,
 		},
 		{
 			MethodName: "MarkThreadRead",

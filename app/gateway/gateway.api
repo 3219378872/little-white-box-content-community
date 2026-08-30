@@ -625,9 +625,6 @@ type (
 		RunId       int64  `json:"runId"`
 		Disposition string `json:"disposition"`
 	}
-	CreateAssistantSessionResp {
-		SessionId int64 `json:"sessionId"`
-	}
 	MarkAssistantThreadReadResp {
 		UnreadCount int32 `json:"unreadCount"`
 	}
@@ -1085,10 +1082,6 @@ service gateway {
 	@doc "发送 Assistant 消息并接受异步 run"
 	@handler PostAssistantMessage
 	post /assistant/messages (PostAssistantMessageReq) returns (PostAssistantMessageResp)
-
-	@doc "开始新会话"
-	@handler CreateAssistantSession
-	post /assistant/sessions returns (CreateAssistantSessionResp)
 
 	@doc "标记 Assistant 线程已读"
 	@handler MarkAssistantThreadRead

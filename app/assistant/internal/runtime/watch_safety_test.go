@@ -20,7 +20,7 @@ func TestRevokedConsentDefersWatchScheduling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := scheduleBucket(ctx, mem, nil, nil, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, nil, nil, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	fresh, err := mem.GetBucket(ctx, bucket.ID)
@@ -34,7 +34,7 @@ func TestWatchTerminalCommitMarksBucketAndDailyStat(t *testing.T) {
 	mem := store.NewMemoryStore()
 	now := store.NowMs()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, watchStore, nil, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)

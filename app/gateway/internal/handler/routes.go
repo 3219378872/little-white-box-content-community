@@ -146,12 +146,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: assistant.ConfirmAssistantRunHandler(serverCtx),
 				},
 				{
-					// 开始新会话
-					Method:  http.MethodPost,
-					Path:    "/assistant/sessions",
-					Handler: assistant.CreateAssistantSessionHandler(serverCtx),
-				},
-				{
 					// 虚拟线程摘要
 					Method:  http.MethodGet,
 					Path:    "/assistant/thread",

@@ -48,7 +48,7 @@ Watch 是用户委托 Agent 持续关注作者、标签、关键词、帖子修�
   version、参数校验、幂等和审计。
 - `WCH-022`：Watch matcher 或 worker 不可用时，任务 CRUD 可独立报告依赖状态；恢复后只能处理仍在
   保留期且当前可见的命中，不能把过期或不可见内容补成新消息。
-- `WCH-023`：清除 Assistant 历史或开始新 session 不删除 Watch task；撤销 Agent consent 停止新 run，
+- `WCH-023`：清除 Assistant 历史或冷对话拼接不删除 Watch task；撤销 Agent consent 停止新 run，
   但任务保留为禁用前状态供重新授权后继续。
 
 ## 验收标准

@@ -34,8 +34,12 @@ upstream:
   `sessionId`、`runId` 和 `disposition=started|redirected|steered|queued`，不等待模型完成。
 - `AGENT-012`：每用户同时最多一个前台 run。新消息在模型请求阶段可安全 redirect，在工具阶段
   steer；compact、附件处理或其它不能安全注入的阶段进入最多 32 条 FIFO，超限明确拒绝。
-- `AGENT-013`：`POST /api/v2/assistant/sessions` 开始新会话并滚动 prompt epoch；不删除历史、
-  MEMORY/USER 或 Watch。`DELETE /api/v2/assistant/history` 删除 Assistant 历史，不影响后三者。
+- `AGENT-013`：每用户仅一条永久前台 session。`POST /api/v2/assistant/sessions` 硬删除，不提供
+  兼容适配层。线程上一条可见消息距今不少于 30 分钟后，下一次新建 user 或 Watch run 时在同一
+  session 上滚动 prompt epoch，并按字节重建安全规则、`SOUL.md`、工具规则与冻结 MEMORY/USER；
+  不删除历史消息、不把历史移出 live prompt、不删除 MEMORY/USER 或 Watch。redirect、steer、FIFO
+  与崩溃恢复不得因空闲拼接而重写快照。`DELETE /api/v2/assistant/history` 删除 Assistant 历史，
+  不影响 MEMORY/USER 或 Watch。
 - `AGENT-014`：`POST /api/v2/assistant/thread/read` 更新 Assistant 未读；主动 Watch 消息计入未读，
   `memory_changed` 系统行不计未读。
 - `AGENT-015`：消息正文 `content` 与真实 provider-bound `api_content` 分离保存。`content` 仅用于
@@ -80,8 +84,8 @@ upstream:
 - `AGENT-041`：Prompt 顺序固定为：不可覆盖的平台安全规则 → 仓库版本化 `SOUL.md` → Agent/tool
   规则 → 冻结 MEMORY/USER → 当前会话历史。
 - `AGENT-042`：`SOUL.md` 为 human-owned 仓库资产，用户不能编辑；默认人格为温暖伙伴。新 SOUL
-  仅在新 session、冷启动或 compact 成功提交的新 prompt epoch 生效。
-- `AGENT-043`：system prompt 在新 session 或无快照冷启动时构建并按字节保存；恢复未 compact
+  仅在冷对话拼接、无快照冷启动或 compact 成功提交的新 prompt epoch 生效。
+- `AGENT-043`：system prompt 在冷对话拼接或无快照冷启动时构建并按字节保存；恢复未 compact
   session 必须复用原始快照，不受仓库、Memory 或工具表随后变化影响。
 
 ## Compact 与后台审查

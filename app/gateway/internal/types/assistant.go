@@ -67,10 +67,6 @@ type ConfirmAssistantRunReq struct {
 type ConfirmAssistantRunResp struct {
 }
 
-type CreateAssistantSessionResp struct {
-	SessionId int64 `json:"sessionId"`
-}
-
 type CreateAssistantWatchReq struct {
 	ConditionType string `json:"conditionType"`
 	TargetType    string `json:"targetType"`

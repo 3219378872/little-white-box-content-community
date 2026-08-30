@@ -38,11 +38,6 @@ func (s *AssistantServiceServer) PostMessage(ctx context.Context, in *pb.PostMes
 	return l.PostMessage(in)
 }
 
-func (s *AssistantServiceServer) CreateSession(ctx context.Context, in *pb.CreateSessionReq) (*pb.CreateSessionResp, error) {
-	l := logic.NewCreateSessionLogic(ctx, s.svcCtx)
-	return l.CreateSession(in)
-}
-
 func (s *AssistantServiceServer) MarkThreadRead(ctx context.Context, in *pb.MarkThreadReadReq) (*pb.MarkThreadReadResp, error) {
 	l := logic.NewMarkThreadReadLogic(ctx, s.svcCtx)
 	return l.MarkThreadRead(in)

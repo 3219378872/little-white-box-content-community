@@ -44,9 +44,9 @@ upstream:
 
 ## Prompt 与审查
 
-- `MEM-020`：新 session、冷启动或 compact 后构建 prompt 时，按确定顺序冻结有效 MEMORY/USER；
+- `MEM-020`：冷对话拼接、冷启动或 compact 后构建 prompt 时，按确定顺序冻结有效 MEMORY/USER；
   普通 add/replace/remove 不热更新当前未压缩 session 的 prompt。
-- `MEM-021`：恢复未压缩 session 复用已保存 prompt 字节，即使 MEMORY/USER 后来变化；新 session 或
+- `MEM-021`：恢复未压缩 session 复用已保存 prompt 字节，即使 MEMORY/USER 后来变化；冷对话拼接或
   compact 成功的新 prompt epoch 才读取最新条目。
 - `MEM-022`：每 10 个成功且未中断的用户回合可启动独立 memory-review run。它最多 16 轮、总输入
   600k token，只能调用 Memory 工具，不读取或写入其它用户，也不向主会话生成普通回答。
@@ -69,6 +69,6 @@ upstream:
 
 - `MEM-A01`：覆盖两个 target 的 add/replace/remove/batch、容量边界、规范化去重和版本冲突。
 - `MEM-A02`：覆盖敏感信息与提示注入扫描、用户隔离、删除后不再注入以及 undo CAS。
-- `MEM-A03`：覆盖普通写不热更新 prompt、新 session/compact 加载最新值、未压缩恢复字节稳定。
+- `MEM-A03`：覆盖普通写不热更新 prompt、冷对话拼接/compact 加载最新值、未压缩恢复字节稳定。
 - `MEM-A04`：覆盖十回合触发、16 轮/600k 限制、前台抢占、主会话隔离和 `memory_changed` 不计未读。
 - `MEM-A05`：覆盖存储故障不谎报成功，以及 Memory 永远不能作为 source card。

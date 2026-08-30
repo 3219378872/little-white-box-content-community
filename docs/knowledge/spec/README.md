@@ -28,6 +28,9 @@
 当前五份 approved 规范均引用 `INT-content-community-backend`，共同构成设计层正式上游；两份
 retired 规范只保留历史契约，不能再约束活跃设计。
 
+2026-08-30 修订：去掉显式新会话 API，每用户永久一条前台 session；30 分钟无可见消息后的下一次
+新建 run 拼接安全规则、SOUL、工具规则与 MEMORY/USER，历史仍进 live prompt 直至 compact。
+
 2026-08-29 修订：Assistant 迁入消息页虚拟线程，统一为通用持久异步 Agent；新增 MySQL lease
 恢复、Hermes 双文档记忆、compact/BM25、Watch 主动消息和可选来源 ledger，硬删除旧 chat/mode
 与 Watch hits 契约。`SPEC-assistant-agent` 接替两份 retired Assistant 规范。

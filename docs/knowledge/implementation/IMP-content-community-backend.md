@@ -173,7 +173,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-010 线程/消息 API | aligned | `GetThread`；`ListMessages` 默认最新一页，`beforeId` 向前翻页，`afterId` 增量读取，两种游标互斥 |
 | AGENT-011 异步 PostMessage | aligned | 事务写消息与 run，返回 disposition；`assistant_input_command` 使 started/redirected/steered/queued 接受结果按 requestId 原样重放 |
 | AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；FIFO 按已读取最大 id 消费，不误删并发新输入或永久占满；`redirect_consent_test.go`、`accept_test.go` |
-| AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
+| AGENT-013 永久 session/冷拼接/清历史 | aligned | `splice.go` 30min 可见空闲后新建 run 滚 epoch；DeleteHistory 逻辑删消息；`POST /sessions` 已删除 |
 | AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
 | AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload；Watch 命中写入隐藏 `watch_input` sidecar；`HistoryTurns` 重放全部 `api_content`，恢复与 FIFO 按原字节重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
@@ -189,7 +189,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-034 确认 CAS | aligned | update/delete 省略 revision 时先回源冻结再算 digest；delete confirmation 绑定真实 target revision，批准后执行前复核；`confirmation_revision_test.go`、`revision_prepare_test.go` |
 | AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
 | AGENT-041 prompt 顺序 | aligned | `internal/prompt`；Watch 第二轮为 hits → tool_call → tool_result，命中 JSON 不重复追加 |
-| AGENT-043 快照复用 | aligned | `builder_test.go` |
+| AGENT-043 快照复用 | aligned | `builder_test.go`；冷拼接与 compact 才重建，redirect/恢复不重写 |
 | AGENT-050 compact 50%/keep 20% | aligned | token 估算排除 compacted；强制保留 unmatched tool call 与当前 Watch run 的 `watch_input` sidecar，已完成工具轮可压缩，无法再缩的单条消息不重复 compact |
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
 | AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL 回源；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
@@ -360,4 +360,6 @@ Hermes 异步 Agent 硬切换见
 [2026-08-30-assistant-runtime-completeness.md](evidence/2026-08-30-assistant-runtime-completeness.md)。
 Assistant 并发、幂等、授权和 redirect 安全修复见
 [2026-08-30-assistant-runtime-safety.md](evidence/2026-08-30-assistant-runtime-safety.md)。
+永久前台 session 与 30 分钟冷拼接见
+[2026-08-30-assistant-single-session.md](evidence/2026-08-30-assistant-single-session.md)。
 历史 Agent Runtime 证据仍保留在 `evidence/`，不再作为当前契约完成证明。
