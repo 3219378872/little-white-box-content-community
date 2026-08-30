@@ -1,11 +1,12 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-30
-verified_commit: 41b40c2fc34d3adf04bc1dd5a7b3214203fffa62
+verified_commit: 397b9eb630b9ea5626d24483fdf9f79ae9c1678f
 commands:
   - PATH=/tmp/xbh-assistant-generate-venv/bin:$PATH make generate
   - make check
   - make test
+  - make coverage
   - make fmt-check
   - make vet
   - make lint ARGS="--timeout 5m"
@@ -30,6 +31,8 @@ result: partial
   Watch terminal bucket/stat 与唯一终态测试。
 - `make fmt-check`、`make vet`、`make lint ARGS="--timeout 5m"`：通过，lint 为 `0 issues`。
 - `make generate`、`make check`：完整生成、知识策略、vet 和 lint 通过。
+- `make coverage`：通过；Handler 88.4%、Logic 78.2%、MQ consumer 74.6%。覆盖运行前修复了本地
+  gRPC fault fixture 未等待 READY 导致的 deadline/unavailable 抖动，不修改推荐降级产品语义。
 - `make integration-critical`：通过 interaction logic、user logic、user model 三个隔离 MySQL 包。
 - Assistant Store MySQL integration：通过旧 generation fencing、journal takeover，以及 terminal 唯一键
   失败时 run/message/outbox/thread 全事务回滚。
