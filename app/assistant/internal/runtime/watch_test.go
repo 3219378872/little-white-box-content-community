@@ -197,7 +197,7 @@ func TestWatchToolRoundKeepsHitsBeforeResults(t *testing.T) {
 			resultIdx = i
 		}
 	}
-	if !(hitIdx >= 0 && callIdx > hitIdx && resultIdx > callIdx) {
+	if hitIdx < 0 || callIdx <= hitIdx || resultIdx <= callIdx {
 		t.Fatalf("watch context order want hits < call < result, got hit=%d call=%d result=%d roles=%v", hitIdx, callIdx, resultIdx, roles(second))
 	}
 	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
