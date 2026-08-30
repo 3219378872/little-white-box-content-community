@@ -33,6 +33,9 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
 		zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 	)
+	// Watch hit titles and summaries are user/content data; disable go-zero's
+	// interpolated SQL info log for this process while retaining metrics.
+	sqlx.DisableLog()
 	return &ServiceContext{
 		Config:  c,
 		Watch:   watch.NewSQLStore(sqlx.NewMysql(c.DataSource)),
