@@ -21,6 +21,7 @@ import (
 
 	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
 	"esx/pkg/event"
+	"esx/pkg/interceptor"
 	"esx/pkg/mqx"
 	"esx/pkg/testutil"
 
@@ -36,6 +37,7 @@ const (
 	behaviorUserID  = int64(424_200)
 	featureVersion  = "v2"
 	recallKeyPrefix = "recommend"
+	internalSecret  = "behavior-pipeline-integration-secret"
 )
 
 type recentBehavior struct {
@@ -126,6 +128,7 @@ Name: behavior.rpc.integration
 ListenOn: %s
 Mode: test
 Timeout: 5000
+InternalSecret: %s
 MQ:
   NameServer: %s
   GroupName: %s
@@ -134,7 +137,7 @@ MQ:
 MaxBatchSize: 100
 MaxPastAgeHours: 720
 MaxFutureSkewSeconds: 300
-`, yamlString(behaviorAddress), yamlString(rocketEnv.NameServer),
+`, yamlString(behaviorAddress), yamlString(internalSecret), yamlString(rocketEnv.NameServer),
 		yamlString("behavior-producer-integration-"+runID)))
 	behaviorProcess := startProcess(t, ctx, repoRoot, behaviorBin, "-f", behaviorConfig)
 	behaviorProcess.waitForLog(t, "Starting rpc server", 45*time.Second)
@@ -325,7 +328,10 @@ func availablePort(t *testing.T) int {
 
 func waitForHealthyGRPC(t *testing.T, parent context.Context, address string, timeout time.Duration) *grpc.ClientConn {
 	t.Helper()
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(interceptor.InternalAuthUnaryClientInterceptor(internalSecret)),
+	)
 	require.NoError(t, err)
 	deadline := time.Now().Add(timeout)
 	client := healthpb.NewHealthClient(conn)

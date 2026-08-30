@@ -107,10 +107,10 @@ func TestESIndexer_Delete_RemovesDoc(t *testing.T) {
 	ctx := context.Background()
 	e := event.PostEvent{
 		EventID: 4, EventTime: time.Now().UnixMilli(), Type: event.PostEventCreated,
-		PostID: 10003, AuthorID: 42, Title: "to-be-deleted",
+		PostID: 10003, AuthorID: 42, Title: "to-be-deleted", Revision: 1,
 	}
 	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(e)))
-	require.NoError(t, esIdx.Delete(ctx, "10003", 1))
+	require.NoError(t, esIdx.Delete(ctx, "10003", 2))
 	require.NoError(t, esIdx.Refresh(ctx))
 
 	res, err := esapi.GetRequest{Index: indexN, DocumentID: "10003"}.Do(ctx, esIdx.client)
