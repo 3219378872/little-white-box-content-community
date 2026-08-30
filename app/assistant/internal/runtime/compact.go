@@ -18,7 +18,7 @@ func EstimateTokens(text string) int {
 	return est
 }
 
-func ShouldCompact(messages []store.Message, windowTokens int) bool {
+func ShouldCompact(messages []store.Message, windowTokens int, runID int64) bool {
 	if windowTokens <= 0 {
 		windowTokens = 128000
 	}
@@ -30,7 +30,7 @@ func ShouldCompact(messages []store.Message, windowTokens int) bool {
 	// A single oversized message (or a set of mandatory tool messages) cannot
 	// be reduced by another compact pass. Requiring at least one droppable
 	// message prevents the new prompt epoch from compacting forever.
-	selected := SelectKeep(live, maxInt(total/5, 1), unfinishedCallIDs(live))
+	selected := SelectKeep(live, maxInt(total/5, 1), unfinishedCallIDs(live), runID)
 	return len(selected) < len(live)
 }
 
@@ -52,7 +52,7 @@ func estimateStoredTokens(msg store.Message) int {
 	return EstimateTokens(msg.Content)
 }
 
-func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]struct{}) []store.Message {
+func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]struct{}, runID int64) []store.Message {
 	if keepTokens <= 0 {
 		keepTokens = 1
 	}
@@ -63,7 +63,7 @@ func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]
 		if msg.DeletedAtMs != 0 || msg.Compacted {
 			continue
 		}
-		force := messageHasUnfinishedCall(msg, unfinished)
+		force := messageHasUnfinishedCall(msg, unfinished) || messageIsLiveWatchInput(msg, runID)
 		cost := estimateStoredTokens(msg)
 		if !force && used+cost > keepTokens && len(kept) > 0 {
 			continue
@@ -117,6 +117,49 @@ func HistoryTurns(messages []store.Message) []prompt.Turn {
 	return out
 }
 
+func promptHistory(messages []store.Message, run store.Run) []prompt.Turn {
+	live := visibleForPrompt(messages)
+	if run.Source == store.SourceWatch {
+		live = placeWatchInput(live, run.ID)
+	}
+	return HistoryTurns(live)
+}
+
+func placeWatchInput(messages []store.Message, runID int64) []store.Message {
+	if runID <= 0 {
+		return messages
+	}
+	input := make([]store.Message, 0, 1)
+	rest := make([]store.Message, 0, len(messages))
+	for _, msg := range messages {
+		if msg.RunID == runID && msg.Kind == store.KindWatchInput {
+			input = append(input, msg)
+			continue
+		}
+		rest = append(rest, msg)
+	}
+	if len(input) == 0 {
+		return messages
+	}
+	out := make([]store.Message, 0, len(messages))
+	placed := false
+	for _, msg := range rest {
+		if !placed && msg.RunID == runID {
+			out = append(out, input...)
+			placed = true
+		}
+		out = append(out, msg)
+	}
+	if !placed {
+		out = append(out, input...)
+	}
+	return out
+}
+
+func messageIsLiveWatchInput(msg store.Message, runID int64) bool {
+	return runID > 0 && msg.RunID == runID && msg.Kind == store.KindWatchInput
+}
+
 func liveMessages(messages []store.Message) []store.Message {
 	out := make([]store.Message, 0, len(messages))
 	for _, msg := range messages {
@@ -135,15 +178,14 @@ func maxInt(a, b int) int {
 }
 
 func turnFromMessage(msg store.Message) (prompt.Turn, bool) {
-	toolish := msg.Role == store.RoleTool || msg.Kind == store.KindTool
-	if !msg.Visible && !toolish {
-		return prompt.Turn{}, false
-	}
 	if turn, ok := prompt.DecodeTurn(msg.APIContent); ok {
 		if turn.Role == "" {
 			turn.Role = msg.Role
 		}
 		return turn, true
+	}
+	if !msg.Visible {
+		return prompt.Turn{}, false
 	}
 	switch msg.Role {
 	case store.RoleUser, store.RoleAssistant, store.RoleTool:

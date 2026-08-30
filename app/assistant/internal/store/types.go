@@ -50,6 +50,7 @@ const (
 	KindMessage       = "message"
 	KindMemoryChanged = "memory_changed"
 	KindWatch         = "watch"
+	KindWatchInput    = "watch_input"
 	KindTool          = "tool"
 
 	SessionOpen   = "open"

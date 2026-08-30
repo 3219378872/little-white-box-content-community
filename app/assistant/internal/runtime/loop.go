@@ -269,6 +269,9 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			return err
 		}
 
+		if err := e.ensureWatchInput(persistCtx, run); err != nil {
+			return err
+		}
 		msgs, err := e.Store.ListSessionMessages(persistCtx, run.UserID, run.SessionID, true)
 		if err != nil {
 			return err
@@ -276,7 +279,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if e.Window == 0 && e.LLM != nil {
 			e.Window = e.LLM.ContextWindowTokens()
 		}
-		if ShouldCompact(msgs, e.Window) {
+		if ShouldCompact(msgs, e.Window, run.ID) {
 			if err := e.compact(workCtx, persistCtx, &run, session, msgs); err != nil {
 				if errors.Is(err, errRunCancelled) {
 					return e.cancel(persistCtx, run)
@@ -295,7 +298,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			continue
 		}
 
-		history := HistoryTurns(visibleForPrompt(msgs))
+		history := promptHistory(msgs, run)
 		if run.Source == store.SourceMemoryReview {
 			history = append(history, reviewLive...)
 		} else if open := unmatchedToolCalls(history); len(open) > 0 {
@@ -314,7 +317,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			if err != nil {
 				return err
 			}
-			history = HistoryTurns(visibleForPrompt(msgs))
+			history = promptHistory(msgs, run)
 		}
 		snap.History = history
 		turns := prompt.Messages(snap)
@@ -324,7 +327,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 				seen[msg.ID] = struct{}{}
 			}
 		}
-		pending, queuedThrough, err := e.pendingUserTurns(persistCtx, run, seen)
+		pending, queuedThrough, err := e.pendingUserTurns(persistCtx, run, seen, history)
 		if err != nil {
 			return err
 		}
@@ -549,14 +552,16 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 	})
 }
 
-func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, int64, error) {
+func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}, history []prompt.Turn) ([]prompt.Turn, int64, error) {
 	out := make([]prompt.Turn, 0)
 	if run.Source == store.SourceWatch {
-		turn, err := e.watchInputTurn(ctx, run)
-		if err != nil {
-			return nil, 0, err
+		if !historyHasWatchInput(history) {
+			turn, err := e.watchInputTurn(ctx, run)
+			if err != nil {
+				return nil, 0, err
+			}
+			out = append(out, turn)
 		}
-		out = append(out, turn)
 	} else if len(run.QueuedPayload) > 0 {
 		payload := decodeInputPayload(run.QueuedPayload)
 		if payload.Text != "" {
@@ -1022,7 +1027,7 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 	if keep < 1 {
 		keep = 1
 	}
-	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs))
+	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs), run.ID)
 	summary := "压缩摘要：保留最近对话与未完成工具。"
 	if e.LLM != nil {
 		var b strings.Builder

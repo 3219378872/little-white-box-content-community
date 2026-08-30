@@ -175,7 +175,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-012 单前台 run + redirect/steer/FIFO32 | aligned | `input_version` 使 redirect 取消在途模型、丢弃旧响应并重跑；FIFO 按已读取最大 id 消费，不误删并发新输入或永久占满；`redirect_consent_test.go`、`accept_test.go` |
 | AGENT-013 新会话/清历史 | aligned | CreateSession 滚 epoch；DeleteHistory 逻辑删消息 |
 | AGENT-014 未读 | aligned | Watch 成功事务增加未读；`memory_changed` 系统行 `unread=false` |
-| AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload，恢复与 FIFO 按原字节重放 |
+| AGENT-015 content/api_content 分离 | aligned | 可见正文不变；附件与 `contextPostId` 写入 provider-bound `api_content`/queued payload；Watch 命中写入隐藏 `watch_input` sidecar；`HistoryTurns` 重放全部 `api_content`，恢复与 FIFO 按原字节重放 |
 | AGENT-020 rpc 不调模型 | aligned | worker `app/assistant/worker` |
 | AGENT-021 lease 60s/10s | aligned | 每进程唯一 owner；claim 递增 `lease_generation`；`RunStep` 对 owner/generation/expiry 加锁校验；续租失效立即 cancel Engine；`fencing_test.go`、`lease_test.go`、SQL integration |
 | AGENT-022 断线不取消；用户抢占后台 | aligned | Subscribe 不写 cancel；PostMessage 取消 watch/review；Stop、撤权或 lease 丢失取消 work ctx，`cancel_requested` sticky（`loop_cancel_test.go`、`redirect_consent_test.go`） |
@@ -188,15 +188,15 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-033 command journal | aligned | 副作用前 reserve pending；journal 绑定 lease generation；接管后以稳定下游幂等键恢复；Content update/delete 与 outbox 原子，Memory/Watch 重放可返回已提交结果；崩溃窗口测试验证副作用仅一次 |
 | AGENT-034 确认 CAS | aligned | update/delete 省略 revision 时先回源冻结再算 digest；delete confirmation 绑定真实 target revision，批准后执行前复核；`confirmation_revision_test.go`、`revision_prepare_test.go` |
 | AGENT-040 双 WireAPI 工具调用 | aligned | Chat Completions `tool_calls`/`role=tool`；Responses `function_call`/`function_call_output` |
-| AGENT-041 prompt 顺序 | aligned | `internal/prompt` |
+| AGENT-041 prompt 顺序 | aligned | `internal/prompt`；Watch 第二轮为 hits → tool_call → tool_result，命中 JSON 不重复追加 |
 | AGENT-043 快照复用 | aligned | `builder_test.go` |
-| AGENT-050 compact 50%/keep 20% | aligned | token 估算排除 compacted；只强制保留 unmatched tool call，已完成工具轮可压缩，无法再缩的单条消息不重复 compact |
+| AGENT-050 compact 50%/keep 20% | aligned | token 估算排除 compacted；强制保留 unmatched tool call 与当前 Watch run 的 `watch_input` sidecar，已完成工具轮可压缩，无法再缩的单条消息不重复 compact |
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
 | AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL 回源；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
 | AGENT-070/071/072 source ledger | aligned | `app/assistant/internal/tool/sources_test.go`；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
-| AGENT-A01~A06 验收 | partial | 单测/race/SQL integration 覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE、generation fencing、lease cancel、redirect、撤权、journal 崩溃窗口、confirm revision 与终态回滚；仍无 live LLM、无根真实栈 |
+| AGENT-A01~A06 验收 | partial | 单测/race/SQL integration 覆盖 compact/incomplete/Watch/memory/source/replay/paging/SSE、Watch 工具轮上下文顺序、generation fencing、lease cancel、redirect、撤权、journal 崩溃窗口、confirm revision 与终态回滚；仍无 live LLM、无根真实栈 |
 
 ## SPEC-agent-memory 追踪
 

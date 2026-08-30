@@ -7,9 +7,13 @@ import (
 	"time"
 
 	"esx/app/assistant/internal/llm"
+	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/app/assistant/watch"
+	"esx/app/content/rpc/contentservice"
+
+	"google.golang.org/grpc"
 )
 
 func TestWatchRunReceivesHitsAndCountsOnlyAfterSuccess(t *testing.T) {
@@ -128,6 +132,140 @@ func TestWatchRepeatedReadIsSafelyDeliveredWithoutRunLoop(t *testing.T) {
 	if visible != 1 {
 		t.Fatalf("watch fallback visible messages=%d all=%+v", visible, messages)
 	}
+}
+
+type watchPostContent struct {
+	contentservice.ContentService
+}
+
+func (*watchPostContent) GetPost(_ context.Context, in *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+	id := int64(99)
+	if in != nil && in.PostId > 0 {
+		id = in.PostId
+	}
+	return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: id, Status: 1, Revision: 1, Title: "命中帖子", Content: "回源正文"}}, nil
+}
+
+func TestWatchToolRoundKeepsHitsBeforeResults(t *testing.T) {
+	ctx := context.Background()
+	mem := store.NewMemoryStore()
+	watchStore, bucket, _ := watchFixture(t, mem)
+	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+		t.Fatal(err)
+	}
+	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
+	run, err := mem.Claim(ctx, "watch-worker", store.NowMs(), 60_000)
+	if err != nil || run == nil || run.ID != scheduled.RunID {
+		t.Fatalf("claim=%+v scheduled=%+v err=%v", run, scheduled, err)
+	}
+	reg, err := tool.NewRegistry(tool.Clients{Store: mem, Content: &watchPostContent{}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := &scriptedLLM{replies: []llm.Result{
+		{ToolCalls: []llm.ToolCall{{ID: "c1", Name: tool.GetPost, Arguments: `{"post_id":99}`}}},
+		{Text: "已核验命中帖子"},
+	}}
+	engine := &Engine{Store: mem, Watch: watchStore, Tools: reg, LLM: script, Window: 128000}
+	engine.Execute(ctx, *run, false)
+	if len(script.reqs) != 2 {
+		t.Fatalf("complete calls=%d", len(script.reqs))
+	}
+	first := script.reqs[0].Messages
+	second := script.reqs[1].Messages
+	if n := countWatchHits(first); n != 1 {
+		t.Fatalf("first request watch hits=%d roles=%v", n, roles(first))
+	}
+	if n := countWatchHits(second); n != 1 {
+		t.Fatalf("second request watch hits=%d roles=%v", n, roles(second))
+	}
+	if !hasToolCall(second, "c1", tool.GetPost) {
+		t.Fatalf("second request missing function_call: %v", roles(second))
+	}
+	if !hasToolResult(second, "c1", "回源正文") && !hasToolResult(second, "c1", "命中帖子") {
+		t.Fatalf("second request missing tool result: %+v", second)
+	}
+	hitIdx, callIdx, resultIdx := -1, -1, -1
+	for i, turn := range second {
+		if strings.Contains(turn.Content, watchHitsMarker) {
+			hitIdx = i
+		}
+		if hasToolCall([]prompt.Turn{turn}, "c1", tool.GetPost) {
+			callIdx = i
+		}
+		if turn.ToolCallID == "c1" {
+			resultIdx = i
+		}
+	}
+	if !(hitIdx >= 0 && callIdx > hitIdx && resultIdx > callIdx) {
+		t.Fatalf("watch context order want hits < call < result, got hit=%d call=%d result=%d roles=%v", hitIdx, callIdx, resultIdx, roles(second))
+	}
+	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hiddenInput, visibleUser := 0, 0
+	for _, message := range messages {
+		if message.Kind == store.KindWatchInput {
+			if message.Visible {
+				t.Fatalf("watch input leaked into visible history: %+v", message)
+			}
+			hiddenInput++
+		}
+		if message.Visible && message.Role == store.RoleUser {
+			visibleUser++
+		}
+	}
+	if hiddenInput != 1 {
+		t.Fatalf("hidden watch input=%d messages=%+v", hiddenInput, messages)
+	}
+	if visibleUser != 0 {
+		t.Fatalf("visible user messages=%d", visibleUser)
+	}
+}
+
+func TestWatchInputSidecarIsIdempotentOnResume(t *testing.T) {
+	ctx := context.Background()
+	mem := store.NewMemoryStore()
+	watchStore, bucket, _ := watchFixture(t, mem)
+	if err := scheduleBucket(ctx, mem, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, store.NowMs()); err != nil {
+		t.Fatal(err)
+	}
+	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
+	run, err := mem.Claim(ctx, "watch-worker", store.NowMs(), 60_000)
+	if err != nil || run == nil || run.ID != scheduled.RunID {
+		t.Fatalf("claim=%+v err=%v", run, err)
+	}
+	engine := &Engine{Store: mem, Watch: watchStore}
+	if err := engine.ensureWatchInput(ctx, *run); err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.ensureWatchInput(ctx, *run); err != nil {
+		t.Fatal(err)
+	}
+	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, message := range messages {
+		if message.Kind == store.KindWatchInput {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("watch input copies=%d messages=%+v", count, messages)
+	}
+}
+
+func countWatchHits(turns []prompt.Turn) int {
+	n := 0
+	for _, turn := range turns {
+		if strings.Contains(turn.Content, watchHitsMarker) {
+			n++
+		}
+	}
+	return n
 }
 
 func TestWatchBucketWithoutCurrentConsentIsDeferred(t *testing.T) {

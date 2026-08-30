@@ -103,9 +103,10 @@ Provider adapter 实现 Chat Completions 与 Responses 的统一 message/tool-ca
 检查；未能表达工具 schema/call/result 时 readiness false。旧 `LLM.ModelSmall` 删除；可选
 `BackgroundReview.Model` 只用于 memory-review，缺省主模型。
 
-token estimator 达窗口 50% 时进入 compact phase：选择最新 20% token、所有未完成 tool/confirm，模型
-生成摘要；事务提交摘要、新 prompt epoch 和 compact 标志。提交后重新载入 SOUL、Memory 与工具快照。
-原 message 保留并通过 outbox 可检索。
+token estimator 达窗口 50% 时进入 compact phase：选择最新 20% token、所有未完成 tool/confirm，以及
+当前仍在跑的 Watch run 隐藏 `watch_input` sidecar；模型生成摘要；事务提交摘要、新 prompt epoch 和
+compact 标志。提交后重新载入 SOUL、Memory 与工具快照。原 message 保留并通过 outbox 可检索。
+隐藏 sidecar（工具轮与 Watch 注入）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
 
 ## Memory Review
 
@@ -137,7 +138,9 @@ authority_id, revision, payload)`。工具结果只给模型 handle 和安全摘
 ## Watch 投递
 
 matcher 将命中写 2 分钟 user bucket。同任务近一小时 sent < 3 且用户当天 sent < 20 才调度；否则 bucket
-保持 deferred 并在下一允许窗口摘要。Watch worker 读取 bucket，使用只读 registry 形成回答，最终 assistant
+保持 deferred 并在下一允许窗口摘要。Watch worker 读取 bucket，把命中 JSON 写成当前 run 的隐藏 `watch_input` sidecar（`visible=false`，
+`api_content` 为 provider user turn），再使用只读 registry 形成回答。恢复与后续模型轮必须按
+sidecar 重放该注入，并放在本 run 工具消息之前，不得每轮追加到上下文末尾。最终 assistant
 message 与 thread unread 在同一事务提交。用户 run 抢占时 bucket 回 pending。
 
 ## 预算与观测
