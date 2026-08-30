@@ -174,6 +174,19 @@ CREATE TABLE IF NOT EXISTS `agent_confirmation` (
     KEY `idx_confirm_user` (`user_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='delete_post 确认 CAS';
 
+CREATE TABLE IF NOT EXISTS `assistant_input_command` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `user_id` BIGINT NOT NULL,
+    `request_id` VARCHAR(64) NOT NULL,
+    `session_id` BIGINT NOT NULL,
+    `message_id` BIGINT NOT NULL,
+    `run_id` BIGINT NOT NULL,
+    `disposition` VARCHAR(16) NOT NULL,
+    `created_at_ms` BIGINT NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_input_command_user_req` (`user_id`, `request_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Assistant 输入接收幂等结果';
+
 CREATE TABLE IF NOT EXISTS `agent_input_queue` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,

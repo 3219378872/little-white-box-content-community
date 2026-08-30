@@ -252,6 +252,17 @@ type QueueItem struct {
 	CreatedAtMs int64
 }
 
+type InputCommand struct {
+	ID          int64  `db:"id"`
+	UserID      int64  `db:"user_id"`
+	RequestID   string `db:"request_id"`
+	SessionID   int64  `db:"session_id"`
+	MessageID   int64  `db:"message_id"`
+	RunID       int64  `db:"run_id"`
+	Disposition string `db:"disposition"`
+	CreatedAtMs int64  `db:"created_at_ms"`
+}
+
 type Alert struct {
 	RunID       int64
 	Level       string

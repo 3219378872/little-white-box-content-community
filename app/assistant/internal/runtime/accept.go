@@ -95,8 +95,13 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if err != nil {
 		return AcceptResult{}, err
 	}
+	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, err
+	} else if existing != nil {
+		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
+	}
 	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err == nil && existing != nil {
-		return AcceptResult{MessageID: 0, SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
+		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
 	}
 
 	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: providerUserContent(text, in.Attachments, in.ContextPostID)})
@@ -168,6 +173,12 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 			return AcceptResult{}, err
 		}
 		runID = active.ID
+	}
+	if _, err := tx.InsertInputCommand(ctx, store.InputCommand{
+		UserID: in.UserID, RequestID: in.RequestID, SessionID: session.ID,
+		MessageID: msg.ID, RunID: runID, Disposition: disposition, CreatedAtMs: now,
+	}); err != nil {
+		return AcceptResult{}, err
 	}
 	if err := tx.SaveThread(ctx, *thread); err != nil {
 		return AcceptResult{}, err

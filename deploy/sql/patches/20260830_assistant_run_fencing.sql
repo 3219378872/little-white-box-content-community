@@ -2,6 +2,19 @@
 -- and database-enforced single terminal event. Safe to replay on an existing v3 volume.
 USE xbh_assistant;
 
+CREATE TABLE IF NOT EXISTS `assistant_input_command` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `request_id` VARCHAR(64) NOT NULL,
+  `session_id` BIGINT NOT NULL,
+  `message_id` BIGINT NOT NULL,
+  `run_id` BIGINT NOT NULL,
+  `disposition` VARCHAR(16) NOT NULL,
+  `created_at_ms` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_input_command_user_req` (`user_id`, `request_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Assistant 输入接收幂等结果';
+
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.columns
   WHERE table_schema = DATABASE() AND table_name = 'agent_run' AND column_name = 'lease_generation');
 SET @ddl := IF(@col_exists = 0,

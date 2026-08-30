@@ -12,46 +12,48 @@ import (
 
 // MemoryStore is an in-memory Store for unit tests.
 type MemoryStore struct {
-	stepMu      sync.Mutex
-	mu          sync.Mutex
-	next        int64
-	threads     map[int64]Thread
-	sessions    map[int64]Session
-	messages    map[int64]Message
-	runs        map[int64]Run
-	events      map[int64][]Event
-	toolCalls   map[string]ToolCall
-	journals    map[string]Journal
-	sources     map[string]Source
-	confirms    map[string]Confirmation
-	queue       map[int64][]QueueItem
-	alerts      map[string]Alert
-	outbox      []Outbox
-	buckets     map[int64]DeliveryBucket
-	bucketByKey map[string]int64
-	sent        map[string]int
-	claimFail   bool
-	consents    map[int64]int32
+	stepMu        sync.Mutex
+	mu            sync.Mutex
+	next          int64
+	threads       map[int64]Thread
+	sessions      map[int64]Session
+	messages      map[int64]Message
+	runs          map[int64]Run
+	events        map[int64][]Event
+	toolCalls     map[string]ToolCall
+	journals      map[string]Journal
+	sources       map[string]Source
+	confirms      map[string]Confirmation
+	inputCommands map[string]InputCommand
+	queue         map[int64][]QueueItem
+	alerts        map[string]Alert
+	outbox        []Outbox
+	buckets       map[int64]DeliveryBucket
+	bucketByKey   map[string]int64
+	sent          map[string]int
+	claimFail     bool
+	consents      map[int64]int32
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		next:        1,
-		threads:     map[int64]Thread{},
-		sessions:    map[int64]Session{},
-		messages:    map[int64]Message{},
-		runs:        map[int64]Run{},
-		events:      map[int64][]Event{},
-		toolCalls:   map[string]ToolCall{},
-		journals:    map[string]Journal{},
-		sources:     map[string]Source{},
-		confirms:    map[string]Confirmation{},
-		queue:       map[int64][]QueueItem{},
-		alerts:      map[string]Alert{},
-		buckets:     map[int64]DeliveryBucket{},
-		bucketByKey: map[string]int64{},
-		sent:        map[string]int{},
-		consents:    map[int64]int32{},
+		next:          1,
+		threads:       map[int64]Thread{},
+		sessions:      map[int64]Session{},
+		messages:      map[int64]Message{},
+		runs:          map[int64]Run{},
+		events:        map[int64][]Event{},
+		toolCalls:     map[string]ToolCall{},
+		journals:      map[string]Journal{},
+		sources:       map[string]Source{},
+		confirms:      map[string]Confirmation{},
+		inputCommands: map[string]InputCommand{},
+		queue:         map[int64][]QueueItem{},
+		alerts:        map[string]Alert{},
+		buckets:       map[int64]DeliveryBucket{},
+		bucketByKey:   map[string]int64{},
+		sent:          map[string]int{},
+		consents:      map[int64]int32{},
 	}
 }
 
@@ -694,6 +696,29 @@ func (m *MemoryStore) ResolveConfirmation(_ context.Context, userID, runID int64
 	return &cp, nil
 }
 
+func (m *MemoryStore) GetInputCommand(_ context.Context, userID int64, requestID string) (*InputCommand, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	row, ok := m.inputCommands[inputCommandKey(userID, requestID)]
+	if !ok {
+		return nil, nil
+	}
+	cp := row
+	return &cp, nil
+}
+
+func (m *MemoryStore) InsertInputCommand(_ context.Context, command InputCommand) (InputCommand, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := inputCommandKey(command.UserID, command.RequestID)
+	if _, exists := m.inputCommands[key]; exists {
+		return InputCommand{}, errors.New("duplicate assistant input command")
+	}
+	command.ID = m.nextID()
+	m.inputCommands[key] = command
+	return command, nil
+}
+
 func (m *MemoryStore) CountQueue(_ context.Context, runID int64) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -713,6 +738,19 @@ func (m *MemoryStore) ListQueue(_ context.Context, runID int64) ([]QueueItem, er
 	defer m.mu.Unlock()
 	out := append([]QueueItem(nil), m.queue[runID]...)
 	return out, nil
+}
+
+func (m *MemoryStore) DeleteQueueThrough(_ context.Context, runID, maxID int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	kept := m.queue[runID][:0]
+	for _, item := range m.queue[runID] {
+		if item.ID > maxID {
+			kept = append(kept, item)
+		}
+	}
+	m.queue[runID] = kept
+	return nil
 }
 
 func (m *MemoryStore) DeleteQueue(_ context.Context, runID int64) error {
@@ -967,6 +1005,9 @@ func journalKey(userID int64, requestID, tool, digest string) string {
 func sourceKey(runID int64, handle string) string { return itoa(runID) + ":" + handle }
 func confirmKey(runID int64, callID string) string {
 	return itoa(runID) + ":" + callID
+}
+func inputCommandKey(userID int64, requestID string) string {
+	return itoa(userID) + ":" + requestID
 }
 func alertKey(runID int64, level, dim string) string {
 	return itoa(runID) + ":" + level + ":" + dim

@@ -59,10 +59,13 @@ type Store interface {
 	InsertConfirmation(ctx context.Context, row Confirmation) (Confirmation, error)
 	GetConfirmation(ctx context.Context, runID int64, callID string) (*Confirmation, error)
 	ResolveConfirmation(ctx context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error)
+	GetInputCommand(ctx context.Context, userID int64, requestID string) (*InputCommand, error)
+	InsertInputCommand(ctx context.Context, command InputCommand) (InputCommand, error)
 
 	CountQueue(ctx context.Context, runID int64) (int, error)
 	Enqueue(ctx context.Context, item QueueItem) (QueueItem, error)
 	ListQueue(ctx context.Context, runID int64) ([]QueueItem, error)
+	DeleteQueueThrough(ctx context.Context, runID, maxID int64) error
 	DeleteQueue(ctx context.Context, runID int64) error
 
 	InsertAlert(ctx context.Context, alert Alert) (bool, error)

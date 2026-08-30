@@ -76,3 +76,41 @@ func TestAcceptPersistsAttachmentAndContextForReplay(t *testing.T) {
 		t.Fatalf("tool session=%+v", sess)
 	}
 }
+
+func TestAcceptRetryReplaysRedirectResultWithoutDuplicateMessage(t *testing.T) {
+	ctx := context.Background()
+	mem := store.NewMemoryStore()
+	acceptor := &Acceptor{Store: mem}
+	first, err := acceptor.Accept(ctx, AcceptInput{
+		UserID: 1, Message: "first", RequestID: "request-1", ConsentOK: true, ConsentVersion: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := mem.Claim(ctx, "worker", store.NowMs(), 60_000)
+	if err != nil || run == nil || run.ID != first.RunID {
+		t.Fatalf("claim=%+v err=%v", run, err)
+	}
+	run.Phase = store.PhaseModelRequest
+	if err := mem.UpdateRun(ctx, *run); err != nil {
+		t.Fatal(err)
+	}
+	thread, _ := mem.GetThread(ctx, 1)
+	thread.ActiveRunID = run.ID
+	if err := mem.SaveThread(ctx, *thread); err != nil {
+		t.Fatal(err)
+	}
+	input := AcceptInput{UserID: 1, Message: "redirect", RequestID: "request-2", ConsentOK: true, ConsentVersion: 2}
+	accepted, err := acceptor.Accept(ctx, input)
+	if err != nil || accepted.Disposition != store.DispositionRedirected {
+		t.Fatalf("accepted=%+v err=%v", accepted, err)
+	}
+	replayed, err := acceptor.Accept(ctx, input)
+	if err != nil || replayed != accepted {
+		t.Fatalf("replayed=%+v accepted=%+v err=%v", replayed, accepted, err)
+	}
+	messages, err := mem.ListSessionMessages(ctx, 1, first.SessionID, true)
+	if err != nil || len(messages) != 2 {
+		t.Fatalf("messages=%+v err=%v", messages, err)
+	}
+}

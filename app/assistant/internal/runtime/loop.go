@@ -324,11 +324,18 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 				seen[msg.ID] = struct{}{}
 			}
 		}
-		pending, err := e.pendingUserTurns(persistCtx, run, seen)
+		pending, queuedThrough, err := e.pendingUserTurns(persistCtx, run, seen)
 		if err != nil {
 			return err
 		}
 		turns = append(turns, pending...)
+		if queuedThrough > 0 {
+			if err := e.step(persistCtx, run, func(ctx context.Context, tx store.Store) error {
+				return tx.DeleteQueueThrough(ctx, run.ID, queuedThrough)
+			}); err != nil {
+				return err
+			}
+		}
 
 		run.Phase = store.PhaseModelRequest
 		run.LastActivityAtMs = now
@@ -542,12 +549,12 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 	})
 }
 
-func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, error) {
+func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, int64, error) {
 	out := make([]prompt.Turn, 0)
 	if run.Source == store.SourceWatch {
 		turn, err := e.watchInputTurn(ctx, run)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, turn)
 	} else if len(run.QueuedPayload) > 0 {
@@ -563,15 +570,19 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 	}
 	items, err := e.Store.ListQueue(ctx, run.ID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	var queuedThrough int64
 	for _, item := range items {
+		if item.ID > queuedThrough {
+			queuedThrough = item.ID
+		}
 		if _, ok := seen[item.MessageID]; ok {
 			continue
 		}
 		msg, err := e.Store.GetMessage(ctx, run.UserID, item.MessageID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if msg != nil {
 			if turn, ok := turnFromMessage(*msg); ok {
@@ -581,7 +592,7 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 			}
 		}
 	}
-	return out, nil
+	return out, queuedThrough, nil
 }
 
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {

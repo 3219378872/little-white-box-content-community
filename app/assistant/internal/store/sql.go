@@ -892,6 +892,30 @@ func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64,
 	return s.GetConfirmation(ctx, runID, callID)
 }
 
+func (s *SQLStore) GetInputCommand(ctx context.Context, userID int64, requestID string) (*InputCommand, error) {
+	var row InputCommand
+	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, request_id, session_id, message_id, run_id, disposition, created_at_ms
+		FROM assistant_input_command WHERE user_id=? AND request_id=?`, userID, requestID); err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &row, nil
+}
+
+func (s *SQLStore) InsertInputCommand(ctx context.Context, command InputCommand) (InputCommand, error) {
+	res, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_input_command
+		(user_id, request_id, session_id, message_id, run_id, disposition, created_at_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, command.UserID, command.RequestID, command.SessionID,
+		command.MessageID, command.RunID, command.Disposition, command.CreatedAtMs)
+	if err != nil {
+		return InputCommand{}, err
+	}
+	command.ID, _ = res.LastInsertId()
+	return command, nil
+}
+
 func (s *SQLStore) CountQueue(ctx context.Context, runID int64) (int, error) {
 	var row struct {
 		N int64 `db:"n"`
@@ -929,6 +953,14 @@ func (s *SQLStore) ListQueue(ctx context.Context, runID int64) ([]QueueItem, err
 		out = append(out, QueueItem{ID: row.ID, UserID: row.UserID, RunID: row.RunID, MessageID: row.MessageID, CreatedAtMs: row.CreatedAtMs})
 	}
 	return out, nil
+}
+
+func (s *SQLStore) DeleteQueueThrough(ctx context.Context, runID, maxID int64) error {
+	if maxID <= 0 {
+		return nil
+	}
+	_, err := s.exec.ExecCtx(ctx, `DELETE FROM agent_input_queue WHERE run_id=? AND id<=?`, runID, maxID)
+	return err
 }
 
 func (s *SQLStore) DeleteQueue(ctx context.Context, runID int64) error {
@@ -1137,6 +1169,9 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 		FROM watch_delivery_bucket WHERE id=? AND user_id=? AND run_id=? FOR UPDATE`, id, userID, runID)
 	if err != nil {
 		return err
+	}
+	if bucket == nil {
+		return sqlx.ErrNotFound
 	}
 	if bucket.Status == "sent" {
 		return nil
