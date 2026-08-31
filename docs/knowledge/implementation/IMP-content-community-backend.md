@@ -57,8 +57,8 @@ tracks:
   - deploy/docker-compose.production.yml
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
-verified_at: 2026-08-30
-verified_commit: 1992b06c955a812f25b0cad8ec096ca1a883f564
+verified_at: 2026-08-31
+verified_commit: f21b68795233b34ee07ffa5c574bb8f06add9ac6
 ---
 
 # 小白盒内容社区后端实现映射
@@ -387,4 +387,6 @@ Assistant 并发、幂等、授权和 redirect 安全修复见
 [2026-08-30-assistant-single-session.md](evidence/2026-08-30-assistant-single-session.md)。
 Provider、capability、stream reset、严格工具与 sidecar 证据见
 [2026-08-30-agent-provider-reliability.md](evidence/2026-08-30-agent-provider-reliability.md)。
+内部 stream 鉴权、refresh 原子消费、Watch CAS、媒体预算与补偿、保留期和生产迁移边界见
+[2026-08-31-audit-remediation.md](evidence/2026-08-31-audit-remediation.md)。
 历史 Agent Runtime 证据仍保留在 `evidence/`，不再作为当前契约完成证明。

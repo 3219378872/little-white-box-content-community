@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-08-31-audit-remediation.md](2026-08-31-audit-remediation.md)：
+  内部 gRPC stream 鉴权、refresh token 原子轮换、Watch version CAS、媒体解码预算与对象补偿、
+  Assistant/Watch 保留期、生产端口和两阶段迁移门禁。
 - [2026-08-31-present-sources-keep-answer.md](2026-08-31-present-sources-keep-answer.md)：
   已流式正文仅跟随 `present_sources` 时不 reset，并作为可见 assistant 消息落库。
 - [2026-08-30-agent-provider-reliability.md](2026-08-30-agent-provider-reliability.md)：
