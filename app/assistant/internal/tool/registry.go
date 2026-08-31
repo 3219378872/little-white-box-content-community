@@ -752,8 +752,8 @@ func allDefinitions(clients Clients) []Definition {
 			"condition_type": map[string]any{"type": "string"}, "target_type": map[string]any{"type": "string"},
 			"target_id": map[string]any{"type": "integer"}, "target_text": map[string]any{"type": "string"},
 		}, []string{"condition_type", "target_type"}), executor: createWatchTaskExecutor(clients)},
-		{Name: UpdateWatchTask, Description: "启用或停用追踪。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}, "enabled": map[string]any{"type": "boolean"}}, []string{"id", "enabled"}), executor: updateWatchTaskExecutor(clients.Watch)},
-		{Name: DeleteWatchTask, Description: "删除追踪任务。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}}, []string{"id"}), executor: deleteWatchTaskExecutor(clients.Watch)},
+		{Name: UpdateWatchTask, Description: "启用或停用追踪。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}, "enabled": map[string]any{"type": "boolean"}, "expected_version": map[string]any{"type": "integer"}}, []string{"id", "enabled", "expected_version"}), executor: updateWatchTaskExecutor(clients.Watch)},
+		{Name: DeleteWatchTask, Description: "删除追踪任务。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}, "expected_version": map[string]any{"type": "integer"}}, []string{"id", "expected_version"}), executor: deleteWatchTaskExecutor(clients.Watch)},
 		{Name: WebSearch, Description: "搜索公共互联网，结果登记为 web source handle。", Parameters: objectSchema(map[string]any{"query": map[string]any{"type": "string"}}, []string{"query"}), executor: webSearchExecutor(clients.Web)},
 		{Name: CreatePost, Description: "以当前用户身份创建帖子。", Parameters: objectSchema(map[string]any{
 			"title": map[string]any{"type": "string"}, "content": map[string]any{"type": "string"},

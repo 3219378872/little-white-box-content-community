@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS `assistant_message` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_msg_user_session` (`user_id`, `session_id`, `id`),
-    KEY `idx_msg_user_created` (`user_id`, `deleted_at_ms`, `created_at_ms`)
+    KEY `idx_msg_user_created` (`user_id`, `deleted_at_ms`, `created_at_ms`),
+    KEY `idx_msg_retention` (`created_at_ms`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='可见正文与 provider api_content 分离';
 
 CREATE TABLE IF NOT EXISTS `agent_run` (
@@ -279,7 +280,8 @@ CREATE TABLE IF NOT EXISTS `watch_execution` (
     `status` VARCHAR(16) NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_watch_exec_event` (`task_id`, `event_key`)
+    UNIQUE KEY `uk_watch_exec_event` (`task_id`, `event_key`),
+    KEY `idx_watch_exec_created` (`created_at`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 匹配执行审计';
 
 CREATE TABLE IF NOT EXISTS `watch_hit` (
@@ -293,7 +295,8 @@ CREATE TABLE IF NOT EXISTS `watch_hit` (
     `created_at_ms` BIGINT NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_watch_hit_user` (`user_id`, `created_at_ms`)
+    KEY `idx_watch_hit_user` (`user_id`, `created_at_ms`),
+    KEY `idx_watch_hit_created` (`created_at_ms`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 内部命中（90 天审计，非用户收件箱）';
 
 CREATE TABLE IF NOT EXISTS `watch_delivery_bucket` (

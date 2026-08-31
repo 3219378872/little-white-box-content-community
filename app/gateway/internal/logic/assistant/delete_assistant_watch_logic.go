@@ -27,12 +27,13 @@ func (l *DeleteAssistantWatchLogic) DeleteAssistantWatch(req *types.DeleteAssist
 	if err != nil {
 		return nil, errx.NewWithCode(errx.LoginRequired)
 	}
-	if req == nil || req.Id <= 0 {
+	if req == nil || req.Id <= 0 || req.ExpectedVersion <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	if _, err := l.svcCtx.AssistantService.DeleteWatchTask(l.ctx, &assistantservice.DeleteWatchTaskReq{
-		UserId: userID,
-		Id:     req.Id,
+		UserId:          userID,
+		Id:              req.Id,
+		ExpectedVersion: req.ExpectedVersion,
 	}); err != nil {
 		return nil, errx.FromRPCError(err)
 	}

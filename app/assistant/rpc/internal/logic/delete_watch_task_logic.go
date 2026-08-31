@@ -27,13 +27,13 @@ func (l *DeleteWatchTaskLogic) DeleteWatchTask(in *pb.DeleteWatchTaskReq) (*pb.D
 	if err := requireAgentUser(in.UserId); err != nil {
 		return nil, err
 	}
-	if in.Id <= 0 {
+	if in.Id <= 0 || in.ExpectedVersion <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
 		return nil, unavailableUntilStore()
 	}
-	if err := l.svcCtx.Watch.Delete(l.ctx, in.UserId, in.Id); err != nil {
+	if err := l.svcCtx.Watch.Delete(l.ctx, in.UserId, in.Id, in.ExpectedVersion); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteWatchTaskResp{}, nil

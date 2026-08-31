@@ -83,7 +83,8 @@ type DeleteAssistantHistoryResp struct {
 }
 
 type DeleteAssistantWatchReq struct {
-	Id int64 `path:"id"`
+	Id              int64 `path:"id"`
+	ExpectedVersion int32 `json:"expectedVersion"`
 }
 
 type DeleteAssistantWatchResp struct {
@@ -186,9 +187,11 @@ type UndoAssistantMemoryChangeResp struct {
 }
 
 type UpdateAssistantWatchReq struct {
-	Id      int64 `path:"id"`
-	Enabled bool  `json:"enabled"`
+	Id              int64 `path:"id"`
+	Enabled         bool  `json:"enabled"`
+	ExpectedVersion int32 `json:"expectedVersion"`
 }
 
 type UpdateAssistantWatchResp struct {
+	Task AssistantWatchTask `json:"task"`
 }

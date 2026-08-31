@@ -2,7 +2,6 @@ package watch
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -58,8 +57,8 @@ type Store interface {
 	ListTasks(ctx context.Context, userID int64) ([]Task, error)
 	ListEnabled(ctx context.Context) ([]Task, error)
 	Create(ctx context.Context, task Task) (Task, error)
-	UpdateEnabled(ctx context.Context, userID, id int64, enabled bool) error
-	Delete(ctx context.Context, userID, id int64) error
+	UpdateEnabled(ctx context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error)
+	Delete(ctx context.Context, userID, id int64, expectedVersion int32) error
 	ListHits(ctx context.Context, userID int64, unreadOnly bool) ([]Hit, error)
 	GetHitsByIDs(ctx context.Context, userID int64, ids []int64) ([]Hit, error)
 	MarkRead(ctx context.Context, userID int64, ids []int64) error
@@ -131,6 +130,31 @@ type SQLStore struct {
 
 func NewSQLStore(conn sqlx.SqlConn) *SQLStore { return &SQLStore{conn: conn} }
 
+func (s *SQLStore) getTask(ctx context.Context, userID, id int64) (Task, error) {
+	var row struct {
+		ID            int64  `db:"id"`
+		UserID        int64  `db:"user_id"`
+		ConditionType string `db:"condition_type"`
+		TargetType    string `db:"target_type"`
+		TargetID      int64  `db:"target_id"`
+		TargetText    string `db:"target_text"`
+		Enabled       int64  `db:"enabled"`
+		Version       int32  `db:"version"`
+		CreatedAt     int64  `db:"created_at_ms"`
+	}
+	err := s.conn.QueryRowCtx(ctx, &row, `SELECT id, user_id, condition_type, target_type, target_id,
+		target_text, enabled, version, UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms
+		FROM watch_task WHERE id = ? AND user_id = ?`, id, userID)
+	if err != nil {
+		return Task{}, err
+	}
+	return Task{
+		ID: row.ID, UserID: row.UserID, ConditionType: row.ConditionType, TargetType: row.TargetType,
+		TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1,
+		Version: row.Version, CreatedAt: row.CreatedAt,
+	}, nil
+}
+
 func (s *SQLStore) ListTasks(ctx context.Context, userID int64) ([]Task, error) {
 	var rows []struct {
 		ID            int64  `db:"id"`
@@ -200,32 +224,58 @@ func (s *SQLStore) Create(ctx context.Context, task Task) (Task, error) {
 	id, _ := res.LastInsertId()
 	task.ID = id
 	task.Enabled = true
+	task.Version = 1
 	task.CreatedAt = time.Now().UnixMilli()
 	return task, nil
 }
 
-func (s *SQLStore) UpdateEnabled(ctx context.Context, userID, id int64, enabled bool) error {
-	res, err := s.conn.ExecCtx(ctx, `UPDATE watch_task SET enabled = ? WHERE id = ? AND user_id = ?`, boolToInt(enabled), id, userID)
+func (s *SQLStore) UpdateEnabled(ctx context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error) {
+	if expectedVersion <= 0 {
+		return Task{}, errx.NewWithCode(errx.ParamError)
+	}
+	res, err := s.conn.ExecCtx(ctx, `UPDATE watch_task SET enabled = ?, version = version + 1
+		WHERE id = ? AND user_id = ? AND version = ?`, boolToInt(enabled), id, userID, expectedVersion)
+	if err != nil {
+		return Task{}, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return Task{}, err
+	}
+	if affected > 0 {
+		return s.getTask(ctx, userID, id)
+	}
+	if _, err := s.getTask(ctx, userID, id); err != nil {
+		if err == sqlx.ErrNotFound {
+			return Task{}, errx.NewWithCode(errx.NotFound)
+		}
+		return Task{}, err
+	}
+	return Task{}, errx.New(errx.ContentVersionConflict, "watch version conflict")
+}
+
+func (s *SQLStore) Delete(ctx context.Context, userID, id int64, expectedVersion int32) error {
+	if expectedVersion <= 0 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	res, err := s.conn.ExecCtx(ctx, `DELETE FROM watch_task WHERE id = ? AND user_id = ? AND version = ?`, id, userID, expectedVersion)
 	if err != nil {
 		return err
 	}
 	affected, err := res.RowsAffected()
-	if err != nil || affected > 0 {
+	if err != nil {
 		return err
 	}
-	var count int64
-	if err := s.conn.QueryRowCtx(ctx, &count, `SELECT COUNT(*) FROM watch_task WHERE id = ? AND user_id = ?`, id, userID); err != nil {
+	if affected > 0 {
+		return nil
+	}
+	if _, err := s.getTask(ctx, userID, id); err != nil {
+		if err == sqlx.ErrNotFound {
+			return errx.NewWithCode(errx.NotFound)
+		}
 		return err
 	}
-	if count == 0 {
-		return errx.NewWithCode(errx.NotFound)
-	}
-	return nil
-}
-
-func (s *SQLStore) Delete(ctx context.Context, userID, id int64) error {
-	res, err := s.conn.ExecCtx(ctx, `DELETE FROM watch_task WHERE id = ? AND user_id = ?`, id, userID)
-	return requireDeletedRow(res, err)
+	return errx.New(errx.ContentVersionConflict, "watch version conflict")
 }
 
 func (s *SQLStore) ListHits(ctx context.Context, userID int64, unreadOnly bool) ([]Hit, error) {
@@ -339,20 +389,6 @@ func (s *SQLStore) RecordHit(ctx context.Context, hit Hit, eventKey string) erro
 	})
 }
 
-func requireDeletedRow(result sql.Result, err error) error {
-	if err != nil {
-		return err
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return errx.NewWithCode(errx.NotFound)
-	}
-	return nil
-}
-
 type execRow struct {
 	TaskID   int64
 	EventKey string
@@ -423,24 +459,37 @@ func (m *MapStore) Create(_ context.Context, task Task) (Task, error) {
 	return task, nil
 }
 
-func (m *MapStore) UpdateEnabled(_ context.Context, userID, id int64, enabled bool) error {
+func (m *MapStore) UpdateEnabled(_ context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error) {
+	if expectedVersion <= 0 {
+		return Task{}, errx.NewWithCode(errx.ParamError)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	task, ok := m.tasks[id]
+	if !ok || task.UserID != userID {
+		return Task{}, errx.NewWithCode(errx.NotFound)
+	}
+	if task.Version != expectedVersion {
+		return Task{}, errx.New(errx.ContentVersionConflict, "watch version conflict")
+	}
+	task.Enabled = enabled
+	task.Version++
+	m.tasks[id] = task
+	return task, nil
+}
+
+func (m *MapStore) Delete(_ context.Context, userID, id int64, expectedVersion int32) error {
+	if expectedVersion <= 0 {
+		return errx.NewWithCode(errx.ParamError)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	task, ok := m.tasks[id]
 	if !ok || task.UserID != userID {
 		return errx.NewWithCode(errx.NotFound)
 	}
-	task.Enabled = enabled
-	m.tasks[id] = task
-	return nil
-}
-
-func (m *MapStore) Delete(_ context.Context, userID, id int64) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	task, ok := m.tasks[id]
-	if !ok || task.UserID != userID {
-		return errx.NewWithCode(errx.NotFound)
+	if task.Version != expectedVersion {
+		return errx.New(errx.ContentVersionConflict, "watch version conflict")
 	}
 	delete(m.tasks, id)
 	return nil

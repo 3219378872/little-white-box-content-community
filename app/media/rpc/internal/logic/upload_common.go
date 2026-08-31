@@ -7,10 +7,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"esx/app/media/rpc/internal/mediautil"
+	"esx/app/media/rpc/internal/svc"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"esx/pkg/cleanupx"
 	"esx/pkg/errx"
+	"esx/pkg/event"
 	"esx/pkg/idempotencyx"
+	"esx/pkg/mqx"
+	"esx/pkg/outboxx"
+	"esx/pkg/util"
 	"fmt"
 	"io"
 	"os"
@@ -125,21 +130,64 @@ func nullInt(v int) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(v), Valid: true}
 }
 
-// removeOrphanObjects best-effort 删除幂等命中时本次上传的孤儿对象；
-// 删除失败只告警（CORE-053：不影响已提交的成功响应）。
-func removeOrphanObjects(ctx context.Context, logger logx.Logger, storage interface {
-	Delete(ctx context.Context, objectKey string) error
-}, objectKeys ...string) {
-	if logger == nil || storage == nil {
+// compensateUploadedObjects deletes objects created before the media row was
+// committed. An S3 failure is converted into a durable media-delete outbox
+// event so broker delivery and the existing cleanup consumer can retry it.
+func compensateUploadedObjects(ctx context.Context, logger logx.Logger, svcCtx *svc.ServiceContext, objectKeys ...string) {
+	if logger == nil || svcCtx == nil || svcCtx.Storage == nil {
 		return
 	}
 	for _, key := range objectKeys {
 		if key == "" {
 			continue
 		}
-		if err := storage.Delete(ctx, key); err != nil {
-			logger.Errorw("delete orphan object on idempotent retry failed",
+		deleteCtx, cancelDelete := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		err := svcCtx.Storage.Delete(deleteCtx, key)
+		cancelDelete()
+		if err != nil {
+			logger.Errorw("delete uncommitted media object failed",
 				logx.Field("object_key", key), logx.Field("err", err.Error()))
+			event, eventErr := buildUploadCompensationEvent(key, svcCtx.Config.S3Storage.Bucket)
+			if eventErr != nil {
+				logger.Errorw("build media compensation event failed",
+					logx.Field("object_key", key), logx.Field("err", eventErr.Error()))
+				continue
+			}
+			if svcCtx.MediaCommandModel == nil {
+				logger.Errorw("enqueue media compensation failed",
+					logx.Field("object_key", key), logx.Field("err", "media command model unavailable"))
+				continue
+			}
+			queueCtx, cancelQueue := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			queueErr := svcCtx.MediaCommandModel.EnqueueObjectCleanup(queueCtx, event)
+			cancelQueue()
+			if queueErr != nil {
+				logger.Errorw("enqueue media compensation failed",
+					logx.Field("object_key", key), logx.Field("err", queueErr.Error()))
+			}
 		}
 	}
+}
+
+func buildUploadCompensationEvent(objectKey, bucket string) (outboxx.Event, error) {
+	eventID, err := util.NextID()
+	if err != nil {
+		return outboxx.Event{}, err
+	}
+	now := time.Now()
+	payload := event.MediaDeletedEvent{
+		EventID: eventID, EventTime: now.UnixMilli(), S3ObjectKey: objectKey,
+		Bucket: bucket, DeletedAt: now.Unix(), Reason: "upload_compensation",
+	}
+	if err := payload.Validate(); err != nil {
+		return outboxx.Event{}, err
+	}
+	body, err := payload.MarshalPayload()
+	if err != nil {
+		return outboxx.Event{}, err
+	}
+	return outboxx.Event{
+		ID: eventID, Topic: mqx.TopicMediaDelete, Tag: mqx.TagDefault,
+		Key: strconv.FormatInt(eventID, 10), Payload: body,
+	}, nil
 }

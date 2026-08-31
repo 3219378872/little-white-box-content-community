@@ -103,10 +103,12 @@ services:
   # Development keeps the defaults in docker-compose.middleware.yml. The
   # production overlay requires operators to inject every middleware secret.
   mysql:
+    ports: !override []
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
 
   redis:
+    ports: !override []
     command:
       - redis-server
       - --appendonly
@@ -119,22 +121,38 @@ services:
       timeout: 5s
       retries: 5
 
+  etcd:
+    ports: !override []
+
+  rocketmq-namesrv:
+    ports: !override []
+
+  rocketmq-broker:
+    ports: !override []
+
+  rocketmq-console:
+    ports: !override []
+
   minio-milvus:
+    ports: !override []
     environment:
       MINIO_ROOT_USER: ${MILVUS_MINIO_ROOT_USER:?MILVUS_MINIO_ROOT_USER is required}
       MINIO_ROOT_PASSWORD: ${MILVUS_MINIO_ROOT_PASSWORD:?MILVUS_MINIO_ROOT_PASSWORD is required}
 
   milvus:
+    ports: !override []
     environment:
       MINIO_ACCESS_KEY_ID: ${MILVUS_MINIO_ROOT_USER:?MILVUS_MINIO_ROOT_USER is required}
       MINIO_SECRET_ACCESS_KEY: ${MILVUS_MINIO_ROOT_PASSWORD:?MILVUS_MINIO_ROOT_PASSWORD is required}
 
   minio:
+    ports: !override []
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
 
   seaweedfs:
+    ports: !override []
     entrypoint: ["/bin/sh", "/opt/xbh/render-config.sh"]
     command:
       - server
@@ -151,10 +169,12 @@ services:
       - ./seaweedfs/render-config.sh:/opt/xbh/render-config.sh:ro
 
   grafana:
+    ports: !override []
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
 
   prometheus:
+    ports: !override []
     command:
       - --config.file=/etc/prometheus/prometheus.production.yml
       - --storage.tsdb.path=/prometheus
@@ -162,11 +182,25 @@ services:
     volumes:
       - ./prometheus/prometheus.production.yml:/etc/prometheus/prometheus.production.yml:ro
 
+  elasticsearch:
+    ports: !override []
+
+  jaeger:
+    ports: !override []
+
+  loki:
+    ports: !override []
+
+  clickhouse:
+    ports: !override []
+
   embedding-service:
     profiles: ["production"]
+    ports: !override []
 
   online-infer:
     profiles: ["production"]
+    ports: !override []
     environment:
       MODEL_MANIFEST_JSON: '[]'
       MODEL_TRAFFIC_JSON: '{}'
@@ -225,6 +259,7 @@ services:
 
   media-rpc:
     <<: *go-service
+    mem_limit: 512m
     image: xbh/media-rpc:${IMAGE_TAG:-local}
     build:
       <<: *go-build
@@ -688,6 +723,7 @@ services:
         target: /srv/www
         read_only: true
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/security-headers.conf:/etc/nginx/security-headers.conf:ro
       - ./nginx/rotate-access-log.sh:/usr/local/bin/rotate-access-log.sh:ro
     entrypoint:
       - /bin/sh

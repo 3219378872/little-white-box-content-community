@@ -48,6 +48,7 @@ type UserTagStore interface {
 type RedisStore interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 	DelCtx(ctx context.Context, keys ...string) (int, error)
+	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 	SetexCtx(ctx context.Context, key, value string, seconds int) error
 	SetnxExCtx(ctx context.Context, key, value string, seconds int) (bool, error)
 	IncrCtx(ctx context.Context, key string) (int64, error)

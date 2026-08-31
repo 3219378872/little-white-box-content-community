@@ -27,14 +27,19 @@ func (l *UpdateWatchTaskLogic) UpdateWatchTask(in *pb.UpdateWatchTaskReq) (*pb.U
 	if err := requireAgentUser(in.UserId); err != nil {
 		return nil, err
 	}
-	if in.Id <= 0 {
+	if in.Id <= 0 || in.ExpectedVersion <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
 		return nil, unavailableUntilStore()
 	}
-	if err := l.svcCtx.Watch.UpdateEnabled(l.ctx, in.UserId, in.Id, in.Enabled); err != nil {
+	task, err := l.svcCtx.Watch.UpdateEnabled(l.ctx, in.UserId, in.Id, in.Enabled, in.ExpectedVersion)
+	if err != nil {
 		return nil, err
 	}
-	return &pb.UpdateWatchTaskResp{}, nil
+	return &pb.UpdateWatchTaskResp{Task: &pb.WatchTask{
+		Id: task.ID, ConditionType: task.ConditionType, TargetType: task.TargetType,
+		TargetId: task.TargetID, TargetText: task.TargetText, Enabled: task.Enabled,
+		Version: task.Version, CreatedAt: task.CreatedAt,
+	}}, nil
 }

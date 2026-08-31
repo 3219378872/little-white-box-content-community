@@ -3,6 +3,7 @@ package logic
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"esx/app/media/rpc/internal/config"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/storage"
@@ -11,6 +12,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/util"
 	"fmt"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -209,6 +211,21 @@ func unitCorruptPNG(t *testing.T) []byte {
 	corrupt[mid+1] ^= 0xFF
 	require.NotEqual(t, raw, corrupt)
 	return corrupt
+}
+
+func unitOversizedPNGHeader(width, height uint32) []byte {
+	var raw bytes.Buffer
+	raw.Write([]byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a})
+	ihdr := make([]byte, 13)
+	binary.BigEndian.PutUint32(ihdr[0:4], width)
+	binary.BigEndian.PutUint32(ihdr[4:8], height)
+	ihdr[8] = 8
+	ihdr[9] = 2
+	_ = binary.Write(&raw, binary.BigEndian, uint32(len(ihdr)))
+	raw.WriteString("IHDR")
+	raw.Write(ihdr)
+	_ = binary.Write(&raw, binary.BigEndian, crc32.ChecksumIEEE(append([]byte("IHDR"), ihdr...)))
+	return raw.Bytes()
 }
 
 // unitTestMP4 构造仅含 ftyp 头的最小 MP4 魔数：嗅探识别为 video/mp4，上传不做转码。

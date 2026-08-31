@@ -2626,12 +2626,13 @@ func (x *CreateWatchTaskResp) GetTask() *WatchTask {
 }
 
 type UpdateWatchTaskReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id              int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	Enabled         bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ExpectedVersion int32                  `protobuf:"varint,4,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateWatchTaskReq) Reset() {
@@ -2685,8 +2686,16 @@ func (x *UpdateWatchTaskReq) GetEnabled() bool {
 	return false
 }
 
+func (x *UpdateWatchTaskReq) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
 type UpdateWatchTaskResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Task          *WatchTask             `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2721,12 +2730,20 @@ func (*UpdateWatchTaskResp) Descriptor() ([]byte, []int) {
 	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{44}
 }
 
+func (x *UpdateWatchTaskResp) GetTask() *WatchTask {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
 type DeleteWatchTaskReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Id              int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion int32                  `protobuf:"varint,3,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteWatchTaskReq) Reset() {
@@ -2769,6 +2786,13 @@ func (x *DeleteWatchTaskReq) GetUserId() int64 {
 func (x *DeleteWatchTaskReq) GetId() int64 {
 	if x != nil {
 		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteWatchTaskReq) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
 	}
 	return 0
 }
@@ -3116,15 +3140,18 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\vtarget_text\x18\x05 \x01(\tR\n" +
 	"targetText\"?\n" +
 	"\x13CreateWatchTaskResp\x12(\n" +
-	"\x04task\x18\x01 \x01(\v2\x14.assistant.WatchTaskR\x04task\"W\n" +
+	"\x04task\x18\x01 \x01(\v2\x14.assistant.WatchTaskR\x04task\"\x82\x01\n" +
 	"\x12UpdateWatchTaskReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabled\"\x15\n" +
-	"\x13UpdateWatchTaskResp\"=\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12)\n" +
+	"\x10expected_version\x18\x04 \x01(\x05R\x0fexpectedVersion\"?\n" +
+	"\x13UpdateWatchTaskResp\x12(\n" +
+	"\x04task\x18\x01 \x01(\v2\x14.assistant.WatchTaskR\x04task\"h\n" +
 	"\x12DeleteWatchTaskReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\x03R\x02id\"\x15\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\x12)\n" +
+	"\x10expected_version\x18\x03 \x01(\x05R\x0fexpectedVersion\"\x15\n" +
 	"\x13DeleteWatchTaskResp\"\x85\x01\n" +
 	"\x1aSubmitRecommendFeedbackReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
@@ -3235,51 +3262,52 @@ var file_proto_assistant_assistant_proto_depIdxs = []int32{
 	23, // 11: assistant.UndoMemoryChangeResp.entry:type_name -> assistant.MemoryEntry
 	38, // 12: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
 	38, // 13: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
-	0,  // 14: assistant.AssistantService.GetThread:input_type -> assistant.GetThreadReq
-	3,  // 15: assistant.AssistantService.ListMessages:input_type -> assistant.ListMessagesReq
-	7,  // 16: assistant.AssistantService.PostMessage:input_type -> assistant.PostMessageReq
-	9,  // 17: assistant.AssistantService.MarkThreadRead:input_type -> assistant.MarkThreadReadReq
-	11, // 18: assistant.AssistantService.DeleteHistory:input_type -> assistant.DeleteHistoryReq
-	13, // 19: assistant.AssistantService.SubscribeRunEvents:input_type -> assistant.SubscribeRunEventsReq
-	17, // 20: assistant.AssistantService.CancelRun:input_type -> assistant.CancelRunReq
-	19, // 21: assistant.AssistantService.RevokeConsent:input_type -> assistant.RevokeConsentReq
-	21, // 22: assistant.AssistantService.ConfirmRunTool:input_type -> assistant.ConfirmRunToolReq
-	25, // 23: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
-	27, // 24: assistant.AssistantService.AddMemory:input_type -> assistant.AddMemoryReq
-	29, // 25: assistant.AssistantService.ReplaceMemory:input_type -> assistant.ReplaceMemoryReq
-	31, // 26: assistant.AssistantService.RemoveMemory:input_type -> assistant.RemoveMemoryReq
-	34, // 27: assistant.AssistantService.BatchMemory:input_type -> assistant.BatchMemoryReq
-	36, // 28: assistant.AssistantService.UndoMemoryChange:input_type -> assistant.UndoMemoryChangeReq
-	39, // 29: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
-	41, // 30: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
-	43, // 31: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
-	45, // 32: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
-	47, // 33: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
-	2,  // 34: assistant.AssistantService.GetThread:output_type -> assistant.GetThreadResp
-	5,  // 35: assistant.AssistantService.ListMessages:output_type -> assistant.ListMessagesResp
-	8,  // 36: assistant.AssistantService.PostMessage:output_type -> assistant.PostMessageResp
-	10, // 37: assistant.AssistantService.MarkThreadRead:output_type -> assistant.MarkThreadReadResp
-	12, // 38: assistant.AssistantService.DeleteHistory:output_type -> assistant.DeleteHistoryResp
-	16, // 39: assistant.AssistantService.SubscribeRunEvents:output_type -> assistant.RunEvent
-	18, // 40: assistant.AssistantService.CancelRun:output_type -> assistant.CancelRunResp
-	20, // 41: assistant.AssistantService.RevokeConsent:output_type -> assistant.RevokeConsentResp
-	22, // 42: assistant.AssistantService.ConfirmRunTool:output_type -> assistant.ConfirmRunToolResp
-	26, // 43: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
-	28, // 44: assistant.AssistantService.AddMemory:output_type -> assistant.AddMemoryResp
-	30, // 45: assistant.AssistantService.ReplaceMemory:output_type -> assistant.ReplaceMemoryResp
-	32, // 46: assistant.AssistantService.RemoveMemory:output_type -> assistant.RemoveMemoryResp
-	35, // 47: assistant.AssistantService.BatchMemory:output_type -> assistant.BatchMemoryResp
-	37, // 48: assistant.AssistantService.UndoMemoryChange:output_type -> assistant.UndoMemoryChangeResp
-	40, // 49: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
-	42, // 50: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
-	44, // 51: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
-	46, // 52: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
-	48, // 53: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
-	34, // [34:54] is the sub-list for method output_type
-	14, // [14:34] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	38, // 14: assistant.UpdateWatchTaskResp.task:type_name -> assistant.WatchTask
+	0,  // 15: assistant.AssistantService.GetThread:input_type -> assistant.GetThreadReq
+	3,  // 16: assistant.AssistantService.ListMessages:input_type -> assistant.ListMessagesReq
+	7,  // 17: assistant.AssistantService.PostMessage:input_type -> assistant.PostMessageReq
+	9,  // 18: assistant.AssistantService.MarkThreadRead:input_type -> assistant.MarkThreadReadReq
+	11, // 19: assistant.AssistantService.DeleteHistory:input_type -> assistant.DeleteHistoryReq
+	13, // 20: assistant.AssistantService.SubscribeRunEvents:input_type -> assistant.SubscribeRunEventsReq
+	17, // 21: assistant.AssistantService.CancelRun:input_type -> assistant.CancelRunReq
+	19, // 22: assistant.AssistantService.RevokeConsent:input_type -> assistant.RevokeConsentReq
+	21, // 23: assistant.AssistantService.ConfirmRunTool:input_type -> assistant.ConfirmRunToolReq
+	25, // 24: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
+	27, // 25: assistant.AssistantService.AddMemory:input_type -> assistant.AddMemoryReq
+	29, // 26: assistant.AssistantService.ReplaceMemory:input_type -> assistant.ReplaceMemoryReq
+	31, // 27: assistant.AssistantService.RemoveMemory:input_type -> assistant.RemoveMemoryReq
+	34, // 28: assistant.AssistantService.BatchMemory:input_type -> assistant.BatchMemoryReq
+	36, // 29: assistant.AssistantService.UndoMemoryChange:input_type -> assistant.UndoMemoryChangeReq
+	39, // 30: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
+	41, // 31: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
+	43, // 32: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
+	45, // 33: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
+	47, // 34: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
+	2,  // 35: assistant.AssistantService.GetThread:output_type -> assistant.GetThreadResp
+	5,  // 36: assistant.AssistantService.ListMessages:output_type -> assistant.ListMessagesResp
+	8,  // 37: assistant.AssistantService.PostMessage:output_type -> assistant.PostMessageResp
+	10, // 38: assistant.AssistantService.MarkThreadRead:output_type -> assistant.MarkThreadReadResp
+	12, // 39: assistant.AssistantService.DeleteHistory:output_type -> assistant.DeleteHistoryResp
+	16, // 40: assistant.AssistantService.SubscribeRunEvents:output_type -> assistant.RunEvent
+	18, // 41: assistant.AssistantService.CancelRun:output_type -> assistant.CancelRunResp
+	20, // 42: assistant.AssistantService.RevokeConsent:output_type -> assistant.RevokeConsentResp
+	22, // 43: assistant.AssistantService.ConfirmRunTool:output_type -> assistant.ConfirmRunToolResp
+	26, // 44: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
+	28, // 45: assistant.AssistantService.AddMemory:output_type -> assistant.AddMemoryResp
+	30, // 46: assistant.AssistantService.ReplaceMemory:output_type -> assistant.ReplaceMemoryResp
+	32, // 47: assistant.AssistantService.RemoveMemory:output_type -> assistant.RemoveMemoryResp
+	35, // 48: assistant.AssistantService.BatchMemory:output_type -> assistant.BatchMemoryResp
+	37, // 49: assistant.AssistantService.UndoMemoryChange:output_type -> assistant.UndoMemoryChangeResp
+	40, // 50: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
+	42, // 51: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
+	44, // 52: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
+	46, // 53: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
+	48, // 54: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
+	35, // [35:55] is the sub-list for method output_type
+	15, // [15:35] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_proto_assistant_assistant_proto_init() }

@@ -4,8 +4,10 @@
 
 ## 基线 schema（`xbh_*.sql`）
 
-由 MySQL 容器挂载为 `/docker-entrypoint-initdb.d`，**只在空数据卷首次初始化时按文件名字典序
-执行**。只允许 `CREATE TABLE IF NOT EXISTS` 级别的全量定义；不要把针对已有表的
+除 `xbh_analytics.sql` 外，由 Compose 逐文件白名单挂载到 MySQL
+`/docker-entrypoint-initdb.d`，**只在空数据卷首次初始化时按挂载目标名字典序执行**。
+`xbh_analytics.sql` 只挂给 ClickHouse，禁止交给 MySQL。基线只允许
+`CREATE TABLE IF NOT EXISTS` 级别的全量定义；不要把针对已有表的
 `ALTER`/`UPDATE` 放在这里——存量卷不会重放它们，新卷上又可能先于依赖的表执行。
 
 ## 幂等补丁（`patches/*.sql`）

@@ -21,6 +21,13 @@ func TestMediaDeletedEventRejectsEmptyObjectKey(t *testing.T) {
 	}
 }
 
+func TestMediaDeletedEventAllowsUploadCompensationWithoutMediaRow(t *testing.T) {
+	e := MediaDeletedEvent{S3ObjectKey: "orphan/object.jpg", Reason: "upload_compensation"}
+	if err := e.Validate(); err != nil {
+		t.Fatalf("upload compensation event rejected: %v", err)
+	}
+}
+
 func TestMediaDeletedEventPayloadContract(t *testing.T) {
 	// 消费端（media/mq）解析的字段名必须与此契约一致。
 	e := MediaDeletedEvent{MediaID: 7, S3ObjectKey: "k/v.jpg", Bucket: "b", DeletedAt: 123}

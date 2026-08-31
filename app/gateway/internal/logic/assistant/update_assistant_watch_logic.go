@@ -27,15 +27,17 @@ func (l *UpdateAssistantWatchLogic) UpdateAssistantWatch(req *types.UpdateAssist
 	if err != nil {
 		return nil, errx.NewWithCode(errx.LoginRequired)
 	}
-	if req == nil || req.Id <= 0 {
+	if req == nil || req.Id <= 0 || req.ExpectedVersion <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if _, err := l.svcCtx.AssistantService.UpdateWatchTask(l.ctx, &assistantservice.UpdateWatchTaskReq{
-		UserId:  userID,
-		Id:      req.Id,
-		Enabled: req.Enabled,
-	}); err != nil {
+	result, err := l.svcCtx.AssistantService.UpdateWatchTask(l.ctx, &assistantservice.UpdateWatchTaskReq{
+		UserId:          userID,
+		Id:              req.Id,
+		Enabled:         req.Enabled,
+		ExpectedVersion: req.ExpectedVersion,
+	})
+	if err != nil {
 		return nil, errx.FromRPCError(err)
 	}
-	return &types.UpdateAssistantWatchResp{}, nil
+	return &types.UpdateAssistantWatchResp{Task: mapWatch(result.GetTask())}, nil
 }

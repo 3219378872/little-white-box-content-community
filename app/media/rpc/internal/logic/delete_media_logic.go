@@ -46,6 +46,7 @@ func buildMediaDeletedOutboxEvent(mediaID int64, objectKey, bucket string) (outb
 		S3ObjectKey: objectKey,
 		Bucket:      bucket,
 		DeletedAt:   time.Now().Unix(),
+		Reason:      "media_deleted",
 	}
 	if err := e.Validate(); err != nil {
 		return outboxx.Event{}, err

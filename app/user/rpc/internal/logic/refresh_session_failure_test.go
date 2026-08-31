@@ -70,34 +70,16 @@ func TestRotateRefreshToken_RedisMissing(t *testing.T) {
 	assert.Equal(t, errx.SystemError, errx.GetCode(err))
 }
 
-func TestRotateRefreshToken_LoadJTIFailed(t *testing.T) {
+func TestRotateRefreshToken_ConsumeJTIFailed(t *testing.T) {
 	svcCtx, _ := refreshTestSvcCtx()
 	mem := &flakyRedis{
 		memoryRedis: &memoryRedis{values: map[string]string{}},
-		onGet: func(key string) error {
+		onEval: func(keys []string, args ...any) error {
 			return errInjectedRedis
 		},
 	}
 	svcCtx.RedisClient = mem
 	_, oldRefresh, err := issueTokenPair(context.Background(), svcCtx, 11, "erin")
-	require.NoError(t, err)
-
-	_, _, err = rotateRefreshToken(context.Background(), svcCtx, oldRefresh)
-	require.Error(t, err)
-	assert.Equal(t, errx.SystemError, errx.GetCode(err))
-}
-
-func TestRotateRefreshToken_DeleteJTIFailed(t *testing.T) {
-	svcCtx, memValues := refreshTestSvcCtx()
-	// 白名单读取正常，但轮换删除失败：不得签发新令牌。
-	mem := &flakyRedis{
-		memoryRedis: memValues,
-		onDel: func(keys ...string) error {
-			return errInjectedRedis
-		},
-	}
-	svcCtx.RedisClient = mem
-	_, oldRefresh, err := issueTokenPair(context.Background(), svcCtx, 12, "frank")
 	require.NoError(t, err)
 
 	_, _, err = rotateRefreshToken(context.Background(), svcCtx, oldRefresh)

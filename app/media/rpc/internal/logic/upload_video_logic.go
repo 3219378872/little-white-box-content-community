@@ -65,6 +65,9 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 	if !idem.Valid() {
 		return errx.NewWithCode(errx.ParamError)
 	}
+	if l.svcCtx.MediaCommandModel == nil {
+		return errx.NewWithCode(errx.SystemError)
+	}
 
 	detected, err := mediautil2.Detect(sink.Path(), false, true)
 	if err != nil {
@@ -72,6 +75,13 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 	}
 
 	objKey := buildObjectKey("original", detected.Ext)
+	keepUploadedObject := false
+	uploaded := false
+	defer func() {
+		if uploaded && !keepUploadedObject {
+			compensateUploadedObjects(l.ctx, l.Logger, l.svcCtx, objKey)
+		}
+	}()
 	if err = putFile(l.ctx, l.svcCtx, sink.Path(), objKey, detected.MIME); err != nil {
 		l.Errorw("put video failed",
 			logx.Field("user_id", meta.GetUserId()),
@@ -80,6 +90,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
+	uploaded = true
 
 	mediaId, err := util.NextID()
 	if err != nil {
@@ -101,9 +112,6 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		FileSize:     sink.Size(),
 		Status:       1,
 	}
-	if l.svcCtx.MediaCommandModel == nil {
-		return errx.NewWithCode(errx.SystemError)
-	}
 	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
 	if err != nil {
 		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
@@ -117,9 +125,6 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 	if !result.Created {
-		// 本次上传的对象键与幂等命中的已有记录无关（每次随机），删除孤儿对象，
-		// 避免同幂等键重试在对象存储中泄漏无 DB 引用的文件（best-effort）。
-		removeOrphanObjects(l.ctx, l.Logger, l.svcCtx.Storage, objKey)
 		existing, findErr := l.svcCtx.MediaModel.FindOne(l.ctx, result.MediaID)
 		if findErr != nil {
 			l.Errorw("find existing media on idempotent retry failed",
@@ -128,6 +133,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		}
 		return stream.SendAndClose(&pb2.UploadVideoResp{Media: toPBMediaInfo(existing)})
 	}
+	keepUploadedObject = true
 
 	l.Infow("upload video success",
 		logx.Field("media_id", mediaId),

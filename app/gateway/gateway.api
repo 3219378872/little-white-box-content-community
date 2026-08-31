@@ -762,12 +762,16 @@ type (
 		Task AssistantWatchTask `json:"task"`
 	}
 	UpdateAssistantWatchReq {
-		Id      int64 `path:"id"`
-		Enabled bool  `json:"enabled"`
+		Id              int64 `path:"id"`
+		Enabled         bool  `json:"enabled"`
+		ExpectedVersion int32 `json:"expectedVersion"`
 	}
-	UpdateAssistantWatchResp  {}
+	UpdateAssistantWatchResp {
+		Task AssistantWatchTask `json:"task"`
+	}
 	DeleteAssistantWatchReq {
-		Id int64 `path:"id"`
+		Id              int64 `path:"id"`
+		ExpectedVersion int32 `json:"expectedVersion"`
 	}
 	DeleteAssistantWatchResp  {}
 	AssistantRecommendFeedbackReq {

@@ -72,8 +72,16 @@ func (f *fakeMediaModel) DelCache(ctx context.Context, id int64) error {
 // fakeMediaCommandModel 提供 model.MediaCommandModel 的可注入替身；未设置的方法
 // 调用会 panic，便于测试暴露调用了预期之外的方法。
 type fakeMediaCommandModel struct {
-	createMediaFn func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error)
-	softDeleteFn  func(ctx context.Context, mediaID int64, event outboxx.Event) error
+	createMediaFn          func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error)
+	softDeleteFn           func(ctx context.Context, mediaID int64, event outboxx.Event) error
+	enqueueObjectCleanupFn func(ctx context.Context, event outboxx.Event) error
+}
+
+func (f *fakeMediaCommandModel) EnqueueObjectCleanup(ctx context.Context, event outboxx.Event) error {
+	if f.enqueueObjectCleanupFn == nil {
+		return nil
+	}
+	return f.enqueueObjectCleanupFn(ctx, event)
 }
 
 func (f *fakeMediaCommandModel) CreateMedia(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {

@@ -17,6 +17,7 @@ tracks:
   - app/recommend/mq/internal/store
   - app/assistant/rpc/internal/logic
   - app/assistant/internal/store
+  - app/assistant/internal/retention
   - app/assistant/internal/runtime
   - app/assistant/internal/tool
   - app/assistant/internal/memory
@@ -49,8 +50,13 @@ tracks:
   - deploy/sql/patches/20260830_assistant_message_change_id.sql
   - deploy/sql/patches/20260830_watch_bucket_not_before.sql
   - deploy/sql/patches/20260830_agent_provider_reliability.sql
+  - deploy/sql/patches/20260831_assistant_retention_indexes.sql
+  - deploy/sql/patches/20260831_watch_task_version.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
+  - deploy/docker-compose.production.yml
+  - deploy/nginx/nginx.conf
+  - scripts/apply_production_sql_patches.sh
 verified_at: 2026-08-30
 verified_commit: 1992b06c955a812f25b0cad8ec096ca1a883f564
 ---
@@ -85,7 +91,7 @@ Watch 内部 bucket）。仍偏离处：
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| CORE-001 写操作验证调用者 | aligned | 所有写路由挂自有 `RequiredAuth`（避免框架鉴权失败 dump 完整请求）；logic 从强类型 JWT context 取 userId |
+| CORE-001 写操作验证调用者 | aligned | 所有写路由挂自有 `RequiredAuth`；logic 从强类型 JWT context 取 userId；内部 gRPC unary/stream 均安装同一 HMAC 边界，stream 不再绕过 unary interceptor |
 | CORE-002 只能改自己内容 | aligned | update/delete 校验 author_id |
 | CORE-003 会话参与者才可读私信 | aligned | GetMessages/MarkRead 按 user_id 归属校验 |
 | CORE-004 注册登录资料维护 | aligned | user rpc；注销/申诉/后台不在范围 |
@@ -100,7 +106,7 @@ Watch 内部 bucket）。仍偏离处：
 | CORE-020 标题/正文边界 | aligned | 1~120/1~20000 Unicode 校验 |
 | CORE-021 图片≤9 标签≤10、标签 1~32 | aligned | 数量与长度校验 |
 | CORE-022 评论 1~2000 且只能附着已发布内容 | aligned | 上限校验 + 仅 published 可评论 |
-| CORE-023 图片 JPEG/PNG/WebP ≤10MiB | aligned | Handler 区分 MaxBytes 与非法 multipart；类型由 mediautil 按内容嗅探 |
+| CORE-023 图片格式/10MiB/8192px/25MP | aligned | Handler 区分 MaxBytes 与非法 multipart；`DecodeConfig` 在完整解码前校验单边与像素预算；容量 2 semaphore 覆盖解码/缩放/编码，production media-rpc 为 512 MiB |
 | CORE-024 媒体引用校验 | aligned | 帖子引用媒体 ID 时校验存在/归属/完成态；上传返回稳定 id |
 | CORE-030 互动幂等 | aligned | Like/Unlike/Favorite/Follow 重复请求返回成功且不重复累计；命令层 no-op 不写 outbox |
 | CORE-031 单一有效关系 | aligned | 唯一键 + 状态字段 |
@@ -112,9 +118,9 @@ Watch 内部 bucket）。仍偏离处：
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令（含不同 media_id）冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
 | CORE-044 私信成功不依赖通知 | aligned | SendMessage 以库提交为成功；无赞/评/关通知生产者 |
-| CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409；媒体命令哈希含接收文件内容 sha256 指纹；评论命令哈希含回复目标评论与被回复用户（CORE-051 异命令冲突，2026-08-14） |
+| CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409；媒体命令哈希含接收文件内容 sha256 指纹，幂等命中会补偿删除本次随机对象；评论命令哈希含回复目标评论与被回复用户（CORE-051 异命令冲突，2026-08-14） |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError；HTTPStatus 为唯一映射（密码错误 401、验证码错误/过期 400、空搜索 400、搜索超时 504，2026-08-14 补齐） |
-| CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务（帖子/评论；media 软删已接入：media-deleted 事件与软删同事务，relay 投递，避免提交后崩溃丢事件产生 S3 孤儿对象） |
+| CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务；media 软删事件与权威行同事务，上传后落库/缩略图失败立即补偿，删除失败写 `upload_compensation` outbox 交现有消费者重试 |
 | CORE-053 异步效果失败不改成功 | aligned | 互动/评论/帖子缓存失效失败只告警不改变已提交成功的响应 |
 | CORE-054 不泄露内部信息 | aligned | FromHTTPError 未知错误走 SystemError 通用文案；解析失败不回传底层字符串 |
 | CORE-060 单页内不重复 | aligned | 页式列表由 SQL 分页保证 |
@@ -199,7 +205,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-050 compact 50%/keep 20% | aligned | 优先以 `last_prompt_tokens` 锚定增量；无 usage 时 CJK 按至少 1 字符/token；摘要按总预算选完整消息，强制保留 unmatched tool call/确认/Watch sidecar，无收益或仍超目标时拒绝提交 |
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
 | AGENT-054 辅助模型 | aligned | compact 可用 `LLM.AuxModel`、review 可用 `BackgroundReview.Model`，未配置时回退冻结主 route；辅助 client 继承 typed retry/usage 且不改前台 capability snapshot |
-| AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL 回源；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
+| AGENT-060/061/063 search_history | partial | user/assistant 可见消息同事务写 ES outbox，读取按 user/MySQL/365 天回源；到期物理删除与 delete outbox 同事务；四种 shape 的完整上下文与 live rebuild 尚未集成验证 |
 | AGENT-070/071/072 source ledger | aligned | `app/assistant/internal/tool/sources_test.go`；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
@@ -228,10 +234,10 @@ Watch 内部 bucket）。仍偏离处：
 
 | 要求 | 状态 | 实现位置与偏离说明 |
 | --- | --- | --- |
-| WCH-001 任务 CRUD | aligned | watch_task + REST/工具 |
+| WCH-001 任务 CRUD | aligned | watch_task + REST/工具；update/delete 必须携带 `expectedVersion`，SQL CAS 成功递增版本，冲突为 409 |
 | WCH-002 规则条件 | aligned | 四种规则 + discussion_spike 预筛选 |
 | WCH-003 不可见不命中 | aligned | matcher 回源 published |
-| WCH-004 内部 hit 90 天 | aligned | `watch_hit` 非用户收件箱 |
+| WCH-004 内部 hit 90 天 | aligned | `watch_hit` 非用户收件箱；worker 启动及每小时按索引小批物理删除过期 hit/execution |
 | WCH-010 两分钟合并与限额 | aligned | 两分钟 bucket；独立 `not_before_ms` 延迟且不撞 merge unique key；小时/日计数仅在成功投递事务增加 |
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
 | WCH-012 用户抢占/失败重排 | aligned | PostMessage 抢占、error/cancel finish 与 scheduler reconciliation 均把绑定 run 的未发送 bucket 重置 pending |
@@ -257,7 +263,7 @@ Watch 内部 bucket）。仍偏离处：
 | REL-011 拒绝/未去重不入特征 | aligned | 消费端去重后写特征 |
 | REL-012 接受只表示进入消息边界 | aligned | 接口即发布 |
 | REL-013 异步可观察 | aligned | 所有 MQ 消费者均有 outcome 计数与延迟直方图；outbox 积压/最长年龄指标 |
-| REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天、Assistant 会话 30 天，均由 TTL/DDL 落地；新增 `daily_aggregates` 去标识聚合表（TTL 365 天，ReplacingMergeTree 幂等）与 behavior-log 定时聚合任务（`AggregateIntervalSeconds`/`AggregateBackfillDays`）；修复既有 schema 在 DateTime64 列上的 TTL 建表错误（BAD_TTL_EXPRESSION），ClickHouse 集成测试现可初始化 |
+| REL-020 保留期限自动删除 | aligned | 原始行为 90 天、特征 30 天、去重 90 天、死信 7 天由 TTL/DDL 落地；Assistant 原始 message 365 天、Watch hit/execution 90 天由 worker 每小时有界批次物理删除，message 删除与 ES delete outbox 同事务；`daily_aggregates` 去标识聚合表 TTL 365 天 |
 | REL-021 完整 IP 不入行为表 | aligned | 行为表不存完整 IP；访问日志 7 天 |
 | REL-022 业务日志 30 天不泄密 | aligned | Gateway 关闭会 dump header/body 的框架 REST Log，RequiredAuth 不记录 token，SafeAccessLog 仅方法/路径/状态/耗时；Gateway/Assistant/Watch RPC 客户端关闭默认 request dump，改用 SafeDuration；Loki 30 天 |
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
@@ -278,6 +284,11 @@ Watch 内部 bucket）。仍偏离处：
 | REL-054 降级矩阵 | partial | 代码覆盖库/缓存/relay/可见性/搜索/LLM/状态存储；REL-A03 未逐行注入十类故障 |
 | REL-060 行为契约带版本 | aligned | schema_version=2 |
 | REL-061 语义保持 | aligned | 契约稳定 |
+
+生产迁移由 `production-migration-backup`、`production-migrate`、`production-migration-check` 三个显式
+阶段承载。破坏性 Assistant v3 重置的确认值只有在独立备份命令生成并验证两个 gzip dump 后才输出，
+且绑定 manifest SHA-256；apply 会重新验证 target server UUID、patch checksum、文件 checksum 与内容
+标记。`production-up` 只执行 check，不自动应用补丁。
 
 ## 验收标准追踪
 

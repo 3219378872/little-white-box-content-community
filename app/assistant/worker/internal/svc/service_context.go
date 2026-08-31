@@ -10,6 +10,7 @@ import (
 	"esx/app/assistant/internal/lease"
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/memory"
+	"esx/app/assistant/internal/retention"
 	"esx/app/assistant/internal/runtime"
 	"esx/app/assistant/internal/safety"
 	"esx/app/assistant/internal/store"
@@ -31,15 +32,16 @@ import (
 )
 
 type ServiceContext struct {
-	Config  config.Config
-	Store   store.Store
-	Memory  memory.Store
-	Watch   watch.Store
-	Lease   *lease.Manager
-	Engine  *runtime.Engine
-	Index   *index.Client
-	LLM     llm.Client
-	Consent runtime.ConsentChecker
+	Config    config.Config
+	Store     store.Store
+	Memory    memory.Store
+	Watch     watch.Store
+	Lease     *lease.Manager
+	Engine    *runtime.Engine
+	Index     *index.Client
+	LLM       llm.Client
+	Consent   runtime.ConsentChecker
+	Retention *retention.Cleaner
 }
 
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
@@ -51,12 +53,14 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	}
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
+	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
 		conf.Middlewares.Duration = false
 		return zrpc.MustNewClient(conf,
 			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
 			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
+			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
 		)
 	}
 	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))
@@ -149,6 +153,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		Config: c, Store: st, Memory: mem, Watch: watchStore,
 		Lease:  &lease.Manager{Store: st, Owner: lease.NewOwner(c.Name), Lease: time.Duration(c.LeaseSeconds) * time.Second, Renew: time.Duration(c.RenewSeconds) * time.Second},
 		Engine: engine, Index: history, LLM: client,
+		Retention: retention.New(st),
 		Consent: func(ctx context.Context, userID int64) (bool, error) {
 			consent, err := userService.GetAgentCapabilityConsent(ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})
 			if err != nil {

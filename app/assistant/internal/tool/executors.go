@@ -787,16 +787,18 @@ func updateWatchTaskExecutor(w watch.Store) executorFunc {
 			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
 		var args struct {
-			ID      int64 `json:"id"`
-			Enabled bool  `json:"enabled"`
+			ID              int64 `json:"id"`
+			Enabled         bool  `json:"enabled"`
+			ExpectedVersion int32 `json:"expected_version"`
 		}
-		if err := strictUnmarshal(argsJSON, &args); err != nil {
+		if err := strictUnmarshal(argsJSON, &args); err != nil || args.ID <= 0 || args.ExpectedVersion <= 0 {
 			return "", nil, errx.New(errx.ParamError, "update_watch_task arguments are invalid")
 		}
-		if err := w.UpdateEnabled(ctx, session.UserID, args.ID, args.Enabled); err != nil {
+		updated, err := w.UpdateEnabled(ctx, session.UserID, args.ID, args.Enabled, args.ExpectedVersion)
+		if err != nil {
 			return "", nil, err
 		}
-		return "追踪已更新。", nil, nil
+		return fmt.Sprintf("追踪已更新: id=%d version=%d。", args.ID, updated.Version), nil, nil
 	}
 }
 
@@ -806,12 +808,13 @@ func deleteWatchTaskExecutor(w watch.Store) executorFunc {
 			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
 		var args struct {
-			ID int64 `json:"id"`
+			ID              int64 `json:"id"`
+			ExpectedVersion int32 `json:"expected_version"`
 		}
-		if err := strictUnmarshal(argsJSON, &args); err != nil {
+		if err := strictUnmarshal(argsJSON, &args); err != nil || args.ID <= 0 || args.ExpectedVersion <= 0 {
 			return "", nil, errx.New(errx.ParamError, "delete_watch_task arguments are invalid")
 		}
-		if err := w.Delete(ctx, session.UserID, args.ID); err != nil {
+		if err := w.Delete(ctx, session.UserID, args.ID, args.ExpectedVersion); err != nil {
 			if session.Recovery && errx.Is(err, errx.NotFound) {
 				return "追踪已删除。", nil, nil
 			}

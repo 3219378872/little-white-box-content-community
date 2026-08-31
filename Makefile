@@ -24,7 +24,7 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 	coverage-no-gate integration-critical integration-init integration-run \
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
 	algorithm-test spec-evals-test model-pipeline-integration performance-gateway python-unit \
-	fault-injection-recommend production-config production-build production-migrate \
+	fault-injection-recommend production-config production-build production-migration-backup production-migration-check production-migrate \
 	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic \
 	gen-eval-posts
 
@@ -139,12 +139,18 @@ production-config: ## Render and validate the production Compose project
 production-build: ## Build production Go and algorithm service images
 	$(PRODUCTION_COMPOSE) build $(PRODUCTION_BUILD_ARGS)
 
+production-migration-backup: ## Prepare and verify the destructive Assistant migration backup
+	PRODUCTION_ENV_FILE="$(PRODUCTION_ENV_FILE)" scripts/apply_production_sql_patches.sh --prepare-destructive-backup
+
 production-migrate: ## Replay idempotent MySQL patches against the production volume
 	PRODUCTION_ENV_FILE="$(PRODUCTION_ENV_FILE)" scripts/apply_production_sql_patches.sh
 
+production-migration-check: ## Fail when production SQL patches are pending or changed
+	PRODUCTION_ENV_FILE="$(PRODUCTION_ENV_FILE)" scripts/apply_production_sql_patches.sh --check
+
 production-up: ## Start the production-like stack
 	$(PRODUCTION_COMPOSE) build $(PRODUCTION_BUILD_ARGS)
-	$(MAKE) production-migrate PRODUCTION_ENV_FILE="$(PRODUCTION_ENV_FILE)"
+	$(MAKE) production-migration-check PRODUCTION_ENV_FILE="$(PRODUCTION_ENV_FILE)"
 	$(PRODUCTION_COMPOSE) up -d --wait
 
 production-down: ## Stop the production-like stack without deleting volumes

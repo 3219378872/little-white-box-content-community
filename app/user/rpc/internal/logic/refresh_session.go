@@ -5,6 +5,7 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	"esx/pkg/jwtx"
 	"fmt"
+	"strconv"
 
 	"esx/pkg/errx"
 
@@ -14,6 +15,18 @@ import (
 // refreshKeyPrefix 刷新令牌 jti 白名单键前缀；值为所属用户 ID，
 // 用于轮换时校验归属并使旧令牌一次性失效。
 const refreshKeyPrefix = "auth:refresh:"
+
+const consumeRefreshJTIScript = `
+local current = redis.call('GET', KEYS[1])
+if not current then
+  return 0
+end
+if current ~= ARGV[1] then
+  return -1
+end
+redis.call('DEL', KEYS[1])
+return 1
+`
 
 // issueTokenPair 签发访问/刷新令牌对，并把新 refresh token 的 jti
 // 写入 Redis 白名单（TTL 与令牌有效期一致）。
@@ -70,22 +83,39 @@ func rotateRefreshToken(ctx context.Context, svcCtx *svc.ServiceContext, oldRefr
 		return "", "", errx.NewWithCode(errx.SystemError)
 	}
 	key := refreshJTIKey(claims.ID)
-	stored, err := svcCtx.RedisClient.GetCtx(ctx, key)
+	wantOwner := strconv.FormatInt(claims.UserId, 10)
+	result, err := svcCtx.RedisClient.EvalCtx(ctx, consumeRefreshJTIScript, []string{key}, wantOwner)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("load refresh jti failed",
+		logx.WithContext(ctx).Errorw("consume refresh jti failed",
 			logx.Field("err", err.Error()))
 		return "", "", errx.Wrap(err, errx.SystemError)
 	}
-	if stored == "" || stored != fmt.Sprintf("%d", claims.UserId) {
+	consumed, err := redisInteger(result)
+	if err != nil {
+		logx.WithContext(ctx).Errorw("consume refresh jti returned unexpected result",
+			logx.Field("err", err.Error()))
+		return "", "", errx.Wrap(err, errx.SystemError)
+	}
+	if consumed != 1 {
 		// jti 已被轮换消费或与声明归属不符：疑似重放，拒绝。
 		return "", "", errx.NewWithCode(errx.LoginRequired)
 	}
-	if _, err := svcCtx.RedisClient.DelCtx(ctx, key); err != nil {
-		logx.WithContext(ctx).Errorw("delete rotated refresh jti failed",
-			logx.Field("err", err.Error()))
-		return "", "", errx.Wrap(err, errx.SystemError)
-	}
 	return issueTokenPair(ctx, svcCtx, claims.UserId, claims.Username)
+}
+
+func redisInteger(value any) (int64, error) {
+	switch typed := value.(type) {
+	case int64:
+		return typed, nil
+	case int:
+		return int64(typed), nil
+	case string:
+		return strconv.ParseInt(typed, 10, 64)
+	case []byte:
+		return strconv.ParseInt(string(typed), 10, 64)
+	default:
+		return 0, fmt.Errorf("unexpected Redis integer type %T", value)
+	}
 }
 
 func refreshJTIKey(jti string) string {

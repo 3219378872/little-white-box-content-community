@@ -37,6 +37,7 @@ func main() {
 	defer ticker.Stop()
 	indexTicker := time.NewTicker(2 * time.Second)
 	defer indexTicker.Stop()
+	go runRetention(ctx, svcCtx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -59,6 +60,33 @@ func main() {
 			go svcCtx.Lease.RenewLoop(runCtx, *run, runCancel)
 			svcCtx.Engine.Execute(runCtx, *run, recovered)
 			runCancel()
+		}
+	}
+}
+
+func runRetention(ctx context.Context, svcCtx *svc.ServiceContext) {
+	run := func() {
+		result, err := svcCtx.Retention.RunOnce(ctx)
+		if err != nil {
+			logx.WithContext(ctx).Errorw("assistant retention cleanup failed", logx.Field("err", err.Error()))
+			return
+		}
+		if result.Messages+result.WatchHits+result.WatchExecutions > 0 {
+			logx.WithContext(ctx).Infow("assistant retention cleanup completed",
+				logx.Field("messages", result.Messages),
+				logx.Field("watch_hits", result.WatchHits),
+				logx.Field("watch_executions", result.WatchExecutions))
+		}
+	}
+	run()
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
 		}
 	}
 }

@@ -110,6 +110,70 @@ func TestInternalAuthClientInterceptorSignsOutgoing(t *testing.T) {
 	}
 }
 
+type internalAuthTestServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *internalAuthTestServerStream) Context() context.Context { return s.ctx }
+
+func TestInternalAuthStreamServerInterceptor(t *testing.T) {
+	ts := time.Now().Unix()
+	valid := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		internalTimestampMetadataKey, strconv.FormatInt(ts, 10),
+		internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", ts),
+	))
+	called := false
+	handler := func(any, grpc.ServerStream) error {
+		called = true
+		return nil
+	}
+	inter := InternalAuthStreamServerInterceptor("test-secret")
+	if err := inter(nil, &internalAuthTestServerStream{ctx: valid},
+		&grpc.StreamServerInfo{FullMethod: "/media.MediaService/UploadImage"}, handler); err != nil {
+		t.Fatalf("valid stream signature rejected: %v", err)
+	}
+	if !called {
+		t.Fatal("valid stream did not reach handler")
+	}
+
+	called = false
+	err := inter(nil, &internalAuthTestServerStream{ctx: context.Background()},
+		&grpc.StreamServerInfo{FullMethod: "/media.MediaService/UploadImage"}, handler)
+	if status.Code(err) != codes.Unauthenticated {
+		t.Fatalf("unsigned stream: got %v want Unauthenticated", err)
+	}
+	if called {
+		t.Fatal("unsigned stream reached handler")
+	}
+}
+
+func TestInternalAuthStreamClientInterceptorSignsOutgoing(t *testing.T) {
+	var captured metadata.MD
+	streamer := func(ctx context.Context, _ *grpc.StreamDesc, _ *grpc.ClientConn,
+		_ string, _ ...grpc.CallOption) (grpc.ClientStream, error) {
+		captured, _ = metadata.FromOutgoingContext(ctx)
+		return nil, nil
+	}
+	_, err := InternalAuthStreamClientInterceptor("test-secret")(
+		context.Background(), &grpc.StreamDesc{}, nil, "/assistant.AssistantService/SubscribeRunEvents", streamer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := captured.Get(internalTimestampMetadataKey)
+	sigs := captured.Get(internalSignatureMetadataKey)
+	if len(ts) != 1 || len(sigs) != 1 {
+		t.Fatalf("outgoing stream metadata missing credentials: %v", captured)
+	}
+	unix, err := strconv.ParseInt(ts[0], 10, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sigs[0] != SignInternalAuthPayload("test-secret", unix) {
+		t.Fatal("stream signature does not match expected HMAC")
+	}
+}
+
 func TestInternalAuthEmptySecretPanics(t *testing.T) {
 	defer func() {
 		if recover() == nil {

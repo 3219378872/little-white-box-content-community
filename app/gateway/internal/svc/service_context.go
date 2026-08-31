@@ -52,6 +52,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	traceInterceptor := interceptor.TraceIDUnaryInterceptor()
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
+	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)
 
 	withInternalAuth := func(opts ...zrpc.ClientOption) []zrpc.ClientOption {
 		return append([]zrpc.ClientOption{
@@ -59,6 +60,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			zrpc.WithUnaryClientInterceptor(traceInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
 			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
+			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
 		}, opts...)
 	}
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {

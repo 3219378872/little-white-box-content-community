@@ -14,10 +14,11 @@ type MediaDeletedEvent struct {
 	S3ObjectKey string `json:"s3_object_key"`
 	Bucket      string `json:"bucket"`
 	DeletedAt   int64  `json:"deleted_at"`
+	Reason      string `json:"reason,omitempty"`
 }
 
 func (e MediaDeletedEvent) Validate() error {
-	if e.MediaID <= 0 {
+	if e.MediaID <= 0 && e.Reason != "upload_compensation" {
 		return fmt.Errorf("event: media_id is required")
 	}
 	if e.S3ObjectKey == "" {

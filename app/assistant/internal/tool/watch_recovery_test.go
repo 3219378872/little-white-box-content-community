@@ -29,7 +29,7 @@ func TestWatchSideEffectsReconcileCommittedRecovery(t *testing.T) {
 	if err != nil || len(tasks) != 1 {
 		t.Fatalf("tasks=%+v err=%v", tasks, err)
 	}
-	deleteArgs := `{"id":1}`
+	deleteArgs := `{"id":1,"expected_version":1}`
 	session.Recovery = false
 	if _, _, err := registry.Call(ctx, session, DeleteWatchTask, "delete-call", deleteArgs); err != nil {
 		t.Fatal(err)

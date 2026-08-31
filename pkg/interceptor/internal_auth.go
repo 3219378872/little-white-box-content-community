@@ -53,6 +53,39 @@ func internalAuthExemptMethod(method string) bool {
 		strings.HasPrefix(method, "/grpc.reflection.")
 }
 
+func validateInternalAuth(ctx context.Context, secret string) error {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "internal auth metadata missing")
+	}
+	timestamps := md.Get(internalTimestampMetadataKey)
+	signatures := md.Get(internalSignatureMetadataKey)
+	if len(timestamps) != 1 || len(signatures) != 1 {
+		return status.Error(codes.Unauthenticated, "internal auth credentials missing")
+	}
+
+	ts, err := strconv.ParseInt(timestamps[0], 10, 64)
+	if err != nil {
+		return status.Error(codes.Unauthenticated, "internal auth timestamp malformed")
+	}
+	if skew := time.Since(time.Unix(ts, 0)); skew > internalAuthMaxClockSkew || skew < -internalAuthMaxClockSkew {
+		return status.Error(codes.Unauthenticated, "internal auth timestamp expired")
+	}
+
+	if !hmac.Equal([]byte(internalSignature(secret, timestamps[0])), []byte(signatures[0])) {
+		return status.Error(codes.PermissionDenied, "internal auth signature mismatch")
+	}
+	return nil
+}
+
+func signInternalAuthContext(ctx context.Context, secret string) context.Context {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	return metadata.AppendToOutgoingContext(ctx,
+		internalTimestampMetadataKey, timestamp,
+		internalSignatureMetadataKey, internalSignature(secret, timestamp),
+	)
+}
+
 // InternalAuthUnaryServerInterceptor 校验入站请求的内部签名；
 // 缺失、过期或签名不符一律拒绝。secret 为空时启动即失败。
 func InternalAuthUnaryServerInterceptor(secret string) grpc.UnaryServerInterceptor {
@@ -64,28 +97,27 @@ func InternalAuthUnaryServerInterceptor(secret string) grpc.UnaryServerIntercept
 			return handler(ctx, req)
 		}
 
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return nil, status.Error(codes.Unauthenticated, "internal auth metadata missing")
-		}
-		timestamps := md.Get(internalTimestampMetadataKey)
-		signatures := md.Get(internalSignatureMetadataKey)
-		if len(timestamps) != 1 || len(signatures) != 1 {
-			return nil, status.Error(codes.Unauthenticated, "internal auth credentials missing")
-		}
-
-		ts, err := strconv.ParseInt(timestamps[0], 10, 64)
-		if err != nil {
-			return nil, status.Error(codes.Unauthenticated, "internal auth timestamp malformed")
-		}
-		if skew := time.Since(time.Unix(ts, 0)); skew > internalAuthMaxClockSkew || skew < -internalAuthMaxClockSkew {
-			return nil, status.Error(codes.Unauthenticated, "internal auth timestamp expired")
-		}
-
-		if !hmac.Equal([]byte(internalSignature(secret, timestamps[0])), []byte(signatures[0])) {
-			return nil, status.Error(codes.PermissionDenied, "internal auth signature mismatch")
+		if err := validateInternalAuth(ctx, secret); err != nil {
+			return nil, err
 		}
 		return handler(ctx, req)
+	}
+}
+
+// InternalAuthStreamServerInterceptor applies the same internal HMAC boundary
+// to client- and server-streaming RPCs. Unary interceptors do not run for
+// streams, so streaming services must install both variants.
+func InternalAuthStreamServerInterceptor(secret string) grpc.StreamServerInterceptor {
+	requireInternalSecret(secret)
+
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if internalAuthExemptMethod(info.FullMethod) {
+			return handler(srv, stream)
+		}
+		if err := validateInternalAuth(stream.Context(), secret); err != nil {
+			return err
+		}
+		return handler(srv, stream)
 	}
 }
 
@@ -99,12 +131,22 @@ func InternalAuthUnaryClientInterceptor(secret string) grpc.UnaryClientIntercept
 		if internalAuthExemptMethod(method) {
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
-		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		ctx = metadata.AppendToOutgoingContext(ctx,
-			internalTimestampMetadataKey, timestamp,
-			internalSignatureMetadataKey, internalSignature(secret, timestamp),
-		)
-		return invoker(ctx, method, req, reply, cc, opts...)
+		return invoker(signInternalAuthContext(ctx, secret), method, req, reply, cc, opts...)
+	}
+}
+
+// InternalAuthStreamClientInterceptor signs the initial metadata used to open
+// a gRPC stream. The signature is verified before the server exposes the
+// stream to application code.
+func InternalAuthStreamClientInterceptor(secret string) grpc.StreamClientInterceptor {
+	requireInternalSecret(secret)
+
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
+		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		if !internalAuthExemptMethod(method) {
+			ctx = signInternalAuthContext(ctx, secret)
+		}
+		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
 

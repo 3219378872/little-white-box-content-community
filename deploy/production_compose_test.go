@@ -26,6 +26,7 @@ type composeService struct {
 	Ports       []composePort                `json:"ports"`
 	Profiles    []string                     `json:"profiles"`
 	Volumes     []composeVolume              `json:"volumes"`
+	MemLimit    json.RawMessage              `json:"mem_limit"`
 }
 
 type composeBuild struct {
@@ -93,6 +94,14 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 
 	nginx := project.Services["nginx"]
+	for serviceName, service := range project.Services {
+		if serviceName == "nginx" {
+			continue
+		}
+		if len(service.Ports) != 0 {
+			t.Errorf("production service %q publishes host ports: %+v", serviceName, service.Ports)
+		}
+	}
 	for _, gateway := range []string{"gateway-a", "gateway-b"} {
 		dependency, ok := nginx.DependsOn[gateway]
 		if !ok || dependency.Condition != "service_healthy" {
@@ -139,6 +148,9 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 	if _, ok := project.Services["assistant-agent"]; !ok {
 		t.Error("production assistant-agent worker is missing")
+	}
+	if limit := string(project.Services["media-rpc"].MemLimit); limit != `"536870912"` && limit != `536870912` {
+		t.Errorf("production media-rpc mem_limit=%s, want 512 MiB", limit)
 	}
 	watch := project.Services["assistant-watch-consumer"]
 	if watch.Environment["ETCD_ENDPOINT"] == "" || watch.Environment["RPC_INTERNAL_SECRET"] == "" {
@@ -205,6 +217,7 @@ func TestProductionNginxMountsTLSAndStaticAssetsReadOnly(t *testing.T) {
 		"/etc/nginx/tls/tls.key",
 		"/srv/www",
 		"/etc/nginx/nginx.conf",
+		"/etc/nginx/security-headers.conf",
 	} {
 		volume, ok := targets[target]
 		if !ok {

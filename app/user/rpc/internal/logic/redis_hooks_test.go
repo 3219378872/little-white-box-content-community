@@ -14,10 +14,20 @@ type flakyRedis struct {
 	*memoryRedis
 	onGet     func(key string) error
 	onDel     func(keys ...string) error
+	onEval    func(keys []string, args ...any) error
 	onSetex   func(key string) error
 	onSetnxEx func(key string) error
 	onIncr    func(key string) error
 	onExpire  func(key string) error
+}
+
+func (r *flakyRedis) EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error) {
+	if r.onEval != nil {
+		if err := r.onEval(keys, args...); err != nil {
+			return nil, err
+		}
+	}
+	return r.memoryRedis.EvalCtx(ctx, script, keys, args...)
 }
 
 func (r *flakyRedis) GetCtx(ctx context.Context, key string) (string, error) {

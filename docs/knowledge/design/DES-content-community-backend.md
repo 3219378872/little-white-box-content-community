@@ -99,6 +99,11 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 赞/评/关通知生产者。`message-push` 消费者不是当前产品路径，部署可不启动；主题保留不
 构成对外能力。
 
+媒体图片在读取完整像素前用标准图片头解析校验 `8192 px / 25 MP`，每个 media-rpc 实例用容量 2 的
+信号量覆盖完整解码、缩放和编码生命周期，生产容器限制为 512 MiB。对象上传先于权威行提交时，任一
+后续步骤失败或幂等命中都删除本次随机对象；立即删除失败则写现有 media-delete outbox，由清理消费者
+幂等重试，避免无数据库引用的对象静默累积。
+
 ### 行为与隐私
 
 Gateway 接收白名单动作。曝光的 50%/1s 由客户端判定，服务端只强制 `(requestId, postId)`
@@ -143,3 +148,19 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 落地，每个改动的 Logic 至少一条失败路径。DISC-A06 需要人类冻结集，REL-A05 需要真实观测；
 两者由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。Hermes Agent 的异步恢复、compact、
 历史召回和来源 ledger 以 `AGENT-A01~A06` 验收，当前实现尚未关闭这些新门禁。
+
+## 生产部署与迁移
+
+开发中间件宿主端口只绑定回环地址。production overlay 清空中间件和内部服务继承的 host ports，只有
+Nginx 发布 HTTP/HTTPS；边缘统一设置 CSP、HSTS、nosniff、Referrer-Policy 和 frame protection，入口
+HTML/启动脚本禁缓存，带内容指纹的静态资产长期 immutable。
+
+生产 SQL 严格分成 `production-migrate` 与 `production-up` 两阶段。迁移命令绑定预期 MySQL
+`server_uuid`，以补丁名和 SHA-256 写独立 ledger，已登记补丁内容变化立即失败。首次缺少
+`assistant_runtime_v3` marker 的破坏性重置必须先用独立命令分别备份并校验 `xbh_assistant` 与 Agent
+consent；准备命令只写备份、不执行 SQL，并输出绑定 target UUID、patch checksum 与备份 manifest
+SHA-256 的精确确认值。后续 `production-migrate` 重新验证文件、内容标记和 checksum 后才接受该值；
+`production-up` 只检查 pending/checksum，存在待迁移项时失败，不代替操作员迁移。
+
+MySQL 空卷只白名单挂载 MySQL schema，ClickHouse schema 不进入 MySQL initdb；健康检查必须带配置的
+root 凭据完成真实认证，不能把 Access denied 当作健康。

@@ -34,6 +34,7 @@ func main() {
 		}
 	})
 	s.AddUnaryInterceptors(interceptor.InternalAuthUnaryServerInterceptor(c.InternalSecret))
+	s.AddStreamInterceptors(interceptor.InternalAuthStreamServerInterceptor(c.InternalSecret))
 	defer s.Stop()
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)

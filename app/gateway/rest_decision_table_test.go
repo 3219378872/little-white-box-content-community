@@ -566,8 +566,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ASSISTANT-MEMORY-REPLACE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"content":"rpg","version":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-MEMORY-REMOVE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1?version=1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-WATCH-CREATE-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{"conditionType":"author_new_post","targetType":"author","targetId":2}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false,"expectedVersion":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
+		{id: "ASSISTANT-WATCH-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"expectedVersion":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-RECOMMEND-FEEDBACK-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{"postId":11,"reason":"not_interested"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 	}
 
@@ -646,6 +646,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "ASSISTANT-MEMORY-REMOVE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-UPDATE-MISSING-VERSION", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-WATCH-DELETE-MISSING-VERSION", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/watch/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-RECOMMEND-FEEDBACK-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 	)

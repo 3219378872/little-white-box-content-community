@@ -5,6 +5,7 @@ import (
 	"esx/app/media/rpc/internal/model"
 	"esx/pkg/errx"
 	"esx/pkg/idempotencyx"
+	"esx/pkg/outboxx"
 	"strings"
 	"testing"
 	"time"
@@ -123,9 +124,14 @@ func TestUploadImageLogic_IdempotentRetryToleratesOrphanDeleteFailure(t *testing
 	ctx := context.Background()
 	data := unitTestJPEG(t, 16, 16)
 	store := &unitObjectStorage{failDeletes: true}
+	var cleanupEvents []outboxx.Event
 	commandModel := &fakeMediaCommandModel{
 		createMediaFn: func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
 			return model.MediaCommandResult{MediaID: 43, Created: false}, nil
+		},
+		enqueueObjectCleanupFn: func(ctx context.Context, event outboxx.Event) error {
+			cleanupEvents = append(cleanupEvents, event)
+			return nil
 		},
 	}
 	mediaModel := &fakeMediaModel{
@@ -136,10 +142,15 @@ func TestUploadImageLogic_IdempotentRetryToleratesOrphanDeleteFailure(t *testing
 
 	stream := unitImageStreamFromBytes(ctx, 4003, "again.jpg", "idem-retry-2", data, 256)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), mediaModel, commandModel, store))
-	// 孤儿对象删除失败只告警，不影响已提交的成功响应（CORE-053）。
+	// 孤儿对象删除失败不影响已提交的成功响应，并进入可靠 outbox。
 	require.NoError(t, l.UploadImage(stream))
 	require.NotNil(t, stream.resp)
 	assert.Equal(t, "kept.jpg", stream.resp.Media.FileName)
+	require.Len(t, cleanupEvents, 2)
+	for _, queued := range cleanupEvents {
+		assert.NotEmpty(t, queued.Payload)
+		assert.NotEmpty(t, queued.Key)
+	}
 }
 
 func TestUploadImageLogic_RetryFindExistingFailed(t *testing.T) {
@@ -202,6 +213,16 @@ func TestUploadImageLogic_CompressFailed(t *testing.T) {
 	assert.Empty(t, store.putCalls)
 }
 
+func TestUploadImageLogic_RejectsOversizedPixelDimensionsBeforeDecode(t *testing.T) {
+	ctx := context.Background()
+	data := unitOversizedPNGHeader(5001, 5000)
+	store := &unitObjectStorage{}
+	stream := unitImageStreamFromBytes(ctx, 4007, "oversized.png", "idem-pixels", data, 512)
+	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, &fakeMediaCommandModel{}, store))
+	unitAssertBiz(t, l.UploadImage(stream), errx.FileTooLarge)
+	assert.Empty(t, store.putCalls)
+}
+
 func TestUploadImageLogic_PutOriginalFailed(t *testing.T) {
 	ctx := context.Background()
 	data := unitTestJPEG(t, 16, 16)
@@ -219,9 +240,9 @@ func TestUploadImageLogic_PutThumbnailFailed(t *testing.T) {
 	stream := unitImageStreamFromBytes(ctx, 4009, "fail-thumb.jpg", "idem-put2", data, 256)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, &fakeMediaCommandModel{}, store))
 	unitAssertBiz(t, l.UploadImage(stream), errx.UploadFailed)
-	// 原图已上传成功、缩略图失败：不做补偿删除（与现有实现一致）。
+	// 原图已上传成功、缩略图失败：立即补偿删除原图。
 	assert.Len(t, store.putCalls, 1)
-	assert.Empty(t, store.deleteKeys)
+	assert.Equal(t, store.putCalls[0].objectKey, store.deleteKeys[0])
 }
 
 func TestUploadImageLogic_CreateMediaIdempotencyConflict(t *testing.T) {
@@ -237,9 +258,9 @@ func TestUploadImageLogic_CreateMediaIdempotencyConflict(t *testing.T) {
 	stream := unitImageStreamFromBytes(ctx, 4010, "conflict.jpg", "idem-conflict", data, 256)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, commandModel, store))
 	unitAssertBiz(t, l.UploadImage(stream), errx.IdempotencyConflict)
-	// 上传已完成但落库被拒：对象保留（由清理任务兜底），不做删除。
+	// 上传已完成但落库被拒：两个未提交对象都立即补偿删除。
 	assert.Len(t, store.putCalls, 2)
-	assert.Empty(t, store.deleteKeys)
+	assert.Len(t, store.deleteKeys, 2)
 }
 
 func TestUploadImageLogic_CreateMediaUnexpectedError(t *testing.T) {
@@ -255,6 +276,7 @@ func TestUploadImageLogic_CreateMediaUnexpectedError(t *testing.T) {
 	stream := unitImageStreamFromBytes(ctx, 4011, "dberr.jpg", "idem-dberr", data, 256)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, commandModel, store))
 	unitAssertBiz(t, l.UploadImage(stream), errx.SystemError)
+	assert.Len(t, store.deleteKeys, 2)
 }
 
 func TestUploadImageLogic_CommandModelMissing(t *testing.T) {
@@ -265,7 +287,7 @@ func TestUploadImageLogic_CommandModelMissing(t *testing.T) {
 	stream := unitImageStreamFromBytes(ctx, 4012, "nomodel.jpg", "idem-nomodel", data, 256)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, nil, store))
 	unitAssertBiz(t, l.UploadImage(stream), errx.SystemError)
-	assert.NotEmpty(t, store.putCalls)
+	assert.Empty(t, store.putCalls)
 }
 
 func TestUploadImageLogic_TempSinkUnavailable(t *testing.T) {

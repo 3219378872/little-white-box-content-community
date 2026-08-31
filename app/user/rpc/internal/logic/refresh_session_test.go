@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"esx/app/user/rpc/internal/svc"
@@ -76,4 +78,41 @@ func TestRotateRefreshToken(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, errx.Is(err, errx.LoginRequired), "access token must not refresh, got %v", err)
 	})
+}
+
+func TestRotateRefreshTokenConcurrentReplayOnlyOneSucceeds(t *testing.T) {
+	svcCtx, _ := refreshTestSvcCtx()
+	_, oldRefresh, err := issueTokenPair(context.Background(), svcCtx, 23, "parallel")
+	require.NoError(t, err)
+
+	const callers = 32
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	var succeeded atomic.Int32
+	var rejected atomic.Int32
+	errs := make(chan error, callers)
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, _, rotateErr := rotateRefreshToken(context.Background(), svcCtx, oldRefresh)
+			switch {
+			case rotateErr == nil:
+				succeeded.Add(1)
+			case errx.Is(rotateErr, errx.LoginRequired):
+				rejected.Add(1)
+			default:
+				errs <- rotateErr
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for rotateErr := range errs {
+		t.Errorf("unexpected rotation error: %v", rotateErr)
+	}
+	assert.Equal(t, int32(1), succeeded.Load())
+	assert.Equal(t, int32(callers-1), rejected.Load())
 }

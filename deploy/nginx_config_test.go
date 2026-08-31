@@ -36,6 +36,9 @@ func TestNginxProductionRoutingContract(t *testing.T) {
 		"proxy_pass http://gateway_backend/api/v1/health",
 		"root /srv/www",
 		"try_files $uri $uri/ /index.html",
+		"include /etc/nginx/security-headers.conf",
+		"no-store, no-cache, must-revalidate",
+		"public, max-age=31536000, immutable",
 	}
 	for _, fragment := range required {
 		if !strings.Contains(config, fragment) {
@@ -47,5 +50,18 @@ func TestNginxProductionRoutingContract(t *testing.T) {
 	}
 	if strings.Contains(config, "$proxy_add_x_forwarded_for") {
 		t.Fatal("production edge must overwrite client-supplied X-Forwarded-For")
+	}
+	headers, err := os.ReadFile("nginx/security-headers.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{
+		"Content-Security-Policy", "worker-src 'self' blob:", "frame-ancestors 'none'",
+		"Strict-Transport-Security", "X-Content-Type-Options", "nosniff",
+		"Referrer-Policy", "X-Frame-Options", "Permissions-Policy",
+	} {
+		if !strings.Contains(string(headers), fragment) {
+			t.Errorf("security header config is missing %q", fragment)
+		}
 	}
 }

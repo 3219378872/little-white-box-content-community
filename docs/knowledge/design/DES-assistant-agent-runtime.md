@@ -56,11 +56,12 @@ assistant-watch matcher
 - `agent_command_journal`：`UNIQUE(user_id, request_id, tool, canonical_args_digest)`，缓存副作用结果。
 - `core_memory_entry` / `memory_change`：双 target 自然语言条目、version、变更前后快照。
 - `assistant_index_outbox`：message upsert/delete 到 ES；MySQL 消息永远是回源权威。
-- Watch task/execution/hit 保留；hit 只作内部 bucket 输入与 90 天审计。
+- Watch task 保留；execution/hit 只作内部 bucket 输入与 90 天审计，到期分批物理删除。
 
 破坏性迁移用 `assistant_runtime_v3` marker：首次执行清空并重建 `xbh_assistant`，清空 user 库 Agent
-consent、旧 Redis namespace 与旧 ES 索引；marker 提交后重复 patch 不再清理。社区、普通私信和用户
-主体表不在清理集合。
+consent；marker 提交后重复 patch 不再清理。生产执行前必须绑定 MySQL `server_uuid`，分别备份并验证
+Assistant 库与 consent，且提供精确确认值；补丁名和 SHA-256 写迁移 ledger。社区、普通私信和用户主体
+表不在清理集合。Redis namespace 与 ES 派生索引按独立运维步骤治理，SQL patch 不虚假宣称跨存储清理。
 
 ## 接收、并发与输入处置
 
@@ -121,7 +122,8 @@ compact 优先以上一次 provider prompt usage 为锚点，只估算后续新�
 一 token、非 ASCII 至少一字符一 token。达到窗口 50% 后选择最新 20% token、所有未完成 tool/confirm，
 以及当前 Watch 的隐藏 `watch_input` sidecar；摘要模型接收预算内的完整消息。压缩结果必须比输入小并
 低于目标阈值，否则保留原消息并明确失败。事务成功后才提交摘要、新 prompt epoch/sidecar/capability
-快照和 compact 标志。原 message 保留并通过 outbox 可检索。
+快照和 compact 标志。原 message 在 365 天保留期内通过 outbox 可检索；worker 启动及每小时执行有界
+批次清理，物理删除与 ES delete outbox 同事务，旧 upsert payload 同时移除。
 隐藏 sidecar（工具轮与 Watch 注入）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
 
 ## Memory Review

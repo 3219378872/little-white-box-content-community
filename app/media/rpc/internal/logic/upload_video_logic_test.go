@@ -150,7 +150,7 @@ func TestUploadVideoLogic_CreateMediaIdempotencyConflict(t *testing.T) {
 	l := NewUploadVideoLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, commandModel, store))
 	unitAssertBiz(t, l.UploadVideo(stream), errx.IdempotencyConflict)
 	assert.Len(t, store.putCalls, 1)
-	assert.Empty(t, store.deleteKeys)
+	assert.Len(t, store.deleteKeys, 1)
 }
 
 func TestUploadVideoLogic_CreateMediaUnexpectedError(t *testing.T) {
@@ -165,6 +165,7 @@ func TestUploadVideoLogic_CreateMediaUnexpectedError(t *testing.T) {
 	stream := unitVideoStreamFromBytes(ctx, 5007, "dberr.mp4", "idem-vdberr", unitTestMP4(), 64)
 	l := NewUploadVideoLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, commandModel, store))
 	unitAssertBiz(t, l.UploadVideo(stream), errx.SystemError)
+	assert.Len(t, store.deleteKeys, 1)
 }
 
 func TestUploadVideoLogic_CommandModelMissing(t *testing.T) {
@@ -174,7 +175,7 @@ func TestUploadVideoLogic_CommandModelMissing(t *testing.T) {
 	stream := unitVideoStreamFromBytes(ctx, 5008, "nomodel.mp4", "idem-vnomodel", unitTestMP4(), 64)
 	l := NewUploadVideoLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, nil, store))
 	unitAssertBiz(t, l.UploadVideo(stream), errx.SystemError)
-	assert.NotEmpty(t, store.putCalls)
+	assert.Empty(t, store.putCalls)
 }
 
 func TestUploadVideoLogic_TempSinkUnavailable(t *testing.T) {

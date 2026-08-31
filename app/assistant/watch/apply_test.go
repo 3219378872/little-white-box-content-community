@@ -28,7 +28,7 @@ func TestApplyPostEventRecordsHitsAndDedupes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.UpdateEnabled(t.Context(), 9, disabled.ID, false); err != nil {
+	if _, err := store.UpdateEnabled(t.Context(), 9, disabled.ID, false, disabled.Version); err != nil {
 		t.Fatal(err)
 	}
 

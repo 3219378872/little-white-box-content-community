@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 
 	"esx/app/user/rpc/internal/model"
@@ -43,15 +44,20 @@ func (s *memoryPersonalizationStore) Upsert(_ context.Context, pref *model.Perso
 
 type memoryRedis struct {
 	*redis.Redis
+	mu     sync.Mutex
 	values map[string]string
 }
 
 func (r *memoryRedis) SetexCtx(_ context.Context, key, value string, seconds int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.values[key] = value
 	return nil
 }
 
 func (r *memoryRedis) DelCtx(_ context.Context, keys ...string) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	for _, key := range keys {
 		delete(r.values, key)
 	}
@@ -59,10 +65,35 @@ func (r *memoryRedis) DelCtx(_ context.Context, keys ...string) (int, error) {
 }
 
 func (r *memoryRedis) GetCtx(_ context.Context, key string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return r.values[key], nil
 }
 
+func (r *memoryRedis) EvalCtx(_ context.Context, _ string, keys []string, args ...any) (any, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(keys) != 1 || len(args) != 1 {
+		return nil, errors.New("memory redis: invalid eval arguments")
+	}
+	want, ok := args[0].(string)
+	if !ok {
+		return nil, errors.New("memory redis: invalid eval owner")
+	}
+	current, exists := r.values[keys[0]]
+	if !exists {
+		return int64(0), nil
+	}
+	if current != want {
+		return int64(-1), nil
+	}
+	delete(r.values, keys[0])
+	return int64(1), nil
+}
+
 func (r *memoryRedis) SetnxExCtx(_ context.Context, key, value string, _ int) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if _, exists := r.values[key]; exists {
 		return false, nil
 	}
@@ -71,6 +102,8 @@ func (r *memoryRedis) SetnxExCtx(_ context.Context, key, value string, _ int) (b
 }
 
 func (r *memoryRedis) IncrCtx(_ context.Context, key string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	value := r.values[key]
 	var current int64
 	if value != "" {

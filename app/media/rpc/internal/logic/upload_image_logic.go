@@ -66,9 +66,20 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	if !idem.Valid() {
 		return errx.NewWithCode(errx.ParamError)
 	}
+	if l.svcCtx.MediaCommandModel == nil {
+		return errx.NewWithCode(errx.SystemError)
+	}
 
 	if _, err = mediautil2.Detect(sink.Path(), true, false); err != nil {
 		return errx.NewWithCode(errx.FileTypeNotAllowed)
+	}
+	if _, _, err = mediautil2.ValidateImageDimensions(sink.Path()); err != nil {
+		if errors.Is(err, mediautil2.ErrImageDimensionsExceeded) {
+			return errx.NewWithCode(errx.FileTooLarge)
+		}
+		l.Errorw("decode image dimensions failed",
+			logx.Field("user_id", meta.GetUserId()), logx.Field("err", err.Error()))
+		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
 
 	quality := int(meta.GetQuality())
@@ -77,6 +88,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	}
 
 	compressedPath, width, height, err := mediautil2.CompressImage(
+		l.ctx,
 		sink.Path(),
 		int(meta.GetMaxWidth()),
 		int(meta.GetMaxHeight()),
@@ -92,7 +104,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	}
 	defer cleanupx.Remove(l.Logger, compressedPath)
 
-	thumbPath, err := mediautil2.MakeThumbnail(sink.Path())
+	thumbPath, err := mediautil2.MakeThumbnail(l.ctx, sink.Path())
 	if err != nil {
 		l.Errorw("make thumbnail failed",
 			logx.Field("user_id", meta.GetUserId()),
@@ -105,6 +117,13 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 
 	objKey := buildObjectKey("original", "jpg")
 	thumbKey := buildObjectKey("thumb", "jpg")
+	uploadedKeys := make([]string, 0, 2)
+	keepUploadedObjects := false
+	defer func() {
+		if !keepUploadedObjects {
+			compensateUploadedObjects(l.ctx, l.Logger, l.svcCtx, uploadedKeys...)
+		}
+	}()
 
 	if err = putFile(l.ctx, l.svcCtx, compressedPath, objKey, "image/jpeg"); err != nil {
 		l.Errorw("put original failed",
@@ -114,6 +133,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
+	uploadedKeys = append(uploadedKeys, objKey)
 	if err = putFile(l.ctx, l.svcCtx, thumbPath, thumbKey, "image/jpeg"); err != nil {
 		l.Errorw("put thumbnail failed",
 			logx.Field("user_id", meta.GetUserId()),
@@ -122,6 +142,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		)
 		return errx.NewWithCode(errx.UploadFailed)
 	}
+	uploadedKeys = append(uploadedKeys, thumbKey)
 
 	info, err := os.Stat(compressedPath)
 	if err != nil {
@@ -151,9 +172,6 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		Height:       nullInt(height),
 		Status:       1,
 	}
-	if l.svcCtx.MediaCommandModel == nil {
-		return errx.NewWithCode(errx.SystemError)
-	}
 	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
 	if err != nil {
 		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
@@ -167,9 +185,6 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 	if !result.Created {
-		// 本次上传的对象键与幂等命中的已有记录无关（每次随机），删除孤儿对象，
-		// 避免同幂等键重试在对象存储中泄漏无 DB 引用的文件（best-effort）。
-		removeOrphanObjects(l.ctx, l.Logger, l.svcCtx.Storage, objKey, thumbKey)
 		existing, findErr := l.svcCtx.MediaModel.FindOne(l.ctx, result.MediaID)
 		if findErr != nil {
 			l.Errorw("find existing media on idempotent retry failed",
@@ -178,6 +193,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		}
 		return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(existing)})
 	}
+	keepUploadedObjects = true
 
 	l.Infow("upload image success",
 		logx.Field("media_id", mediaId),

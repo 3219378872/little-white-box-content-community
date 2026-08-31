@@ -26,6 +26,21 @@ type MediaCommandModel interface {
 	// SoftDelete 条件软删（status 1→0）并在同一事务内写入 outbox 事件；
 	// 行已被删除（rowsAffected=0）时不写事件，保证幂等且不产生重复清理。
 	SoftDelete(ctx context.Context, mediaID int64, event outboxx.Event) error
+	// EnqueueObjectCleanup durably schedules deletion after an immediate
+	// compensation attempt failed. No media row exists for upload failures.
+	EnqueueObjectCleanup(ctx context.Context, event outboxx.Event) error
+}
+
+func (m *mediaCommandModel) EnqueueObjectCleanup(ctx context.Context, event outboxx.Event) error {
+	if m.conn == nil || m.outbox == nil {
+		return fmt.Errorf("media command model is not configured")
+	}
+	if err := event.Validate(); err != nil {
+		return err
+	}
+	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		return m.outbox.Enqueue(ctx, session, event)
+	})
 }
 
 type mediaCommandModel struct {

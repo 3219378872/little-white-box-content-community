@@ -46,3 +46,32 @@ func TestCreateRejectsUnknownConditionAndDuplicates(t *testing.T) {
 		t.Fatalf("%+v", task)
 	}
 }
+
+func TestWatchTaskVersionCAS(t *testing.T) {
+	store := NewMapStore()
+	task, err := store.Create(t.Context(), Task{
+		UserID: 2, ConditionType: AuthorNewPost, TargetType: "author", TargetID: 8,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.Version != 1 {
+		t.Fatalf("created version = %d, want 1", task.Version)
+	}
+	updated, err := store.UpdateEnabled(t.Context(), task.UserID, task.ID, false, task.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Version != 2 || updated.Enabled {
+		t.Fatalf("updated task = %+v", updated)
+	}
+	if _, err := store.UpdateEnabled(t.Context(), task.UserID, task.ID, true, task.Version); !errx.Is(err, errx.ContentVersionConflict) {
+		t.Fatalf("stale update: got %v want version conflict", err)
+	}
+	if err := store.Delete(t.Context(), task.UserID, task.ID, task.Version); !errx.Is(err, errx.ContentVersionConflict) {
+		t.Fatalf("stale delete: got %v want version conflict", err)
+	}
+	if err := store.Delete(t.Context(), task.UserID, task.ID, updated.Version); err != nil {
+		t.Fatal(err)
+	}
+}
