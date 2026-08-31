@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-08-31
-verified_commit: e56c6a2df790ff307f5e777fdeb62bed4cde77af
+verified_commit: 7424525d32f9490ca3736f20131d84895680bad7
 commands:
   - go test ./app/assistant/internal/runtime/ -count=1
   - go test ./app/assistant/internal/runtime/ ./app/assistant/internal/tool/ ./app/assistant/internal/llm/ -count=1
