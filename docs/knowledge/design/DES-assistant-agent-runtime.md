@@ -85,8 +85,10 @@ worker 用 `SELECT ... FOR UPDATE SKIP LOCKED` claim `queued` 或租约过期 `r
 独立续租循环每 10 秒 CAS `lease_owner`。每个 provider 回答、工具请求/结果、compact 和终止均作为 step
 事务提交。恢复从最后完整 step 重建 provider messages，使用 session prompt 快照与 message
 `api_content` 原字节；未完整提交的 provider 调用可重试，副作用由 journal 去重。provider stream 的
-writer identity 为 run/lease/input/model-round/attempt；token 以小批次提交。重试前若已有公开 delta，
-先写 `response_reset(streamId)`，恢复时顺序重放 token/reset 后只得到获胜 attempt。
+writer identity 为 run/lease/input/model-round/attempt；token 以小批次提交。重试、redirect 与
+lease 接管前若已有公开 delta，先写 `response_reset(streamId)`，恢复时顺序重放 token/reset 后只得到
+获胜 attempt。模型在已流式输出用户可见正文后只调用 `present_sources` 时不写 `response_reset`，
+该正文作为可见 assistant 消息保留；`present_sources` 不是失败 attempt。
 
 用户 run 优先于 Watch、后者优先于 memory-review。claim 按 priority/created_at；前台消息可设置后台
 run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。

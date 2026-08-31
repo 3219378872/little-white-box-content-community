@@ -183,7 +183,7 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-023 SSE MySQL+Redis 降级轮询 | aligned | MySQL replay + Redis/轮询；HTTP 取 `max(afterSeq, Last-Event-ID)`、输出 `id:`，每 25s comment heartbeat |
 | AGENT-024 事件类型白名单 | aligned | 公开事件含 `response_reset`；内部 `provider_attempt` 只持久审计并由 `Subscribe` 过滤 |
 | AGENT-025 唯一终止 | aligned | incomplete 以 reason + partial 写 error；final message/outbox/thread/Watch bucket+stat/run/terminal event 单事务；`terminal_run_id` 唯一索引；SQL failure integration 证明失败全回滚 |
-| AGENT-026 stream writer fencing | aligned | `stream_writer.go` 以 run/lease/input/model-round/attempt 生成 `streamId`，首 delta 即提交、后续 200ms/2KiB 批量；retry、redirect 与 lease recovery 在旧流已有公开 token 时先写 `response_reset`；SQL replay 与根 fixture 覆盖 |
+| AGENT-026 stream writer fencing | aligned | `stream_writer.go` 以 run/lease/input/model-round/attempt 生成 `streamId`，首 delta 即提交、后续 200ms/2KiB 批量；retry、redirect 与 lease recovery 在旧流已有公开 token 时先写 `response_reset`；仅跟随 `present_sources` 的已流式正文不 reset，并作为可见 assistant 消息落库；SQL replay 与根 fixture 覆盖 |
 | AGENT-030 consent | aligned | 接收事务冻结 `consent_version`；worker 持续复核当前授权；撤权取消所有开放 run，Watch 调度在共享锁事务内复核并 defer |
 | AGENT-031 工具分组 | aligned | `tool.ForSource` |
 | AGENT-032 仅 delete_post 确认 | aligned | HighRisk + Confirm CAS |

@@ -551,6 +551,34 @@ func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Resul
 	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
 
+func keepsStreamedAnswer(names []string) bool {
+	if len(names) == 0 {
+		return false
+	}
+	for _, name := range names {
+		if name != tool.PresentSources {
+			return false
+		}
+	}
+	return true
+}
+
+func toolCallNames(calls []llm.ToolCall) []string {
+	names := make([]string, 0, len(calls))
+	for _, call := range calls {
+		names = append(names, call.Name)
+	}
+	return names
+}
+
+func turnToolNames(turn prompt.Turn) []string {
+	names := make([]string, 0, len(turn.ToolCalls))
+	for _, call := range turn.ToolCalls {
+		names = append(names, call.Name)
+	}
+	return names
+}
+
 func visibleForPrompt(msgs []store.Message) []store.Message {
 	out := make([]store.Message, 0, len(msgs))
 	for _, msg := range msgs {
@@ -604,7 +632,8 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 			result.Streamed = true
 			result.StreamID = writer.StreamID()
 		}
-		if err == nil && len(result.ToolCalls) > 0 && writer.Emitted() {
+		if err == nil && len(result.ToolCalls) > 0 && writer.Emitted() &&
+			!keepsStreamedAnswer(toolCallNames(result.ToolCalls)) {
 			if resetErr := writer.ResetWithRun(run); resetErr != nil {
 				err = resetErr
 			}
@@ -672,7 +701,8 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 		_, err := tx.InsertMessage(ctx, store.Message{
 			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
 			Role: turn.Role, Kind: store.KindTool, Content: turn.Content, APIContent: prompt.EncodeTurn(turn),
-			Visible: false, CreatedAtMs: store.NowMs(),
+			Visible:     strings.TrimSpace(turn.Content) != "" && keepsStreamedAnswer(turnToolNames(turn)),
+			CreatedAtMs: store.NowMs(),
 		})
 		return err
 	})

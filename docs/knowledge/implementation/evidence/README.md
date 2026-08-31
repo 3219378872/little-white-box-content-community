@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-08-31-present-sources-keep-answer.md](2026-08-31-present-sources-keep-answer.md)：
+  已流式正文仅跟随 `present_sources` 时不 reset，并作为可见 assistant 消息落库。
 - [2026-08-30-agent-provider-reliability.md](2026-08-30-agent-provider-reliability.md)：
   provider stream/retry/fallback/canary、capability/tool 快照、严格 schema、sidecar 与 compact/usage 持久化。
 - [2026-08-30-assistant-single-session.md](2026-08-30-assistant-single-session.md)：

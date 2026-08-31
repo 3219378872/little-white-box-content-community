@@ -174,6 +174,93 @@ func TestStreamingToolRoundResetsPreambleBeforeFinalAnswer(t *testing.T) {
 	}
 }
 
+type presentSourcesAnswerStream struct {
+	calls int
+}
+
+func (*presentSourcesAnswerStream) Complete(context.Context, llm.Request) (llm.Result, error) {
+	return llm.Result{}, errors.New("unexpected non-stream call")
+}
+
+func (s *presentSourcesAnswerStream) CompleteStream(_ context.Context, _ llm.Request, emit func(llm.Delta) error) (llm.Result, error) {
+	s.calls++
+	if s.calls == 1 {
+		if err := emit(llm.Delta{Text: "full report"}); err != nil {
+			return llm.Result{}, err
+		}
+		return llm.Result{
+			Text: "full report", Streamed: true,
+			ToolCalls: []llm.ToolCall{{ID: "src-1", Name: tool.PresentSources, Arguments: `{"handles":["h1"]}`}},
+		}, nil
+	}
+	if err := emit(llm.Delta{Text: "sources shown"}); err != nil {
+		return llm.Result{}, err
+	}
+	return llm.Result{Text: "sources shown", Streamed: true}, nil
+}
+
+func (*presentSourcesAnswerStream) SupportsTools() bool      { return true }
+func (*presentSourcesAnswerStream) WireAPI() string          { return llm.WireAPIResponses }
+func (*presentSourcesAnswerStream) MaxOutputTokens() int     { return 128 }
+func (*presentSourcesAnswerStream) ContextWindowTokens() int { return 128000 }
+func (*presentSourcesAnswerStream) RouteID() string          { return "primary" }
+func (*presentSourcesAnswerStream) ModelName() string        { return "m" }
+func (*presentSourcesAnswerStream) Boundary() string         { return "same" }
+func (*presentSourcesAnswerStream) SupportsStreaming() bool  { return true }
+
+func TestStreamingPresentSourcesKeepsStreamedAnswer(t *testing.T) {
+	mem := store.NewMemoryStore()
+	ctx := context.Background()
+	_, run, _ := mustStartRun(t, mem, "who is this")
+	if _, err := mem.InsertSource(ctx, store.Source{
+		RunID: run.ID, Handle: "h1", Kind: "post", AuthorityID: "9", Revision: 1, CreatedAtMs: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := tool.NewRegistry(tool.Clients{Store: mem, Content: &runtimeContent{}}, []string{tool.PresentSources})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &presentSourcesAnswerStream{}
+	engine := &Engine{Store: mem, Tools: registry, LLM: provider, Window: 128000}
+	engine.Execute(ctx, run, false)
+
+	events, err := mem.ListEventsAfter(ctx, run.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var assembled strings.Builder
+	resets := 0
+	for _, event := range events {
+		var payload store.EventPayload
+		_ = json.Unmarshal(event.PayloadJSON, &payload)
+		switch event.Type {
+		case store.EventToken:
+			assembled.WriteString(payload.Text)
+		case store.EventResponseReset:
+			assembled.Reset()
+			resets++
+		}
+	}
+	if assembled.String() != "full reportsources shown" || resets != 0 || provider.calls != 2 {
+		t.Fatalf("assembled=%q resets=%d calls=%d events=%+v", assembled.String(), resets, provider.calls, events)
+	}
+
+	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var visible []string
+	for _, message := range messages {
+		if message.Role == store.RoleAssistant && message.Visible {
+			visible = append(visible, message.Content)
+		}
+	}
+	if len(visible) != 2 || visible[0] != "full report" || visible[1] != "sources shown" {
+		t.Fatalf("visible=%q messages=%+v", visible, messages)
+	}
+}
+
 func TestStreamWriterFencesChangedInputAndResetsPublishedText(t *testing.T) {
 	mem := store.NewMemoryStore()
 	_, run, _ := mustStartRun(t, mem, "hello")
