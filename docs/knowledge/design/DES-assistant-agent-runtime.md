@@ -55,8 +55,12 @@ assistant-watch matcher
 - `agent_tool_call`：call、规范化参数摘要、状态、结果与 source handles。
 - `agent_command_journal`：`UNIQUE(user_id, request_id, tool, canonical_args_digest)`，缓存副作用结果。
 - `core_memory_entry` / `memory_change`：双 target 自然语言条目、version、变更前后快照。
+- `memory_target_lock(user_id, target)`：按用户和 MEMORY/USER target 串行容量、规范化去重、replace/remove
+  与 undo，避免并发锁升级和超容量提交。
 - `assistant_index_outbox`：message upsert/delete 到 ES；MySQL 消息永远是回源权威。
-- Watch task 保留；execution/hit 只作内部 bucket 输入与 90 天审计，到期分批物理删除。
+- Watch task 保留；execution/hit 只作内部 bucket 输入与 90 天审计，到期分批物理删除；
+  `watch_send_reservation` 与 `watch_send_stat.reserved_count` 在调度事务中原子预留小时/日配额，只有成功
+  投递才转为 sent，失败、抢占和 discard 均释放 reservation。
 
 破坏性迁移用 `assistant_runtime_v3` marker：首次执行清空并重建 `xbh_assistant`，清空 user 库 Agent
 consent；marker 提交后重复 patch 不再清理。生产执行前必须绑定 MySQL `server_uuid`，分别备份并验证
@@ -65,9 +69,11 @@ Assistant 库与 consent，且提供精确确认值；补丁名和 SHA-256 写�
 
 ## 接收、并发与输入处置
 
-`POST /assistant/messages` 在一个事务中：锁 thread，校验 consent/session，写 user message，按当前
-前台 run phase 决定 disposition，创建或更新 run，提交后返回 ids。模型请求 phase 写 redirect；工具
-phase 写 steer；compact/attachment/unsafe phase 写最多 32 条 FIFO。无活跃前台 run 则创建 queued
+`POST /assistant/messages` 在一个事务中：先校验 consent 与 requestId 重放，再按 id 锁该用户全部开放
+`agent_run`（只把 Watch/review 标为取消），之后锁 thread、重查幂等结果并写 user message。这样输入
+redirect/steer、worker 终态与 Watch 抢占统一遵守 `agent_run -> assistant_thread -> Watch bucket/quota`
+锁序。随后按当前前台 run phase 决定 disposition，创建或更新 run；模型请求 phase 写 redirect，工具
+phase 写 steer，compact/attachment/unsafe phase 写最多 32 条 FIFO。无活跃前台 run 则创建 queued
 user run。数据库提交前不报告 accepted。
 
 每用户一条永久前台 session：缺失则创建，遗留 `closed` 行 reopen，不再因用户操作关闭并另开一行。
@@ -96,9 +102,10 @@ run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
 
 ## 事件与 SSE
 
-每个事件先锁 run 分配 `seq=max+1` 并写 MySQL，然后 best-effort `PUBLISH assistant:run:<id>`。SSE 先按
-`Last-Event-ID` 查询 `seq > cursor`，之后通知唤醒再查询；没有通知时每秒轮询。客户端断线只结束读
-循环，不写 cancel。`token` 与 `response_reset` 携带 streamId；前者追加，后者清空指定 run 的临时回答。
+每个事件先锁 run 分配 `seq=max+1` 并写 MySQL，然后 best-effort `PUBLISH assistant:run:<id>`。SSE 始终按
+固定间隔查询 MySQL 的 `seq > cursor`；Redis wake 只缩短下一次查询等待，读取不得阻塞等待 wake token。
+客户端断线只结束读循环，不写 cancel。`token` 与 `response_reset` 携带 streamId；前者追加，后者清空
+指定 run 的临时回答。
 运行中超过 30 秒没有业务事件时 worker 写内部 heartbeat event；API 可用它维持
 流活跃，但 thread 不渲染为消息。
 
@@ -137,7 +144,8 @@ compact 优先以上一次 provider prompt usage 为锚点，只估算后续新�
 outbox relay 为 user/assistant 可见消息写 `assistant-history-v1`，字段包含 userId、sessionId、messageId、
 role、content、timestamps、deleted/compacted；CJK analyzer + BM25。工具执行四种 shape：keywords、around、
 session、recent。ES 查询必须带 userId，但仍逐条以 messageId 回源 MySQL 校验 user、365 天和删除状态。
-当前 session live context、tool、review 与普通 message 库从未进入索引。
+当前 provider live context 的 message ids、tool、review 与普通 message 库从未进入结果；同 session 已
+compacted 或不在 live window 的历史仍可检索。
 
 ## 工具、Journal、确认与来源
 
@@ -152,16 +160,20 @@ delete_post 在执行前写数据库 confirmation，绑定 user/session/run/call
 使用 `pending -> approved|rejected` CAS。worker 只消费一次 approved，并在执行前复核 revision。
 
 搜索、推荐、web executor 对验证结果生成随机 handle，写 `agent_source_ledger(run_id, handle, kind,
-authority_id, revision, payload)`。工具结果只给模型 handle 和安全摘要。`present_sources` 复核同 run 最多
+authority_id, revision, payload)`。需要来源的 executor 在 ledger 不可用或任一 handle 写失败时整体失败，
+不得把未登记结果返回给模型。工具结果只给模型 handle 和安全摘要。`present_sources` 复核同 run 最多
 10 个 handle，写 source_card event；普通最终文本不做 ID/URL 解析。
 
 ## Watch 投递
 
-matcher 将命中写 2 分钟 user bucket。同任务近一小时 sent < 3 且用户当天 sent < 20 才调度；否则 bucket
-保持 deferred 并在下一允许窗口摘要。Watch worker 读取 bucket，把命中 JSON 写成当前 run 的隐藏 `watch_input` sidecar（`visible=false`，
-`api_content` 为 provider user turn），再使用只读 registry 形成回答。恢复与后续模型轮必须按
-sidecar 重放该注入，并放在本 run 工具消息之前，不得每轮追加到上下文末尾。最终 assistant
-message 与 thread unread 在同一事务提交。用户 run 抢占时 bucket 回 pending。
+matcher 先按事件 revision 回源当前 published 状态，再将命中写 2 分钟 user bucket。调度事务锁 thread、
+bucket 和 quota 行，原子预留同任务每小时 3 条与每用户每日 20 条额度；超额 bucket 保持 deferred 并在
+下一允许窗口摘要。Watch worker 读取精确 hit ids，把命中 JSON 写成当前 run 的隐藏 `watch_input`
+sidecar（`visible=false`，`api_content` 为 provider user turn），再使用只读 registry 形成回答。恢复、每个
+模型轮之前及最终消息提交之前都重新回源全部命中的当前可见性；缺失、过期或任一不可见时 fail-closed
+discard，已流式正文先写 `response_reset`。sidecar 重放放在本 run 工具消息之前，不得每轮追加到上下文
+末尾。最终 assistant message、thread unread、bucket sent、reservation 转 sent 与 run 终态在同一事务
+提交。用户 run 抢占时 bucket 回 pending 并释放 reservation。
 
 ## 预算与观测
 

@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-09-01-assistant-agent-audit-fixes.md](2026-09-01-assistant-agent-audit-fixes.md)：
+  MySQL SSE 权威轮询、typed Responses error、source ledger fail-closed、Memory/Watch 并发、
+  `search_history` 四种 shape、最终可见性与统一锁序。
 - [2026-08-31-audit-remediation.md](2026-08-31-audit-remediation.md)：
   内部 gRPC stream 鉴权、refresh token 原子轮换、Watch version CAS、媒体解码预算与对象补偿、
   Assistant/Watch 保留期、生产端口和两阶段迁移门禁。
