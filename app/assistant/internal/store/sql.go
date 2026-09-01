@@ -539,16 +539,24 @@ func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sourc
 	if len(sources) == 0 {
 		return nil, nil
 	}
-	query := runSelect + ` WHERE user_id=? AND status IN ('queued','running') AND source IN (` +
-		placeholders(len(sources)) + `) ORDER BY id FOR UPDATE`
-	args := append([]any{userID}, stringsToAny(sources)...)
+	// Accept may redirect the active foreground run after it locks the thread.
+	// Lock every open run first so worker completion and input acceptance both
+	// use agent_run -> assistant_thread.
+	query := runSelect + ` WHERE user_id=? AND status IN ('queued','running') ORDER BY id FOR UPDATE`
 	var rows []runRow
-	if err := s.exec.QueryRowsCtx(ctx, &rows, query, args...); err != nil {
+	if err := s.exec.QueryRowsCtx(ctx, &rows, query, userID); err != nil {
 		return nil, err
+	}
+	wanted := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		wanted[source] = struct{}{}
 	}
 	out := make([]Run, 0, len(rows))
 	for _, row := range rows {
 		run := row.toRun()
+		if _, ok := wanted[run.Source]; !ok {
+			continue
+		}
 		if _, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET cancel_requested=1 WHERE id=?`, run.ID); err != nil {
 			return nil, err
 		}

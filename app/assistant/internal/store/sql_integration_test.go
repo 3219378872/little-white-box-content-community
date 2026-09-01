@@ -577,3 +577,64 @@ func TestSQLRequeueFailedWatchBucketReleasesReservation(t *testing.T) {
 		t.Fatalf("released quota reusable=%v err=%v", allowed, err)
 	}
 }
+
+func TestSQLInputAcceptanceLocksOpenRunBeforeThread(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "assistant_thread", "agent_run_event", "agent_run")
+	ctx := context.Background()
+	st := newAssistantTestStore()
+	now := NowMs()
+	run, err := st.InsertRun(ctx, Run{
+		UserID: 84, SessionID: 1, RequestID: "lock-order", Source: SourceUser,
+		Status: StatusRunning, Phase: PhaseModelRequest, ConsentVersion: 2, InputVersion: 1,
+		LeaseOwner: "worker-lock-order", LeaseGeneration: 1, LeaseUntilMs: now + 60_000,
+		CreatedAtMs: now, LastActivityAtMs: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveThread(ctx, Thread{UserID: run.UserID, SessionID: run.SessionID, ActiveRunID: run.ID, UpdatedAtMs: now}); err != nil {
+		t.Fatal(err)
+	}
+
+	workerLockedRun := make(chan struct{})
+	workerContinue := make(chan struct{})
+	workerDone := make(chan error, 1)
+	go func() {
+		workerDone <- st.RunStep(ctx, run.Fence(), func(ctx context.Context, tx Store) error {
+			close(workerLockedRun)
+			<-workerContinue
+			_, lockErr := tx.LockThread(ctx, run.UserID)
+			return lockErr
+		})
+	}()
+	<-workerLockedRun
+
+	acceptStarted := make(chan struct{})
+	acceptDone := make(chan error, 1)
+	go func() {
+		close(acceptStarted)
+		acceptDone <- st.Transact(ctx, func(ctx context.Context, tx Store) error {
+			if _, cancelErr := tx.CancelOpenBackground(ctx, run.UserID, []string{SourceWatch, SourceMemoryReview}); cancelErr != nil {
+				return cancelErr
+			}
+			if _, lockErr := tx.LockThread(ctx, run.UserID); lockErr != nil {
+				return lockErr
+			}
+			return tx.SetRunInput(ctx, run.ID, []byte(`{"text":"redirect"}`), NowMs())
+		})
+	}()
+	<-acceptStarted
+	time.Sleep(100 * time.Millisecond)
+	close(workerContinue)
+
+	for name, done := range map[string]<-chan error{"worker": workerDone, "accept": acceptDone} {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s transaction: %v", name, err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("%s transaction timed out", name)
+		}
+	}
+}
