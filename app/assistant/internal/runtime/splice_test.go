@@ -211,7 +211,7 @@ func TestWatchColdScheduleSplicesExistingSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, memories, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, memories, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, allowAllWatchPosts, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	updated, err := mem.GetSession(ctx, session.ID)

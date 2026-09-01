@@ -6,9 +6,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	assistantmemory "esx/app/assistant/internal/memory"
+	"esx/pkg/errx"
 	"esx/pkg/testutil"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -321,5 +325,255 @@ func TestSQLRetentionMessageDeleteFailureRollsBackOutbox(t *testing.T) {
 	if err := st.exec.QueryRowCtx(ctx, &rows, `SELECT COUNT(*) FROM assistant_index_outbox
 		WHERE message_id=? AND op=?`, message.ID, IndexOpDelete); err != nil || rows != 0 {
 		t.Fatalf("delete outbox rows=%d err=%v", rows, err)
+	}
+}
+
+func TestSQLMemoryMutationsSerializeCapacityDedupeAndUndo(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "memory_change", "core_memory_entry", "memory_target_lock")
+	ctx := context.Background()
+	mem := assistantmemory.NewSQLStore(sqlx.NewSqlConnFromDB(assistantTestEnv.DB), nil)
+
+	t.Run("normalized duplicate", func(t *testing.T) {
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		ids := make(chan int64, 2)
+		errs := make(chan error, 2)
+		for index, content := range []string{"Concurrent   Value", " concurrent value "} {
+			wg.Add(1)
+			go func(index int, content string) {
+				defer wg.Done()
+				<-start
+				entry, _, err := mem.Add(ctx, 71, assistantmemory.TargetMemory, content, "dedupe-"+string(rune('a'+index)), NowMs())
+				if err == nil {
+					ids <- entry.ID
+				}
+				errs <- err
+			}(index, content)
+		}
+		close(start)
+		wg.Wait()
+		close(ids)
+		close(errs)
+		var first int64
+		for err := range errs {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		for id := range ids {
+			if first == 0 {
+				first = id
+			} else if id != first {
+				t.Fatalf("duplicate ids=%d/%d", first, id)
+			}
+		}
+		var count int64
+		if err := assistantTestEnv.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM core_memory_entry WHERE user_id=71 AND deleted_at_ms IS NULL`).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("entries=%d err=%v", count, err)
+		}
+	})
+
+	t.Run("capacity", func(t *testing.T) {
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		for index, content := range []string{strings.Repeat("甲", 1200), strings.Repeat("乙", 1200)} {
+			wg.Add(1)
+			go func(index int, content string) {
+				defer wg.Done()
+				<-start
+				_, _, err := mem.Add(ctx, 72, assistantmemory.TargetMemory, content, "capacity-"+string(rune('a'+index)), NowMs())
+				errs <- err
+			}(index, content)
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		successes := 0
+		for err := range errs {
+			if err == nil {
+				successes++
+				continue
+			}
+			if !errx.Is(err, errx.ParamError) {
+				t.Fatalf("unexpected capacity race error: %v", err)
+			}
+		}
+		if successes != 1 {
+			t.Fatalf("successful over-capacity writes=%d", successes)
+		}
+		entries, _, err := mem.List(ctx, 72, assistantmemory.TargetMemory)
+		if err != nil || assistantmemory.UsedRunes(entries, assistantmemory.TargetMemory) > assistantmemory.CapacityMemory {
+			t.Fatalf("entries=%d err=%v", assistantmemory.UsedRunes(entries, assistantmemory.TargetMemory), err)
+		}
+	})
+
+	t.Run("undo cas", func(t *testing.T) {
+		entry, changeID, err := mem.Add(ctx, 73, assistantmemory.TargetUser, "undo once", "undo-add", NowMs())
+		if err != nil || entry.ID == 0 || changeID == 0 {
+			t.Fatalf("entry=%+v change=%d err=%v", entry, changeID, err)
+		}
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				_, err := mem.Undo(ctx, 73, changeID, NowMs())
+				errs <- err
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		successes := 0
+		conflicts := 0
+		for err := range errs {
+			if err == nil {
+				successes++
+				continue
+			}
+			if !errx.Is(err, errx.ContentVersionConflict) {
+				t.Fatalf("unexpected undo race error: %v", err)
+			}
+			conflicts++
+		}
+		if successes != 1 || conflicts != 1 {
+			t.Fatalf("successful undos=%d conflicts=%d", successes, conflicts)
+		}
+	})
+}
+
+func TestSQLWatchQuotaReservationSerializesWorkers(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket")
+	ctx := context.Background()
+	st := newAssistantTestStore()
+	now := NowMs()
+	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
+	buckets := make([]DeliveryBucket, 4)
+	for i := range buckets {
+		var err error
+		buckets[i], err = st.UpsertDeliveryBucket(ctx, 81, int64(i+1), int64(i+1)*120_000, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	allowed := make(chan int, len(buckets))
+	for index, bucket := range buckets {
+		wg.Add(1)
+		go func(index int, bucket DeliveryBucket) {
+			defer wg.Done()
+			ok, _, err := st.ReserveWatchQuota(ctx, bucket.ID, 81, []int64{91}, dayStart, hourStart, 20, 3)
+			if err != nil {
+				t.Errorf("reserve %d: %v", index, err)
+				return
+			}
+			if ok {
+				allowed <- index
+			}
+		}(index, bucket)
+	}
+	wg.Wait()
+	close(allowed)
+	allowedIndexes := make([]int, 0, 3)
+	for index := range allowed {
+		allowedIndexes = append(allowedIndexes, index)
+	}
+	if len(allowedIndexes) != 3 {
+		t.Fatalf("allowed=%v", allowedIndexes)
+	}
+	released := buckets[allowedIndexes[0]]
+	if err := st.MarkBucketScheduled(ctx, released.ID, 1001); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.FinishWatchDelivery(ctx, released.ID, 81, 1001, false, now); err != nil {
+		t.Fatal(err)
+	}
+	var blocked DeliveryBucket
+	for index, bucket := range buckets {
+		found := false
+		for _, allowedIndex := range allowedIndexes {
+			found = found || index == allowedIndex
+		}
+		if !found {
+			blocked = bucket
+		}
+	}
+	if ok, _, err := st.ReserveWatchQuota(ctx, blocked.ID, 81, []int64{91}, dayStart, hourStart, 20, 3); err != nil || !ok {
+		t.Fatalf("released quota reusable=%v err=%v", ok, err)
+	}
+	delivered := buckets[allowedIndexes[1]]
+	if err := st.MarkBucketScheduled(ctx, delivered.ID, 1002); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.FinishWatchDelivery(ctx, delivered.ID, 81, 1002, true, now); err != nil {
+		t.Fatal(err)
+	}
+	if daily, _ := st.CountSent(ctx, 81, 0, "day", dayStart); daily != 1 {
+		t.Fatalf("daily=%d", daily)
+	}
+	if hourly, _ := st.CountSent(ctx, 81, 91, "hour", hourStart); hourly != 1 {
+		t.Fatalf("hourly=%d", hourly)
+	}
+
+	legacy, err := st.UpsertDeliveryBucket(ctx, 82, 9001, 600_000, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkBucketScheduled(ctx, legacy.ID, 1003); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.FinishWatchDelivery(ctx, legacy.ID, 82, 1003, true, now); err != nil {
+		t.Fatal(err)
+	}
+	if daily, _ := st.CountSent(ctx, 82, 0, "day", dayStart); daily != 1 {
+		t.Fatalf("legacy daily=%d", daily)
+	}
+}
+
+func TestSQLRequeueFailedWatchBucketReleasesReservation(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket", "agent_run_event", "agent_run")
+	ctx := context.Background()
+	st := newAssistantTestStore()
+	now := NowMs()
+	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
+	bucket, err := st.UpsertDeliveryBucket(ctx, 83, 9101, 720_000, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err := st.ReserveWatchQuota(ctx, bucket.ID, 83, []int64{93}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("reserve allowed=%v err=%v", allowed, err)
+	}
+	run, err := st.InsertRun(ctx, Run{
+		UserID: 83, SessionID: 1, RequestID: "watch-requeue", Source: SourceWatch,
+		Status: StatusError, Phase: PhaseDone, ConsentVersion: 2, InputVersion: 1,
+		CreatedAtMs: now, EndedAtMs: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkBucketScheduled(ctx, bucket.ID, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.RequeueFailedBuckets(ctx); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := st.GetBucket(ctx, bucket.ID)
+	if err != nil || fresh.Status != "pending" || fresh.RunID != 0 {
+		t.Fatalf("bucket=%+v err=%v", fresh, err)
+	}
+	next, err := st.UpsertDeliveryBucket(ctx, 83, 9102, 840_000, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err = st.ReserveWatchQuota(ctx, next.ID, 83, []int64{93}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("released quota reusable=%v err=%v", allowed, err)
 	}
 }

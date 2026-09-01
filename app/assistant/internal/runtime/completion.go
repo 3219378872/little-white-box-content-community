@@ -3,8 +3,8 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
-	"time"
 
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
@@ -32,7 +32,17 @@ func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, tex
 	if payload.BucketID <= 0 {
 		return e.fail(ctx, run, "WATCH_BUCKET_MISSING", "watch delivery bucket is missing")
 	}
-	taskIDs := e.watchTaskIDs(ctx, run, payload)
+	if _, err := e.currentWatchHits(ctx, run, payload); err != nil {
+		if !emitToken && streamID != "" {
+			if _, resetErr := e.appendEvent(ctx, run, store.EventResponseReset, store.EventPayload{StreamID: streamID}); resetErr != nil {
+				return resetErr
+			}
+		}
+		if errors.Is(err, errNoVisibleWatchHits) {
+			return e.dismissWatchRun(ctx, run)
+		}
+		return err
+	}
 	now := store.NowMs()
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
 		if text != "" && emitToken {
@@ -62,18 +72,8 @@ func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, tex
 		if err := tx.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		if err := tx.MarkBucketSent(ctx, payload.BucketID, run.ID); err != nil {
+		if err := tx.FinishWatchDelivery(ctx, payload.BucketID, run.UserID, run.ID, true, now); err != nil {
 			return err
-		}
-		dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-		if err := tx.IncrSent(ctx, run.UserID, 0, "day", dayStart); err != nil {
-			return err
-		}
-		hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
-		for _, taskID := range taskIDs {
-			if err := tx.IncrSent(ctx, run.UserID, taskID, "hour", hourStart); err != nil {
-				return err
-			}
 		}
 		_, finishErr := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text, StreamID: streamID}, now)
 		return finishErr
@@ -83,34 +83,6 @@ func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, tex
 	}
 	e.wake(ctx, run.ID)
 	return nil
-}
-
-func (e *Engine) watchTaskIDs(ctx context.Context, run store.Run, payload watchRunPayload) []int64 {
-	seen := make(map[int64]struct{}, len(payload.TaskIDs))
-	for _, id := range payload.TaskIDs {
-		if id > 0 {
-			seen[id] = struct{}{}
-		}
-	}
-	if len(seen) == 0 && e.Watch != nil {
-		wanted := make(map[int64]struct{}, len(payload.HitIDs))
-		for _, id := range payload.HitIDs {
-			wanted[id] = struct{}{}
-		}
-		if hits, err := e.Watch.GetHitsByIDs(ctx, run.UserID, payload.HitIDs); err == nil {
-			for _, hit := range hits {
-				if _, ok := wanted[hit.ID]; ok && hit.UserID == run.UserID && hit.TaskID > 0 {
-					seen[hit.TaskID] = struct{}{}
-				}
-			}
-		}
-	}
-	out := make([]int64, 0, len(seen))
-	for id := range seen {
-		out = append(out, id)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-	return out
 }
 
 func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error {

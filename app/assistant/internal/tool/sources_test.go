@@ -2,10 +2,12 @@ package tool
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"esx/app/assistant/internal/store"
 	"esx/app/content/rpc/contentservice"
+	"esx/pkg/errx"
 
 	"google.golang.org/grpc"
 )
@@ -17,6 +19,21 @@ type sourceContent struct {
 
 func (s *sourceContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
 	return &contentservice.GetPostsByIdsResp{Posts: s.posts}, nil
+}
+
+func (s *sourceContent) GetPost(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+	if len(s.posts) == 0 {
+		return &contentservice.GetPostResp{}, nil
+	}
+	return &contentservice.GetPostResp{Post: s.posts[0]}, nil
+}
+
+type failingSourceLedger struct {
+	store.Store
+}
+
+func (f failingSourceLedger) InsertSource(context.Context, store.Source) (store.Source, error) {
+	return store.Source{}, errors.New("injected ledger failure")
 }
 
 func TestSourceHandleRunBindingAndPresentSources(t *testing.T) {
@@ -58,5 +75,28 @@ func TestSourceHandleRunBindingAndPresentSources(t *testing.T) {
 	}
 	if len(cards) != 0 || text == "" {
 		t.Fatalf("revision-changed cards=%+v text=%s", cards, text)
+	}
+}
+
+func TestSourceLedgerFailureDoesNotExposeUnregisteredHandle(t *testing.T) {
+	mem := store.NewMemoryStore()
+	ledger := failingSourceLedger{Store: mem}
+	content := &sourceContent{posts: []*contentservice.PostInfo{{Id: 9, Status: 1, Revision: 1, Title: "visible", Content: "body"}}}
+	reg, err := NewRegistry(Clients{Store: ledger, Content: content}, []string{GetPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, _, err := reg.Call(context.Background(), &Session{UserID: 1, RunID: 11}, GetPost, "c1", `{"post_id":9}`)
+	if err == nil || text != "" {
+		t.Fatalf("text=%q err=%v", text, err)
+	}
+
+	reg, err = NewRegistry(Clients{Content: content}, []string{GetPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, _, err = reg.Call(context.Background(), &Session{UserID: 1, RunID: 11}, GetPost, "c2", `{"post_id":9}`)
+	if !errx.Is(err, errx.ServiceUnavailable) || text != "" {
+		t.Fatalf("missing ledger text=%q err=%v", text, err)
 	}
 }

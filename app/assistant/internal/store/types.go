@@ -304,6 +304,13 @@ type DeliveryBucket struct {
 	CreatedAtMs   int64
 }
 
+type HistorySessionSummary struct {
+	SessionID int64
+	First     Message
+	Last      Message
+	LastAtMs  int64
+}
+
 func NowMs() int64 { return time.Now().UnixMilli() }
 
 func Preview(text string, maxRunes int) string {

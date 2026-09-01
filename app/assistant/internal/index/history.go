@@ -141,50 +141,119 @@ func (c *Client) apply(ctx context.Context, row store.Outbox) error {
 }
 
 func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.HistoryArgs) (string, error) {
-	if c == nil || c.es == nil {
+	if c == nil || c.es == nil || c.store == nil || sess == nil || sess.UserID <= 0 {
 		return "", errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
 	}
-	limit := args.Limit
-	if limit <= 0 {
-		limit = 3
+	limit := historyLimit(args.Limit)
+	cutoff := time.Now().AddDate(0, 0, -retentionDays).UnixMilli()
+	shape := strings.ToLower(strings.TrimSpace(args.Shape))
+	switch shape {
+	case "around":
+		if args.MessageID <= 0 {
+			return "", errx.New(errx.ParamError, "search_history around requires message_id")
+		}
+		messages, err := c.store.ListHistoryAround(ctx, sess.UserID, args.MessageID, 5, 5, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
+		}
+		if len(messages) == 0 {
+			return noHistoryResult(), nil
+		}
+		summaries, err := c.store.ListHistorySessionSummaries(ctx, sess.UserID, messages[0].SessionID, 1, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
+		}
+		return formatHistoryAround(args.MessageID, messages, summaries), nil
+	case "session":
+		if args.SessionID <= 0 {
+			return "", errx.New(errx.ParamError, "search_history session requires session_id")
+		}
+		summaries, err := c.store.ListHistorySessionSummaries(ctx, sess.UserID, args.SessionID, 1, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
+		}
+		return formatHistorySummaries(summaries), nil
+	case "recent":
+		summaries, err := c.store.ListHistorySessionSummaries(ctx, sess.UserID, 0, limit, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
+		}
+		return formatHistorySummaries(summaries), nil
+	case "keywords":
+		if strings.TrimSpace(args.Query) == "" {
+			return "", errx.New(errx.ParamError, "search_history keywords requires query")
+		}
+	default:
+		return "", errx.New(errx.ParamError, "search_history shape is invalid")
 	}
-	if limit > 10 {
-		limit = 10
+
+	ids, err := c.searchKeywordIDs(ctx, sess, strings.TrimSpace(args.Query), cutoff, limit)
+	if err != nil {
+		return "", err
+	}
+	messages, err := c.store.GetMessagesByIDs(ctx, sess.UserID, ids)
+	if err != nil {
+		return "", err
+	}
+	live := make(map[int64]struct{}, len(sess.LiveMessageIDs))
+	for _, id := range sess.LiveMessageIDs {
+		live[id] = struct{}{}
+	}
+	byID := make(map[int64]store.Message, len(messages))
+	for _, message := range messages {
+		if historyMessageEligible(message, cutoff, live) {
+			byID[message.ID] = message
+		}
+	}
+	ranked := make([]store.Message, 0, limit)
+	for _, id := range ids {
+		if message, ok := byID[id]; ok {
+			ranked = append(ranked, message)
+			if len(ranked) == limit {
+				break
+			}
+		}
+	}
+	if len(ranked) == 0 {
+		return noHistoryResult(), nil
+	}
+	return c.formatKeywordResults(ctx, sess, ranked, cutoff)
+}
+
+func (c *Client) searchKeywordIDs(ctx context.Context, sess *tool.Session, text string, cutoff int64, limit int) ([]int64, error) {
+	size := limit * 5
+	if size < 10 {
+		size = 10
+	}
+	if size > 50 {
+		size = 50
 	}
 	query := map[string]any{
-		"size": limit,
+		"size": size,
 		"query": map[string]any{
 			"bool": map[string]any{
 				"filter": []any{
 					map[string]any{"term": map[string]any{"userId": sess.UserID}},
 					map[string]any{"term": map[string]any{"deleted": false}},
-					map[string]any{"range": map[string]any{"createdAtMs": map[string]any{"gte": time.Now().AddDate(0, 0, -retentionDays).UnixMilli()}}},
+					map[string]any{"terms": map[string]any{"role": []string{store.RoleUser, store.RoleAssistant}}},
+					map[string]any{"range": map[string]any{"createdAtMs": map[string]any{"gte": cutoff}}},
 				},
+				"must": []any{map[string]any{"match": map[string]any{"content": text}}},
 			},
 		},
 	}
 	boolQuery := query["query"].(map[string]any)["bool"].(map[string]any)
-	switch strings.ToLower(strings.TrimSpace(args.Shape)) {
-	case "around":
-		boolQuery["must"] = []any{map[string]any{"term": map[string]any{"messageId": args.MessageID}}}
-	case "session":
-		boolQuery["filter"] = append(boolQuery["filter"].([]any), map[string]any{"term": map[string]any{"sessionId": args.SessionID}})
-	case "recent":
-		query["sort"] = []any{map[string]any{"createdAtMs": "desc"}}
-	default:
-		if strings.TrimSpace(args.Query) == "" {
-			return "", errx.New(errx.ParamError, "search_history query is required")
-		}
-		boolQuery["must"] = []any{map[string]any{"match": map[string]any{"content": args.Query}}}
+	if len(sess.LiveMessageIDs) > 0 {
+		boolQuery["must_not"] = []any{map[string]any{"terms": map[string]any{"messageId": sess.LiveMessageIDs}}}
 	}
 	raw, _ := json.Marshal(query)
 	res, err := c.es.Search(c.es.Search.WithContext(ctx), c.es.Search.WithIndex(IndexName), c.es.Search.WithBody(bytes.NewReader(raw)))
 	if err != nil {
-		return "", errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
+		return nil, errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.IsError() {
-		return "", errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
+		return nil, errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
 	}
 	var parsed struct {
 		Hits struct {
@@ -194,53 +263,109 @@ func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.Histo
 		} `json:"hits"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&parsed); err != nil {
-		return "", err
+		return nil, err
 	}
 	ids := make([]int64, 0, len(parsed.Hits.Hits))
+	seen := map[int64]struct{}{}
 	for _, hit := range parsed.Hits.Hits {
-		ids = append(ids, hit.Source.MessageID)
-	}
-	msgs, err := c.store.GetMessagesByIDs(ctx, sess.UserID, ids)
-	if err != nil {
-		return "", err
-	}
-	cutoff := time.Now().AddDate(0, 0, -retentionDays).UnixMilli()
-	byID := map[int64]store.Message{}
-	for _, msg := range msgs {
-		if msg.DeletedAtMs != 0 || msg.CreatedAtMs < cutoff {
+		id := hit.Source.MessageID
+		if id <= 0 {
 			continue
 		}
-		if msg.Role != store.RoleUser && msg.Role != store.RoleAssistant {
+		if _, duplicate := seen[id]; duplicate {
 			continue
 		}
-		if !msg.Visible || msg.Kind == store.KindMemoryChanged {
-			continue
-		}
-		byID[msg.ID] = msg
+		seen[id] = struct{}{}
+		ids = append(ids, id)
 	}
+	return ids, nil
+}
+
+func (c *Client) formatKeywordResults(ctx context.Context, sess *tool.Session, ranked []store.Message, cutoff int64) (string, error) {
 	var b strings.Builder
-	rank := 0
-	for _, id := range ids {
-		msg, ok := byID[id]
-		if !ok {
+	for index, message := range ranked {
+		fmt.Fprintf(&b, "%d. session=%d message=%d %s: %s\n", index+1, message.SessionID, message.ID, message.Role, store.Preview(message.Content, 160))
+		if index != 0 {
 			continue
 		}
-		rank++
-		fmt.Fprintf(&b, "%d. session=%d message=%d %s: %s\n", rank, msg.SessionID, msg.ID, msg.Role, store.Preview(msg.Content, 160))
-		if rank == 1 {
-			around, _ := c.store.ListMessages(ctx, sess.UserID, msg.SessionID, 0, 0, 50)
-			b.WriteString("  上下文：")
-			for _, item := range around {
-				if item.ID == msg.ID {
-					continue
-				}
-				fmt.Fprintf(&b, " [%d]%s", item.ID, store.Preview(item.Content, 40))
-			}
-			b.WriteByte('\n')
+		around, err := c.store.ListHistoryAround(ctx, sess.UserID, message.ID, 5, 5, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
 		}
-	}
-	if rank == 0 {
-		return "没有召回到可展示的历史消息。", nil
+		b.WriteString("  上下文：\n")
+		for _, item := range around {
+			fmt.Fprintf(&b, "  - [%d] %s: %s\n", item.ID, item.Role, store.Preview(item.Content, 80))
+		}
+		summaries, err := c.store.ListHistorySessionSummaries(ctx, sess.UserID, message.SessionID, 1, cutoff, sess.LiveMessageIDs)
+		if err != nil {
+			return "", err
+		}
+		appendHistorySummary(&b, summaries)
 	}
 	return strings.TrimRight(b.String(), "\n"), nil
+}
+
+func formatHistoryAround(anchorID int64, messages []store.Message, summaries []store.HistorySessionSummary) string {
+	if len(messages) == 0 {
+		return noHistoryResult()
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "锚点 message=%d 的上下文：\n", anchorID)
+	for _, message := range messages {
+		marker := ""
+		if message.ID == anchorID {
+			marker = " [anchor]"
+		}
+		fmt.Fprintf(&b, "- [%d]%s %s: %s\n", message.ID, marker, message.Role, store.Preview(message.Content, 160))
+	}
+	appendHistorySummary(&b, summaries)
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func formatHistorySummaries(summaries []store.HistorySessionSummary) string {
+	if len(summaries) == 0 {
+		return noHistoryResult()
+	}
+	var b strings.Builder
+	appendHistorySummary(&b, summaries)
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func appendHistorySummary(b *strings.Builder, summaries []store.HistorySessionSummary) {
+	for index, summary := range summaries {
+		fmt.Fprintf(b, "  会话摘要 %d: session=%d first=[%d] %s: %s", index+1, summary.SessionID,
+			summary.First.ID, summary.First.Role, store.Preview(summary.First.Content, 100))
+		if summary.Last.ID != summary.First.ID {
+			fmt.Fprintf(b, " | last=[%d] %s: %s", summary.Last.ID, summary.Last.Role, store.Preview(summary.Last.Content, 100))
+		}
+		b.WriteByte('\n')
+	}
+}
+
+func historyMessageEligible(message store.Message, cutoff int64, live map[int64]struct{}) bool {
+	if message.DeletedAtMs != 0 || !message.Visible || message.CreatedAtMs < cutoff {
+		return false
+	}
+	if message.Role != store.RoleUser && message.Role != store.RoleAssistant {
+		return false
+	}
+	if message.Kind != store.KindMessage && message.Kind != store.KindWatch {
+		return false
+	}
+	_, excluded := live[message.ID]
+	return !excluded
+}
+
+func historyLimit(limit int) int {
+	if limit <= 0 {
+		return 3
+	}
+	if limit > 10 {
+		return 10
+	}
+	return limit
+}
+
+func noHistoryResult() string {
+	return "没有召回到可展示的历史消息。"
 }

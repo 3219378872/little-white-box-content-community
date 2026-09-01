@@ -31,6 +31,8 @@ type MemoryStore struct {
 	buckets       map[int64]DeliveryBucket
 	bucketByKey   map[string]int64
 	sent          map[string]int
+	reserved      map[string]int
+	reservations  map[int64]map[string]struct{}
 	claimFail     bool
 	consents      map[int64]int32
 }
@@ -53,6 +55,8 @@ func NewMemoryStore() *MemoryStore {
 		buckets:       map[int64]DeliveryBucket{},
 		bucketByKey:   map[string]int64{},
 		sent:          map[string]int{},
+		reserved:      map[string]int{},
+		reservations:  map[int64]map[string]struct{}{},
 		consents:      map[int64]int32{},
 	}
 }
@@ -232,6 +236,83 @@ func (m *MemoryStore) GetMessagesByIDs(_ context.Context, userID int64, ids []in
 	return out, nil
 }
 
+func (m *MemoryStore) ListHistoryAround(_ context.Context, userID, messageID int64, before, after int, cutoffMs int64, excludeIDs []int64) ([]Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	excluded := int64Set(excludeIDs)
+	anchorMessage, ok := m.messages[messageID]
+	if !ok || !historyMessageEligible(anchorMessage, userID, cutoffMs, excluded) {
+		return nil, nil
+	}
+	eligible := make([]Message, 0)
+	for _, message := range m.messages {
+		if message.SessionID == anchorMessage.SessionID && historyMessageEligible(message, userID, cutoffMs, excluded) {
+			eligible = append(eligible, message)
+		}
+	}
+	sortMessages(eligible)
+	anchor := -1
+	for index, message := range eligible {
+		if message.ID == messageID {
+			anchor = index
+			break
+		}
+	}
+	if anchor < 0 {
+		return nil, nil
+	}
+	before = boundedHistoryEdge(before)
+	after = boundedHistoryEdge(after)
+	start := anchor - before
+	if start < 0 {
+		start = 0
+	}
+	end := anchor + after + 1
+	if end > len(eligible) {
+		end = len(eligible)
+	}
+	return append([]Message(nil), eligible[start:end]...), nil
+}
+
+func (m *MemoryStore) ListHistorySessionSummaries(_ context.Context, userID, sessionID int64, limit int, cutoffMs int64, excludeIDs []int64) ([]HistorySessionSummary, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	excluded := int64Set(excludeIDs)
+	grouped := map[int64][]Message{}
+	for _, message := range m.messages {
+		if sessionID > 0 && message.SessionID != sessionID {
+			continue
+		}
+		if historyMessageEligible(message, userID, cutoffMs, excluded) {
+			grouped[message.SessionID] = append(grouped[message.SessionID], message)
+		}
+	}
+	out := make([]HistorySessionSummary, 0, len(grouped))
+	for id, messages := range grouped {
+		sortMessages(messages)
+		out = append(out, HistorySessionSummary{
+			SessionID: id, First: messages[0], Last: messages[len(messages)-1], LastAtMs: messages[len(messages)-1].CreatedAtMs,
+		})
+	}
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[j].LastAtMs > out[i].LastAtMs || (out[j].LastAtMs == out[i].LastAtMs && out[j].SessionID > out[i].SessionID) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	if limit <= 0 {
+		limit = 3
+	}
+	if limit > 10 {
+		limit = 10
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 func (m *MemoryStore) SoftDeleteMessages(_ context.Context, userID, deletedAtMs int64) ([]int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -302,7 +383,7 @@ func (m *MemoryStore) GetRunByRequestID(_ context.Context, userID int64, request
 			return &cp, nil
 		}
 	}
-	return nil, sqlx.ErrNotFound
+	return nil, nil
 }
 
 func (m *MemoryStore) UpdateRun(_ context.Context, run Run) error {
@@ -904,11 +985,33 @@ func (m *MemoryStore) DeferBucket(_ context.Context, id, notBeforeMs int64) erro
 	return nil
 }
 
+func (m *MemoryStore) DismissBucket(_ context.Context, id, runID int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	b, ok := m.buckets[id]
+	if !ok {
+		return sqlx.ErrNotFound
+	}
+	allowed := runID == 0 && (b.Status == "pending" || b.Status == "deferred") && b.RunID == 0
+	if runID > 0 {
+		allowed = b.Status == "scheduled" && b.RunID == runID
+	}
+	if allowed {
+		m.releaseWatchReservationsLocked(id)
+		b.Status = "discarded"
+		b.RunID = 0
+		b.NotBeforeMs = 0
+		m.buckets[id] = b
+	}
+	return nil
+}
+
 func (m *MemoryStore) ResetBucket(_ context.Context, id, runID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	b := m.buckets[id]
 	if b.Status == "scheduled" && b.RunID == runID {
+		m.releaseWatchReservationsLocked(id)
 		b.Status = "pending"
 		b.RunID = 0
 		b.NotBeforeMs = 0
@@ -923,6 +1026,7 @@ func (m *MemoryStore) RequeueFailedBuckets(_ context.Context) error {
 	for id, b := range m.buckets {
 		run, ok := m.runs[b.RunID]
 		if b.Status == "scheduled" && ok && (run.Status == StatusError || run.Status == StatusCancelled) {
+			m.releaseWatchReservationsLocked(id)
 			b.Status = "pending"
 			b.RunID = 0
 			b.NotBeforeMs = 0
@@ -930,6 +1034,45 @@ func (m *MemoryStore) RequeueFailedBuckets(_ context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (m *MemoryStore) ReserveWatchQuota(_ context.Context, bucketID, userID int64, taskIDs []int64, dayStartMs, hourStartMs int64, dailyLimit, hourlyLimit int) (bool, int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	bucket, ok := m.buckets[bucketID]
+	if !ok || bucket.UserID != userID || (bucket.Status != "pending" && bucket.Status != "deferred") {
+		return false, 0, nil
+	}
+	if _, exists := m.reservations[bucketID]; exists {
+		return true, 0, nil
+	}
+	dayKey := sentKey(userID, 0, "day", dayStartMs)
+	if m.sent[dayKey]+m.reserved[dayKey] >= dailyLimit {
+		return false, dayStartMs + int64((24 * time.Hour).Milliseconds()), nil
+	}
+	seen := map[int64]struct{}{}
+	for _, taskID := range taskIDs {
+		if taskID <= 0 {
+			continue
+		}
+		if _, duplicate := seen[taskID]; duplicate {
+			continue
+		}
+		seen[taskID] = struct{}{}
+		key := sentKey(userID, taskID, "hour", hourStartMs)
+		if m.sent[key]+m.reserved[key] >= hourlyLimit {
+			return false, hourStartMs + int64(time.Hour.Milliseconds()), nil
+		}
+	}
+	keys := map[string]struct{}{dayKey: {}}
+	for taskID := range seen {
+		keys[sentKey(userID, taskID, "hour", hourStartMs)] = struct{}{}
+	}
+	for key := range keys {
+		m.reserved[key]++
+	}
+	m.reservations[bucketID] = keys
+	return true, 0, nil
 }
 
 func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID int64, delivered bool, nowMs int64) error {
@@ -949,6 +1092,7 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 		return errors.New("watch bucket is not scheduled")
 	}
 	if !delivered {
+		m.releaseWatchReservationsLocked(id)
 		bucket.Status = "pending"
 		bucket.RunID = 0
 		bucket.NotBeforeMs = 0
@@ -957,8 +1101,13 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 	}
 	bucket.Status = "sent"
 	m.buckets[id] = bucket
-	dayStart := nowMs / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-	m.sent[sentKey(userID, 0, "day", dayStart)]++
+	for key := range m.reservations[id] {
+		if m.reserved[key] > 0 {
+			m.reserved[key]--
+		}
+		m.sent[key]++
+	}
+	delete(m.reservations, id)
 	return nil
 }
 
@@ -967,6 +1116,7 @@ func (m *MemoryStore) ResetUnsentBuckets(_ context.Context, userID int64) error 
 	defer m.mu.Unlock()
 	for id, b := range m.buckets {
 		if b.UserID == userID && b.Status == "scheduled" {
+			m.releaseWatchReservationsLocked(id)
 			b.Status = "pending"
 			b.RunID = 0
 			b.NotBeforeMs = 0
@@ -974,6 +1124,15 @@ func (m *MemoryStore) ResetUnsentBuckets(_ context.Context, userID int64) error 
 		}
 	}
 	return nil
+}
+
+func (m *MemoryStore) releaseWatchReservationsLocked(bucketID int64) {
+	for key := range m.reservations[bucketID] {
+		if m.reserved[key] > 0 {
+			m.reserved[key]--
+		}
+	}
+	delete(m.reservations, bucketID)
 }
 
 func (m *MemoryStore) CountSent(_ context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error) {

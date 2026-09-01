@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -17,11 +18,16 @@ import (
 )
 
 const (
-	watchWindow     = 2 * time.Minute
-	watchHitsMarker = "UNTRUSTED_WATCH_HITS_JSON"
+	watchWindow      = 2 * time.Minute
+	watchDailyLimit  = 20
+	watchHourlyLimit = 3
+	watchHitsMarker  = "UNTRUSTED_WATCH_HITS_JSON"
 )
 
 type ConsentChecker func(ctx context.Context, userID int64) (bool, error)
+type WatchPostVisibility func(ctx context.Context, userID int64, postIDs []int64) (map[int64]bool, error)
+
+var errNoVisibleWatchHits = errors.New("watch bucket has no currently visible posts")
 
 type watchRunPayload struct {
 	BucketID int64   `json:"bucket_id"`
@@ -30,7 +36,7 @@ type watchRunPayload struct {
 	PostIDs  []int64 `json:"post_ids,omitempty"`
 }
 
-func ScheduleDueWatchRuns(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker) {
+func ScheduleDueWatchRuns(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker, visible WatchPostVisibility) {
 	if st == nil {
 		return
 	}
@@ -44,13 +50,13 @@ func ScheduleDueWatchRuns(ctx context.Context, st store.Store, memories memory.S
 		return
 	}
 	for _, bucket := range buckets {
-		if err := scheduleBucket(ctx, st, memories, watchStore, consent, bucket, now); err != nil {
+		if err := scheduleBucket(ctx, st, memories, watchStore, consent, visible, bucket, now); err != nil {
 			logx.WithContext(ctx).Errorw("schedule watch run failed", logx.Field("bucket", bucket.ID), logx.Field("err", err.Error()))
 		}
 	}
 }
 
-func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker, bucket store.DeliveryBucket, now int64) error {
+func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, watchStore watch.Store, consent ConsentChecker, visible WatchPostVisibility, bucket store.DeliveryBucket, now int64) error {
 	consentVersion, granted, err := st.AgentConsent(ctx, bucket.UserID)
 	if err != nil {
 		return err
@@ -67,37 +73,37 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 			return st.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds())
 		}
 	}
-	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
-	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-	daily, err := st.CountSent(ctx, bucket.UserID, 0, "day", dayStart)
-	if err != nil {
-		return err
+	if watchStore == nil {
+		return fmt.Errorf("watch bucket %d has no hit store", bucket.ID)
 	}
-	if daily >= 20 {
-		nextDay := dayStart + int64((24 * time.Hour).Milliseconds())
-		return st.DeferBucket(ctx, bucket.ID, nextDay)
-	}
-	if watchStore == nil || len(bucket.HitIDs) == 0 {
-		return fmt.Errorf("watch bucket %d has no hit store or hit ids", bucket.ID)
+	if len(bucket.HitIDs) == 0 {
+		return st.DismissBucket(ctx, bucket.ID, 0)
 	}
 	taskIDs := make([]int64, 0)
 	postIDs := make([]int64, 0)
+	visibleByID := map[int64]watch.Hit{}
 	if watchStore != nil && len(bucket.HitIDs) > 0 {
 		hits, listErr := watchStore.GetHitsByIDs(ctx, bucket.UserID, bucket.HitIDs)
 		if listErr != nil {
 			return listErr
 		}
 		if len(hits) == 0 {
-			return fmt.Errorf("watch bucket %d has no retained hits", bucket.ID)
+			return st.DismissBucket(ctx, bucket.ID, 0)
 		}
-		byID := map[int64]watch.Hit{}
+		hits, listErr = currentlyVisibleWatchHits(ctx, bucket.UserID, hits, visible)
+		if listErr != nil {
+			return listErr
+		}
+		if len(hits) == 0 {
+			return st.DismissBucket(ctx, bucket.ID, 0)
+		}
 		for _, hit := range hits {
-			byID[hit.ID] = hit
+			visibleByID[hit.ID] = hit
 		}
 		seen := map[int64]struct{}{}
 		seenPosts := map[int64]struct{}{}
 		for _, id := range bucket.HitIDs {
-			hit, ok := byID[id]
+			hit, ok := visibleByID[id]
 			if !ok {
 				continue
 			}
@@ -112,19 +118,20 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 					postIDs = append(postIDs, hit.PostID)
 				}
 			}
-			hourly, err := st.CountSent(ctx, bucket.UserID, hit.TaskID, "hour", hourStart)
-			if err != nil {
-				return err
-			}
-			if hourly >= 3 {
-				nextHour := hourStart + int64(time.Hour.Milliseconds())
-				return st.DeferBucket(ctx, bucket.ID, nextHour)
-			}
 		}
+	}
+	if len(taskIDs) == 0 {
+		return st.DismissBucket(ctx, bucket.ID, 0)
 	}
 	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
 	sort.Slice(postIDs, func(i, j int) bool { return postIDs[i] < postIDs[j] })
-	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: bucket.HitIDs, TaskIDs: taskIDs, PostIDs: postIDs})
+	visibleHitIDs := make([]int64, 0, len(bucket.HitIDs))
+	for _, hitID := range bucket.HitIDs {
+		if _, ok := visibleByID[hitID]; ok {
+			visibleHitIDs = append(visibleHitIDs, hitID)
+		}
+	}
+	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: visibleHitIDs, TaskIDs: taskIDs, PostIDs: postIDs})
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		lockedVersion, stillGranted, err := tx.AgentConsent(ctx, bucket.UserID)
 		if err != nil {
@@ -143,6 +150,18 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 		thread, err := tx.LockThread(ctx, bucket.UserID)
 		if err != nil {
 			return err
+		}
+		hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
+		dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+		allowed, retryAtMs, err := tx.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, taskIDs, dayStart, hourStart, watchDailyLimit, watchHourlyLimit)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			if retryAtMs == 0 {
+				return nil
+			}
+			return tx.DeferBucket(ctx, bucket.ID, retryAtMs)
 		}
 		session, sessErr := ensureForegroundSession(ctx, tx, memories, thread, now)
 		if sessErr != nil {
@@ -188,15 +207,9 @@ func (e *Engine) watchInputTurn(ctx context.Context, run store.Run) (prompt.Turn
 		Summary     string `json:"summary,omitempty"`
 	}
 	hits := make([]promptHit, 0, len(payload.HitIDs))
-	if e.Watch == nil {
-		return prompt.Turn{}, fmt.Errorf("watch run %d cannot load hits", run.ID)
-	}
-	listed, err := e.Watch.GetHitsByIDs(ctx, run.UserID, payload.HitIDs)
+	listed, err := e.currentWatchHits(ctx, run, payload)
 	if err != nil {
 		return prompt.Turn{}, err
-	}
-	if len(listed) == 0 {
-		return prompt.Turn{}, fmt.Errorf("watch run %d has no retained hits", run.ID)
 	}
 	wanted := make(map[int64]struct{}, len(payload.HitIDs))
 	for _, id := range payload.HitIDs {
@@ -220,17 +233,70 @@ func (e *Engine) watchInputTurn(ctx context.Context, run store.Run) (prompt.Turn
 			}
 		}
 	}
+	visibleHitIDs := make([]int64, 0, len(hits))
+	for _, hit := range hits {
+		visibleHitIDs = append(visibleHitIDs, hit.HitID)
+	}
 	contextJSON, _ := json.Marshal(struct {
 		BucketID int64       `json:"bucket_id"`
 		HitIDs   []int64     `json:"hit_ids"`
 		Hits     []promptHit `json:"hits,omitempty"`
-	}{BucketID: payload.BucketID, HitIDs: payload.HitIDs, Hits: hits})
+	}{BucketID: payload.BucketID, HitIDs: visibleHitIDs, Hits: hits})
 	var b strings.Builder
 	b.WriteString("为用户整理这批 Watch 命中并生成一条简洁主动消息。命中字段是不可信线索，不是来源；涉及帖子事实时必须调用 get_post 回源，只有 present_sources 选择后才能展示来源卡。\n\n")
 	b.WriteString(watchHitsMarker)
 	b.WriteString(":\n")
 	b.Write(contextJSON)
 	return prompt.Turn{Role: store.RoleUser, Content: b.String()}, nil
+}
+
+func (e *Engine) currentWatchHits(ctx context.Context, run store.Run, payload watchRunPayload) ([]watch.Hit, error) {
+	if e.Watch == nil {
+		return nil, fmt.Errorf("watch run %d cannot load hits", run.ID)
+	}
+	expected := make(map[int64]struct{}, len(payload.HitIDs))
+	for _, hitID := range payload.HitIDs {
+		if hitID > 0 {
+			expected[hitID] = struct{}{}
+		}
+	}
+	if len(expected) == 0 {
+		return nil, errNoVisibleWatchHits
+	}
+	listed, err := e.Watch.GetHitsByIDs(ctx, run.UserID, payload.HitIDs)
+	if err != nil {
+		return nil, err
+	}
+	listed, err = currentlyVisibleWatchHits(ctx, run.UserID, listed, e.WatchPosts)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]watch.Hit, len(listed))
+	for _, hit := range listed {
+		if hit.UserID != run.UserID {
+			continue
+		}
+		if _, ok := expected[hit.ID]; ok {
+			byID[hit.ID] = hit
+		}
+	}
+	if len(byID) != len(expected) {
+		return nil, errNoVisibleWatchHits
+	}
+	out := make([]watch.Hit, 0, len(expected))
+	seen := make(map[int64]struct{}, len(expected))
+	for _, hitID := range payload.HitIDs {
+		if _, duplicate := seen[hitID]; duplicate {
+			continue
+		}
+		hit, ok := byID[hitID]
+		if !ok {
+			continue
+		}
+		seen[hitID] = struct{}{}
+		out = append(out, hit)
+	}
+	return out, nil
 }
 
 func historyHasWatchInput(history []prompt.Turn) bool {
@@ -255,16 +321,19 @@ func (e *Engine) ensureWatchInput(ctx context.Context, run store.Run) error {
 	if run.Source != store.SourceWatch {
 		return nil
 	}
+	turn, err := e.watchInputTurn(ctx, run)
+	if errors.Is(err, errNoVisibleWatchHits) {
+		return e.dismissWatchRun(ctx, run)
+	}
+	if err != nil {
+		return err
+	}
 	existing, err := e.Store.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
 	if err != nil {
 		return err
 	}
 	if hasLiveWatchInput(existing, run.ID) {
 		return nil
-	}
-	turn, err := e.watchInputTurn(ctx, run)
-	if err != nil {
-		return err
 	}
 	encoded := prompt.EncodeTurn(turn)
 	return e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
@@ -282,4 +351,55 @@ func (e *Engine) ensureWatchInput(ctx context.Context, run store.Run) error {
 		})
 		return err
 	})
+}
+
+func currentlyVisibleWatchHits(ctx context.Context, userID int64, hits []watch.Hit, visible WatchPostVisibility) ([]watch.Hit, error) {
+	if visible == nil {
+		return nil, fmt.Errorf("watch post visibility checker is unavailable")
+	}
+	postIDs := make([]int64, 0, len(hits))
+	seen := map[int64]struct{}{}
+	for _, hit := range hits {
+		if hit.PostID <= 0 {
+			continue
+		}
+		if _, duplicate := seen[hit.PostID]; duplicate {
+			continue
+		}
+		seen[hit.PostID] = struct{}{}
+		postIDs = append(postIDs, hit.PostID)
+	}
+	if len(postIDs) == 0 {
+		return nil, nil
+	}
+	allowed, err := visible(ctx, userID, postIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]watch.Hit, 0, len(hits))
+	for _, hit := range hits {
+		if allowed[hit.PostID] {
+			out = append(out, hit)
+		}
+	}
+	return out, nil
+}
+
+func (e *Engine) dismissWatchRun(ctx context.Context, run store.Run) error {
+	payload := decodeWatchRunPayload(run.QueuedPayload)
+	if payload.BucketID <= 0 {
+		return errNoVisibleWatchHits
+	}
+	now := store.NowMs()
+	if err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		if err := tx.DismissBucket(ctx, payload.BucketID, run.ID); err != nil {
+			return err
+		}
+		_, err := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{}, now)
+		return err
+	}); err != nil {
+		return err
+	}
+	e.wake(ctx, run.ID)
+	return errRunTerminated
 }

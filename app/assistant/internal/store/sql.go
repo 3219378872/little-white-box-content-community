@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -415,7 +416,11 @@ func (s *SQLStore) GetRun(ctx context.Context, id int64) (*Run, error) {
 }
 
 func (s *SQLStore) GetRunByRequestID(ctx context.Context, userID int64, requestID string) (*Run, error) {
-	return s.scanRun(ctx, `SELECT * FROM (`+runSelect+`) r WHERE r.user_id=? AND r.request_id=?`, userID, requestID)
+	run, err := s.scanRun(ctx, `SELECT * FROM (`+runSelect+`) r WHERE r.user_id=? AND r.request_id=?`, userID, requestID)
+	if err == sqlx.ErrNotFound {
+		return nil, nil
+	}
+	return run, err
 }
 
 const runSelect = `SELECT id, user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner,
@@ -534,7 +539,8 @@ func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sourc
 	if len(sources) == 0 {
 		return nil, nil
 	}
-	query := `SELECT * FROM (` + runSelect + `) r WHERE r.user_id=? AND r.status IN ('queued','running') AND r.source IN (` + placeholders(len(sources)) + `)`
+	query := runSelect + ` WHERE user_id=? AND status IN ('queued','running') AND source IN (` +
+		placeholders(len(sources)) + `) ORDER BY id FOR UPDATE`
 	args := append([]any{userID}, stringsToAny(sources)...)
 	var rows []runRow
 	if err := s.exec.QueryRowsCtx(ctx, &rows, query, args...); err != nil {
@@ -1247,19 +1253,190 @@ func (s *SQLStore) DeferBucket(ctx context.Context, id, notBeforeMs int64) error
 	return err
 }
 
+func (s *SQLStore) DismissBucket(ctx context.Context, id, runID int64) error {
+	if s.conn != nil {
+		return s.Transact(ctx, func(ctx context.Context, tx Store) error { return tx.DismissBucket(ctx, id, runID) })
+	}
+	query := `UPDATE watch_delivery_bucket SET status='discarded', run_id=0, not_before_ms=0
+		WHERE id=? AND run_id=0 AND status IN ('pending','deferred')`
+	args := []any{id}
+	if runID > 0 {
+		query = `UPDATE watch_delivery_bucket SET status='discarded', run_id=0, not_before_ms=0
+			WHERE id=? AND run_id=? AND status='scheduled'`
+		args = append(args, runID)
+	}
+	res, err := s.exec.ExecCtx(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil || affected == 0 {
+		return err
+	}
+	return s.releaseWatchQuota(ctx, id, false)
+}
+
 func (s *SQLStore) ResetBucket(ctx context.Context, id, runID int64) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0 WHERE id=? AND run_id=? AND status='scheduled'`, id, runID)
-	return err
+	if s.conn != nil {
+		return s.Transact(ctx, func(ctx context.Context, tx Store) error { return tx.ResetBucket(ctx, id, runID) })
+	}
+	res, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0 WHERE id=? AND run_id=? AND status='scheduled'`, id, runID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil || affected == 0 {
+		return err
+	}
+	return s.releaseWatchQuota(ctx, id, false)
 }
 
 func (s *SQLStore) RequeueFailedBuckets(ctx context.Context) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket b JOIN agent_run r ON r.id=b.run_id
-		SET b.status='pending', b.run_id=0, b.not_before_ms=0
-		WHERE b.status='scheduled' AND r.status IN ('error','cancelled')`)
-	return err
+	if s.conn != nil {
+		return s.Transact(ctx, func(ctx context.Context, tx Store) error { return tx.RequeueFailedBuckets(ctx) })
+	}
+	var candidates []struct {
+		BucketID int64 `db:"bucket_id"`
+		RunID    int64 `db:"run_id"`
+	}
+	if err := s.exec.QueryRowsCtx(ctx, &candidates, `SELECT b.id AS bucket_id, b.run_id FROM watch_delivery_bucket b
+		JOIN agent_run r ON r.id=b.run_id WHERE b.status='scheduled' AND r.status IN ('error','cancelled')
+		ORDER BY b.run_id, b.id`); err != nil {
+		return err
+	}
+	for _, candidate := range candidates {
+		var run struct {
+			Status string `db:"status"`
+		}
+		if err := s.exec.QueryRowCtx(ctx, &run, `SELECT status FROM agent_run WHERE id=? FOR UPDATE`, candidate.RunID); err != nil {
+			if err == sqlx.ErrNotFound {
+				continue
+			}
+			return err
+		}
+		if run.Status != StatusError && run.Status != StatusCancelled {
+			continue
+		}
+		bucket, err := s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
+			FROM watch_delivery_bucket WHERE id=? AND run_id=? FOR UPDATE`, candidate.BucketID, candidate.RunID)
+		if err != nil {
+			return err
+		}
+		if bucket == nil || bucket.Status != "scheduled" {
+			continue
+		}
+		if err := s.releaseWatchQuota(ctx, candidate.BucketID, false); err != nil {
+			return err
+		}
+		if _, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0
+			WHERE id=? AND run_id=? AND status='scheduled'`, candidate.BucketID, candidate.RunID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SQLStore) ReserveWatchQuota(ctx context.Context, bucketID, userID int64, taskIDs []int64, dayStartMs, hourStartMs int64, dailyLimit, hourlyLimit int) (bool, int64, error) {
+	if s.conn != nil {
+		var allowed bool
+		var retryAtMs int64
+		err := s.Transact(ctx, func(ctx context.Context, tx Store) error {
+			var err error
+			allowed, retryAtMs, err = tx.ReserveWatchQuota(ctx, bucketID, userID, taskIDs, dayStartMs, hourStartMs, dailyLimit, hourlyLimit)
+			return err
+		})
+		return allowed, retryAtMs, err
+	}
+	if bucketID <= 0 || userID <= 0 || dailyLimit <= 0 || hourlyLimit <= 0 {
+		return false, 0, fmt.Errorf("invalid watch quota reservation")
+	}
+	var bucketRow struct {
+		Status string `db:"status"`
+	}
+	if err := s.exec.QueryRowCtx(ctx, &bucketRow, `SELECT status FROM watch_delivery_bucket
+		WHERE id=? AND user_id=? FOR UPDATE`, bucketID, userID); err != nil {
+		if err == sqlx.ErrNotFound {
+			return false, 0, nil
+		}
+		return false, 0, err
+	}
+	if bucketRow.Status != "pending" && bucketRow.Status != "deferred" {
+		return false, 0, nil
+	}
+	var existing int64
+	if err := s.exec.QueryRowCtx(ctx, &existing, `SELECT COUNT(*) FROM watch_send_reservation WHERE bucket_id=?`, bucketID); err != nil {
+		return false, 0, err
+	}
+	if existing > 0 {
+		return true, 0, nil
+	}
+	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
+	uniqueTasks := taskIDs[:0]
+	for _, taskID := range taskIDs {
+		if taskID <= 0 || (len(uniqueTasks) > 0 && uniqueTasks[len(uniqueTasks)-1] == taskID) {
+			continue
+		}
+		uniqueTasks = append(uniqueTasks, taskID)
+	}
+	type quotaRow struct {
+		taskID int64
+		kind   string
+		start  int64
+		limit  int
+		retry  int64
+	}
+	quotas := []quotaRow{{taskID: 0, kind: "day", start: dayStartMs, limit: dailyLimit, retry: dayStartMs + int64((24 * time.Hour).Milliseconds())}}
+	for _, taskID := range uniqueTasks {
+		quotas = append(quotas, quotaRow{taskID: taskID, kind: "hour", start: hourStartMs, limit: hourlyLimit, retry: hourStartMs + int64(time.Hour.Milliseconds())})
+	}
+	for _, quota := range quotas {
+		if _, err := s.exec.ExecCtx(ctx, `INSERT INTO watch_send_stat
+			(user_id, task_id, period_kind, period_start_ms, sent_count, reserved_count) VALUES (?, ?, ?, ?, 0, 0)
+			ON DUPLICATE KEY UPDATE sent_count=sent_count`,
+			userID, quota.taskID, quota.kind, quota.start); err != nil {
+			return false, 0, err
+		}
+		var row struct {
+			Sent     int64 `db:"sent_count"`
+			Reserved int64 `db:"reserved_count"`
+		}
+		if err := s.exec.QueryRowCtx(ctx, &row, `SELECT sent_count, reserved_count FROM watch_send_stat
+			WHERE user_id=? AND task_id=? AND period_kind=? AND period_start_ms=? FOR UPDATE`,
+			userID, quota.taskID, quota.kind, quota.start); err != nil {
+			return false, 0, err
+		}
+		if row.Sent+row.Reserved >= int64(quota.limit) {
+			return false, quota.retry, nil
+		}
+	}
+	for _, quota := range quotas {
+		if _, err := s.exec.ExecCtx(ctx, `INSERT INTO watch_send_reservation
+			(bucket_id, user_id, task_id, period_kind, period_start_ms, created_at_ms) VALUES (?, ?, ?, ?, ?, ?)`,
+			bucketID, userID, quota.taskID, quota.kind, quota.start, NowMs()); err != nil {
+			return false, 0, err
+		}
+		res, err := s.exec.ExecCtx(ctx, `UPDATE watch_send_stat SET reserved_count=reserved_count+1
+			WHERE user_id=? AND task_id=? AND period_kind=? AND period_start_ms=?`, userID, quota.taskID, quota.kind, quota.start)
+		if err != nil {
+			return false, 0, err
+		}
+		affected, err := res.RowsAffected()
+		if err != nil || affected != 1 {
+			if err != nil {
+				return false, 0, err
+			}
+			return false, 0, fmt.Errorf("watch quota reservation stat missing")
+		}
+	}
+	return true, 0, nil
 }
 
 func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID int64, delivered bool, nowMs int64) error {
+	if s.conn != nil {
+		return s.Transact(ctx, func(ctx context.Context, tx Store) error {
+			return tx.FinishWatchDelivery(ctx, id, userID, runID, delivered, nowMs)
+		})
+	}
 	bucket, err := s.scanBucket(ctx, `SELECT id, user_id, window_start_ms, not_before_ms, status, hit_ids, run_id, created_at_ms
 		FROM watch_delivery_bucket WHERE id=? AND user_id=? AND run_id=? FOR UPDATE`, id, userID, runID)
 	if err != nil {
@@ -1270,13 +1447,19 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 		// to pending. That is a valid terminal cleanup outcome for the run.
 		return nil
 	}
-	if bucket.Status == "sent" || bucket.Status == "pending" || bucket.Status == "deferred" {
+	if bucket.Status == "sent" {
 		return nil
+	}
+	if bucket.Status == "pending" || bucket.Status == "deferred" || bucket.Status == "discarded" {
+		return s.releaseWatchQuota(ctx, id, false)
 	}
 	if bucket.Status != "scheduled" {
 		return fmt.Errorf("watch bucket %d is not scheduled", id)
 	}
 	if !delivered {
+		if err := s.releaseWatchQuota(ctx, id, false); err != nil {
+			return err
+		}
 		_, err = s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0
 			WHERE id=? AND user_id=? AND run_id=? AND status='scheduled'`, id, userID, runID)
 		return err
@@ -1293,31 +1476,95 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 	if n != 1 {
 		return fmt.Errorf("watch bucket %d delivery CAS failed", id)
 	}
-	dayStart := nowMs / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-	if err := s.IncrSent(ctx, userID, 0, "day", dayStart); err != nil {
+	var reservationCount int64
+	if err := s.exec.QueryRowCtx(ctx, &reservationCount, `SELECT COUNT(*) FROM watch_send_reservation WHERE bucket_id=?`, id); err != nil {
 		return err
 	}
-	if len(bucket.HitIDs) == 0 {
-		return nil
+	if reservationCount > 0 {
+		return s.releaseWatchQuota(ctx, id, true)
 	}
-	var taskIDs []int64
-	args := append([]any{userID}, intsToAny(bucket.HitIDs)...)
-	if err := s.exec.QueryRowsCtx(ctx, &taskIDs, `SELECT DISTINCT task_id FROM watch_hit
-		WHERE user_id=? AND id IN (`+placeholders(len(bucket.HitIDs))+`)`, args...); err != nil {
+	return s.commitLegacyWatchQuota(ctx, bucket, nowMs)
+}
+
+func (s *SQLStore) ResetUnsentBuckets(ctx context.Context, userID int64) error {
+	if s.conn != nil {
+		return s.Transact(ctx, func(ctx context.Context, tx Store) error { return tx.ResetUnsentBuckets(ctx, userID) })
+	}
+	var bucketIDs []int64
+	if err := s.exec.QueryRowsCtx(ctx, &bucketIDs, `SELECT id FROM watch_delivery_bucket
+		WHERE user_id=? AND status='scheduled' ORDER BY id FOR UPDATE`, userID); err != nil {
 		return err
 	}
-	hourStart := nowMs / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
-	for _, taskID := range taskIDs {
-		if err := s.IncrSent(ctx, userID, taskID, "hour", hourStart); err != nil {
+	for _, bucketID := range bucketIDs {
+		if err := s.releaseWatchQuota(ctx, bucketID, false); err != nil {
+			return err
+		}
+		if _, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0
+			WHERE id=? AND status='scheduled'`, bucketID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *SQLStore) ResetUnsentBuckets(ctx context.Context, userID int64) error {
-	_, err := s.exec.ExecCtx(ctx, `UPDATE watch_delivery_bucket SET status='pending', run_id=0, not_before_ms=0 WHERE user_id=? AND status IN ('scheduled')`, userID)
+func (s *SQLStore) releaseWatchQuota(ctx context.Context, bucketID int64, delivered bool) error {
+	var rows []struct {
+		UserID        int64  `db:"user_id"`
+		TaskID        int64  `db:"task_id"`
+		PeriodKind    string `db:"period_kind"`
+		PeriodStartMs int64  `db:"period_start_ms"`
+	}
+	if err := s.exec.QueryRowsCtx(ctx, &rows, `SELECT user_id, task_id, period_kind, period_start_ms
+		FROM watch_send_reservation WHERE bucket_id=? ORDER BY period_kind, task_id FOR UPDATE`, bucketID); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		query := `UPDATE watch_send_stat SET reserved_count=reserved_count-1 WHERE
+			user_id=? AND task_id=? AND period_kind=? AND period_start_ms=? AND reserved_count>0`
+		if delivered {
+			query = `UPDATE watch_send_stat SET reserved_count=reserved_count-1, sent_count=sent_count+1 WHERE
+				user_id=? AND task_id=? AND period_kind=? AND period_start_ms=? AND reserved_count>0`
+		}
+		res, err := s.exec.ExecCtx(ctx, query, row.UserID, row.TaskID, row.PeriodKind, row.PeriodStartMs)
+		if err != nil {
+			return err
+		}
+		affected, err := res.RowsAffected()
+		if err != nil || affected != 1 {
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("watch quota reservation is inconsistent for bucket %d", bucketID)
+		}
+	}
+	_, err := s.exec.ExecCtx(ctx, `DELETE FROM watch_send_reservation WHERE bucket_id=?`, bucketID)
 	return err
+}
+
+func (s *SQLStore) commitLegacyWatchQuota(ctx context.Context, bucket *DeliveryBucket, nowMs int64) error {
+	if bucket == nil {
+		return nil
+	}
+	dayStart := nowMs / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
+	if err := s.IncrSent(ctx, bucket.UserID, 0, "day", dayStart); err != nil {
+		return err
+	}
+	if len(bucket.HitIDs) == 0 {
+		return nil
+	}
+	var taskIDs []int64
+	args := append([]any{bucket.UserID}, intsToAny(bucket.HitIDs)...)
+	if err := s.exec.QueryRowsCtx(ctx, &taskIDs, `SELECT DISTINCT task_id FROM watch_hit
+		WHERE user_id=? AND id IN (`+placeholders(len(bucket.HitIDs))+`)`, args...); err != nil {
+		return err
+	}
+	hourStart := nowMs / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
+	for _, taskID := range taskIDs {
+		if err := s.IncrSent(ctx, bucket.UserID, taskID, "hour", hourStart); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error) {

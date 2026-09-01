@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -91,6 +92,9 @@ func (s *SQLStore) mutate(ctx context.Context, userID int64, requestID string, o
 	var entries []Entry
 	var changeIDs []int64
 	err := s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		if err := s.lockMutationTargets(ctx, session, userID, ops); err != nil {
+			return err
+		}
 		out, ids, err := s.applyOps(ctx, session, userID, requestID, ops, nowMs)
 		entries, changeIDs = out, ids
 		return err
@@ -103,6 +107,46 @@ func (s *SQLStore) mutate(ctx context.Context, userID int64, requestID string, o
 		}
 	}
 	return entries, changeIDs, err
+}
+
+func (s *SQLStore) lockMutationTargets(ctx context.Context, session sqlx.Session, userID int64, ops []Op) error {
+	targets := make(map[string]struct{}, 2)
+	for _, op := range ops {
+		switch strings.ToLower(strings.TrimSpace(op.Op)) {
+		case OpAdd, "":
+			if !ValidTarget(op.Target) {
+				return errx.New(errx.ParamError, "memory target must be memory or user")
+			}
+			targets[op.Target] = struct{}{}
+		case OpReplace, OpRemove:
+			entry, err := s.getOwnedAny(ctx, session, userID, op.ID)
+			if err != nil {
+				return err
+			}
+			targets[entry.Target] = struct{}{}
+		default:
+			return errx.New(errx.ParamError, "unknown memory op")
+		}
+	}
+	ordered := make([]string, 0, len(targets))
+	for target := range targets {
+		ordered = append(ordered, target)
+	}
+	return s.lockTargets(ctx, session, userID, ordered...)
+}
+
+func (s *SQLStore) lockTargets(ctx context.Context, session sqlx.Session, userID int64, targets ...string) error {
+	sort.Strings(targets)
+	for _, target := range targets {
+		// A no-op duplicate update takes the row's exclusive lock directly. Using
+		// INSERT IGNORE followed by FOR UPDATE permits two shared-lock holders to
+		// deadlock while both try to upgrade.
+		if _, err := session.ExecCtx(ctx, `INSERT INTO memory_target_lock (user_id, target) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE target=VALUES(target)`, userID, target); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLStore) replayOps(
@@ -292,6 +336,13 @@ func (s *SQLStore) replaceOne(ctx context.Context, session sqlx.Session, userID,
 	if current.Version != version {
 		return current, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
 	}
+	duplicate, err := s.findByNorm(ctx, session, userID, current.Target, Normalize(content))
+	if err != nil {
+		return nil, 0, err
+	}
+	if duplicate != nil && duplicate.ID != current.ID {
+		return nil, 0, errx.New(errx.ParamError, "memory content duplicates another entry")
+	}
 	all, err := s.listActive(ctx, session, userID, current.Target)
 	if err != nil {
 		return nil, 0, err
@@ -357,26 +408,25 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 	}
 	var out *Entry
 	err := s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-		var row struct {
-			ID            int64          `db:"id"`
-			UserID        int64          `db:"user_id"`
-			EntryID       int64          `db:"entry_id"`
-			Op            string         `db:"op"`
-			BeforeJSON    sql.NullString `db:"before_json"`
-			AfterJSON     sql.NullString `db:"after_json"`
-			ResultVersion int64          `db:"result_version"`
-			Undone        int64          `db:"undone"`
+		pre, err := loadUndoChange(ctx, session, userID, changeID, false)
+		if err != nil {
+			return err
 		}
-		if err := session.QueryRowCtx(ctx, &row, `SELECT id, user_id, entry_id, op, before_json, after_json, result_version, undone FROM memory_change WHERE id=? AND user_id=?`, changeID, userID); err != nil {
-			if err == sqlx.ErrNotFound {
-				return errx.NewWithCode(errx.NotFound)
-			}
+		preEntry, err := s.getOwnedAny(ctx, session, userID, pre.EntryID)
+		if err != nil {
+			return err
+		}
+		if err := s.lockTargets(ctx, session, userID, preEntry.Target); err != nil {
+			return err
+		}
+		row, err := loadUndoChange(ctx, session, userID, changeID, true)
+		if err != nil {
 			return err
 		}
 		if row.Undone == 1 {
 			return errx.New(errx.ContentVersionConflict, "memory change already undone")
 		}
-		current, err := s.getOwnedAny(ctx, session, userID, row.EntryID)
+		current, err := s.getOwnedAnyForUpdate(ctx, session, userID, row.EntryID)
 		if err != nil {
 			return err
 		}
@@ -386,8 +436,12 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 		before := decodeEntry(row.BeforeJSON.String)
 		switch row.Op {
 		case OpAdd:
-			if _, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET deleted_at_ms=?, version=version+1, updated_at_ms=? WHERE id=? AND user_id=? AND version=?`,
-				nowMs, nowMs, row.EntryID, userID, current.Version); err != nil {
+			res, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET deleted_at_ms=?, version=version+1, updated_at_ms=? WHERE id=? AND user_id=? AND version=? AND deleted_at_ms IS NULL`,
+				nowMs, nowMs, row.EntryID, userID, current.Version)
+			if err != nil {
+				return err
+			}
+			if err := requireMemoryCAS(res); err != nil {
 				return err
 			}
 			current.Deleted = true
@@ -398,8 +452,15 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 			if before == nil {
 				return errx.NewWithCode(errx.SystemError)
 			}
-			if _, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET content=?, content_norm=?, version=version+1, deleted_at_ms=NULL, updated_at_ms=? WHERE id=? AND user_id=? AND version=?`,
-				before.Content, clipNorm(Normalize(before.Content)), nowMs, row.EntryID, userID, current.Version); err != nil {
+			if err := s.validateUndoRestore(ctx, session, userID, current, before); err != nil {
+				return err
+			}
+			res, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET content=?, content_norm=?, version=version+1, deleted_at_ms=NULL, updated_at_ms=? WHERE id=? AND user_id=? AND version=? AND deleted_at_ms IS NULL`,
+				before.Content, clipNorm(Normalize(before.Content)), nowMs, row.EntryID, userID, current.Version)
+			if err != nil {
+				return err
+			}
+			if err := requireMemoryCAS(res); err != nil {
 				return err
 			}
 			before.Version = current.Version + 1
@@ -410,8 +471,15 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 			if before == nil {
 				return errx.NewWithCode(errx.SystemError)
 			}
-			if _, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET deleted_at_ms=NULL, content=?, content_norm=?, version=version+1, updated_at_ms=? WHERE id=? AND user_id=? AND version=?`,
-				before.Content, clipNorm(Normalize(before.Content)), nowMs, row.EntryID, userID, current.Version); err != nil {
+			if err := s.validateUndoRestore(ctx, session, userID, current, before); err != nil {
+				return err
+			}
+			res, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET deleted_at_ms=NULL, content=?, content_norm=?, version=version+1, updated_at_ms=? WHERE id=? AND user_id=? AND version=? AND deleted_at_ms IS NOT NULL`,
+				before.Content, clipNorm(Normalize(before.Content)), nowMs, row.EntryID, userID, current.Version)
+			if err != nil {
+				return err
+			}
+			if err := requireMemoryCAS(res); err != nil {
 				return err
 			}
 			before.Version = current.Version + 1
@@ -421,10 +489,73 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 		default:
 			return errx.NewWithCode(errx.ParamError)
 		}
-		_, err = session.ExecCtx(ctx, `UPDATE memory_change SET undone=1 WHERE id=?`, changeID)
-		return err
+		res, err := session.ExecCtx(ctx, `UPDATE memory_change SET undone=1 WHERE id=? AND user_id=? AND undone=0`, changeID, userID)
+		if err != nil {
+			return err
+		}
+		return requireMemoryCAS(res)
 	})
 	return out, err
+}
+
+type undoChangeRow struct {
+	ID            int64          `db:"id"`
+	UserID        int64          `db:"user_id"`
+	EntryID       int64          `db:"entry_id"`
+	Op            string         `db:"op"`
+	BeforeJSON    sql.NullString `db:"before_json"`
+	AfterJSON     sql.NullString `db:"after_json"`
+	ResultVersion int64          `db:"result_version"`
+	Undone        int64          `db:"undone"`
+}
+
+func loadUndoChange(ctx context.Context, q rowQuerier, userID, changeID int64, forUpdate bool) (*undoChangeRow, error) {
+	query := `SELECT id, user_id, entry_id, op, before_json, after_json, result_version, undone FROM memory_change WHERE id=? AND user_id=?`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+	var row undoChangeRow
+	if err := q.QueryRowCtx(ctx, &row, query, changeID, userID); err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, errx.NewWithCode(errx.NotFound)
+		}
+		return nil, err
+	}
+	return &row, nil
+}
+
+func (s *SQLStore) validateUndoRestore(ctx context.Context, session sqlx.Session, userID int64, current *Entry, before *Entry) error {
+	duplicate, err := s.findByNorm(ctx, session, userID, current.Target, Normalize(before.Content))
+	if err != nil {
+		return err
+	}
+	if duplicate != nil && duplicate.ID != current.ID {
+		return errx.New(errx.ContentVersionConflict, "memory content already exists")
+	}
+	all, err := s.listActive(ctx, session, userID, current.Target)
+	if err != nil {
+		return err
+	}
+	used := UsedRunes(all, current.Target)
+	if !current.Deleted {
+		used -= utf8.RuneCountInString(current.Content)
+	}
+	used += utf8.RuneCountInString(before.Content)
+	if used > LimitFor(current.Target) {
+		return errx.New(errx.ParamError, "memory capacity exceeded")
+	}
+	return nil
+}
+
+func requireMemoryCAS(result sql.Result) error {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return errx.New(errx.ContentVersionConflict, "memory version conflict")
+	}
+	return nil
 }
 
 func (s *SQLStore) RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error {
@@ -516,6 +647,14 @@ func (s *SQLStore) getOwned(ctx context.Context, q rowQuerier, userID, id int64)
 }
 
 func (s *SQLStore) getOwnedAny(ctx context.Context, q rowQuerier, userID, id int64) (*Entry, error) {
+	return s.getOwnedAnyQuery(ctx, q, userID, id, false)
+}
+
+func (s *SQLStore) getOwnedAnyForUpdate(ctx context.Context, q rowQuerier, userID, id int64) (*Entry, error) {
+	return s.getOwnedAnyQuery(ctx, q, userID, id, true)
+}
+
+func (s *SQLStore) getOwnedAnyQuery(ctx context.Context, q rowQuerier, userID, id int64, forUpdate bool) (*Entry, error) {
 	var row struct {
 		ID          int64         `db:"id"`
 		UserID      int64         `db:"user_id"`
@@ -526,8 +665,12 @@ func (s *SQLStore) getOwnedAny(ctx context.Context, q rowQuerier, userID, id int
 		CreatedAtMs int64         `db:"created_at_ms"`
 		UpdatedAtMs int64         `db:"updated_at_ms"`
 	}
-	err := q.QueryRowCtx(ctx, &row, `SELECT id, user_id, target, content, version, deleted_at_ms, created_at_ms, updated_at_ms
-		FROM core_memory_entry WHERE id=? AND user_id=?`, id, userID)
+	query := `SELECT id, user_id, target, content, version, deleted_at_ms, created_at_ms, updated_at_ms
+		FROM core_memory_entry WHERE id=? AND user_id=?`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+	err := q.QueryRowCtx(ctx, &row, query, id, userID)
 	if err == sqlx.ErrNotFound {
 		return nil, errx.NewWithCode(errx.NotFound)
 	}

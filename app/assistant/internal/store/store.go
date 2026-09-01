@@ -24,6 +24,8 @@ type Store interface {
 	MarkMessagesRead(ctx context.Context, userID int64) error
 	MarkMessagesCompacted(ctx context.Context, ids []int64) error
 	GetMessagesByIDs(ctx context.Context, userID int64, ids []int64) ([]Message, error)
+	ListHistoryAround(ctx context.Context, userID, messageID int64, before, after int, cutoffMs int64, excludeIDs []int64) ([]Message, error)
+	ListHistorySessionSummaries(ctx context.Context, userID, sessionID int64, limit int, cutoffMs int64, excludeIDs []int64) ([]HistorySessionSummary, error)
 
 	InsertRun(ctx context.Context, run Run) (Run, error)
 	GetRun(ctx context.Context, id int64) (*Run, error)
@@ -81,8 +83,10 @@ type Store interface {
 	MarkBucketScheduled(ctx context.Context, id, runID int64) error
 	MarkBucketSent(ctx context.Context, id, runID int64) error
 	DeferBucket(ctx context.Context, id, notBeforeMs int64) error
+	DismissBucket(ctx context.Context, id, runID int64) error
 	ResetBucket(ctx context.Context, id, runID int64) error
 	RequeueFailedBuckets(ctx context.Context) error
+	ReserveWatchQuota(ctx context.Context, bucketID, userID int64, taskIDs []int64, dayStartMs, hourStartMs int64, dailyLimit, hourlyLimit int) (allowed bool, retryAtMs int64, err error)
 	FinishWatchDelivery(ctx context.Context, id, userID, runID int64, delivered bool, nowMs int64) error
 	ResetUnsentBuckets(ctx context.Context, userID int64) error
 	CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error)

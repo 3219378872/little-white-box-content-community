@@ -13,6 +13,10 @@ import (
 	"esx/pkg/errx"
 )
 
+type historyStub struct{}
+
+func (historyStub) Search(context.Context, *Session, HistoryArgs) (string, error) { return "ok", nil }
+
 func TestStrictUnmarshalRejectsUnknownAndTrailingValues(t *testing.T) {
 	type args struct {
 		Keyword string `json:"keyword"`
@@ -50,6 +54,29 @@ func TestRegistryPrepareEnforcesFrozenToolSchema(t *testing.T) {
 	}
 	if _, _, err := view.Call(context.Background(), session, GetMemory, "call-1", `{"target":"memory","unexpected":true}`); !errx.Is(err, errx.ParamError) {
 		t.Fatalf("Call unknown field error=%v, want ParamError", err)
+	}
+}
+
+func TestSearchHistoryRequiresAFormalShape(t *testing.T) {
+	registry, err := NewRegistry(Clients{History: historyStub{}}, []string{SearchHistory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := &Session{UserID: 1, Source: store.SourceUser, ConsentVersion: CurrentConsentVersion}
+	for _, raw := range []string{`{}`, `{"shape":"unknown"}`, `{"shape":1}`} {
+		if _, err := registry.Prepare(context.Background(), session, SearchHistory, raw); !errx.Is(err, errx.ParamError) {
+			t.Fatalf("Prepare(%s) err=%v", raw, err)
+		}
+	}
+	for _, raw := range []string{
+		`{"shape":"keywords","query":"go"}`,
+		`{"shape":"around","message_id":1}`,
+		`{"shape":"session","session_id":1}`,
+		`{"shape":"recent"}`,
+	} {
+		if _, err := registry.Prepare(context.Background(), session, SearchHistory, raw); err != nil {
+			t.Fatalf("Prepare(%s) err=%v", raw, err)
+		}
 	}
 }
 

@@ -55,6 +55,7 @@ type Hit struct {
 
 type Store interface {
 	ListTasks(ctx context.Context, userID int64) ([]Task, error)
+	GetTask(ctx context.Context, userID, id int64) (Task, error)
 	ListEnabled(ctx context.Context) ([]Task, error)
 	Create(ctx context.Context, task Task) (Task, error)
 	UpdateEnabled(ctx context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error)
@@ -179,6 +180,10 @@ func (s *SQLStore) ListTasks(ctx context.Context, userID int64) ([]Task, error) 
 			TargetID: row.TargetID, TargetText: row.TargetText, Enabled: row.Enabled == 1, Version: int32(row.Version), CreatedAt: row.CreatedAt})
 	}
 	return out, nil
+}
+
+func (s *SQLStore) GetTask(ctx context.Context, userID, id int64) (Task, error) {
+	return s.getTask(ctx, userID, id)
 }
 
 func (s *SQLStore) ListEnabled(ctx context.Context) ([]Task, error) {
@@ -420,6 +425,16 @@ func (m *MapStore) ListTasks(_ context.Context, userID int64) ([]Task, error) {
 		}
 	}
 	return out, nil
+}
+
+func (m *MapStore) GetTask(_ context.Context, userID, id int64) (Task, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	task, ok := m.tasks[id]
+	if !ok || task.UserID != userID {
+		return Task{}, sqlx.ErrNotFound
+	}
+	return task, nil
 }
 
 func (m *MapStore) ListEnabled(_ context.Context) ([]Task, error) {

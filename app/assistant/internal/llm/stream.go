@@ -241,6 +241,8 @@ func (c *HTTPClient) consumeChatEvent(data []byte, state *streamState, emit func
 func (c *HTTPClient) consumeResponsesEvent(event string, data []byte, state *streamState, emit func(Delta) error) error {
 	var envelope struct {
 		Type        string          `json:"type"`
+		Code        string          `json:"code"`
+		Message     string          `json:"message"`
 		Delta       string          `json:"delta"`
 		Text        string          `json:"text"`
 		ItemID      string          `json:"item_id"`
@@ -317,10 +319,51 @@ func (c *HTTPClient) consumeResponsesEvent(event string, data []byte, state *str
 				}
 			}
 		}
-	case "response.failed", "error":
-		return &ProviderError{Kind: ErrorUnknown, Retryable: true, Message: "assistant LLM stream failed"}
+	case "response.failed":
+		var failed struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(envelope.Response, &failed)
+		return classifyResponsesStreamError(failed.Error.Code, failed.Error.Message)
+	case "error":
+		return classifyResponsesStreamError(envelope.Code, envelope.Message)
 	}
 	return nil
+}
+
+func classifyResponsesStreamError(code, message string) *ProviderError {
+	signal := strings.ToLower(strings.TrimSpace(code + " " + message))
+	kind, retryable := ErrorUnknown, true
+	switch {
+	case strings.Contains(signal, "invalid_api_key"), strings.Contains(signal, "authentication"),
+		strings.Contains(signal, "unauthorized"), strings.Contains(signal, "permission_denied"):
+		kind, retryable = ErrorAuth, false
+	case strings.Contains(signal, "rate_limit"), strings.Contains(signal, "too many requests"):
+		kind, retryable = ErrorRateLimit, true
+	case strings.Contains(signal, "timeout"):
+		kind, retryable = ErrorTimeout, true
+	case strings.Contains(signal, "overload"), strings.Contains(signal, "capacity"):
+		kind, retryable = ErrorOverloaded, true
+	case strings.Contains(signal, "server_error"), strings.Contains(signal, "internal_error"):
+		kind, retryable = ErrorServer, true
+	case strings.Contains(signal, "content_policy"), strings.Contains(signal, "content filter"),
+		strings.Contains(signal, "safety policy"):
+		kind, retryable = ErrorContentPolicy, false
+	case strings.Contains(signal, "context_length"), strings.Contains(signal, "context window"),
+		strings.Contains(signal, "maximum context"), strings.Contains(signal, "too many tokens"):
+		kind, retryable = ErrorContextOverflow, false
+	case strings.Contains(signal, "invalid_prompt"), strings.Contains(signal, "invalid_request"),
+		strings.Contains(signal, "invalid_value"), strings.Contains(signal, "unsupported_value"),
+		strings.Contains(signal, "missing_required"):
+		kind, retryable = ErrorInvalidRequest, false
+	}
+	return &ProviderError{
+		Kind: kind, Retryable: retryable,
+		Message: "assistant LLM stream failed: kind=" + string(kind),
+	}
 }
 
 func emitVisible(state *streamState, text string, emit func(Delta) error) error {

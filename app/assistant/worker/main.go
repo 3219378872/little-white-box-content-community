@@ -47,7 +47,7 @@ func main() {
 				_ = svcCtx.Index.Relay(ctx)
 			}
 		case <-ticker.C:
-			runtime.ScheduleDueWatchRuns(ctx, svcCtx.Store, svcCtx.Memory, svcCtx.Watch, svcCtx.Consent)
+			runtime.ScheduleDueWatchRuns(ctx, svcCtx.Store, svcCtx.Memory, svcCtx.Watch, svcCtx.Consent, svcCtx.WatchPosts)
 			run, recovered, err := svcCtx.Lease.Claim(ctx)
 			if err != nil {
 				logx.WithContext(ctx).Errorw("assistant-agent claim failed", logx.Field("err", err.Error()))

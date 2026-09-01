@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"esx/app/assistant/mq/internal/svc"
@@ -19,10 +20,11 @@ import (
 )
 
 type matcher struct {
-	Store            watch.Store
-	SpikeMinComments int
-	SpikeJudge       watch.SpikeJudge
-	ValidatePost     func(context.Context, event.PostEvent) (bool, error)
+	Store                watch.Store
+	SpikeMinComments     int
+	SpikeJudge           watch.SpikeJudge
+	ValidatePost         func(context.Context, event.PostEvent) (bool, error)
+	ValidateBehaviorPost func(context.Context, int64) (bool, error)
 }
 
 func NewWatchConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
@@ -51,6 +53,7 @@ func matcherFromSvc(svcCtx *svc.ServiceContext) matcher {
 			m.SpikeMinComments = svcCtx.Config.SpikeMinComments
 		}
 		m.ValidatePost = currentPostEventValidator(svcCtx.Content)
+		m.ValidateBehaviorPost = currentPublishedPostValidator(svcCtx.Content)
 	}
 	return m
 }
@@ -140,6 +143,20 @@ func consumeBehaviorMessage(ctx context.Context, m matcher, msg *primitive.Messa
 		watchConsumerMessages.Inc("invalid")
 		return consumer.ConsumeSuccess
 	}
+	if ev.Action == event.BehaviorActionComment && ev.TargetID > 0 &&
+		strings.EqualFold(strings.TrimSpace(ev.TargetType), "post") && m.ValidateBehaviorPost != nil {
+		current, err := m.ValidateBehaviorPost(ctx, ev.TargetID)
+		if err != nil {
+			logx.WithContext(ctx).Errorw("watch-matcher: behavior post check failed",
+				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", ev.TargetID), logx.Field("err", err.Error()))
+			watchConsumerMessages.Inc("retry")
+			return consumer.ConsumeRetryLater
+		}
+		if !current {
+			watchConsumerMessages.Inc("skipped")
+			return consumer.ConsumeSuccess
+		}
+	}
 	if err := watch.ApplyBehaviorEvent(ctx, m.Store, ev, watch.SpikeOptions{
 		MinComments: m.SpikeMinComments,
 		Judge:       m.SpikeJudge,
@@ -153,4 +170,21 @@ func consumeBehaviorMessage(ctx context.Context, m matcher, msg *primitive.Messa
 	watchConsumerMessages.Inc("processed")
 	observeWatchLag(ev.EventTime, time.Now())
 	return consumer.ConsumeSuccess
+}
+
+func currentPublishedPostValidator(content contentservice.ContentService) func(context.Context, int64) (bool, error) {
+	return func(ctx context.Context, postID int64) (bool, error) {
+		if content == nil {
+			return false, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		resp, err := content.GetPost(ctx, &contentservice.GetPostReq{PostId: postID})
+		if err != nil {
+			converted := errx.FromRPCError(err)
+			if errx.Is(converted, errx.ContentNotFound) {
+				return false, nil
+			}
+			return false, converted
+		}
+		return resp != nil && resp.Post != nil && resp.Post.Status == 1, nil
+	}
 }

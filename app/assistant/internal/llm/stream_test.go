@@ -92,6 +92,47 @@ func TestResponsesStreamScrubsSplitSidecarAndToolArguments(t *testing.T) {
 	}
 }
 
+func TestResponsesStreamClassifiesProviderFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		event     string
+		payload   map[string]any
+		kind      ErrorKind
+		retryable bool
+	}{
+		{
+			name: "failed invalid prompt", event: "response.failed",
+			payload: map[string]any{"type": "response.failed", "response": map[string]any{
+				"status": "failed", "error": map[string]any{"code": "invalid_prompt", "message": "bad prompt details"},
+			}},
+			kind: ErrorInvalidRequest,
+		},
+		{
+			name: "top level rate limit", event: "error",
+			payload: map[string]any{"type": "error", "code": "rate_limit_exceeded", "message": "slow down details"},
+			kind:    ErrorRateLimit, retryable: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				writeSSE(t, w, tt.event, tt.payload)
+			}))
+			defer server.Close()
+			client := mustHTTPClient(t, Config{Enabled: true, WireAPI: WireAPIResponses, Endpoint: server.URL + "/v1", Model: "m", MaxOutputTokens: 128})
+			_, err := client.CompleteStream(context.Background(), Request{}, func(Delta) error { return nil })
+			var providerErr *ProviderError
+			if !errors.As(err, &providerErr) || providerErr.Kind != tt.kind || providerErr.Retryable != tt.retryable {
+				t.Fatalf("error=%T %+v", err, providerErr)
+			}
+			if strings.Contains(providerErr.Error(), "details") {
+				t.Fatalf("provider message leaked: %v", providerErr)
+			}
+		})
+	}
+}
+
 func TestHTTPErrorClassifiesRetryAfter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Retry-After", "2")

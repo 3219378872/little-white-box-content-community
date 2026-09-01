@@ -20,7 +20,7 @@ func TestRevokedConsentDefersWatchScheduling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := scheduleBucket(ctx, mem, nil, nil, nil, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, nil, nil, allowAllWatchPosts, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	fresh, err := mem.GetBucket(ctx, bucket.ID)
@@ -34,7 +34,7 @@ func TestWatchTerminalCommitMarksBucketAndDailyStat(t *testing.T) {
 	mem := store.NewMemoryStore()
 	now := store.NowMs()
 	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, bucket, now); err != nil {
+	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, allowAllWatchPosts, bucket, now); err != nil {
 		t.Fatal(err)
 	}
 	scheduled, _ := mem.GetBucket(ctx, bucket.ID)
@@ -49,7 +49,7 @@ func TestWatchTerminalCommitMarksBucketAndDailyStat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	engine := &Engine{Store: mem, Watch: watchStore, Tools: registry, LLM: &scriptedLLM{replies: []llm.Result{{Text: "watch update"}}}, Window: 128000}
+	engine := &Engine{Store: mem, Watch: watchStore, Tools: registry, LLM: &scriptedLLM{replies: []llm.Result{{Text: "watch update"}}}, WatchPosts: allowAllWatchPosts, Window: 128000}
 	engine.Execute(ctx, *run, false)
 	fresh, err := mem.GetBucket(ctx, bucket.ID)
 	if err != nil || fresh.Status != "sent" {

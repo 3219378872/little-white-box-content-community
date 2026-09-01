@@ -80,10 +80,6 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 
 func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput, text string) (AcceptResult, error) {
 	now := store.NowMs()
-	thread, err := tx.LockThread(ctx, in.UserID)
-	if err != nil {
-		return AcceptResult{}, err
-	}
 	consentVersion, granted, err := tx.AgentConsent(ctx, in.UserID)
 	if err != nil {
 		return AcceptResult{}, err
@@ -91,19 +87,41 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if !granted || consentVersion != in.ConsentVersion {
 		return AcceptResult{}, errx.NewWithCode(errx.AgentNotAuthorized)
 	}
-	session, err := ensureForegroundSession(ctx, tx, a.Memory, thread, now)
-	if err != nil {
-		return AcceptResult{}, err
-	}
-	cold := isColdConversation(thread, now)
 	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
 		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
 	}
-	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err == nil && existing != nil {
+	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, err
+	} else if existing != nil {
 		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
 	}
+	// Worker steps lock agent_run before assistant_thread. Preemption must take
+	// background run locks first to keep the same order during final delivery.
+	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceWatch, store.SourceMemoryReview}); err != nil {
+		return AcceptResult{}, err
+	}
+	thread, err := tx.LockThread(ctx, in.UserID)
+	if err != nil {
+		return AcceptResult{}, err
+	}
+	// A concurrent retry can finish while this transaction waits for the thread.
+	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, err
+	} else if existing != nil {
+		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
+	}
+	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, err
+	} else if existing != nil {
+		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
+	}
+	session, err := ensureForegroundSession(ctx, tx, a.Memory, thread, now)
+	if err != nil {
+		return AcceptResult{}, err
+	}
+	cold := isColdConversation(thread, now)
 
 	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: providerUserContent(text, in.Attachments, in.ContextPostID)})
 	msg, err := tx.InsertMessage(ctx, store.Message{
@@ -126,9 +144,6 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	thread.SessionID = session.ID
 	thread.UpdatedAtMs = now
 
-	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceWatch, store.SourceMemoryReview}); err != nil {
-		return AcceptResult{}, err
-	}
 	if err := tx.ResetUnsentBuckets(ctx, in.UserID); err != nil {
 		return AcceptResult{}, err
 	}

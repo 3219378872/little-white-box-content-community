@@ -51,16 +51,17 @@ var (
 )
 
 type Engine struct {
-	Store     store.Store
-	Memory    memory.Store
-	Watch     watch.Store
-	Tools     *tool.Registry
-	LLM       llm.Client
-	AuxLLM    llm.Client
-	ReviewLLM llm.Client
-	Notify    store.Notifier
-	Window    int
-	Provider  int
+	Store      store.Store
+	Memory     memory.Store
+	Watch      watch.Store
+	Tools      *tool.Registry
+	LLM        llm.Client
+	AuxLLM     llm.Client
+	ReviewLLM  llm.Client
+	Notify     store.Notifier
+	WatchPosts WatchPostVisibility
+	Window     int
+	Provider   int
 }
 
 func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
@@ -758,6 +759,9 @@ func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[i
 
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
 	sess := e.toolSession(*run)
+	if err := e.populateToolLiveMessageIDs(persistCtx, *run, sess); err != nil {
+		return err
+	}
 	prepErr := call.PrepareError
 	if !call.Prepared && prepErr == nil {
 		prepared, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
@@ -860,6 +864,22 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
+	}
+	return nil
+}
+
+func (e *Engine) populateToolLiveMessageIDs(ctx context.Context, run store.Run, sess *tool.Session) error {
+	if e == nil || e.Store == nil || sess == nil {
+		return nil
+	}
+	messages, err := e.Store.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		return err
+	}
+	for _, message := range messages {
+		if message.DeletedAtMs == 0 && !message.Compacted {
+			sess.LiveMessageIDs = append(sess.LiveMessageIDs, message.ID)
+		}
 	}
 	return nil
 }

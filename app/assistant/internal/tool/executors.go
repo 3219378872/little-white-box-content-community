@@ -796,6 +796,15 @@ func updateWatchTaskExecutor(w watch.Store) executorFunc {
 		}
 		updated, err := w.UpdateEnabled(ctx, session.UserID, args.ID, args.Enabled, args.ExpectedVersion)
 		if err != nil {
+			if session.Recovery && errx.Is(err, errx.ContentVersionConflict) {
+				current, getErr := w.GetTask(ctx, session.UserID, args.ID)
+				if getErr != nil {
+					return "", nil, getErr
+				}
+				if current.Version == args.ExpectedVersion+1 && current.Enabled == args.Enabled {
+					return fmt.Sprintf("追踪已更新: id=%d version=%d。", args.ID, current.Version), nil, nil
+				}
+			}
 			return "", nil, err
 		}
 		return fmt.Sprintf("追踪已更新: id=%d version=%d。", args.ID, updated.Version), nil, nil

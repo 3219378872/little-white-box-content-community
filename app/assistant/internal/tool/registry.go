@@ -120,6 +120,7 @@ type Session struct {
 	Attachments    []Attachment
 	ContextPostID  int64
 	WatchPostIDs   []int64
+	LiveMessageIDs []int64
 	ChangeIDs      []int64
 	Fence          store.LeaseFence
 	Recovery       bool
@@ -387,8 +388,14 @@ func (r *Registry) Call(ctx context.Context, session *Session, name, callID, arg
 	if name == PresentSources {
 		return limitResult(text, limit), sources, nil
 	}
-	if len(sources) > 0 && r.store != nil && session != nil {
-		text = r.bindSources(ctx, session, sources, text)
+	if len(sources) > 0 {
+		if r.store == nil || session == nil || session.RunID <= 0 {
+			return "", nil, errx.New(errx.ServiceUnavailable, "source ledger unavailable")
+		}
+		text, err = r.bindSources(ctx, session, sources, text)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 	return limitResult(text, limit), nil, nil
 }
@@ -636,7 +643,7 @@ func (r *Registry) resultLimit(name string, current int) int {
 	return current
 }
 
-func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) string {
+func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) (string, error) {
 	var b strings.Builder
 	b.WriteString(text)
 	b.WriteString("\n来源 handle（仅可对本 run 使用 present_sources）：")
@@ -660,12 +667,12 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 			err = insert(ctx, r.store)
 		}
 		if err != nil {
-			logx.WithContext(ctx).Infow("source ledger insert failed", logx.Field("err", err.Error()))
-			continue
+			logx.WithContext(ctx).Errorw("source ledger insert failed", logx.Field("err", err.Error()))
+			return "", fmt.Errorf("source ledger insert: %w", err)
 		}
 		fmt.Fprintf(&b, "\n- %s (%s)", handle, src.Kind)
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 func randomHandle() string {
@@ -770,10 +777,10 @@ func allDefinitions(clients Clients) []Definition {
 		{Name: DeletePost, Description: "删除本人帖子，执行前需用户逐次确认。", Parameters: objectSchema(map[string]any{
 			"post_id": map[string]any{"type": "integer"}, "expected_revision": map[string]any{"type": "integer"},
 		}, []string{"post_id"}), executor: deletePostExecutor(clients.Content), prepare: postRevisionPreparer(clients.Content)},
-		{Name: SearchHistory, Description: "在当前用户 Assistant 历史中做 BM25 召回。shape=keywords|around|session|recent。", Parameters: objectSchema(map[string]any{
-			"shape": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"},
+		{Name: SearchHistory, Description: "检索当前用户不在 live context 中的 Assistant 历史。shape=keywords|around|session|recent。", Parameters: objectSchema(map[string]any{
+			"shape": map[string]any{"type": "string", "enum": []string{"keywords", "around", "session", "recent"}}, "query": map[string]any{"type": "string"},
 			"message_id": map[string]any{"type": "integer"}, "session_id": map[string]any{"type": "integer"}, "limit": map[string]any{"type": "integer"},
-		}, nil), executor: searchHistoryExecutor(clients.History)},
+		}, []string{"shape"}), executor: searchHistoryExecutor(clients.History)},
 		{Name: PresentSources, Description: "把本 run 已验证的至多 10 个 source handle 展示为 source_card。", Parameters: objectSchema(map[string]any{
 			"handles": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		}, []string{"handles"}), executor: presentSourcesExecutor(clients)},

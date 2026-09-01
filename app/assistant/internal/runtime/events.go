@@ -16,6 +16,8 @@ var publicEventTypes = map[string]struct{}{
 	store.EventMemoryChanged: {}, store.EventDone: {}, store.EventError: {},
 }
 
+var subscribePollInterval = time.Second
+
 func AppendEvent(ctx context.Context, st store.Store, notify store.Notifier, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
 	if _, ok := publicEventTypes[eventType]; !ok {
 		return store.Event{}, nil
@@ -54,7 +56,7 @@ func ToPB(ev store.Event) *pb.RunEvent {
 	return out
 }
 
-func Subscribe(ctx context.Context, st store.Store, notify store.Notifier, userID, runID, afterSeq int64, emit func(*pb.RunEvent) error) error {
+func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, runID, afterSeq int64, emit func(*pb.RunEvent) error) error {
 	run, err := st.GetRun(ctx, runID)
 	if err != nil {
 		return errx.NewWithCode(errx.NotFound)
@@ -83,30 +85,13 @@ func Subscribe(ctx context.Context, st store.Store, notify store.Notifier, userI
 	if err := send(); err != nil {
 		return err
 	}
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(subscribePollInterval)
 	defer ticker.Stop()
-	var lastWake string
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if notify != nil {
-				token, err := notify.WakeToken(ctx, runID)
-				if err == nil && token == lastWake {
-					fresh, ferr := st.GetRun(ctx, runID)
-					if ferr == nil && store.IsTerminalStatus(fresh.Status) {
-						if err := send(); err != nil {
-							return err
-						}
-						return nil
-					}
-					continue
-				}
-				if err == nil {
-					lastWake = token
-				}
-			}
 			if err := send(); err != nil {
 				return err
 			}

@@ -156,6 +156,42 @@ func TestConsumeWatchBatch_CommentBelowSpikeThreshold_NoHit(t *testing.T) {
 	assert.Len(t, hits, 0)
 }
 
+func TestConsumeWatchBatch_BehaviorRechecksPublishedPost(t *testing.T) {
+	makeMessage := func(t *testing.T) *primitive.MessageExt {
+		t.Helper()
+		ev := event.BehaviorEvent{
+			EventID: 44, ClientEventID: "c44", SchemaVersion: event.BehaviorSchemaVersion,
+			EventTime: 100, ReceivedAt: 100, Producer: "test", UserID: 9,
+			Action: event.BehaviorActionComment, TargetID: 21, TargetType: "post",
+		}
+		message := msg("behavior-current", mustMarshal(t, ev))
+		message.Topic = mqx.TopicUserBehaviorV2
+		return message
+	}
+
+	t.Run("unpublished skips", func(t *testing.T) {
+		store := watch.NewMapStore()
+		task, err := store.Create(t.Context(), watch.Task{UserID: 3, ConditionType: watch.DiscussionSpike, TargetType: "post", TargetID: 21})
+		require.NoError(t, err)
+		result := consumeWatchBatch(t.Context(), matcher{
+			Store:                store,
+			ValidateBehaviorPost: func(context.Context, int64) (bool, error) { return false, nil },
+		}, makeMessage(t))
+		assert.Equal(t, consumer.ConsumeSuccess, result)
+		count, err := store.CountExecutions(t.Context(), task.ID, watch.SpikeEventPrefix(21))
+		require.NoError(t, err)
+		assert.Zero(t, count)
+	})
+
+	t.Run("authority failure retries", func(t *testing.T) {
+		result := consumeWatchBatch(t.Context(), matcher{
+			Store:                watch.NewMapStore(),
+			ValidateBehaviorPost: func(context.Context, int64) (bool, error) { return false, errors.New("content down") },
+		}, makeMessage(t))
+		assert.Equal(t, consumer.ConsumeRetryLater, result)
+	})
+}
+
 func TestWatchEventLagSeconds(t *testing.T) {
 	now := time.UnixMilli(2000)
 	assert.Equal(t, 0.0, watchEventLagSeconds(0, now))

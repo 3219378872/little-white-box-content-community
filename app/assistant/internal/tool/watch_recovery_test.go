@@ -10,7 +10,7 @@ import (
 func TestWatchSideEffectsReconcileCommittedRecovery(t *testing.T) {
 	ctx := context.Background()
 	watches := watch.NewMapStore()
-	registry, err := NewRegistry(Clients{Watch: watches}, []string{CreateWatchTask, DeleteWatchTask})
+	registry, err := NewRegistry(Clients{Watch: watches}, []string{CreateWatchTask, UpdateWatchTask, DeleteWatchTask})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,25 @@ func TestWatchSideEffectsReconcileCommittedRecovery(t *testing.T) {
 	if err != nil || len(tasks) != 1 {
 		t.Fatalf("tasks=%+v err=%v", tasks, err)
 	}
-	deleteArgs := `{"id":1,"expected_version":1}`
+	updateArgs := `{"id":1,"enabled":false,"expected_version":1}`
+	session.Recovery = false
+	firstUpdate, _, err := registry.Call(ctx, session, UpdateWatchTask, "update-call", updateArgs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session.Recovery = true
+	secondUpdate, _, err := registry.Call(ctx, session, UpdateWatchTask, "update-call", updateArgs)
+	if err != nil || secondUpdate != firstUpdate {
+		t.Fatalf("update recovery first=%q second=%q err=%v", firstUpdate, secondUpdate, err)
+	}
+	if _, err := watches.UpdateEnabled(ctx, 4, 1, true, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := registry.Call(ctx, session, UpdateWatchTask, "stale-update", updateArgs); err == nil {
+		t.Fatal("stale recovery unexpectedly reconciled a later update")
+	}
+
+	deleteArgs := `{"id":1,"expected_version":3}`
 	session.Recovery = false
 	if _, _, err := registry.Call(ctx, session, DeleteWatchTask, "delete-call", deleteArgs); err != nil {
 		t.Fatal(err)
