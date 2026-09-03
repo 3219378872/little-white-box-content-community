@@ -73,7 +73,7 @@ func (f *fakeMediaModel) DelCache(ctx context.Context, id int64) error {
 // 调用会 panic，便于测试暴露调用了预期之外的方法。
 type fakeMediaCommandModel struct {
 	createMediaFn          func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error)
-	softDeleteFn           func(ctx context.Context, mediaID int64, event outboxx.Event) error
+	softDeleteFn           func(ctx context.Context, mediaID int64, events []outboxx.Event) error
 	enqueueObjectCleanupFn func(ctx context.Context, event outboxx.Event) error
 }
 
@@ -91,9 +91,9 @@ func (f *fakeMediaCommandModel) CreateMedia(ctx context.Context, media *model.Me
 	return f.createMediaFn(ctx, media, idem)
 }
 
-func (f *fakeMediaCommandModel) SoftDelete(ctx context.Context, mediaID int64, event outboxx.Event) error {
+func (f *fakeMediaCommandModel) SoftDelete(ctx context.Context, mediaID int64, events ...outboxx.Event) error {
 	if f.softDeleteFn == nil {
 		panic("fakeMediaCommandModel: SoftDelete not configured")
 	}
-	return f.softDeleteFn(ctx, mediaID, event)
+	return f.softDeleteFn(ctx, mediaID, events)
 }

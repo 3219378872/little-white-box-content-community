@@ -41,26 +41,27 @@ type (
 	}
 
 	Media struct {
-		Id           int64          `db:"id"`
-		UserId       int64          `db:"user_id"`       // 上传用户ID
-		FileName     string         `db:"file_name"`     // 文件名
-		OriginalName sql.NullString `db:"original_name"` // 原始文件名
-		FileType     string         `db:"file_type"`     // 文件类型 image/video/audio
-		MimeType     sql.NullString `db:"mime_type"`     // MIME类型
-		Url          string         `db:"url"`           // 访问URL
-		ThumbnailUrl sql.NullString `db:"thumbnail_url"` // 缩略图URL
-		StorageType  int64          `db:"storage_type"`  // 存储类型 1:MinIO 2:OSS
-		Bucket       sql.NullString `db:"bucket"`        // 存储桶
-		ObjectKey    sql.NullString `db:"object_key"`    // 对象键
-		FileSize     int64          `db:"file_size"`     // 文件大小(字节)
-		Width        sql.NullInt64  `db:"width"`         // 宽度
-		Height       sql.NullInt64  `db:"height"`        // 高度
-		Duration     sql.NullInt64  `db:"duration"`      // 时长(秒)
-		Format       sql.NullString `db:"format"`        // 格式
-		BitRate      sql.NullInt64  `db:"bit_rate"`      // 比特率
-		Status       int64          `db:"status"`        // 状态 0:删除 1:正常 2:处理中
-		CreatedAt    time.Time      `db:"created_at"`    // 创建时间
-		UpdatedAt    time.Time      `db:"updated_at"`    // 更新时间
+		Id                 int64          `db:"id"`
+		UserId             int64          `db:"user_id"`              // 上传用户ID
+		FileName           string         `db:"file_name"`            // 文件名
+		OriginalName       sql.NullString `db:"original_name"`        // 原始文件名
+		FileType           string         `db:"file_type"`            // 文件类型 image/video/audio
+		MimeType           sql.NullString `db:"mime_type"`            // MIME类型
+		Url                string         `db:"url"`                  // 访问URL
+		ThumbnailUrl       sql.NullString `db:"thumbnail_url"`        // 缩略图URL
+		StorageType        int64          `db:"storage_type"`         // 存储类型 1:MinIO 2:OSS
+		Bucket             sql.NullString `db:"bucket"`               // 存储桶
+		ObjectKey          sql.NullString `db:"object_key"`           // 对象键
+		ThumbnailObjectKey sql.NullString `db:"thumbnail_object_key"` // 缩略图对象键
+		FileSize           int64          `db:"file_size"`            // 文件大小(字节)
+		Width              sql.NullInt64  `db:"width"`                // 宽度
+		Height             sql.NullInt64  `db:"height"`               // 高度
+		Duration           sql.NullInt64  `db:"duration"`             // 时长(秒)
+		Format             sql.NullString `db:"format"`               // 格式
+		BitRate            sql.NullInt64  `db:"bit_rate"`             // 比特率
+		Status             int64          `db:"status"`               // 状态 0:删除 1:正常 2:处理中
+		CreatedAt          time.Time      `db:"created_at"`           // 创建时间
+		UpdatedAt          time.Time      `db:"updated_at"`           // 更新时间
 	}
 )
 

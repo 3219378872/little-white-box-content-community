@@ -106,7 +106,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	// 冷却语义：仅当手机号仍持有未消费验证码时生效（防轰炸/高频重置）。
 	// 验证码已被成功消费（注册/登录成功后删除）时允许立即重发——注册后
 	// 马上验证码登录是正常流程，不应被 60 秒冷却阻断。
-	existing, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.GetPhone())
+	existing, err := l.svcCtx.RedisClient.GetCtx(l.ctx, verifyCodeRedisKey(in.GetPhone()))
 	if err != nil {
 		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
@@ -132,7 +132,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 
 	// 十分钟过期
 	expireTime := 60 * 10
-	err = l.svcCtx.RedisClient.SetexCtx(l.ctx, in.GetPhone(), fmt.Sprintf("%06d", randInt), expireTime)
+	err = l.svcCtx.RedisClient.SetexCtx(l.ctx, verifyCodeRedisKey(in.GetPhone()), fmt.Sprintf("%06d", randInt), expireTime)
 
 	if err != nil {
 		l.Errorw("Redis.SetexCtx failed", logx.Field("err", err.Error()))

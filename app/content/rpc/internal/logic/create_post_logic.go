@@ -94,8 +94,13 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
+	mediaURLs, err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds)
+	if err != nil {
 		return nil, err
+	}
+	images := in.Images
+	if len(images) == 0 && len(mediaURLs) > 0 {
+		images = mediaURLs
 	}
 	// 生成分布式id
 	id, err := util.NextID()
@@ -103,9 +108,14 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	imageJsonString, err := util.ToJsonObject(in.Images).JsonString()
+	imageJsonString, err := util.ToJsonObject(images).JsonString()
 	if err != nil {
 		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	mediaIDsJSON, err := encodeInt64sJSON(in.MediaIds)
+	if err != nil {
+		l.Errorw("json convert media ids failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	post := &model.Post{
@@ -117,8 +127,9 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		Revision: 1,
 		Images: sql.NullString{
 			String: imageJsonString,
-			Valid:  len(in.Images) > 0,
+			Valid:  len(images) > 0,
 		},
+		MediaIds: mediaIDsJSON,
 	}
 
 	// 收集有效标签并预生成分布式 ID

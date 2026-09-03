@@ -43,7 +43,7 @@ func TestLoginPhoneIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// 获取验证码值
-	code, err := testEnv.Redis.GetCtx(context.Background(), "13800001111")
+	code, err := testEnv.Redis.GetCtx(context.Background(), verifyCodeRedisKey("13800001111"))
 	require.NoError(t, err)
 	require.NotEmpty(t, code)
 
@@ -58,7 +58,7 @@ func TestLoginPhoneIntegration(t *testing.T) {
 	// 再发验证码用于登录
 	_, err = svcLogic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800001111"})
 	require.NoError(t, err)
-	code2, err := testEnv.Redis.GetCtx(context.Background(), "13800001111")
+	code2, err := testEnv.Redis.GetCtx(context.Background(), verifyCodeRedisKey("13800001111"))
 	require.NoError(t, err)
 
 	// 验证码登录

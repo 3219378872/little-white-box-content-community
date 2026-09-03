@@ -72,6 +72,10 @@ func (m *mockFavoriteModel) UpdateStatusById(ctx context.Context, id, expectedSt
 	return result, args.Error(1)
 }
 
+func (m *mockFavoriteModel) InvalidateFavoriteCache(ctx context.Context, id, userId, postId int64) error {
+	return nil
+}
+
 func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	countModel := new(mockActionCountModel)

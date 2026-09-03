@@ -109,7 +109,7 @@ func TestLoginLogic_Password(t *testing.T) {
 }
 
 func TestLoginVerifyCodeSharesAttemptLimitWithRegister(t *testing.T) {
-	mem := &memoryRedis{values: map[string]string{"13900000000": "654321"}}
+	mem := &memoryRedis{values: map[string]string{verifyCodeRedisKey("13900000000"): "654321"}}
 	profile := &MockUserProfileModel{}
 	profile.On("FindOneByPhone", mock.Anything, mock.Anything).
 		Return(&model.UserProfile{Id: 1, Username: "u1", Phone: sql.NullString{String: "13900000000", Valid: true}}, nil).Maybe()

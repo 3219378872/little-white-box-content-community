@@ -69,7 +69,7 @@ func TestRegisterByPhoneIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// 获取验证码值
-	code, err := testEnv.Redis.GetCtx(context.Background(), "13900001111")
+	code, err := testEnv.Redis.GetCtx(context.Background(), verifyCodeRedisKey("13900001111"))
 	require.NoError(t, err)
 	require.NotEmpty(t, code)
 

@@ -32,6 +32,7 @@ type MessageInfo struct {
 	MsgType        int32                  `protobuf:"varint,6,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`       // 1: 文本 2: 图片 3: 视频
 	Status         int32                  `protobuf:"varint,7,opt,name=status,proto3" json:"status,omitempty"`                        // 0: 未读 1: 已读
 	CreatedAt      int64                  `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // Unix 时间戳（毫秒）
+	MediaId        int64                  `protobuf:"varint,9,opt,name=media_id,json=mediaId,proto3" json:"media_id,omitempty"`       // 媒体消息引用的已上传媒体标识（CORE-041）
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -118,6 +119,13 @@ func (x *MessageInfo) GetStatus() int32 {
 func (x *MessageInfo) GetCreatedAt() int64 {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *MessageInfo) GetMediaId() int64 {
+	if x != nil {
+		return x.MediaId
 	}
 	return 0
 }
@@ -1126,7 +1134,7 @@ var File_proto_message_message_proto protoreflect.FileDescriptor
 
 const file_proto_message_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/message/message.proto\x12\amessage\"\xf0\x01\n" +
+	"\x1bproto/message/message.proto\x12\amessage\"\x8b\x02\n" +
 	"\vMessageInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\x03R\x0econversationId\x12\x1b\n" +
@@ -1137,7 +1145,8 @@ const file_proto_message_message_proto_rawDesc = "" +
 	"\bmsg_type\x18\x06 \x01(\x05R\amsgType\x12\x16\n" +
 	"\x06status\x18\a \x01(\x05R\x06status\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\b \x01(\x03R\tcreatedAt\"\xab\x02\n" +
+	"created_at\x18\b \x01(\x03R\tcreatedAt\x12\x19\n" +
+	"\bmedia_id\x18\t \x01(\x03R\amediaId\"\xab\x02\n" +
 	"\x10ConversationInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12$\n" +

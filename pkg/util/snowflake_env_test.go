@@ -4,7 +4,24 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestNextIDRejectsClockRollback(t *testing.T) {
+	if err := InitSnowflake(1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NextID(); err != nil {
+		t.Fatal(err)
+	}
+	snowflake.mu.Lock()
+	snowflake.timestamp = time.Now().UnixMilli() + 60_000
+	snowflake.mu.Unlock()
+	_, err := NextID()
+	if !errors.Is(err, ErrClockMovedBackwards) {
+		t.Fatalf("want ErrClockMovedBackwards, got %v", err)
+	}
+}
 
 func TestInitSnowflakeFromEnv(t *testing.T) {
 	t.Run("未设置环境变量时使用默认值", func(t *testing.T) {

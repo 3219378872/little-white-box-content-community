@@ -29,6 +29,7 @@ func Item(post *contentservice.PostInfo, liked, favorited map[int64]bool, author
 		IsFavorited:   favorited[post.Id],
 		Revision:      post.Revision,
 		CreatedAt:     post.CreatedAt,
+		MediaIds:      post.MediaIds,
 	}
 }
 

@@ -172,6 +172,7 @@ type MessageItem struct {
 	MsgType        int32  `json:"msgType"`
 	Status         int32  `json:"status"`
 	CreatedAt      int64  `json:"createdAt"`
+	MediaId        int64  `json:"mediaId,optional"`
 }
 
 type PostItem struct {
@@ -192,6 +193,7 @@ type PostItem struct {
 	IsFavorited   bool     `json:"isFavorited"`
 	Revision      int64    `json:"revision"`
 	CreatedAt     int64    `json:"createdAt"`
+	MediaIds      []int64  `json:"mediaIds,optional"`
 }
 
 type RecommendFeedItem struct {

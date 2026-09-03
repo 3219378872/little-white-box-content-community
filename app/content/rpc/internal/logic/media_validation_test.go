@@ -31,21 +31,25 @@ func TestValidatePostMedia(t *testing.T) {
 	logger := logx.WithContext(context.Background())
 
 	t.Run("无媒体ID直接通过", func(t *testing.T) {
-		assert.NoError(t, validatePostMedia(context.Background(), logger, nil, 1, nil))
+		urls, err := validatePostMedia(context.Background(), logger, nil, 1, nil)
+		assert.NoError(t, err)
+		assert.Empty(t, urls)
 	})
 
 	t.Run("媒体归属与完成校验通过", func(t *testing.T) {
 		fake := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{
 			Medias: []*mediapb.MediaInfo{completedMedia(10, 1), completedMedia(11, 1)},
 		}}
-		assert.NoError(t, validatePostMedia(context.Background(), logger, fake, 1, []int64{10, 11}))
+		urls, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10, 11})
+		assert.NoError(t, err)
+		assert.Len(t, urls, 2)
 	})
 
 	t.Run("引用他人媒体被拒绝", func(t *testing.T) {
 		fake := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{
 			Medias: []*mediapb.MediaInfo{completedMedia(10, 99)},
 		}}
-		err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
+		_, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
 		assert.True(t, errx.Is(err, errx.ParamError))
 	})
 
@@ -53,7 +57,7 @@ func TestValidatePostMedia(t *testing.T) {
 		fake := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{
 			Medias: []*mediapb.MediaInfo{{Id: 10, UserId: 1, Status: 0}},
 		}}
-		err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
+		_, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
 		assert.True(t, errx.Is(err, errx.ParamError))
 	})
 
@@ -61,18 +65,18 @@ func TestValidatePostMedia(t *testing.T) {
 		fake := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{
 			Medias: []*mediapb.MediaInfo{completedMedia(10, 1)},
 		}}
-		err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10, 999})
+		_, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10, 999})
 		assert.True(t, errx.Is(err, errx.ParamError))
 	})
 
 	t.Run("媒体服务不可用返回不可用", func(t *testing.T) {
-		err := validatePostMedia(context.Background(), logger, nil, 1, []int64{10})
+		_, err := validatePostMedia(context.Background(), logger, nil, 1, []int64{10})
 		assert.True(t, errx.Is(err, errx.ServiceUnavailable))
 	})
 
 	t.Run("媒体RPC失败返回不可用", func(t *testing.T) {
 		fake := &fakeMediaValidator{err: context.DeadlineExceeded}
-		err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
+		_, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
 		assert.True(t, errx.Is(err, errx.ServiceUnavailable))
 	})
 }

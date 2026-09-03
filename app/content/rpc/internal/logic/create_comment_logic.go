@@ -150,6 +150,9 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
+		if errors.Is(err, model2.ErrTargetNotInteractable) {
+			return nil, errx.NewWithCode(errx.ContentNotFound)
+		}
 		l.Errorw("create comment transaction failed",
 			logx.Field("postId", in.PostId),
 			logx.Field("err", err.Error()),

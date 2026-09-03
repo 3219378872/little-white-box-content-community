@@ -188,18 +188,12 @@ func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event o
 		return fmt.Errorf("content command model is not configured")
 	}
 	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-		// expectedRevision=0 表示迁移期旧客户端（CORE-062），不做版本检查。
-		var result interface{ RowsAffected() (int64, error) }
-		var err error
-		if expectedRevision > 0 {
-			result, err = session.ExecCtx(ctx,
-				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
-				postID, expectedRevision)
-		} else {
-			result, err = session.ExecCtx(ctx,
-				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2",
-				postID)
+		if expectedRevision <= 0 {
+			return fmt.Errorf("expected revision is required")
 		}
+		result, err := session.ExecCtx(ctx,
+			"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
+			postID, expectedRevision)
 		if err != nil {
 			return err
 		}
@@ -236,16 +230,12 @@ func (m *postCommandModel) DeletePostIdempotent(
 		if !shouldApply {
 			return nil
 		}
-		var changedResult interface{ RowsAffected() (int64, error) }
-		var updateErr error
-		if expectedRevision > 0 {
-			changedResult, updateErr = session.ExecCtx(ctx,
-				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
-				postID, expectedRevision)
-		} else {
-			changedResult, updateErr = session.ExecCtx(ctx,
-				"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2", postID)
+		if expectedRevision <= 0 {
+			return fmt.Errorf("expected revision is required")
 		}
+		changedResult, updateErr := session.ExecCtx(ctx,
+			"UPDATE `post` SET `status` = 2, `revision` = `revision` + 1 WHERE `id` = ? AND `status` <> 2 AND `revision` = ?",
+			postID, expectedRevision)
 		if updateErr != nil {
 			return updateErr
 		}
@@ -263,16 +253,9 @@ func (m *postCommandModel) DeletePostIdempotent(
 }
 
 func insertPostSession(ctx context.Context, session sqlx.Session, post *Post) error {
-	if !post.Images.Valid {
-		_, err := session.ExecCtx(ctx,
-			"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `status`, `revision`) VALUES (?, ?, ?, ?, ?, ?)",
-			post.Id, post.AuthorId, post.Title, post.Content, post.Status, post.Revision,
-		)
-		return err
-	}
 	_, err := session.ExecCtx(ctx,
-		"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `images`, `status`, `revision`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		post.Id, post.AuthorId, post.Title, post.Content, post.Images.String, post.Status, post.Revision,
+		"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `images`, `media_ids`, `status`, `revision`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		post.Id, post.AuthorId, post.Title, post.Content, post.Images, post.MediaIds, post.Status, post.Revision,
 	)
 	return err
 }
@@ -318,11 +301,11 @@ func updatePostFieldsSession(
 	}
 	clauses = append(clauses, "`revision` = `revision` + 1")
 	args = append(args, postID)
-	query := fmt.Sprintf("UPDATE `post` SET %s WHERE `id` = ?", strings.Join(clauses, ", "))
-	if expectedRevision > 0 {
-		query += " AND `revision` = ?"
-		args = append(args, expectedRevision)
+	if expectedRevision <= 0 {
+		return fmt.Errorf("expected revision is required")
 	}
+	query := fmt.Sprintf("UPDATE `post` SET %s WHERE `id` = ? AND `revision` = ? AND `status` <> 2", strings.Join(clauses, ", "))
+	args = append(args, expectedRevision)
 	result, err := session.ExecCtx(ctx, query, args...)
 	if err != nil {
 		return err

@@ -82,7 +82,7 @@ func TestDeleteMedia_IdempotentWhenAlreadyDeleted(t *testing.T) {
 		},
 	}
 	cmd := &fakeMediaCommandModel{
-		softDeleteFn: func(_ context.Context, _ int64, _ outboxx.Event) error {
+		softDeleteFn: func(_ context.Context, _ int64, _ []outboxx.Event) error {
 			softDeleteCalled = true
 			return nil
 		},
@@ -109,7 +109,7 @@ func TestDeleteMedia_RejectsNonOwner(t *testing.T) {
 		},
 	}
 	cmd := &fakeMediaCommandModel{
-		softDeleteFn: func(_ context.Context, _ int64, _ outboxx.Event) error {
+		softDeleteFn: func(_ context.Context, _ int64, _ []outboxx.Event) error {
 			t.Fatal("SoftDelete must not run for non-owner")
 			return nil
 		},
@@ -137,9 +137,11 @@ func TestDeleteMedia_OwnerSoftDeletesWithOutboxEvent(t *testing.T) {
 		},
 	}
 	cmd := &fakeMediaCommandModel{
-		softDeleteFn: func(_ context.Context, mediaID int64, event outboxx.Event) error {
+		softDeleteFn: func(_ context.Context, mediaID int64, events []outboxx.Event) error {
 			deletedID = mediaID
-			enqueued = event
+			if len(events) > 0 {
+				enqueued = events[0]
+			}
 			return nil
 		},
 	}
@@ -188,8 +190,10 @@ func TestDeleteMedia_NoObjectKeySkipsEventButSoftDeletes(t *testing.T) {
 	}
 	var enqueued outboxx.Event
 	cmd := &fakeMediaCommandModel{
-		softDeleteFn: func(_ context.Context, _ int64, event outboxx.Event) error {
-			enqueued = event
+		softDeleteFn: func(_ context.Context, _ int64, events []outboxx.Event) error {
+			if len(events) > 0 {
+				enqueued = events[0]
+			}
 			return nil
 		},
 	}
@@ -211,7 +215,7 @@ func TestDeleteMedia_CommandModelErrorMapsToSystemError(t *testing.T) {
 		},
 	}
 	cmd := &fakeMediaCommandModel{
-		softDeleteFn: func(_ context.Context, _ int64, _ outboxx.Event) error {
+		softDeleteFn: func(_ context.Context, _ int64, _ []outboxx.Event) error {
 			return errors.New("conn lost")
 		},
 	}
@@ -220,6 +224,55 @@ func TestDeleteMedia_CommandModelErrorMapsToSystemError(t *testing.T) {
 	_, err := l.DeleteMedia(&pb.DeleteMediaReq{MediaId: 1, UserId: 7})
 	if code := errx.GetCode(err); code != errx.SystemError {
 		t.Fatalf("expected SystemError, got code=%d err=%v", code, err)
+	}
+}
+
+func TestDeleteMedia_EnqueuesThumbnailObject(t *testing.T) {
+	stored := &model2.Media{
+		Id: 1, UserId: 7, Status: 1,
+		ObjectKey:          sql.NullString{String: "original/202609/a.jpg", Valid: true},
+		ThumbnailObjectKey: sql.NullString{String: "thumb/202609/b.jpg", Valid: true},
+	}
+	var keys []string
+	f := &fakeMediaModel{
+		findOneFn:  func(_ context.Context, _ int64) (*model2.Media, error) { return stored, nil },
+		delCacheFn: func(_ context.Context, _ int64) error { return nil },
+	}
+	cmd := &fakeMediaCommandModel{
+		softDeleteFn: func(_ context.Context, _ int64, events []outboxx.Event) error {
+			for _, event := range events {
+				var payload map[string]any
+				if err := json.Unmarshal(event.Payload, &payload); err != nil {
+					t.Fatalf("payload: %v", err)
+				}
+				key, _ := payload["s3_object_key"].(string)
+				keys = append(keys, key)
+			}
+			return nil
+		},
+	}
+	if _, err := newDeleteLogicWithFake(f, cmd).DeleteMedia(&pb.DeleteMediaReq{MediaId: 1, UserId: 7}); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(keys) != 2 || keys[0] != "original/202609/a.jpg" || keys[1] != "thumb/202609/b.jpg" {
+		t.Fatalf("expected original and thumb keys, got %v", keys)
+	}
+}
+
+func TestDeleteMedia_DelCacheFailureStillSucceeds(t *testing.T) {
+	f := &fakeMediaModel{
+		findOneFn: func(_ context.Context, _ int64) (*model2.Media, error) {
+			return &model2.Media{Id: 1, UserId: 7, Status: 1, ObjectKey: sql.NullString{String: "obj/key", Valid: true}}, nil
+		},
+		delCacheFn: func(_ context.Context, _ int64) error {
+			return errors.New("redis down")
+		},
+	}
+	cmd := &fakeMediaCommandModel{
+		softDeleteFn: func(_ context.Context, _ int64, _ []outboxx.Event) error { return nil },
+	}
+	if _, err := newDeleteLogicWithFake(f, cmd).DeleteMedia(&pb.DeleteMediaReq{MediaId: 1, UserId: 7}); err != nil {
+		t.Fatalf("CORE-053: cache invalidation must not fail the delete, got %v", err)
 	}
 }
 

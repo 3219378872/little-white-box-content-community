@@ -53,7 +53,7 @@ func TestDeletePostWithoutCommandModelFails(t *testing.T) {
 		Return(&model2.Post{Id: 400, AuthorId: 4001, Status: 1, Revision: 1}, nil).Once()
 	svcCtx := &svc.ServiceContext{PostModel: pm}
 	_, err := NewDeletePostLogic(context.Background(), svcCtx).
-		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001})
+		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.SystemError), "want SystemError, got %v", err)
 	pm.AssertExpectations(t)
@@ -68,7 +68,7 @@ func TestDeletePostTransactionVersionConflict(t *testing.T) {
 		PostCommandModel: &deleteCommandStub{err: model2.ErrVersionConflict},
 	}
 	_, err := NewDeletePostLogic(context.Background(), svcCtx).
-		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001})
+		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.ContentVersionConflict), "got %v", err)
 	pm.AssertExpectations(t)
@@ -83,7 +83,7 @@ func TestDeletePostTransactionUnexpectedFailure(t *testing.T) {
 		PostCommandModel: &deleteCommandStub{err: errors.New("tx aborted")},
 	}
 	_, err := NewDeletePostLogic(context.Background(), svcCtx).
-		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001})
+		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.SystemError), "want SystemError, got %v", err)
 	pm.AssertExpectations(t)
@@ -101,7 +101,7 @@ func TestDeletePostToleratesCacheInvalidationFailure(t *testing.T) {
 		PostCommandModel: legacyPostCommandModel{post: mockModel},
 	}
 	resp, err := NewDeletePostLogic(context.Background(), svcCtx).
-		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001})
+		DeletePost(&pb.DeletePostReq{PostId: 400, AuthorId: 4001, ExpectedRevision: 1})
 	// 缓存失效失败只告警，不回滚删除结果。
 	require.NoError(t, err)
 	require.NotNil(t, resp)

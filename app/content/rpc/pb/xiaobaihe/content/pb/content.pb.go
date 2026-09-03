@@ -36,8 +36,9 @@ type PostInfo struct {
 	LikeCount     int64                  `protobuf:"varint,9,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"`
 	CommentCount  int64                  `protobuf:"varint,10,opt,name=comment_count,json=commentCount,proto3" json:"comment_count,omitempty"`
 	FavoriteCount int64                  `protobuf:"varint,11,opt,name=favorite_count,json=favoriteCount,proto3" json:"favorite_count,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // Unix 时间戳（毫秒）
-	UpdatedAt     int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Unix 时间戳（毫秒）
+	CreatedAt     int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`     // Unix 时间戳（毫秒）
+	UpdatedAt     int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`     // Unix 时间戳（毫秒）
+	MediaIds      []int64                `protobuf:"varint,15,rep,packed,name=media_ids,json=mediaIds,proto3" json:"media_ids,omitempty"` // 引用的已上传媒体标识（CORE-024）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -168,6 +169,13 @@ func (x *PostInfo) GetUpdatedAt() int64 {
 		return x.UpdatedAt
 	}
 	return 0
+}
+
+func (x *PostInfo) GetMediaIds() []int64 {
+	if x != nil {
+		return x.MediaIds
+	}
+	return nil
 }
 
 // 评论信息（两级结构：仅顶级评论填充 replies 前 N 条预览；回复行自身 replies 恒为空）
@@ -1998,7 +2006,7 @@ var File_proto_content_content_proto protoreflect.FileDescriptor
 
 const file_proto_content_content_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/content/content.proto\x12\acontent\"\x8f\x03\n" +
+	"\x1bproto/content/content.proto\x12\acontent\"\xac\x03\n" +
 	"\bPostInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12\x14\n" +
@@ -2018,7 +2026,8 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\x03R\tupdatedAt\"\xd1\x02\n" +
+	"updated_at\x18\r \x01(\x03R\tupdatedAt\x12\x1b\n" +
+	"\tmedia_ids\x18\x0f \x03(\x03R\bmediaIds\"\xd1\x02\n" +
 	"\vCommentInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\apost_id\x18\x02 \x01(\x03R\x06postId\x12\x17\n" +

@@ -1,6 +1,8 @@
 package logic
 
 import (
+	"encoding/json"
+
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"slices"
@@ -10,13 +12,7 @@ import (
 
 // PostToPostInfo 将 Post model 转换为 pb.PostInfo
 func PostToPostInfo(post *model2.Post, tags []string) *pb.PostInfo {
-	var images []string
-	if post.Images.Valid && post.Images.String != "" {
-		images = strings.Split(post.Images.String, ",")
-	} else {
-		images = []string{}
-	}
-
+	images := decodeStringSlice(post.Images.String, post.Images.Valid)
 	if tags == nil {
 		tags = []string{}
 	}
@@ -36,7 +32,22 @@ func PostToPostInfo(post *model2.Post, tags []string) *pb.PostInfo {
 		FavoriteCount: post.FavoriteCount,
 		CreatedAt:     post.CreatedAt.UnixMilli(),
 		UpdatedAt:     post.UpdatedAt.UnixMilli(),
+		MediaIds:      decodeInt64sJSON(post.MediaIds),
 	}
+}
+
+func decodeStringSlice(raw string, valid bool) []string {
+	if !valid || raw == "" {
+		return []string{}
+	}
+	trimmed := strings.TrimSpace(raw)
+	if strings.HasPrefix(trimmed, "[") {
+		var images []string
+		if err := json.Unmarshal([]byte(trimmed), &images); err == nil {
+			return images
+		}
+	}
+	return strings.Split(raw, ",")
 }
 
 // CommentToCommentInfo 将 Comment model 转换为 pb.CommentInfo

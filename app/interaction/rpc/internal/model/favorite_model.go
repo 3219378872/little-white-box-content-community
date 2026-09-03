@@ -21,6 +21,7 @@ type (
 		UpsertFavoriteStatus(ctx context.Context, userId, postId, status int64) (sql.Result, error)
 		FindFavoriteStatusByUserAndPosts(ctx context.Context, userId int64, postIds []int64) (map[int64]bool, error)
 		UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error)
+		InvalidateFavoriteCache(ctx context.Context, id, userId, postId int64) error
 	}
 
 	customFavoriteModel struct {
@@ -95,6 +96,14 @@ func (m *customFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Conte
 		results[r.PostId] = r.Status == StatusActive
 	}
 	return results, nil
+}
+
+func (m *customFavoriteModel) InvalidateFavoriteCache(ctx context.Context, id, userId, postId int64) error {
+	keys := []string{fmt.Sprintf("%s%v:%v", cacheFavoriteUserIdPostIdPrefix, userId, postId)}
+	if id > 0 {
+		keys = append(keys, fmt.Sprintf("%s%v", cacheFavoriteIdPrefix, id))
+	}
+	return m.DelCacheCtx(ctx, keys...)
 }
 
 func (m *customFavoriteModel) UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error) {

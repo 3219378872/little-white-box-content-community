@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `conversation` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL COMMENT '用户ID',
     `target_user_id` BIGINT NOT NULL COMMENT '目标用户ID',
-    `last_message` VARCHAR(500) DEFAULT NULL COMMENT '最后一条消息',
+    `last_message` VARCHAR(1000) DEFAULT NULL COMMENT '最后一条消息',
     `last_message_time` TIMESTAMP NULL COMMENT '最后消息时间',
     `unread_count` INT DEFAULT 0 COMMENT '未读数',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

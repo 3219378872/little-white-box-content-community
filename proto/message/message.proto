@@ -32,6 +32,7 @@ message MessageInfo {
   int32  msg_type        = 6; // 1: 文本 2: 图片 3: 视频
   int32  status          = 7; // 0: 未读 1: 已读
   int64  created_at      = 8; // Unix 时间戳（毫秒）
+  int64  media_id        = 9; // 媒体消息引用的已上传媒体标识（CORE-041）
 }
 
 // 会话信息

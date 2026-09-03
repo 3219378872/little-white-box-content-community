@@ -53,6 +53,7 @@ message PostInfo {
   int64           favorite_count = 11;
   int64           created_at     = 12; // Unix 时间戳（毫秒）
   int64           updated_at     = 13; // Unix 时间戳（毫秒）
+  repeated int64  media_ids      = 15; // 引用的已上传媒体标识（CORE-024）
 }
 
 // 评论信息（两级结构：仅顶级评论填充 replies 前 N 条预览；回复行自身 replies 恒为空）

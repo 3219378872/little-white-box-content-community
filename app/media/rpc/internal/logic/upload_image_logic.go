@@ -156,21 +156,22 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	}
 
 	row := &model.Media{
-		Id:           mediaId,
-		UserId:       meta.GetUserId(),
-		FileName:     meta.GetFileName(),
-		OriginalName: nullStringOr(meta.GetFileName()),
-		FileType:     "image",
-		MimeType:     nullStringOr("image/jpeg"),
-		Url:          l.svcCtx.Storage.BuildPublicURL(objKey),
-		ThumbnailUrl: nullStringOr(l.svcCtx.Storage.BuildPublicURL(thumbKey)),
-		StorageType:  storageTypeSeaweedFS,
-		Bucket:       nullStringOr(l.svcCtx.Config.S3Storage.Bucket),
-		ObjectKey:    nullStringOr(objKey),
-		FileSize:     info.Size(),
-		Width:        nullInt(width),
-		Height:       nullInt(height),
-		Status:       1,
+		Id:                 mediaId,
+		UserId:             meta.GetUserId(),
+		FileName:           meta.GetFileName(),
+		OriginalName:       nullStringOr(meta.GetFileName()),
+		FileType:           "image",
+		MimeType:           nullStringOr("image/jpeg"),
+		Url:                l.svcCtx.Storage.BuildPublicURL(objKey),
+		ThumbnailUrl:       nullStringOr(l.svcCtx.Storage.BuildPublicURL(thumbKey)),
+		StorageType:        storageTypeSeaweedFS,
+		Bucket:             nullStringOr(l.svcCtx.Config.S3Storage.Bucket),
+		ObjectKey:          nullStringOr(objKey),
+		ThumbnailObjectKey: nullStringOr(thumbKey),
+		FileSize:           info.Size(),
+		Width:              nullInt(width),
+		Height:             nullInt(height),
+		Status:             1,
 	}
 	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
 	if err != nil {

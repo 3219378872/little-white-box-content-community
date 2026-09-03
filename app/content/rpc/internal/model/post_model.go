@@ -19,10 +19,11 @@ var _ PostModel = (*customPostModel)(nil)
 
 // allowedUpdateCols UpdateFields 允许的列白名单，防止 SQL 注入
 var allowedUpdateCols = map[string]struct{}{
-	"title":   {},
-	"content": {},
-	"images":  {},
-	"status":  {},
+	"title":     {},
+	"content":   {},
+	"images":    {},
+	"media_ids": {},
+	"status":    {},
 }
 
 type (

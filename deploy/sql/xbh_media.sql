@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `media` (
     `storage_type` TINYINT DEFAULT 1 COMMENT '存储类型 1:MinIO 2:OSS 3:SeaweedFS',
     `bucket` VARCHAR(100) DEFAULT NULL COMMENT '存储桶',
     `object_key` VARCHAR(255) DEFAULT NULL COMMENT '对象键',
+    `thumbnail_object_key` VARCHAR(255) DEFAULT NULL COMMENT '缩略图对象键',
     `file_size` BIGINT DEFAULT 0 COMMENT '文件大小(字节)',
     `width` INT DEFAULT NULL COMMENT '宽度',
     `height` INT DEFAULT NULL COMMENT '高度',

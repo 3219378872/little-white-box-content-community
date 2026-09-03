@@ -47,7 +47,7 @@ func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageRe
 	result, err := l.svcCtx.MessageCommandModel.CreateMessageWithConversations(l.ctx, in.SenderId, in.ReceiverId, content, int64(in.MsgType), in.MediaId, idempotencyKey)
 	if err != nil {
 		if model.IsIdempotencyConflict(err) {
-			return nil, errx.New(errx.ParamError, "幂等键已用于其他消息")
+			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("MessageCommandModel.CreateMessageWithConversations failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)

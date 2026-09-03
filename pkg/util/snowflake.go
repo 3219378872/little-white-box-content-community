@@ -98,6 +98,9 @@ func (s *Snowflake) NextID() (int64, error) {
 	defer s.mu.Unlock()
 
 	now := time.Now().UnixMilli()
+	if now < s.timestamp {
+		return 0, ErrClockMovedBackwards
+	}
 
 	if s.timestamp == now {
 		s.sequence = (s.sequence + 1) & sequenceMask
@@ -125,4 +128,5 @@ var (
 	ErrInvalidWorkerID     = errors.New("invalid worker ID")
 	ErrInvalidDatacenterID = errors.New("invalid datacenter ID")
 	ErrSnowflakeNotInit    = errors.New("snowflake not initialized")
+	ErrClockMovedBackwards = errors.New("snowflake clock moved backwards")
 )

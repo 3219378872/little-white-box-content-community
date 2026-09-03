@@ -33,7 +33,7 @@ func TestSendVerifyCodeRateLimits(t *testing.T) {
 			require.NoError(t, err, "send %d should pass", i+1)
 			// 模拟验证码被消费（注册/登录成功），绕开未消费冷却，
 			// 单独压测号码维度小时窗口。
-			_, err = mem.DelCtx(context.Background(), "13800000010")
+			_, err = mem.DelCtx(context.Background(), verifyCodeRedisKey("13800000010"))
 			require.NoError(t, err)
 		}
 		_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000010", Type: 1})

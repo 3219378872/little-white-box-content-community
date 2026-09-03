@@ -59,6 +59,9 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 		l.Errorw("unfavorite transaction failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, record.Id, in.UserId, in.PostId); err != nil {
+		l.Errorw("InvalidateFavoriteCache failed", logx.Field("err", err.Error()))
+	}
 	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))

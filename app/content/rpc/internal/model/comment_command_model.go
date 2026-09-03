@@ -63,7 +63,7 @@ func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Commen
 			}
 		}
 		result, err := session.ExecCtx(ctx,
-			"UPDATE post SET comment_count = comment_count + 1 WHERE id = ? AND status <> 2",
+			"UPDATE post SET comment_count = comment_count + 1 WHERE id = ? AND status = 1",
 			comment.PostId,
 		)
 		if err != nil {
@@ -74,7 +74,7 @@ func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Commen
 			return err
 		}
 		if changed != 1 {
-			return fmt.Errorf("post %d is unavailable", comment.PostId)
+			return ErrTargetNotInteractable
 		}
 		commentID = comment.Id
 		created = true

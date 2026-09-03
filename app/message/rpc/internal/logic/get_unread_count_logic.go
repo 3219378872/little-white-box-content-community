@@ -37,45 +37,17 @@ func (l *GetUnreadCountLogic) GetUnreadCount(in *pb.GetUnreadCountReq) (*pb.GetU
 }
 
 func (l *GetUnreadCountLogic) getMessageUnread(userID int64) (int64, error) {
-	if l.svcCtx.UnreadStore != nil {
-		count, ok, err := l.svcCtx.UnreadStore.GetMessageUnread(l.ctx, userID)
-		if err == nil && ok {
-			return count, nil
-		}
-		if err != nil {
-			l.Errorw("UnreadStore.GetMessageUnread failed", logx.Field("err", err.Error()))
-		}
-	}
 	count, err := l.svcCtx.MessageModel.CountUnreadByUser(l.ctx, userID)
 	if err != nil {
 		return 0, errx.Wrap(err, errx.SystemError)
-	}
-	if l.svcCtx.UnreadStore != nil {
-		if err := l.svcCtx.UnreadStore.SetMessageUnread(l.ctx, userID, count); err != nil {
-			l.Errorw("UnreadStore.SetMessageUnread failed", logx.Field("err", err.Error()))
-		}
 	}
 	return count, nil
 }
 
 func (l *GetUnreadCountLogic) getNotificationUnread(userID int64) (int64, error) {
-	if l.svcCtx.UnreadStore != nil {
-		count, ok, err := l.svcCtx.UnreadStore.GetNotificationUnread(l.ctx, userID)
-		if err == nil && ok {
-			return count, nil
-		}
-		if err != nil {
-			l.Errorw("UnreadStore.GetNotificationUnread failed", logx.Field("err", err.Error()))
-		}
-	}
 	count, err := l.svcCtx.NotificationModel.CountUnread(l.ctx, userID)
 	if err != nil {
 		return 0, errx.Wrap(err, errx.SystemError)
-	}
-	if l.svcCtx.UnreadStore != nil {
-		if err := l.svcCtx.UnreadStore.SetNotificationUnread(l.ctx, userID, count); err != nil {
-			l.Errorw("UnreadStore.SetNotificationUnread failed", logx.Field("err", err.Error()))
-		}
 	}
 	return count, nil
 }

@@ -46,6 +46,7 @@ type (
 		Title         string         `db:"title"`          // 标题
 		Content       string         `db:"content"`        // 内容
 		Images        sql.NullString `db:"images"`         // 图片列表
+		MediaIds      sql.NullString `db:"media_ids"`      // 引用的已上传媒体ID列表
 		VideoUrl      sql.NullString `db:"video_url"`      // 视频URL,未使用
 		CoverUrl      sql.NullString `db:"cover_url"`      // 封面URL,未使用
 		Status        int64          `db:"status"`         // 状态 0:草稿 1:已发布 2:已删除 3:审核中

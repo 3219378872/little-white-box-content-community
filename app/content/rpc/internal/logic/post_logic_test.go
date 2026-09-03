@@ -373,13 +373,13 @@ func TestUpdatePostLogic(t *testing.T) {
 			errCode: errx.ContentVersionConflict,
 		},
 		{
-			name: "迁移期旧客户端不带revision仍可更新",
+			name: "缺少 expected_revision 报参数错误",
 			req:  &pb.UpdatePostReq{PostId: 300, AuthorId: 3001, Title: "t", Content: "c"},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
 				pm.On("FindPostById", mock.Anything, int64(300)).Return(authorPost, nil)
-				ptm.On("FindTagNamesByPostId", mock.Anything, int64(300)).Return([]string{"kept"}, nil)
-				pm.On("UpdateFields", mock.Anything, int64(300), mock.Anything).Return(nil)
 			},
+			wantErr: true,
+			errCode: errx.ParamError,
 		},
 		{
 			name: "标题超长报错",

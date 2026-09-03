@@ -10,3 +10,6 @@ var ErrNotFound = sqlx.ErrNotFound
 
 // ErrVersionConflict 表示内容 revision 不匹配，调用方应返回 409 Conflict。
 var ErrVersionConflict = errors.New("content version conflict")
+
+// ErrTargetNotInteractable 表示评论目标当前不是 published，调用方应返回不存在。
+var ErrTargetNotInteractable = errors.New("content target is not interactable")

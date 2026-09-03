@@ -90,18 +90,20 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 	}
 
 	// 无 S3 对象（如直接写入的行）无需清理：仅软删，不投递事件。
-	var event outboxx.Event
-	if m.ObjectKey.Valid && strings.TrimSpace(m.ObjectKey.String) != "" {
-		event, err = buildMediaDeletedOutboxEvent(in.MediaId, m.ObjectKey.String, l.svcCtx.Config.S3Storage.Bucket)
-		if err != nil {
+	events := make([]outboxx.Event, 0, 2)
+	for _, objectKey := range mediaObjectKeys(m) {
+		event, buildErr := buildMediaDeletedOutboxEvent(in.MediaId, objectKey, l.svcCtx.Config.S3Storage.Bucket)
+		if buildErr != nil {
 			l.Errorw("build media_deleted outbox event failed",
 				logx.Field("media_id", in.MediaId),
-				logx.Field("err", err.Error()),
+				logx.Field("object_key", objectKey),
+				logx.Field("err", buildErr.Error()),
 			)
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
+		events = append(events, event)
 	}
-	if err := l.svcCtx.MediaCommandModel.SoftDelete(l.ctx, in.MediaId, event); err != nil {
+	if err := l.svcCtx.MediaCommandModel.SoftDelete(l.ctx, in.MediaId, events...); err != nil {
 		l.Errorw("MediaCommandModel.SoftDelete failed",
 			logx.Field("media_id", in.MediaId),
 			logx.Field("err", err.Error()),
@@ -109,13 +111,12 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	// 事务提交后失效读缓存（原 UpdateStatus 的 ExecCtx 语义），避免陈旧状态。
+	// CORE-053：权威写入已提交，缓存失效失败不得把响应改成可重试失败。
 	if err := l.svcCtx.MediaModel.DelCache(l.ctx, in.MediaId); err != nil {
 		l.Errorw("MediaModel.DelCache failed",
 			logx.Field("media_id", in.MediaId),
 			logx.Field("err", err.Error()),
 		)
-		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	l.Infow("delete media success",
@@ -123,4 +124,40 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		logx.Field("user_id", in.UserId),
 	)
 	return &pb.DeleteMediaResp{}, nil
+}
+
+func mediaObjectKeys(m *model.Media) []string {
+	if m == nil {
+		return nil
+	}
+	keys := make([]string, 0, 2)
+	seen := make(map[string]struct{}, 2)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		seen[value] = struct{}{}
+		keys = append(keys, value)
+	}
+	if m.ObjectKey.Valid {
+		add(m.ObjectKey.String)
+	}
+	if m.ThumbnailObjectKey.Valid {
+		add(m.ThumbnailObjectKey.String)
+	} else if m.ThumbnailUrl.Valid {
+		add(objectKeyFromPublicURL(m.ThumbnailUrl.String, "/thumb/"))
+	}
+	return keys
+}
+
+func objectKeyFromPublicURL(publicURL, marker string) string {
+	idx := strings.Index(publicURL, marker)
+	if idx < 0 {
+		return ""
+	}
+	return strings.TrimPrefix(publicURL[idx:], "/")
 }

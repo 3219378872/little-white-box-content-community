@@ -144,6 +144,7 @@ type (
 		IsFavorited   bool     `json:"isFavorited"`
 		Revision      int64    `json:"revision"`
 		CreatedAt     int64    `json:"createdAt"`
+		MediaIds      []int64  `json:"mediaIds,optional"`
 	}
 )
 
@@ -197,6 +198,7 @@ type (
 		IsFavorited   bool     `json:"isFavorited"`
 		Revision      int64    `json:"revision"`
 		CreatedAt     int64    `json:"createdAt"`
+		MediaIds      []int64  `json:"mediaIds,optional"`
 	}
 	GetPostListResp {
 		List       []PostItem `json:"list"`
@@ -526,6 +528,7 @@ type (
 		MsgType        int32  `json:"msgType"`
 		Status         int32  `json:"status"`
 		CreatedAt      int64  `json:"createdAt"`
+		MediaId        int64  `json:"mediaId,optional"`
 	}
 	GetMessagesResp {
 		Messages []MessageItem `json:"messages"`

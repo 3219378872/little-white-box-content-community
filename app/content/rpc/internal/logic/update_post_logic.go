@@ -85,7 +85,8 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 			return &pb.UpdatePostResp{Status: status, Revision: revision}, nil
 		}
 	}
-	if err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds); err != nil {
+	mediaURLs, err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds)
+	if err != nil {
 		return nil, err
 	}
 
@@ -107,9 +108,10 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if post.AuthorId != in.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentForbidden)
 	}
-	// CORE-013：提供 expected_revision 时做乐观并发检测；0 表示旧客户端
-	// 迁移期（CORE-062），跳过版本检查以保持 /api/v1 向后兼容。
-	if in.ExpectedRevision > 0 && post.Revision != in.ExpectedRevision {
+	if in.ExpectedRevision <= 0 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if post.Revision != in.ExpectedRevision {
 		return nil, errx.NewWithCode(errx.ContentVersionConflict)
 	}
 
@@ -151,6 +153,16 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	}
 	if len(in.Images) > 0 {
 		fields["images"] = util.ToJsonObject(in.Images)
+	} else if len(in.MediaIds) > 0 && len(mediaURLs) > 0 {
+		fields["images"] = util.ToJsonObject(mediaURLs)
+	}
+	if len(in.MediaIds) > 0 {
+		mediaIDsJSON, encodeErr := encodeInt64sJSON(in.MediaIds)
+		if encodeErr != nil {
+			l.Errorw("json convert media ids failed", logx.Field("err", encodeErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		fields["media_ids"] = mediaIDsJSON
 	}
 	// Status 只在显式设置时更新，支持 draft ⇄ published 双向转换
 	if in.Status != nil && int64(*in.Status) != post.Status {

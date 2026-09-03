@@ -16,6 +16,7 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -58,7 +59,7 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 	}
 	_, err = l.svcCtx.UserProfileModel.Insert(l.ctx, user)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.UserAlreadyExist)
+		return nil, mapUserInsertError(err)
 	}
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
@@ -103,7 +104,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		return nil, errx.NewWithCode(errx.UserAlreadyExist)
 	}
 
-	code, err := l.svcCtx.RedisClient.GetCtx(l.ctx, in.Phone)
+	code, err := l.svcCtx.RedisClient.GetCtx(l.ctx, verifyCodeRedisKey(in.Phone))
 	if err != nil {
 		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
@@ -125,12 +126,10 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 
 	_, err = l.svcCtx.UserProfileModel.Insert(l.ctx, user)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.UserAlreadyExist)
+		return nil, mapUserInsertError(err)
 	}
-	_, err = l.svcCtx.RedisClient.DelCtx(l.ctx, in.Phone)
-	if err != nil {
+	if _, err = l.svcCtx.RedisClient.DelCtx(l.ctx, verifyCodeRedisKey(in.Phone)); err != nil {
 		l.Errorw("Redis.DelCtx failed", logx.Field("err", err.Error()))
-		return nil, errx.Wrap(err, errx.SystemError)
 	}
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
@@ -229,8 +228,24 @@ func recordVerifyCodeFailure(ctx context.Context, redis svc.RedisStore, phone st
 		_ = redis.ExpireCtx(ctx, attemptKey, verifyCodeAttemptWindowSeconds)
 	}
 	if attempts >= verifyCodeMaxAttempts {
-		_, _ = redis.DelCtx(ctx, phone)
+		_, _ = redis.DelCtx(ctx, verifyCodeRedisKey(phone))
 	}
+}
+
+func verifyCodeRedisKey(phone string) string {
+	return "verify:code:" + phone
+}
+
+func mapUserInsertError(err error) error {
+	if isDuplicateKeyError(err) {
+		return errx.NewWithCode(errx.UserAlreadyExist)
+	}
+	return errx.Wrap(err, errx.SystemError)
+}
+
+func isDuplicateKeyError(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }
 
 // clearVerifyCodeFailures 校验成功后清理尝试计数。

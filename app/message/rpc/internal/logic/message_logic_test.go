@@ -277,20 +277,10 @@ func TestGetNotificationsReturnsPagedItems(t *testing.T) {
 	require.Equal(t, int64(12345), resp.Notifications[0].CreatedAt)
 }
 
-func TestGetUnreadCountUsesRedisHit(t *testing.T) {
-	ctx := &svc.ServiceContext{UnreadStore: &fakeUnreadStore{hitMessage: true, messageValue: 3, hitNotification: true, notificationValue: 5}}
-
-	resp, err := NewGetUnreadCountLogic(context.Background(), ctx).GetUnreadCount(&pb.GetUnreadCountReq{UserId: 7})
-
-	require.NoError(t, err)
-	require.Equal(t, int32(3), resp.MessageUnread)
-	require.Equal(t, int32(5), resp.NotificationUnread)
-}
-
-func TestGetUnreadCountFallsBackToDatabaseAndCaches(t *testing.T) {
+func TestGetUnreadCountReadsDatabase(t *testing.T) {
 	messages := &fakeMessageModel{unread: 4}
 	notifications := &fakeNotificationModel{unread: 6}
-	store := &fakeUnreadStore{}
+	store := &fakeUnreadStore{hitMessage: true, messageValue: 3, hitNotification: true, notificationValue: 5}
 	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
 
 	resp, err := NewGetUnreadCountLogic(context.Background(), ctx).GetUnreadCount(&pb.GetUnreadCountReq{UserId: 7})
@@ -298,8 +288,8 @@ func TestGetUnreadCountFallsBackToDatabaseAndCaches(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int32(4), resp.MessageUnread)
 	require.Equal(t, int32(6), resp.NotificationUnread)
-	require.Equal(t, int64(4), store.setMessage)
-	require.Equal(t, int64(6), store.setNotification)
+	require.Equal(t, int64(0), store.setMessage)
+	require.Equal(t, int64(0), store.setNotification)
 }
 
 func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
@@ -376,8 +366,7 @@ func TestSendMessageRejectsIdempotencyConflict(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	require.True(t, errx.Is(err, errx.ParamError))
-	require.Contains(t, err.Error(), "幂等键")
+	require.True(t, errx.Is(err, errx.IdempotencyConflict))
 }
 
 func TestSendMessageMapsStorageFailureToSystemError(t *testing.T) {

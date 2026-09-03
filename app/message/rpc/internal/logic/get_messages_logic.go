@@ -43,7 +43,7 @@ func (l *GetMessagesLogic) GetMessages(in *pb.GetMessagesReq) (*pb.GetMessagesRe
 	}
 	items := make([]*pb.MessageInfo, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, toMessageInfo(row))
+		items = append(items, toMessageInfo(row, in.ConversationId))
 	}
 	return &pb.GetMessagesResp{Messages: items, HasMore: hasMore}, nil
 }

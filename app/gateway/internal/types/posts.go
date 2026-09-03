@@ -55,6 +55,7 @@ type GetPostResp struct {
 	IsFavorited   bool     `json:"isFavorited"`
 	Revision      int64    `json:"revision"`
 	CreatedAt     int64    `json:"createdAt"`
+	MediaIds      []int64  `json:"mediaIds,optional"`
 }
 
 type UpdatePostResp struct {

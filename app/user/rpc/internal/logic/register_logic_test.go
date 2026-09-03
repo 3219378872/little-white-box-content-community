@@ -11,6 +11,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -43,10 +44,19 @@ func TestRegisterLogic_ByUsername(t *testing.T) {
 			errCode: errx.ParamError,
 		},
 		{
+			name: "插入系统错误",
+			req:  &pb.RegisterReq{Username: "newuser", Password: "Strong@123"},
+			setupMock: func(m *MockUserProfileModel) {
+				m.On("Insert", mock.Anything, mock.AnythingOfType("*model.UserProfile")).Return(nil, errors.New("db down")).Once()
+			},
+			wantErr: true,
+			errCode: errx.SystemError,
+		},
+		{
 			name: "用户名已存在",
 			req:  &pb.RegisterReq{Username: "existing", Password: "Strong@123"},
 			setupMock: func(m *MockUserProfileModel) {
-				m.On("Insert", mock.Anything, mock.AnythingOfType("*model.UserProfile")).Return(nil, errors.New("duplicate")).Once()
+				m.On("Insert", mock.Anything, mock.AnythingOfType("*model.UserProfile")).Return(nil, &mysql.MySQLError{Number: 1062, Message: "Duplicate entry"}).Once()
 			},
 			wantErr: true,
 			errCode: errx.UserAlreadyExist,
@@ -141,7 +151,7 @@ func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
 		_, err := logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000002"})
 		require.NoError(t, err)
 		// 模拟验证码被成功消费（注册/登录删除）。
-		_, err = mem.DelCtx(context.Background(), "13800000002")
+		_, err = mem.DelCtx(context.Background(), verifyCodeRedisKey("13800000002"))
 		require.NoError(t, err)
 		// 消费后立即重发（注册后验证码登录流程）不应被冷却阻断。
 		_, err = logic.SendVerifyCode(&pb.SendVerifyCodeReq{Phone: "13800000002"})
@@ -149,7 +159,7 @@ func TestRegisterByPhoneVerifyCodeCooldownAndAttemptLimit(t *testing.T) {
 	})
 
 	t.Run("错误尝试达上限后验证码作废", func(t *testing.T) {
-		mem := &memoryRedis{values: map[string]string{"13800000001": "123456"}}
+		mem := &memoryRedis{values: map[string]string{verifyCodeRedisKey("13800000001"): "123456"}}
 		profile := &MockUserProfileModel{}
 		profile.On("FindOneByPhone", mock.Anything, mock.Anything).
 			Return(nil, model.ErrNotFound).Maybe()

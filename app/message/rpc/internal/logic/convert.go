@@ -57,16 +57,17 @@ func toNotificationInfo(row *model2.Notification) *pb.NotificationInfo {
 	}
 }
 
-func toMessageInfo(row *model2.Message) *pb.MessageInfo {
+func toMessageInfo(row *model2.Message, conversationID int64) *pb.MessageInfo {
 	return &pb.MessageInfo{
 		Id:             row.Id,
-		ConversationId: row.ConversationId,
+		ConversationId: conversationID,
 		SenderId:       row.SenderId,
 		ReceiverId:     row.ReceiverId,
 		Content:        row.Content,
 		MsgType:        int32(row.MsgType),
 		Status:         int32(row.Status),
 		CreatedAt:      unixMilli(row.CreatedAt),
+		MediaId:        nullInt64(row.MediaId),
 	}
 }
 

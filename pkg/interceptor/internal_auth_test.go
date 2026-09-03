@@ -25,7 +25,7 @@ func TestInternalAuthServerInterceptor(t *testing.T) {
 		ts := strconv.FormatInt(time.Now().Unix(), 10)
 		md := metadata.Pairs(
 			internalTimestampMetadataKey, ts,
-			internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", mustAtoi(t, ts)),
+			internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", mustAtoi(t, ts), "/user.UserService/Login"),
 		)
 		if err := invokeWithMD(context.Background(), md); err != nil {
 			t.Fatalf("valid signature rejected: %v", err)
@@ -43,7 +43,7 @@ func TestInternalAuthServerInterceptor(t *testing.T) {
 		ts := strconv.FormatInt(time.Now().Unix(), 10)
 		md := metadata.Pairs(
 			internalTimestampMetadataKey, ts,
-			internalSignatureMetadataKey, SignInternalAuthPayload("wrong-secret", mustAtoi(t, ts)),
+			internalSignatureMetadataKey, SignInternalAuthPayload("wrong-secret", mustAtoi(t, ts), "/user.UserService/Login"),
 		)
 		err := invokeWithMD(context.Background(), md)
 		if status.Code(err) != codes.PermissionDenied {
@@ -55,7 +55,7 @@ func TestInternalAuthServerInterceptor(t *testing.T) {
 		old := time.Now().Add(-10 * time.Minute).Unix()
 		md := metadata.Pairs(
 			internalTimestampMetadataKey, strconv.FormatInt(old, 10),
-			internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", old),
+			internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", old, "/user.UserService/Login"),
 		)
 		err := invokeWithMD(context.Background(), md)
 		if status.Code(err) != codes.Unauthenticated {
@@ -71,6 +71,18 @@ func TestInternalAuthServerInterceptor(t *testing.T) {
 		err := invokeWithMD(context.Background(), md)
 		if status.Code(err) != codes.Unauthenticated {
 			t.Fatalf("malformed timestamp: got %v want Unauthenticated", err)
+		}
+	})
+
+	t.Run("签名绑定方法，不能跨 RPC 重放", func(t *testing.T) {
+		ts := strconv.FormatInt(time.Now().Unix(), 10)
+		md := metadata.Pairs(
+			internalTimestampMetadataKey, ts,
+			internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", mustAtoi(t, ts), "/user.UserService/Register"),
+		)
+		err := invokeWithMD(context.Background(), md)
+		if status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("cross-method replay: got %v want PermissionDenied", err)
 		}
 	})
 
@@ -105,7 +117,7 @@ func TestInternalAuthClientInterceptorSignsOutgoing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sigs[0] != SignInternalAuthPayload("test-secret", unix) {
+	if sigs[0] != SignInternalAuthPayload("test-secret", unix, "/user.UserService/Login") {
 		t.Fatal("signature does not match expected HMAC")
 	}
 }
@@ -121,7 +133,7 @@ func TestInternalAuthStreamServerInterceptor(t *testing.T) {
 	ts := time.Now().Unix()
 	valid := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		internalTimestampMetadataKey, strconv.FormatInt(ts, 10),
-		internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", ts),
+		internalSignatureMetadataKey, SignInternalAuthPayload("test-secret", ts, "/media.MediaService/UploadImage"),
 	))
 	called := false
 	handler := func(any, grpc.ServerStream) error {
@@ -169,7 +181,7 @@ func TestInternalAuthStreamClientInterceptorSignsOutgoing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sigs[0] != SignInternalAuthPayload("test-secret", unix) {
+	if sigs[0] != SignInternalAuthPayload("test-secret", unix, "/assistant.AssistantService/SubscribeRunEvents") {
 		t.Fatal("stream signature does not match expected HMAC")
 	}
 }

@@ -43,7 +43,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		l.Errorw("build favorite behavior event failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	_, err = l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
+	recordID, err := l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
 	if err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.FavoriteResp{}, nil
@@ -54,6 +54,11 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 			logx.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	if l.svcCtx.FavoriteModel != nil {
+		if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, recordID, in.UserId, in.PostId); err != nil {
+			l.Errorw("InvalidateFavoriteCache failed", logx.Field("err", err.Error()))
+		}
 	}
 
 	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {

@@ -41,9 +41,11 @@ func requireInternalSecret(secret string) {
 	}
 }
 
-func internalSignature(secret, timestamp string) string {
+func internalSignature(secret, timestamp, method string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(timestamp))
+	mac.Write([]byte{0})
+	mac.Write([]byte(method))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
@@ -53,7 +55,7 @@ func internalAuthExemptMethod(method string) bool {
 		strings.HasPrefix(method, "/grpc.reflection.")
 }
 
-func validateInternalAuth(ctx context.Context, secret string) error {
+func validateInternalAuth(ctx context.Context, secret, method string) error {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return status.Error(codes.Unauthenticated, "internal auth metadata missing")
@@ -72,17 +74,17 @@ func validateInternalAuth(ctx context.Context, secret string) error {
 		return status.Error(codes.Unauthenticated, "internal auth timestamp expired")
 	}
 
-	if !hmac.Equal([]byte(internalSignature(secret, timestamps[0])), []byte(signatures[0])) {
+	if !hmac.Equal([]byte(internalSignature(secret, timestamps[0], method)), []byte(signatures[0])) {
 		return status.Error(codes.PermissionDenied, "internal auth signature mismatch")
 	}
 	return nil
 }
 
-func signInternalAuthContext(ctx context.Context, secret string) context.Context {
+func signInternalAuthContext(ctx context.Context, secret, method string) context.Context {
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	return metadata.AppendToOutgoingContext(ctx,
 		internalTimestampMetadataKey, timestamp,
-		internalSignatureMetadataKey, internalSignature(secret, timestamp),
+		internalSignatureMetadataKey, internalSignature(secret, timestamp, method),
 	)
 }
 
@@ -97,7 +99,7 @@ func InternalAuthUnaryServerInterceptor(secret string) grpc.UnaryServerIntercept
 			return handler(ctx, req)
 		}
 
-		if err := validateInternalAuth(ctx, secret); err != nil {
+		if err := validateInternalAuth(ctx, secret, info.FullMethod); err != nil {
 			return nil, err
 		}
 		return handler(ctx, req)
@@ -114,7 +116,7 @@ func InternalAuthStreamServerInterceptor(secret string) grpc.StreamServerInterce
 		if internalAuthExemptMethod(info.FullMethod) {
 			return handler(srv, stream)
 		}
-		if err := validateInternalAuth(stream.Context(), secret); err != nil {
+		if err := validateInternalAuth(stream.Context(), secret, info.FullMethod); err != nil {
 			return err
 		}
 		return handler(srv, stream)
@@ -131,7 +133,7 @@ func InternalAuthUnaryClientInterceptor(secret string) grpc.UnaryClientIntercept
 		if internalAuthExemptMethod(method) {
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
-		return invoker(signInternalAuthContext(ctx, secret), method, req, reply, cc, opts...)
+		return invoker(signInternalAuthContext(ctx, secret, method), method, req, reply, cc, opts...)
 	}
 }
 
@@ -144,16 +146,16 @@ func InternalAuthStreamClientInterceptor(secret string) grpc.StreamClientInterce
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
 		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		if !internalAuthExemptMethod(method) {
-			ctx = signInternalAuthContext(ctx, secret)
+			ctx = signInternalAuthContext(ctx, secret, method)
 		}
 		return streamer(ctx, desc, cc, method, opts...)
 	}
 }
 
 // SignInternalAuthPayload 供测试与非 gRPC 场景复用的签名计算。
-func SignInternalAuthPayload(secret string, unixSeconds int64) string {
+func SignInternalAuthPayload(secret string, unixSeconds int64, method string) string {
 	if strings.TrimSpace(secret) == "" {
 		panic(fmt.Sprintf("interceptor: %s", "internal auth secret is empty"))
 	}
-	return internalSignature(secret, strconv.FormatInt(unixSeconds, 10))
+	return internalSignature(secret, strconv.FormatInt(unixSeconds, 10), method)
 }

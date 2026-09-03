@@ -41,6 +41,7 @@ func messageItems(messages []*messageservice.MessageInfo) []types.MessageItem {
 			MsgType:        message.MsgType,
 			Status:         message.Status,
 			CreatedAt:      message.CreatedAt,
+			MediaId:        message.MediaId,
 		})
 	}
 	return items

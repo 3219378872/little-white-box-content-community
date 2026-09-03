@@ -14,7 +14,7 @@ func samplePost() *contentservice.PostInfo {
 		Id: 100, AuthorId: 7, Title: "t", Content: "c",
 		Images: []string{"i"}, Tags: []string{"tag"}, Status: 1,
 		ViewCount: 1, LikeCount: 2, CommentCount: 3, FavoriteCount: 4,
-		Revision: 5, CreatedAt: 6,
+		Revision: 5, CreatedAt: 6, MediaIds: []int64{9},
 	}
 }
 
@@ -22,6 +22,9 @@ func TestItem_FillsViewerAndAuthor(t *testing.T) {
 	item := Item(samplePost(), map[int64]bool{100: true}, map[int64]bool{100: true}, authorx.Author{Name: "Alice", Avatar: "https://a"})
 	if item.FavoriteCount != 4 || !item.IsLiked || !item.IsFavorited {
 		t.Fatalf("counts/flags: %+v", item)
+	}
+	if len(item.MediaIds) != 1 || item.MediaIds[0] != 9 {
+		t.Fatalf("media ids: %+v", item.MediaIds)
 	}
 	if item.AuthorName != "Alice" || item.AuthorAvatar != "https://a" {
 		t.Fatalf("author: %+v", item)

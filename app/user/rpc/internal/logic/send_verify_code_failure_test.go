@@ -105,7 +105,7 @@ func TestSendVerifyCode_CooldownLookupFailed(t *testing.T) {
 	mem := &flakyRedis{
 		memoryRedis: &memoryRedis{values: map[string]string{}},
 		onGet: func(key string) error {
-			if key == "13800200007" {
+			if key == verifyCodeRedisKey("13800200007") {
 				return errInjectedRedis
 			}
 			return nil
@@ -120,7 +120,7 @@ func TestSendVerifyCode_CooldownLookupFailed(t *testing.T) {
 
 func TestSendVerifyCode_CooldownKeySetFailed(t *testing.T) {
 	mem := &flakyRedis{
-		memoryRedis: &memoryRedis{values: map[string]string{"13800200008": "123456"}},
+		memoryRedis: &memoryRedis{values: map[string]string{verifyCodeRedisKey("13800200008"): "123456"}},
 		onSetnxEx: func(key string) error {
 			return errInjectedRedis
 		},
@@ -136,7 +136,7 @@ func TestSendVerifyCode_StoreCodeFailed(t *testing.T) {
 	mem := &flakyRedis{
 		memoryRedis: &memoryRedis{values: map[string]string{}},
 		onSetex: func(key string) error {
-			if key == "13800200009" {
+			if key == verifyCodeRedisKey("13800200009") {
 				return errInjectedRedis
 			}
 			return nil
