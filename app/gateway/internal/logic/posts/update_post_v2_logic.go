@@ -7,11 +7,10 @@ import (
 	"context"
 
 	"esx/app/content/rpc/contentservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
-
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -38,7 +37,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,11 +54,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		MediaIds:         req.MediaIds,
 	})
 	if err != nil {
-		l.Errorw("ContentService.UpdatePost RPC failed",
-			logx.Field("postId", req.PostId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "ContentService.UpdatePost", err, logx.Field("postId", req.PostId))
 	}
 
 	return &types.UpdatePostResp{

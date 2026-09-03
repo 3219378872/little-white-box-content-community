@@ -48,6 +48,7 @@ func TestSendVerifyCodeLogic(t *testing.T) {
 				).Once()
 			},
 			wantErr: true,
+			errCode: errx.SystemError,
 		},
 	}
 

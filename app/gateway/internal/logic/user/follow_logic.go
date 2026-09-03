@@ -5,11 +5,11 @@ package user
 
 import (
 	"context"
-	"esx/app/user/rpc/userservice"
-	"esx/pkg/jwtx"
 
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/userservice"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -30,7 +30,7 @@ func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogi
 }
 
 func (l *FollowLogic) Follow(req *types.FollowReq) (resp *types.FollowResp, err error) {
-	userID, err := jwtx.GetUserIdFromContext(l.ctx)
+	userID, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (l *FollowLogic) Follow(req *types.FollowReq) (resp *types.FollowResp, err 
 		UserId:       userID,
 		TargetUserId: req.TargetUserId,
 	}); err != nil {
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "UserService.Follow", err)
 	}
 
 	return &types.FollowResp{}, nil

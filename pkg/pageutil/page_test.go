@@ -24,12 +24,12 @@ func TestClampPageSize(t *testing.T) {
 		in   int32
 		want int32
 	}{
-		{in: 0, want: 20},
-		{in: -1, want: 20},
+		{in: 0, want: DefaultPageSize},
+		{in: -1, want: DefaultPageSize},
 		{in: 20, want: 20},
-		{in: 50, want: 50},
-		{in: 51, want: 50},
-		{in: 9999, want: 50},
+		{in: ContentMaxPageSize, want: ContentMaxPageSize},
+		{in: ContentMaxPageSize + 1, want: ContentMaxPageSize},
+		{in: 9999, want: ContentMaxPageSize},
 	}
 	for _, tt := range tests {
 		if got := ClampPageSize(tt.in); got != tt.want {

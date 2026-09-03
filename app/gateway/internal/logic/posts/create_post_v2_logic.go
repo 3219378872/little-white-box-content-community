@@ -7,8 +7,7 @@ import (
 	"context"
 
 	"esx/app/content/rpc/contentservice"
-	"esx/pkg/jwtx"
-
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
@@ -31,7 +30,7 @@ func NewCreatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 }
 
 func (l *CreatePostV2Logic) CreatePostV2(req *types.CreatePostReq) (resp *types.CreatePostResp, err error) {
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +46,7 @@ func (l *CreatePostV2Logic) CreatePostV2(req *types.CreatePostReq) (resp *types.
 		MediaIds:       req.MediaIds,
 	})
 	if err != nil {
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "ContentService.CreatePost", err)
 	}
 
 	return &types.CreatePostResp{

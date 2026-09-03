@@ -4,27 +4,18 @@ import (
 	"database/sql"
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/xiaobaihe/message/pb"
+	"esx/pkg/pageutil"
 	"strings"
 	"time"
 )
 
 const (
-	defaultPage     = int32(1)
 	defaultPageSize = int32(20)
 	maxPageSize     = int32(100)
 )
 
 func normalizePage(page, pageSize int32) (int64, int64) {
-	if page < 1 {
-		page = defaultPage
-	}
-	if pageSize <= 0 {
-		pageSize = defaultPageSize
-	}
-	if pageSize > maxPageSize {
-		pageSize = maxPageSize
-	}
-	return int64(page), int64(pageSize)
+	return int64(pageutil.ClampPage(page)), int64(pageutil.ClampPageSizeTo(pageSize, defaultPageSize, maxPageSize))
 }
 
 func unixMilli(t time.Time) int64 {

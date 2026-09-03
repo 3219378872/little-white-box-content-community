@@ -5,16 +5,16 @@ package posts
 
 import (
 	"context"
-	"strings"
 
 	"esx/app/content/rpc/contentservice"
+	"esx/app/gateway/internal/logic/authorx"
+	"esx/app/gateway/internal/logic/postmap"
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/logic/viewerstate"
-	"esx/app/user/rpc/userservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
-
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -35,7 +35,6 @@ func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLo
 }
 
 func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, err error) {
-	// CORE：已发布帖子允许匿名读取；登录用户才回填互动状态。
 	userId, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 
 	result, err := l.svcCtx.ContentService.GetPost(l.ctx, &contentservice.GetPostReq{
@@ -43,11 +42,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		UserId: userId,
 	})
 	if err != nil {
-		l.Errorw("ContentService.GetPost RPC failed",
-			logx.Field("postId", req.PostId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "ContentService.GetPost", err, logx.Field("postId", req.PostId))
 	}
 
 	post := result.Post
@@ -61,50 +56,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		return nil, err
 	}
 
-	authorName, authorAvatar := l.loadPostAuthor(post.AuthorId)
-	return &types.GetPostResp{
-		Id:            post.Id,
-		AuthorId:      post.AuthorId,
-		AuthorName:    authorName,
-		AuthorAvatar:  authorAvatar,
-		Title:         post.Title,
-		Content:       post.Content,
-		Images:        post.Images,
-		Tags:          post.Tags,
-		Status:        post.Status,
-		ViewCount:     post.ViewCount,
-		LikeCount:     post.LikeCount,
-		CommentCount:  post.CommentCount,
-		FavoriteCount: post.FavoriteCount,
-		IsLiked:       liked[post.Id],
-		IsFavorited:   favorited[post.Id],
-		Revision:      post.Revision,
-		CreatedAt:     post.CreatedAt,
-	}, nil
-}
-
-func (l *GetPostLogic) loadPostAuthor(authorID int64) (string, string) {
-	if authorID <= 0 || l.svcCtx == nil || l.svcCtx.UserService == nil {
-		return "", ""
-	}
-	response, err := l.svcCtx.UserService.BatchGetUsers(l.ctx, &userservice.BatchGetUsersReq{UserIds: []int64{authorID}})
-	if err != nil {
-		l.Errorw("UserService.BatchGetUsers failed", logx.Field("authorId", authorID), logx.Field("err", err.Error()))
-		return "", ""
-	}
-	if response == nil {
-		l.Error("UserService.BatchGetUsers returned a nil response")
-		return "", ""
-	}
-	for _, user := range response.Users {
-		if user == nil || user.Id != authorID {
-			continue
-		}
-		name := strings.TrimSpace(user.Nickname)
-		if name == "" {
-			name = strings.TrimSpace(user.Username)
-		}
-		return name, strings.TrimSpace(user.AvatarUrl)
-	}
-	return "", ""
+	authors := authorx.LoadSoft(l.ctx, l.svcCtx, []int64{post.AuthorId})
+	detail := postmap.Detail(post, liked, favorited, authors[post.AuthorId])
+	return &detail, nil
 }

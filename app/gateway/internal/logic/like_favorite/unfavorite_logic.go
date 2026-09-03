@@ -6,11 +6,10 @@ package like_favorite
 import (
 	"context"
 
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,9 +30,9 @@ func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfavo
 }
 
 func (l *UnfavoriteLogic) Unfavorite(req *types.UnfavoriteReq) (resp *types.UnfavoriteResp, err error) {
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 
 	_, err = l.svcCtx.InteractionService.Unfavorite(l.ctx, &interactionservice.UnfavoriteReq{
@@ -41,12 +40,10 @@ func (l *UnfavoriteLogic) Unfavorite(req *types.UnfavoriteReq) (resp *types.Unfa
 		PostId: req.PostId,
 	})
 	if err != nil {
-		l.Errorw("InteractionService.Unfavorite RPC failed",
+		return nil, rpcx.Error(l.Logger, "InteractionService.Unfavorite", err,
 			logx.Field("userId", userId),
 			logx.Field("postId", req.PostId),
-			logx.Field("err", err.Error()),
 		)
-		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.UnfavoriteResp{}, nil

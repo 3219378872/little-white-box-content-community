@@ -70,6 +70,7 @@ func TestLoginLogic(t *testing.T) {
 				).Once()
 			},
 			wantErr: true,
+			errCode: errx.SystemError,
 		},
 	}
 

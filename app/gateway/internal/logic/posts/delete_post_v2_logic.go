@@ -7,11 +7,10 @@ import (
 	"context"
 
 	"esx/app/content/rpc/contentservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
-
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/errx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -37,7 +36,7 @@ func (l *DeletePostV2Logic) DeletePostV2(req *types.DeletePostV2Req) (resp *type
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -48,11 +47,7 @@ func (l *DeletePostV2Logic) DeletePostV2(req *types.DeletePostV2Req) (resp *type
 		ExpectedRevision: req.ExpectedRevision,
 	})
 	if err != nil {
-		l.Errorw("ContentService.DeletePost RPC failed",
-			logx.Field("postId", req.PostId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "ContentService.DeletePost", err, logx.Field("postId", req.PostId))
 	}
 
 	return &types.DeletePostResp{}, nil

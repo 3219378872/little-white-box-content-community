@@ -438,11 +438,11 @@ func TestGetCommentListLogic(t *testing.T) {
 			},
 		},
 		{
-			name: "页大小超限修正为20",
+			name: "页大小超限修正为50",
 			req:  &pb.GetCommentListReq{PostId: 1000, Page: 1, PageSize: 200},
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
-				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 20, 0).Return([]*model2.Comment{}, int64(0), nil)
+				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 50, 0).Return([]*model2.Comment{}, int64(0), nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
 				assert.Len(t, resp.Comments, 0)

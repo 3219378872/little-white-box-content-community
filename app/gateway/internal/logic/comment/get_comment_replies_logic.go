@@ -5,7 +5,7 @@ package comment
 
 import (
 	"context"
-	"esx/app/gateway/internal/logic/pageutil"
+	"esx/pkg/pageutil"
 
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"

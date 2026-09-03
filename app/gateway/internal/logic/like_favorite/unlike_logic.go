@@ -6,11 +6,10 @@ package like_favorite
 import (
 	"context"
 
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,9 +30,9 @@ func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogi
 }
 
 func (l *UnlikeLogic) Unlike(req *types.UnlikeReq) (resp *types.UnlikeResp, err error) {
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 
 	_, err = l.svcCtx.InteractionService.Unlike(l.ctx, &interactionservice.UnlikeReq{
@@ -42,13 +41,11 @@ func (l *UnlikeLogic) Unlike(req *types.UnlikeReq) (resp *types.UnlikeResp, err 
 		TargetType: req.TargetType,
 	})
 	if err != nil {
-		l.Errorw("InteractionService.Unlike RPC failed",
+		return nil, rpcx.Error(l.Logger, "InteractionService.Unlike", err,
 			logx.Field("userId", userId),
 			logx.Field("targetId", req.TargetId),
 			logx.Field("targetType", req.TargetType),
-			logx.Field("err", err.Error()),
 		)
-		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.UnlikeResp{}, nil

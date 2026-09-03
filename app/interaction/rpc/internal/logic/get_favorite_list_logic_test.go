@@ -25,3 +25,16 @@ func TestGetFavoriteListLogic_GetFavoriteList_DefaultsPagination(t *testing.T) {
 	assert.Equal(t, int64(2), resp.Total)
 	favoriteModel.AssertExpectations(t)
 }
+
+func TestGetFavoriteListLogic_GetFavoriteList_ClampsOversizedPageSizeToMax(t *testing.T) {
+	favoriteModel := new(mockFavoriteModel)
+	favoriteModel.
+		On("FindActivePostIds", mock.Anything, int64(1), int32(1), int32(100)).
+		Return([]int64{1}, int64(1), nil).
+		Once()
+
+	logic := NewGetFavoriteListLogic(context.Background(), &svc.ServiceContext{FavoriteModel: favoriteModel})
+	_, err := logic.GetFavoriteList(&pb.GetFavoriteListReq{UserId: 1, Page: 1, PageSize: 101})
+	require.NoError(t, err)
+	favoriteModel.AssertExpectations(t)
+}

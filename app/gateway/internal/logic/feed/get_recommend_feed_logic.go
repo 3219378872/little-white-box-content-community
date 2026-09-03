@@ -84,8 +84,8 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 		items = append(items, types.RecommendFeedItem{
 			PostId:        item.PostId,
 			AuthorId:      item.AuthorId,
-			AuthorName:    author.name,
-			AuthorAvatar:  author.avatar,
+			AuthorName:    author.Name,
+			AuthorAvatar:  author.Avatar,
 			CreatedAt:     item.CreatedAt,
 			FeedType:      item.FeedType,
 			Title:         item.Title,

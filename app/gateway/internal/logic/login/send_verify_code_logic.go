@@ -5,6 +5,7 @@ package login
 
 import (
 	"context"
+	"esx/app/gateway/internal/logic/rpcx"
 	gatewaymiddleware "esx/app/gateway/internal/middleware"
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/validator"
@@ -44,7 +45,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(req *types.SendVerifyCodeReq) (resp
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "UserService.SendVerifyCode", err)
 	}
 	return
 }

@@ -5,6 +5,7 @@ package login
 
 import (
 	"context"
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/pkg/errx"
@@ -59,7 +60,7 @@ func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterRe
 		RegisterReqConvert(req),
 	)
 	if err != nil {
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "UserService.Register", err)
 	}
 
 	return RegisterRespConvert(register), nil

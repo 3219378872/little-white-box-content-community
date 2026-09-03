@@ -6,6 +6,7 @@ import (
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 	"esx/pkg/errx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,14 +28,10 @@ func NewGetLikeListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLi
 }
 
 func (l *GetLikeListLogic) GetLikeList(in *pb.GetLikeListReq) (*pb.GetLikeListResp, error) {
-	if in.Page < 1 {
-		in.Page = 1
-	}
-	if in.PageSize < 1 || in.PageSize > 100 {
-		in.PageSize = 20
-	}
+	page := pageutil.ClampPage(in.Page)
+	pageSize := pageutil.ClampPageSizeTo(in.PageSize, pageutil.DefaultPageSize, pageutil.InteractionMaxPageSize)
 
-	postIDs, total, err := l.svcCtx.LikeRecordModel.FindActiveTargetIds(l.ctx, in.UserId, likeListTargetTypePost, in.Page, in.PageSize)
+	postIDs, total, err := l.svcCtx.LikeRecordModel.FindActiveTargetIds(l.ctx, in.UserId, likeListTargetTypePost, page, pageSize)
 	if err != nil {
 		l.Errorf("get like list failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)

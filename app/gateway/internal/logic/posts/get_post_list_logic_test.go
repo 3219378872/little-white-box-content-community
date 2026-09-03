@@ -8,6 +8,8 @@ import (
 	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/userservice"
 	"esx/pkg/jwtx"
 
 	"google.golang.org/grpc"
@@ -75,6 +77,9 @@ func TestGetPostList_AnonymousContext_ReturnsPublicData(t *testing.T) {
 	if resp.List[0].Id != 100 || resp.List[0].AuthorId != 200 {
 		t.Fatalf("unexpected item: %+v", resp.List[0])
 	}
+	if resp.List[0].FavoriteCount != 40 {
+		t.Fatalf("expected FavoriteCount from content, got %+v", resp.List[0])
+	}
 }
 
 func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
@@ -96,5 +101,29 @@ func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
 	}
 	if resp.List[0].Id != 100 || resp.List[0].AuthorId != 200 {
 		t.Fatalf("unexpected item: %+v", resp.List[0])
+	}
+	if resp.List[0].FavoriteCount != 40 {
+		t.Fatalf("expected FavoriteCount from content, got %+v", resp.List[0])
+	}
+}
+
+func TestGetPostList_EnrichesAuthor(t *testing.T) {
+	l := newLogic(t, context.Background(), 0)
+	l.svcCtx.UserService = &fakeGetPostUserService{
+		batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			if len(in.UserIds) != 1 || in.UserIds[0] != 200 {
+				t.Fatalf("unexpected author ids %v", in.UserIds)
+			}
+			return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{
+				{Id: 200, Nickname: "Alice", AvatarUrl: " https://a.png "},
+			}}, nil
+		},
+	}
+	resp, err := l.GetPostList(&types.GetPostListReq{PageSize: 20, SortBy: 1})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.List[0].AuthorName != "Alice" || resp.List[0].AuthorAvatar != "https://a.png" {
+		t.Fatalf("expected author enrichment, got %+v", resp.List[0])
 	}
 }

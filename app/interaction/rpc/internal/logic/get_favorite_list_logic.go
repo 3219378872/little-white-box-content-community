@@ -6,6 +6,7 @@ import (
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
 
 	"esx/pkg/errx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,14 +26,10 @@ func NewGetFavoriteListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *G
 }
 
 func (l *GetFavoriteListLogic) GetFavoriteList(in *pb.GetFavoriteListReq) (*pb.GetFavoriteListResp, error) {
-	if in.Page < 1 {
-		in.Page = 1
-	}
-	if in.PageSize < 1 || in.PageSize > 100 {
-		in.PageSize = 20
-	}
+	page := pageutil.ClampPage(in.Page)
+	pageSize := pageutil.ClampPageSizeTo(in.PageSize, pageutil.DefaultPageSize, pageutil.InteractionMaxPageSize)
 
-	postIDs, total, err := l.svcCtx.FavoriteModel.FindActivePostIds(l.ctx, in.UserId, in.Page, in.PageSize)
+	postIDs, total, err := l.svcCtx.FavoriteModel.FindActivePostIds(l.ctx, in.UserId, page, pageSize)
 	if err != nil {
 		l.Errorf("get favorite list failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)

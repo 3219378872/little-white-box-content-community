@@ -556,10 +556,10 @@ func TestGetPostListLogic(t *testing.T) {
 			},
 		},
 		{
-			name: "页大小超限修正为20",
+			name: "页大小超限修正为50",
 			req:  &pb.GetPostListReq{PageSize: 100},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindListByCursor", mock.Anything, mock.Anything, 20).Return([]*model2.Post{}, false, nil)
+				pm.On("FindListByCursor", mock.Anything, mock.Anything, 50).Return([]*model2.Post{}, false, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetPostListResp) {
 				assert.Len(t, resp.Posts, 0)
@@ -690,10 +690,10 @@ func TestGetUserPostsLogic(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "页大小超限修正为20",
+			name: "页大小超限修正为50",
 			req:  &pb.GetUserPostsReq{UserId: 5001, PageSize: 100},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("FindUserPostsByCursor", mock.Anything, int64(5001), mock.Anything, 20).Return([]*model2.Post{}, false, nil)
+				pm.On("FindUserPostsByCursor", mock.Anything, int64(5001), mock.Anything, 50).Return([]*model2.Post{}, false, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetUserPostsResp) {
 				assert.Len(t, resp.Posts, 0)

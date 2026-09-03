@@ -5,6 +5,7 @@ package login
 
 import (
 	"context"
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/user/rpc/userservice"
@@ -52,8 +53,7 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 	}
 	login, err := l.svcCtx.UserService.Login(l.ctx, &loginReq)
 	if err != nil {
-
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "UserService.Login", err)
 	}
 	return &types.LoginResp{
 		UserId:       login.UserId,

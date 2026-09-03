@@ -6,11 +6,10 @@ package like_favorite
 import (
 	"context"
 
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,9 +30,9 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 }
 
 func (l *LikeLogic) Like(req *types.LikeReq) (resp *types.LikeResp, err error) {
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 
 	_, err = l.svcCtx.InteractionService.Like(l.ctx, &interactionservice.LikeReq{
@@ -42,13 +41,11 @@ func (l *LikeLogic) Like(req *types.LikeReq) (resp *types.LikeResp, err error) {
 		TargetType: req.TargetType,
 	})
 	if err != nil {
-		l.Errorw("InteractionService.Like RPC failed",
+		return nil, rpcx.Error(l.Logger, "InteractionService.Like", err,
 			logx.Field("userId", userId),
 			logx.Field("targetId", req.TargetId),
 			logx.Field("targetType", req.TargetType),
-			logx.Field("err", err.Error()),
 		)
-		return nil, errx.FromRPCError(err)
 	}
 
 	return &types.LikeResp{}, nil

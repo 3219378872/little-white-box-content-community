@@ -64,6 +64,7 @@ func TestRegisterLogic(t *testing.T) {
 				).Once()
 			},
 			wantErr: true,
+			errCode: errx.SystemError,
 		},
 	}
 

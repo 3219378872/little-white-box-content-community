@@ -5,6 +5,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/errx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,13 +26,7 @@ func NewGetTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetTagsLo
 
 // GetTags 获取标签列表（按帖子数降序）
 func (l *GetTagsLogic) GetTags(in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
-	limit := int(in.Limit)
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > maxTagListLimit {
-		limit = maxTagListLimit
-	}
+	limit := int(pageutil.ClampPageSizeTo(in.Limit, 20, maxTagListLimit))
 
 	tags, err := l.svcCtx.TagModel.FindList(l.ctx, limit)
 	if err != nil {

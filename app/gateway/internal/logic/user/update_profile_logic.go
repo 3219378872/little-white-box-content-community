@@ -5,11 +5,11 @@ package user
 
 import (
 	"context"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
-	"esx/pkg/jwtx"
 
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -20,7 +20,6 @@ type UpdateProfileLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// NewUpdateProfileLogic 更新用户资料
 func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateProfileLogic {
 	return &UpdateProfileLogic{
 		Logger: logx.WithContext(ctx),
@@ -30,7 +29,7 @@ func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 }
 
 func (l *UpdateProfileLogic) UpdateProfile(req *types.UpdateProfileReq) (resp *types.UpdateProfileResp, err error) {
-	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	userId, err := rpcx.RequireUser(l.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +40,7 @@ func (l *UpdateProfileLogic) UpdateProfile(req *types.UpdateProfileReq) (resp *t
 		Bio:       req.Bio,
 	})
 	if err != nil {
-		return nil, err
+		return nil, rpcx.Error(l.Logger, "UserService.UpdateProfile", err)
 	}
 	return &types.UpdateProfileResp{}, nil
 }

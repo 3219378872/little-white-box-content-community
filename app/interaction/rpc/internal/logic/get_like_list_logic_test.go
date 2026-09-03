@@ -26,3 +26,16 @@ func TestGetLikeListLogic_GetLikeList_DefaultsPagination(t *testing.T) {
 	assert.Equal(t, int64(2), resp.Total)
 	likeModel.AssertExpectations(t)
 }
+
+func TestGetLikeListLogic_GetLikeList_ClampsOversizedPageSizeToMax(t *testing.T) {
+	likeModel := new(mockLikeRecordModel)
+	likeModel.
+		On("FindActiveTargetIds", mock.Anything, int64(1), int64(1), int32(1), int32(100)).
+		Return([]int64{1}, int64(1), nil).
+		Once()
+
+	logic := NewGetLikeListLogic(context.Background(), &svc.ServiceContext{LikeRecordModel: likeModel})
+	_, err := logic.GetLikeList(&pb.GetLikeListReq{UserId: 1, Page: 1, PageSize: 101})
+	require.NoError(t, err)
+	likeModel.AssertExpectations(t)
+}

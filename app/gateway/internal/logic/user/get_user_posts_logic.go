@@ -5,15 +5,16 @@ package user
 
 import (
 	"context"
-	"esx/app/gateway/internal/logic/pageutil"
 
 	"esx/app/content/rpc/contentservice"
+	"esx/app/gateway/internal/logic/authorx"
+	"esx/app/gateway/internal/logic/postmap"
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/logic/viewerstate"
-	"esx/pkg/errx"
-
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/pkg/jwtx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -34,7 +35,6 @@ func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetU
 }
 
 func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.GetPostListResp, error) {
-	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)
 	result, err := l.svcCtx.ContentService.GetUserPosts(l.ctx, &contentservice.GetUserPostsReq{
 		UserId:   req.UserId,
@@ -43,11 +43,7 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		Cursor:   req.Cursor,
 	})
 	if err != nil {
-		l.Errorw("ContentService.GetUserPosts RPC failed",
-			logx.Field("userId", req.UserId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "ContentService.GetUserPosts", err, logx.Field("userId", req.UserId))
 	}
 
 	postIDs := make([]int64, 0, len(result.Posts))
@@ -62,35 +58,10 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
 		return nil, err
 	}
-
-	authors := loadPostAuthors(l.ctx, l.svcCtx, uniquePostAuthorIDs(result.Posts))
-
-	list := make([]types.PostItem, 0, len(result.Posts))
-	for _, post := range result.Posts {
-		author := authors[post.AuthorId]
-		list = append(list, types.PostItem{
-			Id:            post.Id,
-			AuthorId:      post.AuthorId,
-			AuthorName:    author.name,
-			AuthorAvatar:  author.avatar,
-			Title:         post.Title,
-			Content:       post.Content,
-			Images:        post.Images,
-			Tags:          post.Tags,
-			Status:        post.Status,
-			ViewCount:     post.ViewCount,
-			LikeCount:     post.LikeCount,
-			CommentCount:  post.CommentCount,
-			FavoriteCount: post.FavoriteCount,
-			IsLiked:       liked[post.Id],
-			IsFavorited:   favorited[post.Id],
-			Revision:      post.Revision,
-			CreatedAt:     post.CreatedAt,
-		})
-	}
+	authors := authorx.LoadSoft(l.ctx, l.svcCtx, authorx.PostAuthorIDs(result.Posts))
 
 	return &types.GetPostListResp{
-		List:       list,
+		List:       postmap.Items(result.Posts, liked, favorited, authors),
 		NextCursor: result.NextCursor,
 	}, nil
 }

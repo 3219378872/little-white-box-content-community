@@ -5,10 +5,12 @@ package user
 
 import (
 	"context"
-	"esx/app/gateway/internal/logic/pageutil"
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/content/visibility"
+	"esx/app/gateway/internal/logic/authorx"
+	"esx/app/gateway/internal/logic/postmap"
+	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/logic/viewerstate"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
@@ -17,6 +19,7 @@ import (
 	"esx/pkg/cursorx"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -37,7 +40,6 @@ func NewGetUserFavoritesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq) (*types.GetPostListResp, error) {
-	// 对外统一游标形状；收藏列表底层仍按页取（小表），游标仅编码页码。
 	page := int32(1)
 	if req.Cursor != "" {
 		data, err := cursorx.Decode(req.Cursor)
@@ -50,25 +52,18 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		}
 		page = int32(p)
 	}
-	// 互动 GetFavoriteList 为 clamp 语义：pageSize 非正数→20、>100→20。
-	pageSize := pageutil.ClampPageSizeTo(req.PageSize, 20, 100)
-	// 未登录时 requesterID 为 0，由权限判断视为非 owner
-	requesterID, _ := jwtx.GetUserIdFromContext(l.ctx)
+	pageSize := pageutil.ClampPageSizeTo(req.PageSize, pageutil.DefaultPageSize, pageutil.InteractionMaxPageSize)
+	requesterID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 
 	userResp, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId})
 	if err != nil {
-		l.Errorw("UserService.GetUser RPC failed",
-			logx.Field("userId", req.UserId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "UserService.GetUser", err, logx.Field("userId", req.UserId))
 	}
 	if userResp.User == nil {
 		return nil, errx.NewWithCode(errx.UserNotFound)
 	}
 
 	isOwner := requesterID != 0 && requesterID == req.UserId
-	// DB 约定：1=公开，2=仅自己可见
 	isPublic := userResp.User.FavoritesVisibility == 1
 	if !isOwner && !isPublic {
 		return nil, errx.NewWithCode(errx.FavoritesPrivate)
@@ -80,26 +75,16 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		PageSize: pageSize,
 	})
 	if err != nil {
-		l.Errorw("InteractionService.GetFavoriteList RPC failed",
-			logx.Field("userId", req.UserId),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "InteractionService.GetFavoriteList", err, logx.Field("userId", req.UserId))
 	}
 
 	if len(favoriteResp.PostIds) == 0 {
-		return &types.GetPostListResp{
-			List: []types.PostItem{},
-		}, nil
+		return &types.GetPostListResp{List: []types.PostItem{}}, nil
 	}
 
 	published, err := visibility.PublishedByIDs(l.ctx, l.svcCtx.ContentService, favoriteResp.PostIds)
 	if err != nil {
-		l.Errorw("ContentService.GetPostsByIds RPC failed",
-			logx.Field("postIds", favoriteResp.PostIds),
-			logx.Field("err", err.Error()),
-		)
-		return nil, errx.FromRPCError(err)
+		return nil, rpcx.Error(l.Logger, "ContentService.GetPostsByIds", err, logx.Field("postIds", favoriteResp.PostIds))
 	}
 
 	visible := make([]*contentservice.PostInfo, 0, len(favoriteResp.PostIds))
@@ -119,33 +104,6 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, err
 	}
 
-	authors := loadPostAuthors(l.ctx, l.svcCtx, uniquePostAuthorIDs(visible))
-
-	list := make([]types.PostItem, 0, len(visible))
-	for _, post := range visible {
-		author := authors[post.AuthorId]
-		list = append(list, types.PostItem{
-			Id:            post.Id,
-			AuthorId:      post.AuthorId,
-			AuthorName:    author.name,
-			AuthorAvatar:  author.avatar,
-			Title:         post.Title,
-			Content:       post.Content,
-			Images:        post.Images,
-			Tags:          post.Tags,
-			Status:        post.Status,
-			ViewCount:     post.ViewCount,
-			LikeCount:     post.LikeCount,
-			CommentCount:  post.CommentCount,
-			FavoriteCount: post.FavoriteCount,
-			IsLiked:       liked[post.Id],
-			IsFavorited:   favorited[post.Id],
-			Revision:      post.Revision,
-			CreatedAt:     post.CreatedAt,
-		})
-	}
-
-	// 满批才给下一页游标；可见性过滤可能减少本页条数，属保守策略。
 	var nextCursor string
 	if len(favoriteResp.PostIds) >= int(pageSize) {
 		token, err := cursorx.Encode(cursorx.Data{"p": int64(page) + 1})
@@ -157,7 +115,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 	}
 
 	return &types.GetPostListResp{
-		List:       list,
+		List:       postmap.Items(visible, liked, favorited, authorx.LoadSoft(l.ctx, l.svcCtx, authorx.PostAuthorIDs(visible))),
 		NextCursor: nextCursor,
 	}, nil
 }
