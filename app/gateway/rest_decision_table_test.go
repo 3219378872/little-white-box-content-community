@@ -350,6 +350,10 @@ func (contractAssistantService) CancelRun(context.Context, *assistantservice.Can
 func (contractAssistantService) ConfirmRunTool(context.Context, *assistantservice.ConfirmRunToolReq, ...grpc.CallOption) (*assistantpb.ConfirmRunToolResp, error) {
 	return &assistantpb.ConfirmRunToolResp{}, nil
 }
+
+func (contractAssistantService) AnswerQuestions(context.Context, *assistantservice.AnswerQuestionsReq, ...grpc.CallOption) (*assistantpb.AnswerQuestionsResp, error) {
+	return &assistantpb.AnswerQuestionsResp{QuestionRequestJson: `{"id":"q1","runId":9,"callId":"c1","messageId":2,"status":"answered","questions":[],"answers":[],"deadlineMs":1,"createdAtMs":1}`}, nil
+}
 func (contractAssistantService) ListMemory(context.Context, *assistantservice.ListMemoryReq, ...grpc.CallOption) (*assistantpb.ListMemoryResp, error) {
 	return &assistantpb.ListMemoryResp{}, nil
 }
@@ -558,6 +562,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ASSISTANT-RUN-EVENTS-VALID", method: http.MethodGet, path: "/api/v2/assistant/runs/9/events", routePath: "/api/v2/assistant/runs/:id/events", auth: true, wantStatus: http.StatusOK, wantSSE: true},
 		{id: "ASSISTANT-RUN-CANCEL-VALID", method: http.MethodPost, path: "/api/v2/assistant/runs/9/cancel", routePath: "/api/v2/assistant/runs/:id/cancel", auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-RUN-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/assistant/runs/9/confirm", routePath: "/api/v2/assistant/runs/:id/confirm", body: jsonBody(`{"callId":"c1","approved":true}`), auth: true, wantStatus: http.StatusOK},
+		{id: "ASSISTANT-ANSWERS-VALID", method: http.MethodPost, path: "/api/v2/assistant/runs/9/answers", routePath: "/api/v2/assistant/runs/:id/answers", body: jsonBody(`{"questionRequestId":"q1","requestId":"r1","answers":[{"questionId":"x","disposition":"unknown"}]}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-MEMORY-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/memory", auth: true, wantStatus: http.StatusOK, wantFields: []string{"items"}},
 		{id: "ASSISTANT-MEMORY-ADD-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory", body: jsonBody(`{"target":"memory","content":"喜欢步行"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"entry", "changeId"}},
 		{id: "ASSISTANT-MEMORY-BATCH-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/batch", body: jsonBody(`{"ops":[{"op":"add","target":"memory","content":"x"}]}`), auth: true, wantStatus: http.StatusOK},
@@ -642,6 +647,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "ASSISTANT-MESSAGE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/messages", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "AGENT-CONSENT-SET-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/consent", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-RUN-CONFIRM-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/runs/9/confirm", routePath: "/api/v2/assistant/runs/:id/confirm", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-ANSWERS-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/runs/9/answers", routePath: "/api/v2/assistant/runs/:id/answers", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
+		restDecision{id: "ASSISTANT-ANSWERS-EMPTY", method: http.MethodPost, path: "/api/v2/assistant/runs/9/answers", routePath: "/api/v2/assistant/runs/:id/answers", body: jsonBody(`{"questionRequestId":"q1","requestId":"r1","answers":[]}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-MEMORY-REPLACE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-MEMORY-REMOVE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-WATCH-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -739,7 +746,7 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 60 {
+	if len(successes) != 61 {
 		t.Fatalf("route inventory drift: got %d success rules, want 61", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))

@@ -160,6 +160,14 @@ func (m *MockCommentModel) FindByParentIds(ctx context.Context, postId int64, pa
 	return args.Get(0).([]*model2.Comment), args.Error(1)
 }
 
+func (m *MockCommentModel) FindActiveByIds(ctx context.Context, postID int64, ids []int64) ([]*model2.Comment, error) {
+	args := m.Called(ctx, postID, ids)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*model2.Comment), args.Error(1)
+}
+
 func (m *MockCommentModel) UpdateStatus(ctx context.Context, id, status int64) error {
 	return m.Called(ctx, id, status).Error(0)
 }

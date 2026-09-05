@@ -68,6 +68,11 @@ func (s *AssistantServiceServer) ConfirmRunTool(ctx context.Context, in *pb.Conf
 	return l.ConfirmRunTool(in)
 }
 
+func (s *AssistantServiceServer) AnswerQuestions(ctx context.Context, in *pb.AnswerQuestionsReq) (*pb.AnswerQuestionsResp, error) {
+	l := logic.NewAnswerQuestionsLogic(ctx, s.svcCtx)
+	return l.AnswerQuestions(in)
+}
+
 func (s *AssistantServiceServer) ListMemory(ctx context.Context, in *pb.ListMemoryReq) (*pb.ListMemoryResp, error) {
 	l := logic.NewListMemoryLogic(ctx, s.svcCtx)
 	return l.ListMemory(in)

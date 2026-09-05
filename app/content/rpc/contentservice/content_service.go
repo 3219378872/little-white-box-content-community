@@ -29,6 +29,8 @@ type (
 	GetCommentListResp     = pb.GetCommentListResp
 	GetCommentRepliesReq   = pb.GetCommentRepliesReq
 	GetCommentRepliesResp  = pb.GetCommentRepliesResp
+	GetCommentsByIdsReq    = pb.GetCommentsByIdsReq
+	GetCommentsByIdsResp   = pb.GetCommentsByIdsResp
 	GetPostListReq         = pb.GetPostListReq
 	GetPostListResp        = pb.GetPostListResp
 	GetPostReq             = pb.GetPostReq
@@ -69,6 +71,7 @@ type (
 		GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error)
 		// 获取评论的回复列表（楼中楼全量分页，时间正序）
 		GetCommentReplies(ctx context.Context, in *GetCommentRepliesReq, opts ...grpc.CallOption) (*GetCommentRepliesResp, error)
+		GetCommentsByIds(ctx context.Context, in *GetCommentsByIdsReq, opts ...grpc.CallOption) (*GetCommentsByIdsResp, error)
 		// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
 		AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error)
 		// 获取标签列表
@@ -152,6 +155,11 @@ func (m *defaultContentService) GetCommentList(ctx context.Context, in *GetComme
 func (m *defaultContentService) GetCommentReplies(ctx context.Context, in *GetCommentRepliesReq, opts ...grpc.CallOption) (*GetCommentRepliesResp, error) {
 	client := pb.NewContentServiceClient(m.cli.Conn())
 	return client.GetCommentReplies(ctx, in, opts...)
+}
+
+func (m *defaultContentService) GetCommentsByIds(ctx context.Context, in *GetCommentsByIdsReq, opts ...grpc.CallOption) (*GetCommentsByIdsResp, error) {
+	client := pb.NewContentServiceClient(m.cli.Conn())
+	return client.GetCommentsByIds(ctx, in, opts...)
 }
 
 // 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）

@@ -14,6 +14,17 @@ type AddAssistantMemoryResp struct {
 	ChangeId int64                `json:"changeId"`
 }
 
+type AnswerAssistantQuestionsReq struct {
+	Id                int64                     `path:"id"`
+	QuestionRequestId string                    `json:"questionRequestId"`
+	RequestId         string                    `json:"requestId"`
+	Answers           []AssistantQuestionAnswer `json:"answers"`
+}
+
+type AnswerAssistantQuestionsResp struct {
+	QuestionRequest AssistantQuestionRequest `json:"questionRequest"`
+}
+
 type AssistantRecommendFeedbackReq struct {
 	RequestId string `json:"requestId,optional"`
 	PostId    int64  `json:"postId"`
@@ -24,17 +35,19 @@ type AssistantRecommendFeedbackResp struct {
 }
 
 type AssistantRunEvent struct {
-	RunId      int64                  `json:"runId"`
-	Seq        int64                  `json:"seq"`
-	Type       string                 `json:"type"`
-	Text       string                 `json:"text,optional"`
-	Degraded   bool                   `json:"degraded,optional"`
-	ErrorCode  string                 `json:"errorCode,optional"`
-	SessionId  int64                  `json:"sessionId"`
-	ToolCall   *AssistantToolCallInfo `json:"toolCall,optional"`
-	SourceCard *AssistantSourceCard   `json:"sourceCard,optional"`
-	ChangeId   int64                  `json:"changeId,optional"`
-	StreamId   string                 `json:"streamId,optional"`
+	RunId              int64                        `json:"runId"`
+	Seq                int64                        `json:"seq"`
+	Type               string                       `json:"type"`
+	Text               string                       `json:"text,optional"`
+	Degraded           bool                         `json:"degraded,optional"`
+	ErrorCode          string                       `json:"errorCode,optional"`
+	SessionId          int64                        `json:"sessionId"`
+	ToolCall           *AssistantToolCallInfo       `json:"toolCall,optional"`
+	SourceCard         *AssistantSourceCard         `json:"sourceCard,optional"`
+	ChangeId           int64                        `json:"changeId,optional"`
+	StreamId           string                       `json:"streamId,optional"`
+	QuestionRequest    *AssistantQuestionRequest    `json:"questionRequest,optional"`
+	AnswerPresentation *AssistantAnswerPresentation `json:"answerPresentation,optional"`
 }
 
 type AssistantRunEventsReq struct {
@@ -136,10 +149,12 @@ type MarkAssistantThreadReadResp struct {
 }
 
 type PostAssistantMessageReq struct {
-	Message       string                `json:"message"`
-	RequestId     string                `json:"requestId,optional"`
-	Attachments   []AssistantAttachment `json:"attachments,optional"`
-	ContextPostId int64                 `json:"contextPostId,optional"`
+	Message               string                    `json:"message"`
+	RequestId             string                    `json:"requestId,optional"`
+	Attachments           []AssistantAttachment     `json:"attachments,optional"`
+	ContextPostId         int64                     `json:"contextPostId,optional"`
+	ClientProtocolVersion int32                     `json:"clientProtocolVersion,optional"`
+	QuestionContext       *AssistantQuestionContext `json:"questionContext,optional"`
 }
 
 type PostAssistantMessageResp struct {

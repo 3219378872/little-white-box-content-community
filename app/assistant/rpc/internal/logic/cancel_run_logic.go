@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"esx/app/assistant/internal/runtime"
+	"esx/app/assistant/internal/store"
 
 	"esx/app/assistant/rpc/internal/svc"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
@@ -30,6 +32,9 @@ func (l *CancelRunLogic) CancelRun(in *pb.CancelRunReq) (*pb.CancelRunResp, erro
 		return nil, unavailableUntilStore()
 	}
 	if err := l.svcCtx.Store.RequestCancel(l.ctx, in.UserId, in.RunId); err != nil {
+		return nil, err
+	}
+	if err := runtime.ResolveWaiting(l.ctx, l.svcCtx.Store, l.svcCtx.Notify, in.RunId, store.NowMs()); err != nil {
 		return nil, err
 	}
 	if l.svcCtx.Notify != nil {

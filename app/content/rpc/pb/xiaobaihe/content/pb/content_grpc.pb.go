@@ -30,6 +30,7 @@ const (
 	ContentService_DeleteComment_FullMethodName      = "/content.ContentService/DeleteComment"
 	ContentService_GetCommentList_FullMethodName     = "/content.ContentService/GetCommentList"
 	ContentService_GetCommentReplies_FullMethodName  = "/content.ContentService/GetCommentReplies"
+	ContentService_GetCommentsByIds_FullMethodName   = "/content.ContentService/GetCommentsByIds"
 	ContentService_AssertInteractable_FullMethodName = "/content.ContentService/AssertInteractable"
 	ContentService_GetTags_FullMethodName            = "/content.ContentService/GetTags"
 	ContentService_GetPostsByTag_FullMethodName      = "/content.ContentService/GetPostsByTag"
@@ -63,6 +64,7 @@ type ContentServiceClient interface {
 	GetCommentList(ctx context.Context, in *GetCommentListReq, opts ...grpc.CallOption) (*GetCommentListResp, error)
 	// 获取评论的回复列表（楼中楼全量分页，时间正序）
 	GetCommentReplies(ctx context.Context, in *GetCommentRepliesReq, opts ...grpc.CallOption) (*GetCommentRepliesResp, error)
+	GetCommentsByIds(ctx context.Context, in *GetCommentsByIdsReq, opts ...grpc.CallOption) (*GetCommentsByIdsResp, error)
 	// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
 	AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error)
 	// 获取标签列表
@@ -189,6 +191,16 @@ func (c *contentServiceClient) GetCommentReplies(ctx context.Context, in *GetCom
 	return out, nil
 }
 
+func (c *contentServiceClient) GetCommentsByIds(ctx context.Context, in *GetCommentsByIdsReq, opts ...grpc.CallOption) (*GetCommentsByIdsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCommentsByIdsResp)
+	err := c.cc.Invoke(ctx, ContentService_GetCommentsByIds_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *contentServiceClient) AssertInteractable(ctx context.Context, in *AssertInteractableReq, opts ...grpc.CallOption) (*AssertInteractableResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AssertInteractableResp)
@@ -247,6 +259,7 @@ type ContentServiceServer interface {
 	GetCommentList(context.Context, *GetCommentListReq) (*GetCommentListResp, error)
 	// 获取评论的回复列表（楼中楼全量分页，时间正序）
 	GetCommentReplies(context.Context, *GetCommentRepliesReq) (*GetCommentRepliesResp, error)
+	GetCommentsByIds(context.Context, *GetCommentsByIdsReq) (*GetCommentsByIdsResp, error)
 	// 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
 	AssertInteractable(context.Context, *AssertInteractableReq) (*AssertInteractableResp, error)
 	// 获取标签列表
@@ -295,6 +308,9 @@ func (UnimplementedContentServiceServer) GetCommentList(context.Context, *GetCom
 }
 func (UnimplementedContentServiceServer) GetCommentReplies(context.Context, *GetCommentRepliesReq) (*GetCommentRepliesResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCommentReplies not implemented")
+}
+func (UnimplementedContentServiceServer) GetCommentsByIds(context.Context, *GetCommentsByIdsReq) (*GetCommentsByIdsResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetCommentsByIds not implemented")
 }
 func (UnimplementedContentServiceServer) AssertInteractable(context.Context, *AssertInteractableReq) (*AssertInteractableResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method AssertInteractable not implemented")
@@ -524,6 +540,24 @@ func _ContentService_GetCommentReplies_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContentService_GetCommentsByIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCommentsByIdsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContentServiceServer).GetCommentsByIds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContentService_GetCommentsByIds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContentServiceServer).GetCommentsByIds(ctx, req.(*GetCommentsByIdsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ContentService_AssertInteractable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AssertInteractableReq)
 	if err := dec(in); err != nil {
@@ -628,6 +662,10 @@ var ContentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCommentReplies",
 			Handler:    _ContentService_GetCommentReplies_Handler,
+		},
+		{
+			MethodName: "GetCommentsByIds",
+			Handler:    _ContentService_GetCommentsByIds_Handler,
 		},
 		{
 			MethodName: "AssertInteractable",

@@ -20,6 +20,7 @@ type Store interface {
 }
 
 type Result struct {
+	SourceEvidence  int
 	Messages        int
 	WatchHits       int
 	WatchExecutions int
@@ -50,6 +51,11 @@ func (c *Cleaner) RunOnce(ctx context.Context) (Result, error) {
 	var result Result
 	var errs []error
 	result.Messages, errs = c.runBatches(ctx, messageCutoff, c.store.PurgeExpiredMessages, errs)
+	if sourceStore, ok := c.store.(interface {
+		PurgeExpiredSourceEvidence(context.Context, int64, int) (int, error)
+	}); ok {
+		result.SourceEvidence, errs = c.runBatches(ctx, messageCutoff, sourceStore.PurgeExpiredSourceEvidence, errs)
+	}
 	result.WatchHits, errs = c.runBatches(ctx, watchCutoff, c.store.PurgeExpiredWatchHits, errs)
 	result.WatchExecutions, errs = c.runBatches(ctx, watchCutoff, c.store.PurgeExpiredWatchExecutions, errs)
 	return result, errors.Join(errs...)

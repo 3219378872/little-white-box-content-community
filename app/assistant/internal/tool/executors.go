@@ -257,6 +257,7 @@ func getPostCommentsExecutor(content contentservice.ContentService) executorFunc
 				continue
 			}
 			fmt.Fprintf(&b, "- comment:%d %s\n", c.Id, truncateRunes(c.Content, 160))
+			sources[0].Evidence = append(sources[0].Evidence, store.Evidence{Kind: "comment", Text: truncateRunes(c.Content, 160), CommentID: strconv.FormatInt(c.Id, 10)})
 		}
 		if b.Len() == 0 {
 			return "没有可展示的评论。", sources, nil
@@ -854,9 +855,15 @@ func webSearchExecutor(searcher websearch.Searcher) executorFunc {
 		var b strings.Builder
 		sources := make([]store.SourceRef, 0, len(results))
 		for _, item := range results {
+			if !SafeSourceURL(item.URL) {
+				continue
+			}
 			src := store.SourceRef{Handle: randomHandle(), Kind: "web", AuthorityID: item.URL, Title: item.Title, PayloadJSON: truncateRunes(item.Content, maxEvidenceSnippetRunes)}
-			fmt.Fprintf(&b, "- handle=%s %s\n", src.Handle, item.Title)
+			fmt.Fprintf(&b, "- handle=%s %s %s\n", src.Handle, item.Title, truncateRunes(item.Content, maxEvidenceSnippetRunes))
 			sources = append(sources, src)
+		}
+		if len(sources) == 0 {
+			return "", nil, errx.New(errx.ServiceUnavailable, "web search returned no usable public sources")
 		}
 		return strings.TrimRight(b.String(), "\n"), sources, nil
 	}

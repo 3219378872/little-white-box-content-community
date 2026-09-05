@@ -89,6 +89,11 @@ func (s *ContentServiceServer) GetCommentReplies(ctx context.Context, in *pb.Get
 	return l.GetCommentReplies(in)
 }
 
+func (s *ContentServiceServer) GetCommentsByIds(ctx context.Context, in *pb.GetCommentsByIdsReq) (*pb.GetCommentsByIdsResp, error) {
+	l := logic.NewGetCommentsByIdsLogic(ctx, s.svcCtx)
+	return l.GetCommentsByIds(in)
+}
+
 // 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
 func (s *ContentServiceServer) AssertInteractable(ctx context.Context, in *pb.AssertInteractableReq) (*pb.AssertInteractableResp, error) {
 	l := logic.NewAssertInteractableLogic(ctx, s.svcCtx)

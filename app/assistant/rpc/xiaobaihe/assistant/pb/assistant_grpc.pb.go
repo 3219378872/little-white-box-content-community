@@ -28,6 +28,7 @@ const (
 	AssistantService_CancelRun_FullMethodName               = "/assistant.AssistantService/CancelRun"
 	AssistantService_RevokeConsent_FullMethodName           = "/assistant.AssistantService/RevokeConsent"
 	AssistantService_ConfirmRunTool_FullMethodName          = "/assistant.AssistantService/ConfirmRunTool"
+	AssistantService_AnswerQuestions_FullMethodName         = "/assistant.AssistantService/AnswerQuestions"
 	AssistantService_ListMemory_FullMethodName              = "/assistant.AssistantService/ListMemory"
 	AssistantService_AddMemory_FullMethodName               = "/assistant.AssistantService/AddMemory"
 	AssistantService_ReplaceMemory_FullMethodName           = "/assistant.AssistantService/ReplaceMemory"
@@ -54,6 +55,7 @@ type AssistantServiceClient interface {
 	CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
 	RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error)
 	ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
+	AnswerQuestions(ctx context.Context, in *AnswerQuestionsReq, opts ...grpc.CallOption) (*AnswerQuestionsResp, error)
 	ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
 	AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
 	ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error)
@@ -168,6 +170,16 @@ func (c *assistantServiceClient) ConfirmRunTool(ctx context.Context, in *Confirm
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConfirmRunToolResp)
 	err := c.cc.Invoke(ctx, AssistantService_ConfirmRunTool_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assistantServiceClient) AnswerQuestions(ctx context.Context, in *AnswerQuestionsReq, opts ...grpc.CallOption) (*AnswerQuestionsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnswerQuestionsResp)
+	err := c.cc.Invoke(ctx, AssistantService_AnswerQuestions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +309,7 @@ type AssistantServiceServer interface {
 	CancelRun(context.Context, *CancelRunReq) (*CancelRunResp, error)
 	RevokeConsent(context.Context, *RevokeConsentReq) (*RevokeConsentResp, error)
 	ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error)
+	AnswerQuestions(context.Context, *AnswerQuestionsReq) (*AnswerQuestionsResp, error)
 	ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error)
 	AddMemory(context.Context, *AddMemoryReq) (*AddMemoryResp, error)
 	ReplaceMemory(context.Context, *ReplaceMemoryReq) (*ReplaceMemoryResp, error)
@@ -344,6 +357,9 @@ func (UnimplementedAssistantServiceServer) RevokeConsent(context.Context, *Revok
 }
 func (UnimplementedAssistantServiceServer) ConfirmRunTool(context.Context, *ConfirmRunToolReq) (*ConfirmRunToolResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmRunTool not implemented")
+}
+func (UnimplementedAssistantServiceServer) AnswerQuestions(context.Context, *AnswerQuestionsReq) (*AnswerQuestionsResp, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnswerQuestions not implemented")
 }
 func (UnimplementedAssistantServiceServer) ListMemory(context.Context, *ListMemoryReq) (*ListMemoryResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListMemory not implemented")
@@ -550,6 +566,24 @@ func _AssistantService_ConfirmRunTool_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AssistantServiceServer).ConfirmRunTool(ctx, req.(*ConfirmRunToolReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssistantService_AnswerQuestions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnswerQuestionsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssistantServiceServer).AnswerQuestions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssistantService_AnswerQuestions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssistantServiceServer).AnswerQuestions(ctx, req.(*AnswerQuestionsReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -790,6 +824,10 @@ var AssistantService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConfirmRunTool",
 			Handler:    _AssistantService_ConfirmRunTool_Handler,
+		},
+		{
+			MethodName: "AnswerQuestions",
+			Handler:    _AssistantService_AnswerQuestions_Handler,
 		},
 		{
 			MethodName: "ListMemory",

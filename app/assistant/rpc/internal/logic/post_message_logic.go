@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 
 	"esx/app/assistant/internal/runtime"
 	"esx/app/assistant/rpc/internal/svc"
@@ -50,7 +51,15 @@ func (l *PostMessageLogic) PostMessage(in *pb.PostMessageReq) (*pb.PostMessageRe
 			attachments = append(attachments, runtime.Attachment{MediaID: item.MediaId, URL: item.Url})
 		}
 	}
+	var questionContext *runtime.QuestionContext
+	if in.QuestionContextJson != "" {
+		questionContext = &runtime.QuestionContext{}
+		if err := json.Unmarshal([]byte(in.QuestionContextJson), questionContext); err != nil {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+	}
 	result, err := l.svcCtx.Acceptor.Accept(l.ctx, runtime.AcceptInput{
+		ClientProtocolVersion: int(in.ClientProtocolVersion), QuestionContext: questionContext,
 		UserID: in.UserId, Message: in.Message, RequestID: in.RequestId,
 		Attachments: attachments, ContextPostID: in.ContextPostId, ConsentOK: consentOK, ConsentVersion: consentVersion,
 	})

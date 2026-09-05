@@ -78,9 +78,13 @@ AllowedTools:
 - delete_post
 - search_history
 - present_sources
+- ask_questions
+- read_source
+- publish_answer
 WebSearch:
   Provider: tavily
   APIKey: "${TAVILY_API_KEY}"
+  Endpoint: "${TAVILY_ENDPOINT}"
   TimeoutMs: 8000
   MaxResults: 5
 Safety:

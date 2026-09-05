@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"encoding/json"
 	"esx/app/assistant/rpc/assistantservice"
 	"esx/app/gateway/internal/types"
 )
@@ -10,7 +11,8 @@ func mapThread(in *assistantservice.AssistantThread) types.AssistantThread {
 		return types.AssistantThread{}
 	}
 	return types.AssistantThread{
-		SessionId: in.SessionId, UnreadCount: in.UnreadCount, LastMessageId: in.LastMessageId,
+		QuestionRequest: decodeResearch[types.AssistantQuestionRequest](in.QuestionRequestJson),
+		SessionId:       in.SessionId, UnreadCount: in.UnreadCount, LastMessageId: in.LastMessageId,
 		LastMessagePreview: in.LastMessagePreview, LastMessageAtMs: in.LastMessageAtMs,
 		ActiveRunId: in.ActiveRunId, ActiveRunStatus: in.ActiveRunStatus, ActiveRunPhase: in.ActiveRunPhase,
 	}
@@ -21,7 +23,9 @@ func mapMessage(in *assistantservice.AssistantMessage) types.AssistantMessage {
 		return types.AssistantMessage{}
 	}
 	return types.AssistantMessage{
-		Id: in.Id, SessionId: in.SessionId, RunId: in.RunId, Role: in.Role, Kind: in.Kind,
+		QuestionRequest:    decodeResearch[types.AssistantQuestionRequest](in.QuestionRequestJson),
+		AnswerPresentation: decodeResearch[types.AssistantAnswerPresentation](in.AnswerPresentationJson),
+		Id:                 in.Id, SessionId: in.SessionId, RunId: in.RunId, Role: in.Role, Kind: in.Kind,
 		Content: in.Content, Unread: in.Unread, CreatedAtMs: in.CreatedAtMs, ChangeId: in.ChangeId,
 	}
 }
@@ -51,7 +55,9 @@ func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 		return nil
 	}
 	out := &types.AssistantRunEvent{
-		RunId: in.RunId, Seq: in.Seq, Type: in.Type, Text: in.Text, Degraded: in.Degraded,
+		QuestionRequest:    decodeResearch[types.AssistantQuestionRequest](in.QuestionRequestJson),
+		AnswerPresentation: decodeResearch[types.AssistantAnswerPresentation](in.AnswerPresentationJson),
+		RunId:              in.RunId, Seq: in.Seq, Type: in.Type, Text: in.Text, Degraded: in.Degraded,
 		ErrorCode: in.ErrorCode, SessionId: in.SessionId, ChangeId: in.ChangeId, StreamId: in.StreamId,
 	}
 	if in.ToolCall != nil {
@@ -66,4 +72,15 @@ func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 		}
 	}
 	return out
+}
+
+func decodeResearch[T any](raw string) *T {
+	if raw == "" {
+		return nil
+	}
+	var out T
+	if json.Unmarshal([]byte(raw), &out) != nil {
+		return nil
+	}
+	return &out
 }

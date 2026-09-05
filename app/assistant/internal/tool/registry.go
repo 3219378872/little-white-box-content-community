@@ -57,6 +57,9 @@ const (
 	DeletePost      = "delete_post"
 	SearchHistory   = "search_history"
 	PresentSources  = "present_sources"
+	AskQuestions    = "ask_questions"
+	ReadSource      = "read_source"
+	PublishAnswer   = "publish_answer"
 
 	CurrentConsentVersion   int32 = 2
 	maxEvidenceSnippetRunes       = 360
@@ -84,7 +87,7 @@ func Version1Tools() []string {
 }
 
 func WatchTools() []string {
-	return []string{SearchPosts, SearchUsers, SearchTags, GetPost, GetPostComments, RecommendPosts, SimilarPosts, ComparePosts, GetMemory, SearchHistory, PresentSources}
+	return []string{SearchPosts, SearchUsers, SearchTags, GetPost, GetPostComments, RecommendPosts, SimilarPosts, ComparePosts, GetMemory, SearchHistory, PresentSources, ReadSource, PublishAnswer}
 }
 
 func ReviewTools() []string {
@@ -111,19 +114,22 @@ type Attachment struct {
 }
 
 type Session struct {
-	UserID         int64
-	SessionID      int64
-	RunID          int64
-	RequestID      string
-	Source         string
-	ConsentVersion int32
-	Attachments    []Attachment
-	ContextPostID  int64
-	WatchPostIDs   []int64
-	LiveMessageIDs []int64
-	ChangeIDs      []int64
-	Fence          store.LeaseFence
-	Recovery       bool
+	ClientProtocolVersion int
+	Question              *store.QuestionRequest
+	Answer                *store.AnswerPresentation
+	UserID                int64
+	SessionID             int64
+	RunID                 int64
+	RequestID             string
+	Source                string
+	ConsentVersion        int32
+	Attachments           []Attachment
+	ContextPostID         int64
+	WatchPostIDs          []int64
+	LiveMessageIDs        []int64
+	ChangeIDs             []int64
+	Fence                 store.LeaseFence
+	Recovery              bool
 }
 
 type History interface {
@@ -148,14 +154,15 @@ type Definition struct {
 }
 
 type Metadata struct {
-	Effect         string
-	Sources        []string
-	MinConsent     int32
-	Confirmation   bool
-	Available      bool
-	Idempotency    string
-	MaxResultBytes int
-	Poller         bool
+	MinClientProtocol int
+	Effect            string
+	Sources           []string
+	MinConsent        int32
+	Confirmation      bool
+	Available         bool
+	Idempotency       string
+	MaxResultBytes    int
+	Poller            bool
 }
 
 type UnavailableError struct {
@@ -359,7 +366,8 @@ func (r *Registry) Definitions() []prompt.ToolDef {
 			continue
 		}
 		out = append(out, prompt.ToolDef{
-			Name: def.Name, Description: def.Description, Parameters: def.Parameters,
+			MinClientProtocol: meta.MinClientProtocol,
+			Name:              def.Name, Description: def.Description, Parameters: def.Parameters,
 			Effect: meta.Effect, Sources: append([]string(nil), meta.Sources...), MinConsent: meta.MinConsent,
 			Confirmation: meta.Confirmation, Idempotency: meta.Idempotency,
 			MaxResultBytes: meta.MaxResultBytes, Poller: meta.Poller,
@@ -602,6 +610,9 @@ func (r *Registry) currentlyAuthorized(session *Session, name string) bool {
 	if !ok {
 		return false
 	}
+	if meta.MinClientProtocol > 0 && (session == nil || session.ClientProtocolVersion < meta.MinClientProtocol) {
+		return false
+	}
 	source := store.SourceUser
 	consent := CurrentConsentVersion
 	if session != nil {
@@ -624,7 +635,8 @@ func (r *Registry) frozenMetadata(name string) (Metadata, bool) {
 			continue
 		}
 		return Metadata{
-			Effect: def.Effect, Sources: append([]string(nil), def.Sources...), MinConsent: def.MinConsent,
+			MinClientProtocol: def.MinClientProtocol,
+			Effect:            def.Effect, Sources: append([]string(nil), def.Sources...), MinConsent: def.MinConsent,
 			Confirmation: def.Confirmation, Idempotency: def.Idempotency,
 			MaxResultBytes: def.MaxResultBytes, Poller: def.Poller,
 		}, true
@@ -644,6 +656,7 @@ func (r *Registry) resultLimit(name string, current int) int {
 }
 
 func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) (string, error) {
+	var retrieved []map[string]any
 	var b strings.Builder
 	b.WriteString(text)
 	b.WriteString("\n来源 handle（仅可对本 run 使用 present_sources）：")
@@ -654,11 +667,35 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 		}
 		payload, _ := json.Marshal(src)
 		insert := func(ctx context.Context, target store.Store) error {
+			if session.Fence.Generation > 0 {
+				run, err := target.GetRun(ctx, session.RunID)
+				if err != nil {
+					return err
+				}
+				if run.CancelRequested {
+					return errx.New(errx.ParamError, "run was cancelled")
+				}
+			}
 			_, err := target.InsertSource(ctx, store.Source{
 				RunID: session.RunID, Handle: handle, Kind: src.Kind, AuthorityID: src.AuthorityID,
 				Revision: src.Revision, PayloadJSON: string(payload), CreatedAtMs: store.NowMs(),
 			})
-			return err
+			if err != nil {
+				return err
+			}
+			if session.ClientProtocolVersion >= 2 {
+				fragments := src.Evidence
+				if excerpt := sourceExcerpt(src); excerpt != "" {
+					fragments = append([]store.Evidence{evidenceFor(session.RunID, handle, src.Kind, excerpt, "")}, fragments...)
+				}
+				for _, fragment := range fragments {
+					fragment = evidenceFor(session.RunID, handle, fragment.Kind, fragment.Text, fragment.CommentID)
+					if err := target.PutEvidence(ctx, fragment); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		}
 		var err error
 		if session.Fence.Generation > 0 {
@@ -671,6 +708,17 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 			return "", fmt.Errorf("source ledger insert: %w", err)
 		}
 		fmt.Fprintf(&b, "\n- %s (%s)", handle, src.Kind)
+		if session.ClientProtocolVersion >= 2 {
+			fragments, err := r.store.ListEvidence(ctx, session.RunID, handle)
+			if err != nil {
+				return "", err
+			}
+			retrieved = append(retrieved, map[string]any{"handle": handle, "kind": src.Kind, "title": src.Title, "retrieved_evidence": fragments})
+		}
+	}
+	if session.ClientProtocolVersion >= 2 {
+		raw, err := json.Marshal(map[string]any{"sources": retrieved})
+		return string(raw), err
 	}
 	return b.String(), nil
 }
@@ -785,6 +833,7 @@ func allDefinitions(clients Clients) []Definition {
 			"handles": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		}, []string{"handles"}), executor: presentSourcesExecutor(clients)},
 	}
+	defs = append(defs, researchDefinitions(clients)...)
 	decorateDefinitions(defs, clients)
 	return defs
 }
@@ -816,6 +865,9 @@ func decorateDefinitions(defs []Definition, clients Clients) {
 			meta.Sources = append(meta.Sources, store.SourceMemoryReview)
 		}
 		meta.Confirmation = def.Name == DeletePost
+		if def.Name == AskQuestions || def.Name == ReadSource || def.Name == PublishAnswer {
+			meta.MinClientProtocol = 2
+		}
 		def.Metadata = meta
 	}
 }
@@ -848,6 +900,8 @@ func definitionAvailable(name string, clients Clients) bool {
 		return nonNil(clients.History)
 	case PresentSources:
 		return nonNil(clients.Store) && nonNil(clients.Content)
+	case AskQuestions, ReadSource, PublishAnswer:
+		return nonNil(clients.Store)
 	default:
 		return false
 	}

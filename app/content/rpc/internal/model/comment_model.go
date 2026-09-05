@@ -23,6 +23,7 @@ type (
 		FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error)
 		FindByParentId(ctx context.Context, parentId int64, page, pageSize int) ([]*Comment, int64, error)
 		FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*Comment, error)
+		FindActiveByIds(ctx context.Context, postID int64, ids []int64) ([]*Comment, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
 		InvalidateCommentCache(ctx context.Context, id int64) error
 	}
@@ -52,6 +53,21 @@ func (m *customCommentModel) FindCommentById(ctx context.Context, id int64) (*Co
 	default:
 		return nil, err
 	}
+}
+
+func (m *customCommentModel) FindActiveByIds(ctx context.Context, postID int64, ids []int64) ([]*Comment, error) {
+	out := []*Comment{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, postID)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE post_id=? AND status=1 AND id IN (%s) ORDER BY id", commentRows, m.table, strings.TrimSuffix(strings.Repeat("?,", len(ids)), ","))
+	err := m.QueryRowsNoCacheCtx(ctx, &out, query, args...)
+	return out, err
 }
 
 // InsertComment 插入评论（显式字段列，避免依赖 gen 生成的通用 Insert）

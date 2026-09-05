@@ -23,8 +23,8 @@ updated_at: 2026-09-05
   私信 conversation/message 模型，也不改变普通 Message API。
 - `AGENT-002`：Assistant 使用统一的对话与工具执行行为，不存在 enhanced_search/agent 模式开关；
   `/api/v2/assistant/chat` 与请求 `mode` 字段硬删除，不提供兼容适配层。
-- `AGENT-003`：Agent 可以直接对话，也可以根据 system prompt、SOUL、冻结的 MEMORY/USER、当前
-  会话和工具 schema 自主选择工具及参数；服务端不得先用关键词或小模型对话轮做 Intent Router。
+- `AGENT-003`：Agent 可直接对话并自主选择权限内的工具；用户不必先选择模式或被强制归类为固定意图。
+  平台安全规则与真实用户条件优先于工具和资料中的不可信指令。
 - `AGENT-004`：用户 run 以当前认证用户身份执行，只能访问该用户直接可访问的数据，只能更新或
   删除本人帖子；Watch run 只读，memory-review run 只能读写 MEMORY/USER。
 
@@ -48,8 +48,8 @@ updated_at: 2026-09-05
 
 ## ask_questions 需求澄清
 
-- `AGENT-110`：提供 `ask_questions` 结构化工具，由 Agent 根据当前需求自主调用，不新增关键词
-  Intent Router。问题和选项应能由客户端展示为可操作的问答；用户提交的答案作为对应工具结果参与
+- `AGENT-110`：提供由 Agent 按需自主发起的结构化问答。问题和选项应能由客户端展示为可操作的问答；
+  用户提交的答案作为对应交互结果参与
   后续判断，不以在普通正文列出问题代替结构化工具。
 - `AGENT-111`：优先使用单选或多选，提供问题、可理解的选项及选择类型；允许文字补充，并在适用时
   提供“不知道/没有偏好”或跳过。选项不能覆盖用户情况时不得强迫其选择不准确的答案。
@@ -68,10 +68,9 @@ updated_at: 2026-09-05
 
 ## 线程、会话与消息
 
-- `AGENT-010`：`GET /api/v2/assistant/thread` 返回虚拟线程摘要、当前 session、未读数和活跃 run；
-  `GET /api/v2/assistant/messages` 只返回该用户的 Assistant 消息。
-- `AGENT-011`：`POST /api/v2/assistant/messages` 先持久化用户消息与 run，再返回 `messageId`、
-  `sessionId`、`runId` 和 `disposition=started|redirected|steered|queued`，不等待模型完成。
+- `AGENT-010`：线程读取返回本人虚拟线程摘要、当前会话、未读、活跃任务及待答问题；消息读取只包含
+  本人的 Assistant 历史，已发布回答的正文、引用和卡片可以一致恢复。
+- `AGENT-011`：先可靠接受用户消息与任务，再返回稳定身份及开始、转向、补充或排队结果，不等待模型完成。
 - `AGENT-012`：每用户同时最多一个前台 run。新消息在模型请求阶段可安全 redirect，在工具阶段
   steer；compact、附件处理或其它不能安全注入的阶段进入最多 32 条 FIFO，超限明确拒绝。
 - `AGENT-013`：每用户仅一条永久前台 session。`POST /api/v2/assistant/sessions` 硬删除，不提供
@@ -82,30 +81,24 @@ updated_at: 2026-09-05
   不影响 MEMORY/USER 或 Watch。
 - `AGENT-014`：`POST /api/v2/assistant/thread/read` 更新 Assistant 未读；主动 Watch 消息计入未读，
   `memory_changed` 系统行不计未读。
-- `AGENT-015`：消息正文 `content` 与真实 provider-bound `api_content` 分离保存。`content` 仅用于
-  用户可见历史；恢复 run 必须重放原始 `api_content` 字节。冻结 MEMORY/USER、BM25、Watch 与其它
-  平台上下文只能进入结构化 sidecar，不能反写到可见正文或在恢复时重新拼接成不同字节。
+- `AGENT-015`：用户可见历史与真实模型输入相互隔离；恢复必须复用已提交的原始输入字节。
+  个人记忆、历史检索和平台上下文不能泄漏为用户正文，也不能在恢复时被重新拼接成不同请求。
 
 ## 异步运行与恢复
 
-- `AGENT-020`：`assistant-rpc` 负责 API/read model；独立 `assistant-agent` worker 执行 run；
-  Watch matcher 负责匹配与调度，不在请求进程同步调用模型。
-- `AGENT-021`：MySQL 是 run、message、event、tool call 与 prompt 快照的权威库。worker 通过数据库
-  lease queue 取任务；租约 60 秒，每 10 秒续租，崩溃或租约失效后从最后已提交 step 恢复。
+- `AGENT-020`：接受请求与长期执行解耦；客户端不等待模型完成才获知任务已被接受。
+- `AGENT-021`：任务、消息、事件、工具结果和执行上下文可靠持久化；执行所有权排他且可接管。
+  执行器故障后从已提交步骤恢复，过期执行器不得覆盖新执行器的结果。
 - `AGENT-022`：客户端断线不取消 run。只有显式 Stop 或取消 API 才请求硬取消；用户前台 run 可
   抢占 Watch 与 memory-review，未发送 Watch 命中重新进入合并窗口。
-- `AGENT-023`：SSE 事件先以单调 `seq` 写 MySQL，再尝试 Redis 通知。`Last-Event-ID` 后的事件必须
-  补齐；Redis 不可用时以 MySQL 轮询降级，且不得丢失终止事件。
-- `AGENT-024`：`GET /api/v2/assistant/runs/:id/events` 只允许 run 所属用户读取；持久事件类型为
-  `run_started|token|response_reset|tool_call|tool_result|confirm_required|source_card|memory_changed|done|error`。
-  `token` 与 `response_reset` 必须携带同一 model attempt 的稳定 `streamId`；旧客户端仍按未知事件忽略
-  `response_reset`，不得因此中断 SSE。
+- `AGENT-023`：事件提交后才能对外通知，顺序单调且支持按游标补齐。通知通道故障不丢失持久事件，
+  尤其不能丢失终止结果；具体存储和通知方式由设计决定。
+- `AGENT-024`：任务事件只允许所属用户读取；进度、工具、问答、引用、记忆和终止结果可恢复。
+  流式输出具有稳定的执行尝试身份；旧客户端忽略未知事件，不因增量扩展中断已有流程。
 - `AGENT-025`：run 只有一个终止状态。错误终止保留已经提交的部分文本、已完成副作用摘要和完整
   事件序列，不得先完成后报错或伪造成功。
-- `AGENT-026`：每次 provider stream writer 绑定
-  `(run_id, lease_generation, input_version, model_round, attempt)`。新 attempt、lease 接管或输入 redirect
-  必须 fence 掉旧 writer；若旧 attempt 已产生持久 token，重试前先提交 `response_reset`，确保事件重放
-  只组装最终获胜 attempt。token 允许按时间或字节批量提交，不得逐 token 热写 MySQL。
+- `AGENT-026`：不同任务、输入版本、模型轮和执行尝试相互隔离；接管、重试或转向后旧输出不得继续
+  提交。重放只组装获胜尝试；持久化开销有界，不能随每个模型 token 产生无界存储压力。
 
 ## 授权、工具和副作用
 
@@ -115,16 +108,14 @@ updated_at: 2026-09-05
   MEMORY/USER、`search_history` 与 `present_sources`；memory-review 只允许 Memory 工具。
 - `AGENT-032`：只有 `delete_post` 逐次确认。create/update、Memory 与 Watch 写仍须通过授权版本、
   schema、所有权、revision、幂等和审计校验，但不弹逐次确认。
-- `AGENT-033`：工具副作用写入 command journal，以
-  `(user_id, request_id, tool, canonical_args_digest)` 唯一。恢复或重复调用返回已提交结果，不能再次
-  执行成功动作；参数摘要使用规范化 JSON 后计算。
-- `AGENT-034`：删除确认一次性绑定 user/session/run/call/工具/规范化参数摘要/目标 revision；
-  服务端用数据库 CAS 裁决。跨 run、参数变化、revision 变化、重复确认或过期确认一律无效。
+- `AGENT-033`：工具副作用按用户、命令和等价参数幂等；恢复或重复调用复用已提交结果，不再次执行
+  成功动作。不同参数不能误复用旧成功结果，结果不确定时不能伪造成功。
+- `AGENT-034`：删除确认一次性绑定用户、当前任务、具体调用、等价参数和目标版本；并发确认只能有
+  一个有效结果。跨任务、参数变化、版本变化、重复或过期确认一律无效。
 - `AGENT-035`：工具输入和工具返回均是不可信数据，不得改变系统安全规则、可用工具、归属校验、
   确认或预算。平台不得提供账户 secret、验证码、普通私信、其它用户记忆或未发布内容工具。
-- `AGENT-036`：每个工具由单一 metadata 声明 schema、effect=read|write、允许 run source、最低 consent、
-  confirmation、availability、幂等类型和最大结果大小；模型广告、执行授权、journal、确认与结果上限
-  必须由该 metadata 派生，不能在 runtime 另设副作用白名单。依赖不可用的工具不得进入新 prompt epoch。
+- `AGENT-036`：能力披露、模型可用工具与服务端执行授权一致；读写分类、允许任务来源、确认、幂等和
+  结果大小约束在所有执行路径生效。依赖不可用的能力不能被新执行上下文广告为可用。
 - `AGENT-037`：工具参数按声明 schema 严格解码；未知字段、尾随第二个 JSON 值、类型错误和越界值必须
   拒绝。所有 run 对重复失败或无进展调用执行统一 guard：按工具、规范化参数和规范化结果/错误识别，
   第二次给模型不可见收敛提示，第三次仍无进展时以 `TOOL_NO_PROGRESS` 明确终止；轮询型工具可显式豁免。
@@ -134,12 +125,10 @@ updated_at: 2026-09-05
 - `AGENT-040`：同时支持 Responses 与 Chat Completions。每个 provider/model 以声明式 capability profile
   记录 route、WireAPI、工具与流式支持、上下文窗口和输出上限；启用 LLM 时启动阶段使用强制无副作用
   工具调用 canary 验证 schema/call/result，失败则 readiness false，不能静默降级成无工具模型。
-- `AGENT-041`：Prompt 顺序固定为：不可覆盖的平台安全规则 → 仓库版本化 `SOUL.md` → Agent/tool
-  规则 → 结构化且明确标为不可信数据的冻结 MEMORY/USER sidecar → 当前会话历史。MEMORY/USER 不得作为
-  system 指令或 authoritative source，sidecar 标签和内部说明不得出现在用户可见输出。
-- `AGENT-042`：`SOUL.md` 为 human-owned 仓库资产，用户不能编辑；默认表达温暖、诚实、克制，服务于
-  社区辅助工具定位，不以独立陪伴为目标。新 SOUL
-  仅在冷对话拼接、无快照冷启动或 compact 成功提交的新 prompt epoch 生效。
+- `AGENT-041`：平台安全与授权规则不可被人格、记忆、历史、工具或网页内容覆盖；个人上下文始终为
+  不可信资料，不是系统指令或公共证据。内部标签和说明不得泄漏为用户输出。
+- `AGENT-042`：平台人格由人类维护并版本化，用户不能编辑；表达温暖、诚实、克制，服务于社区任务，
+  不以独立陪伴为目标。版本更新只对新执行上下文生效，不能改写正在恢复的输入。
 - `AGENT-043`：system prompt、Memory sidecar、工具定义和 provider capability 在冷对话拼接或无快照
   冷启动时构建并按字节保存；恢复未 compact session 必须复用原始快照，不受仓库、Memory、工具表
   或默认 provider 随后变化影响。实时撤权仍直接取消 run，不能靠修改已冻结快照表达。
@@ -153,11 +142,9 @@ updated_at: 2026-09-05
 
 ## Compact 与后台审查
 
-- `AGENT-050`：以上一次 provider 真实 prompt usage 为锚点并估算其后新增内容；无 usage 时使用对 CJK
-  至少按一字符一 token 的保守估算。达到模型窗口 50% 时 compact，保留最近 20% token、未完成工具
-  调用与确认，并加入压缩摘要。摘要输入按总预算选择完整消息，不能固定截断每条消息。只有压缩后
-  token 确实下降且低于目标阈值才提交；成功后滚动 prompt epoch，重新加载 SOUL、MEMORY/USER、工具
-  与 provider capability 快照。
+- `AGENT-050`：上下文维护必须在模型容量内完成，保留未完成调用、确认和必要的近期条件；不能通过
+  固定截断所有消息丢失关键约束。压缩只有在长度实际下降且满足容量预算时才能提交，中文与 usage
+  缺失场景不得被低估。触发比例、保留比例和估算算法由设计承接。
 - `AGENT-051`：compact 前原始消息不删除，继续保留一年并可被 `search_history` 召回；摘要不能覆盖
   权威消息，也不能把不可信历史提升为系统规则。
 - `AGENT-052`：每 10 个成功且未中断的用户回合调度 memory-review run；最多 16 轮、累计输入最多
@@ -170,22 +157,21 @@ updated_at: 2026-09-05
 
 ## 历史 BM25
 
-- `AGENT-060`：Elasticsearch 只建立 Assistant 历史的 CJK/BM25 派生索引，按 `userId` 强隔离；
-  MySQL 始终权威。所有命中返回前回源校验 user、删除状态和 365 天保留期。
-- `AGENT-061`：`search_history` 支持关键词发现、围绕锚点滚动、读取会话和浏览最近会话四种形态；
+- `AGENT-060`：历史搜索按用户强隔离，搜索副本不能替代权威记录；所有命中返回前复核归属、删除状态
+  和 365 天保留期，并支持中文查询。
+- `AGENT-061`：历史搜索支持关键词发现、围绕锚点滚动、读取会话和浏览最近会话四种形态；
   默认 Top 3、最大 10。首结果包含锚点前后各 5 条及会话首尾摘要，低排名只含锚点。
 - `AGENT-062`：默认只搜索 user/assistant 消息，排除 tool、memory-review 与当前 live context；允许
   已结束会话和 compact 掉的消息。普通用户之间私信永远不在索引或结果范围内。
-- `AGENT-063`：索引通过 MySQL outbox 派生，支持 rebuild 与删除传播；ES 故障使 `search_history`
-  工具明确失败，不影响 MySQL 中线程、消息和 run 的权威读写。
+- `AGENT-063`：历史搜索副本可重建并传播删除；检索依赖故障明确失败，不影响线程、消息和任务的
+  权威读写。派生与补偿机制由设计决定。
 
 ## 来源 Ledger 与逐项 URL 引用
 
-- `AGENT-070`：搜索、推荐和 web 工具把经服务端验证的结果登记为本 run source ledger，并只向模型
-  返回不可伪造、绑定 run 的 source handle。handle 不能跨 run 使用。
-- `AGENT-071`：`present_sources` 接受本 run 至多 10 个有效 handle，生成 `source_card` 结构化事件；
-  保留该展示能力，但不强制将所有引用渲染为卡片。普通闲聊不要求来源；复杂需求的检索回答必须满足
-  逐项 URL 引用，不能以未调用 `present_sources` 或未展示卡片为由免除引用义务。
+- `AGENT-070`：来源来自当前任务实际取得并验证的资料，具有不可伪造的任务内身份，不可跨任务复用。
+- `AGENT-071`：检索型回答完整校验后发布，每次最多关联 10 篇不同来源；前端一篇来源一张摘要卡，
+  摘要为实际取得的相关原文片段，可展开并访问具体帖子或网页。普通闲聊不要求来源；旧协议的可选
+  卡片不能免除检索结论逐项引用的义务。
 - `AGENT-072`：模型自行生成的帖子 ID、链接或引用不能成为可信来源；可信来源来自经服务端验证的
   结构化来源记录，不能从模型正文反推。已有 `source_card` 事件保留；正文引用也必须关联验证后的
   来源。过期、越权、删除或 revision 不匹配的 source 在展示前重新校验并剔除或标记不可用，不得
@@ -216,12 +202,11 @@ updated_at: 2026-09-05
 
 - `AGENT-090`：接收 p95 500ms、首持久事件 p95 2s、活跃心跳间隔不超过 30s；普通完成 p95 45s
   仅作观测目标，长任务不设统一完成 SLO；Watch 命中到主动私信 p95 5 分钟。
-- `AGENT-A01`：覆盖 lease/recovery、一个前台 run、redirect/steer/FIFO、显式 Stop、断线续流、
-  Redis 降级和终止唯一性。
-- `AGENT-A02`：覆盖 command journal、删除确认 CAS、版本/参数变化、权限与工具分组。
-- `AGENT-A03`：覆盖 50% compact、prompt 字节稳定、20% 保留、新 epoch 加载 SOUL/Memory、后台审查
-  隔离和撤销。
-- `AGENT-A04`：覆盖 BM25 用户隔离、四种历史调用、365 天回源、rebuild/delete 与私信永不入索引。
+- `AGENT-A01`：覆盖执行权接管/恢复、单一前台任务、转向/补充/排队、显式停止、断线恢复、通知降级
+  和唯一终止；等待用户时释放执行资源但不延长现有 30 分钟无活动和 6 小时绝对上限。
+- `AGENT-A02`：覆盖副作用幂等、一次性删除确认、版本/参数变化、权限与工具分组。
+- `AGENT-A03`：覆盖上下文容量、输入字节稳定、未完成调用保留、新上下文生效、后台审查隔离和撤销。
+- `AGENT-A04`：覆盖历史用户隔离、四种读取、365 天回源、重建/删除与普通私信永不进入结果。
 - `AGENT-A05`：覆盖 source handle run 绑定、`present_sources`、正文伪造来源无效、普通闲聊无需
   来源，以及检索回答无卡片时仍须提供逐项可信 URL 引用。
 - `AGENT-A06`：覆盖两种 LLM transport 的工具调用，以及硬预算触顶与每维每级只告警一次。
@@ -238,7 +223,7 @@ updated_at: 2026-09-05
   即检索，以及未知/无偏好/跳过/要求先搜索时的分情况回答；不补造偏好，不默认为授权或删除确认，
   不把答案关联到其他用户或问题，Watch/review 不调用该工具。
 - `AGENT-A12`：覆盖回答后继续澄清与检索后出现新分歧；重问已跳过项须说明新必要性且仍可跳过，
-  等待期间不得伪造工具答案。
+  等待期间不得伪造工具答案；提交幂等且绑定正确问题，过期保留记录并由用户显式继续新任务。
 - `AGENT-A13`：逐项核验自然语言回答的信息与帖子/网页 URL 对应、来源实际取得且支持表述；覆盖多源
   推导、冲突资料、个人体验与普遍事实区分、无依据判断、伪造/失效 URL、文末仅堆链接，以及普通
   闲聊和澄清不强制引用。既有人类冻结集要求不变，合成样例只验证流程，不证明实际回答质量。

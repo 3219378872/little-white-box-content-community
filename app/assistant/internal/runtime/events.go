@@ -14,6 +14,7 @@ var publicEventTypes = map[string]struct{}{
 	store.EventRunStarted: {}, store.EventToken: {}, store.EventResponseReset: {}, store.EventToolCall: {},
 	store.EventToolResult: {}, store.EventConfirmRequired: {}, store.EventSourceCard: {},
 	store.EventMemoryChanged: {}, store.EventDone: {}, store.EventError: {},
+	store.EventQuestionsRequired: {}, store.EventQuestionsResolved: {}, store.EventAnswerCommitted: {},
 }
 
 var subscribePollInterval = time.Second
@@ -41,6 +42,14 @@ func ToPB(ev store.Event) *pb.RunEvent {
 		RunId: ev.RunID, Seq: ev.Seq, Type: ev.Type, Text: payload.Text, Degraded: payload.Degraded,
 		ErrorCode: payload.ErrorCode, SessionId: payload.SessionID, ChangeId: payload.ChangeID, StreamId: payload.StreamID,
 	}
+	if payload.Question != nil {
+		raw, _ := json.Marshal(payload.Question)
+		out.QuestionRequestJson = string(raw)
+	}
+	if payload.Answer != nil {
+		raw, _ := json.Marshal(payload.Answer)
+		out.AnswerPresentationJson = string(raw)
+	}
 	if payload.ToolCall != nil {
 		out.ToolCall = &pb.ToolCallInfo{
 			CallId: payload.ToolCall.CallID, Tool: payload.ToolCall.Tool,
@@ -66,6 +75,13 @@ func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, ru
 	}
 	last := afterSeq
 	send := func() error {
+		deleted, err := st.HasDeletedRunHistory(ctx, *run)
+		if err != nil {
+			return err
+		}
+		if deleted {
+			return errx.NewWithCode(errx.NotFound)
+		}
 		events, err := st.ListEventsAfter(ctx, runID, last)
 		if err != nil {
 			return err

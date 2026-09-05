@@ -12,6 +12,7 @@ import (
 
 // MemoryStore is an in-memory Store for unit tests.
 type MemoryStore struct {
+	txMu          sync.Mutex
 	stepMu        sync.Mutex
 	mu            sync.Mutex
 	next          int64
@@ -35,6 +36,9 @@ type MemoryStore struct {
 	reservations  map[int64]map[string]struct{}
 	claimFail     bool
 	consents      map[int64]int32
+	evidence      map[string]Evidence
+	questions     map[string]QuestionRequest
+	presentations map[int64]AnswerPresentation
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -58,6 +62,9 @@ func NewMemoryStore() *MemoryStore {
 		reserved:      map[string]int{},
 		reservations:  map[int64]map[string]struct{}{},
 		consents:      map[int64]int32{},
+		evidence:      map[string]Evidence{},
+		questions:     map[string]QuestionRequest{},
+		presentations: map[int64]AnswerPresentation{},
 	}
 }
 
@@ -68,6 +75,8 @@ func (m *MemoryStore) nextID() int64 {
 }
 
 func (m *MemoryStore) Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
+	m.txMu.Lock()
+	defer m.txMu.Unlock()
 	return fn(ctx, m)
 }
 
@@ -419,7 +428,7 @@ func (m *MemoryStore) SetRunInput(_ context.Context, runID int64, payload []byte
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	run, ok := m.runs[runID]
-	if !ok || run.Status != StatusRunning {
+	if !ok || (run.Status != StatusRunning && run.Status != StatusQueued) {
 		return sqlx.ErrNotFound
 	}
 	run.QueuedPayload = append([]byte(nil), payload...)

@@ -29,6 +29,9 @@ type Store interface {
 
 	InsertRun(ctx context.Context, run Run) (Run, error)
 	GetRun(ctx context.Context, id int64) (*Run, error)
+	LockRun(ctx context.Context, id int64) (*Run, error)
+	ListWaitingRuns(ctx context.Context) ([]Run, error)
+	HasDeletedRunHistory(ctx context.Context, run Run) (bool, error)
 	GetRunByRequestID(ctx context.Context, userID int64, requestID string) (*Run, error)
 	UpdateRun(ctx context.Context, run Run) error
 	SetRunInput(ctx context.Context, runID int64, payload []byte, lastActivityMs int64) error
@@ -42,6 +45,7 @@ type Store interface {
 
 	InsertEvent(ctx context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error)
 	ListEventsAfter(ctx context.Context, runID, afterSeq int64) ([]Event, error)
+	ListSourceEvents(ctx context.Context, runID int64) ([]Event, error)
 	MaxEventSeq(ctx context.Context, runID int64) (int64, error)
 
 	InsertToolCall(ctx context.Context, call ToolCall) (ToolCall, error)
@@ -57,6 +61,13 @@ type Store interface {
 	InsertSource(ctx context.Context, src Source) (Source, error)
 	GetSources(ctx context.Context, runID int64, handles []string) ([]Source, error)
 	ListSources(ctx context.Context, runID int64) ([]Source, error)
+	PutEvidence(ctx context.Context, evidence Evidence) error
+	ListEvidence(ctx context.Context, runID int64, handle string) ([]Evidence, error)
+	SaveQuestion(ctx context.Context, question QuestionRequest) error
+	ListQuestions(ctx context.Context, runID int64) ([]QuestionRequest, error)
+	SavePresentation(ctx context.Context, presentation AnswerPresentation) error
+	GetPresentation(ctx context.Context, messageID int64) (*AnswerPresentation, error)
+	ClearResearchHistory(ctx context.Context, userID int64) error
 
 	InsertConfirmation(ctx context.Context, row Confirmation) (Confirmation, error)
 	GetConfirmation(ctx context.Context, runID int64, callID string) (*Confirmation, error)

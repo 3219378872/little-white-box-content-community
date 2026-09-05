@@ -45,6 +45,7 @@ type Usage struct {
 }
 
 type Request struct {
+	SuppressText  bool
 	Messages      []prompt.Turn
 	Tools         []prompt.ToolDef
 	MaxTokens     int

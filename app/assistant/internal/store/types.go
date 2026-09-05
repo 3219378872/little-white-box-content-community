@@ -20,29 +20,34 @@ const (
 	PhaseCompact       = "compact"
 	PhaseAttachment    = "attachment"
 	PhaseDone          = "done"
+	PhaseWaitingInput  = "waiting_input"
 
-	StatusQueued    = "queued"
-	StatusRunning   = "running"
-	StatusDone      = "done"
-	StatusError     = "error"
-	StatusCancelled = "cancelled"
+	StatusQueued       = "queued"
+	StatusRunning      = "running"
+	StatusDone         = "done"
+	StatusError        = "error"
+	StatusCancelled    = "cancelled"
+	StatusWaitingInput = "waiting_input"
 
 	DispositionStarted    = "started"
 	DispositionRedirected = "redirected"
 	DispositionSteered    = "steered"
 	DispositionQueued     = "queued"
 
-	EventRunStarted      = "run_started"
-	EventToken           = "token"
-	EventResponseReset   = "response_reset"
-	EventProviderAttempt = "provider_attempt"
-	EventToolCall        = "tool_call"
-	EventToolResult      = "tool_result"
-	EventConfirmRequired = "confirm_required"
-	EventSourceCard      = "source_card"
-	EventMemoryChanged   = "memory_changed"
-	EventDone            = "done"
-	EventError           = "error"
+	EventRunStarted        = "run_started"
+	EventToken             = "token"
+	EventResponseReset     = "response_reset"
+	EventProviderAttempt   = "provider_attempt"
+	EventToolCall          = "tool_call"
+	EventToolResult        = "tool_result"
+	EventConfirmRequired   = "confirm_required"
+	EventSourceCard        = "source_card"
+	EventMemoryChanged     = "memory_changed"
+	EventDone              = "done"
+	EventError             = "error"
+	EventQuestionsRequired = "questions_required"
+	EventQuestionsResolved = "questions_resolved"
+	EventAnswerCommitted   = "answer_committed"
 
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
@@ -54,6 +59,7 @@ const (
 	KindWatch         = "watch"
 	KindWatchInput    = "watch_input"
 	KindTool          = "tool"
+	KindQuestion      = "question"
 
 	SessionOpen   = "open"
 	SessionClosed = "closed"
@@ -122,39 +128,40 @@ type Message struct {
 }
 
 type Run struct {
-	ID               int64
-	UserID           int64
-	SessionID        int64
-	RequestID        string
-	Source           string
-	Status           string
-	Phase            string
-	Priority         int
-	QueuedPayload    []byte
-	LeaseOwner       string
-	LeaseGeneration  int64
-	LeaseUntilMs     int64
-	HeartbeatAtMs    int64
-	CancelRequested  bool
-	ConsentVersion   int32
-	InputVersion     int64
-	PromptEpoch      int
-	Model            string
-	Rounds           int
-	ToolCalls        int
-	InputTokens      int64
-	OutputTokens     int64
-	CacheTokens      int64
-	CacheWriteTokens int64
-	ReasoningTokens  int64
-	LastPromptTokens int64
-	UsageEstimated   bool
-	CostUSD          float64
-	StartedAtMs      int64
-	EndedAtMs        int64
-	LastActivityAtMs int64
-	ErrorCode        string
-	CreatedAtMs      int64
+	ClientProtocolVersion int
+	ID                    int64
+	UserID                int64
+	SessionID             int64
+	RequestID             string
+	Source                string
+	Status                string
+	Phase                 string
+	Priority              int
+	QueuedPayload         []byte
+	LeaseOwner            string
+	LeaseGeneration       int64
+	LeaseUntilMs          int64
+	HeartbeatAtMs         int64
+	CancelRequested       bool
+	ConsentVersion        int32
+	InputVersion          int64
+	PromptEpoch           int
+	Model                 string
+	Rounds                int
+	ToolCalls             int
+	InputTokens           int64
+	OutputTokens          int64
+	CacheTokens           int64
+	CacheWriteTokens      int64
+	ReasoningTokens       int64
+	LastPromptTokens      int64
+	UsageEstimated        bool
+	CostUSD               float64
+	StartedAtMs           int64
+	EndedAtMs             int64
+	LastActivityAtMs      int64
+	ErrorCode             string
+	CreatedAtMs           int64
 }
 
 type Event struct {
@@ -167,21 +174,23 @@ type Event struct {
 }
 
 type EventPayload struct {
-	Text       string     `json:"text,omitempty"`
-	Degraded   bool       `json:"degraded,omitempty"`
-	ErrorCode  string     `json:"error_code,omitempty"`
-	SessionID  int64      `json:"session_id,omitempty"`
-	ToolCall   *ToolInfo  `json:"tool_call,omitempty"`
-	SourceCard *SourceRef `json:"source_card,omitempty"`
-	ChangeID   int64      `json:"change_id,omitempty"`
-	Partial    string     `json:"partial,omitempty"`
-	Journal    string     `json:"journal,omitempty"`
-	StreamID   string     `json:"stream_id,omitempty"`
-	RouteID    string     `json:"route_id,omitempty"`
-	Attempt    int        `json:"attempt,omitempty"`
-	ErrorClass string     `json:"error_class,omitempty"`
-	StatusCode int        `json:"status_code,omitempty"`
-	Retryable  bool       `json:"retryable,omitempty"`
+	Question   *QuestionRequest    `json:"questionRequest,omitempty"`
+	Answer     *AnswerPresentation `json:"answerPresentation,omitempty"`
+	Text       string              `json:"text,omitempty"`
+	Degraded   bool                `json:"degraded,omitempty"`
+	ErrorCode  string              `json:"error_code,omitempty"`
+	SessionID  int64               `json:"session_id,omitempty"`
+	ToolCall   *ToolInfo           `json:"tool_call,omitempty"`
+	SourceCard *SourceRef          `json:"source_card,omitempty"`
+	ChangeID   int64               `json:"change_id,omitempty"`
+	Partial    string              `json:"partial,omitempty"`
+	Journal    string              `json:"journal,omitempty"`
+	StreamID   string              `json:"stream_id,omitempty"`
+	RouteID    string              `json:"route_id,omitempty"`
+	Attempt    int                 `json:"attempt,omitempty"`
+	ErrorClass string              `json:"error_class,omitempty"`
+	StatusCode int                 `json:"status_code,omitempty"`
+	Retryable  bool                `json:"retryable,omitempty"`
 }
 
 type ToolInfo struct {
@@ -192,13 +201,14 @@ type ToolInfo struct {
 }
 
 type SourceRef struct {
-	Handle      string `json:"handle"`
-	Kind        string `json:"kind"`
-	AuthorityID string `json:"authority_id"`
-	Title       string `json:"title"`
-	Revision    int64  `json:"revision"`
-	PayloadJSON string `json:"payload_json,omitempty"`
-	Available   bool   `json:"available,omitempty"`
+	Evidence    []Evidence `json:"evidence,omitempty"`
+	Handle      string     `json:"handle"`
+	Kind        string     `json:"kind"`
+	AuthorityID string     `json:"authority_id"`
+	Title       string     `json:"title"`
+	Revision    int64      `json:"revision"`
+	PayloadJSON string     `json:"payload_json,omitempty"`
+	Available   bool       `json:"available,omitempty"`
 }
 
 type ToolCall struct {

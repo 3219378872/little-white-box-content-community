@@ -16,6 +16,8 @@ import (
 type (
 	AddMemoryReq                = pb.AddMemoryReq
 	AddMemoryResp               = pb.AddMemoryResp
+	AnswerQuestionsReq          = pb.AnswerQuestionsReq
+	AnswerQuestionsResp         = pb.AnswerQuestionsResp
 	AssistantMessage            = pb.AssistantMessage
 	AssistantThread             = pb.AssistantThread
 	Attachment                  = pb.Attachment
@@ -74,6 +76,7 @@ type (
 		CancelRun(ctx context.Context, in *CancelRunReq, opts ...grpc.CallOption) (*CancelRunResp, error)
 		RevokeConsent(ctx context.Context, in *RevokeConsentReq, opts ...grpc.CallOption) (*RevokeConsentResp, error)
 		ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error)
+		AnswerQuestions(ctx context.Context, in *AnswerQuestionsReq, opts ...grpc.CallOption) (*AnswerQuestionsResp, error)
 		ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error)
 		AddMemory(ctx context.Context, in *AddMemoryReq, opts ...grpc.CallOption) (*AddMemoryResp, error)
 		ReplaceMemory(ctx context.Context, in *ReplaceMemoryReq, opts ...grpc.CallOption) (*ReplaceMemoryResp, error)
@@ -141,6 +144,11 @@ func (m *defaultAssistantService) RevokeConsent(ctx context.Context, in *RevokeC
 func (m *defaultAssistantService) ConfirmRunTool(ctx context.Context, in *ConfirmRunToolReq, opts ...grpc.CallOption) (*ConfirmRunToolResp, error) {
 	client := pb.NewAssistantServiceClient(m.cli.Conn())
 	return client.ConfirmRunTool(ctx, in, opts...)
+}
+
+func (m *defaultAssistantService) AnswerQuestions(ctx context.Context, in *AnswerQuestionsReq, opts ...grpc.CallOption) (*AnswerQuestionsResp, error) {
+	client := pb.NewAssistantServiceClient(m.cli.Conn())
+	return client.AnswerQuestions(ctx, in, opts...)
 }
 
 func (m *defaultAssistantService) ListMemory(ctx context.Context, in *ListMemoryReq, opts ...grpc.CallOption) (*ListMemoryResp, error) {

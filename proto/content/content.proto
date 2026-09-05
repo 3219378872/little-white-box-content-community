@@ -28,6 +28,7 @@ service ContentService {
   rpc GetCommentList(GetCommentListReq) returns (GetCommentListResp);
   // 获取评论的回复列表（楼中楼全量分页，时间正序）
   rpc GetCommentReplies(GetCommentRepliesReq) returns (GetCommentRepliesResp);
+  rpc GetCommentsByIds(GetCommentsByIdsReq) returns (GetCommentsByIdsResp);
   // 断言目标当前可互动（CORE-034：已发布帖子，或附着在已发布帖子上的有效评论）
   rpc AssertInteractable(AssertInteractableReq) returns (AssertInteractableResp);
 
@@ -70,6 +71,13 @@ message CommentInfo {
   int64  reply_count   = 10; // 楼中楼回复总数（仅顶级评论有意义，来自维护列）
   repeated CommentInfo replies = 11; // 内嵌回复预览（仅顶级评论、时间正序、最多前 N 条）
 }
+
+message GetCommentsByIdsReq {
+  int64 user_id = 1;
+  int64 post_id = 2;
+  repeated int64 ids = 3;
+}
+message GetCommentsByIdsResp { repeated CommentInfo comments = 1; }
 
 // 创建帖子请求
 message CreatePostReq {

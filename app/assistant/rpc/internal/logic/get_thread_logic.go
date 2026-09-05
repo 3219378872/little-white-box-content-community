@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/rpc/internal/svc"
@@ -42,6 +43,22 @@ func (l *GetThreadLogic) GetThread(in *pb.GetThreadReq) (*pb.GetThreadResp, erro
 		if run, err := l.svcCtx.Store.GetRun(l.ctx, thread.ActiveRunID); err == nil && run != nil && !store.IsTerminalStatus(run.Status) {
 			out.ActiveRunStatus = run.Status
 			out.ActiveRunPhase = run.Phase
+			if run.Status == store.StatusWaitingInput {
+				questions, err := l.svcCtx.Store.ListQuestions(l.ctx, run.ID)
+				if err != nil {
+					return nil, err
+				}
+				for _, question := range questions {
+					if question.Status == "pending" {
+						raw, err := json.Marshal(question)
+						if err != nil {
+							return nil, err
+						}
+						out.QuestionRequestJson = string(raw)
+						break
+					}
+				}
+			}
 		}
 	}
 	return &pb.GetThreadResp{Thread: out}, nil

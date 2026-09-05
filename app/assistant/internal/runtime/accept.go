@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
@@ -25,13 +26,16 @@ type inputPayload struct {
 }
 
 type AcceptInput struct {
-	UserID         int64
-	Message        string
-	RequestID      string
-	Attachments    []Attachment
-	ContextPostID  int64
-	ConsentOK      bool
-	ConsentVersion int32
+	ClientProtocolVersion int
+	QuestionContext       *QuestionContext
+	questionContextJSON   string
+	UserID                int64
+	Message               string
+	RequestID             string
+	Attachments           []Attachment
+	ContextPostID         int64
+	ConsentOK             bool
+	ConsentVersion        int32
 }
 
 type AcceptResult struct {
@@ -66,6 +70,27 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 	if strings.TrimSpace(in.RequestID) == "" {
 		in.RequestID = "msg-" + itoa(store.NowMs())
 	}
+	if in.ClientProtocolVersion == 0 {
+		in.ClientProtocolVersion = 1
+	}
+	if in.ClientProtocolVersion < 1 || in.ClientProtocolVersion > 2 {
+		return AcceptResult{}, errx.NewWithCode(errx.ParamError)
+	}
+	if in.QuestionContext != nil {
+		if in.ClientProtocolVersion < 2 {
+			return AcceptResult{}, errx.NewWithCode(errx.ParamError)
+		}
+		var err error
+		in.questionContextJSON, err = a.questionContext(ctx, in.UserID, in.QuestionContext)
+		if err != nil {
+			return AcceptResult{}, err
+		}
+	}
+	if thread, err := a.Store.GetThread(ctx, in.UserID); err == nil && thread.ActiveRunID > 0 {
+		if err := ResolveWaiting(ctx, a.Store, a.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
+			return AcceptResult{}, err
+		}
+	}
 	var out AcceptResult
 	err := a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		result, err := a.acceptTx(ctx, tx, in, text)
@@ -90,11 +115,17 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
+		if err := verifyInputReplay(ctx, tx, in, text, *existing); err != nil {
+			return AcceptResult{}, err
+		}
 		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
 	}
 	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
+		if in.ClientProtocolVersion >= 2 {
+			return AcceptResult{}, errx.NewWithCode(errx.IdempotencyConflict)
+		}
 		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
 	}
 	// Worker steps lock agent_run before assistant_thread. Preemption must take
@@ -110,11 +141,17 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
+		if err := verifyInputReplay(ctx, tx, in, text, *existing); err != nil {
+			return AcceptResult{}, err
+		}
 		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
 	}
 	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, err
 	} else if existing != nil {
+		if in.ClientProtocolVersion >= 2 {
+			return AcceptResult{}, errx.NewWithCode(errx.IdempotencyConflict)
+		}
 		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
 	}
 	session, err := ensureForegroundSession(ctx, tx, a.Memory, thread, now)
@@ -123,7 +160,8 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	}
 	cold := isColdConversation(thread, now)
 
-	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: providerUserContent(text, in.Attachments, in.ContextPostID)})
+	apiText := acceptedUserContent(text, in)
+	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: apiText})
 	msg, err := tx.InsertMessage(ctx, store.Message{
 		UserID: in.UserID, SessionID: session.ID, Role: store.RoleUser, Kind: store.KindMessage,
 		Content: text, APIContent: api, Visible: true, Unread: false, CreatedAtMs: now,
@@ -156,6 +194,15 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		}
 	}
 	disposition := DecideDisposition(active)
+	if active != nil && active.Status == store.StatusWaitingInput {
+		if in.ClientProtocolVersion < 2 {
+			return AcceptResult{}, errx.New(errx.ParamError, "client update required for this interaction")
+		}
+		if err := supersedeQuestionsTx(ctx, tx, active); err != nil {
+			return AcceptResult{}, err
+		}
+		disposition = store.DispositionSteered
+	}
 	payload := mustJSON(inputPayload{Text: text, MessageID: msg.ID, Attachments: in.Attachments, ContextPostID: in.ContextPostID})
 	var runID int64
 	switch disposition {
@@ -167,7 +214,8 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 			}
 		}
 		run, err := tx.InsertRun(ctx, store.Run{
-			UserID: in.UserID, SessionID: session.ID, RequestID: in.RequestID, Source: store.SourceUser,
+			ClientProtocolVersion: in.ClientProtocolVersion,
+			UserID:                in.UserID, SessionID: session.ID, RequestID: in.RequestID, Source: store.SourceUser,
 			Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityUser,
 			QueuedPayload: payload, ConsentVersion: in.ConsentVersion, InputVersion: 1,
 			PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
@@ -212,10 +260,23 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 	if userID <= 0 {
 		return errx.NewWithCode(errx.LoginRequired)
 	}
+	if err := a.Store.RequestCancelAll(ctx, userID); err != nil {
+		return err
+	}
+	if thread, err := a.Store.GetThread(ctx, userID); err != nil {
+		return err
+	} else if thread.ActiveRunID > 0 {
+		if err := ResolveWaiting(ctx, a.Store, a.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
+			return err
+		}
+	}
 	return a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		now := store.NowMs()
 		ids, err := tx.SoftDeleteMessages(ctx, userID, now)
 		if err != nil {
+			return err
+		}
+		if err := tx.ClearResearchHistory(ctx, userID); err != nil {
 			return err
 		}
 		for _, id := range ids {
@@ -258,6 +319,32 @@ func (a *Acceptor) MarkRead(ctx context.Context, userID int64) (int32, error) {
 func mustJSON(v any) []byte {
 	raw, _ := json.Marshal(v)
 	return raw
+}
+
+func acceptedUserContent(text string, in AcceptInput) string {
+	value := providerUserContent(text, in.Attachments, in.ContextPostID)
+	if in.questionContextJSON != "" {
+		value += "\n\nUNTRUSTED_QUESTION_CONTINUATION_JSON:\n" + in.questionContextJSON
+	}
+	return value
+}
+
+func verifyInputReplay(ctx context.Context, st store.Store, in AcceptInput, text string, existing store.InputCommand) error {
+	if in.ClientProtocolVersion < 2 {
+		return nil
+	}
+	msg, err := st.GetMessage(ctx, in.UserID, existing.MessageID)
+	if err != nil {
+		return err
+	}
+	if msg.DeletedAtMs > 0 {
+		return errx.NewWithCode(errx.NotFound)
+	}
+	expected := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: acceptedUserContent(text, in)})
+	if !bytes.Equal(expected, msg.APIContent) {
+		return errx.NewWithCode(errx.IdempotencyConflict)
+	}
+	return nil
 }
 
 func providerUserContent(text string, attachments []Attachment, contextPostID int64) string {

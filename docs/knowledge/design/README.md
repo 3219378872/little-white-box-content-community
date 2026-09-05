@@ -14,3 +14,4 @@
 | [DES-content-community-backend](DES-content-community-backend.md) | SPEC-community-core / SPEC-content-discovery / SPEC-assistant-agent / SPEC-agent-memory / SPEC-agent-watch / SPEC-feedback-reliability | active |
 | [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) | SPEC-assistant-agent / SPEC-agent-memory / SPEC-agent-watch / SPEC-content-discovery / SPEC-feedback-reliability | active |
 | [DES-agent-capability-governance](DES-agent-capability-governance.md) | SPEC-assistant-agent / SPEC-agent-memory | active |
+| [DES-agent-community-research](DES-agent-community-research.md) | SPEC-assistant-agent / SPEC-agent-memory / SPEC-agent-watch / SPEC-content-discovery / SPEC-feedback-reliability | active |

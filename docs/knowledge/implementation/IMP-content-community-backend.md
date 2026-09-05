@@ -6,6 +6,7 @@ status: diverged
 owner: agent
 upstream:
   - DES-content-community-backend
+  - DES-agent-community-research
 tracks:
   - app/content/rpc/content.go
   - app/content/rpc/internal/logic
@@ -65,6 +66,7 @@ tracks:
   - deploy/sql/patches/20260831_assistant_retention_indexes.sql
   - deploy/sql/patches/20260831_watch_task_version.sql
   - deploy/sql/patches/20260901_agent_concurrency.sql
+  - deploy/sql/patches/20260905_agent_research.sql
   - deploy/loki/loki-config.yaml
   - deploy/docker-compose.middleware.yml
   - deploy/docker-compose.production.yml

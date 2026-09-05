@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"esx/app/assistant/internal/runtime"
+	"esx/app/assistant/internal/store"
 	"esx/app/assistant/worker/internal/config"
 	"esx/app/assistant/worker/internal/svc"
 
@@ -38,6 +39,7 @@ func main() {
 	indexTicker := time.NewTicker(2 * time.Second)
 	defer indexTicker.Stop()
 	go runRetention(ctx, svcCtx)
+	go runWaitingExpiry(ctx, svcCtx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -60,6 +62,28 @@ func main() {
 			go svcCtx.Lease.RenewLoop(runCtx, *run, runCancel)
 			svcCtx.Engine.Execute(runCtx, *run, recovered)
 			runCancel()
+		}
+	}
+}
+
+func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			runs, err := svcCtx.Store.ListWaitingRuns(ctx)
+			if err != nil {
+				logx.WithContext(ctx).Errorw("assistant waiting scan failed", logx.Field("err", err.Error()))
+				continue
+			}
+			for _, run := range runs {
+				if err := runtime.ResolveWaiting(ctx, svcCtx.Store, nil, run.ID, store.NowMs()); err != nil {
+					logx.WithContext(ctx).Errorw("assistant waiting resolution failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+				}
+			}
 		}
 	}
 }

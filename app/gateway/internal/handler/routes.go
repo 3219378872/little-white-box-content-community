@@ -134,6 +134,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx),
 				},
 				{
+					Method:  http.MethodPost,
+					Path:    "/assistant/runs/:id/answers",
+					Handler: assistant.AnswerAssistantQuestionsHandler(serverCtx),
+				},
+				{
 					// 取消 Assistant run
 					Method:  http.MethodPost,
 					Path:    "/assistant/runs/:id/cancel",

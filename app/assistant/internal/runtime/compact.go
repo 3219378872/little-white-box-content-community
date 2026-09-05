@@ -75,7 +75,7 @@ func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, runID i
 func EstimateMessageTokens(messages []store.Message) int {
 	total := 0
 	for _, msg := range messages {
-		if msg.DeletedAtMs != 0 || msg.Compacted {
+		if msg.DeletedAtMs != 0 || msg.Compacted || msg.Kind == store.KindQuestion {
 			continue
 		}
 		total += estimateStoredTokens(msg)
@@ -153,7 +153,7 @@ func messageHasUnfinishedCall(msg store.Message, unfinished map[string]struct{})
 func HistoryTurns(messages []store.Message) []prompt.Turn {
 	out := make([]prompt.Turn, 0, len(messages))
 	for _, msg := range messages {
-		if msg.DeletedAtMs != 0 || msg.Compacted {
+		if msg.DeletedAtMs != 0 || msg.Compacted || msg.Kind == store.KindQuestion {
 			continue
 		}
 		if turn, ok := turnFromMessage(msg); ok {

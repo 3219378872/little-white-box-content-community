@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS `assistant_message` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='可见正文与 provider api_content 分离';
 
 CREATE TABLE IF NOT EXISTS `agent_run` (
+	`client_protocol_version` INT NOT NULL DEFAULT 1,
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,
     `session_id` BIGINT NOT NULL,
@@ -115,6 +116,7 @@ CREATE TABLE IF NOT EXISTS `agent_run_event` (
     `created_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_run_seq` (`run_id`, `seq`),
+    KEY `idx_run_type_seq` (`run_id`, `type`, `seq`),
     UNIQUE KEY `uk_run_terminal` (`terminal_run_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='持久 SSE 事件';
 
@@ -154,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `agent_source_ledger` (
     `run_id` BIGINT NOT NULL,
     `handle` VARCHAR(64) NOT NULL,
     `kind` VARCHAR(32) NOT NULL,
-    `authority_id` VARCHAR(64) NOT NULL,
+    `authority_id` TEXT NOT NULL,
     `revision` BIGINT NOT NULL DEFAULT 0,
     `payload_json` JSON DEFAULT NULL,
     `created_at_ms` BIGINT NOT NULL,
@@ -352,3 +354,34 @@ CREATE TABLE IF NOT EXISTS `recommendation_feedback` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Agent 推荐反馈';
 
 INSERT IGNORE INTO `runtime_marker` (`name`, `applied_at_ms`) VALUES ('assistant_runtime_v3', 0);
+
+CREATE TABLE IF NOT EXISTS agent_question_request (
+  id VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  run_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  message_id BIGINT NOT NULL,
+  payload_json JSON NOT NULL,
+  answer_request_id VARCHAR(128) NOT NULL DEFAULT '',
+  answer_digest VARCHAR(64) NOT NULL DEFAULT '',
+  PRIMARY KEY (run_id, id),
+  KEY idx_question_message (message_id),
+  CONSTRAINT fk_question_message FOREIGN KEY (message_id) REFERENCES assistant_message(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS agent_source_evidence (
+  run_id BIGINT NOT NULL,
+  handle VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  evidence_id VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  payload_json JSON NOT NULL,
+  created_at_ms BIGINT NOT NULL,
+  PRIMARY KEY (run_id, evidence_id),
+  KEY idx_evidence_source (run_id, handle),
+  KEY idx_evidence_retention (created_at_ms)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS assistant_message_presentation (
+  message_id BIGINT NOT NULL,
+  payload_json JSON NOT NULL,
+  PRIMARY KEY (message_id),
+  CONSTRAINT fk_presentation_message FOREIGN KEY (message_id) REFERENCES assistant_message(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

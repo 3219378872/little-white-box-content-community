@@ -88,7 +88,7 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 		if errors.Is(err, store.ErrLeaseLost) || persistCtx.Err() != nil {
 			return
 		}
-		if errors.Is(err, errRunTerminated) {
+		if errors.Is(err, errRunTerminated) || errors.Is(err, errRunWaiting) {
 			return
 		}
 		if errors.Is(err, errRunCancelled) {
@@ -374,11 +374,20 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		if modelClient == nil {
 			return e.fail(persistCtx, run, "LLM_DISABLED", "model is not configured")
 		}
+		suppressText := false
+		if registry.Has(tool.PublishAnswer) {
+			sources, sourceErr := e.Store.ListSources(persistCtx, run.ID)
+			if sourceErr != nil {
+				return sourceErr
+			}
+			suppressText = run.Source == store.SourceWatch || len(sources) > 0
+		}
 		result, err := e.completeModel(workCtx, persistCtx, run, modelClient, llm.Request{
-			Messages:    turns,
-			Tools:       registry.Definitions(),
-			MaxTokens:   SingleOutputLimit(modelClient.MaxOutputTokens()),
-			Convergence: convergence,
+			SuppressText: suppressText,
+			Messages:     turns,
+			Tools:        registry.Definitions(),
+			MaxTokens:    SingleOutputLimit(modelClient.MaxOutputTokens()),
+			Convergence:  convergence,
 		})
 		if err != nil {
 			if errors.Is(err, errRunRedirected) {
@@ -396,7 +405,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			agentLLMCalls.Inc("failure")
 			logx.WithContext(persistCtx).Errorw("assistant LLM complete failed",
 				logx.Field("runId", run.ID), logx.Field("err", err.Error()))
-			if strings.TrimSpace(result.Text) != "" && run.Source != store.SourceMemoryReview {
+			if strings.TrimSpace(result.Text) != "" && run.Source == store.SourceUser {
 				payload := store.EventPayload{ErrorCode: "LLM_UNAVAILABLE", Text: "模型调用失败", Partial: result.Text}
 				return e.finishWithMessageEvent(persistCtx, run, store.StatusError, store.EventError, payload,
 					result.Text, prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: result.Text}), !result.Streamed, result.StreamID)
@@ -429,6 +438,9 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		agentLLMCalls.Inc("success")
 
 		if len(result.ToolCalls) == 0 {
+			if suppressText {
+				return e.fail(persistCtx, run, "ANSWER_VALIDATION_FAILED", "检索回答缺少结构化引用，未发布未经校验的结论")
+			}
 			text := strings.TrimSpace(result.Text)
 			result.Text = text
 			agentFirstToken.ObserveFloat(time.Since(started).Seconds())
@@ -444,7 +456,7 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 			}
 			args := canonical.UnwrapArgsJSON(call.Arguments)
 			sess := &tool.Session{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID,
-				RequestID: run.RequestID, Source: run.Source, ConsentVersion: run.ConsentVersion}
+				RequestID: run.RequestID, Source: run.Source, ConsentVersion: run.ConsentVersion, ClientProtocolVersion: clientProtocol(run)}
 			preparedOK := false
 			var prepareErr error
 			if prepared, prepErr := registry.Prepare(workCtx, sess, call.Name, args); prepErr == nil {
@@ -459,6 +471,27 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		run.Phase = store.PhaseToolExecuting
 		if err := e.recordModelToolStep(persistCtx, run, assistantTurn, &reviewLive); err != nil {
 			return err
+		}
+		if len(calls) > 1 && requiresExclusiveRound(calls) {
+			for _, call := range calls {
+				digest, err := canonical.DigestArgs(call.Arguments)
+				if err != nil {
+					digest = "invalid:" + call.ID
+				}
+				if _, _, err := e.startToolStep(persistCtx, run, call, digest, false); err != nil {
+					return err
+				}
+				problem := errx.New(errx.ParamError, "ask_questions and publish_answer require an exclusive tool round")
+				if err := e.finishToolStep(persistCtx, &run, call, problem.Error(), problem, nil, nil, nil, true, "invalid", &reviewLive); err != nil {
+					return err
+				}
+			}
+			for _, call := range calls {
+				if err := e.guardToolProgress(persistCtx, &run, registry, call, &reviewLive); err != nil {
+					return err
+				}
+			}
+			continue
 		}
 		for _, call := range calls {
 			if aborted, abortErr := e.abortIfRequested(persistCtx, run); aborted {
@@ -496,7 +529,7 @@ func (e *Engine) loadCapabilities(ctx context.Context, run store.Run, session *s
 		return nil, nil, e.fail(ctx, run, "PROVIDER_CAPABILITY_UNAVAILABLE", "frozen provider route is unavailable")
 	}
 	base := e.Tools.ResolveDefinitions(capability.Tools)
-	registry := tool.ForSource(base, run.Source, run.ConsentVersion)
+	registry := tool.ForClient(tool.ForSource(base, run.Source, run.ConsentVersion), clientProtocol(run))
 	if registry == nil || (run.Source == store.SourceMemoryReview && len(registry.Definitions()) == 0) {
 		return nil, nil, e.fail(ctx, run, "TOOLS_UNAVAILABLE", "no frozen tools for run source")
 	}
@@ -624,7 +657,11 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 	}
 	var result llm.Result
 	if streaming, ok := client.(llm.StreamingClient); ok {
-		result, err = streaming.CompleteStream(callCtx, req, writer.Delta)
+		delta := writer.Delta
+		if req.SuppressText {
+			delta = func(llm.Delta) error { return nil }
+		}
+		result, err = streaming.CompleteStream(callCtx, req, delta)
 		if flushErr := writer.Finish(); err == nil && flushErr != nil {
 			err = flushErr
 		}
@@ -644,6 +681,11 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 		result.Text = prompt.SanitizeOutput(result.Text)
 	}
 	stop()
+	if req.SuppressText {
+		result.Text = ""
+		result.Streamed = false
+		result.StreamID = ""
+	}
 	fresh, getErr := e.Store.GetRun(persistCtx, run.ID)
 	if getErr != nil {
 		return llm.Result{}, getErr
@@ -856,6 +898,12 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 		text = callErr.Error()
 	}
 	agentToolCalls.Inc(call.Name, outcome)
+	if callErr == nil && sess.Question != nil {
+		return e.waitForQuestions(persistCtx, run, call, *sess.Question)
+	}
+	if callErr == nil && sess.Answer != nil {
+		return e.publishAnswer(persistCtx, run, call, *sess.Answer)
+	}
 	if err := e.finishToolStep(persistCtx, run, call, text, callErr, cards, sess.ChangeIDs, journal, true, outcome, reviewLive); err != nil {
 		return err
 	}
@@ -902,7 +950,7 @@ func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry
 	if currentRow == nil || currentRow.Status == "running" || currentRow.ResultJSON == "" {
 		return nil
 	}
-	resultDigest, err := canonical.DigestArgs(currentRow.ResultJSON)
+	resultDigest, err := canonical.DigestArgs(normalizeEvidenceResult(currentRow.ResultJSON))
 	if err != nil {
 		resultDigest = strings.Join(strings.Fields(currentRow.ResultJSON), " ")
 	}
@@ -911,7 +959,7 @@ func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry
 		if call.Tool != currentRow.Tool || call.CanonicalArgsDigest != currentRow.CanonicalArgsDigest || call.Status == "running" {
 			continue
 		}
-		digest, digestErr := canonical.DigestArgs(call.ResultJSON)
+		digest, digestErr := canonical.DigestArgs(normalizeEvidenceResult(call.ResultJSON))
 		if digestErr != nil {
 			digest = strings.Join(strings.Fields(call.ResultJSON), " ")
 		}
@@ -946,7 +994,8 @@ func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry
 
 func (e *Engine) toolSession(run store.Run) *tool.Session {
 	sess := &tool.Session{
-		UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID,
+		ClientProtocolVersion: clientProtocol(run),
+		UserID:                run.UserID, SessionID: run.SessionID, RunID: run.ID, RequestID: run.RequestID,
 		Source: run.Source, ConsentVersion: run.ConsentVersion, Fence: run.Fence(),
 	}
 	if run.Source == store.SourceWatch {
@@ -1415,6 +1464,10 @@ func (e *Engine) finishWithMessageEvent(
 	emitToken bool,
 	streamID string,
 ) error {
+	return e.finishMessage(ctx, run, status, eventType, payload, message, apiContent, emitToken, streamID, nil)
+}
+
+func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload, message string, apiContent []byte, emitToken bool, streamID string, before func(context.Context, store.Store) error) error {
 	now := store.NowMs()
 	run.Status = status
 	run.Phase = store.PhaseDone
@@ -1427,6 +1480,23 @@ func (e *Engine) finishWithMessageEvent(
 		run.ErrorCode = payload.ErrorCode
 	}
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		fresh, err := tx.GetRun(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		if status == store.StatusDone && fresh.CancelRequested {
+			return errRunCancelled
+		}
+		if status != store.StatusDone {
+			if err := closePendingCalls(ctx, tx, run, status); err != nil {
+				return err
+			}
+		}
+		if before != nil {
+			if err := before(ctx, tx); err != nil {
+				return err
+			}
+		}
 		if err := tx.UpdateRun(ctx, run); err != nil {
 			return err
 		}
@@ -1446,13 +1516,26 @@ func (e *Engine) finishWithMessageEvent(
 			if streamID != "" && payload.StreamID == "" {
 				payload.StreamID = streamID
 			}
+			kind := store.KindMessage
+			if run.Source == store.SourceWatch {
+				kind = store.KindWatch
+			}
 			msg, err := tx.InsertMessage(ctx, store.Message{
 				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
-				Kind: store.KindMessage, Content: message, APIContent: apiContent, Visible: true,
+				Kind: kind, Content: message, APIContent: apiContent, Visible: true,
 				Unread: run.Source == store.SourceWatch, CreatedAtMs: now,
 			})
 			if err != nil {
 				return err
+			}
+			if payload.Answer != nil {
+				payload.Answer.MessageID = msg.ID
+				if err := tx.SavePresentation(ctx, *payload.Answer); err != nil {
+					return err
+				}
+				if _, err := AppendEvent(ctx, tx, nil, run, store.EventAnswerCommitted, store.EventPayload{Answer: payload.Answer, Text: message}); err != nil {
+					return err
+				}
 			}
 			if err := tx.InsertOutbox(ctx, store.Outbox{
 				UserID: run.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,

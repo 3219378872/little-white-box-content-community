@@ -3,9 +3,38 @@
 
 package types
 
+type AssistantAnswerBlock struct {
+	Id        string                    `json:"id"`
+	Kind      string                    `json:"kind"`
+	Text      string                    `json:"text"`
+	Citations []AssistantAnswerCitation `json:"citations"`
+}
+
+type AssistantAnswerCitation struct {
+	Handle      string   `json:"handle"`
+	EvidenceIds []string `json:"evidenceIds"`
+}
+
+type AssistantAnswerPresentation struct {
+	Version   int32                     `json:"version"`
+	MessageId int64                     `json:"messageId"`
+	RunId     int64                     `json:"runId"`
+	Blocks    []AssistantAnswerBlock    `json:"blocks"`
+	Sources   []AssistantResearchSource `json:"sources"`
+}
+
 type AssistantAttachment struct {
 	MediaId int64  `json:"mediaId"`
 	Url     string `json:"url"`
+}
+
+type AssistantEvidence struct {
+	Id            string `json:"id"`
+	Handle        string `json:"handle"`
+	Kind          string `json:"kind"`
+	Text          string `json:"text"`
+	CommentId     string `json:"commentId,optional"`
+	RetrievedAtMs int64  `json:"retrievedAtMs"`
 }
 
 type AssistantMemoryCapacity struct {
@@ -32,15 +61,69 @@ type AssistantMemoryOp struct {
 }
 
 type AssistantMessage struct {
-	Id          int64  `json:"id"`
-	SessionId   int64  `json:"sessionId"`
-	RunId       int64  `json:"runId"`
-	Role        string `json:"role"`
-	Kind        string `json:"kind"`
-	Content     string `json:"content"`
-	Unread      bool   `json:"unread"`
-	CreatedAtMs int64  `json:"createdAtMs"`
-	ChangeId    int64  `json:"changeId,optional"`
+	Id                 int64                        `json:"id"`
+	SessionId          int64                        `json:"sessionId"`
+	RunId              int64                        `json:"runId"`
+	Role               string                       `json:"role"`
+	Kind               string                       `json:"kind"`
+	Content            string                       `json:"content"`
+	Unread             bool                         `json:"unread"`
+	CreatedAtMs        int64                        `json:"createdAtMs"`
+	ChangeId           int64                        `json:"changeId,optional"`
+	QuestionRequest    *AssistantQuestionRequest    `json:"questionRequest,optional"`
+	AnswerPresentation *AssistantAnswerPresentation `json:"answerPresentation,optional"`
+}
+
+type AssistantQuestion struct {
+	Id        string                    `json:"id"`
+	Text      string                    `json:"text"`
+	Selection string                    `json:"selection"`
+	Options   []AssistantQuestionOption `json:"options"`
+}
+
+type AssistantQuestionAnswer struct {
+	QuestionId        string   `json:"questionId"`
+	SelectedOptionIds []string `json:"selectedOptionIds,optional"`
+	Text              string   `json:"text,optional"`
+	Disposition       string   `json:"disposition"`
+}
+
+type AssistantQuestionContext struct {
+	RunId             int64                     `json:"runId"`
+	QuestionRequestId string                    `json:"questionRequestId"`
+	Answers           []AssistantQuestionAnswer `json:"answers"`
+}
+
+type AssistantQuestionOption struct {
+	Id    string `json:"id"`
+	Label string `json:"label"`
+}
+
+type AssistantQuestionRequest struct {
+	Id          string                    `json:"id"`
+	RunId       int64                     `json:"runId"`
+	CallId      string                    `json:"callId"`
+	MessageId   int64                     `json:"messageId"`
+	Status      string                    `json:"status"`
+	Questions   []AssistantQuestion       `json:"questions"`
+	Answers     []AssistantQuestionAnswer `json:"answers"`
+	DeadlineMs  int64                     `json:"deadlineMs"`
+	CreatedAtMs int64                     `json:"createdAtMs"`
+}
+
+type AssistantResearchSource struct {
+	Handle            string              `json:"handle"`
+	Kind              string              `json:"kind"`
+	AuthorityId       string              `json:"authorityId"`
+	Title             string              `json:"title"`
+	Revision          int64               `json:"revision"`
+	Url               string              `json:"url"`
+	ThumbnailUrl      string              `json:"thumbnailUrl,optional"`
+	Author            string              `json:"author,optional"`
+	PublishedAtMs     int64               `json:"publishedAtMs,optional"`
+	Available         bool                `json:"available"`
+	UnavailableReason string              `json:"unavailableReason,optional"`
+	Excerpts          []AssistantEvidence `json:"excerpts"`
 }
 
 type AssistantSourceCard struct {
@@ -53,14 +136,15 @@ type AssistantSourceCard struct {
 }
 
 type AssistantThread struct {
-	SessionId          int64  `json:"sessionId"`
-	UnreadCount        int32  `json:"unreadCount"`
-	LastMessageId      int64  `json:"lastMessageId"`
-	LastMessagePreview string `json:"lastMessagePreview"`
-	LastMessageAtMs    int64  `json:"lastMessageAtMs"`
-	ActiveRunId        int64  `json:"activeRunId"`
-	ActiveRunStatus    string `json:"activeRunStatus,optional"`
-	ActiveRunPhase     string `json:"activeRunPhase,optional"`
+	SessionId          int64                     `json:"sessionId"`
+	UnreadCount        int32                     `json:"unreadCount"`
+	LastMessageId      int64                     `json:"lastMessageId"`
+	LastMessagePreview string                    `json:"lastMessagePreview"`
+	LastMessageAtMs    int64                     `json:"lastMessageAtMs"`
+	ActiveRunId        int64                     `json:"activeRunId"`
+	ActiveRunStatus    string                    `json:"activeRunStatus,optional"`
+	ActiveRunPhase     string                    `json:"activeRunPhase,optional"`
+	QuestionRequest    *AssistantQuestionRequest `json:"questionRequest,optional"`
 }
 
 type AssistantToolCallInfo struct {

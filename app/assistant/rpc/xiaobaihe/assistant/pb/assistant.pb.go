@@ -66,17 +66,18 @@ func (x *GetThreadReq) GetUserId() int64 {
 }
 
 type AssistantThread struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	SessionId          int64                  `protobuf:"varint,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	UnreadCount        int32                  `protobuf:"varint,2,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
-	LastMessageId      int64                  `protobuf:"varint,3,opt,name=last_message_id,json=lastMessageId,proto3" json:"last_message_id,omitempty"`
-	LastMessagePreview string                 `protobuf:"bytes,4,opt,name=last_message_preview,json=lastMessagePreview,proto3" json:"last_message_preview,omitempty"`
-	LastMessageAtMs    int64                  `protobuf:"varint,5,opt,name=last_message_at_ms,json=lastMessageAtMs,proto3" json:"last_message_at_ms,omitempty"`
-	ActiveRunId        int64                  `protobuf:"varint,6,opt,name=active_run_id,json=activeRunId,proto3" json:"active_run_id,omitempty"`
-	ActiveRunStatus    string                 `protobuf:"bytes,7,opt,name=active_run_status,json=activeRunStatus,proto3" json:"active_run_status,omitempty"`
-	ActiveRunPhase     string                 `protobuf:"bytes,8,opt,name=active_run_phase,json=activeRunPhase,proto3" json:"active_run_phase,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SessionId           int64                  `protobuf:"varint,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	UnreadCount         int32                  `protobuf:"varint,2,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
+	LastMessageId       int64                  `protobuf:"varint,3,opt,name=last_message_id,json=lastMessageId,proto3" json:"last_message_id,omitempty"`
+	LastMessagePreview  string                 `protobuf:"bytes,4,opt,name=last_message_preview,json=lastMessagePreview,proto3" json:"last_message_preview,omitempty"`
+	LastMessageAtMs     int64                  `protobuf:"varint,5,opt,name=last_message_at_ms,json=lastMessageAtMs,proto3" json:"last_message_at_ms,omitempty"`
+	ActiveRunId         int64                  `protobuf:"varint,6,opt,name=active_run_id,json=activeRunId,proto3" json:"active_run_id,omitempty"`
+	ActiveRunStatus     string                 `protobuf:"bytes,7,opt,name=active_run_status,json=activeRunStatus,proto3" json:"active_run_status,omitempty"`
+	ActiveRunPhase      string                 `protobuf:"bytes,8,opt,name=active_run_phase,json=activeRunPhase,proto3" json:"active_run_phase,omitempty"`
+	QuestionRequestJson string                 `protobuf:"bytes,9,opt,name=question_request_json,json=questionRequestJson,proto3" json:"question_request_json,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *AssistantThread) Reset() {
@@ -161,6 +162,13 @@ func (x *AssistantThread) GetActiveRunStatus() string {
 func (x *AssistantThread) GetActiveRunPhase() string {
 	if x != nil {
 		return x.ActiveRunPhase
+	}
+	return ""
+}
+
+func (x *AssistantThread) GetQuestionRequestJson() string {
+	if x != nil {
+		return x.QuestionRequestJson
 	}
 	return ""
 }
@@ -286,18 +294,20 @@ func (x *ListMessagesReq) GetBeforeId() int64 {
 }
 
 type AssistantMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	RunId         int64                  `protobuf:"varint,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
-	Kind          string                 `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
-	Content       string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
-	Unread        bool                   `protobuf:"varint,7,opt,name=unread,proto3" json:"unread,omitempty"`
-	CreatedAtMs   int64                  `protobuf:"varint,8,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
-	ChangeId      int64                  `protobuf:"varint,9,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Id                     int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId              int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RunId                  int64                  `protobuf:"varint,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Role                   string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Kind                   string                 `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
+	Content                string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	Unread                 bool                   `protobuf:"varint,7,opt,name=unread,proto3" json:"unread,omitempty"`
+	CreatedAtMs            int64                  `protobuf:"varint,8,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	ChangeId               int64                  `protobuf:"varint,9,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	QuestionRequestJson    string                 `protobuf:"bytes,10,opt,name=question_request_json,json=questionRequestJson,proto3" json:"question_request_json,omitempty"`
+	AnswerPresentationJson string                 `protobuf:"bytes,11,opt,name=answer_presentation_json,json=answerPresentationJson,proto3" json:"answer_presentation_json,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *AssistantMessage) Reset() {
@@ -391,6 +401,20 @@ func (x *AssistantMessage) GetChangeId() int64 {
 		return x.ChangeId
 	}
 	return 0
+}
+
+func (x *AssistantMessage) GetQuestionRequestJson() string {
+	if x != nil {
+		return x.QuestionRequestJson
+	}
+	return ""
+}
+
+func (x *AssistantMessage) GetAnswerPresentationJson() string {
+	if x != nil {
+		return x.AnswerPresentationJson
+	}
+	return ""
 }
 
 type ListMessagesResp struct {
@@ -506,14 +530,16 @@ func (x *Attachment) GetUrl() string {
 }
 
 type PostMessageReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	RequestId     string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Attachments   []*Attachment          `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	ContextPostId int64                  `protobuf:"varint,5,opt,name=context_post_id,json=contextPostId,proto3" json:"context_post_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	UserId                int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Message               string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	RequestId             string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Attachments           []*Attachment          `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	ContextPostId         int64                  `protobuf:"varint,5,opt,name=context_post_id,json=contextPostId,proto3" json:"context_post_id,omitempty"`
+	ClientProtocolVersion int32                  `protobuf:"varint,6,opt,name=client_protocol_version,json=clientProtocolVersion,proto3" json:"client_protocol_version,omitempty"`
+	QuestionContextJson   string                 `protobuf:"bytes,7,opt,name=question_context_json,json=questionContextJson,proto3" json:"question_context_json,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PostMessageReq) Reset() {
@@ -579,6 +605,20 @@ func (x *PostMessageReq) GetContextPostId() int64 {
 		return x.ContextPostId
 	}
 	return 0
+}
+
+func (x *PostMessageReq) GetClientProtocolVersion() int32 {
+	if x != nil {
+		return x.ClientProtocolVersion
+	}
+	return 0
+}
+
+func (x *PostMessageReq) GetQuestionContextJson() string {
+	if x != nil {
+		return x.QuestionContextJson
+	}
+	return ""
 }
 
 type PostMessageResp struct {
@@ -1030,20 +1070,22 @@ func (x *SourceCard) GetPayloadJson() string {
 }
 
 type RunEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         int64                  `protobuf:"varint,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Seq           int64                  `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	Degraded      bool                   `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
-	ErrorCode     string                 `protobuf:"bytes,6,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
-	SessionId     int64                  `protobuf:"varint,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	ToolCall      *ToolCallInfo          `protobuf:"bytes,8,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
-	SourceCard    *SourceCard            `protobuf:"bytes,9,opt,name=source_card,json=sourceCard,proto3" json:"source_card,omitempty"`
-	ChangeId      int64                  `protobuf:"varint,10,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
-	StreamId      string                 `protobuf:"bytes,11,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RunId                  int64                  `protobuf:"varint,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Seq                    int64                  `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
+	Type                   string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Text                   string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Degraded               bool                   `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	ErrorCode              string                 `protobuf:"bytes,6,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	SessionId              int64                  `protobuf:"varint,7,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ToolCall               *ToolCallInfo          `protobuf:"bytes,8,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
+	SourceCard             *SourceCard            `protobuf:"bytes,9,opt,name=source_card,json=sourceCard,proto3" json:"source_card,omitempty"`
+	ChangeId               int64                  `protobuf:"varint,10,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	StreamId               string                 `protobuf:"bytes,11,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
+	QuestionRequestJson    string                 `protobuf:"bytes,12,opt,name=question_request_json,json=questionRequestJson,proto3" json:"question_request_json,omitempty"`
+	AnswerPresentationJson string                 `protobuf:"bytes,13,opt,name=answer_presentation_json,json=answerPresentationJson,proto3" json:"answer_presentation_json,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RunEvent) Reset() {
@@ -1153,6 +1195,140 @@ func (x *RunEvent) GetStreamId() string {
 	return ""
 }
 
+func (x *RunEvent) GetQuestionRequestJson() string {
+	if x != nil {
+		return x.QuestionRequestJson
+	}
+	return ""
+}
+
+func (x *RunEvent) GetAnswerPresentationJson() string {
+	if x != nil {
+		return x.AnswerPresentationJson
+	}
+	return ""
+}
+
+type AnswerQuestionsReq struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	UserId            int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId             int64                  `protobuf:"varint,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	QuestionRequestId string                 `protobuf:"bytes,3,opt,name=question_request_id,json=questionRequestId,proto3" json:"question_request_id,omitempty"`
+	RequestId         string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	AnswersJson       string                 `protobuf:"bytes,5,opt,name=answers_json,json=answersJson,proto3" json:"answers_json,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AnswerQuestionsReq) Reset() {
+	*x = AnswerQuestionsReq{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerQuestionsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerQuestionsReq) ProtoMessage() {}
+
+func (x *AnswerQuestionsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerQuestionsReq.ProtoReflect.Descriptor instead.
+func (*AnswerQuestionsReq) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AnswerQuestionsReq) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AnswerQuestionsReq) GetRunId() int64 {
+	if x != nil {
+		return x.RunId
+	}
+	return 0
+}
+
+func (x *AnswerQuestionsReq) GetQuestionRequestId() string {
+	if x != nil {
+		return x.QuestionRequestId
+	}
+	return ""
+}
+
+func (x *AnswerQuestionsReq) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *AnswerQuestionsReq) GetAnswersJson() string {
+	if x != nil {
+		return x.AnswersJson
+	}
+	return ""
+}
+
+type AnswerQuestionsResp struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	QuestionRequestJson string                 `protobuf:"bytes,1,opt,name=question_request_json,json=questionRequestJson,proto3" json:"question_request_json,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AnswerQuestionsResp) Reset() {
+	*x = AnswerQuestionsResp{}
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerQuestionsResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerQuestionsResp) ProtoMessage() {}
+
+func (x *AnswerQuestionsResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerQuestionsResp.ProtoReflect.Descriptor instead.
+func (*AnswerQuestionsResp) Descriptor() ([]byte, []int) {
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AnswerQuestionsResp) GetQuestionRequestJson() string {
+	if x != nil {
+		return x.QuestionRequestJson
+	}
+	return ""
+}
+
 type CancelRunReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1163,7 +1339,7 @@ type CancelRunReq struct {
 
 func (x *CancelRunReq) Reset() {
 	*x = CancelRunReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1175,7 +1351,7 @@ func (x *CancelRunReq) String() string {
 func (*CancelRunReq) ProtoMessage() {}
 
 func (x *CancelRunReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[17]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1188,7 +1364,7 @@ func (x *CancelRunReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunReq.ProtoReflect.Descriptor instead.
 func (*CancelRunReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{17}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CancelRunReq) GetUserId() int64 {
@@ -1213,7 +1389,7 @@ type CancelRunResp struct {
 
 func (x *CancelRunResp) Reset() {
 	*x = CancelRunResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1401,7 @@ func (x *CancelRunResp) String() string {
 func (*CancelRunResp) ProtoMessage() {}
 
 func (x *CancelRunResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[18]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1414,7 @@ func (x *CancelRunResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunResp.ProtoReflect.Descriptor instead.
 func (*CancelRunResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{18}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{20}
 }
 
 type RevokeConsentReq struct {
@@ -1250,7 +1426,7 @@ type RevokeConsentReq struct {
 
 func (x *RevokeConsentReq) Reset() {
 	*x = RevokeConsentReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1438,7 @@ func (x *RevokeConsentReq) String() string {
 func (*RevokeConsentReq) ProtoMessage() {}
 
 func (x *RevokeConsentReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[19]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1451,7 @@ func (x *RevokeConsentReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeConsentReq.ProtoReflect.Descriptor instead.
 func (*RevokeConsentReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{19}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *RevokeConsentReq) GetUserId() int64 {
@@ -1293,7 +1469,7 @@ type RevokeConsentResp struct {
 
 func (x *RevokeConsentResp) Reset() {
 	*x = RevokeConsentResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1305,7 +1481,7 @@ func (x *RevokeConsentResp) String() string {
 func (*RevokeConsentResp) ProtoMessage() {}
 
 func (x *RevokeConsentResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[20]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1318,7 +1494,7 @@ func (x *RevokeConsentResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeConsentResp.ProtoReflect.Descriptor instead.
 func (*RevokeConsentResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{20}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{22}
 }
 
 type ConfirmRunToolReq struct {
@@ -1333,7 +1509,7 @@ type ConfirmRunToolReq struct {
 
 func (x *ConfirmRunToolReq) Reset() {
 	*x = ConfirmRunToolReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1521,7 @@ func (x *ConfirmRunToolReq) String() string {
 func (*ConfirmRunToolReq) ProtoMessage() {}
 
 func (x *ConfirmRunToolReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[21]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1534,7 @@ func (x *ConfirmRunToolReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmRunToolReq.ProtoReflect.Descriptor instead.
 func (*ConfirmRunToolReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{21}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ConfirmRunToolReq) GetUserId() int64 {
@@ -1397,7 +1573,7 @@ type ConfirmRunToolResp struct {
 
 func (x *ConfirmRunToolResp) Reset() {
 	*x = ConfirmRunToolResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1409,7 +1585,7 @@ func (x *ConfirmRunToolResp) String() string {
 func (*ConfirmRunToolResp) ProtoMessage() {}
 
 func (x *ConfirmRunToolResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[22]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1422,7 +1598,7 @@ func (x *ConfirmRunToolResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmRunToolResp.ProtoReflect.Descriptor instead.
 func (*ConfirmRunToolResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{22}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{24}
 }
 
 type MemoryEntry struct {
@@ -1439,7 +1615,7 @@ type MemoryEntry struct {
 
 func (x *MemoryEntry) Reset() {
 	*x = MemoryEntry{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1451,7 +1627,7 @@ func (x *MemoryEntry) String() string {
 func (*MemoryEntry) ProtoMessage() {}
 
 func (x *MemoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[23]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1464,7 +1640,7 @@ func (x *MemoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryEntry.ProtoReflect.Descriptor instead.
 func (*MemoryEntry) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{23}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *MemoryEntry) GetId() int64 {
@@ -1520,7 +1696,7 @@ type MemoryCapacity struct {
 
 func (x *MemoryCapacity) Reset() {
 	*x = MemoryCapacity{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1532,7 +1708,7 @@ func (x *MemoryCapacity) String() string {
 func (*MemoryCapacity) ProtoMessage() {}
 
 func (x *MemoryCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[24]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1545,7 +1721,7 @@ func (x *MemoryCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryCapacity.ProtoReflect.Descriptor instead.
 func (*MemoryCapacity) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{24}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *MemoryCapacity) GetTarget() string {
@@ -1579,7 +1755,7 @@ type ListMemoryReq struct {
 
 func (x *ListMemoryReq) Reset() {
 	*x = ListMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1591,7 +1767,7 @@ func (x *ListMemoryReq) String() string {
 func (*ListMemoryReq) ProtoMessage() {}
 
 func (x *ListMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[25]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1604,7 +1780,7 @@ func (x *ListMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoryReq.ProtoReflect.Descriptor instead.
 func (*ListMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{25}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListMemoryReq) GetUserId() int64 {
@@ -1631,7 +1807,7 @@ type ListMemoryResp struct {
 
 func (x *ListMemoryResp) Reset() {
 	*x = ListMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +1819,7 @@ func (x *ListMemoryResp) String() string {
 func (*ListMemoryResp) ProtoMessage() {}
 
 func (x *ListMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[26]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +1832,7 @@ func (x *ListMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoryResp.ProtoReflect.Descriptor instead.
 func (*ListMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{26}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListMemoryResp) GetItems() []*MemoryEntry {
@@ -1685,7 +1861,7 @@ type AddMemoryReq struct {
 
 func (x *AddMemoryReq) Reset() {
 	*x = AddMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1873,7 @@ func (x *AddMemoryReq) String() string {
 func (*AddMemoryReq) ProtoMessage() {}
 
 func (x *AddMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[27]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1886,7 @@ func (x *AddMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMemoryReq.ProtoReflect.Descriptor instead.
 func (*AddMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{27}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AddMemoryReq) GetUserId() int64 {
@@ -1751,7 +1927,7 @@ type AddMemoryResp struct {
 
 func (x *AddMemoryResp) Reset() {
 	*x = AddMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1763,7 +1939,7 @@ func (x *AddMemoryResp) String() string {
 func (*AddMemoryResp) ProtoMessage() {}
 
 func (x *AddMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[28]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1776,7 +1952,7 @@ func (x *AddMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMemoryResp.ProtoReflect.Descriptor instead.
 func (*AddMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{28}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AddMemoryResp) GetEntry() *MemoryEntry {
@@ -1806,7 +1982,7 @@ type ReplaceMemoryReq struct {
 
 func (x *ReplaceMemoryReq) Reset() {
 	*x = ReplaceMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1818,7 +1994,7 @@ func (x *ReplaceMemoryReq) String() string {
 func (*ReplaceMemoryReq) ProtoMessage() {}
 
 func (x *ReplaceMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[29]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1831,7 +2007,7 @@ func (x *ReplaceMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplaceMemoryReq.ProtoReflect.Descriptor instead.
 func (*ReplaceMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{29}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ReplaceMemoryReq) GetUserId() int64 {
@@ -1879,7 +2055,7 @@ type ReplaceMemoryResp struct {
 
 func (x *ReplaceMemoryResp) Reset() {
 	*x = ReplaceMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1891,7 +2067,7 @@ func (x *ReplaceMemoryResp) String() string {
 func (*ReplaceMemoryResp) ProtoMessage() {}
 
 func (x *ReplaceMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[30]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1904,7 +2080,7 @@ func (x *ReplaceMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplaceMemoryResp.ProtoReflect.Descriptor instead.
 func (*ReplaceMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{30}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ReplaceMemoryResp) GetEntry() *MemoryEntry {
@@ -1933,7 +2109,7 @@ type RemoveMemoryReq struct {
 
 func (x *RemoveMemoryReq) Reset() {
 	*x = RemoveMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1945,7 +2121,7 @@ func (x *RemoveMemoryReq) String() string {
 func (*RemoveMemoryReq) ProtoMessage() {}
 
 func (x *RemoveMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[31]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1958,7 +2134,7 @@ func (x *RemoveMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMemoryReq.ProtoReflect.Descriptor instead.
 func (*RemoveMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{31}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *RemoveMemoryReq) GetUserId() int64 {
@@ -1998,7 +2174,7 @@ type RemoveMemoryResp struct {
 
 func (x *RemoveMemoryResp) Reset() {
 	*x = RemoveMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2010,7 +2186,7 @@ func (x *RemoveMemoryResp) String() string {
 func (*RemoveMemoryResp) ProtoMessage() {}
 
 func (x *RemoveMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[32]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2023,7 +2199,7 @@ func (x *RemoveMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMemoryResp.ProtoReflect.Descriptor instead.
 func (*RemoveMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{32}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *RemoveMemoryResp) GetChangeId() int64 {
@@ -2046,7 +2222,7 @@ type MemoryOp struct {
 
 func (x *MemoryOp) Reset() {
 	*x = MemoryOp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2058,7 +2234,7 @@ func (x *MemoryOp) String() string {
 func (*MemoryOp) ProtoMessage() {}
 
 func (x *MemoryOp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[33]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2071,7 +2247,7 @@ func (x *MemoryOp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryOp.ProtoReflect.Descriptor instead.
 func (*MemoryOp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{33}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MemoryOp) GetOp() string {
@@ -2120,7 +2296,7 @@ type BatchMemoryReq struct {
 
 func (x *BatchMemoryReq) Reset() {
 	*x = BatchMemoryReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2132,7 +2308,7 @@ func (x *BatchMemoryReq) String() string {
 func (*BatchMemoryReq) ProtoMessage() {}
 
 func (x *BatchMemoryReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[34]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2145,7 +2321,7 @@ func (x *BatchMemoryReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchMemoryReq.ProtoReflect.Descriptor instead.
 func (*BatchMemoryReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{34}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *BatchMemoryReq) GetUserId() int64 {
@@ -2179,7 +2355,7 @@ type BatchMemoryResp struct {
 
 func (x *BatchMemoryResp) Reset() {
 	*x = BatchMemoryResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2191,7 +2367,7 @@ func (x *BatchMemoryResp) String() string {
 func (*BatchMemoryResp) ProtoMessage() {}
 
 func (x *BatchMemoryResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[35]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2204,7 +2380,7 @@ func (x *BatchMemoryResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchMemoryResp.ProtoReflect.Descriptor instead.
 func (*BatchMemoryResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{35}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *BatchMemoryResp) GetEntries() []*MemoryEntry {
@@ -2231,7 +2407,7 @@ type UndoMemoryChangeReq struct {
 
 func (x *UndoMemoryChangeReq) Reset() {
 	*x = UndoMemoryChangeReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2243,7 +2419,7 @@ func (x *UndoMemoryChangeReq) String() string {
 func (*UndoMemoryChangeReq) ProtoMessage() {}
 
 func (x *UndoMemoryChangeReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[36]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2256,7 +2432,7 @@ func (x *UndoMemoryChangeReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndoMemoryChangeReq.ProtoReflect.Descriptor instead.
 func (*UndoMemoryChangeReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{36}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *UndoMemoryChangeReq) GetUserId() int64 {
@@ -2282,7 +2458,7 @@ type UndoMemoryChangeResp struct {
 
 func (x *UndoMemoryChangeResp) Reset() {
 	*x = UndoMemoryChangeResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2294,7 +2470,7 @@ func (x *UndoMemoryChangeResp) String() string {
 func (*UndoMemoryChangeResp) ProtoMessage() {}
 
 func (x *UndoMemoryChangeResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[37]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2307,7 +2483,7 @@ func (x *UndoMemoryChangeResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndoMemoryChangeResp.ProtoReflect.Descriptor instead.
 func (*UndoMemoryChangeResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{37}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *UndoMemoryChangeResp) GetEntry() *MemoryEntry {
@@ -2333,7 +2509,7 @@ type WatchTask struct {
 
 func (x *WatchTask) Reset() {
 	*x = WatchTask{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2345,7 +2521,7 @@ func (x *WatchTask) String() string {
 func (*WatchTask) ProtoMessage() {}
 
 func (x *WatchTask) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[38]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2358,7 +2534,7 @@ func (x *WatchTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchTask.ProtoReflect.Descriptor instead.
 func (*WatchTask) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{38}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *WatchTask) GetId() int64 {
@@ -2426,7 +2602,7 @@ type ListWatchTasksReq struct {
 
 func (x *ListWatchTasksReq) Reset() {
 	*x = ListWatchTasksReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2438,7 +2614,7 @@ func (x *ListWatchTasksReq) String() string {
 func (*ListWatchTasksReq) ProtoMessage() {}
 
 func (x *ListWatchTasksReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[39]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2451,7 +2627,7 @@ func (x *ListWatchTasksReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchTasksReq.ProtoReflect.Descriptor instead.
 func (*ListWatchTasksReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{39}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ListWatchTasksReq) GetUserId() int64 {
@@ -2470,7 +2646,7 @@ type ListWatchTasksResp struct {
 
 func (x *ListWatchTasksResp) Reset() {
 	*x = ListWatchTasksResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2482,7 +2658,7 @@ func (x *ListWatchTasksResp) String() string {
 func (*ListWatchTasksResp) ProtoMessage() {}
 
 func (x *ListWatchTasksResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[40]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2495,7 +2671,7 @@ func (x *ListWatchTasksResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchTasksResp.ProtoReflect.Descriptor instead.
 func (*ListWatchTasksResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{40}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ListWatchTasksResp) GetTasks() []*WatchTask {
@@ -2518,7 +2694,7 @@ type CreateWatchTaskReq struct {
 
 func (x *CreateWatchTaskReq) Reset() {
 	*x = CreateWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2530,7 +2706,7 @@ func (x *CreateWatchTaskReq) String() string {
 func (*CreateWatchTaskReq) ProtoMessage() {}
 
 func (x *CreateWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[41]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2543,7 +2719,7 @@ func (x *CreateWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*CreateWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{41}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *CreateWatchTaskReq) GetUserId() int64 {
@@ -2590,7 +2766,7 @@ type CreateWatchTaskResp struct {
 
 func (x *CreateWatchTaskResp) Reset() {
 	*x = CreateWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2602,7 +2778,7 @@ func (x *CreateWatchTaskResp) String() string {
 func (*CreateWatchTaskResp) ProtoMessage() {}
 
 func (x *CreateWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[42]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2615,7 +2791,7 @@ func (x *CreateWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*CreateWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{42}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *CreateWatchTaskResp) GetTask() *WatchTask {
@@ -2637,7 +2813,7 @@ type UpdateWatchTaskReq struct {
 
 func (x *UpdateWatchTaskReq) Reset() {
 	*x = UpdateWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2649,7 +2825,7 @@ func (x *UpdateWatchTaskReq) String() string {
 func (*UpdateWatchTaskReq) ProtoMessage() {}
 
 func (x *UpdateWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[43]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2662,7 +2838,7 @@ func (x *UpdateWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*UpdateWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{43}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UpdateWatchTaskReq) GetUserId() int64 {
@@ -2702,7 +2878,7 @@ type UpdateWatchTaskResp struct {
 
 func (x *UpdateWatchTaskResp) Reset() {
 	*x = UpdateWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2714,7 +2890,7 @@ func (x *UpdateWatchTaskResp) String() string {
 func (*UpdateWatchTaskResp) ProtoMessage() {}
 
 func (x *UpdateWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[44]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2727,7 +2903,7 @@ func (x *UpdateWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*UpdateWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{44}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *UpdateWatchTaskResp) GetTask() *WatchTask {
@@ -2748,7 +2924,7 @@ type DeleteWatchTaskReq struct {
 
 func (x *DeleteWatchTaskReq) Reset() {
 	*x = DeleteWatchTaskReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2760,7 +2936,7 @@ func (x *DeleteWatchTaskReq) String() string {
 func (*DeleteWatchTaskReq) ProtoMessage() {}
 
 func (x *DeleteWatchTaskReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[45]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2773,7 +2949,7 @@ func (x *DeleteWatchTaskReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWatchTaskReq.ProtoReflect.Descriptor instead.
 func (*DeleteWatchTaskReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{45}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *DeleteWatchTaskReq) GetUserId() int64 {
@@ -2805,7 +2981,7 @@ type DeleteWatchTaskResp struct {
 
 func (x *DeleteWatchTaskResp) Reset() {
 	*x = DeleteWatchTaskResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2817,7 +2993,7 @@ func (x *DeleteWatchTaskResp) String() string {
 func (*DeleteWatchTaskResp) ProtoMessage() {}
 
 func (x *DeleteWatchTaskResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[46]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2830,7 +3006,7 @@ func (x *DeleteWatchTaskResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWatchTaskResp.ProtoReflect.Descriptor instead.
 func (*DeleteWatchTaskResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{46}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{48}
 }
 
 type SubmitRecommendFeedbackReq struct {
@@ -2845,7 +3021,7 @@ type SubmitRecommendFeedbackReq struct {
 
 func (x *SubmitRecommendFeedbackReq) Reset() {
 	*x = SubmitRecommendFeedbackReq{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2857,7 +3033,7 @@ func (x *SubmitRecommendFeedbackReq) String() string {
 func (*SubmitRecommendFeedbackReq) ProtoMessage() {}
 
 func (x *SubmitRecommendFeedbackReq) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[47]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2870,7 +3046,7 @@ func (x *SubmitRecommendFeedbackReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRecommendFeedbackReq.ProtoReflect.Descriptor instead.
 func (*SubmitRecommendFeedbackReq) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{47}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *SubmitRecommendFeedbackReq) GetUserId() int64 {
@@ -2909,7 +3085,7 @@ type SubmitRecommendFeedbackResp struct {
 
 func (x *SubmitRecommendFeedbackResp) Reset() {
 	*x = SubmitRecommendFeedbackResp{}
-	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2921,7 +3097,7 @@ func (x *SubmitRecommendFeedbackResp) String() string {
 func (*SubmitRecommendFeedbackResp) ProtoMessage() {}
 
 func (x *SubmitRecommendFeedbackResp) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_assistant_assistant_proto_msgTypes[48]
+	mi := &file_proto_assistant_assistant_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2934,7 +3110,7 @@ func (x *SubmitRecommendFeedbackResp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitRecommendFeedbackResp.ProtoReflect.Descriptor instead.
 func (*SubmitRecommendFeedbackResp) Descriptor() ([]byte, []int) {
-	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{48}
+	return file_proto_assistant_assistant_proto_rawDescGZIP(), []int{50}
 }
 
 var File_proto_assistant_assistant_proto protoreflect.FileDescriptor
@@ -2943,7 +3119,7 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
 	"\x1fproto/assistant/assistant.proto\x12\tassistant\"'\n" +
 	"\fGetThreadReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xd4\x02\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\x88\x03\n" +
 	"\x0fAssistantThread\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\x03R\tsessionId\x12!\n" +
@@ -2953,7 +3129,8 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x12last_message_at_ms\x18\x05 \x01(\x03R\x0flastMessageAtMs\x12\"\n" +
 	"\ractive_run_id\x18\x06 \x01(\x03R\vactiveRunId\x12*\n" +
 	"\x11active_run_status\x18\a \x01(\tR\x0factiveRunStatus\x12(\n" +
-	"\x10active_run_phase\x18\b \x01(\tR\x0eactiveRunPhase\"C\n" +
+	"\x10active_run_phase\x18\b \x01(\tR\x0eactiveRunPhase\x122\n" +
+	"\x15question_request_json\x18\t \x01(\tR\x13questionRequestJson\"C\n" +
 	"\rGetThreadResp\x122\n" +
 	"\x06thread\x18\x01 \x01(\v2\x1a.assistant.AssistantThreadR\x06thread\"\x97\x01\n" +
 	"\x0fListMessagesReq\x12\x17\n" +
@@ -2962,7 +3139,7 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"session_id\x18\x02 \x01(\x03R\tsessionId\x12\x19\n" +
 	"\bafter_id\x18\x03 \x01(\x03R\aafterId\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x1b\n" +
-	"\tbefore_id\x18\x05 \x01(\x03R\bbeforeId\"\xf3\x01\n" +
+	"\tbefore_id\x18\x05 \x01(\x03R\bbeforeId\"\xe1\x02\n" +
 	"\x10AssistantMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -2973,7 +3150,10 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\acontent\x18\x06 \x01(\tR\acontent\x12\x16\n" +
 	"\x06unread\x18\a \x01(\bR\x06unread\x12\"\n" +
 	"\rcreated_at_ms\x18\b \x01(\x03R\vcreatedAtMs\x12\x1b\n" +
-	"\tchange_id\x18\t \x01(\x03R\bchangeId\"\x8c\x01\n" +
+	"\tchange_id\x18\t \x01(\x03R\bchangeId\x122\n" +
+	"\x15question_request_json\x18\n" +
+	" \x01(\tR\x13questionRequestJson\x128\n" +
+	"\x18answer_presentation_json\x18\v \x01(\tR\x16answerPresentationJson\"\x8c\x01\n" +
 	"\x10ListMessagesResp\x127\n" +
 	"\bmessages\x18\x01 \x03(\v2\x1b.assistant.AssistantMessageR\bmessages\x12\x19\n" +
 	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12$\n" +
@@ -2981,14 +3161,16 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\n" +
 	"Attachment\x12\x19\n" +
 	"\bmedia_id\x18\x01 \x01(\x03R\amediaId\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\"\xc3\x01\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\xaf\x02\n" +
 	"\x0ePostMessageReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x03 \x01(\tR\trequestId\x127\n" +
 	"\vattachments\x18\x04 \x03(\v2\x15.assistant.AttachmentR\vattachments\x12&\n" +
-	"\x0fcontext_post_id\x18\x05 \x01(\x03R\rcontextPostId\"\x88\x01\n" +
+	"\x0fcontext_post_id\x18\x05 \x01(\x03R\rcontextPostId\x126\n" +
+	"\x17client_protocol_version\x18\x06 \x01(\x05R\x15clientProtocolVersion\x122\n" +
+	"\x15question_context_json\x18\a \x01(\tR\x13questionContextJson\"\x88\x01\n" +
 	"\x0fPostMessageResp\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\x03R\tmessageId\x12\x1d\n" +
@@ -3019,7 +3201,7 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\fauthority_id\x18\x03 \x01(\tR\vauthorityId\x12\x14\n" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1a\n" +
 	"\brevision\x18\x05 \x01(\x03R\brevision\x12!\n" +
-	"\fpayload_json\x18\x06 \x01(\tR\vpayloadJson\"\xdd\x02\n" +
+	"\fpayload_json\x18\x06 \x01(\tR\vpayloadJson\"\xcb\x03\n" +
 	"\bRunEvent\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\x03R\x05runId\x12\x10\n" +
 	"\x03seq\x18\x02 \x01(\x03R\x03seq\x12\x12\n" +
@@ -3035,7 +3217,18 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"sourceCard\x12\x1b\n" +
 	"\tchange_id\x18\n" +
 	" \x01(\x03R\bchangeId\x12\x1b\n" +
-	"\tstream_id\x18\v \x01(\tR\bstreamId\">\n" +
+	"\tstream_id\x18\v \x01(\tR\bstreamId\x122\n" +
+	"\x15question_request_json\x18\f \x01(\tR\x13questionRequestJson\x128\n" +
+	"\x18answer_presentation_json\x18\r \x01(\tR\x16answerPresentationJson\"\xb6\x01\n" +
+	"\x12AnswerQuestionsReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\x03R\x05runId\x12.\n" +
+	"\x13question_request_id\x18\x03 \x01(\tR\x11questionRequestId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId\x12!\n" +
+	"\fanswers_json\x18\x05 \x01(\tR\vanswersJson\"I\n" +
+	"\x13AnswerQuestionsResp\x122\n" +
+	"\x15question_request_json\x18\x01 \x01(\tR\x13questionRequestJson\">\n" +
 	"\fCancelRunReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\x03R\x05runId\"\x0f\n" +
@@ -3159,7 +3352,7 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"request_id\x18\x02 \x01(\tR\trequestId\x12\x17\n" +
 	"\apost_id\x18\x03 \x01(\x03R\x06postId\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x1d\n" +
-	"\x1bSubmitRecommendFeedbackResp2\x88\f\n" +
+	"\x1bSubmitRecommendFeedbackResp2\xda\f\n" +
 	"\x10AssistantService\x12>\n" +
 	"\tGetThread\x12\x17.assistant.GetThreadReq\x1a\x18.assistant.GetThreadResp\x12G\n" +
 	"\fListMessages\x12\x1a.assistant.ListMessagesReq\x1a\x1b.assistant.ListMessagesResp\x12D\n" +
@@ -3169,7 +3362,8 @@ const file_proto_assistant_assistant_proto_rawDesc = "" +
 	"\x12SubscribeRunEvents\x12 .assistant.SubscribeRunEventsReq\x1a\x13.assistant.RunEvent0\x01\x12>\n" +
 	"\tCancelRun\x12\x17.assistant.CancelRunReq\x1a\x18.assistant.CancelRunResp\x12J\n" +
 	"\rRevokeConsent\x12\x1b.assistant.RevokeConsentReq\x1a\x1c.assistant.RevokeConsentResp\x12M\n" +
-	"\x0eConfirmRunTool\x12\x1c.assistant.ConfirmRunToolReq\x1a\x1d.assistant.ConfirmRunToolResp\x12A\n" +
+	"\x0eConfirmRunTool\x12\x1c.assistant.ConfirmRunToolReq\x1a\x1d.assistant.ConfirmRunToolResp\x12P\n" +
+	"\x0fAnswerQuestions\x12\x1d.assistant.AnswerQuestionsReq\x1a\x1e.assistant.AnswerQuestionsResp\x12A\n" +
 	"\n" +
 	"ListMemory\x12\x18.assistant.ListMemoryReq\x1a\x19.assistant.ListMemoryResp\x12>\n" +
 	"\tAddMemory\x12\x17.assistant.AddMemoryReq\x1a\x18.assistant.AddMemoryResp\x12J\n" +
@@ -3195,7 +3389,7 @@ func file_proto_assistant_assistant_proto_rawDescGZIP() []byte {
 	return file_proto_assistant_assistant_proto_rawDescData
 }
 
-var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_proto_assistant_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_proto_assistant_assistant_proto_goTypes = []any{
 	(*GetThreadReq)(nil),                // 0: assistant.GetThreadReq
 	(*AssistantThread)(nil),             // 1: assistant.AssistantThread
@@ -3214,38 +3408,40 @@ var file_proto_assistant_assistant_proto_goTypes = []any{
 	(*ToolCallInfo)(nil),                // 14: assistant.ToolCallInfo
 	(*SourceCard)(nil),                  // 15: assistant.SourceCard
 	(*RunEvent)(nil),                    // 16: assistant.RunEvent
-	(*CancelRunReq)(nil),                // 17: assistant.CancelRunReq
-	(*CancelRunResp)(nil),               // 18: assistant.CancelRunResp
-	(*RevokeConsentReq)(nil),            // 19: assistant.RevokeConsentReq
-	(*RevokeConsentResp)(nil),           // 20: assistant.RevokeConsentResp
-	(*ConfirmRunToolReq)(nil),           // 21: assistant.ConfirmRunToolReq
-	(*ConfirmRunToolResp)(nil),          // 22: assistant.ConfirmRunToolResp
-	(*MemoryEntry)(nil),                 // 23: assistant.MemoryEntry
-	(*MemoryCapacity)(nil),              // 24: assistant.MemoryCapacity
-	(*ListMemoryReq)(nil),               // 25: assistant.ListMemoryReq
-	(*ListMemoryResp)(nil),              // 26: assistant.ListMemoryResp
-	(*AddMemoryReq)(nil),                // 27: assistant.AddMemoryReq
-	(*AddMemoryResp)(nil),               // 28: assistant.AddMemoryResp
-	(*ReplaceMemoryReq)(nil),            // 29: assistant.ReplaceMemoryReq
-	(*ReplaceMemoryResp)(nil),           // 30: assistant.ReplaceMemoryResp
-	(*RemoveMemoryReq)(nil),             // 31: assistant.RemoveMemoryReq
-	(*RemoveMemoryResp)(nil),            // 32: assistant.RemoveMemoryResp
-	(*MemoryOp)(nil),                    // 33: assistant.MemoryOp
-	(*BatchMemoryReq)(nil),              // 34: assistant.BatchMemoryReq
-	(*BatchMemoryResp)(nil),             // 35: assistant.BatchMemoryResp
-	(*UndoMemoryChangeReq)(nil),         // 36: assistant.UndoMemoryChangeReq
-	(*UndoMemoryChangeResp)(nil),        // 37: assistant.UndoMemoryChangeResp
-	(*WatchTask)(nil),                   // 38: assistant.WatchTask
-	(*ListWatchTasksReq)(nil),           // 39: assistant.ListWatchTasksReq
-	(*ListWatchTasksResp)(nil),          // 40: assistant.ListWatchTasksResp
-	(*CreateWatchTaskReq)(nil),          // 41: assistant.CreateWatchTaskReq
-	(*CreateWatchTaskResp)(nil),         // 42: assistant.CreateWatchTaskResp
-	(*UpdateWatchTaskReq)(nil),          // 43: assistant.UpdateWatchTaskReq
-	(*UpdateWatchTaskResp)(nil),         // 44: assistant.UpdateWatchTaskResp
-	(*DeleteWatchTaskReq)(nil),          // 45: assistant.DeleteWatchTaskReq
-	(*DeleteWatchTaskResp)(nil),         // 46: assistant.DeleteWatchTaskResp
-	(*SubmitRecommendFeedbackReq)(nil),  // 47: assistant.SubmitRecommendFeedbackReq
-	(*SubmitRecommendFeedbackResp)(nil), // 48: assistant.SubmitRecommendFeedbackResp
+	(*AnswerQuestionsReq)(nil),          // 17: assistant.AnswerQuestionsReq
+	(*AnswerQuestionsResp)(nil),         // 18: assistant.AnswerQuestionsResp
+	(*CancelRunReq)(nil),                // 19: assistant.CancelRunReq
+	(*CancelRunResp)(nil),               // 20: assistant.CancelRunResp
+	(*RevokeConsentReq)(nil),            // 21: assistant.RevokeConsentReq
+	(*RevokeConsentResp)(nil),           // 22: assistant.RevokeConsentResp
+	(*ConfirmRunToolReq)(nil),           // 23: assistant.ConfirmRunToolReq
+	(*ConfirmRunToolResp)(nil),          // 24: assistant.ConfirmRunToolResp
+	(*MemoryEntry)(nil),                 // 25: assistant.MemoryEntry
+	(*MemoryCapacity)(nil),              // 26: assistant.MemoryCapacity
+	(*ListMemoryReq)(nil),               // 27: assistant.ListMemoryReq
+	(*ListMemoryResp)(nil),              // 28: assistant.ListMemoryResp
+	(*AddMemoryReq)(nil),                // 29: assistant.AddMemoryReq
+	(*AddMemoryResp)(nil),               // 30: assistant.AddMemoryResp
+	(*ReplaceMemoryReq)(nil),            // 31: assistant.ReplaceMemoryReq
+	(*ReplaceMemoryResp)(nil),           // 32: assistant.ReplaceMemoryResp
+	(*RemoveMemoryReq)(nil),             // 33: assistant.RemoveMemoryReq
+	(*RemoveMemoryResp)(nil),            // 34: assistant.RemoveMemoryResp
+	(*MemoryOp)(nil),                    // 35: assistant.MemoryOp
+	(*BatchMemoryReq)(nil),              // 36: assistant.BatchMemoryReq
+	(*BatchMemoryResp)(nil),             // 37: assistant.BatchMemoryResp
+	(*UndoMemoryChangeReq)(nil),         // 38: assistant.UndoMemoryChangeReq
+	(*UndoMemoryChangeResp)(nil),        // 39: assistant.UndoMemoryChangeResp
+	(*WatchTask)(nil),                   // 40: assistant.WatchTask
+	(*ListWatchTasksReq)(nil),           // 41: assistant.ListWatchTasksReq
+	(*ListWatchTasksResp)(nil),          // 42: assistant.ListWatchTasksResp
+	(*CreateWatchTaskReq)(nil),          // 43: assistant.CreateWatchTaskReq
+	(*CreateWatchTaskResp)(nil),         // 44: assistant.CreateWatchTaskResp
+	(*UpdateWatchTaskReq)(nil),          // 45: assistant.UpdateWatchTaskReq
+	(*UpdateWatchTaskResp)(nil),         // 46: assistant.UpdateWatchTaskResp
+	(*DeleteWatchTaskReq)(nil),          // 47: assistant.DeleteWatchTaskReq
+	(*DeleteWatchTaskResp)(nil),         // 48: assistant.DeleteWatchTaskResp
+	(*SubmitRecommendFeedbackReq)(nil),  // 49: assistant.SubmitRecommendFeedbackReq
+	(*SubmitRecommendFeedbackResp)(nil), // 50: assistant.SubmitRecommendFeedbackResp
 }
 var file_proto_assistant_assistant_proto_depIdxs = []int32{
 	1,  // 0: assistant.GetThreadResp.thread:type_name -> assistant.AssistantThread
@@ -3253,58 +3449,60 @@ var file_proto_assistant_assistant_proto_depIdxs = []int32{
 	6,  // 2: assistant.PostMessageReq.attachments:type_name -> assistant.Attachment
 	14, // 3: assistant.RunEvent.tool_call:type_name -> assistant.ToolCallInfo
 	15, // 4: assistant.RunEvent.source_card:type_name -> assistant.SourceCard
-	23, // 5: assistant.ListMemoryResp.items:type_name -> assistant.MemoryEntry
-	24, // 6: assistant.ListMemoryResp.capacities:type_name -> assistant.MemoryCapacity
-	23, // 7: assistant.AddMemoryResp.entry:type_name -> assistant.MemoryEntry
-	23, // 8: assistant.ReplaceMemoryResp.entry:type_name -> assistant.MemoryEntry
-	33, // 9: assistant.BatchMemoryReq.ops:type_name -> assistant.MemoryOp
-	23, // 10: assistant.BatchMemoryResp.entries:type_name -> assistant.MemoryEntry
-	23, // 11: assistant.UndoMemoryChangeResp.entry:type_name -> assistant.MemoryEntry
-	38, // 12: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
-	38, // 13: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
-	38, // 14: assistant.UpdateWatchTaskResp.task:type_name -> assistant.WatchTask
+	25, // 5: assistant.ListMemoryResp.items:type_name -> assistant.MemoryEntry
+	26, // 6: assistant.ListMemoryResp.capacities:type_name -> assistant.MemoryCapacity
+	25, // 7: assistant.AddMemoryResp.entry:type_name -> assistant.MemoryEntry
+	25, // 8: assistant.ReplaceMemoryResp.entry:type_name -> assistant.MemoryEntry
+	35, // 9: assistant.BatchMemoryReq.ops:type_name -> assistant.MemoryOp
+	25, // 10: assistant.BatchMemoryResp.entries:type_name -> assistant.MemoryEntry
+	25, // 11: assistant.UndoMemoryChangeResp.entry:type_name -> assistant.MemoryEntry
+	40, // 12: assistant.ListWatchTasksResp.tasks:type_name -> assistant.WatchTask
+	40, // 13: assistant.CreateWatchTaskResp.task:type_name -> assistant.WatchTask
+	40, // 14: assistant.UpdateWatchTaskResp.task:type_name -> assistant.WatchTask
 	0,  // 15: assistant.AssistantService.GetThread:input_type -> assistant.GetThreadReq
 	3,  // 16: assistant.AssistantService.ListMessages:input_type -> assistant.ListMessagesReq
 	7,  // 17: assistant.AssistantService.PostMessage:input_type -> assistant.PostMessageReq
 	9,  // 18: assistant.AssistantService.MarkThreadRead:input_type -> assistant.MarkThreadReadReq
 	11, // 19: assistant.AssistantService.DeleteHistory:input_type -> assistant.DeleteHistoryReq
 	13, // 20: assistant.AssistantService.SubscribeRunEvents:input_type -> assistant.SubscribeRunEventsReq
-	17, // 21: assistant.AssistantService.CancelRun:input_type -> assistant.CancelRunReq
-	19, // 22: assistant.AssistantService.RevokeConsent:input_type -> assistant.RevokeConsentReq
-	21, // 23: assistant.AssistantService.ConfirmRunTool:input_type -> assistant.ConfirmRunToolReq
-	25, // 24: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
-	27, // 25: assistant.AssistantService.AddMemory:input_type -> assistant.AddMemoryReq
-	29, // 26: assistant.AssistantService.ReplaceMemory:input_type -> assistant.ReplaceMemoryReq
-	31, // 27: assistant.AssistantService.RemoveMemory:input_type -> assistant.RemoveMemoryReq
-	34, // 28: assistant.AssistantService.BatchMemory:input_type -> assistant.BatchMemoryReq
-	36, // 29: assistant.AssistantService.UndoMemoryChange:input_type -> assistant.UndoMemoryChangeReq
-	39, // 30: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
-	41, // 31: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
-	43, // 32: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
-	45, // 33: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
-	47, // 34: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
-	2,  // 35: assistant.AssistantService.GetThread:output_type -> assistant.GetThreadResp
-	5,  // 36: assistant.AssistantService.ListMessages:output_type -> assistant.ListMessagesResp
-	8,  // 37: assistant.AssistantService.PostMessage:output_type -> assistant.PostMessageResp
-	10, // 38: assistant.AssistantService.MarkThreadRead:output_type -> assistant.MarkThreadReadResp
-	12, // 39: assistant.AssistantService.DeleteHistory:output_type -> assistant.DeleteHistoryResp
-	16, // 40: assistant.AssistantService.SubscribeRunEvents:output_type -> assistant.RunEvent
-	18, // 41: assistant.AssistantService.CancelRun:output_type -> assistant.CancelRunResp
-	20, // 42: assistant.AssistantService.RevokeConsent:output_type -> assistant.RevokeConsentResp
-	22, // 43: assistant.AssistantService.ConfirmRunTool:output_type -> assistant.ConfirmRunToolResp
-	26, // 44: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
-	28, // 45: assistant.AssistantService.AddMemory:output_type -> assistant.AddMemoryResp
-	30, // 46: assistant.AssistantService.ReplaceMemory:output_type -> assistant.ReplaceMemoryResp
-	32, // 47: assistant.AssistantService.RemoveMemory:output_type -> assistant.RemoveMemoryResp
-	35, // 48: assistant.AssistantService.BatchMemory:output_type -> assistant.BatchMemoryResp
-	37, // 49: assistant.AssistantService.UndoMemoryChange:output_type -> assistant.UndoMemoryChangeResp
-	40, // 50: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
-	42, // 51: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
-	44, // 52: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
-	46, // 53: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
-	48, // 54: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
-	35, // [35:55] is the sub-list for method output_type
-	15, // [15:35] is the sub-list for method input_type
+	19, // 21: assistant.AssistantService.CancelRun:input_type -> assistant.CancelRunReq
+	21, // 22: assistant.AssistantService.RevokeConsent:input_type -> assistant.RevokeConsentReq
+	23, // 23: assistant.AssistantService.ConfirmRunTool:input_type -> assistant.ConfirmRunToolReq
+	17, // 24: assistant.AssistantService.AnswerQuestions:input_type -> assistant.AnswerQuestionsReq
+	27, // 25: assistant.AssistantService.ListMemory:input_type -> assistant.ListMemoryReq
+	29, // 26: assistant.AssistantService.AddMemory:input_type -> assistant.AddMemoryReq
+	31, // 27: assistant.AssistantService.ReplaceMemory:input_type -> assistant.ReplaceMemoryReq
+	33, // 28: assistant.AssistantService.RemoveMemory:input_type -> assistant.RemoveMemoryReq
+	36, // 29: assistant.AssistantService.BatchMemory:input_type -> assistant.BatchMemoryReq
+	38, // 30: assistant.AssistantService.UndoMemoryChange:input_type -> assistant.UndoMemoryChangeReq
+	41, // 31: assistant.AssistantService.ListWatchTasks:input_type -> assistant.ListWatchTasksReq
+	43, // 32: assistant.AssistantService.CreateWatchTask:input_type -> assistant.CreateWatchTaskReq
+	45, // 33: assistant.AssistantService.UpdateWatchTask:input_type -> assistant.UpdateWatchTaskReq
+	47, // 34: assistant.AssistantService.DeleteWatchTask:input_type -> assistant.DeleteWatchTaskReq
+	49, // 35: assistant.AssistantService.SubmitRecommendFeedback:input_type -> assistant.SubmitRecommendFeedbackReq
+	2,  // 36: assistant.AssistantService.GetThread:output_type -> assistant.GetThreadResp
+	5,  // 37: assistant.AssistantService.ListMessages:output_type -> assistant.ListMessagesResp
+	8,  // 38: assistant.AssistantService.PostMessage:output_type -> assistant.PostMessageResp
+	10, // 39: assistant.AssistantService.MarkThreadRead:output_type -> assistant.MarkThreadReadResp
+	12, // 40: assistant.AssistantService.DeleteHistory:output_type -> assistant.DeleteHistoryResp
+	16, // 41: assistant.AssistantService.SubscribeRunEvents:output_type -> assistant.RunEvent
+	20, // 42: assistant.AssistantService.CancelRun:output_type -> assistant.CancelRunResp
+	22, // 43: assistant.AssistantService.RevokeConsent:output_type -> assistant.RevokeConsentResp
+	24, // 44: assistant.AssistantService.ConfirmRunTool:output_type -> assistant.ConfirmRunToolResp
+	18, // 45: assistant.AssistantService.AnswerQuestions:output_type -> assistant.AnswerQuestionsResp
+	28, // 46: assistant.AssistantService.ListMemory:output_type -> assistant.ListMemoryResp
+	30, // 47: assistant.AssistantService.AddMemory:output_type -> assistant.AddMemoryResp
+	32, // 48: assistant.AssistantService.ReplaceMemory:output_type -> assistant.ReplaceMemoryResp
+	34, // 49: assistant.AssistantService.RemoveMemory:output_type -> assistant.RemoveMemoryResp
+	37, // 50: assistant.AssistantService.BatchMemory:output_type -> assistant.BatchMemoryResp
+	39, // 51: assistant.AssistantService.UndoMemoryChange:output_type -> assistant.UndoMemoryChangeResp
+	42, // 52: assistant.AssistantService.ListWatchTasks:output_type -> assistant.ListWatchTasksResp
+	44, // 53: assistant.AssistantService.CreateWatchTask:output_type -> assistant.CreateWatchTaskResp
+	46, // 54: assistant.AssistantService.UpdateWatchTask:output_type -> assistant.UpdateWatchTaskResp
+	48, // 55: assistant.AssistantService.DeleteWatchTask:output_type -> assistant.DeleteWatchTaskResp
+	50, // 56: assistant.AssistantService.SubmitRecommendFeedback:output_type -> assistant.SubmitRecommendFeedbackResp
+	36, // [36:57] is the sub-list for method output_type
+	15, // [15:36] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -3321,7 +3519,7 @@ func file_proto_assistant_assistant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_assistant_assistant_proto_rawDesc), len(file_proto_assistant_assistant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   49,
+			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

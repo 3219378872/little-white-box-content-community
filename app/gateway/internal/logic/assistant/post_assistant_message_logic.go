@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"unicode/utf8"
 
@@ -36,7 +37,16 @@ func (l *PostAssistantMessageLogic) PostAssistantMessage(req *types.PostAssistan
 	for _, item := range req.Attachments {
 		attachments = append(attachments, &assistantservice.Attachment{MediaId: item.MediaId, Url: item.Url})
 	}
+	var questionContext string
+	if req.QuestionContext != nil {
+		raw, err := json.Marshal(req.QuestionContext)
+		if err != nil {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
+		questionContext = string(raw)
+	}
 	result, err := l.svcCtx.AssistantService.PostMessage(l.ctx, &assistantservice.PostMessageReq{
+		ClientProtocolVersion: req.ClientProtocolVersion, QuestionContextJson: questionContext,
 		UserId: userID, Message: strings.TrimSpace(req.Message), RequestId: req.RequestId,
 		Attachments: attachments, ContextPostId: req.ContextPostId,
 	})

@@ -14,6 +14,7 @@ service AssistantService {
   rpc CancelRun(CancelRunReq) returns (CancelRunResp);
   rpc RevokeConsent(RevokeConsentReq) returns (RevokeConsentResp);
   rpc ConfirmRunTool(ConfirmRunToolReq) returns (ConfirmRunToolResp);
+  rpc AnswerQuestions(AnswerQuestionsReq) returns (AnswerQuestionsResp);
 
   rpc ListMemory(ListMemoryReq) returns (ListMemoryResp);
   rpc AddMemory(AddMemoryReq) returns (AddMemoryResp);
@@ -43,6 +44,7 @@ message AssistantThread {
   int64 active_run_id = 6;
   string active_run_status = 7;
   string active_run_phase = 8;
+  string question_request_json = 9;
 }
 
 message GetThreadResp {
@@ -67,6 +69,8 @@ message AssistantMessage {
   bool unread = 7;
   int64 created_at_ms = 8;
   int64 change_id = 9;
+  string question_request_json = 10;
+  string answer_presentation_json = 11;
 }
 
 message ListMessagesResp {
@@ -86,6 +90,8 @@ message PostMessageReq {
   string request_id = 3;
   repeated Attachment attachments = 4;
   int64 context_post_id = 5;
+  int32 client_protocol_version = 6;
+  string question_context_json = 7;
 }
 
 message PostMessageResp {
@@ -143,7 +149,18 @@ message RunEvent {
   SourceCard source_card = 9;
   int64 change_id = 10;
   string stream_id = 11;
+  string question_request_json = 12;
+  string answer_presentation_json = 13;
 }
+
+message AnswerQuestionsReq {
+  int64 user_id = 1;
+  int64 run_id = 2;
+  string question_request_id = 3;
+  string request_id = 4;
+  string answers_json = 5;
+}
+message AnswerQuestionsResp { string question_request_json = 1; }
 
 message CancelRunReq {
   int64 user_id = 1;

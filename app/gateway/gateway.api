@@ -582,14 +582,15 @@ type (
 		Url     string `json:"url"`
 	}
 	AssistantThread {
-		SessionId          int64  `json:"sessionId"`
-		UnreadCount        int32  `json:"unreadCount"`
-		LastMessageId      int64  `json:"lastMessageId"`
-		LastMessagePreview string `json:"lastMessagePreview"`
-		LastMessageAtMs    int64  `json:"lastMessageAtMs"`
-		ActiveRunId        int64  `json:"activeRunId"`
-		ActiveRunStatus    string `json:"activeRunStatus,optional"`
-		ActiveRunPhase     string `json:"activeRunPhase,optional"`
+		SessionId          int64                     `json:"sessionId"`
+		UnreadCount        int32                     `json:"unreadCount"`
+		LastMessageId      int64                     `json:"lastMessageId"`
+		LastMessagePreview string                    `json:"lastMessagePreview"`
+		LastMessageAtMs    int64                     `json:"lastMessageAtMs"`
+		ActiveRunId        int64                     `json:"activeRunId"`
+		ActiveRunStatus    string                    `json:"activeRunStatus,optional"`
+		ActiveRunPhase     string                    `json:"activeRunPhase,optional"`
+		QuestionRequest    *AssistantQuestionRequest `json:"questionRequest,optional"`
 	}
 	GetAssistantThreadResp {
 		Thread AssistantThread `json:"thread"`
@@ -601,15 +602,17 @@ type (
 		Limit     int32 `form:"limit,optional"`
 	}
 	AssistantMessage {
-		Id          int64  `json:"id"`
-		SessionId   int64  `json:"sessionId"`
-		RunId       int64  `json:"runId"`
-		Role        string `json:"role"`
-		Kind        string `json:"kind"`
-		Content     string `json:"content"`
-		Unread      bool   `json:"unread"`
-		CreatedAtMs int64  `json:"createdAtMs"`
-		ChangeId    int64  `json:"changeId,optional"`
+		Id                 int64                        `json:"id"`
+		SessionId          int64                        `json:"sessionId"`
+		RunId              int64                        `json:"runId"`
+		Role               string                       `json:"role"`
+		Kind               string                       `json:"kind"`
+		Content            string                       `json:"content"`
+		Unread             bool                         `json:"unread"`
+		CreatedAtMs        int64                        `json:"createdAtMs"`
+		ChangeId           int64                        `json:"changeId,optional"`
+		QuestionRequest    *AssistantQuestionRequest    `json:"questionRequest,optional"`
+		AnswerPresentation *AssistantAnswerPresentation `json:"answerPresentation,optional"`
 	}
 	ListAssistantMessagesResp {
 		Messages     []AssistantMessage `json:"messages"`
@@ -617,10 +620,12 @@ type (
 		NextBeforeId int64              `json:"nextBeforeId,optional"`
 	}
 	PostAssistantMessageReq {
-		Message       string                `json:"message"`
-		RequestId     string                `json:"requestId,optional"`
-		Attachments   []AssistantAttachment `json:"attachments,optional"`
-		ContextPostId int64                 `json:"contextPostId,optional"`
+		Message               string                    `json:"message"`
+		RequestId             string                    `json:"requestId,optional"`
+		Attachments           []AssistantAttachment     `json:"attachments,optional"`
+		ContextPostId         int64                     `json:"contextPostId,optional"`
+		ClientProtocolVersion int32                     `json:"clientProtocolVersion,optional"`
+		QuestionContext       *AssistantQuestionContext `json:"questionContext,optional"`
 	}
 	PostAssistantMessageResp {
 		MessageId   int64  `json:"messageId"`
@@ -651,17 +656,99 @@ type (
 		PayloadJson string `json:"payloadJson,optional"`
 	}
 	AssistantRunEvent {
-		RunId      int64                  `json:"runId"`
-		Seq        int64                  `json:"seq"`
-		Type       string                 `json:"type"`
-		Text       string                 `json:"text,optional"`
-		Degraded   bool                   `json:"degraded,optional"`
-		ErrorCode  string                 `json:"errorCode,optional"`
-		SessionId  int64                  `json:"sessionId"`
-		ToolCall   *AssistantToolCallInfo `json:"toolCall,optional"`
-		SourceCard *AssistantSourceCard   `json:"sourceCard,optional"`
-		ChangeId   int64                  `json:"changeId,optional"`
-		StreamId   string                 `json:"streamId,optional"`
+		RunId              int64                        `json:"runId"`
+		Seq                int64                        `json:"seq"`
+		Type               string                       `json:"type"`
+		Text               string                       `json:"text,optional"`
+		Degraded           bool                         `json:"degraded,optional"`
+		ErrorCode          string                       `json:"errorCode,optional"`
+		SessionId          int64                        `json:"sessionId"`
+		ToolCall           *AssistantToolCallInfo       `json:"toolCall,optional"`
+		SourceCard         *AssistantSourceCard         `json:"sourceCard,optional"`
+		ChangeId           int64                        `json:"changeId,optional"`
+		StreamId           string                       `json:"streamId,optional"`
+		QuestionRequest    *AssistantQuestionRequest    `json:"questionRequest,optional"`
+		AnswerPresentation *AssistantAnswerPresentation `json:"answerPresentation,optional"`
+	}
+	AssistantQuestionOption {
+		Id    string `json:"id"`
+		Label string `json:"label"`
+	}
+	AssistantQuestion {
+		Id        string                    `json:"id"`
+		Text      string                    `json:"text"`
+		Selection string                    `json:"selection"`
+		Options   []AssistantQuestionOption `json:"options"`
+	}
+	AssistantQuestionAnswer {
+		QuestionId        string   `json:"questionId"`
+		SelectedOptionIds []string `json:"selectedOptionIds,optional"`
+		Text              string   `json:"text,optional"`
+		Disposition       string   `json:"disposition"`
+	}
+	AssistantQuestionRequest {
+		Id          string                    `json:"id"`
+		RunId       int64                     `json:"runId"`
+		CallId      string                    `json:"callId"`
+		MessageId   int64                     `json:"messageId"`
+		Status      string                    `json:"status"`
+		Questions   []AssistantQuestion       `json:"questions"`
+		Answers     []AssistantQuestionAnswer `json:"answers"`
+		DeadlineMs  int64                     `json:"deadlineMs"`
+		CreatedAtMs int64                     `json:"createdAtMs"`
+	}
+	AssistantQuestionContext {
+		RunId             int64                     `json:"runId"`
+		QuestionRequestId string                    `json:"questionRequestId"`
+		Answers           []AssistantQuestionAnswer `json:"answers"`
+	}
+	AnswerAssistantQuestionsReq {
+		Id                int64                     `path:"id"`
+		QuestionRequestId string                    `json:"questionRequestId"`
+		RequestId         string                    `json:"requestId"`
+		Answers           []AssistantQuestionAnswer `json:"answers"`
+	}
+	AnswerAssistantQuestionsResp {
+		QuestionRequest AssistantQuestionRequest `json:"questionRequest"`
+	}
+	AssistantEvidence {
+		Id            string `json:"id"`
+		Handle        string `json:"handle"`
+		Kind          string `json:"kind"`
+		Text          string `json:"text"`
+		CommentId     string `json:"commentId,optional"`
+		RetrievedAtMs int64  `json:"retrievedAtMs"`
+	}
+	AssistantAnswerCitation {
+		Handle      string   `json:"handle"`
+		EvidenceIds []string `json:"evidenceIds"`
+	}
+	AssistantAnswerBlock {
+		Id        string                    `json:"id"`
+		Kind      string                    `json:"kind"`
+		Text      string                    `json:"text"`
+		Citations []AssistantAnswerCitation `json:"citations"`
+	}
+	AssistantResearchSource {
+		Handle            string              `json:"handle"`
+		Kind              string              `json:"kind"`
+		AuthorityId       string              `json:"authorityId"`
+		Title             string              `json:"title"`
+		Revision          int64               `json:"revision"`
+		Url               string              `json:"url"`
+		ThumbnailUrl      string              `json:"thumbnailUrl,optional"`
+		Author            string              `json:"author,optional"`
+		PublishedAtMs     int64               `json:"publishedAtMs,optional"`
+		Available         bool                `json:"available"`
+		UnavailableReason string              `json:"unavailableReason,optional"`
+		Excerpts          []AssistantEvidence `json:"excerpts"`
+	}
+	AssistantAnswerPresentation {
+		Version   int32                     `json:"version"`
+		MessageId int64                     `json:"messageId"`
+		RunId     int64                     `json:"runId"`
+		Blocks    []AssistantAnswerBlock    `json:"blocks"`
+		Sources   []AssistantResearchSource `json:"sources"`
 	}
 	CancelAssistantRunReq {
 		Id int64 `path:"id"`
@@ -1106,6 +1193,9 @@ service gateway {
 	@doc "确认或拒绝 delete_post"
 	@handler ConfirmAssistantRun
 	post /assistant/runs/:id/confirm (ConfirmAssistantRunReq) returns (ConfirmAssistantRunResp)
+
+	@handler AnswerAssistantQuestions
+	post /assistant/runs/:id/answers (AnswerAssistantQuestionsReq) returns (AnswerAssistantQuestionsResp)
 
 	@doc "列出 MEMORY/USER 条目"
 	@handler ListAssistantMemory
