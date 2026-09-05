@@ -21,6 +21,10 @@ upstream:
 [IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
 和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
+> 2026-09-05 上游变更：社区优先、`ask_questions`、互联网补充与逐项 URL 引用已获批准，本页尚未
+> 完成对应设计。下文来源可选的旧描述不能豁免检索回答的新增引用义务；未变更的设计继续适用。
+> 本次仅登记边界，后续工作见 [迁移登记](../TRANSITION.md)。
+
 ## 组件边界
 
 - Gateway（`app/gateway`）：HTTP 绑定、鉴权、SSE、BFF 组合。详情和列表的访问者点赞/收藏

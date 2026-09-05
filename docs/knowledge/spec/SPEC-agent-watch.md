@@ -6,6 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
+updated_at: 2026-09-05
 ---
 
 # Agent Watch 主动私信规范
@@ -38,7 +39,8 @@ Watch 是用户委托 Agent 持续关注作者、标签、关键词、帖子修�
 - `WCH-013`：成功 Watch run 向 Assistant session 写一条 assistant 消息，计入线程未读并触发消息
   徽标；不创建机器人用户或普通 message conversation，也不写普通通知中心。
 - `WCH-014`：主动消息中的帖子/网页来源只有经本 run `present_sources` 选择后才成为 source card；
-  命中本身不是来源，事实展示前仍须回源。
+  命中本身不是来源，事实展示前仍须回源。基于检索资料的主动消息也须将每条实质性信息与具体帖子
+  或网页 URL 对应，遵守 `AGENT-073`~`AGENT-075`，不以可选卡片替代逐项引用。
 
 ## API、保留与失败
 

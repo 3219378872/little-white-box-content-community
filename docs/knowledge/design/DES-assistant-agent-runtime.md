@@ -17,6 +17,10 @@ upstream:
 本设计将同步、双模式、Redis 会话的旧 Assistant 改为 MySQL 权威的长期异步 Agent。实现映射和实际
 证据以 `IMP-content-community-backend`、源码、契约、SQL 与测试为准。
 
+> 2026-09-05 上游变更：`AGENT-100`~`AGENT-115` 的复杂需求与问答工具，以及 `AGENT-073`~`AGENT-075`
+> 的逐项 URL 引用尚待本设计承接。下文既有来源卡、运行与恢复设计不代表新增问答协议或引用映射已经
+> 完成；普通对话无需引用不能扩展为检索回答可无引用。范围与后续步骤见 [迁移登记](../TRANSITION.md)。
+
 ## 组件与所有权
 
 ```text

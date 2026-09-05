@@ -72,10 +72,18 @@ verified_commit: 35051186a75015f7dfc5a41e0a8f6bc398f62398
 与 [DES-assistant-agent-runtime](../design/DES-assistant-agent-runtime.md)；
 源码、`.api`、`.proto`、SQL 与测试高于本页。
 
+### 2026-09-05 上游修订边界
+
+本次只修订意图与规格。新增社区优先复杂需求、`ask_questions` 和逐项 URL 引用要求尚待设计及
+实现；`verified_at` / `verified_commit` 继续记录既有代码验证点，不因本次文档编辑推进。已有工具
+registry 尚无 `ask_questions`；既有来源 ledger 与卡片测试不能证明信息到 URL 的逐项支持关系。
+详见 [迁移登记](../TRANSITION.md)；下表新增或受影响项不得沿用旧 `aligned` 结论。
+
 ## 总体状态
 
 `diverged`：Hermes 异步 Agent runtime 已落地（RPC 不调模型、worker lease、自然语言 Memory、
 Watch 内部 bucket）。仍偏离处：
+- 2026-09-05 新增复杂需求、问答工具和逐项引用尚未交付；`AGENT-A10`~`AGENT-A13` 未验收。
 - `CORE-032` 公开计数 30s 收敛缺少生产观测。
 - `DISC-060` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
@@ -207,10 +215,14 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
 | AGENT-054 辅助模型 | aligned | compact 可用 `LLM.AuxModel`、review 可用 `BackgroundReview.Model`，未配置时回退冻结主 route；辅助 client 继承 typed retry/usage 且不改前台 capability snapshot |
 | AGENT-060/061/063 search_history | aligned | keywords/around/session/recent 四种正式 shape；ES 只选候选，结果按 user/visible/role/kind/365 天回源；当前 live message ids 在 ES 查询和二次 MySQL 取数均排除，compacted 历史可返回；到期物理删除与 delete outbox 同事务 |
-| AGENT-070/071/072 source ledger | aligned | 任何返回 sources 的 executor 在 ledger 缺失或写失败时整体失败；`sources_test.go` 覆盖 fail-closed；`present_sources` 展示前对 post published/revision 和 web URL 重新回源，失效项剔除 |
+| AGENT-070/071/072 source ledger | partial | 既有 ledger 写失败关闭、展示前回源与失效剔除已有测试；2026-09-05 新规范要求正文逐项引用，不再能以可选来源卡免除引用，当前映射与支持关系未实现/验证 |
+| AGENT-073/074/075 逐项 URL 与推导依据 | diverged | 本次仅批准规范；具体帖子/网页 URL 与信息逐项关联、多源推导和冲突说明待设计与实现，旧卡片测试不是本次验收证据 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
+| AGENT-100~104 社区优先复杂需求 | diverged | 既有社区/网络检索工具不等于已满足澄清、社区优先、缺口说明、互联网补充与综合回答流程；本次未改 SOUL/runtime，待设计和验收 |
+| AGENT-110~115 ask_questions | diverged | 当前 registry 无此工具；结构化选项、用户答案回传、跳过/未知及分轮澄清未实现，跨端协议留待后续设计 |
 | AGENT-A01~A09 验收 | partial | 单测/race/SQL integration 与确定性 provider/root fixture 覆盖 capability snapshot、canary、双 WireAPI stream、typed retry/fallback、cache usage、strict schema、no-progress、sidecar scrub、attempt reset/replay 与既有安全矩阵；仍无外部 live LLM、生产 profile/迁移和生产流量 |
+| AGENT-A10~A13 新增验收 | diverged | 2026-09-05 文档修订未执行新增用户流程、结构化问答与逐项引用验收；工程文档门禁不等于行为或质量门禁 |
 
 ## SPEC-agent-memory 追踪
 
@@ -243,6 +255,7 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
 | WCH-012 用户抢占/失败重排 | aligned | PostMessage 先按 id 锁开放 run 再锁 thread/bucket；error/cancel finish 与 scheduler reconciliation 都按 run → bucket 锁序释放 reservation 并重置 pending，join `FOR UPDATE` 锁反转已移除 |
 | WCH-013 成功写 assistant 消息+未读 | aligned | validated hit context 进入模型；最终可见性复核后 token/message/outbox/unread/bucket sent/reservation→stat/done 在同一事务提交；失效流写 `response_reset` 且不生成 Watch message |
+| WCH-014 主动消息逐项引用 | partial | 既有 source card 与回源边界保留；2026-09-05 新增正文信息到 URL 的对应要求尚未实现/验证 |
 | WCH-023 consent 撤销 | aligned | scheduler 在调度事务内复核 frozen/current consent；撤权取消已调度和活跃 run，未发送 bucket 退回 pending |
 | WCH-020 删除 hits API | aligned | proto/gateway 已无 ListHits/MarkRead |
 | WCH-021 任务不走 delete_post 确认 | aligned | Watch 工具非 HighRisk |
@@ -270,7 +283,7 @@ Watch 内部 bucket）。仍偏离处：
 | REL-023 关闭个性化 24h 删除特征 | aligned | 关闭接口与特征清理已落地；DB 权威 + Redis 快速标记；recommend-mq 新增定时主动清理（PurgeOptedOutFeatures，默认 1h 周期），不依赖用户后续行为事件；偏好读取失败 fail-closed 只走规则冷启动；单测覆盖清理脚本与错误路径 |
 | REL-024 关闭前事件 90 天、不合并匿名 | aligned | 原始事件 TTL 90 天、死信 7 天；匿名身份哈希不合并 |
 | REL-030 SLO 分母口径 | partial | 口径在 spec_evals.py；缺真实月度数据 |
-| REL-031 降级计可用 | partial | 口径已实现；缺真实月度数据 |
+| REL-031 降级与逐项引用口径 | partial | 旧口径缺真实月度数据；2026-09-05 新增检索回答引用支持关系、普通闲聊豁免与社区不足/故障区分，评估器与观测尚未按新口径验证 |
 | REL-032 延迟口径 | partial | 口径已实现；缺真实月度数据 |
 | REL-033 月度目标表 | partial | 目标已编号；合成干跑只验证管线 |
 | REL-040 outbox p95 30s/p99 5m | partial | delivery_latency_seconds 直方图已落地；真实月度观测待收集（合成干跑已验证报告管线） |

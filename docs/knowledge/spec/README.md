@@ -18,15 +18,21 @@
 | --- | --- | --- |
 | [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | approved |
 | [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | approved |
-| [SPEC-assistant-agent](SPEC-assistant-agent.md) | 消息虚拟线程、持久异步 Agent、工具、历史与来源 | approved |
+| [SPEC-assistant-agent](SPEC-assistant-agent.md) | 社区辅助 Agent、需求澄清、站内外检索、逐项 URL 引用与持久异步运行 | approved |
 | [SPEC-agent-memory](SPEC-agent-memory.md) | Agent 双文档自然语言记忆 | approved |
 | [SPEC-agent-watch](SPEC-agent-watch.md) | Watch 主动 Assistant 私信 | approved |
 | [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
 | [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 旧同步证据化回答 | retired / deprecated |
 | [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md) | 旧同步模式化 Agent | retired / deprecated |
 
-当前五份 approved 规范均引用 `INT-content-community-backend`，共同构成设计层正式上游；两份
+当前六份 approved 规范均引用 `INT-content-community-backend`，共同构成设计层正式上游；两份
 retired 规范只保留历史契约，不能再约束活跃设计。
+
+2026-09-05 修订：内容社区优先，Agent 是辅助使用社区的工具。复杂需求通过 `ask_questions` 优先用
+选择题分轮澄清，允许未知、无偏好、跳过和先搜索；社区资料不足时尝试互联网补充并坦率说明缺口。
+检索回答用自然语言逐项附帖子/网页 URL，普通闲聊不强制引用；同步普通搜索边界、Watch 引用和
+可靠性口径。仅发布意图与规格，设计、接口、运行时和客户端尚未实现本次新要求，见
+[迁移登记](../TRANSITION.md)。既有 Memory、异步恢复、安全、预算与隐私边界不变。
 
 2026-08-30 修订：去掉显式新会话 API，每用户永久一条前台 session；30 分钟无可见消息后的下一次
 新建 run 拼接安全规则、SOUL、工具规则与 MEMORY/USER，历史仍进 live prompt 直至 compact。
