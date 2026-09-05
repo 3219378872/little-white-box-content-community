@@ -1029,16 +1029,24 @@ func (m *MemoryStore) ResetBucket(_ context.Context, id, runID int64) error {
 	return nil
 }
 
-func (m *MemoryStore) RequeueFailedBuckets(_ context.Context) error {
+func (m *MemoryStore) RequeueFailedBuckets(_ context.Context, nowMs int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, b := range m.buckets {
 		run, ok := m.runs[b.RunID]
-		if b.Status == "scheduled" && ok && (run.Status == StatusError || run.Status == StatusCancelled) {
+		if b.Status == "scheduled" && ok && run.UserID == b.UserID && run.Source == SourceWatch && (run.Status == StatusError || run.Status == StatusCancelled) {
+			failedAttempts := 0
+			if run.Status == StatusError {
+				failedAttempts = m.failedWatchAttemptsLocked(id, b.UserID, run.ID)
+			}
+			target, notBeforeMs, err := watchTerminalBucketState(run.Status, b, failedAttempts, nowMs)
+			if err != nil {
+				return err
+			}
 			m.releaseWatchReservationsLocked(id)
-			b.Status = "pending"
+			b.Status = target
 			b.RunID = 0
-			b.NotBeforeMs = 0
+			b.NotBeforeMs = notBeforeMs
 			m.buckets[id] = b
 		}
 	}
@@ -1084,14 +1092,18 @@ func (m *MemoryStore) ReserveWatchQuota(_ context.Context, bucketID, userID int6
 	return true, 0, nil
 }
 
-func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID int64, delivered bool, nowMs int64) error {
+func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID int64, runStatus string, nowMs int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	bucket, ok := m.buckets[id]
 	if !ok || bucket.UserID != userID {
 		return sqlx.ErrNotFound
 	}
-	if bucket.Status == "sent" || bucket.Status == "pending" || bucket.Status == "deferred" {
+	if bucket.Status == "sent" {
+		return nil
+	}
+	if bucket.Status == "pending" || bucket.Status == "deferred" || bucket.Status == "discarded" {
+		m.releaseWatchReservationsLocked(id)
 		return nil
 	}
 	if bucket.RunID != runID {
@@ -1100,11 +1112,19 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 	if bucket.Status != "scheduled" {
 		return errors.New("watch bucket is not scheduled")
 	}
-	if !delivered {
+	if runStatus != StatusDone {
+		failedAttempts := 0
+		if runStatus == StatusError {
+			failedAttempts = m.failedWatchAttemptsLocked(id, userID, runID)
+		}
+		target, notBeforeMs, err := watchTerminalBucketState(runStatus, bucket, failedAttempts, nowMs)
+		if err != nil {
+			return err
+		}
 		m.releaseWatchReservationsLocked(id)
-		bucket.Status = "pending"
+		bucket.Status = target
 		bucket.RunID = 0
-		bucket.NotBeforeMs = 0
+		bucket.NotBeforeMs = notBeforeMs
 		m.buckets[id] = bucket
 		return nil
 	}
@@ -1118,6 +1138,20 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 	}
 	delete(m.reservations, id)
 	return nil
+}
+
+func (m *MemoryStore) failedWatchAttemptsLocked(bucketID, userID, currentRunID int64) int {
+	current, ok := m.runs[currentRunID]
+	if !ok || current.UserID != userID || current.Source != SourceWatch || current.Status != StatusError || watchBucketIDFromPayload(current.QueuedPayload) != bucketID {
+		return watchDeliveryMaxAttempts
+	}
+	attempts := 1
+	for id, run := range m.runs {
+		if id != currentRunID && run.UserID == userID && run.Source == SourceWatch && run.Status == StatusError && watchBucketIDFromPayload(run.QueuedPayload) == bucketID {
+			attempts++
+		}
+	}
+	return attempts
 }
 
 func (m *MemoryStore) ResetUnsentBuckets(_ context.Context, userID int64) error {

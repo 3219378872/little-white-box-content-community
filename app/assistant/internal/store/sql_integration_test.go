@@ -490,7 +490,7 @@ func TestSQLWatchQuotaReservationSerializesWorkers(t *testing.T) {
 	if err := st.MarkBucketScheduled(ctx, released.ID, 1001); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.FinishWatchDelivery(ctx, released.ID, 81, 1001, false, now); err != nil {
+	if err := st.FinishWatchDelivery(ctx, released.ID, 81, 1001, StatusCancelled, now); err != nil {
 		t.Fatal(err)
 	}
 	var blocked DeliveryBucket
@@ -510,7 +510,7 @@ func TestSQLWatchQuotaReservationSerializesWorkers(t *testing.T) {
 	if err := st.MarkBucketScheduled(ctx, delivered.ID, 1002); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.FinishWatchDelivery(ctx, delivered.ID, 81, 1002, true, now); err != nil {
+	if err := st.FinishWatchDelivery(ctx, delivered.ID, 81, 1002, StatusDone, now); err != nil {
 		t.Fatal(err)
 	}
 	if daily, _ := st.CountSent(ctx, 81, 0, "day", dayStart); daily != 1 {
@@ -527,7 +527,7 @@ func TestSQLWatchQuotaReservationSerializesWorkers(t *testing.T) {
 	if err := st.MarkBucketScheduled(ctx, legacy.ID, 1003); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.FinishWatchDelivery(ctx, legacy.ID, 82, 1003, true, now); err != nil {
+	if err := st.FinishWatchDelivery(ctx, legacy.ID, 82, 1003, StatusDone, now); err != nil {
 		t.Fatal(err)
 	}
 	if daily, _ := st.CountSent(ctx, 82, 0, "day", dayStart); daily != 1 {
@@ -553,7 +553,7 @@ func TestSQLRequeueFailedWatchBucketReleasesReservation(t *testing.T) {
 	run, err := st.InsertRun(ctx, Run{
 		UserID: 83, SessionID: 1, RequestID: "watch-requeue", Source: SourceWatch,
 		Status: StatusError, Phase: PhaseDone, ConsentVersion: 2, InputVersion: 1,
-		CreatedAtMs: now, EndedAtMs: now,
+		QueuedPayload: []byte(mustJSON(map[string]any{"bucket_id": bucket.ID})), CreatedAtMs: now, EndedAtMs: now,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -561,11 +561,11 @@ func TestSQLRequeueFailedWatchBucketReleasesReservation(t *testing.T) {
 	if err := st.MarkBucketScheduled(ctx, bucket.ID, run.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.RequeueFailedBuckets(ctx); err != nil {
+	if err := st.RequeueFailedBuckets(ctx, now); err != nil {
 		t.Fatal(err)
 	}
 	fresh, err := st.GetBucket(ctx, bucket.ID)
-	if err != nil || fresh.Status != "pending" || fresh.RunID != 0 {
+	if err != nil || fresh.Status != "deferred" || fresh.RunID != 0 || fresh.NotBeforeMs != now+time.Minute.Milliseconds() {
 		t.Fatalf("bucket=%+v err=%v", fresh, err)
 	}
 	next, err := st.UpsertDeliveryBucket(ctx, 83, 9102, 840_000, now)

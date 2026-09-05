@@ -1583,7 +1583,7 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 		if run.Source == store.SourceWatch {
 			bucketID := watchBucketID(run.QueuedPayload)
 			if bucketID > 0 {
-				if err := tx.FinishWatchDelivery(ctx, bucketID, run.UserID, run.ID, status == store.StatusDone, now); err != nil {
+				if err := tx.FinishWatchDelivery(ctx, bucketID, run.UserID, run.ID, status, now); err != nil {
 					return err
 				}
 			}

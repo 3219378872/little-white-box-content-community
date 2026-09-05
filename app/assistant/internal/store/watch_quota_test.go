@@ -52,7 +52,7 @@ func TestWatchQuotaReservationIsAtomicAndRecoverable(t *testing.T) {
 	if err := mem.MarkBucketScheduled(ctx, released.ID, 101); err != nil {
 		t.Fatal(err)
 	}
-	if err := mem.FinishWatchDelivery(ctx, released.ID, 7, 101, false, now); err != nil {
+	if err := mem.FinishWatchDelivery(ctx, released.ID, 7, 101, StatusCancelled, now); err != nil {
 		t.Fatal(err)
 	}
 	var blocked DeliveryBucket
@@ -74,7 +74,7 @@ func TestWatchQuotaReservationIsAtomicAndRecoverable(t *testing.T) {
 	if err := mem.MarkBucketScheduled(ctx, delivered.ID, 102); err != nil {
 		t.Fatal(err)
 	}
-	if err := mem.FinishWatchDelivery(ctx, delivered.ID, 7, 102, true, now); err != nil {
+	if err := mem.FinishWatchDelivery(ctx, delivered.ID, 7, 102, StatusDone, now); err != nil {
 		t.Fatal(err)
 	}
 	if daily, _ := mem.CountSent(ctx, 7, 0, "day", dayStart); daily != 1 {

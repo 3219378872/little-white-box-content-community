@@ -40,11 +40,11 @@ func ScheduleDueWatchRuns(ctx context.Context, st store.Store, memories memory.S
 	if st == nil {
 		return
 	}
-	if err := st.RequeueFailedBuckets(ctx); err != nil {
+	now := store.NowMs()
+	if err := st.RequeueFailedBuckets(ctx, now); err != nil {
 		logx.WithContext(ctx).Errorw("requeue failed watch buckets", logx.Field("err", err.Error()))
 		return
 	}
-	now := store.NowMs()
 	buckets, err := st.ListDueBuckets(ctx, now, watchWindow.Milliseconds())
 	if err != nil || len(buckets) == 0 {
 		return

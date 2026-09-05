@@ -72,7 +72,7 @@ func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, tex
 		if err := tx.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		if err := tx.FinishWatchDelivery(ctx, payload.BucketID, run.UserID, run.ID, true, now); err != nil {
+		if err := tx.FinishWatchDelivery(ctx, payload.BucketID, run.UserID, run.ID, store.StatusDone, now); err != nil {
 			return err
 		}
 		_, finishErr := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text, StreamID: streamID}, now)

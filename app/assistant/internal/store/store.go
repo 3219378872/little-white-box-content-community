@@ -96,9 +96,9 @@ type Store interface {
 	DeferBucket(ctx context.Context, id, notBeforeMs int64) error
 	DismissBucket(ctx context.Context, id, runID int64) error
 	ResetBucket(ctx context.Context, id, runID int64) error
-	RequeueFailedBuckets(ctx context.Context) error
+	RequeueFailedBuckets(ctx context.Context, nowMs int64) error
 	ReserveWatchQuota(ctx context.Context, bucketID, userID int64, taskIDs []int64, dayStartMs, hourStartMs int64, dailyLimit, hourlyLimit int) (allowed bool, retryAtMs int64, err error)
-	FinishWatchDelivery(ctx context.Context, id, userID, runID int64, delivered bool, nowMs int64) error
+	FinishWatchDelivery(ctx context.Context, id, userID, runID int64, runStatus string, nowMs int64) error
 	ResetUnsentBuckets(ctx context.Context, userID int64) error
 	CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error)
 	IncrSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) error

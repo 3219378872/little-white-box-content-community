@@ -99,7 +99,7 @@ func TestWatchRunReceivesHitsAndCountsOnlyAfterSuccess(t *testing.T) {
 	}
 }
 
-func TestWatchRunFailureRequeuesBucket(t *testing.T) {
+func TestWatchRunFailureDefersBucket(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	watchStore, bucket, _ := watchFixture(t, mem)
@@ -115,7 +115,7 @@ func TestWatchRunFailureRequeuesBucket(t *testing.T) {
 	engine := &Engine{Store: mem, Watch: watchStore, Tools: reg, LLM: &scriptedLLM{}, WatchPosts: allowAllWatchPosts, Window: 128000}
 	engine.Execute(ctx, *run, false)
 	reset, _ := mem.GetBucket(ctx, bucket.ID)
-	if reset.Status != "pending" || reset.RunID != 0 {
+	if reset.Status != "deferred" || reset.RunID != 0 || reset.NotBeforeMs <= store.NowMs() {
 		t.Fatalf("bucket=%+v", reset)
 	}
 }
