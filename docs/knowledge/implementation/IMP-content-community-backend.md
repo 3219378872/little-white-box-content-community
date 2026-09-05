@@ -73,7 +73,7 @@ tracks:
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
 verified_at: 2026-09-05
-verified_commit: f5105a3847d8d8ddaa01333780f16eecb864f7aa
+verified_commit: 66f4406
 ---
 
 # 小白盒内容社区后端实现映射
@@ -91,10 +91,10 @@ verified_commit: f5105a3847d8d8ddaa01333780f16eecb864f7aa
 当天最初仅发布上游要求；后续已按批准方案实现持久问答、真实证据片段、结构化发布和跨端快照契约，
 并完成全量静态/race 与隔离 MySQL 验证。设计见
 [社区研究闭环](../design/DES-agent-community-research.md)，实际范围见
-[工程证据](evidence/2026-09-05-agent-community-research.md)。真实模型、前端与语义评测仍需相应证据，
-不能用旧来源卡测试关闭新门禁。
+[工程证据](evidence/2026-09-05-agent-community-research.md)。整合后严格 fixture 与正常 provider
+全量黑盒复验通过；真实长检索请求在完成原文读取后因三次模型超时失败，不能关闭真实模型质量门禁。
 独立的[幂等与停机生命周期修复](evidence/2026-09-05-idempotency-shutdown-lifecycle.md)保留其证据边界；
-两批代码整合后的验证点将在复跑后更新，不能相互替代。
+两批代码整合后的静态/race 与黑盒结果已记录，不能相互替代各自的未验收边界。
 
 ## 总体状态
 
