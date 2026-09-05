@@ -73,7 +73,7 @@ tracks:
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
 verified_at: 2026-09-05
-verified_commit: e751d510bf5fc96c1c783ce788936d371d6476a3
+verified_commit: 249f94ba0d8fd38159c368cac5e9636cdbe60243
 ---
 
 # 小白盒内容社区后端实现映射
@@ -270,7 +270,7 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-004 内部 hit 90 天 | aligned | `watch_hit` 非用户收件箱；worker 启动及每小时按索引小批物理删除过期 hit/execution |
 | WCH-010 两分钟合并与限额 | aligned | 两分钟 bucket；`watch_send_reservation` 在 bucket/统计行锁内原子预留每任务小时与用户日额度；超额及 error 重试使用独立 `not_before_ms`；成功才转 sent，error/cancel/抢占/discard 均释放 reservation |
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
-| WCH-012 用户抢占/失败重排 | aligned | PostMessage 先按 id 锁开放 run 再锁 thread/bucket；cancel/抢占立即回 pending；error 按 1 分钟起、30 分钟封顶的指数退避，最多 8 次并受 90 天保留边界限制；终态提交与 scheduler reconciliation 复用该策略并释放 reservation，异常 payload fail-closed discard |
+| WCH-012 用户抢占/失败重排 | aligned | PostMessage 先按 id 锁开放 run 再锁 thread/bucket；终态事务在业务写前重读 sticky cancel，cancel/抢占立即回 pending；error 按 1 分钟起、30 分钟封顶的指数退避，最多 8 次并受 90 天保留边界限制；旧 finalizer 不修改 replacement bucket/reservation，异常 payload fail-closed discard |
 | WCH-013 成功写 assistant 消息+未读 | aligned | validated hit context 进入模型；最终可见性复核后 token/message/outbox/unread/bucket sent/reservation→stat/done 在同一事务提交；失效流写 `response_reset` 且不生成 Watch message |
 | WCH-014 主动消息逐项引用 | partial | Watch 复用结构化发布、来源回源与配额事务；保留只读权限，主动消息语义质量待实际场景验证 |
 | WCH-023 consent 撤销 | aligned | scheduler 在调度事务内复核 frozen/current consent；撤权取消已调度和活跃 run，未发送 bucket 退回 pending |
@@ -368,7 +368,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | MEM-A06 sidecar/旧快照 | aligned | `builder_test.go` 覆盖 Memory 不进 system、标签转义、sidecar 字节稳定、跨 chunk scrub；legacy prompt 保持旧格式直到新 epoch |
 | WCH-A01 四种规则命中与不可见不命中 | aligned | `TestMatchRules`、`TestApplyPostEvent*`；草稿 Status!=1 不命中；消费者 `TestConsumeWatchBatch_PublishedCreate_RecordsHit` |
 | WCH-A02 两分钟合并/小时与每日上限 | aligned | runtime 单测 + Store MySQL 四 worker 并发 reservation 测试；小时 3/日 20 不超发，失败退避期间不占 reservation，计数仅成功增加 |
-| WCH-A03 只读工具/用户抢占重排 | partial | 只读 registry、error 有界退避、cancel 即时重排及异常恢复 MySQL 集成已覆盖；真实并发抢占仍未做 MySQL 集成测试 |
+| WCH-A03 只读工具/用户抢占重排 | partial | 只读 registry、error 有界退避、cancel 即时重排、旧 finalizer 所有权与异常恢复已有 race/MySQL 分层覆盖；真实 SQL runtime 取消交错仍未做专门集成测试 |
 | WCH-A04 主动消息/未读/非普通私信 | aligned | `app/assistant/internal/runtime/watch_test.go` 覆盖 Assistant message、未读、outbox 与终态 |
 | WCH-A05 CRUD/恢复可见性 | partial | CRUD 归属与停用已有测试；90 天后恢复及不可见内容补投仍缺集成验证 |
 

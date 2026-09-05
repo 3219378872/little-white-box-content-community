@@ -186,6 +186,12 @@ run 的关联缺失或不一致时 fail-closed discard。第 8 次失败，或�
 次数，仍立即回 pending 并释放 reservation。worker 异常退出后，调度器对遗留终态 run 执行同一转换，
 且只接受 user 与 source 均匹配的 Watch run 关联。
 
+run 终态事务在首个消息、outbox、未读或 bucket 写入前重新读取 sticky cancel；取消先提交时，旧协议
+Watch 成功与不可见 discard 均回滚并进入 cancelled 收尾。旧 run 的 finalizer 若发现 bucket 已由新
+run 接管则幂等返回，不能释放新 reservation。Memory Review 已成功的变更即使随后取消，仍写入
+`memory_changed` 撤销入口，但 run 以 cancelled 终止；未完成 tool call 及同 run、同 lease generation
+的 pending journal 一并收口，已成功记录不得降级。
+
 ## 预算与观测
 
 run counter 在每个 step 事务累计 rounds、tool calls、input/output/cache tokens、cost、elapsed/idle。warning /
