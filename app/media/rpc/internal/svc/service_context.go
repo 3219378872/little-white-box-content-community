@@ -2,6 +2,8 @@ package svc
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"esx/app/media/rpc/internal/config"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/storage"
@@ -18,6 +20,7 @@ import (
 type ServiceContext struct {
 	Config            config.Config
 	Conn              sqlx.SqlConn
+	DB                *sql.DB
 	MediaModel        model.MediaModel
 	MediaCommandModel model.MediaCommandModel
 	Storage           storage.ObjectStorage
@@ -31,6 +34,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
 	}
 	conn := sqlx.NewMysql(c.DataSource)
+	db, err := conn.RawDB()
+	if err != nil {
+		panic(fmt.Sprintf("media: database connection access failed: %v", err))
+	}
 
 	cacheConf := cache.CacheConf{
 		cache.NodeConf{
@@ -70,6 +77,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:            c,
 		Conn:              conn,
+		DB:                db,
 		MediaModel:        model.NewMediaModel(conn, cacheConf),
 		MediaCommandModel: model.NewMediaCommandModel(conn, outboxStore),
 		Storage:           s3Client,
@@ -79,9 +87,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
-func (s *ServiceContext) RunOutboxRelay(ctx context.Context) error {
-	if s == nil || s.OutboxRelay == nil {
+func (s *ServiceContext) Close() error {
+	if s == nil {
 		return nil
 	}
-	return s.OutboxRelay.Run(ctx)
+	var closeErrors []error
+	if s.MQProducer != nil {
+		closeErrors = append(closeErrors, s.MQProducer.Shutdown())
+	}
+	if s.DB != nil {
+		closeErrors = append(closeErrors, s.DB.Close())
+	}
+	return errors.Join(closeErrors...)
 }

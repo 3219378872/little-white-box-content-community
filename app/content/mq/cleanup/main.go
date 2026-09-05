@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/proc"
 )
 
 var configFile = flag.String("f", "etc/content-cleanup.yaml", "config file")
@@ -30,7 +31,11 @@ func main() {
 	if err := cleanupConsumer.Start(); err != nil {
 		logx.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "content-cleanup consumer", cleanupConsumer.Shutdown)
+	logger := logx.WithContext(context.Background())
+	var countSyncShutdown func() error
+	defer func() {
+		shutdownContentCleanup(logger, countSyncShutdown, cleanupConsumer.Shutdown, svcCtx.Close)
+	}()
 
 	if svcCtx.CountSyncStore != nil {
 		countSyncConsumer, err := mqs.NewCountSyncConsumer(svcCtx)
@@ -40,10 +45,15 @@ func main() {
 		if err := countSyncConsumer.Start(); err != nil {
 			logx.Must(err)
 		}
-		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "count-sync consumer", countSyncConsumer.Shutdown)
-		defer cleanupx.Shutdown(logx.WithContext(context.Background()), "content cleanup database", svcCtx.Close)
+		countSyncShutdown = countSyncConsumer.Shutdown
 	}
 
 	fmt.Println("Content cleanup MQ consumer started, subscribing post-delete and behavior counts...")
-	select {}
+	<-proc.Done()
+}
+
+func shutdownContentCleanup(logger logx.Logger, countSync, cleanup, database func() error) {
+	cleanupx.Shutdown(logger, "count-sync consumer", countSync)
+	cleanupx.Shutdown(logger, "content-cleanup consumer", cleanup)
+	cleanupx.Shutdown(logger, "content cleanup database", database)
 }

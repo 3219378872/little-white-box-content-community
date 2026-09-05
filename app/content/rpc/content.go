@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 
@@ -11,6 +10,7 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/pkg/interceptor"
+	"esx/pkg/outboxx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -33,10 +33,9 @@ func main() {
 			logx.Errorw("close content service dependencies", logx.Field("err", err.Error()))
 		}
 	}()
-	relayCtx, cancelRelay := context.WithCancel(context.Background())
-	defer cancelRelay()
-	go func() {
-		if err := ctx.RunOutboxRelay(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+	relay := outboxx.StartRelay(context.Background(), ctx.OutboxRelay)
+	defer func() {
+		if err := relay.Stop(); err != nil {
 			logx.Errorw("content outbox relay stopped", logx.Field("err", err.Error()))
 		}
 	}()

@@ -12,15 +12,20 @@ import (
 )
 
 type fakeStore struct {
-	mu          sync.Mutex
-	records     []Record
-	claimErr    error
-	markSentErr error
-	retries     []int64
-	sent        []int64
+	mu           sync.Mutex
+	records      []Record
+	claimErr     error
+	markSentErr  error
+	claimCalls   int
+	backlogCalls int
+	retries      []int64
+	sent         []int64
 }
 
 func (s *fakeStore) Claim(context.Context, string, int, time.Time, time.Duration) ([]Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.claimCalls++
 	return append([]Record(nil), s.records...), s.claimErr
 }
 
@@ -39,7 +44,22 @@ func (s *fakeStore) MarkRetry(_ context.Context, id int64, _ string, _, _ int, _
 }
 
 func (s *fakeStore) Backlog(context.Context) (Backlog, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.backlogCalls++
 	return Backlog{}, nil
+}
+
+func (s *fakeStore) backlogCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.backlogCalls
+}
+
+func (s *fakeStore) claimCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.claimCalls
 }
 
 func testRelay(t *testing.T, store Store, publisher Publisher) *Relay {
@@ -115,6 +135,69 @@ func TestRetryBackoffIsBounded(t *testing.T) {
 func TestNewRelayRejectsInvalidConfiguration(t *testing.T) {
 	_, err := NewRelay(&fakeStore{}, PublisherFunc(func(context.Context, Record) error { return nil }), RelayConfig{})
 	assert.Error(t, err)
+}
+
+func TestRelayHandleStopCancelsAndJoinsInFlightPublish(t *testing.T) {
+	store := &fakeStore{records: []Record{{ID: 41}}}
+	publishStarted := make(chan struct{})
+	cancelObserved := make(chan struct{})
+	releasePublish := make(chan struct{})
+	relay := testRelay(t, store, PublisherFunc(func(ctx context.Context, _ Record) error {
+		close(publishStarted)
+		<-ctx.Done()
+		close(cancelObserved)
+		<-releasePublish
+		return ctx.Err()
+	}))
+	handle := StartRelay(context.Background(), relay)
+
+	select {
+	case <-publishStarted:
+	case <-time.After(time.Second):
+		t.Fatal("relay did not start publishing")
+	}
+	stopped := make(chan error, 1)
+	go func() {
+		stopped <- handle.Stop()
+	}()
+
+	select {
+	case <-cancelObserved:
+	case <-time.After(time.Second):
+		t.Fatal("relay publish did not observe cancellation")
+	}
+	select {
+	case err := <-stopped:
+		t.Fatalf("Stop returned before in-flight publish completed: %v", err)
+	default:
+	}
+
+	close(releasePublish)
+	select {
+	case err := <-stopped:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not return after in-flight publish completed")
+	}
+	assert.Zero(t, store.backlogCallCount(), "canceled relay should not query backlog during shutdown")
+	require.NoError(t, handle.Stop(), "Stop should be idempotent")
+}
+
+func TestStartRelayWithNilRelayIsNoOp(t *testing.T) {
+	require.NoError(t, StartRelay(context.Background(), nil).Stop())
+}
+
+func TestRelayRunWithCanceledContextDoesNotAccessStore(t *testing.T) {
+	store := &fakeStore{}
+	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := relay.Run(ctx)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Zero(t, store.claimCallCount())
+	assert.Zero(t, store.backlogCallCount())
 }
 
 func TestConfigRelayConfigAppliesOperationalDefaults(t *testing.T) {

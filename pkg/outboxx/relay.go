@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -104,6 +105,15 @@ type Relay struct {
 	now       func() time.Time
 }
 
+// RelayHandle owns one background relay run. Stop cancels the run and waits
+// for any in-flight store or publisher call to return before releasing it.
+type RelayHandle struct {
+	cancel context.CancelFunc
+	done   chan error
+	once   sync.Once
+	err    error
+}
+
 func NewRelay(store Store, publisher Publisher, config RelayConfig) (*Relay, error) {
 	if store == nil {
 		return nil, fmt.Errorf("outboxx: store is required")
@@ -115,6 +125,37 @@ func NewRelay(store Store, publisher Publisher, config RelayConfig) (*Relay, err
 		return nil, err
 	}
 	return &Relay{store: store, publisher: publisher, config: config, now: time.Now}, nil
+}
+
+// StartRelay runs relay until Stop is called or parent is canceled. A nil
+// relay produces a no-op handle so services can disable MQ through config.
+func StartRelay(parent context.Context, relay *Relay) *RelayHandle {
+	if relay == nil {
+		return &RelayHandle{}
+	}
+	ctx, cancel := context.WithCancel(parent)
+	done := make(chan error, 1)
+	go func() {
+		done <- relay.Run(ctx)
+	}()
+	return &RelayHandle{cancel: cancel, done: done}
+}
+
+func (h *RelayHandle) Stop() error {
+	if h == nil {
+		return nil
+	}
+	h.once.Do(func() {
+		if h.cancel == nil {
+			return
+		}
+		h.cancel()
+		h.err = <-h.done
+		if errors.Is(h.err, context.Canceled) {
+			h.err = nil
+		}
+	})
+	return h.err
 }
 
 // ProcessBatch publishes every claimed event independently. Broker success is
@@ -150,10 +191,19 @@ func (r *Relay) ProcessBatch(ctx context.Context) (int, error) {
 }
 
 func (r *Relay) Run(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := r.ProcessBatch(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	r.observeBacklog(ctx)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	ticker := time.NewTicker(r.config.PollInterval)
 	defer ticker.Stop()
 	backlogTicker := time.NewTicker(15 * time.Second)
@@ -164,22 +214,37 @@ func (r *Relay) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if _, err := r.ProcessBatch(ctx); err != nil && !errors.Is(err, context.Canceled) {
 				logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
 			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 		case <-backlogTicker.C:
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			r.observeBacklog(ctx)
 		}
 	}
 }
 
 func (r *Relay) observeBacklog(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
 	service := r.config.Service
 	if service == "" {
 		service = "unknown"
 	}
 	backlog, err := r.store.Backlog(ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+			return
+		}
 		outboxBacklogCollectionsTotal.Inc(service, "failure")
 		logx.WithContext(ctx).Errorw("outbox backlog collection failed", logx.Field("err", err.Error()))
 		return

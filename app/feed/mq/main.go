@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/proc"
 )
 
 var configFile = flag.String("f", "etc/feed-consumer.yaml", "config file")
@@ -33,5 +34,5 @@ func main() {
 	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "feed post-publish consumer", postConsumer.Shutdown)
 
 	fmt.Println("Feed MQ consumer started, subscribing post-create...")
-	select {}
+	<-proc.Done()
 }

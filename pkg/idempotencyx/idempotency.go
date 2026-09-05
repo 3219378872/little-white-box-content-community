@@ -63,7 +63,7 @@ func ResolveIdempotencySession(
 	if !rec.Valid() {
 		return 0, false, fmt.Errorf("idempotencyx: invalid idempotency record")
 	}
-	existing, found, err := findIdempotencySession(ctx, session, rec.Scope, rec.UserID, rec.Key)
+	existing, found, err := findIdempotencySession(ctx, session, rec.Scope, rec.UserID, rec.Key, false)
 	if err != nil {
 		return 0, false, err
 	}
@@ -82,7 +82,11 @@ func ResolveIdempotencySession(
 	if !isDuplicateKeyError(err) {
 		return 0, false, err
 	}
-	existing, found, lookupErr := findIdempotencySession(ctx, session, rec.Scope, rec.UserID, rec.Key)
+	// The first lookup is a consistent read and establishes a repeatable-read
+	// snapshot. If another transaction commits the winning row while this INSERT
+	// waits on the unique key, a second consistent read still cannot see it.
+	// FOR UPDATE is an InnoDB current read, so it resolves the committed winner.
+	existing, found, lookupErr := findIdempotencySession(ctx, session, rec.Scope, rec.UserID, rec.Key, true)
 	if lookupErr != nil {
 		return 0, false, lookupErr
 	}
@@ -100,11 +104,24 @@ type storedIdempotency struct {
 	CommandHash string `db:"command_hash"`
 }
 
-func findIdempotencySession(ctx context.Context, session sqlx.Session, scope string, userID int64, key string) (storedIdempotency, bool, error) {
+type rowQuerier interface {
+	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
+}
+
+func findIdempotencySession(
+	ctx context.Context,
+	querier rowQuerier,
+	scope string,
+	userID int64,
+	key string,
+	currentRead bool,
+) (storedIdempotency, bool, error) {
 	var stored storedIdempotency
-	err := session.QueryRowCtx(ctx, &stored,
-		"SELECT `resource_id`, `command_hash` FROM `idempotency` WHERE `scope` = ? AND `user_id` = ? AND `key` = ? LIMIT 1",
-		scope, userID, key)
+	query := "SELECT `resource_id`, `command_hash` FROM `idempotency` WHERE `scope` = ? AND `user_id` = ? AND `key` = ? LIMIT 1"
+	if currentRead {
+		query += " FOR UPDATE"
+	}
+	err := querier.QueryRowCtx(ctx, &stored, query, scope, userID, key)
 	if errors.Is(err, sqlx.ErrNotFound) {
 		return storedIdempotency{}, false, nil
 	}

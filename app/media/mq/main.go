@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/proc"
 )
 
 var configFile = flag.String("f", "etc/media-consumer.yaml", "config file")
@@ -37,5 +38,5 @@ func main() {
 	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "media cleanup consumer", mqConsumer.Shutdown)
 
 	fmt.Println("Media MQ consumer started, subscribing media-deleted...")
-	select {}
+	<-proc.Done()
 }

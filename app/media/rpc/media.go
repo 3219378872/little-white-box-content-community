@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 
@@ -11,6 +10,7 @@ import (
 	"esx/app/media/rpc/internal/svc"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"esx/pkg/interceptor"
+	"esx/pkg/outboxx"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -34,10 +34,14 @@ func main() {
 	}
 
 	ctx := svc.NewServiceContext(c)
-	relayCtx, cancelRelay := context.WithCancel(context.Background())
-	defer cancelRelay()
-	go func() {
-		if err := ctx.RunOutboxRelay(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+	defer func() {
+		if err := ctx.Close(); err != nil {
+			logx.Errorw("close media service dependencies", logx.Field("err", err.Error()))
+		}
+	}()
+	relay := outboxx.StartRelay(context.Background(), ctx.OutboxRelay)
+	defer func() {
+		if err := relay.Stop(); err != nil {
 			logx.Errorw("media outbox relay stopped", logx.Field("err", err.Error()))
 		}
 	}()

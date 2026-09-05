@@ -112,13 +112,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
-func (s *ServiceContext) RunOutboxRelay(ctx context.Context) error {
-	if s == nil || s.OutboxRelay == nil {
-		return nil
-	}
-	return s.OutboxRelay.Run(ctx)
-}
-
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/proc"
 )
 
 var configFile = flag.String("f", "etc/watch-consumer.yaml", "config file")
@@ -37,5 +38,5 @@ func main() {
 	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "watch matcher", watchConsumer.Shutdown)
 
 	fmt.Println("Assistant watch matcher started, subscribing post lifecycle topics...")
-	select {}
+	<-proc.Done()
 }
