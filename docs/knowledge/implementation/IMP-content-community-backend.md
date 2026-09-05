@@ -7,13 +7,19 @@ owner: agent
 upstream:
   - DES-content-community-backend
 tracks:
+  - app/content/rpc/content.go
   - app/content/rpc/internal/logic
   - app/content/rpc/internal/model
+  - app/interaction/rpc/interaction.go
   - app/interaction/rpc/internal/logic
+  - app/user/rpc/user.go
   - app/user/rpc/internal/logic
   - app/message/rpc/internal/logic
+  - app/media/rpc/media.go
   - app/media/rpc/internal/logic
+  - app/media/rpc/internal/svc
   - app/recommend/rpc/internal/logic
+  - app/recommend/mq/main.go
   - app/recommend/mq/internal/store
   - app/assistant/rpc/internal/logic
   - app/assistant/internal/store
@@ -27,10 +33,16 @@ tracks:
   - app/behavior/rpc/internal/logic
   - app/search/rpc/internal/logic
   - app/feed/rpc/internal/logic
+  - app/feed/mq/main.go
+  - app/media/mq/main.go
+  - app/search/mq/main.go
+  - app/pipeline/behaviorlog/main.go
   - app/content/mq/cleanup
   - app/gateway
   - app/gateway/internal/logic/assistant
   - pkg/visibilityx
+  - pkg/idempotencyx
+  - pkg/outboxx
   - app/content/visibility
   - proto/content/content.proto
   - proto/message/message.proto
@@ -58,8 +70,8 @@ tracks:
   - deploy/docker-compose.production.yml
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
-verified_at: 2026-09-01
-verified_commit: 35051186a75015f7dfc5a41e0a8f6bc398f62398
+verified_at: 2026-09-05
+verified_commit: f5105a3847d8d8ddaa01333780f16eecb864f7aa
 ---
 
 # 小白盒内容社区后端实现映射
@@ -74,9 +86,10 @@ verified_commit: 35051186a75015f7dfc5a41e0a8f6bc398f62398
 
 ### 2026-09-05 上游修订边界
 
-本次只修订意图与规格。新增社区优先复杂需求、`ask_questions` 和逐项 URL 引用要求尚待设计及
-实现；`verified_at` / `verified_commit` 继续记录既有代码验证点，不因本次文档编辑推进。已有工具
-registry 尚无 `ask_questions`；既有来源 ledger 与卡片测试不能证明信息到 URL 的逐项支持关系。
+上游修订本身只涉及意图与规格。新增社区优先复杂需求、`ask_questions` 和逐项 URL 引用要求尚待设计及
+实现；本页 `verified_at` / `verified_commit` 只因独立的幂等并发与停机生命周期代码批次推进，不构成
+这些新增要求的实现证据。已有工具 registry 尚无 `ask_questions`；既有来源 ledger 与卡片测试不能
+证明信息到 URL 的逐项支持关系。
 详见 [迁移登记](../TRANSITION.md)；下表新增或受影响项不得沿用旧 `aligned` 结论。
 
 ## 总体状态
@@ -127,7 +140,7 @@ Watch 内部 bucket）。仍偏离处：
 | CORE-042 消息幂等键 | aligned | idempotency_key ≤128、同键同命令返回原 id、异命令（含不同 media_id）冲突 |
 | CORE-043 标记已读仅影响自己 | aligned | MarkRead 只改 receiver==自己 的行 |
 | CORE-044 私信成功不依赖通知 | aligned | SendMessage 以库提交为成功；无赞/评/关通知生产者 |
-| CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409；媒体命令哈希含接收文件内容 sha256 指纹，幂等命中会补偿删除本次随机对象；评论命令哈希含回复目标评论与被回复用户（CORE-051 异命令冲突，2026-08-14） |
+| CORE-050 创建帖子/评论/媒体幂等键 | aligned | 帖子/评论/媒体均实现幂等表，同键同命令返回原资源、异命令 409；默认 REPEATABLE READ 下并发同键唯一键竞争后以 `SELECT ... FOR UPDATE` current read 读取胜出绑定，MySQL 8 集成测试覆盖旧快照窗口；媒体命令哈希含接收文件内容 sha256 指纹，幂等命中会补偿删除本次随机对象；评论命令哈希含回复目标评论与被回复用户 |
 | CORE-051 可区分业务结果 | aligned | 版本冲突/幂等冲突 409 与业务码；网关透传 BizError；HTTPStatus 为唯一映射（密码错误 401、验证码错误/过期 400、空搜索 400、搜索超时 504，2026-08-14 补齐） |
 | CORE-052 权威写入未确认不返回成功 | aligned | 事务+outbox 同事务；media 软删事件与权威行同事务，上传后落库/缩略图失败立即补偿，删除失败写 `upload_compensation` outbox 交现有消费者重试 |
 | CORE-053 异步效果失败不改成功 | aligned | 互动/评论/帖子缓存失效失败只告警不改变已提交成功的响应 |
@@ -290,7 +303,7 @@ Watch 内部 bucket）。仍偏离处：
 | REL-041 行为到特征 p95 60s/p99 5m | n/a | 需要真实观测数据（指标已埋点） |
 | REL-042 内容到搜索 p95 30s/p99 2m | n/a | 需要真实观测数据（指标已埋点） |
 | REL-043 RPO 0/RTO 30m | n/a | 运维目标 |
-| REL-044 有界恢复不重试风暴 | aligned | relay 退避与租约 |
+| REL-044 有界恢复不重试风暴 | aligned | relay 退避与租约；RPC 停机先取消并等待在途 relay，再关闭 producer/DB，取消后不再发起 backlog 查询；MQ consumer 与周期任务响应进程 context 并按依赖顺序退出 |
 | REL-050 请求可观测 | aligned | metrics + 错误类别 + 降级标记 |
 | REL-051 异步可观测 | aligned | MQ outcome/延迟与 outbox 积压 |
 | REL-052 追踪标识 | aligned | trace_id 经 gRPC metadata 透传 |
@@ -316,9 +329,9 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | CORE-A01 状态机与 revision 冲突 | aligned | `app/content/rpc/internal/logic/post_logic_test.go`、`idempotency_revision_integration_test.go`、`post_integration_test.go` |
 | CORE-A02 匿名读取/草稿删除不可见 | aligned | `app/gateway/rest_decision_table_test.go`（POST-LIST-ANON / POST-GET-ANON / COMMENT-LIST-ANON）、`app/content/rpc/internal/logic/post_logic_test.go` |
 | CORE-A03 输入边界 | aligned | `app/content/rpc/internal/logic/post_logic_test.go`、`comment_logic_test.go`、`app/media/rpc/internal/mediautil` |
-| CORE-A04 幂等收敛 | aligned | `app/content/rpc/internal/logic/idempotency_revision_integration_test.go`、`app/interaction/rpc/internal/logic/interaction_integration_test.go`、`app/message/rpc/internal/model/message_command_model_integration_test.go` |
+| CORE-A04 幂等收敛 | aligned | `pkg/idempotencyx/idempotency_integration_test.go` 覆盖 REPEATABLE READ 并发胜出可见性；`app/content/rpc/internal/logic/idempotency_revision_integration_test.go`、`app/interaction/rpc/internal/logic/interaction_integration_test.go`、`app/message/rpc/internal/model/message_command_model_integration_test.go` |
 | CORE-A05 会话参与者权限 | aligned | `app/message/rpc/internal/logic/message_logic_test.go` |
-| CORE-A06 权威写与异步失败 | aligned | `app/content/rpc/internal/logic/post_integration_test.go`、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go`、`pkg/outboxx/relay_test.go` |
+| CORE-A06 权威写与异步失败 | aligned | `app/content/rpc/internal/logic/post_integration_test.go`、`app/content/mq/cleanup/internal/store/count_sync_integration_test.go`；`pkg/outboxx/relay_test.go` 覆盖 relay 取消、join 与停机后不再访问 store，`app/content/mq/cleanup/main_test.go` 覆盖 consumer 先于 DB 关闭 |
 | CORE-A07 详情状态与不可用点赞 | aligned | `app/gateway/internal/logic/posts/get_post_logic_test.go`；`like_logic_test.go` / `assert_interactable_logic_test.go`（草稿帖与评论父帖未发布均 404） |
 | DISC-A01 三能力只返回可见内容 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/search/rpc/internal/logic/search_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
 | DISC-A02 关注变化/空流/匿名冷启动 | aligned | `app/feed/rpc/internal/logic/get_follow_feed_logic_test.go`、`app/recommend/rpc/internal/logic/recommend_logic_test.go` |
@@ -333,7 +346,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | REL-A01 逐项接受/拒绝 | aligned | `app/behavior/rpc/internal/logic/record_events_logic_test.go`、`app/gateway/internal/logic/behavior/record_behavior_events_logic_test.go` |
 | REL-A02 链路归因 | aligned | `integration/behavior_pipeline_integration_test.go`、`app/pipeline/behaviorlog` |
 | REL-A03 故障降级矩阵 | partial | 仅覆盖网关 RPC-FAIL 与推荐推理注入，不是 REL-054 全部十行 |
-| REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
+| REL-A04 保留期与 24h 清理 | aligned | 24h 特征清理已测（`behavior_store_test.go`）；`app/recommend/mq/main_test.go` 验证停机取消等待中和在途清理；聚合 365 天 TTL 由 `daily_aggregates` 表 TTL 承担，`app/pipeline/behaviorlog/internal/store/clickhouse_store_integration_test.go` 的 `TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent` 断言重复执行幂等与 365 天 TTL |
 | REL-A05 月度 SLO 报告 | partial | `scripts/spec_evals.py slo`；月度观测数据待生产收集 |
 | AGNT-A01 未授权/授权/撤销网关行为 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前授权验收见 AGENT-A01/A02 |
 | AGNT-A02 Write + search_posts/web_search 成功与失败 | n/a | retired `SPEC-assistant-agent-mode` 验收项；当前工具验收见 AGENT-A02/A05 |
@@ -384,6 +397,9 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 - 网关 Assistant REST：`app/gateway/internal/logic/assistant/`（messages/runs/consent/memory/watch）；
   契约 `proto/assistant/assistant.proto`、`app/gateway/gateway.api`。
 - 行为：`app/behavior/rpc/internal/logic/record_events_logic.go`、`pkg/event/behavior.go`。
+- 事务幂等与异步生命周期：`pkg/idempotencyx`、`pkg/outboxx`；Content/Interaction/User/Media RPC
+  在停止 server 后 join outbox relay，再释放 MQ producer 与数据库；Assistant/Feed/Media/Search/Recommend
+  MQ、content-cleanup 与 behaviorlog 入口响应进程取消并等待后台任务。
 - 搜索：`app/search/rpc/internal/logic/search_logic.go`。
 - 共享回源：`app/content/visibility`（把 Content `GetPostsByIds` 适配为 `visibilityx.Fetcher`，Assistant/Feed/Recommend/Search/Gateway 统一复用）。
 - 网关：`app/gateway/internal/logic/**` 与 `app/gateway/gateway.api`；
@@ -392,6 +408,8 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 
 ## 证据
 
+MySQL 并发幂等 current read、outbox cancel/join 与进程停机顺序见
+[2026-09-05-idempotency-shutdown-lifecycle.md](evidence/2026-09-05-idempotency-shutdown-lifecycle.md)。
 Agent 审查后的 MySQL SSE 权威轮询、typed Responses error、source ledger fail-closed、Memory/Watch
 并发、`search_history` 四种 shape 与最终可见性修复见
 [2026-09-01-assistant-agent-audit-fixes.md](evidence/2026-09-01-assistant-agent-audit-fixes.md)。

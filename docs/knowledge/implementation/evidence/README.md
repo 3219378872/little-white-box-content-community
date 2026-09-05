@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-09-05-idempotency-shutdown-lifecycle.md](2026-09-05-idempotency-shutdown-lifecycle.md)：
+  MySQL REPEATABLE READ 并发幂等 current read、outbox cancel/join 与 MQ/RPC 停机依赖顺序。
 - [2026-09-01-assistant-agent-audit-fixes.md](2026-09-01-assistant-agent-audit-fixes.md)：
   MySQL SSE 权威轮询、typed Responses error、source ledger fail-closed、Memory/Watch 并发、
   `search_history` 四种 shape、最终可见性与统一锁序。
