@@ -178,6 +178,14 @@ discard，已流式正文先写 `response_reset`。sidecar 重放放在本 run �
 末尾。最终 assistant message、thread unread、bucket sent、reservation 转 sent 与 run 终态在同一事务
 提交。用户 run 抢占时 bucket 回 pending 并释放 reservation。
 
+Watch run 的 `error` 与用户抢占/取消分开处理：失败先释放 reservation，再用 `not_before_ms` 从 1 分钟
+开始指数退避，单次最多 30 分钟；同一用户、同一 bucket 的 error run 总尝试最多 8 次，对应重试间隔
+1/2/4/8/16/30/30 分钟。历史次数只通过结构化 `queued_payload.bucket_id` 关联并排除当前 run；当前
+run 的关联缺失或不一致时 fail-closed discard。第 8 次失败，或下一次重试将越过 bucket 创建后 90 天
+保留边界时，bucket 转为 discarded，不再创建 run。`cancelled`、Stop、撤权和用户输入抢占不消耗失败
+次数，仍立即回 pending 并释放 reservation。worker 异常退出后，调度器对遗留终态 run 执行同一转换，
+且只接受 user 与 source 均匹配的 Watch run 关联。
+
 ## 预算与观测
 
 run counter 在每个 step 事务累计 rounds、tool calls、input/output/cache tokens、cost、elapsed/idle。warning /

@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-09-05-watch-retry-backoff.md](2026-09-05-watch-retry-backoff.md)：
+  Watch error 有界指数退避、cancel 即时重排、异常恢复与 reservation 幂等清理。
 - [2026-09-05-idempotency-shutdown-lifecycle.md](2026-09-05-idempotency-shutdown-lifecycle.md)：
   MySQL REPEATABLE READ 并发幂等 current read、outbox cancel/join 与 MQ/RPC 停机依赖顺序。
 - [2026-09-05-agent-community-research.md](2026-09-05-agent-community-research.md)：
