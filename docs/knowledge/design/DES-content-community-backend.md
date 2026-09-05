@@ -21,8 +21,9 @@ upstream:
 [IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
 和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
-> 2026-09-05 上游变更：社区优先、`ask_questions`、互联网补充与逐项 URL 引用已获批准，本页尚未
-> 完成对应设计。下文来源可选的旧描述不能豁免检索回答的新增引用义务；未变更的设计继续适用。
+> 2026-09-05：社区优先、问答、互联网补充与逐项引用由
+> [社区研究设计](DES-agent-community-research.md)承接。下文旧协议的可选来源描述不能豁免新流程的
+> 引用义务；既有基础机制继续适用，实际实现与验证状态见实现层。
 > 本次仅登记边界，后续工作见 [迁移登记](../TRANSITION.md)。
 
 ## 组件边界

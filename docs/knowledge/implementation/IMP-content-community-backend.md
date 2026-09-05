@@ -86,19 +86,21 @@ verified_commit: f5105a3847d8d8ddaa01333780f16eecb864f7aa
 与 [DES-assistant-agent-runtime](../design/DES-assistant-agent-runtime.md)；
 源码、`.api`、`.proto`、SQL 与测试高于本页。
 
-### 2026-09-05 上游修订边界
+### 2026-09-05 社区研究闭环
 
-上游修订本身只涉及意图与规格。新增社区优先复杂需求、`ask_questions` 和逐项 URL 引用要求尚待设计及
-实现；本页 `verified_at` / `verified_commit` 只因独立的幂等并发与停机生命周期代码批次推进，不构成
-这些新增要求的实现证据。已有工具 registry 尚无 `ask_questions`；既有来源 ledger 与卡片测试不能
-证明信息到 URL 的逐项支持关系。
-详见 [迁移登记](../TRANSITION.md)；下表新增或受影响项不得沿用旧 `aligned` 结论。
+当天最初仅发布上游要求；后续已按批准方案实现持久问答、真实证据片段、结构化发布和跨端快照契约，
+并完成全量静态/race 与隔离 MySQL 验证。设计见
+[社区研究闭环](../design/DES-agent-community-research.md)，实际范围见
+[工程证据](evidence/2026-09-05-agent-community-research.md)。真实模型、前端与语义评测仍需相应证据，
+不能用旧来源卡测试关闭新门禁。
+独立的[幂等与停机生命周期修复](evidence/2026-09-05-idempotency-shutdown-lifecycle.md)保留其证据边界；
+两批代码整合后的验证点将在复跑后更新，不能相互替代。
 
 ## 总体状态
 
 `diverged`：Hermes 异步 Agent runtime 已落地（RPC 不调模型、worker lease、自然语言 Memory、
 Watch 内部 bucket）。仍偏离处：
-- 2026-09-05 新增复杂需求、问答工具和逐项引用尚未交付；`AGENT-A10`~`AGENT-A13` 未验收。
+- 新增复杂需求、问答与逐项引用已具工程实现及事务测试；`AGENT-A10`~`AGENT-A13` 的真实模型和人类质量验收尚未关闭。
 - `CORE-032` 公开计数 30s 收敛缺少生产观测。
 - `DISC-060` 人类冻结集未关闭；`DISC-063` 无学习模型、相对提升 0。
 - `REL-033`/`REL-040`~`043`/`REL-A05` 缺少真实月度观测。
@@ -230,14 +232,14 @@ Watch 内部 bucket）。仍偏离处：
 | AGENT-052/053 memory-review | aligned | 每 10 回合调度与 review 预算；成功 change 写结构化 `memory_changed(changeId)`，不计未读并复用 undo CAS |
 | AGENT-054 辅助模型 | aligned | compact 可用 `LLM.AuxModel`、review 可用 `BackgroundReview.Model`，未配置时回退冻结主 route；辅助 client 继承 typed retry/usage 且不改前台 capability snapshot |
 | AGENT-060/061/063 search_history | aligned | keywords/around/session/recent 四种正式 shape；ES 只选候选，结果按 user/visible/role/kind/365 天回源；当前 live message ids 在 ES 查询和二次 MySQL 取数均排除，compacted 历史可返回；到期物理删除与 delete outbox 同事务 |
-| AGENT-070/071/072 source ledger | partial | 既有 ledger 写失败关闭、展示前回源与失效剔除已有测试；2026-09-05 新规范要求正文逐项引用，不再能以可选来源卡免除引用，当前映射与支持关系未实现/验证 |
+| AGENT-070/071/072 source ledger | partial | 已实现 evidenceId、句段引用、来源摘录与原子快照发布；验证归属、实际取得、可见性与重放。自然语言支持关系仍需人类质量评审 |
 | AGENT-073/074/075 逐项 URL 与推导依据 | diverged | 本次仅批准规范；具体帖子/网页 URL 与信息逐项关联、多源推导和冲突说明待设计与实现，旧卡片测试不是本次验收证据 |
 | AGENT-080/081/082 预算 | aligned | `budget.go`；`budget_test.go` |
 | AGENT-090 心跳/SLO | partial | HTTP SSE 25s comment heartbeat 与 cursor 单测通过；生产 p95/长连接观测未执行 |
 | AGENT-100~104 社区优先复杂需求 | diverged | 既有社区/网络检索工具不等于已满足澄清、社区优先、缺口说明、互联网补充与综合回答流程；本次未改 SOUL/runtime，待设计和验收 |
 | AGENT-110~115 ask_questions | diverged | 当前 registry 无此工具；结构化选项、用户答案回传、跳过/未知及分轮澄清未实现，跨端协议留待后续设计 |
 | AGENT-A01~A09 验收 | partial | 单测/race/SQL integration 与确定性 provider/root fixture 覆盖 capability snapshot、canary、双 WireAPI stream、typed retry/fallback、cache usage、strict schema、no-progress、sidecar scrub、attempt reset/replay 与既有安全矩阵；仍无外部 live LLM、生产 profile/迁移和生产流量 |
-| AGENT-A10~A13 新增验收 | diverged | 2026-09-05 文档修订未执行新增用户流程、结构化问答与逐项引用验收；工程文档门禁不等于行为或质量门禁 |
+| AGENT-A10~A13 新增验收 | partial | 问答状态、非法引用、失败恢复、原子事务与协议已有测试；真实模型场景和人类冻结质量集尚未关闭 |
 
 ## SPEC-agent-memory 追踪
 
@@ -270,7 +272,7 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-011 只读工具表 | aligned | `tool.WatchTools` |
 | WCH-012 用户抢占/失败重排 | aligned | PostMessage 先按 id 锁开放 run 再锁 thread/bucket；error/cancel finish 与 scheduler reconciliation 都按 run → bucket 锁序释放 reservation 并重置 pending，join `FOR UPDATE` 锁反转已移除 |
 | WCH-013 成功写 assistant 消息+未读 | aligned | validated hit context 进入模型；最终可见性复核后 token/message/outbox/unread/bucket sent/reservation→stat/done 在同一事务提交；失效流写 `response_reset` 且不生成 Watch message |
-| WCH-014 主动消息逐项引用 | partial | 既有 source card 与回源边界保留；2026-09-05 新增正文信息到 URL 的对应要求尚未实现/验证 |
+| WCH-014 主动消息逐项引用 | partial | Watch 复用结构化发布、来源回源与配额事务；保留只读权限，主动消息语义质量待实际场景验证 |
 | WCH-023 consent 撤销 | aligned | scheduler 在调度事务内复核 frozen/current consent；撤权取消已调度和活跃 run，未发送 bucket 退回 pending |
 | WCH-020 删除 hits API | aligned | proto/gateway 已无 ListHits/MarkRead |
 | WCH-021 任务不走 delete_post 确认 | aligned | Watch 工具非 HighRisk |
