@@ -91,6 +91,49 @@ func TestSQLFinishWatchDeliveryCleansResidualReservation(t *testing.T) {
 	}
 }
 
+func TestSQLFinishWatchDeliveryIgnoresStaleRescheduledRun(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket", "agent_run_event", "agent_run")
+	ctx := context.Background()
+	st := newAssistantTestStore()
+	now := time.Date(2026, 9, 5, 10, 0, 0, 0, time.UTC).UnixMilli()
+	dayStart := now / (24 * time.Hour).Milliseconds() * (24 * time.Hour).Milliseconds()
+	hourStart := now / time.Hour.Milliseconds() * time.Hour.Milliseconds()
+	bucket, err := st.UpsertDeliveryBucket(ctx, 101, 5001, now-2*time.Minute.Milliseconds(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err := st.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, []int64{81}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("reserve old run allowed=%v err=%v", allowed, err)
+	}
+	oldRun := scheduleSQLWatchAttempt(t, st, bucket, StatusCancelled, 1, now)
+	if err := st.ResetBucket(ctx, bucket.ID, oldRun.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	allowed, _, err = st.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, []int64{81}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("reserve replacement run allowed=%v err=%v", allowed, err)
+	}
+	newRun := scheduleSQLWatchAttempt(t, st, bucket, StatusCancelled, 2, now+1)
+	if err := st.FinishWatchDelivery(ctx, bucket.ID, bucket.UserID, oldRun.ID, StatusCancelled, now+2); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := st.GetBucket(ctx, bucket.ID)
+	if err != nil || fresh.Status != "scheduled" || fresh.RunID != newRun.ID {
+		t.Fatalf("stale finalizer mutated replacement bucket: bucket=%+v err=%v", fresh, err)
+	}
+
+	blocked, err := st.UpsertDeliveryBucket(ctx, bucket.UserID, 5002, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err = st.ReserveWatchQuota(ctx, blocked.ID, blocked.UserID, []int64{81}, dayStart, hourStart, 1, 1)
+	if err != nil || allowed {
+		t.Fatalf("stale finalizer released replacement reservation: allowed=%v err=%v", allowed, err)
+	}
+}
+
 func TestSQLWatchFailureStopsAfterEightAttempts(t *testing.T) {
 	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket", "agent_run_event", "agent_run")
 	ctx := context.Background()
@@ -264,6 +307,32 @@ func TestSQLRequeueFailedWatchBucketsUsesRetryPolicy(t *testing.T) {
 	fresh, err = st.GetBucket(ctx, crossUserBucket.ID)
 	if err != nil || fresh.Status != "scheduled" || fresh.RunID != crossUserRun.ID {
 		t.Fatalf("cross-user association was requeued: bucket=%+v err=%v", fresh, err)
+	}
+
+	wrongPayloadBucket, err := st.UpsertDeliveryBucket(ctx, 102, 3008, now-2*time.Minute.Milliseconds(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongPayload, err := json.Marshal(map[string]any{"bucket_id": wrongPayloadBucket.ID + 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongPayloadRun, err := st.InsertRun(ctx, Run{
+		UserID: wrongPayloadBucket.UserID, SessionID: 1, RequestID: "watch-wrong-bucket", QueuedPayload: wrongPayload,
+		Source: SourceWatch, Status: StatusCancelled, Phase: PhaseDone, CreatedAtMs: now, EndedAtMs: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkBucketScheduled(ctx, wrongPayloadBucket.ID, wrongPayloadRun.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.RequeueFailedBuckets(ctx, now); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = st.GetBucket(ctx, wrongPayloadBucket.ID)
+	if err != nil || fresh.Status != "discarded" || fresh.RunID != 0 {
+		t.Fatalf("wrong-payload association was requeued: bucket=%+v err=%v", fresh, err)
 	}
 }
 

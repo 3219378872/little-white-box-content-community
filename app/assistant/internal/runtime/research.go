@@ -19,29 +19,29 @@ func clientProtocol(run store.Run) int {
 }
 
 func closePendingCalls(ctx context.Context, tx store.Store, run store.Run, status string) error {
-	if run.Source == store.SourceMemoryReview {
-		return nil
-	}
-	messages, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
-	if err != nil {
-		return err
-	}
 	pending := map[string]prompt.ToolCall{}
-	for _, message := range messages {
-		if message.RunID != run.ID || message.DeletedAtMs != 0 {
-			continue
+	if run.Source != store.SourceMemoryReview {
+		messages, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+		if err != nil {
+			return err
 		}
-		turn, ok := prompt.DecodeTurn(message.APIContent)
-		if !ok {
-			continue
-		}
-		for _, call := range turn.ToolCalls {
-			pending[call.ID] = call
-		}
-		if turn.ToolCallID != "" {
-			delete(pending, turn.ToolCallID)
+		for _, message := range messages {
+			if message.RunID != run.ID || message.DeletedAtMs != 0 {
+				continue
+			}
+			turn, ok := prompt.DecodeTurn(message.APIContent)
+			if !ok {
+				continue
+			}
+			for _, call := range turn.ToolCalls {
+				pending[call.ID] = call
+			}
+			if turn.ToolCallID != "" {
+				delete(pending, turn.ToolCallID)
+			}
 		}
 	}
+	text := string(mustJSON(map[string]string{"status": status, "reason": "run terminated before this call completed"}))
 	ids := make([]string, 0, len(pending))
 	for id := range pending {
 		ids = append(ids, id)
@@ -49,17 +49,32 @@ func closePendingCalls(ctx context.Context, tx store.Store, run store.Run, statu
 	sort.Strings(ids)
 	for _, id := range ids {
 		call := pending[id]
-		text := string(mustJSON(map[string]string{"status": status, "reason": "run terminated before this call completed"}))
 		turn := prompt.Turn{Role: store.RoleTool, ToolCallID: id, Name: call.Name, Content: text}
 		if _, err := tx.InsertMessage(ctx, store.Message{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleTool, Kind: store.KindTool, Content: text, APIContent: prompt.EncodeTurn(turn), Visible: false, CreatedAtMs: store.NowMs()}); err != nil {
 			return err
 		}
-		existing, err := tx.GetToolCall(ctx, run.ID, id)
+	}
+	calls, err := tx.ListToolCalls(ctx, run.ID)
+	if err != nil {
+		return err
+	}
+	resultJSON := encodeToolResultJSONWithChanges(text, errors.New("run terminated before this call completed"), nil)
+	for _, call := range calls {
+		if call.ResultJSON != "" {
+			continue
+		}
+		if err := tx.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.CallID, Status: status, ResultJSON: resultJSON}); err != nil {
+			return err
+		}
+		if call.CanonicalArgsDigest == "" {
+			continue
+		}
+		journal, err := tx.GetJournal(ctx, run.UserID, run.RequestID, call.Tool, call.CanonicalArgsDigest)
 		if err != nil {
 			return err
 		}
-		if existing != nil && existing.ResultJSON == "" {
-			if err := tx.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: id, Status: status, ResultJSON: encodeToolResultJSONWithChanges(text, nil, nil)}); err != nil {
+		if journal != nil && journal.Status == store.JournalPending && journal.RunID == run.ID && journal.LeaseGeneration == run.LeaseGeneration {
+			if err := tx.CompleteJournal(ctx, journal.ID, store.JournalError, resultJSON); err != nil {
 				return err
 			}
 		}

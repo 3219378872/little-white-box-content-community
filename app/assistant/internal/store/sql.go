@@ -1318,9 +1318,10 @@ func (s *SQLStore) RequeueFailedBuckets(ctx context.Context, nowMs int64) error 
 	}
 	for _, candidate := range candidates {
 		var run struct {
-			Status string `db:"status"`
+			Status        string `db:"status"`
+			QueuedPayload []byte `db:"queued_payload"`
 		}
-		if err := s.exec.QueryRowCtx(ctx, &run, `SELECT status FROM agent_run WHERE id=? FOR UPDATE`, candidate.RunID); err != nil {
+		if err := s.exec.QueryRowCtx(ctx, &run, `SELECT status, queued_payload FROM agent_run WHERE id=? FOR UPDATE`, candidate.RunID); err != nil {
 			if err == sqlx.ErrNotFound {
 				continue
 			}
@@ -1337,16 +1338,19 @@ func (s *SQLStore) RequeueFailedBuckets(ctx context.Context, nowMs int64) error 
 		if bucket == nil || bucket.Status != "scheduled" {
 			continue
 		}
-		failedAttempts := 0
-		if run.Status == StatusError {
-			failedAttempts, err = s.countFailedWatchAttempts(ctx, candidate.BucketID, candidate.UserID, candidate.RunID)
+		target, notBeforeMs := "discarded", int64(0)
+		if watchBucketIDFromPayload(run.QueuedPayload) == candidate.BucketID {
+			failedAttempts := 0
+			if run.Status == StatusError {
+				failedAttempts, err = s.countFailedWatchAttempts(ctx, candidate.BucketID, candidate.UserID, candidate.RunID, bucket.CreatedAtMs)
+				if err != nil {
+					return err
+				}
+			}
+			target, notBeforeMs, err = watchTerminalBucketState(run.Status, *bucket, failedAttempts, nowMs)
 			if err != nil {
 				return err
 			}
-		}
-		target, notBeforeMs, err := watchTerminalBucketState(run.Status, *bucket, failedAttempts, nowMs)
-		if err != nil {
-			return err
 		}
 		if err := s.releaseWatchQuota(ctx, candidate.BucketID, false); err != nil {
 			return err
@@ -1475,7 +1479,9 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 		return s.releaseWatchQuota(ctx, id, false)
 	}
 	if bucket.RunID != runID {
-		return sqlx.ErrNotFound
+		// A stale finalizer may race a new delivery for the same bucket. It
+		// must not fail the old run or release the new run's reservation.
+		return nil
 	}
 	if bucket.Status != "scheduled" {
 		return fmt.Errorf("watch bucket %d is not scheduled", id)
@@ -1483,7 +1489,7 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 	if runStatus != StatusDone {
 		failedAttempts := 0
 		if runStatus == StatusError {
-			failedAttempts, err = s.countFailedWatchAttempts(ctx, id, userID, runID)
+			failedAttempts, err = s.countFailedWatchAttempts(ctx, id, userID, runID, bucket.CreatedAtMs)
 			if err != nil {
 				return err
 			}
@@ -1521,7 +1527,7 @@ func (s *SQLStore) FinishWatchDelivery(ctx context.Context, id, userID, runID in
 	return s.commitLegacyWatchQuota(ctx, bucket, nowMs)
 }
 
-func (s *SQLStore) countFailedWatchAttempts(ctx context.Context, bucketID, userID, currentRunID int64) (int, error) {
+func (s *SQLStore) countFailedWatchAttempts(ctx context.Context, bucketID, userID, currentRunID, bucketCreatedAtMs int64) (int, error) {
 	var current struct {
 		QueuedPayload []byte `db:"queued_payload"`
 	}
@@ -1536,10 +1542,13 @@ func (s *SQLStore) countFailedWatchAttempts(ctx context.Context, bucketID, userI
 		return watchDeliveryMaxAttempts, nil
 	}
 	var historical int
-	err := s.exec.QueryRowCtx(ctx, &historical, `SELECT COUNT(*) FROM agent_run
-		WHERE user_id=? AND status=? AND source=? AND id<>?
-		AND JSON_UNQUOTE(JSON_EXTRACT(queued_payload, '$.bucket_id'))=?`,
-		userID, StatusError, SourceWatch, currentRunID, strconv.FormatInt(bucketID, 10))
+	err := s.exec.QueryRowCtx(ctx, &historical, `SELECT COUNT(*) FROM (
+		SELECT id FROM agent_run FORCE INDEX (idx_run_user_status)
+		WHERE user_id=? AND status=? AND source=? AND id<? AND created_at_ms>=?
+		AND JSON_UNQUOTE(JSON_EXTRACT(queued_payload, '$.bucket_id'))=?
+		ORDER BY id DESC LIMIT ?
+	) AS failed_watch_attempts`, userID, StatusError, SourceWatch, currentRunID, bucketCreatedAtMs,
+		strconv.FormatInt(bucketID, 10), watchDeliveryMaxAttempts-1)
 	return historical + 1, err
 }
 

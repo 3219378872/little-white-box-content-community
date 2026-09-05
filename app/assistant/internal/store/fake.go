@@ -1035,13 +1035,17 @@ func (m *MemoryStore) RequeueFailedBuckets(_ context.Context, nowMs int64) error
 	for id, b := range m.buckets {
 		run, ok := m.runs[b.RunID]
 		if b.Status == "scheduled" && ok && run.UserID == b.UserID && run.Source == SourceWatch && (run.Status == StatusError || run.Status == StatusCancelled) {
+			target, notBeforeMs := "discarded", int64(0)
 			failedAttempts := 0
-			if run.Status == StatusError {
-				failedAttempts = m.failedWatchAttemptsLocked(id, b.UserID, run.ID)
-			}
-			target, notBeforeMs, err := watchTerminalBucketState(run.Status, b, failedAttempts, nowMs)
-			if err != nil {
-				return err
+			if watchBucketIDFromPayload(run.QueuedPayload) == id {
+				if run.Status == StatusError {
+					failedAttempts = m.failedWatchAttemptsLocked(id, b.UserID, run.ID)
+				}
+				var err error
+				target, notBeforeMs, err = watchTerminalBucketState(run.Status, b, failedAttempts, nowMs)
+				if err != nil {
+					return err
+				}
 			}
 			m.releaseWatchReservationsLocked(id)
 			b.Status = target
@@ -1107,7 +1111,9 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 		return nil
 	}
 	if bucket.RunID != runID {
-		return sqlx.ErrNotFound
+		// A stale finalizer may race a new delivery for the same bucket. It
+		// must not fail the old run or release the new run's reservation.
+		return nil
 	}
 	if bucket.Status != "scheduled" {
 		return errors.New("watch bucket is not scheduled")
@@ -1142,13 +1148,17 @@ func (m *MemoryStore) FinishWatchDelivery(_ context.Context, id, userID, runID i
 
 func (m *MemoryStore) failedWatchAttemptsLocked(bucketID, userID, currentRunID int64) int {
 	current, ok := m.runs[currentRunID]
-	if !ok || current.UserID != userID || current.Source != SourceWatch || current.Status != StatusError || watchBucketIDFromPayload(current.QueuedPayload) != bucketID {
+	bucket, bucketOK := m.buckets[bucketID]
+	if !ok || !bucketOK || bucket.UserID != userID || current.UserID != userID || current.Source != SourceWatch || current.Status != StatusError || watchBucketIDFromPayload(current.QueuedPayload) != bucketID {
 		return watchDeliveryMaxAttempts
 	}
 	attempts := 1
 	for id, run := range m.runs {
-		if id != currentRunID && run.UserID == userID && run.Source == SourceWatch && run.Status == StatusError && watchBucketIDFromPayload(run.QueuedPayload) == bucketID {
+		if id < currentRunID && run.CreatedAtMs >= bucket.CreatedAtMs && run.UserID == userID && run.Source == SourceWatch && run.Status == StatusError && watchBucketIDFromPayload(run.QueuedPayload) == bucketID {
 			attempts++
+			if attempts >= watchDeliveryMaxAttempts {
+				return attempts
+			}
 		}
 	}
 	return attempts

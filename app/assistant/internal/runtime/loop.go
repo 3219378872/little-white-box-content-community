@@ -1484,15 +1484,25 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 		if err != nil {
 			return err
 		}
-		if status == store.StatusDone && fresh.CancelRequested {
-			return errRunCancelled
+		cancelWon := status != store.StatusCancelled && fresh.CancelRequested
+		if cancelWon {
+			status = store.StatusCancelled
+			eventType = store.EventError
+			payload = store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"}
+			message = ""
+			apiContent = nil
+			emitToken = false
+			streamID = ""
+			run.Status = store.StatusCancelled
+			run.CancelRequested = true
+			run.ErrorCode = "CANCELLED"
 		}
 		if status != store.StatusDone {
 			if err := closePendingCalls(ctx, tx, run, status); err != nil {
 				return err
 			}
 		}
-		if before != nil {
+		if before != nil && !cancelWon {
 			if err := before(ctx, tx); err != nil {
 				return err
 			}

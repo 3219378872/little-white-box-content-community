@@ -22,7 +22,23 @@ func TestMemoryWatchFailureDefersAndReleasesQuota(t *testing.T) {
 	if err != nil || !allowed {
 		t.Fatalf("reserve allowed=%v err=%v", allowed, err)
 	}
+	payload, err := json.Marshal(map[string]any{"bucket_id": bucket.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mem.InsertRun(ctx, Run{
+		UserID: bucket.UserID, SessionID: 1, RequestID: "watch-stale-before-bucket", Source: SourceWatch,
+		Status: StatusError, Phase: PhaseDone, QueuedPayload: payload, CreatedAtMs: bucket.CreatedAtMs - 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	run := insertMemoryWatchAttempt(t, mem, bucket, StatusError, 1, now)
+	if _, err := mem.InsertRun(ctx, Run{
+		UserID: bucket.UserID, SessionID: 1, RequestID: "watch-future-run", Source: SourceWatch,
+		Status: StatusError, Phase: PhaseDone, QueuedPayload: payload, CreatedAtMs: now + 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := mem.FinishWatchDelivery(ctx, bucket.ID, bucket.UserID, run.ID, StatusError, now); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +154,7 @@ func TestMemoryRequeueFailedBucketsUsesTerminalPolicy(t *testing.T) {
 	}
 }
 
-func TestMemoryRequeueIgnoresInvalidRunAssociation(t *testing.T) {
+func TestMemoryRequeueValidatesRunAssociation(t *testing.T) {
 	ctx := context.Background()
 	mem := NewMemoryStore()
 	now := time.Date(2026, 9, 5, 9, 0, 0, 0, time.UTC).UnixMilli()
@@ -188,6 +204,32 @@ func TestMemoryRequeueIgnoresInvalidRunAssociation(t *testing.T) {
 	fresh, err = mem.GetBucket(ctx, crossUserBucket.ID)
 	if err != nil || fresh.Status != "scheduled" || fresh.RunID != crossUserRun.ID {
 		t.Fatalf("cross-user association was requeued: bucket=%+v err=%v", fresh, err)
+	}
+
+	wrongPayloadBucket, err := mem.UpsertDeliveryBucket(ctx, 53, 803, now-2*time.Minute.Milliseconds(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongPayload, err := json.Marshal(map[string]any{"bucket_id": wrongPayloadBucket.ID + 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongPayloadRun, err := mem.InsertRun(ctx, Run{
+		UserID: wrongPayloadBucket.UserID, SessionID: 1, RequestID: "watch-wrong-bucket", QueuedPayload: wrongPayload,
+		Source: SourceWatch, Status: StatusCancelled, Phase: PhaseDone, CreatedAtMs: now, EndedAtMs: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.MarkBucketScheduled(ctx, wrongPayloadBucket.ID, wrongPayloadRun.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.RequeueFailedBuckets(ctx, now); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err = mem.GetBucket(ctx, wrongPayloadBucket.ID)
+	if err != nil || fresh.Status != "discarded" || fresh.RunID != 0 {
+		t.Fatalf("wrong-payload association was requeued: bucket=%+v err=%v", fresh, err)
 	}
 }
 
@@ -266,6 +308,48 @@ func TestMemoryFinishWatchDeliveryCleansResidualReservation(t *testing.T) {
 	allowed, _, err = mem.ReserveWatchQuota(ctx, next.ID, next.UserID, []int64{78}, dayStart, hourStart, 1, 1)
 	if err != nil || !allowed {
 		t.Fatalf("residual reservation was not released: allowed=%v err=%v", allowed, err)
+	}
+}
+
+func TestMemoryFinishWatchDeliveryIgnoresStaleRescheduledRun(t *testing.T) {
+	ctx := context.Background()
+	mem := NewMemoryStore()
+	now := time.Date(2026, 9, 5, 9, 0, 0, 0, time.UTC).UnixMilli()
+	dayStart := now / (24 * time.Hour).Milliseconds() * (24 * time.Hour).Milliseconds()
+	hourStart := now / time.Hour.Milliseconds() * time.Hour.Milliseconds()
+	bucket, err := mem.UpsertDeliveryBucket(ctx, 52, 901, now-2*time.Minute.Milliseconds(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err := mem.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, []int64{79}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("reserve old run allowed=%v err=%v", allowed, err)
+	}
+	oldRun := insertMemoryWatchAttempt(t, mem, bucket, StatusCancelled, 1, now)
+	if err := mem.ResetBucket(ctx, bucket.ID, oldRun.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	allowed, _, err = mem.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, []int64{79}, dayStart, hourStart, 1, 1)
+	if err != nil || !allowed {
+		t.Fatalf("reserve replacement run allowed=%v err=%v", allowed, err)
+	}
+	newRun := insertMemoryWatchAttempt(t, mem, bucket, StatusCancelled, 2, now+1)
+	if err := mem.FinishWatchDelivery(ctx, bucket.ID, bucket.UserID, oldRun.ID, StatusCancelled, now+2); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := mem.GetBucket(ctx, bucket.ID)
+	if err != nil || fresh.Status != "scheduled" || fresh.RunID != newRun.ID {
+		t.Fatalf("stale finalizer mutated replacement bucket: bucket=%+v err=%v", fresh, err)
+	}
+
+	blocked, err := mem.UpsertDeliveryBucket(ctx, bucket.UserID, 902, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, _, err = mem.ReserveWatchQuota(ctx, blocked.ID, blocked.UserID, []int64{79}, dayStart, hourStart, 1, 1)
+	if err != nil || allowed {
+		t.Fatalf("stale finalizer released replacement reservation: allowed=%v err=%v", allowed, err)
 	}
 }
 

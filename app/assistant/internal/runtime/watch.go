@@ -392,10 +392,17 @@ func (e *Engine) dismissWatchRun(ctx context.Context, run store.Run) error {
 	}
 	now := store.NowMs()
 	if err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		cancelled, err := runCancellationRequested(ctx, tx, run.ID)
+		if err != nil {
+			return err
+		}
+		if cancelled {
+			return errRunCancelled
+		}
 		if err := tx.DismissBucket(ctx, payload.BucketID, run.ID); err != nil {
 			return err
 		}
-		_, err := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{}, now)
+		_, err = finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{}, now)
 		return err
 	}); err != nil {
 		return err

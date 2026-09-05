@@ -45,6 +45,13 @@ func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, tex
 	}
 	now := store.NowMs()
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		cancelled, err := runCancellationRequested(ctx, tx, run.ID)
+		if err != nil {
+			return err
+		}
+		if cancelled {
+			return errRunCancelled
+		}
 		if text != "" && emitToken {
 			if _, err := appendEventTx(ctx, tx, run, store.EventToken, store.EventPayload{Text: text, StreamID: streamID}, now); err != nil {
 				return err
@@ -99,6 +106,10 @@ func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error 
 	}
 	now := store.NowMs()
 	err = e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		cancelled, err := runCancellationRequested(ctx, tx, run.ID)
+		if err != nil {
+			return err
+		}
 		existing, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
 		if err != nil {
 			return err
@@ -136,13 +147,28 @@ func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error 
 		if err := tx.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		_, err = finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{}, now)
+		status, eventType := store.StatusDone, store.EventDone
+		payload := store.EventPayload{}
+		if cancelled {
+			status = store.StatusCancelled
+			eventType = store.EventError
+			payload = store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"}
+		}
+		_, err = finishRunTx(ctx, tx, run, status, eventType, payload, now)
 		return err
 	})
 	if err == nil {
 		e.wake(ctx, run.ID)
 	}
 	return err
+}
+
+func runCancellationRequested(ctx context.Context, tx store.Store, runID int64) (bool, error) {
+	fresh, err := tx.GetRun(ctx, runID)
+	if err != nil {
+		return false, err
+	}
+	return fresh.CancelRequested, nil
 }
 
 func (e *Engine) memoryChangeIDs(ctx context.Context, runID int64) ([]int64, error) {
