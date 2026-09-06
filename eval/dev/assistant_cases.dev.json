@@ -1,6 +1,11 @@
 {
   "version": 1,
-  "note": "DEVELOPMENT-ONLY synthetic dataset. NOT the frozen human-annotated gate set required by ASST-050; do not use for official gating.",
+  "frozen": false,
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
+  "independent_review": false,
+  "disagreements_resolved": false,
+  "note": "DEVELOPMENT-ONLY synthetic dataset. It is not the human-reviewed gate set required by AGENT-A13.",
   "cases": [
     {
       "id": "dev-c-001",

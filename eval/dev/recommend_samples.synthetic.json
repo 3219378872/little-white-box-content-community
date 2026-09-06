@@ -1,11 +1,17 @@
 {
   "version": 1,
-  "frozen": true,
+  "frozen": false,
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
+  "independent_review": false,
+  "disagreements_resolved": false,
   "reviewers": [
     "llm-reviewer-a",
     "llm-reviewer-b"
   ],
-  "note": "LLM-generated frozen recommendation samples (2026-08-14, human-authorized). model_ranked == baseline_ranked == rule hot ranking: production serves a rule model only; no learning-model improvement claim (DISC-062). Regenerate with real model rankings once exposure/identity thresholds are met.",
+  "valid_exposures": 0,
+  "valid_identities": 0,
+  "note": "DEVELOPMENT-ONLY LLM-generated recommendation samples. This canonical synthetic file cannot close DISC-063 or support an improvement claim.",
   "samples": [
     {
       "session_id": "rs-001",

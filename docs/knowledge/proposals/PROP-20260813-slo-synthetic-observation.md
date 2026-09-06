@@ -2,7 +2,7 @@
 id: PROP-20260813-slo-synthetic-observation
 layer: proposal
 title: 用 LLM 生成合成生产观测进行 SLO 报告管线干跑
-status: open
+status: closed
 owner: agent
 target_layer: spec
 upstream:
@@ -26,12 +26,11 @@ upstream:
 - 干跑结果：6 个能力域 `spec_evals.py slo` 全部 `met=True`，证明报告管线
   （REL-030/031 分母口径、p95 计算、阈值判断）正确。
 
-# 需要人类决定的事项
+# 已关闭的决定
 
-1. 是否接受合成观测作为 REL-030~033/040~043 的**门禁关闭依据**？
-   - 推荐：**否**。合成数据验证的是报告管线，不代表生产合规；
-     REL 行保持 `partial`，待真实生产数据替换后按 REL-A05 正式出报告。
-   - 若接受（可选）：需在 SPEC-feedback-reliability 增加“合成观测干跑”条款并批准。
+已批准的 `SPEC-feedback-reliability` 在 `REL-033` 与 `REL-A05` 中明确要求真实 UTC 自然月生产观测，
+并明确合成数据不能关闭门禁。因此本提案于 2026-09-06 关闭：保留 synthetic 干跑验证报告管线，
+拒绝把它解释为 REL-030~033/040~043 或 REL-A05 的通过证据。
 
 # 影响
 

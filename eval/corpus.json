@@ -1,7 +1,9 @@
 {
   "version": 1,
-  "frozen": true,
-  "note": "LLM-generated synthetic corpus anchored to frozen eval sets (2026-08-13).",
+  "frozen": false,
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
+  "note": "DEVELOPMENT-ONLY LLM-generated synthetic corpus (2026-08-13); it cannot close a human quality gate.",
   "posts": [
     {
       "id": 1001,

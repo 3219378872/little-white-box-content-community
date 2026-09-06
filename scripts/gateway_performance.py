@@ -21,7 +21,9 @@ from collections.abc import Callable, Sequence
 
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8888"
-DEFAULT_SCENARIOS = "behavior,search,feed,gateway,assistant"
+DEFAULT_SCENARIOS = (
+    "behavior,search,feed,gateway,assistant_accept,assistant_first_event"
+)
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
@@ -32,7 +34,7 @@ class RequestSpec:
     expected_status: int
     headers: dict[str, str]
     body: bytes | None = None
-    first_sse_token: bool = False
+    assistant_events_url: str | None = None
     json_validator: Callable[[object], None] | None = None
 
 
@@ -93,11 +95,11 @@ def _json_request(
     token: str,
     payload: dict[str, object] | None = None,
     *,
-    first_sse_token: bool = False,
+    assistant_events_url: str | None = None,
     json_validator: Callable[[object], None] | None = None,
 ) -> RequestSpec:
     headers = _authorization_headers(token)
-    headers["Accept"] = "text/event-stream" if first_sse_token else "application/json"
+    headers["Accept"] = "application/json"
     body = None
     if payload is not None:
         headers["Content-Type"] = "application/json"
@@ -108,7 +110,7 @@ def _json_request(
         expected_status=expected_status,
         headers=headers,
         body=body,
-        first_sse_token=first_sse_token,
+        assistant_events_url=assistant_events_url,
         json_validator=json_validator,
     )
 
@@ -197,27 +199,46 @@ def build_scenarios(
             json_validator=lambda value: _require_list_fields(value, "gateway", ("list",)),
         )
 
-    def assistant(index: int) -> RequestSpec:
-        payload = {
-            "conversationId": request_id("conversation", index),
+    def assistant_payload(index: int, scenario: str) -> dict[str, object]:
+        return {
             "message": assistant_message,
-            "requestId": request_id("assistant", index),
+            "requestId": request_id(scenario, index),
+            "clientProtocolVersion": 2,
+        }
+
+    def assistant_accept(index: int) -> RequestSpec:
+        payload = {
+            **assistant_payload(index, "assistant-accept"),
         }
         return _json_request(
             "POST",
-            f"{base_url}/api/v2/assistant/chat",
+            f"{base_url}/api/v2/assistant/messages",
             200,
             token,
             payload,
-            first_sse_token=True,
+            json_validator=_validate_assistant_accept_response,
+        )
+
+    def assistant_first_event(index: int) -> RequestSpec:
+        return _json_request(
+            "POST",
+            f"{base_url}/api/v2/assistant/messages",
+            200,
+            token,
+            assistant_payload(index, "assistant-first-event"),
+            assistant_events_url=f"{base_url}/api/v2/assistant/runs",
+            json_validator=_validate_assistant_accept_response,
         )
 
     return {
-        "behavior": Scenario("behavior", 100, behavior),
-        "search": Scenario("search", 200, search),
-        "feed": Scenario("feed", 250, feed),
-        "gateway": Scenario("gateway", 400, gateway),
-        "assistant": Scenario("assistant", 2000, assistant),
+        "behavior": Scenario("behavior", 300, behavior),
+        "search": Scenario("search", 800, search),
+        "feed": Scenario("feed", 800, feed),
+        "gateway": Scenario("gateway", 300, gateway),
+        "assistant_accept": Scenario("assistant_accept", 500, assistant_accept),
+        "assistant_first_event": Scenario(
+            "assistant_first_event", 2000, assistant_first_event
+        ),
     }
 
 
@@ -236,6 +257,16 @@ def _validate_behavior_response(value: object) -> None:
         raise ValueError("behavior event was not acknowledged as accepted")
 
 
+def _validate_assistant_accept_response(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("assistant message response is not a JSON object")
+    for field in ("messageId", "sessionId", "runId"):
+        if not isinstance(value.get(field), int) or value[field] <= 0:
+            raise ValueError(f"assistant message response requires positive {field}")
+    if not isinstance(value.get("disposition"), str) or not value["disposition"]:
+        raise ValueError("assistant message response requires disposition")
+
+
 def _read_json_response(response: object) -> object:
     payload = response.read(MAX_RESPONSE_BYTES + 1)
     if len(payload) > MAX_RESPONSE_BYTES:
@@ -245,27 +276,46 @@ def _read_json_response(response: object) -> object:
     return json.loads(payload)
 
 
-def _read_first_sse_token(response: object) -> None:
+def _read_first_persisted_event(response: object) -> None:
     content_type = response.headers.get("Content-Type", "")
     if content_type.split(";", 1)[0].strip().lower() != "text/event-stream":
         raise ValueError(f"unexpected SSE content type {content_type!r}")
     while True:
         line = response.readline(64 * 1024 + 1)
         if not line:
-            raise ValueError("SSE stream ended before the first token")
+            raise ValueError("SSE stream ended before the first persisted event")
         if len(line) > 64 * 1024:
             raise ValueError("SSE event exceeds 64 KiB")
         if not line.startswith(b"data:"):
             continue
         event = json.loads(line[5:].strip())
-        event_type = event.get("type")
-        if event_type == "token" and event.get("text"):
-            return
+        if not isinstance(event, dict):
+            raise ValueError("assistant SSE data is not a JSON object")
+        if not isinstance(event.get("seq"), int) or event["seq"] <= 0:
+            raise ValueError("assistant SSE event requires a positive seq")
+        event_type = str(event.get("type", "")).strip()
+        if not event_type:
+            raise ValueError("assistant SSE event requires type")
+        if "text" in event and not isinstance(event["text"], str):
+            raise ValueError("assistant SSE text must be a string")
+        if "streamId" in event and not isinstance(event["streamId"], str):
+            raise ValueError("assistant SSE streamId must be a string")
+        if "sourceCard" in event:
+            source_card = event["sourceCard"]
+            if not isinstance(source_card, dict) or not isinstance(
+                source_card.get("authorityId"), str
+            ):
+                raise ValueError("assistant SSE sourceCard requires authorityId")
+        if "answerPresentation" in event and not isinstance(
+            event["answerPresentation"], dict
+        ):
+            raise ValueError("assistant SSE answerPresentation must be an object")
         if event_type == "error":
             code = event.get("errorCode") or "UNKNOWN"
             raise ValueError(f"assistant returned error event {code}")
-        if event_type == "done":
-            raise ValueError("assistant completed before the first token")
+        # token, response_reset, done, and the other public event types are all
+        # persisted run events. The latency contract stops at the first one.
+        return
 
 
 def execute_request(spec: RequestSpec, timeout_seconds: float) -> Sample:
@@ -280,12 +330,36 @@ def execute_request(spec: RequestSpec, timeout_seconds: float) -> Sample:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             if response.status != spec.expected_status:
                 return Sample(None, f"HTTP {response.status}, expected {spec.expected_status}")
-            if spec.first_sse_token:
-                _read_first_sse_token(response)
-            else:
-                value = _read_json_response(response)
-                if spec.json_validator is not None:
-                    spec.json_validator(value)
+            value = _read_json_response(response)
+            if spec.json_validator is not None:
+                spec.json_validator(value)
+        if spec.assistant_events_url is not None:
+            if not isinstance(value, dict):
+                raise ValueError("assistant message response is not a JSON object")
+            run_id = value.get("runId")
+            if not isinstance(run_id, int) or run_id <= 0:
+                raise ValueError("assistant message response requires positive runId")
+            elapsed = time.perf_counter() - started
+            remaining = timeout_seconds - elapsed
+            if remaining <= 0:
+                raise TimeoutError("assistant accept exhausted the first-event timeout")
+            event_headers = {
+                key: header_value
+                for key, header_value in spec.headers.items()
+                if key.lower() not in {"content-type", "accept"}
+            }
+            event_headers["Accept"] = "text/event-stream"
+            event_request = urllib.request.Request(
+                f"{spec.assistant_events_url}/{run_id}/events?afterSeq=0",
+                headers=event_headers,
+                method="GET",
+            )
+            with urllib.request.urlopen(event_request, timeout=remaining) as response:
+                if response.status != 200:
+                    raise ValueError(
+                        f"assistant events HTTP {response.status}, expected 200"
+                    )
+                _read_first_persisted_event(response)
         return Sample((time.perf_counter() - started) * 1000, None)
     except urllib.error.HTTPError as exc:
         return Sample(None, f"HTTP {exc.code}, expected {spec.expected_status}")
@@ -398,7 +472,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--scenarios",
         default=os.environ.get("PERF_GATEWAY_SCENARIOS", DEFAULT_SCENARIOS),
-        help="comma-separated behavior,search,feed,gateway,assistant or all",
+        help=(
+            "comma-separated behavior,search,feed,gateway,assistant_accept,"
+            "assistant_first_event or all"
+        ),
     )
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--requests", type=int, default=20)
@@ -439,8 +516,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         selected_names = _parse_scenario_names(args.scenarios, scenarios)
     except ValueError as exc:
         parser.error(str(exc))
-    if "assistant" in selected_names and not args.token.strip():
-        parser.error("assistant scenario requires --token or PERF_GATEWAY_TOKEN")
+    if any(name.startswith("assistant_") for name in selected_names) and not args.token.strip():
+        parser.error("assistant scenarios require --token or PERF_GATEWAY_TOKEN")
 
     summaries = [
         run_scenario(

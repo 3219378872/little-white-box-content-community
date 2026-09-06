@@ -8,6 +8,7 @@ upstream:
   - INT-content-community-backend
 deprecated: true
 deprecated_by: SPEC-assistant-agent
+updated_at: 2026-09-06
 ---
 
 # 社区内容证据化 Assistant 规范

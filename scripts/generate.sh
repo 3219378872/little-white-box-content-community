@@ -11,9 +11,41 @@ for tool in goctl protoc protoc-gen-go protoc-gen-go-grpc python3; do
   fi
 done
 
-if ! python3 -c 'import grpc_tools.protoc' >/dev/null 2>&1; then
-  echo "missing Python code generation module: grpc_tools.protoc" >&2
-  echo "install it with: python3 -m pip install --requirement app/embedding/service/requirements-dev.txt" >&2
+python_codegen_requirements="$ROOT_DIR/scripts/requirements-generate.txt"
+if ! python3 - "$python_codegen_requirements" <<'PY'
+import importlib.metadata
+import pathlib
+import sys
+
+import grpc_tools.protoc  # noqa: F401 - fail before generation if the module is broken
+
+requirements = pathlib.Path(sys.argv[1])
+pins = {}
+for raw in requirements.read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#"):
+        continue
+    package, separator, version = line.partition("==")
+    if not separator or not package or not version:
+        raise SystemExit(f"invalid exact codegen pin: {line}")
+    pins[package] = version
+
+for package in ("grpcio-tools", "protobuf"):
+    expected = pins.get(package)
+    if expected is None:
+        raise SystemExit(f"missing codegen pin: {package}")
+    try:
+        actual = importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        raise SystemExit(f"missing Python code generation package: {package}")
+    if actual != expected:
+        raise SystemExit(
+            f"Python code generation package {package}={actual}; expected {expected}"
+        )
+PY
+then
+  echo "install pinned Python generators with:" >&2
+  echo "  python3 -m pip install --requirement scripts/requirements-generate.txt" >&2
   exit 1
 fi
 

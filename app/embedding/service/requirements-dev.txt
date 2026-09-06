@@ -1,2 +1,2 @@
 -r requirements.txt
-grpcio-tools==1.71.0
+-r ../../../scripts/requirements-generate.txt

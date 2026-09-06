@@ -1,27 +1,38 @@
 # 实现层
 
-本目录由 agent 维护，登记设计到代码的映射与验证证据。
+本目录由 agent 维护，把六份活跃规格的每个精确条款唯一映射到当前实现领域。源码、配置、`.api`、
+`.proto` 和测试是当前行为的事实权威；IMP 不能覆盖它们，也不能反向修改上层语义。
 
-- 源码、配置、`.api`、`.proto` 和测试是当前行为的权威事实。
-- 实现页只记录设计到代码的映射、`aligned/diverged/unknown` 状态和最后验证点。
-- `aligned` 或 `diverged` 页面必须引用活跃 `DES-*`，列出真实 `tracks`、提交和日期。
-- 命令、结果和环境边界写入 [evidence/](evidence/README.md)，不得用一次验证证明永久同步。
-- 新实现页使用 `../templates/implementation.md`。
+每个非 retired `IMP-*` 的 `tracks` 只列精确 requirement ID，`code_paths` 列仓库相对源码入口，
+`evidence` 双向引用独立 [EVD 证据层](../evidence/README.md)。权威表逐行使用
+`aligned/diverged/unknown`：只有 `aligned` 必须由 active/passed EVD 覆盖；其余状态必须写明
+`gap: ...`。权威表必须且只能有一个如下精确表头和分隔行；不得使用范围、斜线或合并 ID。
 
-## 当前实现映射
-
-| 实现页 | 上游设计 | 状态 | 证据 |
+```text
+| Requirement | Design | Status | Evidence/Gap |
 | --- | --- | --- | --- |
-| [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-09-05（幂等并发与停机生命周期；评测/SLO 仍缺） |
-| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-09-06（包边界、死 Model、单一模块） |
-| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-09-06（错误码与鉴权读取约定） |
-| [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
+```
 
-> 迁移说明：docs/active 速查、顶层 DESIGN/SECURITY/RELIABILITY/QUALITY_SCORE
-> 规范文档、ARCHITECTURE 服务架构文档与 generated 旧快照的内容已并入上述实现页
-> 并从仓库移除；路由见 `docs/INDEX.md`。
+## 当前六域映射
 
-## 待办（需外部输入）
+| 实现页 | 对应 approved SPEC | 状态 |
+| --- | --- | --- |
+| [IMP-community-core](IMP-community-core.md) | SPEC-community-core | unknown |
+| [IMP-content-discovery](IMP-content-discovery.md) | SPEC-content-discovery | diverged |
+| [IMP-assistant-agent](IMP-assistant-agent.md) | SPEC-assistant-agent | unknown |
+| [IMP-agent-memory](IMP-agent-memory.md) | SPEC-agent-memory | unknown |
+| [IMP-agent-watch](IMP-agent-watch.md) | SPEC-agent-watch | unknown |
+| [IMP-feedback-reliability](IMP-feedback-reliability.md) | SPEC-feedback-reliability | diverged |
 
-- [IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)：冻结评测集（DISC-060~063 / ASST-050~051）
-  与月度生产观测数据（REL-030~043）两项收尾门禁。
+## 稳定 ID 迁移指针
+
+以下正式 IMP 身份已退役；页面只保留稳定 ID 与当前非正式指南/状态入口，不参与覆盖：
+
+- [IMP-content-community-backend](IMP-content-community-backend.md)
+- [IMP-architecture](IMP-architecture.md)
+- [IMP-development-quickstart](IMP-development-quickstart.md)
+- [IMP-engineering-conventions](IMP-engineering-conventions.md)
+- [IMP-todo-blocked-gates](IMP-todo-blocked-gates.md)
+
+旧 [implementation/evidence](evidence/README.md) 原样保留为 legacy 历史。当前操作指南见
+[guides](../guides/README.md)，当前开放门禁见 [status/open-gates](../status/open-gates.md)。

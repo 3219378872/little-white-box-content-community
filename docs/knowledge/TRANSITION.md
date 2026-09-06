@@ -3,87 +3,52 @@ title: knowledge transition register
 owner: agent
 status: active
 observed_at: 2026-09-06
-observed_commit: c4db7e6
 ---
 
 # 知识迁移登记
 
-本页只记录迁移状态，不是意图、规范或设计。
+本页只记录治理迁移，不定义产品或工程要求。
 
-## 已完成迁移（2026-08-13，历史快照）
+## 2026-09-06 五层治理
 
-- 意图层：`docs/knowledge/intent/INT-content-community-backend.md`（approved）。
-- 规范层：`SPEC-community-core`、`SPEC-content-discovery`、`SPEC-grounded-assistant`、
-  `SPEC-assistant-agent-mode`、`SPEC-agent-memory`、`SPEC-agent-watch`、
-  `SPEC-feedback-reliability`（当时 approved；Assistant 两份旧规范现为 retired）。
-- 设计层：`docs/knowledge/design/DES-content-community-backend.md`（active）。
-- 实现层：`IMP-content-community-backend`、`IMP-architecture`、
-  `IMP-engineering-conventions`、`IMP-development-quickstart`、`IMP-todo-blocked-gates`
-  与带日期证据。
+旧结构把操作指南、全域实现台账和带日期验证混在 implementation 下，无法机器判断某条要求由谁负责、
+证据观察了哪个提交，也容易把历史通过结果误用于新条款。当前结构改为：
 
-旧过渡基线（docs/active 速查、顶层 DESIGN/SECURITY/RELIABILITY/QUALITY_SCORE
-规范文档、ARCHITECTURE 服务架构文档、generated 旧快照）的内容已并入实现层页面并
-从仓库移除；路由见 `docs/INDEX.md`。
+```text
+INT -> SPEC -> DES -> IMP <-> EVD
+```
 
-## 当前边界
+- 六份 approved SPEC 是当前规范上游；`SPEC-grounded-assistant` 与
+  `SPEC-assistant-agent-mode` 已 retired，只保留历史语境。
+- current DES 使用精确 `tracks` 承接全部 approved requirement；每条 requirement 恰有一个 current IMP
+  owner。实现按 community-core、content-discovery、assistant-agent、agent-memory、agent-watch、
+  feedback-reliability 六个领域拆分。
+- current EVD 独立登记提交、命令、scope 和结果，并与 IMP 双向引用。旧
+  `implementation/evidence/` 原样保留为 legacy，不参与 aligned 判定。
+- 原 `IMP-architecture`、`IMP-development-quickstart`、`IMP-engineering-conventions` 与
+  `IMP-todo-blocked-gates` 只保留 retired ID 指针；内容分别迁到 `guides/` 与 `status/`。
+- `IMP-content-community-backend` 退役为六域索引指针，不再重复拥有 requirement。
 
-- 正式知识链：意图（human）→ 规范（human）→ 设计（agent）→ 实现（agent）。
-- 源码、配置、`.api`、`.proto` 和测试是当前行为的权威事实。
-- 实现页 `aligned/diverged` 状态必须引用活跃 `DES-*` 并列出真实 `tracks`、提交和日期。
-- 未获授权的意图/规范建议只能写入 `docs/knowledge/proposals/`。
+`scripts/engineering-lint.py` 从 approved SPEC 动态抽取 requirement，校验 DES 覆盖、唯一 IMP owner、
+逐行状态、IMP/EVD 双向引用、证据提交与 scope、跨仓引用格式和五层索引。公共入口仍是
+`make engineering-lint`。
 
-## 2026-08-27 Agent 能力扩张（历史快照）
+## 工具和数据边界
 
-- 意图：`INT-content-community-backend` 将 Agent 从发帖工具扩展为内容搜索综述、
-  结构化记忆、可解释推荐与条件追踪；明确不做游戏库/价格/商城与通用通知中心。
-- 规范：修订 `SPEC-grounded-assistant`（评论证据、`ASST-042` 重批）、
-  `SPEC-assistant-agent-mode`（分组白名单、`consent_version`）；新增
-  `SPEC-agent-memory`、`SPEC-agent-watch`。这些是迁移前的历史版本，当前约束以
-  `SPEC-assistant-agent` 及重写后的 Memory/Watch 规范为准。
-- 设计与实现尚未对齐：活跃设计仍须在后续任务中引用新规范，实现状态在对齐前保持
-  `diverged`。
+- Assistant 评测与性能客户端跟随当前契约：先 `POST /api/v2/assistant/messages`，再从
+  `/api/v2/assistant/runs/{runId}/events` 读取持久 SSE；旧 `/api/v2/assistant/chat` 不再使用。
+- `eval/corpus.json` 与 `eval/dev/*.synthetic.json` 均为 development/synthetic 数据；根目录不保留
+  易被误认为正式门禁集的 qrels、Assistant cases 或推荐样本。历史生成 target 仅为兼容保留。
+- 普通完成 45 秒是 observation-only；长任务不设统一完成门禁。Assistant accept、首持久事件和 Watch
+  delivery 分别按 500ms、2s、5min 口径观察。
 
-## 2026-08-29 Hermes 式长期 Agent（历史修订）
+这些治理、评测工具和数据元数据变更不改变后端 API、proto、SQL 或业务运行语义。
 
-- `INT-content-community-backend` 已批准 Assistant 虚拟消息线程、通用异步 Agent、主动 Watch、
-  双文档自然语言记忆、compact/BM25 与可选来源语义。
-- `SPEC-assistant-agent` 接替 retired/deprecated 的 `SPEC-grounded-assistant` 与
-  `SPEC-assistant-agent-mode`；`SPEC-agent-memory`、`SPEC-agent-watch` 和可靠性规范同步重写。
-- `DES-assistant-agent-runtime` 已改为 assistant-rpc read model + MySQL lease worker + Watch 调度设计。
-  实现未全部验证前 `IMP-content-community-backend` 继续保持 `diverged`。
+## 仍开放的事项
 
-## 2026-09-05 社区优先的复杂需求助手
-
-- 人类在当前对话中确认并要求发布：内容社区优先，Agent 是辅助使用社区的工具；通过
-  `ask_questions` 优先以选择题分轮澄清，允许未知、无偏好、跳过和先搜索；社区不足时尝试互联网
-  补充并如实说明缺口；最终用自然语言逐项关联帖子或网页 URL。
-- 正式上游已更新：[意图](intent/INT-content-community-backend.md)、[Agent 规范](spec/SPEC-assistant-agent.md)、
-  [发现边界](spec/SPEC-content-discovery.md)、[Watch 引用](spec/SPEC-agent-watch.md)和
-  [可靠性口径](spec/SPEC-feedback-reliability.md)。普通闲聊仍不强制引用，不恢复旧模式或 Intent Router。
-- 本次只发布意图、规格及必要的索引和对齐状态说明；未修改运行时代码、SOUL、`.api`、`.proto`、SQL、
-  SDK、Flutter 或根编排。现有 Memory 删除/快照、异步恢复、授权、安全、预算、保留期和质量阈值不变。
-- `AGENT-100`~`AGENT-115`、`AGENT-073`~`AGENT-075` 与 `AGENT-A10`~`AGENT-A13` 尚待下层承接。
-  已有 source ledger 不等于逐项信息引用已交付，旧验收证据不能关闭新增门禁；实现状态保持 `diverged`。
-- `DES-content-community-backend` 与 `DES-assistant-agent-runtime` 仅增加上游变更提示，本次不设计
-  问答的提交接口、等待/恢复状态、事件 payload 或逐项引用的数据结构。这些跨端契约须后续单独设计，
-  并核对后端生成契约与前端 `vendor/sdk_source` / `lib/sdk`，不能把文档修订当作接口已经存在。
-
-## 2026-09-06 后端内聚与死代码清理
-
-实现层清理：删除无运行时调用方的 goctl Model（message `verify_code`、media
-`media_task`、content `category`、user `user_login_log`）、从未返回的赞/藏错误码、
-middleware JWT 读取包装，以及 DTM 残留编译测试。密码哈希迁入 user 包，JSON 列
-编码迁入 content model，Assistant 工具执行器按域拆文件。SQL 基线表保留，不当作
-当前产品能力。证据见实现层。
-
-## 后续待办
-
-2026-09-05 后续实施：正式知识已重新区分产品意图、工程规格与内部设计；社区研究闭环已有实现，
-新增问答/证据/展示表为增量迁移，不清空历史。工程验证见
-[当前证据](implementation/evidence/2026-09-05-agent-community-research.md)。前文“只发布文档”为当天
-前一阶段记录，不代表当前代码仍无该能力；真实端到端和语义质量不得由工程门禁替代。
-
-1. 完成社区研究闭环的跨端、真实模型与语义质量验收，保留各自证据边界。
-2. 两名人类评审者产出正式冻结评测集；现有 LLM 合成集不能关闭 DISC-060 / ASST-050。
-3. 学习模型达到 DISC-062 门槛后复评 DISC-063。
-4. 收集一个自然月的生产观测数据，关闭 REL-033 / REL-040~043 / REL-A05。
+1. 两名人类独立评审并解决分歧后，产出 official/human 冻结集，关闭 DISC-060 与 AGENT-A13。
+2. 学习排序达到 DISC-062 数据门槛后，用真实时间留出排序复评 DISC-063。
+3. 收集 UTC 自然月生产观测，并完成 REL-033、REL-040～043、REL-A05 与十二项 REL-054 故障注入。
+4. 浏览器、设备、真实 provider 和生产边界必须各自留 EVD，不能由静态/单元/合成结果替代。
+5. [楼中楼回复提案](proposals/PROP-20260822-comment-reply-thread.md) 仍等待人类决定，不是 approved SPEC，
+   本次迁移不提升或改写其语义。

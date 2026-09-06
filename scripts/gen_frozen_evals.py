@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate LLM-authored frozen gate datasets (corpus, search_qrels, assistant_cases).
+"""Generate LLM-authored development datasets (corpus, qrels, Assistant cases).
 
-Human-authorized on 2026-08-13: the LLM (deepseek-v4-flash via the .env
-opencodego account) produces the frozen datasets with dual-reviewer metadata
-(DISC-060 / ASST-050). The datasets are anchored to a synthetic corpus in
-eval/corpus.json so live gate runs can reference real (synthetic) post ids.
+The historical command name is retained for compatibility. LLM output and
+simulated reviewer labels are synthetic, are always written with
+``dataset_role=development`` and ``frozen=false``, and cannot close DISC-060 or
+AGENT-A13. The datasets are anchored to eval/corpus.json for local dry-runs.
 
 Usage:
   set -a; . ./.env; set +a
@@ -24,11 +24,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS_PATH = ROOT / "eval/corpus.json"
-QRELS_PATH = ROOT / "eval/search_qrels.json"
-CASES_PATH = ROOT / "eval/assistant_cases.json"
+QRELS_PATH = ROOT / "eval/dev/search_qrels.synthetic.json"
+CASES_PATH = ROOT / "eval/dev/assistant_cases.synthetic.json"
 
 MODEL = "deepseek-v4-flash"
-REVIEWERS = ["llm-reviewer-a", "llm-reviewer-b"]
+SYNTHETIC_REVIEWERS = ["llm-reviewer-a", "llm-reviewer-b"]
 CORPUS_START_ID = 1001
 CORPUS_SIZE = 300
 CORPUS_CHUNK = 20
@@ -185,7 +185,7 @@ def gen_cases(posts: list[dict]) -> list[dict]:
 
 
 def derive_expected_facts(posts: list[dict]) -> dict[int, list[str]]:
-    """Deterministically derive ASST-051 expected facts from the frozen corpus.
+    """Derive deterministic development facts from the synthetic corpus.
 
     每个帖子产出两条事实：标题 + 内容中最长的标点切分句（>=12 字）。
     与 expected_sources 组合后作为 answerable/conflict 案例的 expected_facts，
@@ -217,38 +217,59 @@ def enrich_cases_with_facts(cases: list[dict], facts: dict[int, list[str]]) -> N
 
 
 def validate(posts: list[dict], queries: list[dict], cases: list[dict]) -> None:
-    from spec_evals import require_official_assistant, require_official_search
-
-    corpus_payload = {"version": 1, "frozen": True, "note": "LLM-generated synthetic corpus anchored to frozen eval sets (2026-08-13).", "posts": posts}
+    corpus_payload = {
+        "version": 1,
+        "frozen": False,
+        "dataset_role": "development",
+        "review_provenance": "synthetic",
+        "note": (
+            "DEVELOPMENT-ONLY LLM-generated synthetic corpus; it cannot close "
+            "a human quality gate."
+        ),
+        "posts": posts,
+    }
     CORPUS_PATH.write_text(json.dumps(corpus_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     qrels_payload = {
         "version": 1,
-        "frozen": True,
-        "reviewers": REVIEWERS,
-        "note": "LLM-authored frozen qrels anchored to eval/corpus.json. Generated 2026-08-13 per human authorization (dual-reviewer simulation, disagreements resolved by LLM).",
+        "frozen": False,
+        "dataset_role": "development",
+        "review_provenance": "synthetic",
+        "independent_review": False,
+        "disagreements_resolved": False,
+        "reviewers": SYNTHETIC_REVIEWERS,
+        "note": (
+            "DEVELOPMENT-ONLY LLM-authored qrels anchored to eval/corpus.json; "
+            "reviewer labels are simulated and cannot close DISC-060."
+        ),
         "queries": queries,
     }
     QRELS_PATH.write_text(json.dumps(qrels_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    require_official_search(QRELS_PATH, qrels_payload)
 
     enrich_cases_with_facts(cases, derive_expected_facts(posts))
     cases_payload = {
         "version": 1,
-        "frozen": True,
-        "reviewers": REVIEWERS,
-        "note": "LLM-authored frozen assistant cases anchored to eval/corpus.json. Generated 2026-08-13 per human authorization (dual-reviewer simulation, disagreements resolved by LLM). expected_facts derived deterministically from corpus (ASST-051).",
+        "frozen": False,
+        "dataset_role": "development",
+        "review_provenance": "synthetic",
+        "independent_review": False,
+        "disagreements_resolved": False,
+        "reviewers": SYNTHETIC_REVIEWERS,
+        "note": (
+            "DEVELOPMENT-ONLY LLM-authored Assistant cases anchored to "
+            "eval/corpus.json; expected_facts are synthetic and cannot close "
+            "AGENT-A13."
+        ),
         "cases": cases,
     }
     CASES_PATH.write_text(json.dumps(cases_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    require_official_assistant(CASES_PATH, cases_payload)
 
     qids = [q["id"] for q in queries]
     cids = [c["id"] for c in cases]
     assert len(set(qids)) == len(qids), "duplicate query ids"
     assert len(set(cids)) == len(cids), "duplicate case ids"
     assert len(queries) >= 200 and len(cases) >= 200
-    print("validation passed")
+    print("development dataset validation passed")
 
 
 def main() -> int:
@@ -275,7 +296,7 @@ def main() -> int:
     else:
         cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))["cases"]
     if args.only == "facts":
-        # 无 LLM 的确定性富集：只重新派生 expected_facts 并重写冻结文件。
+        # 无 LLM 的确定性富集：只重新派生 expected_facts 并重写开发文件。
         print("enriching expected_facts deterministically (no LLM)...")
 
     validate(posts, queries, cases)

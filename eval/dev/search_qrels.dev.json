@@ -1,5 +1,10 @@
 {
   "version": 1,
+  "frozen": false,
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
+  "independent_review": false,
+  "disagreements_resolved": false,
   "note": "DEVELOPMENT-ONLY synthetic dataset. NOT the frozen human-annotated gate set required by DISC-060; do not use for official gating.",
   "queries": [
     {

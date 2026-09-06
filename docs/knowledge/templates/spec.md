@@ -12,9 +12,11 @@ status: draft
 owner: human
 upstream:
   - INT-example
+updated_at: YYYY-MM-DD
 ---
 ```
 
 正文至少说明可验收工程约束、质量指标、失败行为、兼容边界和验证方法。每个指标说明适用场景、
 计算口径及证据要求；内部实现机制进入设计，不用测试数量代替产品质量。只有人类明确接受、批准或要求
-发布正式规范后，状态才可改为 `approved`；实际由 agent 执笔时 `owner` 仍为 `human`。
+发布正式规范后，状态才可改为 `approved`；实际由 agent 执笔时 `owner` 仍为 `human`。每条可跟踪要求
+使用独立的 ``- `EXAMPLE-001`：...`` 行，不把多个 requirement 合并到一个 ID。

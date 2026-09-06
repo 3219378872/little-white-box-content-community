@@ -10,7 +10,8 @@ layer: intent
 title: Replace with a human-defined intent
 status: draft
 owner: human
-upstream:
+upstream: []
+updated_at: YYYY-MM-DD
 ---
 ```
 

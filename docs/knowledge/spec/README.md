@@ -1,55 +1,26 @@
-# 规范层
+# 规格层
 
-本目录收录由人类开发者决定语义的项目规范。
+SPEC 由人类决定语义，定义正确性、安全、可靠性、性能、兼容、隐私和验收要求，不指定组件、存储、
+内部字段或 UI 方案。agent 修改须有当前对话授权；只有人类明确批准才可标为 `approved`。未授权建议
+进入 [proposals](../proposals/README.md)。新页面使用 [SPEC 模板](../templates/spec.md)。
 
-- `owner: human` 表示语义决定权属于人类；agent 默认可以编辑和维护。
-- 修改前只需获得当前对话中的人类自然语言授权，不需要授权文件、签名或额外审批记录。
-- 授权只覆盖明确指示的内容和必要索引；需要补充新语义时必须再次询问。
-- 规范定义正确性、安全、可靠性、性能、兼容性、隐私等工程约束、质量指标和验收条件；
-  不指定服务拆分、存储、算法、内部字段、租约机制或界面组件等内部实现方案。
-- 每份 `SPEC-*` 必须引用对应 `INT-*`；只有 `status: approved` 的规范可约束活跃设计。
-- 只有人类明确接受、批准或要求发布正式规范时，agent 才能将状态设为 `approved`。
-- 未获授权的 agent 建议必须写入 `../proposals/`。
+## 当前规范
 
-创建页面时使用 `../templates/spec.md`，并在本页维护索引。
-
-## 已批准规范
-
-| 规范 | 覆盖范围 | 状态 |
+| 规范 | 范围 | 状态 |
 | --- | --- | --- |
 | [SPEC-community-core](SPEC-community-core.md) | 用户、内容、互动、关系和交流 | approved |
-| [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和个性化推荐 | approved |
-| [SPEC-assistant-agent](SPEC-assistant-agent.md) | 社区辅助 Agent、需求澄清、站内外检索、逐项 URL 引用与持久异步运行 | approved |
-| [SPEC-agent-memory](SPEC-agent-memory.md) | Agent 双文档自然语言记忆 | approved |
+| [SPEC-content-discovery](SPEC-content-discovery.md) | 关注流、搜索和推荐 | approved |
+| [SPEC-assistant-agent](SPEC-assistant-agent.md) | 社区辅助 Agent、检索引用与持久运行 | approved |
+| [SPEC-agent-memory](SPEC-agent-memory.md) | 双文档自然语言记忆 | approved |
 | [SPEC-agent-watch](SPEC-agent-watch.md) | Watch 主动 Assistant 私信 | approved |
-| [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为数据闭环、可观测性和故障降级 | approved |
-| [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 旧同步证据化回答 | retired / deprecated |
-| [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md) | 旧同步模式化 Agent | retired / deprecated |
+| [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | 行为闭环、SLO、观测与故障降级 | approved |
+| [SPEC-grounded-assistant](SPEC-grounded-assistant.md) | 旧同步证据化回答 | retired |
+| [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md) | 旧同步模式化 Agent | retired |
 
-当前六份 approved 规范均引用 `INT-content-community-backend`，共同构成设计层正式上游；两份
-retired 规范只保留历史契约，不能再约束活跃设计。
+六份 approved SPEC 均引用 `INT-content-community-backend`，其正文中的精确 requirement ID 构成当前
+DES/IMP 覆盖全集。两份 retired SPEC 不能约束 current DES，也不能向当前台账贡献 requirement。
 
-2026-09-05 修订：内容社区优先，Agent 是辅助使用社区的工具。复杂需求通过 `ask_questions` 优先用
-选择题分轮澄清，允许未知、无偏好、跳过和先搜索；社区资料不足时尝试互联网补充并坦率说明缺口。
-检索回答用自然语言逐项附帖子/网页 URL，普通闲聊不强制引用；同步普通搜索边界、Watch 引用和
-可靠性口径。仅发布意图与规格，设计、接口、运行时和客户端尚未实现本次新要求，见
-[迁移登记](../TRANSITION.md)。既有 Memory、异步恢复、安全、预算与隐私边界不变。
-
-2026-08-30 修订：去掉显式新会话 API，每用户永久一条前台 session；30 分钟无可见消息后的下一次
-新建 run 拼接安全规则、SOUL、工具规则与 MEMORY/USER，历史仍进 live prompt 直至 compact。
-
-2026-08-29 修订：Assistant 迁入消息页虚拟线程，统一为通用持久异步 Agent；新增 MySQL lease
-恢复、Hermes 双文档记忆、compact/BM25、Watch 主动消息和可选来源 ledger，硬删除旧 chat/mode
-与 Watch hits 契约。`SPEC-assistant-agent` 接替两份 retired Assistant 规范。
-
-2026-08-27 修订：意图将 Agent 扩张为内容域搜索综述、结构化记忆、可解释推荐与条件追踪。
-`SPEC-grounded-assistant` 批准评论作为社区证据；`SPEC-assistant-agent-mode` 改为分组
-白名单与版本化授权；新增 `SPEC-agent-memory`、`SPEC-agent-watch`。不引入游戏库、价格、
-商城或通用通知中心。
-
-2026-08-26 新增：`SPEC-assistant-agent-mode` 获人类批准；意图边界同步放宽为受授权、
-工具白名单与执行预算约束的受限形态；原检索问答管线命名 enhanced_search（ASST-043）。
-
-2026-08-15 锁定：补齐意图模板字段；记录 `/api/v1` 帖子写接口移除；明确详情互动状态、
-不可用目标点赞、曝光客户端/服务端分工、`Total` 估计语义、人类评测门禁和 `REL-033`/
-`REL-054` 编号。站内赞/评/关通知不在范围。
+当前 Agent 语义以内容社区为主，复杂需求支持分轮澄清、站内多轮检索与授权的外部补充；检索回答的
+实质信息须就近关联实际取得且支持表述的帖子/网页 URL，普通闲聊和澄清不强制引用。AGENT-A13 仍要求
+既有人类冻结集质量门禁；LLM 或合成样例只能验证工具流程。实际实现状态见
+[六域 IMP](../implementation/README.md)，不得从本索引或历史修订说明推断已经交付。

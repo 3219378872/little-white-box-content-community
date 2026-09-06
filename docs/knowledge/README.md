@@ -15,62 +15,66 @@ legacy_upstream:
   - AGENTS.md
 ---
 
-# 四层知识总路由
-
-正式知识只沿一个方向传递：
+# 五层知识总路由
 
 ```text
-意图（human） → 规范（human） → 设计（agent） → 实现（agent）
+INT（human） -> SPEC（human） -> DES（agent） -> IMP（agent） <-> EVD（agent）
 ```
 
-## 层级边界
+INT 定义产品价值与边界；SPEC 定义可验收约束、质量指标和失败行为；DES 说明实现方案与取舍；
+IMP 把每个生效 requirement 唯一映射到代码和当前状态；EVD 记录某个提交上实际执行的验证。
+源码、配置、`.api`、`.proto`、迁移与测试结果始终是当前行为的事实权威。
 
-意图定义产品价值、能力、优先级与非目标；规范（规格）定义工程约束、质量指标和验收条件，
-不规定内部实现。正确性、安全、可靠性、性能、外部兼容和隐私期限属于规范；组件划分、数据库、
-算法、内部字段、租约参数及 UI 组件选型属于设计。技术方案迁移到设计不表示取消工程保障，
-也不自动改变当前运行配置。历史证据不能证明新条款已完成。
+## 权限与决策
 
-## 两类权威
+`protected_paths` 表示人类语义所有权，不是永久只读。当前对话中的自然语言指令就是有效授权，无需
+签名或仓库内授权文件；授权只覆盖明确目标及必要索引。范围不清、上层冲突或需要新增产品语义时，
+agent 必须停止并请求决定。未获授权的 INT/SPEC 建议只进入 [proposals](proposals/README.md)，提案不能
+作为正式上游。只有人类明确批准后，INT/SPEC 才能标为 `approved`；agent 执笔不改变 `owner: human`。
 
-- 规范权威回答“应该做什么”：已批准的[意图](intent/README.md)约束已批准的
-  [规范](spec/README.md)，规范约束活跃[设计](design/README.md)。
-- 事实权威回答“当前做了什么”：源码、配置、`.api`、`.proto` 和测试结果高于
-  [实现说明](implementation/README.md)及其带日期证据。
-- 当前代码不满足活跃设计时，实现状态必须为 `diverged`；任何下层都不能通过改写上层来消除偏离。
+## 结构契约
 
-## 所有权
+五层正式页面均使用稳定 kebab-case ID、目录索引和以下 frontmatter：
 
-本文件 frontmatter 的 `protected_paths` 是人类语义所有权范围，不是永久只读列表。agent 默认具备
-编辑和维护能力，但每次新增、修改、删除或移动这些路径前，必须获得人类开发者授权。
+- 页面必须是对应层目录的直接子项，文件名严格为 `<id>.md`，并在该层 README 中恰好登记一次；
+- 通用字段：`id`、`layer`、`title`、`status`、`owner`、`upstream`、`updated_at`；
+- `title` 和所有非空列表项不得为空白，关键列表不得重复，`updated_at` 必须是真实日历日期；
+- 可选 `role: baseline` 只说明迁移角色，不是生命周期或合规状态；
+- DES 与 IMP 的 `tracks` 只能列 approved SPEC 中逐条出现的精确 requirement ID；
+- IMP 另需 `code_paths` 和 `evidence`，不得保存提交或验证日期；
+- EVD 另需 `covers`、`scope`、`commands`、`observed_commit` 和 `result`，可选 `artifacts`。
 
-- 当前任务或对话中的自然语言指令就是有效授权；文字指令或口头指令的转录均可，不需要在仓库中
-  创建授权文件、签名、frontmatter 记录或额外审批流程。
-- 授权只覆盖指令明确的目标、内容和完成该修改所必需的索引或元数据联动。范围不清、出现冲突或
-  需要 agent 新增产品语义时，必须停止并请求人类决定。
-- `owner: human` 表示意图、规范和治理规则的最终语义决定权属于人类，不表示文件只能由人类编辑。
-- 人类明确表示接受、批准或要求发布正式内容后，获授权的 agent 可以创建、维护或提升对应
-  `INT-*` / `SPEC-*`；单纯要求起草或讨论时保持 `draft`。
+正式 requirement 只从 Markdown 可见正文中的规范 bullet/table 提取；frontmatter、合法 fence、HTML
+comment 与 inline code span 内容不参与。跨行 span 只由与 opener 等长的 maximal backtick run 闭合，
+lookahead 遇空行、ATX heading、Setext heading underline 或合法 fence opener 即停止。行首三个以上
+backtick、但 remainder 又含 backtick 的非法 fence-shaped 行只允许同行 span，不得延伸到后续物理行。
 
-agent 无需额外授权即可维护 `design/`、`implementation/`、`proposals/` 和 `TRANSITION.md`。未获
-授权的意图或规范建议只能进入[独立提案区](proposals/README.md)；提案不能作为正式上游。
+合法状态：
 
-## 加载与决策顺序
+| 层 | status / result |
+| --- | --- |
+| INT / SPEC | `draft`、`approved`、`retired` |
+| DES | `draft`、`active`、`blocked`、`superseded` |
+| IMP | `unknown`、`aligned`、`diverged`、`retired` |
+| EVD status | `active`、`superseded` |
+| EVD result | `passed`、`partial`、`failed`、`blocked` |
 
-1. 从本页定位任务相关的已批准意图与规范，只读取所需页面。
-2. 读取引用这些规范的活跃设计，再定位实现页、源码和证据。
-3. 设计缺少已批准规范时，可以引用本页 `legacy_upstream` 中登记的过渡基线。
-4. 正式上游缺失、相互冲突或无法给出可验证解释时，标记 `blocked` 并请求人类决定。
-5. 人类发布或授权 agent 发布对应正式文档后，agent 才能用 `INT-*` / `SPEC-*` 引用替换过渡引用。
+引用方向固定：SPEC→INT、DES→SPEC、IMP→DES、EVD→IMP。跨仓正式依赖使用
+`external_upstream: repo@<40sha>:<formal-ID-or-requirement-ID>`；键存在时不得为空。过渡 DES 可引用
+白名单中的 `legacy:<path>#<heading>`，但不能据此创造新产品语义。
 
-## 文档契约
+## 对齐与证据
 
-- 正式 ID 使用稳定的 kebab-case：`INT-<slug>`、`SPEC-<slug>`、`DES-<slug>`、`IMP-<slug>`。
-- 正式页面使用 `id`、`layer`、`title`、`status`、`owner`、`upstream` frontmatter。
-- `owner` 记录语义所有权，不记录实际执笔者；经授权由 agent 编辑的意图和规范仍使用 `human`。
-- 规范的 `upstream` 只能引用 `INT-*`，设计只能引用 `SPEC-*`，实现只能引用 `DES-*`。
-- 过渡期设计可使用 `legacy_upstream`，值必须为 `legacy:<path>#<heading>`，且路径在本页白名单中。
-- 实现页额外记录 `tracks`、`verified_at` 和 `verified_commit`；验证详情放在
-  [implementation/evidence/](implementation/evidence/README.md)。
-- 模板位于 `templates/`。README、模板和提案都不是正式项目要求。
+- 每个 approved requirement 至少由一个 current DES 跟踪，并且恰有一个非 retired IMP owner；台账
+  每行只写一个 requirement、一个 DES、一个状态和一个 `EVD-*` 或 `gap: ...`。
+- IMP 页头必须等于台账聚合：任一行 `diverged` 则页头 diverged；否则任一行 `unknown` 则 unknown；
+  全部行 aligned 才可 aligned。`diverged/unknown` 行必须说明 gap。
+- aligned 行必须由该 IMP 双向登记的 active/passed EVD 覆盖。EVD 的 40 位 `observed_commit` 必须可达；
+  任一 upstream IMP 的 `code_paths` 相对该提交发生已提交、暂存、工作树或未跟踪变更时，旧 passed EVD
+  自动失效。命令必须真实执行；scope 限于 `static/unit/integration/e2e/browser/device/synthetic/`
+  `human-review/live-provider/production`。
+- 合成数据只能证明 synthetic 范围，旧 [implementation/evidence](implementation/evidence/README.md)
+  只作 legacy 历史，均不能关闭当前人类评审、真实 provider、设备或生产门禁。
 
-旧文档迁移状态与后续待办见 [TRANSITION.md](TRANSITION.md)。
+模板见 [templates](templates/)，迁移登记见 [TRANSITION](TRANSITION.md)，操作指南与现场状态分别见
+[guides](guides/README.md) 和 [status](status/README.md)。公共检查入口为 `make engineering-lint`。

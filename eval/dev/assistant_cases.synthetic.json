@@ -1,11 +1,15 @@
 {
   "version": 1,
-  "frozen": true,
+  "frozen": false,
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
+  "independent_review": false,
+  "disagreements_resolved": false,
   "reviewers": [
     "llm-reviewer-a",
     "llm-reviewer-b"
   ],
-  "note": "LLM-authored frozen assistant cases anchored to eval/corpus.json. Generated 2026-08-13 per human authorization (dual-reviewer simulation, disagreements resolved by LLM). expected_facts derived deterministically from corpus (ASST-051).",
+  "note": "DEVELOPMENT-ONLY LLM-authored Assistant cases anchored to eval/corpus.json; this canonical synthetic file cannot close AGENT-A13.",
   "cases": [
     {
       "id": "frozen-c-001",

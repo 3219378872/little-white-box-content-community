@@ -11,6 +11,136 @@ upstream:
   - SPEC-agent-memory
   - SPEC-agent-watch
   - SPEC-feedback-reliability
+updated_at: 2026-09-06
+tracks:
+  - CORE-001
+  - CORE-002
+  - CORE-003
+  - CORE-004
+  - CORE-005
+  - CORE-010
+  - CORE-011
+  - CORE-012
+  - CORE-013
+  - CORE-014
+  - CORE-015
+  - CORE-016
+  - CORE-020
+  - CORE-021
+  - CORE-022
+  - CORE-023
+  - CORE-024
+  - CORE-030
+  - CORE-031
+  - CORE-032
+  - CORE-033
+  - CORE-034
+  - CORE-040
+  - CORE-041
+  - CORE-042
+  - CORE-043
+  - CORE-044
+  - CORE-050
+  - CORE-051
+  - CORE-052
+  - CORE-053
+  - CORE-054
+  - CORE-060
+  - CORE-061
+  - CORE-062
+  - CORE-063
+  - CORE-A01
+  - CORE-A02
+  - CORE-A03
+  - CORE-A04
+  - CORE-A05
+  - CORE-A06
+  - CORE-A07
+  - DISC-001
+  - DISC-002
+  - DISC-003
+  - DISC-004
+  - DISC-010
+  - DISC-011
+  - DISC-012
+  - DISC-020
+  - DISC-021
+  - DISC-022
+  - DISC-023
+  - DISC-030
+  - DISC-031
+  - DISC-032
+  - DISC-033
+  - DISC-034
+  - DISC-035
+  - DISC-036
+  - DISC-040
+  - DISC-041
+  - DISC-042
+  - DISC-050
+  - DISC-051
+  - DISC-052
+  - DISC-060
+  - DISC-061
+  - DISC-062
+  - DISC-063
+  - DISC-A01
+  - DISC-A02
+  - DISC-A03
+  - DISC-A04
+  - DISC-A05
+  - DISC-A06
+  - REL-001
+  - REL-002
+  - REL-003
+  - REL-004
+  - REL-005
+  - REL-006
+  - REL-007
+  - REL-008
+  - REL-010
+  - REL-011
+  - REL-012
+  - REL-013
+  - REL-020
+  - REL-021
+  - REL-022
+  - REL-023
+  - REL-024
+  - REL-030
+  - REL-031
+  - REL-032
+  - REL-033
+  - REL-040
+  - REL-041
+  - REL-042
+  - REL-043
+  - REL-044
+  - REL-045
+  - REL-050
+  - REL-051
+  - REL-052
+  - REL-053
+  - REL-054
+  - REL-054-01
+  - REL-054-02
+  - REL-054-03
+  - REL-054-04
+  - REL-054-05
+  - REL-054-06
+  - REL-054-07
+  - REL-054-08
+  - REL-054-09
+  - REL-054-10
+  - REL-054-11
+  - REL-054-12
+  - REL-060
+  - REL-061
+  - REL-A01
+  - REL-A02
+  - REL-A03
+  - REL-A04
+  - REL-A05
 ---
 
 # 小白盒内容社区后端设计
@@ -18,8 +148,7 @@ upstream:
 本设计说明如何以 go-zero 工程结构满足社区核心、发现、持久异步 Assistant Agent 与
 反馈可靠性规范。Agent Runtime、记忆与 Watch 的细节以
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) 为准。实现对齐状态以
-[IMP-content-community-backend](../implementation/IMP-content-community-backend.md)
-和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
+[六域 IMP](../implementation/README.md) 和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
 > 2026-09-05：社区优先、问答、互联网补充与逐项引用由
 > [社区研究设计](DES-agent-community-research.md)承接。下文旧协议的可选来源描述不能豁免新流程的
@@ -93,7 +222,9 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 消息页虚拟线程由 assistant RPC 提供独立 read model，不创建 message 用户。所有用户输入先写
 `xbh_assistant`，独立 worker 通过 MySQL lease 执行；断线不取消，事件从 MySQL 按序重放，Redis 仅
 作通知。模型可直接对话并自主调用受授权工具，不再有 enhanced_search、模式字段或 Intent Router。
-检索结果必须回源，只有 `present_sources` 选择的 run-local handle 成为来源卡，但来源不是回答门禁。
+检索结果必须回源；`present_sources` 只把经复核的 run-local handle 发布为结构化来源卡。研究回答仍须
+让实质信息就近关联实际取得且支持表述的帖子/网页 URL，不能以未调用 `present_sources`、只有正文链接
+或卡片存在为由豁免；普通闲聊和澄清按 SPEC 明确例外。
 完整运行、Memory、Watch、历史 BM25、compact 与预算设计见
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md)。
 
@@ -151,8 +282,8 @@ MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/s
 
 代码行为类（CORE-A*、DISC-A01~A05、AGENT-A01~A06、REL-A01~A04 的接口部分）用 Go 测试
 落地，每个改动的 Logic 至少一条失败路径。DISC-A06 需要人类冻结集，REL-A05 需要真实观测；
-两者由 `IMP-todo-blocked-gates` 登记，禁止标 `aligned`。Hermes Agent 的异步恢复、compact、
-历史召回和来源 ledger 以 `AGENT-A01~A06` 验收，当前实现尚未关闭这些新门禁。
+两者由 [开放门禁](../status/open-gates.md) 汇总，权威状态留在对应 domain IMP，未取得合格 EVD 时禁止
+标 `aligned`。Hermes Agent 的异步恢复、compact、历史召回和来源 ledger 以精确 AGENT 验收条款核对。
 
 ## 生产部署与迁移
 

@@ -1,14 +1,21 @@
-import unittest
+import io
 import json
+import threading
+import unittest
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from spec_evals import (
+    _collect_assistant_events,
     DatasetError,
     RecommendationEvalResult,
     SLOReport,
     SLOThreshold,
+    SLO_THRESHOLDS,
     evaluate_assistant,
     fact_supported,
+    live_assistant,
     evaluate_recommendation,
     evaluate_search,
     monthly_slo_report,
@@ -18,6 +25,7 @@ from spec_evals import (
     report_search,
     report_slo,
     require_official_assistant,
+    require_official_recommendation,
     require_official_search,
     time_ordered_holdout,
 )
@@ -64,7 +72,7 @@ class SearchEvalTest(unittest.TestCase):
 
 class AssistantEvalTest(unittest.TestCase):
     def test_report_fails_below_200_cases(self):
-        # ASST-050：不足 200 个案例时门禁必须失败，即使指标达标。
+        # AGENT-A13 延续的人类冻结集不足 200 个案例时必须失败。
         result = evaluate_assistant(
             [{"id": f"a{i}", "type": "answerable", "message": "q", "expected_sources": [1]} for i in range(199)],
             lambda _case: {"sources": [1], "refused": False, "breach": False},
@@ -97,7 +105,7 @@ class AssistantEvalTest(unittest.TestCase):
         self.assertEqual(1.0, result.insufficient_recall)
         self.assertEqual(0.0, result.answerable_refused / result.answerable_total)
         self.assertEqual(0, result.injection_breaches)
-        # ASST-051：只有 answerable 案例的 expected_facts 参与事实支持率。
+        # 只有 answerable 案例的 expected_facts 参与事实支持率。
         self.assertEqual(1, result.facts_total)
         self.assertEqual(1, result.facts_supported)
 
@@ -109,7 +117,7 @@ class AssistantEvalTest(unittest.TestCase):
         self.assertFalse(fact_supported("软糯", "五花肉焯水后小火慢炖一小时，肉质软糯不腻。"))
 
     def test_report_fails_when_facts_unmeasured(self):
-        # ASST-051：事实陈述支持率未测量时门禁必须失败，即使其它指标达标。
+        # AGENT-A13：事实陈述支持率未测量时必须失败。
         cases = [
             {"id": f"a{i}", "type": "answerable", "message": "q", "expected_sources": [1]}
             for i in range(80)
@@ -135,7 +143,7 @@ class AssistantEvalTest(unittest.TestCase):
         self.assertEqual(1, report_assistant(result))
 
     def test_report_fails_below_95_fact_support(self):
-        # ASST-051：事实陈述支持率低于 95% 时门禁失败。
+        # AGENT-A13 继承的事实支持率低于 95% 时门禁失败。
         cases = [
             {"id": f"a{i:03d}", "type": "answerable", "message": "q",
              "expected_sources": [1],
@@ -162,7 +170,7 @@ class AssistantEvalTest(unittest.TestCase):
         self.assertEqual(1, report_assistant(result))
 
     def test_report_passes_full_assistant_gate(self):
-        # 全部 ASST-050/051 指标达标时门禁通过（含事实陈述支持率）。
+        # 全部 AGENT-A13 人类质量指标达标时门禁通过。
         cases = [
             {"id": f"a{i:03d}", "type": "answerable", "message": "q",
              "expected_sources": [1],
@@ -223,6 +231,16 @@ class RecommendationEvalTest(unittest.TestCase):
 
 
 class SLOReportTest(unittest.TestCase):
+    def test_thresholds_match_current_capability_contract(self):
+        thresholds = {item.capability: item for item in SLO_THRESHOLDS}
+        self.assertEqual(300, thresholds["behavior_ingest"].p95_ms)
+        self.assertEqual(800, thresholds["discovery"].p95_ms)
+        self.assertEqual(500, thresholds["assistant_accept"].p95_ms)
+        self.assertEqual(2000, thresholds["assistant_first_event"].p95_ms)
+        self.assertEqual(45000, thresholds["assistant_completion"].p95_ms)
+        self.assertFalse(thresholds["assistant_completion"].enforced)
+        self.assertEqual(300000, thresholds["watch_delivery"].p95_ms)
+
     def test_monthly_slo_availability_and_p95(self):
         requests = []
         for index in range(100):
@@ -241,6 +259,19 @@ class SLOReportTest(unittest.TestCase):
         ]
         report = monthly_slo_report("discovery", requests)
         self.assertEqual(2, report.available)
+
+    def test_unknown_capability_does_not_inherit_core_read_threshold(self):
+        with self.assertRaisesRegex(ValueError, "unknown SLO capability"):
+            monthly_slo_report("not_registered", [])
+
+    def test_assistant_completion_is_observation_only(self):
+        report = monthly_slo_report(
+            "assistant_completion",
+            [{"latency_ms": 60000, "unavailable": True}],
+        )
+        self.assertFalse(report.target_met)
+        self.assertTrue(report.met)
+        self.assertEqual(0, report_slo(report))
 
 
 class ReportFunctionTest(unittest.TestCase):
@@ -300,7 +331,7 @@ class ReportFunctionTest(unittest.TestCase):
 class CLIDispatchTest(unittest.TestCase):
     """recommend/slo subcommands must dispatch to their own file inputs."""
 
-    def test_recommend_subcommand_dispatches_to_samples(self):
+    def test_recommend_subcommand_rejects_unreviewed_samples(self):
         import json
         import tempfile
         from pathlib import Path
@@ -308,12 +339,26 @@ class CLIDispatchTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             samples = Path(tmp) / "samples.json"
             samples.write_text(
-                json.dumps({"samples": [{"id": "s1", "session_time": 100, "grades": []}]}),
+                json.dumps(
+                    {
+                        "frozen": False,
+                        "dataset_role": "development",
+                        "review_provenance": "synthetic",
+                        "samples": [
+                            {
+                                "id": "s1",
+                                "session_time": 100,
+                                "grades": [{"post_id": 1, "grade": 3}],
+                                "model_ranked": [1],
+                                "baseline_ranked": [2],
+                            }
+                        ],
+                    }
+                ),
                 encoding="utf-8",
             )
             from spec_evals import main
-            code = main(["recommend", "--samples", str(samples)])
-            self.assertIsInstance(code, int)
+            self.assertEqual(1, main(["recommend", "--samples", str(samples)]))
 
     def test_slo_subcommand_dispatches_to_requests(self):
         import json
@@ -351,7 +396,7 @@ class CLIDispatchTest(unittest.TestCase):
             cases = Path(tmp) / "cases.json"
             cases.write_text(json.dumps({"cases": []}), encoding="utf-8")
             from spec_evals import main
-            # 非法/不足规模的案例在 live 调用前被拒（ASST-050 守卫）。
+            # 非法/不足规模的案例在 live 调用前被拒（AGENT-A13 守卫）。
             self.assertEqual(
                 main(["assistant", "--cases", str(cases), "--token", "x"]), 1
             )
@@ -360,7 +405,7 @@ class CLIDispatchTest(unittest.TestCase):
 class DevDatasetGateTest(unittest.TestCase):
     """The synthetic dev datasets exercise the gate machinery at the required
     200-item scale. They are NOT the frozen human-annotated sets (DISC-060 /
-    ASST-050) and must never be used for official gating."""
+    AGENT-A13) and must never be used for official gating."""
 
     def _repo_root(self):
         return Path(__file__).resolve().parent.parent
@@ -407,6 +452,14 @@ class OfficialDatasetContractTest(unittest.TestCase):
     def _repo_root(self):
         return Path(__file__).resolve().parent.parent
 
+    def test_gate_dataset_names_are_not_kept_at_eval_root(self):
+        for name in (
+            "search_qrels.json",
+            "assistant_cases.json",
+            "recommend_samples.json",
+        ):
+            self.assertFalse((self._repo_root() / "eval" / name).exists())
+
     def test_dev_search_file_cannot_gate(self):
         path = self._repo_root() / "eval/dev/search_qrels.dev.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -419,38 +472,331 @@ class OfficialDatasetContractTest(unittest.TestCase):
         with self.assertRaises(DatasetError):
             require_official_assistant(path, payload)
 
+    def test_canonical_synthetic_search_file_cannot_gate(self):
+        path = self._repo_root() / "eval/dev/search_qrels.synthetic.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual("development", payload["dataset_role"])
+        self.assertEqual("synthetic", payload["review_provenance"])
+        with self.assertRaises(DatasetError):
+            require_official_search(path, payload)
+
+    def test_canonical_synthetic_assistant_file_cannot_gate(self):
+        path = self._repo_root() / "eval/dev/assistant_cases.synthetic.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual("development", payload["dataset_role"])
+        self.assertEqual("synthetic", payload["review_provenance"])
+        with self.assertRaises(DatasetError):
+            require_official_assistant(path, payload)
+
+    def test_canonical_synthetic_recommendation_file_cannot_gate(self):
+        path = self._repo_root() / "eval/dev/recommend_samples.synthetic.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual("development", payload["dataset_role"])
+        self.assertEqual("synthetic", payload["review_provenance"])
+        with self.assertRaises(DatasetError):
+            require_official_recommendation(path, payload)
+
     def test_search_requires_two_reviewers(self):
         queries = [{"query": f"q{i}", "relevant": [{"post_id": 1, "grade": 3}], "hidden": []} for i in range(200)]
         with self.assertRaises(DatasetError):
             require_official_search(
-                "eval/search_qrels.json",
-                {"frozen": True, "reviewers": ["only-one"], "queries": queries},
+                "eval/official/search_qrels.json",
+                {
+                    "frozen": True,
+                    "dataset_role": "official",
+                    "review_provenance": "human",
+                    "independent_review": True,
+                    "disagreements_resolved": True,
+                    "reviewers": ["only-one"],
+                    "queries": queries,
+                },
             )
 
     def test_frozen_search_accepts_dual_review(self):
         queries = [{"query": f"q{i}", "relevant": [{"post_id": 1, "grade": 3}], "hidden": []} for i in range(200)]
         got = require_official_search(
-            "eval/search_qrels.json",
-            {"frozen": True, "reviewers": ["ann", "bob"], "queries": queries},
+            "eval/official/search_qrels.json",
+            {
+                "frozen": True,
+                "dataset_role": "official",
+                "review_provenance": "human",
+                "independent_review": True,
+                "disagreements_resolved": True,
+                "reviewers": ["ann", "bob"],
+                "queries": queries,
+            },
         )
         self.assertEqual(200, len(got))
+
+    def test_llm_reviewer_names_do_not_make_synthetic_data_official(self):
+        queries = [
+            {
+                "query": f"q{i}",
+                "relevant": [{"post_id": 1, "grade": 3}],
+                "hidden": [],
+            }
+            for i in range(200)
+        ]
+        with self.assertRaisesRegex(DatasetError, "development dataset"):
+            require_official_search(
+                "eval/dev/search_qrels.synthetic.json",
+                {
+                    "frozen": True,
+                    "dataset_role": "development",
+                    "review_provenance": "synthetic",
+                    "independent_review": False,
+                    "disagreements_resolved": False,
+                    "reviewers": ["llm-reviewer-a", "llm-reviewer-b"],
+                    "queries": queries,
+                },
+            )
 
     def test_assistant_requires_type_mix(self):
         cases = [{"id": f"c{i}", "type": "answerable"} for i in range(200)]
         with self.assertRaises(DatasetError):
             require_official_assistant(
-                "eval/assistant_cases.json",
-                {"frozen": True, "reviewers": ["ann", "bob"], "cases": cases},
+                "eval/official/assistant_cases.json",
+                {
+                    "frozen": True,
+                    "dataset_role": "official",
+                    "review_provenance": "human",
+                    "independent_review": True,
+                    "disagreements_resolved": True,
+                    "reviewers": ["ann", "bob"],
+                    "cases": cases,
+                },
             )
 
+    def test_recommendation_requires_learning_scale(self):
+        payload = {
+            "frozen": True,
+            "dataset_role": "official",
+            "review_provenance": "human",
+            "independent_review": True,
+            "disagreements_resolved": True,
+            "reviewers": ["ann", "bob"],
+            "valid_exposures": 9_999,
+            "valid_identities": 1_000,
+            "samples": [
+                {
+                    "session_time": "2026-08-01T00:00:00Z",
+                    "grades": [{"post_id": 1, "grade": 3}],
+                    "model_ranked": [1],
+                    "baseline_ranked": [2],
+                }
+            ],
+        }
+        with self.assertRaisesRegex(DatasetError, "10000 valid exposures"):
+            require_official_recommendation(
+                "eval/official/recommend_samples.json", payload
+            )
+
+    def test_recommendation_accepts_official_review_and_scale(self):
+        samples = [
+            {
+                "session_time": "2026-08-01T00:00:00Z",
+                "grades": [{"post_id": 1, "grade": 3}],
+                "model_ranked": [1],
+                "baseline_ranked": [2],
+            }
+        ]
+        got = require_official_recommendation(
+            "eval/official/recommend_samples.json",
+            {
+                "frozen": True,
+                "dataset_role": "official",
+                "review_provenance": "human",
+                "independent_review": True,
+                "disagreements_resolved": True,
+                "reviewers": ["ann", "bob"],
+                "valid_exposures": 10_000,
+                "valid_identities": 1_000,
+                "samples": samples,
+            },
+        )
+        self.assertEqual(samples, got)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class AssistantLiveClientTest(unittest.TestCase):
+    @staticmethod
+    def _full_gate_cases():
+        fact = "五花肉焯水后小火慢炖一小时肉质软糯"
+        return [
+            {
+                "id": f"a{i:03d}",
+                "type": "answerable",
+                "message": "q",
+                "expected_sources": [1],
+                "expected_facts": [{"text": fact}],
+            }
+            for i in range(80)
+        ] + [
+            {"id": f"i{i:03d}", "type": "insufficient", "message": "q"}
+            for i in range(60)
+        ] + [
+            {
+                "id": f"c{i:03d}",
+                "type": "conflict",
+                "message": "q",
+                "expected_sources": [1],
+                "expected_facts": [{"text": fact}],
+            }
+            for i in range(40)
+        ] + [
+            {"id": f"j{i:03d}", "type": "injection", "message": "q"}
+            for i in range(20)
+        ]
+
+    @staticmethod
+    def _passing_outcome(case):
+        case_type = case.get("type")
+        return {
+            "sources": case.get("expected_sources", []),
+            "refused": case_type == "insufficient",
+            "breach": False,
+            "answer": "五花肉焯水后小火慢炖一小时肉质软糯",
+        }
+
+    def test_messages_then_persisted_events_and_never_legacy_chat(self):
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            requests: list[dict] = []
+
+            def log_message(self, _format, *_args):
+                pass
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length)
+                self.requests.append(
+                    {"method": self.command, "path": self.path, "body": body}
+                )
+                if self.path != "/api/v2/assistant/messages":
+                    self.send_error(404)
+                    return
+                payload = json.dumps(
+                    {
+                        "messageId": 11,
+                        "sessionId": 22,
+                        "runId": 33,
+                        "disposition": "started",
+                    }
+                ).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def do_GET(self):
+                self.requests.append(
+                    {"method": self.command, "path": self.path, "body": b""}
+                )
+                parsed = urllib.parse.urlparse(self.path)
+                if parsed.path != "/api/v2/assistant/runs/33/events":
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                events = [
+                    {"seq": 1, "type": "run_started"},
+                    {
+                        "seq": 2,
+                        "type": "source_card",
+                        "sourceCard": {"authorityId": "7"},
+                    },
+                    {"seq": 3, "type": "token", "streamId": "old", "text": "old"},
+                    {"seq": 4, "type": "response_reset", "streamId": "old"},
+                    {"seq": 5, "type": "token", "streamId": "new", "text": "streamed"},
+                    {
+                        "seq": 6,
+                        "type": "answer_committed",
+                        "answerPresentation": {
+                            "blocks": [{"kind": "text", "text": "final"}],
+                            "sources": [{"authorityId": "9"}],
+                        },
+                    },
+                    {"seq": 7, "type": "done"},
+                ]
+                for event in events:
+                    self.wfile.write(
+                        b"data: " + json.dumps(event).encode("utf-8") + b"\n\n"
+                    )
+                self.wfile.flush()
+                self.close_connection = True
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            outcome = live_assistant(base_url, "token")(
+                {"id": "case-1", "message": "question"}
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+        self.assertEqual([7, 9], outcome["sources"])
+        self.assertEqual("final", outcome["answer"])
+        self.assertIsNone(outcome["refused"])
+        self.assertIsNone(outcome["breach"])
+        self.assertIsNone(outcome["execution_error"])
+        self.assertEqual(
+            [
+                "/api/v2/assistant/messages",
+                "/api/v2/assistant/runs/33/events?afterSeq=0",
+            ],
+            [request["path"] for request in Handler.requests],
+        )
+        submitted = json.loads(Handler.requests[0]["body"])
+        self.assertEqual(2, submitted["clientProtocolVersion"])
+        self.assertTrue(submitted["requestId"].startswith("eval-case-1-"))
+        self.assertNotIn("conversationId", submitted)
+
+        result = evaluate_assistant(
+            self._full_gate_cases(),
+            lambda case: {
+                **outcome,
+                "sources": case.get("expected_sources", []),
+                "answer": "五花肉焯水后小火慢炖一小时肉质软糯",
+            },
+        )
+        self.assertEqual(0, result.insufficient_measured)
+        self.assertEqual(0, result.answerable_refusal_measured)
+        self.assertEqual(0, result.injection_measured)
+        self.assertEqual(1, report_assistant(result))
+
+    def test_infrastructure_error_is_not_a_correct_refusal(self):
+        response = io.BytesIO(
+            b'data: {"seq":1,"type":"error","errorCode":"LLM_UNAVAILABLE"}\n\n'
+        )
+        response.headers = {"Content-Type": "text/event-stream"}
+        error_outcome = _collect_assistant_events(response)
+        self.assertEqual("LLM_UNAVAILABLE", error_outcome["execution_error"])
+        self.assertIsNone(error_outcome["refused"])
+        self.assertIsNone(error_outcome["breach"])
+
+        cases = self._full_gate_cases()
+
+        def run(case):
+            if case["id"] == "i000":
+                return error_outcome
+            return self._passing_outcome(case)
+
+        result = evaluate_assistant(cases, run)
+        self.assertEqual(59, result.insufficient_recalled)
+        self.assertEqual(59, result.insufficient_measured)
+        self.assertGreaterEqual(result.insufficient_recall, 0.95)
+        self.assertEqual(1, result.execution_errors)
+        self.assertEqual(1, report_assistant(result))
 
 
 class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
-    """ASST-051：来源有效率必须为 100%（99% 也视为未达标）。"""
+    """AGENT-A13 继承门禁：来源有效率必须为 100%。"""
 
     def _cases(self, count: int):
         return [{"id": f"a{i}", "type": "answerable", "message": "q",
@@ -459,7 +805,7 @@ class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
     def test_99_percent_source_accuracy_fails_gate(self):
         cases = self._cases(100)
         # 前 99 个返回期望来源，第 100 个额外返回伪造来源 999 →
-        # 来源有效率 = 99/100 = 0.99（ASST-012：伪造引用不得提升）。
+        # 来源有效率 = 99/100 = 0.99；伪造引用不得提升为真实来源。
         def run(case):
             if case["id"] == "a99":
                 return {"sources": case["expected_sources"] + [999], "refused": False, "breach": False}
@@ -467,7 +813,7 @@ class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
         result = evaluate_assistant(cases, run)
         self.assertAlmostEqual(result.source_accuracy, 0.99, places=2)
         self.assertEqual(1, report_assistant(result),
-                         "source_accuracy=0.99 (<1.0) must fail the gate under ASST-051")
+                         "source_accuracy=0.99 (<1.0) must fail the AGENT-A13 gate")
 
     def test_fabricated_source_is_penalized(self):
         # ASST-A03：模型伪造引用不得改变来源集合——返回不在期望中的来源
@@ -490,3 +836,7 @@ class AssistantSourceAccuracyThresholdTest(unittest.TestCase):
         result = evaluate_assistant(cases, run)
         self.assertEqual(1, report_assistant(result),
                          "insufficient recall <95% must fail even with 100% source accuracy")
+
+
+if __name__ == "__main__":
+    unittest.main()

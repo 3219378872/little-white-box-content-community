@@ -3,9 +3,12 @@
 本目录由 agent 维护，说明如何满足已批准规范。
 
 - 设计解释如何满足已批准规范，包括组件边界、数据流、取舍、失败模式和验证策略。
-- `active` 设计必须引用已批准 `SPEC-*`，或在过渡期引用登记的旧基线。
+- `active` / `blocked` 设计是 current DES，必须引用已批准 `SPEC-*`，并用 `tracks` 列出承接的
+  精确 requirement ID；过渡基线只用于本治理页允许的旧边界。
 - 上游缺失或冲突时使用 `blocked`，记录原因并请求人类决定，不能自行补写意图或规范。
 - 新设计使用 `../templates/design.md`；被替代的设计标记 `superseded`，不改写历史结论。
+- 所有 approved requirement 必须至少被一个 current DES 承接；实现所有权与验证状态分别见
+  [implementation](../implementation/README.md) 和 [evidence](../evidence/README.md)。
 
 ## 当前设计
 

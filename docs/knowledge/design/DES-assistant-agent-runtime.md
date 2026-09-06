@@ -10,12 +10,98 @@ upstream:
   - SPEC-agent-watch
   - SPEC-content-discovery
   - SPEC-feedback-reliability
+updated_at: 2026-09-06
+tracks:
+  - AGENT-001
+  - AGENT-002
+  - AGENT-003
+  - AGENT-004
+  - AGENT-010
+  - AGENT-011
+  - AGENT-012
+  - AGENT-013
+  - AGENT-014
+  - AGENT-015
+  - AGENT-020
+  - AGENT-021
+  - AGENT-022
+  - AGENT-023
+  - AGENT-024
+  - AGENT-025
+  - AGENT-026
+  - AGENT-050
+  - AGENT-051
+  - AGENT-052
+  - AGENT-053
+  - AGENT-054
+  - AGENT-060
+  - AGENT-061
+  - AGENT-062
+  - AGENT-063
+  - AGENT-080
+  - AGENT-081
+  - AGENT-082
+  - AGENT-083
+  - AGENT-090
+  - AGENT-A01
+  - AGENT-A02
+  - AGENT-A03
+  - AGENT-A04
+  - AGENT-A05
+  - AGENT-A06
+  - AGENT-A07
+  - AGENT-A08
+  - AGENT-A09
+  - MEM-001
+  - MEM-002
+  - MEM-003
+  - MEM-010
+  - MEM-011
+  - MEM-012
+  - MEM-013
+  - MEM-014
+  - MEM-020
+  - MEM-021
+  - MEM-022
+  - MEM-023
+  - MEM-024
+  - MEM-030
+  - MEM-031
+  - MEM-032
+  - MEM-033
+  - MEM-A01
+  - MEM-A02
+  - MEM-A03
+  - MEM-A04
+  - MEM-A05
+  - MEM-A06
+  - WCH-001
+  - WCH-002
+  - WCH-003
+  - WCH-004
+  - WCH-010
+  - WCH-011
+  - WCH-012
+  - WCH-013
+  - WCH-014
+  - WCH-020
+  - WCH-021
+  - WCH-022
+  - WCH-023
+  - WCH-024
+  - WCH-A01
+  - WCH-A02
+  - WCH-A03
+  - WCH-A04
+  - WCH-A05
+  - WCH-A06
 ---
 
 # 持久异步 Assistant Agent Runtime
 
-本设计将同步、双模式、Redis 会话的旧 Assistant 改为 MySQL 权威的长期异步 Agent。实现映射和实际
-证据以 `IMP-content-community-backend`、源码、契约、SQL 与测试为准。
+本设计将同步、双模式、Redis 会话的旧 Assistant 改为 MySQL 权威的长期异步 Agent。逐条实现状态和
+当前证据分别见 [六域 IMP](../implementation/README.md) 与 [EVD](../evidence/README.md)；源码、契约、
+SQL 与测试仍是事实权威。
 
 > 2026-09-05：复杂需求、问答和结构化回答由[社区研究设计](DES-agent-community-research.md)承接。
 > 本页继续记录基础运行机制及旧协议兼容路径。设计完成不等于实现验证完成，当前状态见实现层。

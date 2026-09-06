@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Generate the frozen recommendation sample set (DISC-061/063).
+"""Generate a synthetic development recommendation sample set.
 
 LLM generates user sessions (time-ordered, grades over eval/corpus.json);
 the script attaches the production rule-baseline ranking (hot: view_count
 desc, id desc). As of 2026-08-14 the system serves a rule model only and has
 no learning-to-rank model (DISC-062: no learning-model improvement claim), so
-model_ranked equals baseline_ranked in this frozen set; the gate therefore
-reports relative improvement 0, which is the honest current state. When a
-learning model reaches the DISC-062 exposure/identity thresholds, regenerate
-with real model rankings.
+model_ranked equals baseline_ranked in this development set; the evaluator
+therefore reports relative improvement 0. LLM-authored grades are not human
+review and cannot close DISC-063. When a learning model reaches the DISC-062
+thresholds, build a separately reviewed official dataset with real rankings.
 
 Usage:
   set -a; . ./.env; set +a
@@ -26,10 +26,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS = json.loads((ROOT / "eval/corpus.json").read_text(encoding="utf-8"))["posts"]
-OUT = ROOT / "eval/recommend_samples.json"
+OUT = ROOT / "eval/dev/recommend_samples.synthetic.json"
 
 MODEL = "deepseek-v4-flash"
-REVIEWERS = ["llm-reviewer-a", "llm-reviewer-b"]
+SYNTHETIC_REVIEWERS = ["llm-reviewer-a", "llm-reviewer-b"]
 CHUNKS = 8
 PER_CHUNK = 25
 
@@ -136,12 +136,19 @@ def main() -> int:
         })
     payload = {
         "version": 1,
-        "frozen": True,
-        "reviewers": REVIEWERS,
-        "note": "LLM-generated frozen recommendation samples (2026-08-14, human-authorized). "
-                "model_ranked == baseline_ranked == rule hot ranking: production serves a rule "
-                "model only; no learning-model improvement claim (DISC-062). Regenerate with real "
-                "model rankings once exposure/identity thresholds are met.",
+        "frozen": False,
+        "dataset_role": "development",
+        "review_provenance": "synthetic",
+        "independent_review": False,
+        "disagreements_resolved": False,
+        "reviewers": SYNTHETIC_REVIEWERS,
+        "valid_exposures": 0,
+        "valid_identities": 0,
+        "note": (
+            "DEVELOPMENT-ONLY LLM-generated recommendation samples. model_ranked "
+            "equals the rule baseline, so this set cannot close DISC-063 or "
+            "support an improvement claim."
+        ),
         "samples": samples,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

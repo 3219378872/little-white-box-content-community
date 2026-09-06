@@ -47,6 +47,20 @@ class _GatewayHandler(BaseHTTPRequestHandler):
             self._json(200, {"items": [], "hasMore": False, "requestId": "test"})
         elif parsed.path == "/api/v1/posts":
             self._json(200, {"list": [], "total": 0, "page": 1, "pageSize": 20})
+        elif parsed.path.startswith("/api/v2/assistant/runs/") and parsed.path.endswith(
+            "/events"
+        ):
+            time.sleep(0.025)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(
+                b'data: {"seq":1,"type":"run_started","text":"",'
+                b'"streamId":""}\n\n'
+            )
+            self.wfile.flush()
+            self.close_connection = True
         else:
             self._json(404, {"error": "not found"})
 
@@ -56,20 +70,18 @@ class _GatewayHandler(BaseHTTPRequestHandler):
         if self.path == "/api/v2/behavior/events":
             self._json(202, {"results": [], "acceptedCount": 1, "rejectedCount": 0})
             return
-        if self.path != "/api/v2/assistant/chat":
+        if self.path != "/api/v2/assistant/messages":
             self._json(404, {"error": "not found"})
             return
-
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-        self.wfile.write(b'data: {"type":"source","source":{"sourceId":"1"}}\n\n')
-        self.wfile.flush()
-        time.sleep(0.025)
-        self.wfile.write(b'data: {"type":"token","text":"ready"}\n\n')
-        self.wfile.flush()
-        self.close_connection = True
+        self._json(
+            200,
+            {
+                "messageId": 11,
+                "sessionId": 22,
+                "runId": 33,
+                "disposition": "started",
+            },
+        )
 
 
 class GatewayPerformanceTest(unittest.TestCase):
@@ -97,7 +109,7 @@ class GatewayPerformanceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             gateway_performance.percentile([], 95)
 
-    def test_live_scenarios_send_valid_requests_and_measure_first_token(self):
+    def test_live_scenarios_use_messages_and_measure_first_persisted_event(self):
         scenarios = gateway_performance.build_scenarios(
             self.base_url,
             "test-token",
@@ -113,12 +125,26 @@ class GatewayPerformanceTest(unittest.TestCase):
             for name in scenarios
         }
 
+        self.assertEqual(
+            {
+                "behavior": 300,
+                "search": 800,
+                "feed": 800,
+                "gateway": 300,
+                "assistant_accept": 500,
+                "assistant_first_event": 2000,
+            },
+            {name: scenario.target_ms for name, scenario in scenarios.items()},
+        )
         self.assertTrue(all(summary.passed for summary in summaries.values()))
-        self.assertGreaterEqual(summaries["assistant"].p50_ms, 20)
+        self.assertGreaterEqual(summaries["assistant_first_event"].p50_ms, 20)
         with _GatewayHandler.lock:
             requests = list(_GatewayHandler.requests)
-        self.assertEqual(len(requests), 10)
+        self.assertEqual(len(requests), 14)
         self.assertTrue(all(item["authorization"] == "Bearer test-token" for item in requests))
+        self.assertFalse(
+            any(item["path"] == "/api/v2/assistant/chat" for item in requests)
+        )
 
         behavior_bodies = [
             json.loads(item["body"])
@@ -131,6 +157,25 @@ class GatewayPerformanceTest(unittest.TestCase):
         self.assertTrue(
             all(body["events"][0]["requestId"] for body in behavior_bodies)
         )
+
+        assistant_bodies = [
+            json.loads(item["body"])
+            for item in requests
+            if item["path"] == "/api/v2/assistant/messages"
+        ]
+        self.assertEqual(4, len(assistant_bodies))
+        self.assertEqual(4, len({body["requestId"] for body in assistant_bodies}))
+        self.assertTrue(
+            all(body["clientProtocolVersion"] == 2 for body in assistant_bodies)
+        )
+        self.assertTrue(all("conversationId" not in body for body in assistant_bodies))
+        event_requests = [
+            item
+            for item in requests
+            if item["path"].startswith("/api/v2/assistant/runs/")
+        ]
+        self.assertEqual(2, len(event_requests))
+        self.assertTrue(all(item["path"].endswith("/events?afterSeq=0") for item in event_requests))
 
     def test_threshold_or_request_error_fails_summary(self):
         slow = gateway_performance.Scenario(

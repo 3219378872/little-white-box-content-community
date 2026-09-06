@@ -11,11 +11,20 @@ status: unknown
 owner: agent
 upstream:
   - DES-example
+updated_at: YYYY-MM-DD
 tracks:
-  - replace-with-real-path
-verified_at: YYYY-MM-DD
-verified_commit: replace-with-git-sha
+  - EXAMPLE-001
+code_paths:
+  - app/example
+evidence:
+  - EVD-example
 ---
 ```
 
-正文至少说明代码入口、当前数据流、对齐或偏离原因，以及相关证据链接。
+正文使用权威逐条表，每行只含一个 requirement、一个 current DES、状态和证据/缺口。`aligned` 行
+必须引用该 IMP 双向登记的 active/passed EVD；`unknown/diverged` 行使用 `gap: ...`。页头按行聚合，
+提交和验证日期只写 EVD。
+
+| Requirement | Design | Status | Evidence/Gap |
+| --- | --- | --- | --- |
+| EXAMPLE-001 | DES-example | unknown | gap: replace with a concrete validation gap. |

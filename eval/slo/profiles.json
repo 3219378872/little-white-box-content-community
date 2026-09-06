@@ -1,7 +1,9 @@
 {
-  "note": "LLM-generated monthly SLO observation profiles (deepseek-v4-flash, 2026-08-14, human-authorized synthetic production data). Request arrays are synthesized deterministically from these profiles by scripts/gen_slo_synthetic.py.",
+  "note": "DEVELOPMENT-ONLY LLM-generated SLO profiles. Deterministic request arrays validate the report pipeline, not production compliance.",
+  "dataset_role": "development",
+  "review_provenance": "synthetic",
   "generated_by": "llm-deepseek-v4-flash",
-  "authorization": "human 2026-08-13/14: synthetic production observation for SLO dry-run",
+  "authorization": "human 2026-08-13/14: synthetic SLO pipeline dry-run only",
   "capabilities": [
     {"capability": "community_core_read", "monthly_requests": 3010, "latency": {"dist": "lognormal", "mu": -2.8, "sigma": 0.5}, "unavailable_rate": 0.0005, "excluded_rate": 0.022, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},
     {"capability": "community_core_write", "monthly_requests": 2985, "latency": {"dist": "lognormal", "mu": -1.8, "sigma": 0.5}, "unavailable_rate": 0.0006, "excluded_rate": 0.028, "dates": {"from": "2026-07-01", "to": "2026-07-31"}},

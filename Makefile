@@ -37,7 +37,7 @@ help: ## Show the available project commands
 		'  make lint ARGS="--timeout 5m"' \
 		'  make fuzz FUZZ_TIME=10s'
 
-generate: ## Regenerate API, protobuf, and RPC code
+generate: ## Regenerate API/protobuf/RPC code (Python pins: scripts/requirements-generate.txt)
 	scripts/generate.sh
 
 fmt-check: ## Check formatting of handwritten Go files
@@ -92,10 +92,10 @@ fuzz: ## Run bounded native fuzz targets (override FUZZ_TIME as needed)
 
 quality: check test ## Run the standard local quality gates
 
-gen-frozen-evals: ## Regenerate frozen eval datasets (corpus/qrels/cases) via LLM
+gen-frozen-evals: ## Regenerate synthetic development eval datasets via LLM (legacy target name)
 	python3 scripts/gen_frozen_evals.py $(ARGS)
 
-gen-recommend-samples: ## Regenerate the frozen recommendation sample set via LLM
+gen-recommend-samples: ## Regenerate the synthetic development recommendation samples via LLM
 	python3 scripts/gen_recommend_samples.py $(ARGS)
 
 gen-slo-synthetic: ## Regenerate the deterministic synthetic SLO observations
@@ -111,7 +111,7 @@ python-unit: ## Run dependency-light unit tests for repo Python tools
 algorithm-test: ## Run dependency-light Python algorithm unit tests
 	python3 -m unittest discover -s algorithm -p 'test*.py' -v
 
-spec-evals-test: ## Run the frozen spec-quality gate evaluator unit tests
+spec-evals-test: ## Run the spec-quality gate evaluator unit tests
 	cd scripts && python3 -m unittest -v test_spec_evals.py
 
 model-pipeline-integration: ## Verify ClickHouse, LightGBM, MinIO, and OnlineInfer end to end
