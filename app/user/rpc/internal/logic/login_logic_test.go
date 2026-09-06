@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-	"esx/pkg/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,7 +19,7 @@ import (
 )
 
 func TestLoginLogic_Password(t *testing.T) {
-	hashedPwd, _ := util.HashPassword("correct123")
+	hashedPwd, _ := password.Hash("correct123")
 
 	tests := []struct {
 		name      string

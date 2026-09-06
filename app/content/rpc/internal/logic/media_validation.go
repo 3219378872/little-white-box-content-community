@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"esx/app/content/rpc/internal/model"
 	"esx/app/media/rpc/mediaservice"
 	"esx/pkg/errx"
-	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -55,7 +55,7 @@ func encodeInt64sJSON(ids []int64) (sql.NullString, error) {
 	if len(ids) == 0 {
 		return sql.NullString{}, nil
 	}
-	raw, err := util.ToJsonObject(ids).JsonString()
+	raw, err := model.ToJSONObject(ids).JSONString()
 	if err != nil {
 		return sql.NullString{}, err
 	}

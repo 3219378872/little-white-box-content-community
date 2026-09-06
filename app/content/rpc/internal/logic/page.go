@@ -5,7 +5,7 @@ import "esx/pkg/pageutil"
 const (
 	defaultPageSize = int(pageutil.DefaultPageSize)
 	maxPageSize     = int(pageutil.ContentMaxPageSize)
-	// maxTagListLimit 标签列表返回上限（防御性：GetTags RPC 当前无外部入口）。
+	// maxTagListLimit 标签列表返回上限（GetTags 供 Assistant 等内部调用方使用）。
 	maxTagListLimit = 100
 )
 

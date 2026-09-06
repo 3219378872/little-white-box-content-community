@@ -33,11 +33,6 @@ const (
 	IdempotencyConflict    = 2008
 
 	// 互动相关错误码 3000-3999
-	AlreadyLiked     = 3001
-	AlreadyFavorited = 3002
-	NotLikedYet      = 3003
-	NotFavoritedYet  = 3004
-	CannotLikeSelf   = 3005
 	CannotFollowSelf = 3006
 	FavoritesPrivate = 3007
 
@@ -89,11 +84,6 @@ var codeMsg = map[int]string{
 	ContentVersionConflict: "内容版本冲突",
 	IdempotencyConflict:    "幂等键已用于其他命令",
 
-	AlreadyLiked:     "已点赞",
-	AlreadyFavorited: "已收藏",
-	NotLikedYet:      "未点赞",
-	NotFavoritedYet:  "未收藏",
-	CannotLikeSelf:   "不能点赞自己",
 	CannotFollowSelf: "不能关注自己",
 	FavoritesPrivate: "收藏列表已设为私密",
 

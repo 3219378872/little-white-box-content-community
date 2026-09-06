@@ -30,13 +30,12 @@ func TestMain(m *testing.M) {
 func buildSvcCtx(env *testutil.TestEnv) *svc.ServiceContext {
 	conn := sqlx.NewSqlConnFromDB(env.DB)
 	svcCtx := &svc.ServiceContext{
-		DB:                conn,
-		UserProfileModel:  model.NewUserProfileModel(conn),
-		UserFollowModel:   model.NewUserFollowModel(conn),
-		UserLoginLogModel: model.NewUserLoginLogModel(conn),
-		UserTagModel:      model.NewUserTagModel(conn),
-		Personalization:   model.NewPersonalizationPreferenceModel(conn),
-		RedisClient:       env.Redis,
+		DB:               conn,
+		UserProfileModel: model.NewUserProfileModel(conn),
+		UserFollowModel:  model.NewUserFollowModel(conn),
+		UserTagModel:     model.NewUserTagModel(conn),
+		Personalization:  model.NewPersonalizationPreferenceModel(conn),
+		RedisClient:      env.Redis,
 	}
 	svcCtx.Config.JwtConfig = jwtx.JwtConfig{
 		AccessSecret:  "integration-access-secret",

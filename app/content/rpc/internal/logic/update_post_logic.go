@@ -152,9 +152,9 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		"content": mergedContent,
 	}
 	if len(in.Images) > 0 {
-		fields["images"] = util.ToJsonObject(in.Images)
+		fields["images"] = model.ToJSONObject(in.Images)
 	} else if len(in.MediaIds) > 0 && len(mediaURLs) > 0 {
-		fields["images"] = util.ToJsonObject(mediaURLs)
+		fields["images"] = model.ToJSONObject(mediaURLs)
 	}
 	if len(in.MediaIds) > 0 {
 		mediaIDsJSON, encodeErr := encodeInt64sJSON(in.MediaIds)

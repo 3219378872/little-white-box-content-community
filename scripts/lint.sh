@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Run golangci-lint across every module in the repository.
+# Run golangci-lint from every go.mod directory.
 #
-# This repo is split across multiple nested Go modules, so a single root-level
-# `golangci-lint run ./...` only covers the root module. Iterate each module
-# directory (mirrors scripts/test.sh and scripts/vet.sh). golangci-lint walks up
-# to find the shared root .golangci.yml from each module. Extra args are
-# forwarded to every invocation.
+# The repository is a single module today; the loop stays so a nested module
+# or extra go.mod cannot silently skip lint. Extra args are forwarded.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

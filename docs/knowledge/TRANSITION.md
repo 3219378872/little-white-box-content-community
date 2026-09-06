@@ -2,8 +2,8 @@
 title: knowledge transition register
 owner: agent
 status: active
-observed_at: 2026-09-05
-observed_commit: 482e0cc6d8527056a87b32a78d4c827206bde103
+observed_at: 2026-09-06
+observed_commit: 3ac98c6
 ---
 
 # 知识迁移登记
@@ -67,6 +67,14 @@ observed_commit: 482e0cc6d8527056a87b32a78d4c827206bde103
 - `DES-content-community-backend` 与 `DES-assistant-agent-runtime` 仅增加上游变更提示，本次不设计
   问答的提交接口、等待/恢复状态、事件 payload 或逐项引用的数据结构。这些跨端契约须后续单独设计，
   并核对后端生成契约与前端 `vendor/sdk_source` / `lib/sdk`，不能把文档修订当作接口已经存在。
+
+## 2026-09-06 后端内聚与死代码清理
+
+实现层清理：删除无运行时调用方的 goctl Model（message `verify_code`、media
+`media_task`、content `category`、user `user_login_log`）、从未返回的赞/藏错误码、
+middleware JWT 读取包装，以及 DTM 残留编译测试。密码哈希迁入 user 包，JSON 列
+编码迁入 content model，Assistant 工具执行器按域拆文件。SQL 基线表保留，不当作
+当前产品能力。证据见实现层。
 
 ## 后续待办
 

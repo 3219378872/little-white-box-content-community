@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
-	"esx/pkg/util"
 	"fmt"
 	"strings"
 
@@ -78,11 +78,11 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 			return nil, errx.New(errx.SystemError, "系统错误，请稍后再试")
 		}
 		// 密码登录时，检查是否为默认密码，若是则拒绝
-		if util.IsDefaultPassword(in.Password) {
+		if password.IsDefault(in.Password) {
 			return nil, errx.New(errx.ParamError, "密码未设置，请使用手机登录并设置密码后登录")
 		}
 		// 校验信息
-		if util.ComparePassword(user.Password, in.Password) != nil {
+		if password.Compare(user.Password, in.Password) != nil {
 			// 密码失败锁定：窗口内错误次数达到上限后拒绝，防暴力破解。
 			if lockOut, lockErr := l.loginFailureLocked(in.Username); lockErr != nil {
 				l.Errorw("login failure lock check failed",

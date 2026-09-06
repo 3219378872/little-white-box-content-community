@@ -388,7 +388,7 @@ func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestTagCategoryAndPostTagModels(t *testing.T) {
+func TestTagAndPostTagModels(t *testing.T) {
 	testEnv.TruncateAll(t, "post_tag", "tag", "category", "post")
 	ctx := context.Background()
 
@@ -408,14 +408,6 @@ func TestTagCategoryAndPostTagModels(t *testing.T) {
 	tags, err := tagModel.FindList(ctx, 10)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(tags), 2)
-
-	categoryModel := NewCategoryModel(conn, testCacheConf())
-	category := &Category{Id: nextID(t), Name: "tech", SortOrder: 1, ParentId: 0, Status: 1, CreatedAt: time.Now()}
-	_, err = categoryModel.Insert(ctx, category)
-	require.NoError(t, err)
-	foundCategory, err := categoryModel.FindOne(ctx, category.Id)
-	require.NoError(t, err)
-	assert.Equal(t, "tech", foundCategory.Name)
 
 	// PostTag 批量写入 / 多帖查询 / 标签名反查 / 替换 / 清理。
 	postTagModel := NewPostTagModel(conn, testCacheConf())

@@ -108,7 +108,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
-	imageJsonString, err := util.ToJsonObject(images).JsonString()
+	imageJsonString, err := model.ToJSONObject(images).JSONString()
 	if err != nil {
 		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

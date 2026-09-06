@@ -59,7 +59,6 @@ type ServiceContext struct {
 	Config             config.Config
 	DB                 sqlx.SqlConn
 	RawDB              *sql.DB
-	UserLoginLogModel  model.UserLoginLogModel
 	UserProfileModel   UserProfileStore
 	UserFollowModel    UserFollowStore
 	UserFollowCommands UserFollowCommandStore
@@ -119,7 +118,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:             c,
 		DB:                 conn,
 		RawDB:              rawDB,
-		UserLoginLogModel:  model.NewUserLoginLogModel(conn),
 		UserProfileModel:   model.NewUserProfileModel(conn),
 		UserFollowModel:    followModel,
 		UserFollowCommands: model.NewUserFollowCommandModel(conn, outboxStore),

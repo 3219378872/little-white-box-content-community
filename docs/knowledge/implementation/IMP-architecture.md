@@ -9,8 +9,8 @@ upstream:
 tracks:
   - app/
   - pkg/
-verified_at: 2026-08-29
-verified_commit: 88780fc23b24bdc2c1a11a2633256a6e4535a0e6
+verified_at: 2026-09-06
+verified_commit: 3ac98c6
 ---
 
 # 服务架构与模块清单
@@ -73,19 +73,35 @@ internal/model/    → 数据访问层
 
 ## 共享库（pkg/）
 
-仓库为单一 Go module（根 `esx`），无子模块与 go.work；所有包以 `esx/pkg/<name>`
-导入。此前 7 个 pkg 与 gateway/user 曾是独立 module 且仅靠 workspace 解析依赖，
-已于 module 整合中并入根模块。
+仓库为单一 Go module（根 `esx`），无嵌套 `go.mod`、无 `go.work`。日常脚本按
+`go.mod` 发现目录遍历，当前只有根模块。跨服务只共享真正跨界的能力；业务专属
+逻辑留在所属服务内部。
 
-- `pkg/errx` — 业务错误码与 HTTP/gRPC 错误转换；框架错误不泄露原始消息。
-- `pkg/jwtx` — JWT 签发/校验与 context 透传。
-- `pkg/middleware` — HTTP 鉴权/可选鉴权/CORS 中间件；行为接收与追踪中间件分别在
-  `app/gateway/internal/middleware/`（BehaviorAccepted、Trace）与 `pkg/interceptor/`（RPC 侧）。
+- `pkg/errx` — 业务错误码与 HTTP/gRPC 转换；框架错误不泄露原始消息。赞/藏重复
+  请求按成功 no-op，不再保留从未返回的 AlreadyLiked / NotLikedYet 一类死码。
+- `pkg/jwtx` — JWT 签发/校验与 context 透传。Handler/Logic 直接读 `jwtx`，不经
+  middleware 包装函数。
+- `pkg/middleware` — HTTP Required/Optional 鉴权与 CORS。行为接收与 Trace 在
+  `app/gateway/internal/middleware/`；RPC 侧在 `pkg/interceptor/`。
 - `pkg/interceptor` — gRPC 业务错误拦截器、trace_id 透传与服务间 HMAC 内部鉴权。
 - `pkg/mqx` — RocketMQ 生产者/消费者封装与主题常量。
 - `pkg/outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
-- `pkg/event` — 跨服务事件载荷定义（PostEvent / InteractionEvent / BehaviorEvent）。
-- `pkg/cleanupx` / `pkg/testutil` / `pkg/util` / `pkg/validator` / `pkg/visibilityx` — 通用辅助。
+- `pkg/event` — 跨服务事件载荷（PostEvent / InteractionEvent / BehaviorEvent）。
+- `pkg/pageutil` / `pkg/cursorx` / `pkg/idempotencyx` / `pkg/cleanupx` /
+  `pkg/validator` / `pkg/visibilityx` — 分页、游标、幂等、清理、输入边界、可见性。
+- `pkg/util` — 仅 Snowflake ID。密码哈希在 `app/user/rpc/internal/password`；
+  JSON 列编码在 `app/content/rpc/internal/model`。
+- `pkg/testutil` — 集成测试容器与连接辅助。
+
+## 包边界（内聚）
+
+- Assistant 工具执行器按职责拆在 `app/assistant/internal/tool/exec_*.go`（搜索、
+  内容、推荐、社交、记忆、Watch、来源、Web），注册表仍在 `registry.go`。
+- Content 权威可见性：`pkg/visibilityx` 是纯策略；`app/content/visibility` 只适配
+  Content RPC 客户端。Feed/Search/Recommend/Assistant 回源走适配层。
+- SQL 基线里仍保留但无运行时 Model 的表（`category`、`media_task`、
+  `xbh_message.verify_code`、`user_login_log`）是历史脚手架，不构成当前能力。
+  删除生产 schema 需要独立迁移决策，本实现不通过空 Model 暴露它们。
 
 ## 服务间通信
 

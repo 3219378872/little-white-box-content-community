@@ -16,9 +16,6 @@ func (e *BizError) GRPCCode() codes.Code {
 	case http.StatusOK:
 		return codes.OK
 	case http.StatusBadRequest:
-		if e.Code == NotLikedYet || e.Code == NotFavoritedYet {
-			return codes.FailedPrecondition
-		}
 		return codes.InvalidArgument
 	case http.StatusUnauthorized:
 		return codes.Unauthenticated

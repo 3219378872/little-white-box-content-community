@@ -9,6 +9,9 @@
 
 ## 当前证据记录
 
+- [2026-09-06-backend-cohesion-dead-code.md](2026-09-06-backend-cohesion-dead-code.md)：
+  死 Model/死错误码/middleware 包装清理；密码与 JSON 列迁出 `pkg/util`；Assistant
+  工具执行器按域拆分。
 - [2026-09-05-watch-retry-backoff.md](2026-09-05-watch-retry-backoff.md)：
   Watch error 有界指数退避、cancel 即时重排、异常恢复与 reservation 幂等清理。
 - [2026-09-05-idempotency-shutdown-lifecycle.md](2026-09-05-idempotency-shutdown-lifecycle.md)：

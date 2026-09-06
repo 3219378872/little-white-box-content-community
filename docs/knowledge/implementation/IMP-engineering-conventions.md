@@ -13,8 +13,8 @@ tracks:
   - pkg/interceptor
   - pkg/validator
   - deploy/
-verified_at: 2026-08-14
-verified_commit: bea6c09
+verified_at: 2026-09-06
+verified_commit: 3ac98c6
 ---
 
 # 工程约定（分层、安全、可靠性、质量）
@@ -41,6 +41,8 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 ## 错误处理
 
 - Logic 统一返回 `errx.New(code, msg)`；错误码集中于 `pkg/errx/codes.go`。
+  只保留实际返回路径会用到的码。赞/藏重复是成功 no-op（CORE-030），不要再引入
+  AlreadyLiked / NotLikedYet 一类死码。
 - HTTP 状态码映射由 errx 中间件统一处理；**禁止**裸 `errors.New` 字符串错误与
   Handler 手动设置 HTTP 错误状态。
 - 框架 gRPC 错误只保留业务码，不暴露原始消息（CORE-054）。
@@ -52,7 +54,8 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 
 ## 安全
 
-- JWT 由 `pkg/jwtx` 签发/校验并写入 context；业务层不复制 token 解析。
+- JWT 由 `pkg/jwtx` 签发/校验并写入 context；业务层直接调用 `jwtx`，不经
+  已删除的 middleware 读取包装。
 - 双令牌：访问令牌 30 分钟（HS256，`JWT_SECRET_KEY`）；刷新令牌独立密钥
   （`JWT_REFRESH_SECRET`）、7 天有效、携带 jti 并在 user rpc Redis 白名单中一次性轮换
   （`POST /api/v1/auth/refresh`）。access 与 refresh 类型互不通用，由 `tokenType`

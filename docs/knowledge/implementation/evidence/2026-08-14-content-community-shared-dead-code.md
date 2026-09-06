@@ -21,8 +21,8 @@ result: passed
   `IMP-architecture.md` 共享库清单。
 - 删除 `pkg/util` 中 `time.go` 文件（14 个时间工具导出函数：`FormatTime`、
   `ParseDateTime`、`NowUnix`、`UnixToTime`、`IsToday`、`StartOfDay` 等）
-  与 `pkg/util/hash.go` 的 `SHA256`：全部零引用（含测试）。
-- 删除 `pkg/middleware/auth.go` 的 `AuthMiddleware` 与 `writeUnauthorized`：
+  与当时 pkg/util 下 hash 文件中的 `SHA256`：全部零引用（含测试）。
+- 删除当时 pkg/middleware 下 auth 文件中的 `AuthMiddleware` 与 `writeUnauthorized`：
   全仓零引用（gateway 使用 `NewOptionalAuthMiddleware` 替代）。
 - 删除 `pkg/validator/validator.go` 的 `IsUsernameValid`/`IsPasswordValid`
   与 `usernameRegex`：零引用（注册路径使用 `CheckPasswordStrength`/

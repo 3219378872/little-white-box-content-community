@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run `go vet` across every module in the repository.
+# Run `go vet` from every go.mod directory. The repository is a single module
+# today; the loop stays so a nested module cannot silently skip vet.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

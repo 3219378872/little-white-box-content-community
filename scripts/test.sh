@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Run `go test` across every module in the repository.
+# Run `go test` from every go.mod directory.
 #
-# With multiple go.mod files, `go test ./...` from the repo root only covers the
-# root module, so iterate each module directory explicitly. Extra args (e.g.
-# -run, -count) are forwarded to every invocation.
+# The repository is a single module today; iterating go.mod roots keeps the
+# gate correct if a nested module is added. Extra args are forwarded.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

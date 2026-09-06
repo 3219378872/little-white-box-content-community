@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/password"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 	"esx/pkg/util"
@@ -167,7 +168,7 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 	}
 
 	// 处理密码，采用bcrypt算法
-	var password string // 填充用户的密码
+	var hashed string
 	if req.GetPassword() == "" {
 		// 未提供密码时用 crypto/rand 生成 24 位十六进制随机密码，
 		// 不再使用低熵 math/rand。
@@ -176,15 +177,15 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		rawPass := "rp_" + hex.EncodeToString(randomBytes)
-		password, err = util.HashPassword(rawPass)
+		hashed, err = password.Hash(rawPass)
 		if err != nil {
-			l.Errorw("util.HashPassword failed", logx.Field("err", err.Error()))
+			l.Errorw("password.Hash failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	} else {
-		password, err = util.HashPassword(req.Password)
+		hashed, err = password.Hash(req.Password)
 		if err != nil {
-			l.Errorw("util.HashPassword failed", logx.Field("err", err.Error()))
+			l.Errorw("password.Hash failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	}
@@ -193,7 +194,7 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 	return &model.UserProfile{
 		Id:       id,
 		Username: req.Username,
-		Password: password,
+		Password: hashed,
 		Phone: sql.NullString{
 			String: req.Phone,
 			Valid:  req.Phone != "",

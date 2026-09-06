@@ -13,8 +13,8 @@
 | 实现页 | 上游设计 | 状态 | 证据 |
 | --- | --- | --- | --- |
 | [IMP-content-community-backend](IMP-content-community-backend.md) | DES-content-community-backend | diverged | 2026-09-05（幂等并发与停机生命周期；评测/SLO 仍缺） |
-| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-08-27（快照：assistant-mq Watch matcher） |
-| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
+| [IMP-architecture](IMP-architecture.md) | DES-content-community-backend | aligned | 2026-09-06（包边界、死 Model、单一模块） |
+| [IMP-engineering-conventions](IMP-engineering-conventions.md) | DES-content-community-backend | aligned | 2026-09-06（错误码与鉴权读取约定） |
 | [IMP-development-quickstart](IMP-development-quickstart.md) | DES-content-community-backend | aligned | 2026-08-14（快照） |
 
 > 迁移说明：docs/active 速查、顶层 DESIGN/SECURITY/RELIABILITY/QUALITY_SCORE
