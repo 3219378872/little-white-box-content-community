@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-09-06
-verified_commit: 027ed32e589c4328c91664bb7176145ecdcb9335
+verified_commit: 907b5dc632053cd4ef87cdf2455a93f1f6479574
 commands:
   - go test -race -count=1 ./pkg/errx/ ./app/assistant/watch/ ./app/assistant/rpc/internal/logic/ ./app/assistant/internal/tool/
 result: passed

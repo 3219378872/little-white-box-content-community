@@ -73,7 +73,7 @@ tracks:
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
 verified_at: 2026-09-06
-verified_commit: 027ed32e589c4328c91664bb7176145ecdcb9335
+verified_commit: 907b5dc632053cd4ef87cdf2455a93f1f6479574
 ---
 
 # 小白盒内容社区后端实现映射
