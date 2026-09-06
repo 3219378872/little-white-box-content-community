@@ -110,7 +110,8 @@ _DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _FULL_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _REQUIREMENT_ID = r"[A-Z][A-Z0-9]*-(?:A[0-9]{2}|[0-9]{3}(?:-[0-9]{2})?)"
 _REQUIREMENT_BULLET = re.compile(
-    rf"^ {{0,3}}[-*]\s+`(?P<requirement>{_REQUIREMENT_ID})`[：:]"
+    rf"^ {{0,3}}[-*][ \t]+`(?P<requirement>{_REQUIREMENT_ID})`[：:]"
+    r"[ \t]*\S"
 )
 _REQUIREMENT_TABLE_CELL = re.compile(
     rf"^(?:`(?P<quoted>{_REQUIREMENT_ID})`|(?P<plain>{_REQUIREMENT_ID}))$"
@@ -118,6 +119,9 @@ _REQUIREMENT_TABLE_CELL = re.compile(
 _TABLE_SEPARATOR_CELL = re.compile(r"^:?-{3,}:?$")
 _REQUIREMENT_TABLE_HEADERS = {"requirement", "条款", "id"}
 _INLINE_CODE_MASK = "x"
+_LIST_ITEM = re.compile(
+    r"^(?P<indent> *)(?:[-+*]|[0-9]{1,9}[.)])(?P<spacing>[ \t]+)(?P<content>.*)$"
+)
 _AUTHORITY_TABLE_HEADER = "| Requirement | Design | Status | Evidence/Gap |"
 _AUTHORITY_TABLE_SEPARATOR = "| --- | --- | --- | --- |"
 _TRACKING_ROW = re.compile(
@@ -228,6 +232,75 @@ def _is_markdown_fence_opener(match: re.Match[str] | None) -> bool:
     return marker[0] != "`" or "`" not in remainder
 
 
+def _list_item_position(line: str) -> tuple[int, int] | None:
+    match = _LIST_ITEM.match(line)
+    if match is None:
+        return None
+    return len(match.group("indent")), match.start("content")
+
+
+def _update_list_context(
+    line: str, stack: list[tuple[int, int]]
+) -> re.Match[str] | None:
+    item = _LIST_ITEM.match(line)
+    if item is not None:
+        marker_indent = len(item.group("indent"))
+        while stack and marker_indent <= stack[-1][0]:
+            stack.pop()
+        if marker_indent <= 3 or (
+            stack and marker_indent >= stack[-1][1]
+        ):
+            stack.append((marker_indent, item.start("content")))
+            return item
+        return None
+
+    if line.strip():
+        indentation = len(line) - len(line.lstrip(" "))
+        while stack and indentation < stack[-1][1]:
+            stack.pop()
+    return None
+
+
+def _fence_match_in_context(
+    line: str,
+    list_context: tuple[int, int] | None,
+    list_item: re.Match[str] | None,
+) -> tuple[re.Match[str] | None, int | None, int]:
+    if list_context is not None:
+        marker_indent, content_indent = list_context
+        if list_item is not None:
+            candidate = list_item.group("content")
+            match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", candidate)
+            if match is not None:
+                return match, marker_indent, content_indent
+        elif (
+            len(line) >= content_indent
+            and not line[:content_indent].strip()
+        ):
+            candidate = line[content_indent:]
+            match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", candidate)
+            if match is not None:
+                return match, marker_indent, content_indent
+
+    match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+    return match, None, 0
+
+
+def _is_fence_closer(
+    line: str, character: str, length: int, content_indent: int
+) -> bool:
+    if len(line) < content_indent or line[:content_indent].strip():
+        return False
+    candidate = line[content_indent:]
+    return (
+        re.fullmatch(
+            rf" {{0,3}}{re.escape(character)}{{{length},}}[ \t]*",
+            candidate,
+        )
+        is not None
+    )
+
+
 def _inline_code_span_block_boundary(line: str) -> bool:
     if not line.strip():
         return True
@@ -241,7 +314,12 @@ def _inline_code_span_block_boundary(line: str) -> bool:
 
 
 def _matching_inline_code_span_end(
-    lines: list[str], start_line: int, start: int, *, allow_multiline: bool
+    lines: list[str],
+    start_line: int,
+    start: int,
+    *,
+    allow_multiline: bool,
+    list_item_indent: int | None,
 ) -> tuple[int, int] | None:
     opener = lines[start_line]
     opener_end = start
@@ -255,6 +333,13 @@ def _matching_inline_code_span_end(
             cursor = opener_end
         else:
             if not allow_multiline:
+                return None
+            item_position = _list_item_position(line)
+            if (
+                list_item_indent is not None
+                and item_position is not None
+                and item_position[0] <= list_item_indent
+            ):
                 return None
             if _inline_code_span_block_boundary(line):
                 return None
@@ -283,24 +368,55 @@ def _visible_markdown_lines(path: Path) -> list[str]:
     visible: list[str] = []
     fence_character = ""
     fence_length = 0
+    fence_list_indent: int | None = None
+    fence_content_indent = 0
     in_html_comment = False
+    list_stack: list[tuple[int, int]] = []
     for line_number, raw_line in enumerate(lines):
-        fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", raw_line)
         if fence_character:
-            if (
-                fence is not None
-                and fence.group(1)[0] == fence_character
-                and len(fence.group(1)) >= fence_length
-                and not fence.group(2).strip()
+            item_position = _list_item_position(raw_line)
+            leaves_list_container = (
+                fence_list_indent is not None
+                and item_position is not None
+                and item_position[0] <= fence_list_indent
+            )
+            leaves_list_indentation = (
+                fence_list_indent is not None
+                and bool(raw_line.strip())
+                and len(raw_line) - len(raw_line.lstrip(" "))
+                < fence_content_indent
+            )
+            if leaves_list_container or leaves_list_indentation:
+                fence_character = ""
+                fence_length = 0
+                fence_list_indent = None
+                fence_content_indent = 0
+            elif _is_fence_closer(
+                raw_line,
+                fence_character,
+                fence_length,
+                fence_content_indent,
             ):
                 fence_character = ""
                 fence_length = 0
-            continue
+                fence_list_indent = None
+                fence_content_indent = 0
+                continue
+            else:
+                continue
+
+        list_item = _update_list_context(raw_line, list_stack)
+        list_context = list_stack[-1] if list_stack else None
+        fence, opener_list_indent, opener_content_indent = _fence_match_in_context(
+            raw_line, list_context, list_item
+        )
 
         # A comment marker in a fence opener's info string is literal too.
         if not in_html_comment and _is_markdown_fence_opener(fence):
             fence_character = fence.group(1)[0]
             fence_length = len(fence.group(1))
+            fence_list_indent = opener_list_indent
+            fence_content_indent = opener_content_indent
             continue
 
         line_parts: list[str] = []
@@ -326,6 +442,9 @@ def _visible_markdown_lines(path: Path) -> list[str]:
                     line_number,
                     code_start,
                     allow_multiline=fence is None,
+                    list_item_indent=(
+                        list_context[0] if list_context is not None else None
+                    ),
                 )
                 if span_end is None:
                     opener_end = code_start + 1
@@ -366,11 +485,6 @@ def _visible_markdown_lines(path: Path) -> list[str]:
             cursor = comment_start + 4
 
         line = "".join(line_parts)
-        fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
-        if _is_markdown_fence_opener(fence):
-            fence_character = fence.group(1)[0]
-            fence_length = len(fence.group(1))
-            continue
         visible.append(line)
     return visible
 
@@ -754,13 +868,45 @@ def _markdown_table_cells(line: str) -> list[str] | None:
     if len(line) - len(line.lstrip(" ")) > 3 or re.match(r"^ {0,3}\t", line):
         return None
     value = line.strip()
-    if "|" not in value:
+    cells: list[str] = []
+    current: list[str] = []
+    separators = 0
+    for character in value:
+        if character == "|":
+            backslashes = 0
+            for previous in reversed(current):
+                if previous != "\\":
+                    break
+                backslashes += 1
+            if backslashes % 2 == 0:
+                cells.append("".join(current).strip())
+                current = []
+                separators += 1
+                continue
+        current.append(character)
+    if separators == 0:
         return None
-    if value.startswith("|"):
-        value = value[1:]
-    if value.endswith("|"):
-        value = value[:-1]
-    return [cell.strip() for cell in re.split(r"(?<!\\)\|", value)]
+    cells.append("".join(current).strip())
+    if cells and not cells[0]:
+        cells.pop(0)
+    if cells and not cells[-1]:
+        cells.pop()
+    return cells
+
+
+def _normalized_requirement_header(cell: str) -> str:
+    normalized = cell.strip()
+    if normalized.startswith("`") and normalized.endswith("`"):
+        normalized = normalized[1:-1]
+    return " ".join(normalized.casefold().split())
+
+
+def _requirement_table_id(cell: str) -> str | None:
+    candidate = cell.strip()
+    match = _REQUIREMENT_TABLE_CELL.fullmatch(candidate)
+    if match is None:
+        return None
+    return match.group("quoted") or match.group("plain")
 
 
 def _formal_requirement_ids(lines: list[str]) -> list[str]:
@@ -780,8 +926,9 @@ def _formal_requirement_ids(lines: list[str]) -> list[str]:
         if (
             header is None
             or separator is None
-            or header[0].strip("`").strip().casefold()
-            not in _REQUIREMENT_TABLE_HEADERS
+            or len(header) < 2
+            or _normalized_requirement_header(header[0]) not in _REQUIREMENT_TABLE_HEADERS
+            or not all(cell.strip() for cell in header)
             or len(header) != len(separator)
             or not all(_TABLE_SEPARATOR_CELL.fullmatch(cell) for cell in separator)
         ):
@@ -793,11 +940,9 @@ def _formal_requirement_ids(lines: list[str]) -> list[str]:
             row = _markdown_table_cells(lines[index])
             if row is None or len(row) != len(header):
                 break
-            requirement = _REQUIREMENT_TABLE_CELL.fullmatch(row[0])
-            if requirement is not None:
-                requirements.append(
-                    requirement.group("quoted") or requirement.group("plain")
-                )
+            requirement = _requirement_table_id(row[0])
+            if requirement is not None and any(cell.strip() for cell in row[1:]):
+                requirements.append(requirement)
             index += 1
     return requirements
 

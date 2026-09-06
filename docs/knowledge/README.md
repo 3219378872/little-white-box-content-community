@@ -44,10 +44,14 @@ agent 必须停止并请求决定。未获授权的 INT/SPEC 建议只进入 [pr
 - IMP 另需 `code_paths` 和 `evidence`，不得保存提交或验证日期；
 - EVD 另需 `covers`、`scope`、`commands`、`observed_commit` 和 `result`，可选 `artifacts`。
 
-正式 requirement 只从 Markdown 可见正文中的规范 bullet/table 提取；frontmatter、合法 fence、HTML
-comment 与 inline code span 内容不参与。跨行 span 只由与 opener 等长的 maximal backtick run 闭合，
-lookahead 遇空行、ATX heading、Setext heading underline 或合法 fence opener 即停止。行首三个以上
-backtick、但 remainder 又含 backtick 的非法 fence-shaped 行只允许同行 span，不得延伸到后续物理行。
+正式 requirement 只从 Markdown 可见正文中的规范 bullet/table 提取；bullet 的冒号后必须在同一行有
+非空定义；table 至少两列、表头各列非空、反引号成对，且数据行至少一个定义列非空。转义 pipe 按其前
+连续反斜线的奇偶性判断。frontmatter、合法 fence、HTML comment 与 inline code span 内容不参与。
+合法 fence 包括 unordered/ordered list container 内的 backtick/tilde fence；容器内 fence 未闭合时，
+遇同级或外层新列表项即结束。跨行 span 只由与 opener 等长的 maximal backtick run 闭合，lookahead
+遇空行、ATX heading、Setext heading underline、合法 fence opener，或所在 list item 的同级/外层新
+列表项即停止；同一列表项的缩进续行仍可闭合。行首三个以上 backtick、但 remainder 又含 backtick 的
+非法 fence-shaped 行只允许同行 span，不得延伸到后续物理行。
 
 合法状态：
 

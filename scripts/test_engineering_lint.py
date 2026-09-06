@@ -520,6 +520,64 @@ result: passed
         errors = engineering_lint.check_knowledge_layers(self.root)
         self.assert_error(errors, "tracks unknown active requirement: TEST-001")
 
+    def test_requirement_inside_list_container_fence_is_ignored(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        cases = {
+            "unordered tilde": (
+                "- ~~~markdown\n"
+                "  - `TEST-001`: Hidden duplicate requirement.\n"
+                "  ~~~\n"
+            ),
+            "ordered backtick": (
+                "1. ```markdown\n"
+                "   - `TEST-001`: Hidden duplicate requirement.\n"
+                "   ```\n"
+            ),
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                specification.write_text(
+                    original + "\n" + fenced_example,
+                    encoding="utf-8",
+                )
+                self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_list_container_fence_content_cannot_close_an_inline_span(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8")
+            + "\n- ````markdown\n"
+            + "  prose contains the same-length ```` run.\n"
+            + "  - `TEST-001`: Hidden duplicate requirement.\n"
+            + "  ````\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_unclosed_list_container_fence_stops_at_sibling_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        for opener, content_indent in (
+            ("- ~~~markdown", "  "),
+            ("1. ```markdown", "   "),
+        ):
+            with self.subTest(opener=opener):
+                specification.write_text(
+                    original.replace(
+                        "- `TEST-001`：Test requirement.",
+                        f"{opener}\n"
+                        f"{content_indent}- `FAKE-001`: Fenced example only.\n"
+                        "- `TEST-001`: Visible sibling requirement.",
+                    ),
+                    encoding="utf-8",
+                )
+                self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
     def test_requirement_definition_inside_frontmatter_is_ignored(self):
         self._add_valid_chain()
         specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
@@ -622,6 +680,69 @@ result: passed
                 )
                 self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
 
+    def test_requirement_table_requires_structural_definition_content(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        invalid_tables = {
+            "one column": (
+                "| requirement |\n| --- |\n| `TEST-001` |"
+            ),
+            "blank header": (
+                "| requirement | |\n| --- | --- |\n| `TEST-001` | Works. |"
+            ),
+            "blank definition": (
+                "| requirement | definition |\n"
+                "| --- | --- |\n"
+                "| `TEST-001` | |"
+            ),
+            "unpaired backtick": (
+                "| requirement | definition |\n"
+                "| --- | --- |\n"
+                "| `TEST-001 | Works. |"
+            ),
+            "double backticks": (
+                "| requirement | definition |\n"
+                "| --- | --- |\n"
+                "| ``TEST-001`` | Works. |"
+            ),
+        }
+        for name, table in invalid_tables.items():
+            with self.subTest(table=name):
+                specification.write_text(
+                    original.replace("- `TEST-001`：Test requirement.", table),
+                    encoding="utf-8",
+                )
+                errors = engineering_lint.check_knowledge_layers(self.root)
+                self.assert_error(errors, "tracks unknown active requirement: TEST-001")
+
+    def test_requirement_table_uses_backslash_parity_for_escaped_pipes(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        valid_table = (
+            "| requirement | definition |\n"
+            "| --- | --- |\n"
+            r"| `TEST-001` | Literal \| pipe. |"
+        )
+        specification.write_text(
+            original.replace("- `TEST-001`：Test requirement.", valid_table),
+            encoding="utf-8",
+        )
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+        invalid_table = (
+            "| requirement | definition |\n"
+            "| --- | --- |\n"
+            r"| `TEST-001` | Even slash pair \\| starts another cell. |"
+        )
+        specification.write_text(
+            original.replace("- `TEST-001`：Test requirement.", invalid_table),
+            encoding="utf-8",
+        )
+        errors = engineering_lint.check_knowledge_layers(self.root)
+        self.assert_error(errors, "tracks unknown active requirement: TEST-001")
+
     def test_star_requirement_bullet_is_recognized(self):
         self._add_valid_chain()
         specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
@@ -633,6 +754,20 @@ result: passed
             encoding="utf-8",
         )
         self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_requirement_bullet_requires_same_line_definition(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8").replace(
+                "- `TEST-001`：Test requirement.",
+                "- `TEST-001`:\n  Definition only appears on a continuation line.",
+            ),
+            encoding="utf-8",
+        )
+
+        errors = engineering_lint.check_knowledge_layers(self.root)
+        self.assert_error(errors, "tracks unknown active requirement: TEST-001")
 
     def test_indented_code_bullet_is_not_a_requirement_definition(self):
         self._add_valid_chain()
@@ -703,6 +838,34 @@ result: passed
                 self.assertFalse(
                     any("FAKE-" in error for error in errors), errors
                 )
+
+    def test_unclosed_inline_code_in_list_item_stops_at_sibling_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8").replace(
+                "- `TEST-001`：Test requirement.",
+                "- Context ``has no closing delimiter\n"
+                "- `TEST-001`: Visible sibling requirement.\n"
+                "  A later `` run cannot close the previous item.",
+            ),
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_multiline_inline_code_can_close_in_same_list_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8")
+            + "\n- Context ``starts a code span\n"
+            + "  - `TEST-001`: Hidden duplicate on a continuation line.\n"
+            + "  and closes here`` outside.\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
 
     def test_unmatched_inline_code_stops_at_blank_line(self):
         self._add_valid_chain()
