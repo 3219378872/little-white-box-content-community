@@ -35,19 +35,27 @@ covers:
 scope:
   - static
   - unit
+  - integration
 commands:
-  - python3 -m unittest discover -s scripts -p 'test_engineering_lint.py' -q
-  - python3 -m unittest discover -s scripts -p 'test_spec_evals.py' -q
-  - python3 -m unittest discover -s scripts -p 'test_gateway_performance.py' -q
-  - python3 scripts/engineering-lint.py
-observed_commit: f706309f860621e7d9079333cf33e81557253b73
-result: partial
+  - make engineering-lint
+  - make check
+  - make test
+  - make spec-evals-test
+  - make python-unit
+  - make integration-critical
+  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+  - git status --short
+  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
 ---
 
 # Agent Memory 当前确定性验证
 
-`observed_commit` 是本次迁移开始前的后端基线。列出的命令只检查迁移工作树中的治理规则、评测客户端和
-性能客户端，尚未在一个已提交的迁移版本上复验 Go 静态、race 与关键集成范围，因此结果为 `partial`。
+列出的命令均在 `observed_commit` 上返回 0。`make engineering-lint` 运行 74 个治理测试；`make check`
+通过格式检查、治理检查、`go vet` 与 `golangci-lint`（0 issues）；`make test` 完成全模块 race/coverage；
+规格评测 47 个测试、Python 单元 10+3 个测试、三个 critical integration 包均通过。固定
+`grpcio-tools==1.71.0`、`protobuf==5.29.4` 后连续两次 `make generate`，每次工作树均保持 clean。
 
 本证据不包含浏览器、设备、真实 provider、人类质量评审或生产月度观测；这些边界在对应 IMP 中
 保持 `unknown` 或 `diverged`，不得由本页提升为 `aligned`。

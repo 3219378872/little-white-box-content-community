@@ -54,31 +54,31 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 | Requirement | Design | Status | Evidence/Gap |
 | --- | --- | --- | --- |
-| MEM-001 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-002 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-003 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-004 | DES-agent-capability-governance | unknown | gap: validation pending. |
-| MEM-010 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-011 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-012 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-013 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-014 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-020 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-021 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-022 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-023 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-024 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-025 | DES-agent-capability-governance | unknown | gap: validation pending. |
-| MEM-030 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-031 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-032 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-033 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-A01 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-A02 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-A03 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
-| MEM-A04 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
+| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260906-agent-memory |
+| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260906-agent-memory |
+| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
+| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
 | MEM-A05 | DES-assistant-agent-runtime | unknown | gap: 非来源边界有单测；真实存储故障集成注入未完成。 |
-| MEM-A06 | DES-assistant-agent-runtime | unknown | gap: validation pending. |
+| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-memory |
 
 ## 代码边界
 

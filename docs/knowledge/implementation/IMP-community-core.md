@@ -77,49 +77,49 @@ evidence:
 
 | Requirement | Design | Status | Evidence/Gap |
 | --- | --- | --- | --- |
-| CORE-001 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-002 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-003 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-004 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-005 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-010 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-011 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-012 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-013 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-014 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-015 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-016 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-020 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-021 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-022 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-023 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-024 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-030 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-031 | DES-content-community-backend | unknown | gap: validation pending. |
+| CORE-001 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-002 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-003 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-004 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-005 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-010 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-011 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-012 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-013 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-014 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-015 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-016 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-020 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-021 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-022 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-023 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-024 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-030 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-031 | DES-content-community-backend | aligned | EVD-20260906-community-core |
 | CORE-032 | DES-content-community-backend | unknown | gap: viewer state 已同步；公开计数 30 秒收敛仍缺生产观测。 |
-| CORE-033 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-034 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-040 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-041 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-042 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-043 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-044 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-050 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-051 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-052 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-053 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-054 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-060 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-061 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-062 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-063 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A01 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A02 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A03 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A04 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A05 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A06 | DES-content-community-backend | unknown | gap: validation pending. |
-| CORE-A07 | DES-content-community-backend | unknown | gap: validation pending. |
+| CORE-033 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-034 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-040 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-041 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-042 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-043 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-044 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-050 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-051 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-052 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-053 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-054 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-060 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-061 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-062 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-063 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A01 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A02 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A03 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A04 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A05 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A06 | DES-content-community-backend | aligned | EVD-20260906-community-core |
+| CORE-A07 | DES-content-community-backend | aligned | EVD-20260906-community-core |
 
 ## 代码边界
 
