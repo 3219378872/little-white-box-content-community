@@ -49,8 +49,8 @@ agent 必须停止并请求决定。未获授权的 INT/SPEC 建议只进入 [pr
 连续反斜线的奇偶性判断。frontmatter、合法 fence、HTML comment 与 inline code span 内容不参与。
 合法 fence 包括 unordered/ordered list container 内的 backtick/tilde fence；容器内 fence 未闭合时，
 遇同级或外层新列表项即结束。跨行 span 只由与 opener 等长的 maximal backtick run 闭合，lookahead
-遇空行、ATX heading、Setext heading underline、合法 fence opener，或所在 list item 的同级/外层新
-列表项即停止；同一列表项的缩进续行仍可闭合。行首三个以上 backtick、但 remainder 又含 backtick 的
+遇空行、ATX heading、Setext heading underline、合法 fence opener 或任意新列表项即停止；同一列表项
+中不以新 list marker 起始的缩进续行仍可闭合。行首三个以上 backtick、但 remainder 又含 backtick 的
 非法 fence-shaped 行只允许同行 span，不得延伸到后续物理行。
 
 合法状态：

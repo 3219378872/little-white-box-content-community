@@ -507,6 +507,29 @@ result: passed
         errors = engineering_lint.check_knowledge_layers(self.root)
         self.assert_error(errors, "tracking rows require one exact requirement ID")
 
+    def test_authoritative_row_rejects_unpaired_backticks(self):
+        self._add_valid_chain()
+        implementation = self.root / "docs/knowledge/implementation/IMP-service.md"
+        original = implementation.read_text(encoding="utf-8")
+        valid = "| TEST-001 | DES-service | aligned | EVD-service |"
+        malformed_rows = (
+            "| `TEST-001 | DES-service | aligned | EVD-service |",
+            "| TEST-001` | DES-service | aligned | EVD-service |",
+            "| TEST-001 | `DES-service | aligned | EVD-service |",
+            "| TEST-001 | DES-service` | aligned | EVD-service |",
+            "| ``TEST-001`` | DES-service | aligned | EVD-service |",
+            "| TEST-001 | ``DES-service`` | aligned | EVD-service |",
+        )
+        for row in malformed_rows:
+            with self.subTest(row=row):
+                implementation.write_text(
+                    original.replace(valid, row), encoding="utf-8"
+                )
+                errors = engineering_lint.check_knowledge_layers(self.root)
+                self.assert_error(
+                    errors, "tracking rows require one exact requirement ID"
+                )
+
     def test_requirement_definition_inside_fence_is_ignored(self):
         self._add_valid_chain()
         specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
@@ -632,6 +655,22 @@ result: passed
                     encoding="utf-8",
                 )
                 self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_bare_list_item_owns_a_continuation_fence(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8").replace(
+                "- `TEST-001`：Test requirement.",
+                "-\n"
+                "  ```markdown\n"
+                "  - `FAKE-001`: Fenced example only.\n"
+                "- `TEST-001`: Visible sibling requirement.",
+            ),
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
 
     def test_requirement_definition_inside_frontmatter_is_ignored(self):
         self._add_valid_chain()
@@ -877,7 +916,6 @@ result: passed
                 specification.write_text(
                     original
                     + f"\nProse {delimiter}multiline code begins\n"
-                    + f"- {bullet_quotes}FAKE-001{bullet_quotes}: Hidden bullet-shaped line.\n"
                     + "| Requirement | Definition |\n"
                     + "| --- | --- |\n"
                     + "| FAKE-002 | Hidden table row. |\n"
@@ -893,6 +931,21 @@ result: passed
                 self.assertFalse(
                     any("FAKE-" in error for error in errors), errors
                 )
+
+    def test_unclosed_inline_code_stops_at_top_level_list_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8").replace(
+                "- `TEST-001`：Test requirement.",
+                "Paragraph ``has no closing delimiter\n"
+                "- `TEST-001`: Visible list requirement.\n"
+                "A later `` run cannot close the previous block.",
+            ),
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
 
     def test_unclosed_inline_code_in_list_item_stops_at_sibling_item(self):
         self._add_valid_chain()
@@ -915,8 +968,23 @@ result: passed
         specification.write_text(
             specification.read_text(encoding="utf-8")
             + "\n- Context ``starts a code span\n"
-            + "  - `TEST-001`: Hidden duplicate on a continuation line.\n"
+            + "  <!-- remains literal on a continuation line\n"
             + "  and closes here`` outside.\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_unclosed_inline_code_stops_at_nested_list_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        specification.write_text(
+            specification.read_text(encoding="utf-8").replace(
+                "- `TEST-001`：Test requirement.",
+                "- Context ``has no closing delimiter\n"
+                "  - `TEST-001`: Visible nested requirement.\n"
+                "  A later `` run cannot close the parent item.",
+            ),
             encoding="utf-8",
         )
 

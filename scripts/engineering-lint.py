@@ -120,13 +120,16 @@ _TABLE_SEPARATOR_CELL = re.compile(r"^:?-{3,}:?$")
 _REQUIREMENT_TABLE_HEADERS = {"requirement", "条款", "id"}
 _INLINE_CODE_MASK = "x"
 _LIST_ITEM = re.compile(
-    r"^(?P<indent> *)(?:[-+*]|[0-9]{1,9}[.)])(?P<spacing>[ \t]+)(?P<content>.*)$"
+    r"^(?P<indent> *)(?P<marker>[-+*]|[0-9]{1,9}[.)])"
+    r"(?:(?P<spacing>[ \t]+)(?P<content>.*)|$)"
 )
 _AUTHORITY_TABLE_HEADER = "| Requirement | Design | Status | Evidence/Gap |"
 _AUTHORITY_TABLE_SEPARATOR = "| --- | --- | --- | --- |"
 _TRACKING_ROW = re.compile(
-    rf"^\|\s*`?(?P<requirement>{_REQUIREMENT_ID})`?\s*\|\s*"
-    r"`?(?P<design>DES-[a-z0-9]+(?:-[a-z0-9]+)*)`?\s*\|\s*"
+    rf"^\|\s*(?P<requirement_quote>`?)(?P<requirement>{_REQUIREMENT_ID})"
+    r"(?P=requirement_quote)\s*\|\s*"
+    r"(?P<design_quote>`?)(?P<design>DES-[a-z0-9]+(?:-[a-z0-9]+)*)"
+    r"(?P=design_quote)\s*\|\s*"
     r"(?P<status>aligned|diverged|unknown)\s*\|\s*(?P<detail>.+?)\s*\|$"
 )
 _EXTERNAL_UPSTREAM = re.compile(
@@ -236,7 +239,12 @@ def _list_item_position(line: str) -> tuple[int, int] | None:
     match = _LIST_ITEM.match(line)
     if match is None:
         return None
-    return len(match.group("indent")), match.start("content")
+    content_indent = (
+        match.start("content")
+        if match.group("content")
+        else match.end("marker") + 1
+    )
+    return len(match.group("indent")), content_indent
 
 
 def _update_list_context(
@@ -250,7 +258,12 @@ def _update_list_context(
         if marker_indent <= 3 or (
             stack and marker_indent >= stack[-1][1]
         ):
-            stack.append((marker_indent, item.start("content")))
+            content_indent = (
+                item.start("content")
+                if item.group("content")
+                else item.end("marker") + 1
+            )
+            stack.append((marker_indent, content_indent))
             return item
         return None
 
@@ -269,7 +282,7 @@ def _fence_match_in_context(
     if list_context is not None:
         marker_indent, content_indent = list_context
         if list_item is not None:
-            candidate = list_item.group("content")
+            candidate = list_item.group("content") or ""
             match = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", candidate)
             if match is not None:
                 return match, marker_indent, content_indent
@@ -319,7 +332,7 @@ def _matching_inline_code_span_end(
     start: int,
     *,
     allow_multiline: bool,
-    list_item_indent: int | None,
+    list_context: tuple[int, int] | None,
 ) -> tuple[int, int] | None:
     opener = lines[start_line]
     opener_end = start
@@ -336,9 +349,8 @@ def _matching_inline_code_span_end(
                 return None
             item_position = _list_item_position(line)
             if (
-                list_item_indent is not None
-                and item_position is not None
-                and item_position[0] <= list_item_indent
+                item_position is not None
+                and (list_context is not None or item_position[0] <= 3)
             ):
                 return None
             if _inline_code_span_block_boundary(line):
@@ -442,9 +454,7 @@ def _visible_markdown_lines(path: Path) -> list[str]:
                     line_number,
                     code_start,
                     allow_multiline=fence is None,
-                    list_item_indent=(
-                        list_context[0] if list_context is not None else None
-                    ),
+                    list_context=list_context,
                 )
                 if span_end is None:
                     opener_end = code_start + 1
