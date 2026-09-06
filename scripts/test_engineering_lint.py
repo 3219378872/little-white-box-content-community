@@ -544,6 +544,32 @@ result: passed
                 )
                 self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
 
+    def test_requirement_inside_list_continuation_fence_is_ignored(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        cases = {
+            "unordered tilde": (
+                "- Context\n"
+                "  ~~~markdown\n"
+                "  - `TEST-001`: Hidden duplicate requirement.\n"
+                "  ~~~\n"
+            ),
+            "ordered backtick": (
+                "1. Context\n"
+                "   ```markdown\n"
+                "   - `TEST-001`: Hidden duplicate requirement.\n"
+                "   ```\n"
+            ),
+        }
+        for name, fenced_example in cases.items():
+            with self.subTest(container=name):
+                specification.write_text(
+                    original + "\n" + fenced_example,
+                    encoding="utf-8",
+                )
+                self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
     def test_list_container_fence_content_cannot_close_an_inline_span(self):
         self._add_valid_chain()
         specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
@@ -573,6 +599,35 @@ result: passed
                         f"{opener}\n"
                         f"{content_indent}- `FAKE-001`: Fenced example only.\n"
                         "- `TEST-001`: Visible sibling requirement.",
+                    ),
+                    encoding="utf-8",
+                )
+                self.assertEqual(engineering_lint.check_knowledge_layers(self.root), [])
+
+    def test_unclosed_list_continuation_fence_stops_at_sibling_item(self):
+        self._add_valid_chain()
+        specification = self.root / "docs/knowledge/spec/SPEC-behavior.md"
+        original = specification.read_text(encoding="utf-8")
+        cases = (
+            (
+                "- Context\n"
+                "  ~~~markdown\n"
+                "  - `FAKE-001`: Fenced example only.\n"
+                "- `TEST-001`: Visible sibling requirement."
+            ),
+            (
+                "- Outer item\n"
+                "  1. Nested context\n"
+                "     ```markdown\n"
+                "     - `FAKE-001`: Fenced example only.\n"
+                "  - `TEST-001`: Visible nested sibling requirement."
+            ),
+        )
+        for replacement in cases:
+            with self.subTest(replacement=replacement.splitlines()[0:2]):
+                specification.write_text(
+                    original.replace(
+                        "- `TEST-001`：Test requirement.", replacement
                     ),
                     encoding="utf-8",
                 )
