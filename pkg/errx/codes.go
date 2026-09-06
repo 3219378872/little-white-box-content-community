@@ -53,6 +53,7 @@ const (
 	AgentResourceLimit = 6002
 	AgentQueueFull     = 6003
 	AgentRunConflict   = 6004
+	CannotWatchSelf    = 6005
 )
 
 // 错误码消息映射
@@ -101,6 +102,7 @@ var codeMsg = map[int]string{
 	AgentResourceLimit: "Agent 资源预算已耗尽",
 	AgentQueueFull:     "Agent 输入队列已满",
 	AgentRunConflict:   "Agent 运行状态冲突",
+	CannotWatchSelf:    "不能关注自己的动态",
 }
 
 // GetMsg 获取错误码对应的消息

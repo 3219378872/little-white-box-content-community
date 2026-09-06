@@ -7,11 +7,11 @@ import (
 	"esx/pkg/errx"
 )
 
-// Lookups validates Watch create targets (WCH-004). Nil callbacks mean the
-// corresponding downstream is unavailable.
+// Lookups validates Watch create targets (WCH-003/WCH-024). Nil callbacks mean
+// the corresponding downstream is unavailable.
 type Lookups struct {
 	Author func(ctx context.Context, userID int64) error
-	Post   func(ctx context.Context, postID int64) error
+	Post   func(ctx context.Context, postID int64) (authorID int64, err error)
 	Tag    func(ctx context.Context, name string) error
 }
 
@@ -21,6 +21,9 @@ func (l Lookups) Validate(ctx context.Context, task Task) error {
 	}
 	switch task.ConditionType {
 	case AuthorNewPost:
+		if task.TargetID == task.UserID {
+			return errx.NewWithCode(errx.CannotWatchSelf)
+		}
 		if l.Author == nil {
 			return errx.NewWithCode(errx.ServiceUnavailable)
 		}
@@ -29,7 +32,14 @@ func (l Lookups) Validate(ctx context.Context, task Task) error {
 		if l.Post == nil {
 			return errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		return l.Post(ctx, task.TargetID)
+		authorID, err := l.Post(ctx, task.TargetID)
+		if err != nil {
+			return err
+		}
+		if task.ConditionType == PostRevised && authorID == task.UserID {
+			return errx.NewWithCode(errx.CannotWatchSelf)
+		}
+		return nil
 	case TagNewPost:
 		if l.Tag == nil {
 			return errx.NewWithCode(errx.ServiceUnavailable)

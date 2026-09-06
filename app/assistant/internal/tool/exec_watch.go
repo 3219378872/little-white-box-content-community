@@ -86,18 +86,18 @@ func WatchLookups(clients Clients) watch.Lookups {
 			}
 			return nil
 		},
-		Post: func(ctx context.Context, postID int64) error {
+		Post: func(ctx context.Context, postID int64) (int64, error) {
 			if clients.Content == nil {
-				return errx.NewWithCode(errx.ServiceUnavailable)
+				return 0, errx.NewWithCode(errx.ServiceUnavailable)
 			}
 			resp, err := clients.Content.GetPost(ctx, &contentservice.GetPostReq{PostId: postID})
 			if err != nil {
-				return errx.FromRPCError(err)
+				return 0, errx.FromRPCError(err)
 			}
 			if resp == nil || resp.Post == nil || !visibilityx.IsPublished(resp.Post.Status) {
-				return errx.New(errx.ParamError, "watch post is not published")
+				return 0, errx.New(errx.ParamError, "watch post is not published")
 			}
-			return nil
+			return resp.Post.AuthorId, nil
 		},
 		Tag: func(ctx context.Context, name string) error {
 			name = strings.TrimSpace(name)

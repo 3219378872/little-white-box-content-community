@@ -9,6 +9,8 @@
 
 ## 当前证据记录
 
+- [2026-09-06-watch-cannot-self.md](2026-09-06-watch-cannot-self.md)：
+  Watch 创建拒绝盯自己作者/自己帖修订，错误码 `CannotWatchSelf` 6005。
 - [2026-09-06-backend-cohesion-dead-code.md](2026-09-06-backend-cohesion-dead-code.md)：
   死 Model/死错误码/middleware 包装清理；密码与 JSON 列迁出 `pkg/util`；Assistant
   工具执行器按域拆分。

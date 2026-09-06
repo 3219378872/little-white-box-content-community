@@ -72,8 +72,8 @@ tracks:
   - deploy/docker-compose.production.yml
   - deploy/nginx/nginx.conf
   - scripts/apply_production_sql_patches.sh
-verified_at: 2026-09-05
-verified_commit: 249f94ba0d8fd38159c368cac5e9636cdbe60243
+verified_at: 2026-09-06
+verified_commit: 027ed32e589c4328c91664bb7176145ecdcb9335
 ---
 
 # 小白盒内容社区后端实现映射
@@ -276,7 +276,9 @@ Watch 内部 bucket）。仍偏离处：
 | WCH-023 consent 撤销 | aligned | scheduler 在调度事务内复核 frozen/current consent；撤权取消已调度和活跃 run，未发送 bucket 退回 pending |
 | WCH-020 删除 hits API | aligned | proto/gateway 已无 ListHits/MarkRead |
 | WCH-021 任务不走 delete_post 确认 | aligned | Watch 工具非 HighRisk |
+| WCH-024 不能盯自己的作者/修订 | aligned | `watch.Lookups.Validate`：`author_new_post` 目标作者或 `post_revised` 帖子作者等于当前用户时 `CannotWatchSelf`；REST 与 `create_watch_task` 共用 |
 | WCH-A01~A05 | partial | 规则匹配与内部 RecordHit 单测保留；主动消息与限额依赖 worker |
+| WCH-A06 盯自己被拒绝 | aligned | `app/assistant/watch/target_test.go`、`create_watch_task_logic_test.go` |
 
 ## SPEC-feedback-reliability 追踪
 
@@ -371,6 +373,7 @@ MEM-A01~A05、WCH-A01~A05。代码行为类以 Go 测试落地，离线评测/�
 | WCH-A03 只读工具/用户抢占重排 | partial | 只读 registry、error 有界退避、cancel 即时重排、旧 finalizer 所有权与异常恢复已有 race/MySQL 分层覆盖；真实 SQL runtime 取消交错仍未做专门集成测试 |
 | WCH-A04 主动消息/未读/非普通私信 | aligned | `app/assistant/internal/runtime/watch_test.go` 覆盖 Assistant message、未读、outbox 与终态 |
 | WCH-A05 CRUD/恢复可见性 | partial | CRUD 归属与停用已有测试；90 天后恢复及不可见内容补投仍缺集成验证 |
+| WCH-A06 盯自己作者/自己帖修订拒绝 | aligned | `TestLookupsRejectsWatchingOwnAuthorAndPost`、`TestCreateWatchTaskLogicValidatesTargets` |
 
 
 ## 代码入口

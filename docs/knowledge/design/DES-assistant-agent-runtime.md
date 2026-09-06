@@ -64,6 +64,9 @@ assistant-watch matcher
 - Watch task 保留；execution/hit 只作内部 bucket 输入与 90 天审计，到期分批物理删除；
   `watch_send_reservation` 与 `watch_send_stat.reserved_count` 在调度事务中原子预留小时/日配额，只有成功
   投递才转为 sent，失败、抢占和 discard 均释放 reservation。
+- Watch 创建经 `watch.Lookups.Validate`：目标存在且可见（WCH-003）；`author_new_post` 的目标作者或
+  `post_revised` 的帖子作者等于当前用户时返回 `CannotWatchSelf`（WCH-024）。REST 与
+  `create_watch_task` 工具共用该校验。`discussion_spike` 仍允许盯自己的帖。
 
 破坏性迁移用 `assistant_runtime_v3` marker：首次执行清空并重建 `xbh_assistant`，清空 user 库 Agent
 consent；marker 提交后重复 patch 不再清理。生产执行前必须绑定 MySQL `server_uuid`，分别备份并验证

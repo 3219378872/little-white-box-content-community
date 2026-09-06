@@ -31,10 +31,14 @@ type createWatchContent struct {
 }
 
 func (createWatchContent) GetPost(_ context.Context, req *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
-	if req.PostId == 11 {
-		return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: 11, Status: 1}}, nil
+	switch req.PostId {
+	case 11:
+		return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: 11, AuthorId: 8, Status: 1}}, nil
+	case 12:
+		return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: 12, AuthorId: 2, Status: 1}}, nil
+	default:
+		return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: req.PostId, Status: 0}}, nil
 	}
-	return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: req.PostId, Status: 0}}, nil
 }
 
 func (createWatchContent) GetTags(context.Context, *contentservice.GetTagsReq, ...grpc.CallOption) (*contentservice.GetTagsResp, error) {
@@ -81,6 +85,21 @@ func TestCreateWatchTaskLogicValidatesTargets(t *testing.T) {
 	}
 	if _, err := logic.CreateWatchTask(&pb.CreateWatchTaskReq{
 		UserId: 2, ConditionType: watch.KeywordNewPost, TargetType: "keyword", TargetText: "怪猎",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := logic.CreateWatchTask(&pb.CreateWatchTaskReq{
+		UserId: 2, ConditionType: watch.AuthorNewPost, TargetType: "author", TargetId: 2,
+	}); !errx.Is(err, errx.CannotWatchSelf) {
+		t.Fatalf("own author: %v", err)
+	}
+	if _, err := logic.CreateWatchTask(&pb.CreateWatchTaskReq{
+		UserId: 2, ConditionType: watch.PostRevised, TargetType: "post", TargetId: 12,
+	}); !errx.Is(err, errx.CannotWatchSelf) {
+		t.Fatalf("own post revision: %v", err)
+	}
+	if _, err := logic.CreateWatchTask(&pb.CreateWatchTaskReq{
+		UserId: 2, ConditionType: watch.PostRevised, TargetType: "post", TargetId: 11,
 	}); err != nil {
 		t.Fatal(err)
 	}

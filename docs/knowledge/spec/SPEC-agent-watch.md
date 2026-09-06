@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-05
+updated_at: 2026-09-06
 ---
 
 # Agent Watch 主动私信规范
@@ -51,6 +51,9 @@ Watch 是用户委托 Agent 持续关注作者、标签、关键词、帖子修�
   保留期且当前可见的命中，不能把过期或不可见内容补成新消息。
 - `WCH-023`：清除 Assistant 历史或冷对话拼接不删除 Watch task；撤销 Agent consent 停止新 run，
   但任务保留为禁用前状态供重新授权后继续。
+- `WCH-024`：创建 `author_new_post` 不得以当前用户自己为作者目标；创建 `post_revised` 不得以当前
+  用户自己的帖为修订目标。拒绝须使用稳定业务错误，对外文案说明不能关注自己的动态。标签、关键词和
+  `discussion_spike` 不因目标属于自己而拒绝。
 
 ## 验收标准
 
@@ -59,3 +62,4 @@ Watch 是用户委托 Agent 持续关注作者、标签、关键词、帖子修�
 - `WCH-A03`：覆盖 Watch 只读工具表、用户 run 抢占并重新合并，以及禁止任何平台写操作。
 - `WCH-A04`：覆盖主动消息进入虚拟线程并计未读、不创建普通私信、旧 hits API 不存在。
 - `WCH-A05`：覆盖 task CRUD 越权、版本冲突、删除后不再匹配和恢复时不可见内容不补投。
+- `WCH-A06`：覆盖盯自己作者、盯自己帖修订被拒绝，以及盯他人作者/帖子、盯自己帖讨论量仍可创建。

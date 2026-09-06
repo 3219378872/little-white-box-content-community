@@ -102,7 +102,7 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusConflict
 	case ContentVersionConflict, IdempotencyConflict, AgentRunConflict:
 		return http.StatusConflict
-	case CannotFollowSelf:
+	case CannotFollowSelf, CannotWatchSelf:
 		return http.StatusBadRequest
 	case TitleEmpty, ContentEmpty, ContentTooLong,
 		FileTooLarge, FileTypeNotAllowed, MediaMetaMissing,

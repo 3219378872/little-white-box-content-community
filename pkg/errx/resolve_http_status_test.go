@@ -47,6 +47,7 @@ func TestHTTPStatus_MapsEveryBusinessCode(t *testing.T) {
 		AgentResourceLimit:     http.StatusTooManyRequests,
 		AgentQueueFull:         http.StatusTooManyRequests,
 		AgentRunConflict:       http.StatusConflict,
+		CannotWatchSelf:        http.StatusBadRequest,
 	}
 	for code, want := range expected {
 		got := (&BizError{Code: code}).HTTPStatus()
