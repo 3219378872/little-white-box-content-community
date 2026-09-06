@@ -3,7 +3,7 @@ title: knowledge transition register
 owner: agent
 status: active
 observed_at: 2026-09-06
-observed_commit: 3ac98c6
+observed_commit: c4db7e6
 ---
 
 # 知识迁移登记

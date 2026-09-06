@@ -14,7 +14,7 @@ tracks:
   - pkg/validator
   - deploy/
 verified_at: 2026-09-06
-verified_commit: 3ac98c6
+verified_commit: c4db7e6
 ---
 
 # 工程约定（分层、安全、可靠性、质量）

@@ -1,7 +1,7 @@
 ---
 implementation: IMP-content-community-backend
 verified_at: 2026-09-06
-verified_commit: 3ac98c6
+verified_commit: c4db7e6
 commands:
   - make check
   - go test -race -count=1 ./pkg/errx/ ./pkg/util/ ./pkg/middleware/ ./app/user/rpc/internal/password/ ./app/user/rpc/internal/logic/ ./app/assistant/internal/tool/ ./app/content/rpc/internal/logic/ ./app/feed/rpc/internal/logic/ ./app/message/rpc/internal/logic/
