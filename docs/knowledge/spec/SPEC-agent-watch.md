@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 ---
 
 # Agent Watch 主动私信规范
@@ -32,8 +32,10 @@ Watch 是用户委托 Agent 持续关注作者、标签、关键词、帖子修�
 
 - `WCH-010`：同一用户两分钟内的命中合并成一次 Watch run；同一任务每小时最多主动发送 3 条、
   每用户每天最多 20 条，超额命中进入下一次允许发送的摘要，不丢失审计记录。
-- `WCH-011`：Watch run 只能调用搜索、回源、推荐、读取 MEMORY/USER、`search_history` 和
-  `present_sources`；禁止帖子、Memory、Watch 与其它平台写操作。
+- `WCH-011`：Watch run 只允许授权范围内的搜索、回源、推荐、读取本人的 MEMORY/USER 与 Assistant
+  历史，以及向本人 Assistant 线程交付经校验的回答与来源。回答交付遵守 `WCH-013`、`WCH-014`，
+  不视为帖子、Memory、Watch 或其它平台业务写权限；这些业务写操作仍禁止。Watch 不发起需求澄清
+  交互，具体工具与协议映射由设计承接，不得扩大上述权限边界。
 - `WCH-012`：Watch run 优先级低于用户 run。用户输入抢占 Watch 时，worker 安全停止并把未发送命中
   重新合并，不能留下半条主动消息或把 run 标成成功。
 - `WCH-013`：成功 Watch run 向 Assistant session 写一条 assistant 消息，计入线程未读并触发消息

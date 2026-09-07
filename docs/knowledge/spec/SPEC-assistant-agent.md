@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-05
+updated_at: 2026-09-07
 ---
 
 # 持久异步 Assistant Agent 规范
@@ -104,8 +104,9 @@ updated_at: 2026-09-05
 
 - `AGENT-030`：用户必须显式授予 Agent capability consent；授权说明列出当前工具分组、数据边界、
   delete_post 逐次确认、Memory/Watch 和长任务预算。撤销后不接受新用户 run，活跃 run 安全停止。
-- `AGENT-031`：用户 run 可获得授权版本覆盖的完整工具集；Watch run 只允许搜索、回源、推荐、读取
-  MEMORY/USER、`search_history` 与 `present_sources`；memory-review 只允许 Memory 工具。
+- `AGENT-031`：用户 run 可获得授权版本覆盖的完整工具集；Watch run 的资料读取与回答交付遵守
+  `WCH-011` 的受限能力边界；memory-review 只允许 Memory 工具。协议版本与工具名称的映射由设计承接，
+  不得因更换交付机制扩大数据访问、业务写操作或交互权限。
 - `AGENT-032`：只有 `delete_post` 逐次确认。create/update、Memory 与 Watch 写仍须通过授权版本、
   schema、所有权、revision、幂等和审计校验，但不弹逐次确认。
 - `AGENT-033`：工具副作用按用户、命令和等价参数幂等；恢复或重复调用复用已提交结果，不再次执行

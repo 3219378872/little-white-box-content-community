@@ -4,8 +4,10 @@ layer: design
 title: 社区复杂需求与可信回答交付
 status: active
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 tracks:
+- AGENT-031
+- WCH-011
 - AGENT-070
 - AGENT-071
 - AGENT-072
@@ -44,6 +46,15 @@ tracks:
 冷启动、30 分钟冷对话拼接或 compact 时生成；旧快照不被强制重写。模型广告按快照、任务来源、授权
 和冻结的客户端协议取交集。新协议提供 `ask_questions`、`read_source`、`publish_answer`；旧协议继续
 原有 `present_sources` 路径。Watch 可使用读取/发布，但没有问答与新增平台写权限。
+
+Watch 的协议版本在运行时按 2 处理，实际工具仍取冻结快照、source、consent 与当前执行策略的交集。
+资料读取包括站内搜索、帖子/评论回源、推荐/相似/比较、`read_memory` 与 `search_history`；新协议的
+`read_source` 只分页读取本 run 已登记来源。当前 Watch 不提供 `web_search`、`ask_questions`、本人
+收藏/点赞/关注/帖子列表或 Watch task 管理工具，不因协议升级扩大数据访问或业务写权限。
+
+快照含 `publish_answer` 时，协议过滤移除 `present_sources`，回答必须通过结构化发布；旧冻结快照没有
+该能力时保留原有来源展示与终态提交路径，不强制重写正在恢复的快照。新建 Watch 隐藏输入只说明回源、
+校验与按当前工具交付的要求，不硬编码必须调用旧工具；已经持久化的输入仍按原字节恢复。
 
 工具仍由统一 registry metadata 派生 schema、任务来源、授权、可用性和结果限额。新工具不扩大个人
 数据访问权限，也不引入 Intent Router。系统规则和 SOUL 明确社区优先、按需澄清、互联网补充、诚实

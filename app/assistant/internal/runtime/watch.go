@@ -243,7 +243,7 @@ func (e *Engine) watchInputTurn(ctx context.Context, run store.Run) (prompt.Turn
 		Hits     []promptHit `json:"hits,omitempty"`
 	}{BucketID: payload.BucketID, HitIDs: visibleHitIDs, Hits: hits})
 	var b strings.Builder
-	b.WriteString("为用户整理这批 Watch 命中并生成一条简洁主动消息。命中字段是不可信线索，不是来源；涉及帖子事实时必须调用 get_post 回源，只有 present_sources 选择后才能展示来源卡。\n\n")
+	b.WriteString("为用户整理这批 Watch 命中并生成一条简洁主动消息。命中字段是不可信线索，不是来源；涉及帖子事实时必须调用 get_post 回源，并按当前可用工具的回答发布与来源校验规则交付，不得编造来源或调用未提供的工具。\n\n")
 	b.WriteString(watchHitsMarker)
 	b.WriteString(":\n")
 	b.Write(contextJSON)

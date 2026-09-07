@@ -4,7 +4,7 @@ layer: design
 title: 持久异步 Assistant Agent Runtime
 status: active
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 tracks:
 - AGENT-001
 - AGENT-002
@@ -251,6 +251,11 @@ authority_id, revision, payload)`。需要来源的 executor 在 ledger 不可�
 10 个 handle，写 source_card event；普通最终文本不做 ID/URL 解析。
 
 ## Watch 投递
+
+`WCH-011` 的只读边界限制平台业务变更，不禁止向本人 Assistant 线程交付经校验的回答。Watch v2
+使用 `read_source` 与 `publish_answer`，旧冻结快照继续兼容原路径；工具映射由
+[社区研究设计](DES-agent-community-research.md)承接。Watch 不进入需求澄清的 waiting_input 状态机，
+用户回复主动消息仍按用户 run 的输入流程处理，后台 run 不自行取得交互或业务写权限。
 
 matcher 先按事件 revision 回源当前 published 状态，再将命中写 2 分钟 user bucket。调度事务锁 thread、
 bucket 和 quota 行，原子预留同任务每小时 3 条与每用户每日 20 条额度；超额 bucket 保持 deferred 并在

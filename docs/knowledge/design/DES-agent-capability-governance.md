@@ -4,7 +4,7 @@ layer: design
 title: Agent 能力与动态扩展治理
 status: active
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 tracks:
 - AGENT-030
 - AGENT-031
@@ -34,6 +34,12 @@ Little 的 Agent 能力优先实现为仓库内、服务端持有的显式工具
 
 provider route 同样是受控 capability：配置只引用运维提供的 endpoint/model/凭据，session 只持久化不含
 secret 的 route id 和能力快照。fallback 不能扩大工具、数据地域、保留期或隐私边界。
+
+Watch 按 `AGENT-031` 使用 `WCH-011` 的受限资料读取与回答交付能力，不因回答持久化取得平台业务写权限。
+统一 registry 的 `EffectRead` 表示没有帖子、Memory 或 Watch 等业务变更，不表示来源 ledger、审计与
+Assistant 回答完全不落库。回答由运行时终态事务提交，不能借发布工具绕过 run/user 绑定、可见性、
+取消和配额校验。具体协议映射见[社区研究设计](DES-agent-community-research.md)，Watch 调度与投递见
+[基础运行时设计](DES-assistant-agent-runtime.md)。
 
 ## 暂不引入
 
