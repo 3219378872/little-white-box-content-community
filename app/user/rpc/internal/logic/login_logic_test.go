@@ -138,8 +138,47 @@ func TestLoginPasswordFailureLockout(t *testing.T) {
 	for range loginLockMaxAttempts {
 		_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
 		require.Error(t, err)
+		assert.True(t, errx.Is(err, errx.PasswordError), "allowed failures must return PasswordError, got %v", err)
 	}
 	_, err := NewLoginLogic(context.Background(), svcCtx).Login(req)
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.TooManyReq), "password login must lock out after max attempts, got %v", err)
+}
+
+func TestLoginPasswordLockoutRejectsCorrectPassword(t *testing.T) {
+	const username = "attacker"
+	const correct = "correct123"
+	hashedPwd, err := password.Hash(correct)
+	require.NoError(t, err)
+
+	mem := &memoryRedis{values: map[string]string{}}
+	profile := &MockUserProfileModel{}
+	profile.On("FindOneByUsername", mock.Anything, username).
+		Return(&model.UserProfile{Id: 1, Username: username, Password: hashedPwd}, nil).Maybe()
+	svcCtx := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+	svcCtx.Config.JwtConfig = jwtx.JwtConfig{
+		AccessSecret:  "test-secret-32bytes-long-key!!",
+		AccessExpire:  3600,
+		RefreshSecret: "test-refresh-secret-32bytes!!",
+		RefreshExpire: 7 * 24 * 3600,
+	}
+
+	wrong := &pb.LoginReq{LoginType: 1, Username: username, Password: "wrong"}
+	for range loginLockMaxAttempts {
+		_, loginErr := NewLoginLogic(context.Background(), svcCtx).Login(wrong)
+		require.Error(t, loginErr)
+		assert.True(t, errx.Is(loginErr, errx.PasswordError))
+	}
+
+	resp, loginErr := NewLoginLogic(context.Background(), svcCtx).Login(&pb.LoginReq{
+		LoginType: 1, Username: username, Password: correct,
+	})
+	require.Error(t, loginErr)
+	assert.Nil(t, resp)
+	assert.True(t, errx.Is(loginErr, errx.TooManyReq),
+		"6th attempt with correct password is rejected while locked, got %v", loginErr)
+
+	lockVal, getErr := mem.GetCtx(context.Background(), loginLockKey(username))
+	require.NoError(t, getErr)
+	assert.Equal(t, "5", lockVal, "successful guess must not clear the lock")
 }

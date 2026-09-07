@@ -10,6 +10,7 @@ import (
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -81,19 +82,22 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 		if password.IsDefault(in.Password) {
 			return nil, errx.New(errx.ParamError, "密码未设置，请使用手机登录并设置密码后登录")
 		}
-		// 校验信息
+		// 先看锁定：窗口内错误次数已达上限则拒绝，正确密码也不能登录。
+		if locked, lockErr := l.loginLocked(in.Username); lockErr != nil {
+			l.Errorw("login lock check failed",
+				logx.Field("username", in.Username), logx.Field("err", lockErr.Error()))
+		} else if locked {
+			return nil, errx.NewWithCode(errx.TooManyReq)
+		}
 		if password.Compare(user.Password, in.Password) != nil {
-			// 密码失败锁定：窗口内错误次数达到上限后拒绝，防暴力破解。
-			if lockOut, lockErr := l.loginFailureLocked(in.Username); lockErr != nil {
-				l.Errorw("login failure lock check failed",
-					logx.Field("username", in.Username), logx.Field("err", lockErr.Error()))
-			} else if lockOut {
-				return nil, errx.NewWithCode(errx.TooManyReq)
+			if recErr := l.recordLoginFailure(in.Username); recErr != nil {
+				l.Errorw("login failure record failed",
+					logx.Field("username", in.Username), logx.Field("err", recErr.Error()))
 			}
 			return nil, errx.NewWithCode(errx.PasswordError)
 		}
 		if l.svcCtx.RedisClient != nil {
-			_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, fmt.Sprintf("login:lock:%s", in.Username))
+			_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, loginLockKey(in.Username))
 		}
 	}
 
@@ -113,21 +117,43 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 
 }
 
-// loginFailureLocked 记录一次密码登录失败；窗口内达到上限返回 true（锁定）。
-// 成功后由调用方清理计数。
-func (l *LoginLogic) loginFailureLocked(username string) (bool, error) {
+func loginLockKey(username string) string {
+	return fmt.Sprintf("login:lock:%s", username)
+}
+
+// loginLocked 读取当前失败计数；窗口内达到上限返回 true。Redis 故障由调用方 fail-open。
+func (l *LoginLogic) loginLocked(username string) (bool, error) {
 	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || strings.TrimSpace(username) == "" {
 		return false, nil
 	}
-	lockKey := fmt.Sprintf("login:lock:%s", username)
-	attempts, err := l.svcCtx.RedisClient.IncrCtx(l.ctx, lockKey)
+	raw, err := l.svcCtx.RedisClient.GetCtx(l.ctx, loginLockKey(username))
 	if err != nil {
 		return false, err
+	}
+	if raw == "" {
+		return false, nil
+	}
+	attempts, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return false, nil
+	}
+	return attempts >= loginLockMaxAttempts, nil
+}
+
+// recordLoginFailure 仅在密码比对失败后递增计数；首次写入时设置窗口 TTL。
+func (l *LoginLogic) recordLoginFailure(username string) error {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || strings.TrimSpace(username) == "" {
+		return nil
+	}
+	lockKey := loginLockKey(username)
+	attempts, err := l.svcCtx.RedisClient.IncrCtx(l.ctx, lockKey)
+	if err != nil {
+		return err
 	}
 	if attempts == 1 {
 		_ = l.svcCtx.RedisClient.ExpireCtx(l.ctx, lockKey, loginLockWindowSeconds)
 	}
-	return attempts >= loginLockMaxAttempts, nil
+	return nil
 }
 
 // 密码登录失败锁定：窗口内允许的错误次数。
