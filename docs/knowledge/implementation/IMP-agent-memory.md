@@ -4,7 +4,7 @@ layer: implementation
 title: Agent Memory 实现映射
 status: active
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-09-07
 code_paths:
 - app/assistant/internal/memory
 - app/assistant/internal/runtime
@@ -23,31 +23,31 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| MEM-001 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-002 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-003 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-004 | DES-agent-capability-governance | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-010 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-011 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-012 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-013 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-014 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-020 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-021 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-022 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-023 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-024 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-025 | DES-agent-capability-governance | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-030 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-031 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-032 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-033 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-A01 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-A02 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-A03 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
-| MEM-A04 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
+| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260907-watch-contract |
+| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260907-watch-contract |
+| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
+| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
 | MEM-A05 | DES-assistant-agent-runtime | unknown | gap: 非来源边界有单测；真实存储故障集成注入未完成。 |
-| MEM-A06 | DES-assistant-agent-runtime | unknown | gap: Watch 工具契约维护改变共享验证输入，待本次提交重新验证。 |
+| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260907-watch-contract |
 
 ## 代码边界
 
@@ -55,5 +55,5 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260906-agent-memory`。旧 `implementation/evidence/` 记录只保留历史上下文，
+当前确定性验证见 `EVD-20260907-watch-contract`。旧 `implementation/evidence/` 记录只保留历史上下文，
 不参与当前 `aligned` 判定。未执行的人类、真实 provider、浏览器、设备和生产证据不会被推断。
