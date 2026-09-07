@@ -90,7 +90,7 @@ make knowledge-setup
 | 命令 | 检查范围 | 前提 |
 | --- | --- | --- |
 | `make engineering-lint` | 知识解析测试、文档链接及仓库策略 | 已执行 `make knowledge-setup` |
-| `make check` | 格式、文档策略、`go vet` 与 golangci-lint | Go、知识工具、golangci-lint |
+| `make check` | 格式、文档策略、`go vet`、golangci-lint 与 `govulncheck ./...` | Go、知识工具、golangci-lint、govulncheck |
 | `make test` | 默认 Go 测试，启用 race 与包级覆盖率 | Go、CGO/C 编译环境；不包含 integration 标签测试 |
 | `make integration-critical` | 自包含核心集成测试 | 可访问 Docker daemon，可获取依赖镜像 |
 | `make integration-all` | 完整隔离集成测试，并清理本轮依赖 | Docker 及集成工具所需环境 |

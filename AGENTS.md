@@ -52,7 +52,7 @@
 先运行 `make help`，首次用 `make knowledge-setup` 安装隔离工具依赖。公共门禁是 `make engineering-lint`；
 `make knowledge-index` 更新生成索引，`make knowledge-export REF=<sha>` 只读导出历史清单。按范围再运行：
 
-- `make check`：格式、文档策略、`go vet` 和 golangci-lint。
+- `make check`：格式、文档策略、`go vet`、golangci-lint 和 `govulncheck ./...`。
 - `make test`：所有 module 的 race 测试与包级覆盖率；额外参数用 `ARGS`。
 - `make integration-critical`：PR 核心集成测试；完整隔离集用 `make integration-all`。
 - `make fuzz FUZZ_TIME=10s`；标准本地质量门禁用 `make quality`。

@@ -40,6 +40,14 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: golangci-lint (all modules)
         run: make lint ARGS='--timeout 5m'
+      - name: Install govulncheck
+        env:
+          GOTOOLCHAIN: go1.27.0
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: govulncheck (all modules)
+        run: make vulncheck
       - name: Engineering lint
         run: |
           make knowledge-setup

@@ -22,7 +22,7 @@ PRODUCTION_BUILD_ARGS ?= --build-arg HTTP_PROXY --build-arg HTTPS_PROXY \
 
 export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 
-.PHONY: help generate fmt-check engineering-lint vet lint check test coverage coverage-target \
+.PHONY: help generate fmt-check engineering-lint vet lint vulncheck check test coverage coverage-target \
 	coverage-no-gate integration-critical integration-init integration-run \
 	integration-clear integration-all fuzz quality search-rebuild embedding-rebuild \
 	algorithm-test spec-evals-test model-pipeline-integration performance-gateway python-unit \
@@ -76,7 +76,10 @@ vet: ## Run go vet across all modules
 lint: ## Run golangci-lint across all modules
 	scripts/lint.sh $(ARGS)
 
-check: fmt-check engineering-lint vet lint ## Run formatting, policy, vet, and lint checks
+vulncheck: ## Run govulncheck across all modules
+	scripts/govulncheck.sh $(ARGS)
+
+check: fmt-check engineering-lint vet lint vulncheck ## Run formatting, policy, vet, lint, and govulncheck
 
 test: ## Run race-enabled tests with package coverage across all modules
 	scripts/test.sh $(ARGS)
