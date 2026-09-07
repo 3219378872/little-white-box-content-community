@@ -26,23 +26,23 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| REL-001 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-002 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-003 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-004 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-005 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-006 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-007 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-008 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-010 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-011 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-012 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-013 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-020 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-021 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-022 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-023 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-024 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
+| REL-001 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-002 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-003 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-004 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-005 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-006 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-007 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-008 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-010 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-011 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-012 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-013 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-020 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-021 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-022 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-023 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-024 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | REL-030 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-031 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-032 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
@@ -51,28 +51,28 @@ code_paths:
 | REL-041 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-042 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-043 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
-| REL-044 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-045 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-050 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-051 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-052 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-053 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
+| REL-044 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-045 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-050 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-051 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-052 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-053 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | REL-054 | DES-content-community-backend | unknown | gap: 十二项均已逐条登记，但完整故障注入矩阵尚未关闭。 |
-| REL-054-01 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-02 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-03 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-04 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-05 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-06 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-07 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-08 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-09 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
+| REL-054-01 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-02 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-03 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-04 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-05 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-06 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-07 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-08 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-09 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | REL-054-10 | DES-content-community-backend | unknown | gap: 业务继续路径有设计；指标后端故障与监控缺口告警缺独立注入证据。 |
-| REL-054-11 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-054-12 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-060 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-061 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
-| REL-A01 | DES-content-community-backend | aligned | EVD-20260907-watch-contract |
+| REL-054-11 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-12 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-060 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-061 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-A01 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | REL-A02 | DES-content-community-backend | unknown | gap: 未运行完整跨服务“推荐 → 曝光 → 动作 → 分析/特征”闭环。 |
 | REL-A03 | DES-content-community-backend | diverged | gap: 尚未逐项注入 REL-054-01 至 REL-054-12 并验证响应、健康、指标和日志。 |
 | REL-A04 | DES-content-community-backend | unknown | gap: 未运行全部保留期与关闭个性化后 24 小时清理集成。 |

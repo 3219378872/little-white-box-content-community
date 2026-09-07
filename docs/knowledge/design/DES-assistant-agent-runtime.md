@@ -130,7 +130,7 @@ assistant-watch matcher
 
 ### 代码组织
 
-`store/sql.go` 与 `store/fake.go` 只保留构造、事务入口和共享状态；session/message/run/event、command
+`app/assistant/internal/store/sql.go` 与 `app/assistant/internal/store/fake.go` 只保留构造、事务入口和共享状态；session/message/run/event、command
 与 journal、source、outbox、Watch 和 quota 分别由同包的 `sql_*` / `fake_*` 文件承接。SQL 方法仍使用
 同一个事务绑定的 `exec`；内存实现仍共享原锁与 map，只保证串行，不模拟 MySQL 回滚。
 

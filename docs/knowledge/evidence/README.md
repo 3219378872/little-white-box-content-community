@@ -12,6 +12,7 @@
 | [EVD-20260906-community-core](EVD-20260906-community-core.md) | active / passed | [IMP-community-core](../implementation/IMP-community-core.md) |
 | [EVD-20260906-content-discovery](EVD-20260906-content-discovery.md) | active / passed | [IMP-content-discovery](../implementation/IMP-content-discovery.md) |
 | [EVD-20260906-feedback-reliability](EVD-20260906-feedback-reliability.md) | active / passed | [IMP-feedback-reliability](../implementation/IMP-feedback-reliability.md) |
+| [EVD-20260907-module-refactor](EVD-20260907-module-refactor.md) | active / passed | [IMP-agent-memory](../implementation/IMP-agent-memory.md), [IMP-agent-watch](../implementation/IMP-agent-watch.md), [IMP-assistant-agent](../implementation/IMP-assistant-agent.md), [IMP-community-core](../implementation/IMP-community-core.md), [IMP-content-discovery](../implementation/IMP-content-discovery.md), [IMP-feedback-reliability](../implementation/IMP-feedback-reliability.md) |
 | [EVD-20260907-watch-contract](EVD-20260907-watch-contract.md) | active / passed | [IMP-agent-memory](../implementation/IMP-agent-memory.md), [IMP-agent-watch](../implementation/IMP-agent-watch.md), [IMP-assistant-agent](../implementation/IMP-assistant-agent.md), [IMP-feedback-reliability](../implementation/IMP-feedback-reliability.md) |
 
 <!-- knowledge-index:end -->

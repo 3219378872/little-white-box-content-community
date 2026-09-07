@@ -26,39 +26,39 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| DISC-001 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-002 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-003 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-004 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-010 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-011 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-012 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-020 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-021 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-022 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-023 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-030 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-031 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-032 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-033 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-034 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-035 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-036 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-040 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-041 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-042 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-050 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-051 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-052 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
+| DISC-001 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-002 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-003 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-004 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-010 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-011 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-012 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-020 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-021 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-022 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-023 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-030 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-031 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-032 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-033 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-034 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-035 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-036 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-040 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-041 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-042 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-050 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-051 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-052 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | DISC-060 | DES-content-community-backend | unknown | gap: 当前数据为合成开发集；缺两名人类独立评审并消歧的正式 qrels。 |
-| DISC-061 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
+| DISC-061 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | DISC-062 | DES-content-community-backend | diverged | gap: 默认 OnlineInfer / ModelVersion:auto 缺少 10k exposures + 1k identities 晋级门禁。 |
 | DISC-063 | DES-content-community-backend | diverged | gap: 当前规则模型相对规则基线提升为 0，未达到 5% 与 bootstrap 下界要求。 |
-| DISC-A01 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-A02 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-A03 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-A04 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
-| DISC-A05 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
+| DISC-A01 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-A02 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-A03 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-A04 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| DISC-A05 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
 | DISC-A06 | DES-content-community-backend | diverged | gap: 人类双评审搜索集缺失，且学习排序效果门禁已知未达到。 |
 
 ## 代码边界
