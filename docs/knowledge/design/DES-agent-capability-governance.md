@@ -4,27 +4,24 @@ layer: design
 title: Agent 能力与动态扩展治理
 status: active
 owner: agent
-upstream:
-  - SPEC-assistant-agent
-  - SPEC-agent-memory
 updated_at: 2026-09-06
 tracks:
-  - AGENT-030
-  - AGENT-031
-  - AGENT-032
-  - AGENT-033
-  - AGENT-034
-  - AGENT-035
-  - AGENT-036
-  - AGENT-037
-  - AGENT-040
-  - AGENT-041
-  - AGENT-042
-  - AGENT-043
-  - AGENT-044
-  - AGENT-045
-  - MEM-004
-  - MEM-025
+- AGENT-030
+- AGENT-031
+- AGENT-032
+- AGENT-033
+- AGENT-034
+- AGENT-035
+- AGENT-036
+- AGENT-037
+- AGENT-040
+- AGENT-041
+- AGENT-042
+- AGENT-043
+- AGENT-044
+- AGENT-045
+- MEM-004
+- MEM-025
 ---
 
 # Agent 能力与动态扩展治理

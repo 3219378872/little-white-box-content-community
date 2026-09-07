@@ -4,10 +4,25 @@ layer: evidence
 title: 社区核心当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-community-core
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - CORE-001
   - CORE-002
   - CORE-003
@@ -50,22 +65,20 @@ covers:
   - CORE-A05
   - CORE-A06
   - CORE-A07
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/content
+  - app/interaction
+  - app/message
+  - app/media
+  - app/user
+  - app/gateway
+  - pkg/idempotencyx
+  - pkg/outboxx
+  - pkg/visibilityx
+  - proto/content/content.proto
+  - proto/interaction/interaction.proto
+  - proto/message/message.proto
+  - proto/media/media.proto
 ---
 
 # 社区核心当前确定性验证

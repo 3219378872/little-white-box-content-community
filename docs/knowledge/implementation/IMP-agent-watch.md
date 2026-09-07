@@ -2,42 +2,17 @@
 id: IMP-agent-watch
 layer: implementation
 title: Agent Watch 实现映射
-status: unknown
+status: active
 owner: agent
-upstream:
-  - DES-assistant-agent-runtime
 updated_at: 2026-09-06
-tracks:
-  - WCH-001
-  - WCH-002
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-014
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A01
-  - WCH-A02
-  - WCH-A03
-  - WCH-A04
-  - WCH-A05
-  - WCH-A06
 code_paths:
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
-evidence:
-  - EVD-20260906-agent-watch
+- app/assistant/watch
+- app/assistant/mq
+- app/assistant/internal/runtime
+- app/assistant/internal/store
+- app/gateway/internal/logic/assistant
+- proto/assistant/assistant.proto
+- deploy/sql/xbh_assistant.sql
 ---
 
 # Agent Watch 实现映射
@@ -46,7 +21,7 @@ Watch 条件匹配、两分钟 bucket、配额、恢复与主动 Assistant 消�
 本页每行只归属一个活跃规格条款；`aligned` 只引用当前 active/passed EVD，
 `unknown` 表示证据不足，`diverged` 表示已知未满足。源码与契约事实高于本页。
 
-| Requirement | Design | Status | Evidence/Gap |
+| requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
 | WCH-001 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-watch |
 | WCH-002 | DES-assistant-agent-runtime | aligned | EVD-20260906-agent-watch |

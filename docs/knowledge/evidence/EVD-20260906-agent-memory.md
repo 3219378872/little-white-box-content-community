@@ -4,10 +4,25 @@ layer: evidence
 title: Agent Memory 当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-agent-memory
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - MEM-001
   - MEM-002
   - MEM-003
@@ -32,22 +47,14 @@ covers:
   - MEM-A03
   - MEM-A04
   - MEM-A06
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/assistant/internal/memory
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/assistant/internal/prompt
+  - app/gateway/internal/logic/assistant
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
 ---
 
 # Agent Memory 当前确定性验证

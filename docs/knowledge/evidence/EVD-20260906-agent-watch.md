@@ -4,10 +4,25 @@ layer: evidence
 title: Agent Watch 当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-agent-watch
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - WCH-001
   - WCH-002
   - WCH-003
@@ -25,22 +40,14 @@ covers:
   - WCH-A02
   - WCH-A04
   - WCH-A06
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/assistant/watch
+  - app/assistant/mq
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/gateway/internal/logic/assistant
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
 ---
 
 # Agent Watch 当前确定性验证

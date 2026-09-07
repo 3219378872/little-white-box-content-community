@@ -30,8 +30,8 @@
 - `owner: human` 表示语义所有权，不限制获授权的 agent 执笔；只有人类明确批准才能把 INT/SPEC 标为
   `approved`。设计不得从代码反推并改写上层语义。
 - 当前 DES 必须逐条 `tracks` approved SPEC requirement；每条 requirement 恰有一个当前 IMP owner。
-- IMP 行只有在 active/passed EVD 覆盖对应提交和范围时才可 `aligned`；未验证用 `unknown`，已知偏离用
-  `diverged`，并写 `gap: ...`。页头状态按行聚合：diverged 优先，其次 unknown，全部通过才 aligned。
+- IMP 页头只记录 `active/retired` 生命周期；条款行在有效的 passed 覆盖组支持下才可 `aligned`。
+  未验证用 `unknown`，已知偏离用 `diverged` 并写 `gap: ...`；引用、反向关系和聚合状态由工具推导。
 - EVD 只记录实际运行命令、受控 scope、可达的完整 commit SHA 与真实结果；不得用旧证据、合成数据或
   未执行命令关闭浏览器、设备、真人评审、live-provider 或生产门禁。
 
@@ -49,7 +49,8 @@
 
 ## 命令入口
 
-先运行 `make help`。公共知识门禁是 `make engineering-lint`；按改动范围再运行：
+先运行 `make help`，首次用 `make knowledge-setup` 安装隔离工具依赖。公共门禁是 `make engineering-lint`；
+`make knowledge-index` 更新生成索引，`make knowledge-export REF=<sha>` 只读导出历史清单。按范围再运行：
 
 - `make check`：格式、文档策略、`go vet` 和 golangci-lint。
 - `make test`：所有 module 的 race 测试与包级覆盖率；额外参数用 `ARGS`。

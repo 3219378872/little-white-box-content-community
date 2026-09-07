@@ -2,77 +2,20 @@
 id: IMP-feedback-reliability
 layer: implementation
 title: 反馈与可靠性实现映射
-status: diverged
+status: active
 owner: agent
-upstream:
-  - DES-content-community-backend
-  - DES-assistant-agent-runtime
 updated_at: 2026-09-06
-tracks:
-  - REL-001
-  - REL-002
-  - REL-003
-  - REL-004
-  - REL-005
-  - REL-006
-  - REL-007
-  - REL-008
-  - REL-010
-  - REL-011
-  - REL-012
-  - REL-013
-  - REL-020
-  - REL-021
-  - REL-022
-  - REL-023
-  - REL-024
-  - REL-030
-  - REL-031
-  - REL-032
-  - REL-033
-  - REL-040
-  - REL-041
-  - REL-042
-  - REL-043
-  - REL-044
-  - REL-045
-  - REL-050
-  - REL-051
-  - REL-052
-  - REL-053
-  - REL-054
-  - REL-054-01
-  - REL-054-02
-  - REL-054-03
-  - REL-054-04
-  - REL-054-05
-  - REL-054-06
-  - REL-054-07
-  - REL-054-08
-  - REL-054-09
-  - REL-054-10
-  - REL-054-11
-  - REL-054-12
-  - REL-060
-  - REL-061
-  - REL-A01
-  - REL-A02
-  - REL-A03
-  - REL-A04
-  - REL-A05
 code_paths:
-  - app/behavior
-  - app/pipeline/behaviorlog
-  - app/recommend/mq
-  - pkg/outboxx
-  - app/gateway
-  - app/assistant
-  - deploy/loki/loki-config.yaml
-  - deploy/docker-compose.production.yml
-  - scripts/spec_evals.py
-  - scripts/gateway_performance.py
-evidence:
-  - EVD-20260906-feedback-reliability
+- app/behavior
+- app/pipeline/behaviorlog
+- app/recommend/mq
+- pkg/outboxx
+- app/gateway
+- app/assistant
+- deploy/loki/loki-config.yaml
+- deploy/docker-compose.production.yml
+- scripts/spec_evals.py
+- scripts/gateway_performance.py
 ---
 
 # 反馈与可靠性实现映射
@@ -81,7 +24,7 @@ evidence:
 本页每行只归属一个活跃规格条款；`aligned` 只引用当前 active/passed EVD，
 `unknown` 表示证据不足，`diverged` 表示已知未满足。源码与契约事实高于本页。
 
-| Requirement | Design | Status | Evidence/Gap |
+| requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
 | REL-001 | DES-content-community-backend | aligned | EVD-20260906-feedback-reliability |
 | REL-002 | DES-content-community-backend | aligned | EVD-20260906-feedback-reliability |

@@ -11,3 +11,4 @@ coverage.txt
 
 # environment
 .env
+.venv-knowledge/

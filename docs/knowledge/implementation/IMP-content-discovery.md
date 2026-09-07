@@ -2,59 +2,20 @@
 id: IMP-content-discovery
 layer: implementation
 title: 内容发现实现映射
-status: diverged
+status: active
 owner: agent
-upstream:
-  - DES-content-community-backend
 updated_at: 2026-09-06
-tracks:
-  - DISC-001
-  - DISC-002
-  - DISC-003
-  - DISC-004
-  - DISC-010
-  - DISC-011
-  - DISC-012
-  - DISC-020
-  - DISC-021
-  - DISC-022
-  - DISC-023
-  - DISC-030
-  - DISC-031
-  - DISC-032
-  - DISC-033
-  - DISC-034
-  - DISC-035
-  - DISC-036
-  - DISC-040
-  - DISC-041
-  - DISC-042
-  - DISC-050
-  - DISC-051
-  - DISC-052
-  - DISC-060
-  - DISC-061
-  - DISC-062
-  - DISC-063
-  - DISC-A01
-  - DISC-A02
-  - DISC-A03
-  - DISC-A04
-  - DISC-A05
-  - DISC-A06
 code_paths:
-  - app/feed
-  - app/search
-  - app/recommend
-  - app/embedding
-  - algorithm
-  - app/content/visibility
-  - pkg/visibilityx
-  - scripts/spec_evals.py
-  - eval/dev/search_qrels.synthetic.json
-  - eval/dev/recommend_samples.synthetic.json
-evidence:
-  - EVD-20260906-content-discovery
+- app/feed
+- app/search
+- app/recommend
+- app/embedding
+- algorithm
+- app/content/visibility
+- pkg/visibilityx
+- scripts/spec_evals.py
+- eval/dev/search_qrels.synthetic.json
+- eval/dev/recommend_samples.synthetic.json
 ---
 
 # 内容发现实现映射
@@ -63,7 +24,7 @@ evidence:
 本页每行只归属一个活跃规格条款；`aligned` 只引用当前 active/passed EVD，
 `unknown` 表示证据不足，`diverged` 表示已知未满足。源码与契约事实高于本页。
 
-| Requirement | Design | Status | Evidence/Gap |
+| requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
 | DISC-001 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |
 | DISC-002 | DES-content-community-backend | aligned | EVD-20260906-content-discovery |

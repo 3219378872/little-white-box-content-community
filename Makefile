@@ -3,6 +3,8 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 ARGS ?=
+KNOWLEDGE_PYTHON ?= .venv-knowledge/bin/python
+REF ?= HEAD
 FUZZ_TIME ?= 20s
 INTEGRATION_PARALLELISM ?= 1
 TEST_JSON_DIR ?=
@@ -26,7 +28,7 @@ export FUZZ_TIME INTEGRATION_PARALLELISM TEST_JSON_DIR
 	algorithm-test spec-evals-test model-pipeline-integration performance-gateway python-unit \
 	fault-injection-recommend production-config production-build production-migration-backup production-migration-check production-migrate \
 	production-up production-down gen-frozen-evals gen-recommend-samples gen-slo-synthetic \
-	gen-eval-posts
+	gen-eval-posts knowledge-setup knowledge-ready knowledge-test knowledge-index knowledge-export
 
 help: ## Show the available project commands
 	@printf '%s\n' 'Usage: make <target> [ARGS="..."]'
@@ -48,9 +50,25 @@ fmt-check: ## Check formatting of handwritten Go files
 		exit 1; \
 	fi
 
-engineering-lint: ## Validate layered knowledge, links, and repository policy
-	python3 -m unittest discover -s scripts -p 'test_engineering_lint.py'
-	python3 scripts/engineering-lint.py
+knowledge-setup: ## Install pinned knowledge tooling in an isolated virtualenv
+	python3 -m venv .venv-knowledge
+	.venv-knowledge/bin/python -m pip install -r scripts/requirements-knowledge.txt
+
+knowledge-ready:
+	@test -x "$(KNOWLEDGE_PYTHON)" || { printf '%s\n' 'Run make knowledge-setup first' >&2; exit 2; }
+
+knowledge-test: knowledge-ready ## Test knowledge parsing, ownership, and scoped evidence
+	$(KNOWLEDGE_PYTHON) -m unittest discover -s scripts -p 'test_knowledge.py'
+
+knowledge-index: knowledge-ready ## Regenerate the mechanical layer indexes
+	$(KNOWLEDGE_PYTHON) scripts/knowledge.py index
+
+knowledge-export: knowledge-ready ## Export immutable Git knowledge as JSON (REF=HEAD)
+	@$(KNOWLEDGE_PYTHON) scripts/knowledge.py export --ref "$(REF)"
+
+engineering-lint: knowledge-ready knowledge-test ## Validate layered knowledge, links, and repository policy
+	$(KNOWLEDGE_PYTHON) -m unittest discover -s scripts -p 'test_engineering_lint.py'
+	$(KNOWLEDGE_PYTHON) scripts/engineering-lint.py
 
 vet: ## Run go vet across all modules
 	scripts/vet.sh $(ARGS)

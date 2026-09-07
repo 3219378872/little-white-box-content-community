@@ -2,17 +2,27 @@
 title: knowledge transition register
 owner: agent
 status: active
-observed_at: 2026-09-06
+observed_at: 2026-09-07
 ---
 
 # 知识迁移登记
 
 本页只记录治理迁移，不定义产品或工程要求。
 
+## 2026-09-07 去重与分组证据
+
+保留五层、六域、稳定 ID 与现有条款语义。IMP 矩阵成为唯一条款归属和符合性来源，页头只使用
+`active/retired` 生命周期；DES 保留 tracks，SPEC 上游由工具推导。EVD 改用 requirements/paths
+覆盖组，按组判断当前证明，历史结果不因输入变化被改写。层索引和双向导航由工具生成。
+
+`scripts/knowledge.py` 使用安全 YAML 与 CommonMark AST，导出固定提交 JSON 供根仓校验；
+`scripts/engineering-lint.py` 保留公共入口、授权策略、提案、链接与生成约束。以下为上一轮迁移记录，
+其中手填双向引用和重复字段已由本轮推导关系替代。此次迁移不提升 unknown/diverged，也不关闭开放门禁。
+
 ## 2026-09-06 五层治理
 
 旧结构把操作指南、全域实现台账和带日期验证混在 implementation 下，无法机器判断某条要求由谁负责、
-证据观察了哪个提交，也容易把历史通过结果误用于新条款。当前结构改为：
+证据观察了哪个提交，也容易把历史通过结果误用于新条款。当时结构改为：
 
 ```text
 INT -> SPEC -> DES -> IMP <-> EVD

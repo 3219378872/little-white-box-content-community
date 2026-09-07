@@ -4,10 +4,25 @@ layer: evidence
 title: Assistant Agent 当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-assistant-agent
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - AGENT-001
   - AGENT-002
   - AGENT-003
@@ -52,22 +67,22 @@ covers:
   - AGENT-081
   - AGENT-082
   - AGENT-083
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/assistant/internal/lease
+  - app/assistant/internal/llm
+  - app/assistant/internal/prompt
+  - app/assistant/internal/tool
+  - app/assistant/worker
+  - app/assistant/rpc
+  - app/gateway/internal/logic/assistant
+  - app/gateway/gateway.api
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
+  - deploy/sql/patches/20260905_agent_research.sql
+  - scripts/spec_evals.py
+  - eval/dev/assistant_cases.synthetic.json
 ---
 
 # Assistant Agent 当前确定性验证

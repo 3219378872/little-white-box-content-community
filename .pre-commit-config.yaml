@@ -34,7 +34,7 @@ repos:
       - id: engineering-lint
         name: Engineering lint
         description: Validates active documentation links and repository policy.
-        entry: python3 scripts/engineering-lint.py
+        entry: make engineering-lint
         language: system
         files: '\.(md|go|py|yaml|yml)$'
         pass_filenames: false

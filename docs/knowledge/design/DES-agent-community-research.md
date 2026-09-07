@@ -4,35 +4,29 @@ layer: design
 title: 社区复杂需求与可信回答交付
 status: active
 owner: agent
-upstream:
-  - SPEC-assistant-agent
-  - SPEC-agent-memory
-  - SPEC-agent-watch
-  - SPEC-content-discovery
-  - SPEC-feedback-reliability
 updated_at: 2026-09-06
 tracks:
-  - AGENT-070
-  - AGENT-071
-  - AGENT-072
-  - AGENT-073
-  - AGENT-074
-  - AGENT-075
-  - AGENT-100
-  - AGENT-101
-  - AGENT-102
-  - AGENT-103
-  - AGENT-104
-  - AGENT-110
-  - AGENT-111
-  - AGENT-112
-  - AGENT-113
-  - AGENT-114
-  - AGENT-115
-  - AGENT-A10
-  - AGENT-A11
-  - AGENT-A12
-  - AGENT-A13
+- AGENT-070
+- AGENT-071
+- AGENT-072
+- AGENT-073
+- AGENT-074
+- AGENT-075
+- AGENT-100
+- AGENT-101
+- AGENT-102
+- AGENT-103
+- AGENT-104
+- AGENT-110
+- AGENT-111
+- AGENT-112
+- AGENT-113
+- AGENT-114
+- AGENT-115
+- AGENT-A10
+- AGENT-A11
+- AGENT-A12
+- AGENT-A13
 ---
 
 # 社区复杂需求与可信回答交付

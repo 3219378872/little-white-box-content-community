@@ -4,143 +4,136 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-upstream:
-  - SPEC-community-core
-  - SPEC-content-discovery
-  - SPEC-assistant-agent
-  - SPEC-agent-memory
-  - SPEC-agent-watch
-  - SPEC-feedback-reliability
 updated_at: 2026-09-06
 tracks:
-  - CORE-001
-  - CORE-002
-  - CORE-003
-  - CORE-004
-  - CORE-005
-  - CORE-010
-  - CORE-011
-  - CORE-012
-  - CORE-013
-  - CORE-014
-  - CORE-015
-  - CORE-016
-  - CORE-020
-  - CORE-021
-  - CORE-022
-  - CORE-023
-  - CORE-024
-  - CORE-030
-  - CORE-031
-  - CORE-032
-  - CORE-033
-  - CORE-034
-  - CORE-040
-  - CORE-041
-  - CORE-042
-  - CORE-043
-  - CORE-044
-  - CORE-050
-  - CORE-051
-  - CORE-052
-  - CORE-053
-  - CORE-054
-  - CORE-060
-  - CORE-061
-  - CORE-062
-  - CORE-063
-  - CORE-A01
-  - CORE-A02
-  - CORE-A03
-  - CORE-A04
-  - CORE-A05
-  - CORE-A06
-  - CORE-A07
-  - DISC-001
-  - DISC-002
-  - DISC-003
-  - DISC-004
-  - DISC-010
-  - DISC-011
-  - DISC-012
-  - DISC-020
-  - DISC-021
-  - DISC-022
-  - DISC-023
-  - DISC-030
-  - DISC-031
-  - DISC-032
-  - DISC-033
-  - DISC-034
-  - DISC-035
-  - DISC-036
-  - DISC-040
-  - DISC-041
-  - DISC-042
-  - DISC-050
-  - DISC-051
-  - DISC-052
-  - DISC-060
-  - DISC-061
-  - DISC-062
-  - DISC-063
-  - DISC-A01
-  - DISC-A02
-  - DISC-A03
-  - DISC-A04
-  - DISC-A05
-  - DISC-A06
-  - REL-001
-  - REL-002
-  - REL-003
-  - REL-004
-  - REL-005
-  - REL-006
-  - REL-007
-  - REL-008
-  - REL-010
-  - REL-011
-  - REL-012
-  - REL-013
-  - REL-020
-  - REL-021
-  - REL-022
-  - REL-023
-  - REL-024
-  - REL-030
-  - REL-031
-  - REL-032
-  - REL-033
-  - REL-040
-  - REL-041
-  - REL-042
-  - REL-043
-  - REL-044
-  - REL-045
-  - REL-050
-  - REL-051
-  - REL-052
-  - REL-053
-  - REL-054
-  - REL-054-01
-  - REL-054-02
-  - REL-054-03
-  - REL-054-04
-  - REL-054-05
-  - REL-054-06
-  - REL-054-07
-  - REL-054-08
-  - REL-054-09
-  - REL-054-10
-  - REL-054-11
-  - REL-054-12
-  - REL-060
-  - REL-061
-  - REL-A01
-  - REL-A02
-  - REL-A03
-  - REL-A04
-  - REL-A05
+- CORE-001
+- CORE-002
+- CORE-003
+- CORE-004
+- CORE-005
+- CORE-010
+- CORE-011
+- CORE-012
+- CORE-013
+- CORE-014
+- CORE-015
+- CORE-016
+- CORE-020
+- CORE-021
+- CORE-022
+- CORE-023
+- CORE-024
+- CORE-030
+- CORE-031
+- CORE-032
+- CORE-033
+- CORE-034
+- CORE-040
+- CORE-041
+- CORE-042
+- CORE-043
+- CORE-044
+- CORE-050
+- CORE-051
+- CORE-052
+- CORE-053
+- CORE-054
+- CORE-060
+- CORE-061
+- CORE-062
+- CORE-063
+- CORE-A01
+- CORE-A02
+- CORE-A03
+- CORE-A04
+- CORE-A05
+- CORE-A06
+- CORE-A07
+- DISC-001
+- DISC-002
+- DISC-003
+- DISC-004
+- DISC-010
+- DISC-011
+- DISC-012
+- DISC-020
+- DISC-021
+- DISC-022
+- DISC-023
+- DISC-030
+- DISC-031
+- DISC-032
+- DISC-033
+- DISC-034
+- DISC-035
+- DISC-036
+- DISC-040
+- DISC-041
+- DISC-042
+- DISC-050
+- DISC-051
+- DISC-052
+- DISC-060
+- DISC-061
+- DISC-062
+- DISC-063
+- DISC-A01
+- DISC-A02
+- DISC-A03
+- DISC-A04
+- DISC-A05
+- DISC-A06
+- REL-001
+- REL-002
+- REL-003
+- REL-004
+- REL-005
+- REL-006
+- REL-007
+- REL-008
+- REL-010
+- REL-011
+- REL-012
+- REL-013
+- REL-020
+- REL-021
+- REL-022
+- REL-023
+- REL-024
+- REL-030
+- REL-031
+- REL-032
+- REL-033
+- REL-040
+- REL-041
+- REL-042
+- REL-043
+- REL-044
+- REL-045
+- REL-050
+- REL-051
+- REL-052
+- REL-053
+- REL-054
+- REL-054-01
+- REL-054-02
+- REL-054-03
+- REL-054-04
+- REL-054-05
+- REL-054-06
+- REL-054-07
+- REL-054-08
+- REL-054-09
+- REL-054-10
+- REL-054-11
+- REL-054-12
+- REL-060
+- REL-061
+- REL-A01
+- REL-A02
+- REL-A03
+- REL-A04
+- REL-A05
 ---
 
 # 小白盒内容社区后端设计

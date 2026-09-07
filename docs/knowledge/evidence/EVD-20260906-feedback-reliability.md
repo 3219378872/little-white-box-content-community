@@ -4,10 +4,25 @@ layer: evidence
 title: 反馈与可靠性当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-feedback-reliability
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - REL-001
   - REL-002
   - REL-003
@@ -45,22 +60,17 @@ covers:
   - REL-060
   - REL-061
   - REL-A01
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/behavior
+  - app/pipeline/behaviorlog
+  - app/recommend/mq
+  - pkg/outboxx
+  - app/gateway
+  - app/assistant
+  - deploy/loki/loki-config.yaml
+  - deploy/docker-compose.production.yml
+  - scripts/spec_evals.py
+  - scripts/gateway_performance.py
 ---
 
 # 反馈与可靠性当前确定性验证

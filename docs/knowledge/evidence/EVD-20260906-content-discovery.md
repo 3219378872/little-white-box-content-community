@@ -4,10 +4,25 @@ layer: evidence
 title: 内容发现当前确定性验证
 status: active
 owner: agent
-upstream:
-  - IMP-content-discovery
 updated_at: 2026-09-06
-covers:
+scope:
+- static
+- unit
+- integration
+commands:
+- make engineering-lint
+- make check
+- make test
+- make spec-evals-test
+- make python-unit
+- make integration-critical
+- PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
+- git status --short
+- git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
+result: passed
+coverage:
+- requirements:
   - DISC-001
   - DISC-002
   - DISC-003
@@ -38,22 +53,17 @@ covers:
   - DISC-A03
   - DISC-A04
   - DISC-A05
-scope:
-  - static
-  - unit
-  - integration
-commands:
-  - make engineering-lint
-  - make check
-  - make test
-  - make spec-evals-test
-  - make python-unit
-  - make integration-critical
-  - PATH=/tmp/xbh-codegen-v2.M2q1RU/bin:$PATH make generate
-  - git status --short
-  - git diff --check 0632db5395d0450e05eb7b21b1d96e769a66e6f3^ 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-observed_commit: 0632db5395d0450e05eb7b21b1d96e769a66e6f3
-result: passed
+  paths:
+  - app/feed
+  - app/search
+  - app/recommend
+  - app/embedding
+  - algorithm
+  - app/content/visibility
+  - pkg/visibilityx
+  - scripts/spec_evals.py
+  - eval/dev/search_qrels.synthetic.json
+  - eval/dev/recommend_samples.synthetic.json
 ---
 
 # 内容发现当前确定性验证

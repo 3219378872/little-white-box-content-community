@@ -41,7 +41,9 @@ jobs:
       - name: golangci-lint (all modules)
         run: make lint ARGS='--timeout 5m'
       - name: Engineering lint
-        run: make engineering-lint
+        run: |
+          make knowledge-setup
+          make engineering-lint
 
   test:
     runs-on: ubuntu-latest
