@@ -3,16 +3,14 @@ package logic
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
-
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
 	"esx/pkg/errx"
-
+	"fmt"
 	"github.com/zeromicro/go-zero/core/logx"
+	"strings"
 )
 
 type GetRecommendPostsLogic struct {
@@ -94,26 +92,11 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		recordRecommendationResult("posts", 0)
 		return &pb.GetRecommendPostsResp{Posts: []*pb.RecommendPost{}, RequestId: binding.RequestID}, nil
 	}
-	candidates, inferenceDegradation, err := applyInference(
-		l.ctx, l.svcCtx.Config, l.svcCtx.InferenceRanker, "posts", binding.RequestID, candidates,
-	)
+	candidates, err = l.rankVisiblePosts(candidates, binding, identity)
 	if err != nil {
-		return nil, recommendationRPCError(err)
+		return nil, err
 	}
-	if inferenceDegradation != "" {
-		l.Errorw("online inference degraded", logx.Field("mode", inferenceDegradation))
-	}
-	candidates = rerankPosts(
-		candidates, l.svcCtx.Config.ExploreRatio, l.svcCtx.Config.MaxPerAuthor,
-		binding.RequestID+":"+identity,
-	)
-	candidates = enforceAuthorQuota(candidates, l.svcCtx.Config.MaxPerAuthor)
-	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
-	if err != nil {
-		recommendPipelineTotal.Inc("posts", "visibility", "unavailable")
-		l.Errorw("post visibility check unavailable", logx.Field("err", err.Error()))
-		return nil, recommendationRPCError(err)
-	}
+
 	if recallDegraded {
 		markPostDegradation(candidates, "recall-degraded")
 		l.Error("one or more post recall sources failed; serving remaining sources")
@@ -264,4 +247,28 @@ func recommendPostsToPB(posts []model.RankedPost) []*pb.RecommendPost {
 		})
 	}
 	return result
+}
+
+func (l *GetRecommendPostsLogic) rankVisiblePosts(candidates []model.PostCandidate, binding cursor.Binding, identity string) ([]model.PostCandidate, error) {
+	candidates, inferenceDegradation, err := applyInference(
+		l.ctx, l.svcCtx.Config, l.svcCtx.InferenceRanker, "posts", binding.RequestID, candidates,
+	)
+	if err != nil {
+		return nil, recommendationRPCError(err)
+	}
+	if inferenceDegradation != "" {
+		l.Errorw("online inference degraded", logx.Field("mode", inferenceDegradation))
+	}
+	candidates = rerankPosts(
+		candidates, l.svcCtx.Config.ExploreRatio, l.svcCtx.Config.MaxPerAuthor,
+		binding.RequestID+":"+identity,
+	)
+	candidates = enforceAuthorQuota(candidates, l.svcCtx.Config.MaxPerAuthor)
+	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
+	if err != nil {
+		recommendPipelineTotal.Inc("posts", "visibility", "unavailable")
+		l.Errorw("post visibility check unavailable", logx.Field("err", err.Error()))
+		return nil, recommendationRPCError(err)
+	}
+	return candidates, nil
 }

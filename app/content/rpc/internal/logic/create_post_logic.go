@@ -12,12 +12,11 @@ import (
 	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
 	"esx/pkg/util"
+	"github.com/zeromicro/go-zero/core/logx"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type CreatePostLogic struct {
@@ -36,50 +35,8 @@ func NewCreatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 
 // CreatePost 创建帖子
 func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, error) {
-	// 校验基本字段
-	if in.AuthorId <= 0 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	titleRunes := utf8.RuneCountInString(in.GetTitle())
-	if titleRunes < 1 {
-		return nil, errx.NewWithCode(errx.TitleEmpty)
-	}
-	if titleRunes > 120 {
-		return nil, errx.NewWithCode(errx.ContentTooLong)
-	}
-	contentRunes := utf8.RuneCountInString(in.GetContent())
-	if contentRunes < 1 {
-		return nil, errx.NewWithCode(errx.ContentEmpty)
-	}
-	if contentRunes > 20000 {
-		return nil, errx.NewWithCode(errx.ContentTooLong)
-	}
-	if in.GetStatus() != 0 && in.GetStatus() != 1 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	if len(in.Images) > 9 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	// 校验图片url（不得含','，因为我们用逗号分隔存储）
-	for _, image := range in.Images {
-		if strings.ContainsRune(image, ',') {
-			return nil, errx.NewWithCode(errx.ParamError)
-		}
-	}
-	if len(in.Tags) > 10 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	if len(in.MediaIds) > 9 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	for _, tag := range in.Tags {
-		if tag == "" {
-			continue
-		}
-		tagRunes := utf8.RuneCountInString(tag)
-		if tagRunes < 1 || tagRunes > 32 {
-			return nil, errx.NewWithCode(errx.ParamError)
-		}
+	if err := validateCreatePost(in); err != nil {
+		return nil, err
 	}
 	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
 	idem := idempotencyx.IdempotencyRecord{
@@ -102,35 +59,11 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if len(images) == 0 && len(mediaURLs) > 0 {
 		images = mediaURLs
 	}
-	// 生成分布式id
-	id, err := util.NextID()
+	post, err := l.newPost(in, images)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, err
 	}
-
-	imageJsonString, err := model.ToJSONObject(images).JSONString()
-	if err != nil {
-		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	mediaIDsJSON, err := encodeInt64sJSON(in.MediaIds)
-	if err != nil {
-		l.Errorw("json convert media ids failed", logx.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	post := &model.Post{
-		Id:       id,
-		AuthorId: in.GetAuthorId(),
-		Title:    in.GetTitle(),
-		Content:  in.GetContent(),
-		Status:   int64(in.GetStatus()),
-		Revision: 1,
-		Images: sql.NullString{
-			String: imageJsonString,
-			Valid:  len(images) > 0,
-		},
-		MediaIds: mediaIDsJSON,
-	}
+	id := post.Id
 
 	// 收集有效标签并预生成分布式 ID
 	validTags := make([]string, 0, len(in.Tags))
@@ -192,4 +125,88 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		Status:   in.GetStatus(),
 		Revision: 1,
 	}, nil
+}
+
+func validateCreatePost(in *pb.CreatePostReq) error {
+	// 校验基本字段
+	if in.AuthorId <= 0 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	titleRunes := utf8.RuneCountInString(in.GetTitle())
+	if titleRunes < 1 {
+		return errx.NewWithCode(errx.TitleEmpty)
+	}
+	if titleRunes > 120 {
+		return errx.NewWithCode(errx.ContentTooLong)
+	}
+	contentRunes := utf8.RuneCountInString(in.GetContent())
+	if contentRunes < 1 {
+		return errx.NewWithCode(errx.ContentEmpty)
+	}
+	if contentRunes > 20000 {
+		return errx.NewWithCode(errx.ContentTooLong)
+	}
+	if in.GetStatus() != 0 && in.GetStatus() != 1 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	if len(in.Images) > 9 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	// 校验图片url（不得含','，因为我们用逗号分隔存储）
+	for _, image := range in.Images {
+		if strings.ContainsRune(image, ',') {
+			return errx.NewWithCode(errx.ParamError)
+		}
+	}
+	if len(in.Tags) > 10 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	if len(in.MediaIds) > 9 {
+		return errx.NewWithCode(errx.ParamError)
+	}
+	for _, tag := range in.Tags {
+		if tag == "" {
+			continue
+		}
+		tagRunes := utf8.RuneCountInString(tag)
+		if tagRunes < 1 || tagRunes > 32 {
+			return errx.NewWithCode(errx.ParamError)
+		}
+	}
+
+	return nil
+}
+
+func (l *CreatePostLogic) newPost(in *pb.CreatePostReq, images []string) (*model.Post, error) {
+	// 生成分布式id
+	id, err := util.NextID()
+	if err != nil {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+
+	imageJsonString, err := model.ToJSONObject(images).JSONString()
+	if err != nil {
+		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	mediaIDsJSON, err := encodeInt64sJSON(in.MediaIds)
+	if err != nil {
+		l.Errorw("json convert media ids failed", logx.Field("err", err.Error()))
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	post := &model.Post{
+		Id:       id,
+		AuthorId: in.GetAuthorId(),
+		Title:    in.GetTitle(),
+		Content:  in.GetContent(),
+		Status:   int64(in.GetStatus()),
+		Revision: 1,
+		Images: sql.NullString{
+			String: imageJsonString,
+			Valid:  len(images) > 0,
+		},
+		MediaIds: mediaIDsJSON,
+	}
+
+	return post, nil
 }

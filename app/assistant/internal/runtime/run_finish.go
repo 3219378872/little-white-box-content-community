@@ -117,55 +117,11 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 		if err != nil {
 			return err
 		}
-		if message != "" && run.Source != store.SourceMemoryReview {
-			if emitToken {
-				if _, err := AppendEvent(ctx, tx, nil, run, store.EventToken, store.EventPayload{Text: message, StreamID: streamID}); err != nil {
-					return err
-				}
-			}
-			if len(apiContent) == 0 {
-				apiContent = prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: message})
-			}
-			if streamID != "" && payload.StreamID == "" {
-				payload.StreamID = streamID
-			}
-			kind := store.KindMessage
-			if run.Source == store.SourceWatch {
-				kind = store.KindWatch
-			}
-			msg, err := tx.InsertMessage(ctx, store.Message{
-				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
-				Kind: kind, Content: message, APIContent: apiContent, Visible: true,
-				Unread: run.Source == store.SourceWatch, CreatedAtMs: now,
-			})
-			if err != nil {
-				return err
-			}
-			if payload.Answer != nil {
-				payload.Answer.MessageID = msg.ID
-				if err := tx.SavePresentation(ctx, *payload.Answer); err != nil {
-					return err
-				}
-				if _, err := AppendEvent(ctx, tx, nil, run, store.EventAnswerCommitted, store.EventPayload{Answer: payload.Answer, Text: message}); err != nil {
-					return err
-				}
-			}
-			if err := tx.InsertOutbox(ctx, store.Outbox{
-				UserID: run.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
-				PayloadJSON: string(mustJSON(map[string]any{
-					"userId": run.UserID, "sessionId": run.SessionID, "messageId": msg.ID,
-					"role": store.RoleAssistant, "content": message, "createdAtMs": now,
-				})), CreatedAtMs: now,
-			}); err != nil {
-				return err
-			}
-			thread.LastMessageID = msg.ID
-			thread.LastMessagePreview = store.Preview(message, 80)
-			thread.LastMessageAtMs = now
-			if run.Source == store.SourceWatch {
-				thread.UnreadCount++
-			}
+		publication := terminalPublication{run: run, payload: &payload, message: message, apiContent: apiContent, emitToken: emitToken, streamID: streamID, now: now}
+		if err := publication.write(ctx, tx, thread); err != nil {
+			return err
 		}
+
 		if thread.ActiveRunID == run.ID {
 			thread.ActiveRunID = 0
 		}
@@ -221,4 +177,67 @@ func watchBucketID(payload []byte) int64 {
 		return 0
 	}
 	return parsed.BucketID
+}
+
+type terminalPublication struct {
+	run        store.Run
+	payload    *store.EventPayload
+	message    string
+	apiContent []byte
+	emitToken  bool
+	streamID   string
+	now        int64
+}
+
+func (p *terminalPublication) write(ctx context.Context, tx store.Store, thread *store.Thread) error {
+	if p.message != "" && p.run.Source != store.SourceMemoryReview {
+		if p.emitToken {
+			if _, err := AppendEvent(ctx, tx, nil, p.run, store.EventToken, store.EventPayload{Text: p.message, StreamID: p.streamID}); err != nil {
+				return err
+			}
+		}
+		if len(p.apiContent) == 0 {
+			p.apiContent = prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: p.message})
+		}
+		if p.streamID != "" && p.payload.StreamID == "" {
+			p.payload.StreamID = p.streamID
+		}
+		kind := store.KindMessage
+		if p.run.Source == store.SourceWatch {
+			kind = store.KindWatch
+		}
+		msg, err := tx.InsertMessage(ctx, store.Message{
+			UserID: p.run.UserID, SessionID: p.run.SessionID, RunID: p.run.ID, Role: store.RoleAssistant,
+			Kind: kind, Content: p.message, APIContent: p.apiContent, Visible: true,
+			Unread: p.run.Source == store.SourceWatch, CreatedAtMs: p.now,
+		})
+		if err != nil {
+			return err
+		}
+		if p.payload.Answer != nil {
+			p.payload.Answer.MessageID = msg.ID
+			if err := tx.SavePresentation(ctx, *p.payload.Answer); err != nil {
+				return err
+			}
+			if _, err := AppendEvent(ctx, tx, nil, p.run, store.EventAnswerCommitted, store.EventPayload{Answer: p.payload.Answer, Text: p.message}); err != nil {
+				return err
+			}
+		}
+		if err := tx.InsertOutbox(ctx, store.Outbox{
+			UserID: p.run.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
+			PayloadJSON: string(mustJSON(map[string]any{
+				"userId": p.run.UserID, "sessionId": p.run.SessionID, "messageId": msg.ID,
+				"role": store.RoleAssistant, "content": p.message, "createdAtMs": p.now,
+			})), CreatedAtMs: p.now,
+		}); err != nil {
+			return err
+		}
+		thread.LastMessageID = msg.ID
+		thread.LastMessagePreview = store.Preview(p.message, 80)
+		thread.LastMessageAtMs = p.now
+		if p.run.Source == store.SourceWatch {
+			thread.UnreadCount++
+		}
+	}
+	return nil
 }

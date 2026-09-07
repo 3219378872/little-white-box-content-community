@@ -53,18 +53,8 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return nil, fmt.Errorf("assistant-agent: InternalSecret is required")
 	}
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)
-	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		conf.Middlewares.Duration = false
-		return zrpc.MustNewClient(conf,
-			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
-			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
-		)
-	}
+	newClient := authenticatedRPCClient(c.InternalSecret)
+
 	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))
 	contentService := contentservice.NewContentService(newClient(c.ContentRpc))
 	recommendService := recommendservice.NewRecommendService(newClient(c.RecommendRpc))
@@ -116,29 +106,10 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.LLM.Enabled && c.LLM.CanaryEnabled {
-		canaryTimeout := minDuration(time.Duration(c.LLM.TimeoutMs)*time.Millisecond, 30*time.Second)
-		for _, routeID := range routeIDs {
-			routeClient, ok := llm.SelectExactRoute(client, routeID)
-			if !ok {
-				return nil, fmt.Errorf("assistant-agent: LLM route %q cannot be selected", routeID)
-			}
-			if err := runLLMCanary(canaryTimeout, routeClient); err != nil {
-				return nil, fmt.Errorf("assistant-agent: LLM route %q readiness: %w", routeID, err)
-			}
-		}
-		for _, auxiliaryRoute := range []struct {
-			name   string
-			client llm.Client
-		}{{name: "aux", client: auxClient}, {name: "review", client: reviewClient}} {
-			routeID, auxiliary := auxiliaryRoute.name, auxiliaryRoute.client
-			if auxiliary != nil {
-				if err := runLLMCanary(canaryTimeout, auxiliary); err != nil {
-					return nil, fmt.Errorf("assistant-agent: LLM %s readiness: %w", routeID, err)
-				}
-			}
-		}
+	if err := checkConfiguredRoutes(c.LLM, client, routeIDs, auxClient, reviewClient); err != nil {
+		return nil, err
 	}
+
 	history, err := index.New(c.Elasticsearch.Addresses, c.Elasticsearch.Username, c.Elasticsearch.Password, st)
 	if err != nil {
 		return nil, err
@@ -266,4 +237,47 @@ func currentConsentGranted(consent *userservice.GetAgentCapabilityConsentResp) b
 		requiredVersion = tool.CurrentConsentVersion
 	}
 	return consent.ConsentVersion >= requiredVersion
+}
+
+func checkConfiguredRoutes(c config.LLMConfig, client llm.Client, routeIDs []string, auxClient, reviewClient llm.Client) error {
+	if c.Enabled && c.CanaryEnabled {
+		canaryTimeout := minDuration(time.Duration(c.TimeoutMs)*time.Millisecond, 30*time.Second)
+		for _, routeID := range routeIDs {
+			routeClient, ok := llm.SelectExactRoute(client, routeID)
+			if !ok {
+				return fmt.Errorf("assistant-agent: LLM route %q cannot be selected", routeID)
+			}
+			if err := runLLMCanary(canaryTimeout, routeClient); err != nil {
+				return fmt.Errorf("assistant-agent: LLM route %q readiness: %w", routeID, err)
+			}
+		}
+		for _, auxiliaryRoute := range []struct {
+			name   string
+			client llm.Client
+		}{{name: "aux", client: auxClient}, {name: "review", client: reviewClient}} {
+			routeID, auxiliary := auxiliaryRoute.name, auxiliaryRoute.client
+			if auxiliary != nil {
+				if err := runLLMCanary(canaryTimeout, auxiliary); err != nil {
+					return fmt.Errorf("assistant-agent: LLM %s readiness: %w", routeID, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func authenticatedRPCClient(secret string) func(zrpc.RpcClientConf) zrpc.Client {
+	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
+	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(secret)
+	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(secret)
+	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
+		conf.Middlewares.Duration = false
+		return zrpc.MustNewClient(conf,
+			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
+			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
+			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
+			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
+		)
+	}
+	return newClient
 }

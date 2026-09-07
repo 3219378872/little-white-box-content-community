@@ -31,45 +31,11 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 			dropped = append(dropped, msg)
 		}
 	}
-	summary := "压缩摘要：较早对话未包含可保留的用户可见内容。"
-	summaryClient := e.AuxLLM
-	if summaryClient == nil {
-		summaryClient = mainClient
+	summary, err := e.summarizeCompaction(workCtx, persistCtx, run, dropped, mainClient)
+	if err != nil {
+		return err
 	}
-	if summaryClient != nil {
-		budget := summaryClient.ContextWindowTokens() / 4
-		if budget <= 0 || budget > 32_000 {
-			budget = 32_000
-		}
-		if budget < 2_000 {
-			budget = 2_000
-		}
-		input := SummaryInput(dropped, budget)
-		if input != "" {
-			result, err := summaryClient.Complete(workCtx, llm.Request{
-				Messages:     []prompt.Turn{{Role: store.RoleSystem, Content: "用中文压缩以下会话，不要引入新事实。"}, {Role: store.RoleUser, Content: input}},
-				DisableTools: true,
-				MaxTokens:    512,
-			})
-			if err != nil {
-				if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
-					return errRunCancelled
-				}
-				return err
-			}
-			if strings.TrimSpace(result.Text) == "" {
-				return errCompactNoGain
-			}
-			summary = prompt.SanitizeOutput(result.Text)
-			run.InputTokens += result.Usage.PromptTokens
-			run.OutputTokens += result.Usage.CompletionTokens
-			run.CacheTokens += result.Usage.CacheTokens
-			run.CacheWriteTokens += result.Usage.CacheWriteTokens
-			run.ReasoningTokens += result.Usage.ReasoningTokens
-			run.UsageEstimated = run.UsageEstimated || result.Usage.Estimated
-			run.CostUSD += result.Usage.CostUSD
-		}
-	}
+
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
@@ -136,4 +102,47 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 		}
 		return tx.UpdateRun(ctx, *run)
 	})
+}
+
+func (e *Engine) summarizeCompaction(workCtx, persistCtx context.Context, run *store.Run, dropped []store.Message, mainClient llm.Client) (string, error) {
+	summary := "压缩摘要：较早对话未包含可保留的用户可见内容。"
+	summaryClient := e.AuxLLM
+	if summaryClient == nil {
+		summaryClient = mainClient
+	}
+	if summaryClient != nil {
+		budget := summaryClient.ContextWindowTokens() / 4
+		if budget <= 0 || budget > 32_000 {
+			budget = 32_000
+		}
+		if budget < 2_000 {
+			budget = 2_000
+		}
+		input := SummaryInput(dropped, budget)
+		if input != "" {
+			result, err := summaryClient.Complete(workCtx, llm.Request{
+				Messages:     []prompt.Turn{{Role: store.RoleSystem, Content: "用中文压缩以下会话，不要引入新事实。"}, {Role: store.RoleUser, Content: input}},
+				DisableTools: true,
+				MaxTokens:    512,
+			})
+			if err != nil {
+				if errors.Is(err, context.Canceled) && e.cancelled(persistCtx, run) {
+					return "", errRunCancelled
+				}
+				return "", err
+			}
+			if strings.TrimSpace(result.Text) == "" {
+				return "", errCompactNoGain
+			}
+			summary = prompt.SanitizeOutput(result.Text)
+			run.InputTokens += result.Usage.PromptTokens
+			run.OutputTokens += result.Usage.CompletionTokens
+			run.CacheTokens += result.Usage.CacheTokens
+			run.CacheWriteTokens += result.Usage.CacheWriteTokens
+			run.ReasoningTokens += result.Usage.ReasoningTokens
+			run.UsageEstimated = run.UsageEstimated || result.Usage.Estimated
+			run.CostUSD += result.Usage.CostUSD
+		}
+	}
+	return summary, nil
 }

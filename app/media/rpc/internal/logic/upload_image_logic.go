@@ -7,14 +7,11 @@ import (
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
 	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
-	"esx/pkg/errx"
-	"esx/pkg/idempotencyx"
-	"os"
-
 	"esx/pkg/cleanupx"
+	"esx/pkg/errx"
 	"esx/pkg/util"
-
 	"github.com/zeromicro/go-zero/core/logx"
+	"os"
 )
 
 type UploadImageLogic struct {
@@ -70,16 +67,8 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 
-	if _, err = mediautil2.Detect(sink.Path(), true, false); err != nil {
-		return errx.NewWithCode(errx.FileTypeNotAllowed)
-	}
-	if _, _, err = mediautil2.ValidateImageDimensions(sink.Path()); err != nil {
-		if errors.Is(err, mediautil2.ErrImageDimensionsExceeded) {
-			return errx.NewWithCode(errx.FileTooLarge)
-		}
-		l.Errorw("decode image dimensions failed",
-			logx.Field("user_id", meta.GetUserId()), logx.Field("err", err.Error()))
-		return errx.NewWithCode(errx.MediaProcessFailed)
+	if err := l.validateImage(sink.Path(), meta.GetUserId()); err != nil {
+		return err
 	}
 
 	quality := int(meta.GetQuality())
@@ -125,34 +114,58 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		}
 	}()
 
-	if err = putFile(l.ctx, l.svcCtx, compressedPath, objKey, "image/jpeg"); err != nil {
-		l.Errorw("put original failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("object_key", objKey),
-			logx.Field("err", err.Error()),
-		)
-		return errx.NewWithCode(errx.UploadFailed)
+	uploadedKeys, err = l.putImageVariants(meta.GetUserId(), compressedPath, thumbPath, objKey, thumbKey)
+	if err != nil {
+		return err
 	}
-	uploadedKeys = append(uploadedKeys, objKey)
-	if err = putFile(l.ctx, l.svcCtx, thumbPath, thumbKey, "image/jpeg"); err != nil {
-		l.Errorw("put thumbnail failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("object_key", thumbKey),
-			logx.Field("err", err.Error()),
-		)
-		return errx.NewWithCode(errx.UploadFailed)
-	}
-	uploadedKeys = append(uploadedKeys, thumbKey)
 
+	row, err := l.imageRecord(meta, compressedPath, objKey, thumbKey, width, height)
+	if err != nil {
+		return err
+	}
+
+	stored, created, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	if err != nil {
+		return err
+	}
+	if !created {
+		return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(stored)})
+	}
+	keepUploadedObjects = true
+
+	l.Infow("upload image success",
+		logx.Field("media_id", row.Id),
+		logx.Field("user_id", meta.GetUserId()),
+		logx.Field("file_size", row.FileSize),
+		logx.Field("object_key", objKey),
+	)
+	return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(row)})
+}
+
+// putFile 从本地文件读取并流式上传到 Storage。
+func putFile(ctx context.Context, svcCtx *svc.ServiceContext, localPath, objectKey, contentType string) error {
+	f, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer cleanupx.Close(logx.WithContext(ctx), "upload source file", f)
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	return svcCtx.Storage.Put(ctx, objectKey, f, info.Size(), contentType)
+}
+
+func (l *UploadImageLogic) imageRecord(meta *pb2.UploadMeta, compressedPath, objKey, thumbKey string, width, height int) (*model.Media, error) {
 	info, err := os.Stat(compressedPath)
 	if err != nil {
-		return errx.NewWithCode(errx.SystemError)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	mediaId, err := util.NextID()
 	if err != nil {
 		l.Errorw("NextID failed", logx.Field("err", err.Error()))
-		return errx.NewWithCode(errx.SystemError)
+		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
 	row := &model.Media{
@@ -173,48 +186,47 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		Height:             nullInt(height),
 		Status:             1,
 	}
-	result, err := l.svcCtx.MediaCommandModel.CreateMedia(l.ctx, row, idem)
-	if err != nil {
-		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
-			return errx.NewWithCode(errx.IdempotencyConflict)
+	return row, nil
+}
+
+func (l *UploadImageLogic) validateImage(path string, userID int64) error {
+	var err error
+	if _, err = mediautil2.Detect(path, true, false); err != nil {
+		return errx.NewWithCode(errx.FileTypeNotAllowed)
+	}
+	if _, _, err = mediautil2.ValidateImageDimensions(path); err != nil {
+		if errors.Is(err, mediautil2.ErrImageDimensionsExceeded) {
+			return errx.NewWithCode(errx.FileTooLarge)
 		}
-		l.Errorw("insert media row failed",
-			logx.Field("user_id", meta.GetUserId()),
+		l.Errorw("decode image dimensions failed",
+			logx.Field("user_id", userID), logx.Field("err", err.Error()))
+		return errx.NewWithCode(errx.MediaProcessFailed)
+	}
+
+	return nil
+}
+
+func (l *UploadImageLogic) putImageVariants(userID int64, compressedPath, thumbPath, objKey, thumbKey string) ([]string, error) {
+	uploadedKeys := make([]string, 0, 2)
+	var err error
+	if err = putFile(l.ctx, l.svcCtx, compressedPath, objKey, "image/jpeg"); err != nil {
+		l.Errorw("put original failed",
+			logx.Field("user_id", userID),
 			logx.Field("object_key", objKey),
 			logx.Field("err", err.Error()),
 		)
-		return errx.NewWithCode(errx.SystemError)
+		return uploadedKeys, errx.NewWithCode(errx.UploadFailed)
 	}
-	if !result.Created {
-		existing, findErr := l.svcCtx.MediaModel.FindOne(l.ctx, result.MediaID)
-		if findErr != nil {
-			l.Errorw("find existing media on idempotent retry failed",
-				logx.Field("media_id", result.MediaID), logx.Field("err", findErr.Error()))
-			return errx.NewWithCode(errx.SystemError)
-		}
-		return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(existing)})
+	uploadedKeys = append(uploadedKeys, objKey)
+	if err = putFile(l.ctx, l.svcCtx, thumbPath, thumbKey, "image/jpeg"); err != nil {
+		l.Errorw("put thumbnail failed",
+			logx.Field("user_id", userID),
+			logx.Field("object_key", thumbKey),
+			logx.Field("err", err.Error()),
+		)
+		return uploadedKeys, errx.NewWithCode(errx.UploadFailed)
 	}
-	keepUploadedObjects = true
+	uploadedKeys = append(uploadedKeys, thumbKey)
 
-	l.Infow("upload image success",
-		logx.Field("media_id", mediaId),
-		logx.Field("user_id", meta.GetUserId()),
-		logx.Field("file_size", info.Size()),
-		logx.Field("object_key", objKey),
-	)
-	return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(row)})
-}
-
-// putFile 从本地文件读取并流式上传到 Storage。
-func putFile(ctx context.Context, svcCtx *svc.ServiceContext, localPath, objectKey, contentType string) error {
-	f, err := os.Open(localPath)
-	if err != nil {
-		return err
-	}
-	defer cleanupx.Close(logx.WithContext(ctx), "upload source file", f)
-	info, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	return svcCtx.Storage.Put(ctx, objectKey, f, info.Size(), contentType)
+	return uploadedKeys, nil
 }

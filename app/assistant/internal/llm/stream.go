@@ -76,30 +76,7 @@ func (c *HTTPClient) CompleteStream(ctx context.Context, req Request, emit func(
 		return Result{}, classifyHTTPError(resp.StatusCode, resp.Header, raw)
 	}
 	if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
-		raw, readErr := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
-		if readErr != nil {
-			return Result{}, readErr
-		}
-		if len(raw) > maxResponseBytes {
-			return Result{}, fmt.Errorf("assistant LLM response exceeds the byte limit")
-		}
-		var result Result
-		if c.cfg.WireAPI == WireAPIResponses {
-			result, err = c.decodeResponses(raw)
-		} else {
-			result, err = c.decodeChat(raw)
-		}
-		if err != nil {
-			return Result{}, err
-		}
-		result.Text = strings.TrimSpace(prompt.SanitizeOutput(result.Text))
-		if emit != nil && result.Text != "" {
-			if err := emit(Delta{Text: result.Text}); err != nil {
-				return Result{}, err
-			}
-		}
-		result.Streamed = false
-		return result, nil
+		return c.decodeNonStreamingResponse(resp.Body, emit)
 	}
 
 	state := &streamState{calls: map[int]*streamedToolCall{}, callKeys: map[string]int{}, model: c.cfg.Model}
@@ -438,3 +415,31 @@ func firstNonEmpty(values ...string) string {
 }
 
 var _ StreamingClient = (*HTTPClient)(nil)
+
+func (c *HTTPClient) decodeNonStreamingResponse(body io.Reader, emit func(Delta) error) (Result, error) {
+	raw, readErr := io.ReadAll(io.LimitReader(body, maxResponseBytes+1))
+	if readErr != nil {
+		return Result{}, readErr
+	}
+	if len(raw) > maxResponseBytes {
+		return Result{}, fmt.Errorf("assistant LLM response exceeds the byte limit")
+	}
+	var result Result
+	var err error
+	if c.cfg.WireAPI == WireAPIResponses {
+		result, err = c.decodeResponses(raw)
+	} else {
+		result, err = c.decodeChat(raw)
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	result.Text = strings.TrimSpace(prompt.SanitizeOutput(result.Text))
+	if emit != nil && result.Text != "" {
+		if err := emit(Delta{Text: result.Text}); err != nil {
+			return Result{}, err
+		}
+	}
+	result.Streamed = false
+	return result, nil
+}

@@ -128,6 +128,20 @@ assistant-watch matcher
 
 ## 权威模型
 
+### 代码组织
+
+`store/sql.go` 与 `store/fake.go` 只保留构造、事务入口和共享状态；session/message/run/event、command
+与 journal、source、outbox、Watch 和 quota 分别由同包的 `sql_*` / `fake_*` 文件承接。SQL 方法仍使用
+同一个事务绑定的 `exec`；内存实现仍共享原锁与 map，只保证串行，不模拟 MySQL 回滚。
+
+`Engine.run` 只初始化本次执行并驱动 iteration。私有 `executionState` 按每次 Execute 分配，依次负责
+读取运行状态、压缩、构造输入、模型请求、消费结果与工具轮；没有把可变 round 状态放入共享 Engine。
+`iterationRestart` 保留 compact、redirect 和排他工具轮的重启位置。模型 streaming、工具 journal、
+确认、compact 提交与终态发布分别在同包文件中实现；终态消息、来源快照和 outbox 仍使用原 step 事务。
+
+工具 registry 按类型、catalog、policy、schema、source 和 result 分文件，仍从唯一 metadata 定义派生
+广告与授权。这里只改变职责定位，不新增接口、表、配置、事件或全仓长度门禁。
+
 - `assistant_thread(user_id PK)`：当前 session、未读、最后可见消息、活跃前台 run。
 - `assistant_session(id, user_id, prompt_epoch, prompt_snapshot, tool_snapshot, compact_summary, status)`。
 - `assistant_message(id, user_id, session_id, run_id, role, kind, content, api_content, visible, unread,

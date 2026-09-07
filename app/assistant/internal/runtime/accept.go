@@ -112,22 +112,10 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	if !granted || consentVersion != in.ConsentVersion {
 		return AcceptResult{}, errx.NewWithCode(errx.AgentNotAuthorized)
 	}
-	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
-		return AcceptResult{}, err
-	} else if existing != nil {
-		if err := verifyInputReplay(ctx, tx, in, text, *existing); err != nil {
-			return AcceptResult{}, err
-		}
-		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
+	if result, found, err := replayAcceptedInput(ctx, tx, in, text); found || err != nil {
+		return result, err
 	}
-	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
-		return AcceptResult{}, err
-	} else if existing != nil {
-		if in.ClientProtocolVersion >= 2 {
-			return AcceptResult{}, errx.NewWithCode(errx.IdempotencyConflict)
-		}
-		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
-	}
+
 	// Worker steps lock agent_run before assistant_thread. Preemption must take
 	// background run locks first to keep the same order during final delivery.
 	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceWatch, store.SourceMemoryReview}); err != nil {
@@ -138,44 +126,21 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		return AcceptResult{}, err
 	}
 	// A concurrent retry can finish while this transaction waits for the thread.
-	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
-		return AcceptResult{}, err
-	} else if existing != nil {
-		if err := verifyInputReplay(ctx, tx, in, text, *existing); err != nil {
-			return AcceptResult{}, err
-		}
-		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, nil
+	if result, found, err := replayAcceptedInput(ctx, tx, in, text); found || err != nil {
+		return result, err
 	}
-	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
-		return AcceptResult{}, err
-	} else if existing != nil {
-		if in.ClientProtocolVersion >= 2 {
-			return AcceptResult{}, errx.NewWithCode(errx.IdempotencyConflict)
-		}
-		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, nil
-	}
+
 	session, err := ensureForegroundSession(ctx, tx, a.Memory, thread, now)
 	if err != nil {
 		return AcceptResult{}, err
 	}
 	cold := isColdConversation(thread, now)
 
-	apiText := acceptedUserContent(text, in)
-	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: apiText})
-	msg, err := tx.InsertMessage(ctx, store.Message{
-		UserID: in.UserID, SessionID: session.ID, Role: store.RoleUser, Kind: store.KindMessage,
-		Content: text, APIContent: api, Visible: true, Unread: false, CreatedAtMs: now,
-	})
+	msg, err := insertAcceptedMessage(ctx, tx, in, text, session.ID, now)
 	if err != nil {
 		return AcceptResult{}, err
 	}
-	if err := tx.InsertOutbox(ctx, store.Outbox{
-		UserID: in.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
-		PayloadJSON: string(mustJSON(map[string]any{"userId": in.UserID, "sessionId": session.ID, "messageId": msg.ID, "role": store.RoleUser, "content": text, "createdAtMs": now})),
-		CreatedAtMs: now,
-	}); err != nil {
-		return AcceptResult{}, err
-	}
+
 	thread.LastMessageID = msg.ID
 	thread.LastMessagePreview = store.Preview(text, 80)
 	thread.LastMessageAtMs = now
@@ -186,23 +151,11 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		return AcceptResult{}, err
 	}
 
-	var active *store.Run
-	if thread.ActiveRunID > 0 {
-		active, err = tx.GetRun(ctx, thread.ActiveRunID)
-		if err != nil {
-			active = nil
-		}
+	active, disposition, err := activeInputDisposition(ctx, tx, thread.ActiveRunID, in.ClientProtocolVersion)
+	if err != nil {
+		return AcceptResult{}, err
 	}
-	disposition := DecideDisposition(active)
-	if active != nil && active.Status == store.StatusWaitingInput {
-		if in.ClientProtocolVersion < 2 {
-			return AcceptResult{}, errx.New(errx.ParamError, "client update required for this interaction")
-		}
-		if err := supersedeQuestionsTx(ctx, tx, active); err != nil {
-			return AcceptResult{}, err
-		}
-		disposition = store.DispositionSteered
-	}
+
 	payload := mustJSON(inputPayload{Text: text, MessageID: msg.ID, Attachments: in.Attachments, ContextPostID: in.ContextPostID})
 	var runID int64
 	switch disposition {
@@ -385,4 +338,66 @@ func itoa(v int64) string {
 		buf[i] = '-'
 	}
 	return string(buf[i:])
+}
+
+func replayAcceptedInput(ctx context.Context, tx store.Store, in AcceptInput, text string) (AcceptResult, bool, error) {
+	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, true, err
+	} else if existing != nil {
+		if err := verifyInputReplay(ctx, tx, in, text, *existing); err != nil {
+			return AcceptResult{}, true, err
+		}
+		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, true, nil
+	}
+	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
+		return AcceptResult{}, true, err
+	} else if existing != nil {
+		if in.ClientProtocolVersion >= 2 {
+			return AcceptResult{}, true, errx.NewWithCode(errx.IdempotencyConflict)
+		}
+		return AcceptResult{SessionID: existing.SessionID, RunID: existing.ID, Disposition: store.DispositionStarted}, true, nil
+	}
+	return AcceptResult{}, false, nil
+}
+
+func insertAcceptedMessage(ctx context.Context, tx store.Store, in AcceptInput, text string, sessionID, now int64) (store.Message, error) {
+	apiText := acceptedUserContent(text, in)
+	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: apiText})
+	msg, err := tx.InsertMessage(ctx, store.Message{
+		UserID: in.UserID, SessionID: sessionID, Role: store.RoleUser, Kind: store.KindMessage,
+		Content: text, APIContent: api, Visible: true, Unread: false, CreatedAtMs: now,
+	})
+	if err != nil {
+		return store.Message{}, err
+	}
+	if err := tx.InsertOutbox(ctx, store.Outbox{
+		UserID: in.UserID, MessageID: msg.ID, Op: store.IndexOpUpsert,
+		PayloadJSON: string(mustJSON(map[string]any{"userId": in.UserID, "sessionId": sessionID, "messageId": msg.ID, "role": store.RoleUser, "content": text, "createdAtMs": now})),
+		CreatedAtMs: now,
+	}); err != nil {
+		return store.Message{}, err
+	}
+	return msg, nil
+}
+
+func activeInputDisposition(ctx context.Context, tx store.Store, activeRunID int64, protocolVersion int) (*store.Run, string, error) {
+	var err error
+	var active *store.Run
+	if activeRunID > 0 {
+		active, err = tx.GetRun(ctx, activeRunID)
+		if err != nil {
+			active = nil
+		}
+	}
+	disposition := DecideDisposition(active)
+	if active != nil && active.Status == store.StatusWaitingInput {
+		if protocolVersion < 2 {
+			return nil, "", errx.New(errx.ParamError, "client update required for this interaction")
+		}
+		if err := supersedeQuestionsTx(ctx, tx, active); err != nil {
+			return nil, "", err
+		}
+		disposition = store.DispositionSteered
+	}
+	return active, disposition, nil
 }

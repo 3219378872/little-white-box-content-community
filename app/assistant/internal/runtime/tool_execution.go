@@ -18,23 +18,7 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	if err := e.populateToolLiveMessageIDs(persistCtx, *run, sess); err != nil {
 		return err
 	}
-	prepErr := call.PrepareError
-	if !call.Prepared && prepErr == nil {
-		prepared, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
-		prepErr = err
-		if prepErr == nil {
-			call.Arguments = prepared
-			call.Prepared = true
-		} else {
-			call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
-		}
-	} else {
-		call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
-	}
-	digest, digestErr := canonical.DigestArgs(call.Arguments)
-	if digestErr != nil {
-		digest = "invalid:" + call.ID
-	}
+	call, digest, prepErr := prepareCall(workCtx, registry, sess, call)
 
 	journal, reserved, err := e.startToolStep(persistCtx, *run, call, digest, prepErr == nil && registry.SideEffect(call.Name))
 	if err != nil {
@@ -415,4 +399,26 @@ func decodeToolResultText(raw string) string {
 		return asString
 	}
 	return raw
+}
+
+func prepareCall(ctx context.Context, registry *tool.Registry, sess *tool.Session, call llm.ToolCall) (llm.ToolCall, string, error) {
+	prepErr := call.PrepareError
+	if !call.Prepared && prepErr == nil {
+		prepared, err := registry.Prepare(ctx, sess, call.Name, call.Arguments)
+		prepErr = err
+		if prepErr == nil {
+			call.Arguments = prepared
+			call.Prepared = true
+		} else {
+			call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
+		}
+	} else {
+		call.Arguments = canonical.UnwrapArgsJSON(call.Arguments)
+	}
+	digest, digestErr := canonical.DigestArgs(call.Arguments)
+	if digestErr != nil {
+		digest = "invalid:" + call.ID
+	}
+
+	return call, digest, prepErr
 }

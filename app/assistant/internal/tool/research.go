@@ -263,64 +263,11 @@ func BuildAnswer(ctx context.Context, clients Clients, session *Session, blocks 
 		}
 		for j := range block.Citations {
 			citation := &block.Citations[j]
-			found, err := clients.Store.GetSources(ctx, session.RunID, []string{citation.Handle})
+			card, err := resolveAnswerSource(ctx, clients, session, *citation)
 			if err != nil {
 				return nil, err
 			}
-			if len(found) != 1 || len(citation.EvidenceIDs) == 0 {
-				return nil, errx.New(errx.ParamError, "unknown source or missing evidence")
-			}
-			src := found[0]
-			var ref store.SourceRef
-			if err := json.Unmarshal([]byte(src.PayloadJSON), &ref); err != nil {
-				return nil, err
-			}
-			card := store.ResearchSource{Handle: src.Handle, Kind: src.Kind, AuthorityID: src.AuthorityID, Title: ref.Title, Revision: src.Revision, Available: true, Excerpts: []store.Evidence{}}
-			var post *contentservice.PostInfo
-			switch src.Kind {
-			case "post":
-				post, err = currentPost(ctx, clients, session.UserID, src)
-				if err != nil {
-					return nil, err
-				}
-				card.Title = post.Title
-				card.URL = "/post/" + src.AuthorityID
-				if len(post.Images) > 0 {
-					card.ThumbnailURL = post.Images[0]
-				}
-			case "web":
-				if !SafeSourceURL(src.AuthorityID) {
-					return nil, errx.New(errx.ParamError, "unsafe source URL")
-				}
-				card.URL = src.AuthorityID
-			default:
-				return nil, errx.New(errx.ParamError, "unsupported evidence source")
-			}
-			evidence, err := clients.Store.ListEvidence(ctx, session.RunID, src.Handle)
-			if err != nil {
-				return nil, err
-			}
-			for _, id := range citation.EvidenceIDs {
-				var selected *store.Evidence
-				for k := range evidence {
-					if evidence[k].ID == id {
-						selected = &evidence[k]
-						break
-					}
-				}
-				if selected == nil || selected.Text == "" {
-					return nil, errx.New(errx.ParamError, "evidence was not retrieved")
-				}
-				if selected.Kind == "post" && (post == nil || !strings.Contains(post.Content, selected.Text)) {
-					return nil, errx.NewWithCode(errx.ContentVersionConflict)
-				}
-				if selected.Kind == "comment" {
-					if err := validateCommentEvidence(ctx, clients, session.UserID, src, *selected); err != nil {
-						return nil, err
-					}
-				}
-				card.Excerpts = append(card.Excerpts, *selected)
-			}
+
 			identity := fmt.Sprintf("%s/%s/%d", card.Kind, card.AuthorityID, card.Revision)
 			index, exists := byIdentity[identity]
 			if !exists {
@@ -430,4 +377,66 @@ func RevalidatePresentation(ctx context.Context, clients Clients, userID int64, 
 			card.Excerpts = []store.Evidence{}
 		}
 	}
+}
+
+func resolveAnswerSource(ctx context.Context, clients Clients, session *Session, citation store.AnswerCitation) (store.ResearchSource, error) {
+	found, err := clients.Store.GetSources(ctx, session.RunID, []string{citation.Handle})
+	if err != nil {
+		return store.ResearchSource{}, err
+	}
+	if len(found) != 1 || len(citation.EvidenceIDs) == 0 {
+		return store.ResearchSource{}, errx.New(errx.ParamError, "unknown source or missing evidence")
+	}
+	src := found[0]
+	var ref store.SourceRef
+	if err := json.Unmarshal([]byte(src.PayloadJSON), &ref); err != nil {
+		return store.ResearchSource{}, err
+	}
+	card := store.ResearchSource{Handle: src.Handle, Kind: src.Kind, AuthorityID: src.AuthorityID, Title: ref.Title, Revision: src.Revision, Available: true, Excerpts: []store.Evidence{}}
+	var post *contentservice.PostInfo
+	switch src.Kind {
+	case "post":
+		post, err = currentPost(ctx, clients, session.UserID, src)
+		if err != nil {
+			return store.ResearchSource{}, err
+		}
+		card.Title = post.Title
+		card.URL = "/post/" + src.AuthorityID
+		if len(post.Images) > 0 {
+			card.ThumbnailURL = post.Images[0]
+		}
+	case "web":
+		if !SafeSourceURL(src.AuthorityID) {
+			return store.ResearchSource{}, errx.New(errx.ParamError, "unsafe source URL")
+		}
+		card.URL = src.AuthorityID
+	default:
+		return store.ResearchSource{}, errx.New(errx.ParamError, "unsupported evidence source")
+	}
+	evidence, err := clients.Store.ListEvidence(ctx, session.RunID, src.Handle)
+	if err != nil {
+		return store.ResearchSource{}, err
+	}
+	for _, id := range citation.EvidenceIDs {
+		var selected *store.Evidence
+		for k := range evidence {
+			if evidence[k].ID == id {
+				selected = &evidence[k]
+				break
+			}
+		}
+		if selected == nil || selected.Text == "" {
+			return store.ResearchSource{}, errx.New(errx.ParamError, "evidence was not retrieved")
+		}
+		if selected.Kind == "post" && (post == nil || !strings.Contains(post.Content, selected.Text)) {
+			return store.ResearchSource{}, errx.NewWithCode(errx.ContentVersionConflict)
+		}
+		if selected.Kind == "comment" {
+			if err := validateCommentEvidence(ctx, clients, session.UserID, src, *selected); err != nil {
+				return store.ResearchSource{}, err
+			}
+		}
+		card.Excerpts = append(card.Excerpts, *selected)
+	}
+	return card, nil
 }

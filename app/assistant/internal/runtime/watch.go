@@ -73,65 +73,12 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 			return st.DeferBucket(ctx, bucket.ID, now+watchWindow.Milliseconds())
 		}
 	}
-	if watchStore == nil {
-		return fmt.Errorf("watch bucket %d has no hit store", bucket.ID)
+	visibleInput, err := visibleBucketInput(ctx, st, watchStore, visible, bucket)
+	if err != nil || visibleInput == nil {
+		return err
 	}
-	if len(bucket.HitIDs) == 0 {
-		return st.DismissBucket(ctx, bucket.ID, 0)
-	}
-	taskIDs := make([]int64, 0)
-	postIDs := make([]int64, 0)
-	visibleByID := map[int64]watch.Hit{}
-	if watchStore != nil && len(bucket.HitIDs) > 0 {
-		hits, listErr := watchStore.GetHitsByIDs(ctx, bucket.UserID, bucket.HitIDs)
-		if listErr != nil {
-			return listErr
-		}
-		if len(hits) == 0 {
-			return st.DismissBucket(ctx, bucket.ID, 0)
-		}
-		hits, listErr = currentlyVisibleWatchHits(ctx, bucket.UserID, hits, visible)
-		if listErr != nil {
-			return listErr
-		}
-		if len(hits) == 0 {
-			return st.DismissBucket(ctx, bucket.ID, 0)
-		}
-		for _, hit := range hits {
-			visibleByID[hit.ID] = hit
-		}
-		seen := map[int64]struct{}{}
-		seenPosts := map[int64]struct{}{}
-		for _, id := range bucket.HitIDs {
-			hit, ok := visibleByID[id]
-			if !ok {
-				continue
-			}
-			if _, dup := seen[hit.TaskID]; dup {
-				continue
-			}
-			seen[hit.TaskID] = struct{}{}
-			taskIDs = append(taskIDs, hit.TaskID)
-			if hit.PostID > 0 {
-				if _, exists := seenPosts[hit.PostID]; !exists {
-					seenPosts[hit.PostID] = struct{}{}
-					postIDs = append(postIDs, hit.PostID)
-				}
-			}
-		}
-	}
-	if len(taskIDs) == 0 {
-		return st.DismissBucket(ctx, bucket.ID, 0)
-	}
-	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
-	sort.Slice(postIDs, func(i, j int) bool { return postIDs[i] < postIDs[j] })
-	visibleHitIDs := make([]int64, 0, len(bucket.HitIDs))
-	for _, hitID := range bucket.HitIDs {
-		if _, ok := visibleByID[hitID]; ok {
-			visibleHitIDs = append(visibleHitIDs, hitID)
-		}
-	}
-	payload, _ := json.Marshal(watchRunPayload{BucketID: bucket.ID, HitIDs: visibleHitIDs, TaskIDs: taskIDs, PostIDs: postIDs})
+
+	payload, _ := json.Marshal(visibleInput)
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		lockedVersion, stillGranted, err := tx.AgentConsent(ctx, bucket.UserID)
 		if err != nil {
@@ -153,7 +100,7 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 		}
 		hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
 		dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-		allowed, retryAtMs, err := tx.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, taskIDs, dayStart, hourStart, watchDailyLimit, watchHourlyLimit)
+		allowed, retryAtMs, err := tx.ReserveWatchQuota(ctx, bucket.ID, bucket.UserID, visibleInput.TaskIDs, dayStart, hourStart, watchDailyLimit, watchHourlyLimit)
 		if err != nil {
 			return err
 		}
@@ -409,4 +356,66 @@ func (e *Engine) dismissWatchRun(ctx context.Context, run store.Run) error {
 	}
 	e.wake(ctx, run.ID)
 	return errRunTerminated
+}
+
+func visibleBucketInput(ctx context.Context, st store.Store, watchStore watch.Store, visible WatchPostVisibility, bucket store.DeliveryBucket) (*watchRunPayload, error) {
+	if watchStore == nil {
+		return nil, fmt.Errorf("watch bucket %d has no hit store", bucket.ID)
+	}
+	if len(bucket.HitIDs) == 0 {
+		return nil, st.DismissBucket(ctx, bucket.ID, 0)
+	}
+	taskIDs := make([]int64, 0)
+	postIDs := make([]int64, 0)
+	visibleByID := map[int64]watch.Hit{}
+	if watchStore != nil && len(bucket.HitIDs) > 0 {
+		hits, listErr := watchStore.GetHitsByIDs(ctx, bucket.UserID, bucket.HitIDs)
+		if listErr != nil {
+			return nil, listErr
+		}
+		if len(hits) == 0 {
+			return nil, st.DismissBucket(ctx, bucket.ID, 0)
+		}
+		hits, listErr = currentlyVisibleWatchHits(ctx, bucket.UserID, hits, visible)
+		if listErr != nil {
+			return nil, listErr
+		}
+		if len(hits) == 0 {
+			return nil, st.DismissBucket(ctx, bucket.ID, 0)
+		}
+		for _, hit := range hits {
+			visibleByID[hit.ID] = hit
+		}
+		seen := map[int64]struct{}{}
+		seenPosts := map[int64]struct{}{}
+		for _, id := range bucket.HitIDs {
+			hit, ok := visibleByID[id]
+			if !ok {
+				continue
+			}
+			if _, dup := seen[hit.TaskID]; dup {
+				continue
+			}
+			seen[hit.TaskID] = struct{}{}
+			taskIDs = append(taskIDs, hit.TaskID)
+			if hit.PostID > 0 {
+				if _, exists := seenPosts[hit.PostID]; !exists {
+					seenPosts[hit.PostID] = struct{}{}
+					postIDs = append(postIDs, hit.PostID)
+				}
+			}
+		}
+	}
+	if len(taskIDs) == 0 {
+		return nil, st.DismissBucket(ctx, bucket.ID, 0)
+	}
+	sort.Slice(taskIDs, func(i, j int) bool { return taskIDs[i] < taskIDs[j] })
+	sort.Slice(postIDs, func(i, j int) bool { return postIDs[i] < postIDs[j] })
+	visibleHitIDs := make([]int64, 0, len(bucket.HitIDs))
+	for _, hitID := range bucket.HitIDs {
+		if _, ok := visibleByID[hitID]; ok {
+			visibleHitIDs = append(visibleHitIDs, hitID)
+		}
+	}
+	return &watchRunPayload{BucketID: bucket.ID, HitIDs: visibleHitIDs, TaskIDs: taskIDs, PostIDs: postIDs}, nil
 }

@@ -92,10 +92,11 @@ func (s *unitObjectStorage) BuildPublicURL(objectKey string) string {
 // unitImageStream 模拟 pb.MediaService_UploadImageServer。
 type unitImageStream struct {
 	grpc.ClientStreamingServer[pb.UploadImageReq, pb.UploadImageResp]
-	reqs []*pb.UploadImageReq
-	idx  int
-	resp *pb.UploadImageResp
-	ctx  context.Context
+	reqs    []*pb.UploadImageReq
+	idx     int
+	resp    *pb.UploadImageResp
+	ctx     context.Context
+	sendErr error
 }
 
 func (s *unitImageStream) Context() context.Context    { return s.ctx }
@@ -106,7 +107,7 @@ func (s *unitImageStream) SendHeader(metadata.MD) error {
 func (s *unitImageStream) SetTrailer(metadata.MD) {}
 func (s *unitImageStream) SendAndClose(r *pb.UploadImageResp) error {
 	s.resp = r
-	return nil
+	return s.sendErr
 }
 func (s *unitImageStream) Recv() (*pb.UploadImageReq, error) {
 	if s.idx >= len(s.reqs) {
@@ -120,10 +121,11 @@ func (s *unitImageStream) Recv() (*pb.UploadImageReq, error) {
 // unitVideoStream 模拟 pb.MediaService_UploadVideoServer。
 type unitVideoStream struct {
 	grpc.ClientStreamingServer[pb.UploadVideoReq, pb.UploadVideoResp]
-	reqs []*pb.UploadVideoReq
-	idx  int
-	resp *pb.UploadVideoResp
-	ctx  context.Context
+	reqs    []*pb.UploadVideoReq
+	idx     int
+	resp    *pb.UploadVideoResp
+	ctx     context.Context
+	sendErr error
 }
 
 func (s *unitVideoStream) Context() context.Context    { return s.ctx }
@@ -134,7 +136,7 @@ func (s *unitVideoStream) SendHeader(metadata.MD) error {
 func (s *unitVideoStream) SetTrailer(metadata.MD) {}
 func (s *unitVideoStream) SendAndClose(r *pb.UploadVideoResp) error {
 	s.resp = r
-	return nil
+	return s.sendErr
 }
 func (s *unitVideoStream) Recv() (*pb.UploadVideoReq, error) {
 	if s.idx >= len(s.reqs) {
