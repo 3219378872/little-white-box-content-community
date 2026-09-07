@@ -3,8 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"strconv"
+
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func (s *SQLStore) InsertMessage(ctx context.Context, msg Message) (Message, error) {

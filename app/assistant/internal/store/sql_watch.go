@@ -3,8 +3,9 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"strconv"
+
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func (s *SQLStore) UpsertDeliveryBucket(ctx context.Context, userID, hitID, windowStartMs, nowMs int64) (DeliveryBucket, error) {

@@ -9,8 +9,9 @@ import (
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
 	"esx/pkg/errx"
 	"fmt"
-	"github.com/zeromicro/go-zero/core/logx"
 	"strings"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type GetRecommendPostsLogic struct {

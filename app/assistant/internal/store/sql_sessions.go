@@ -3,8 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"strings"
+
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func (s *SQLStore) LockThread(ctx context.Context, userID int64) (*Thread, error) {

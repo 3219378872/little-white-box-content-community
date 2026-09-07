@@ -10,8 +10,9 @@ import (
 	"esx/app/content/visibility"
 	"esx/pkg/errx"
 	"fmt"
-	"github.com/zeromicro/go-zero/core/logx"
 	"strings"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) (string, error) {

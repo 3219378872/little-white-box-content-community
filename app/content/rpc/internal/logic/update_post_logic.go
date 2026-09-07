@@ -13,9 +13,10 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/util"
 	"esx/pkg/visibilityx"
-	"github.com/zeromicro/go-zero/core/logx"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type UpdatePostLogic struct {

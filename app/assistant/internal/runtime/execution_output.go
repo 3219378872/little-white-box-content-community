@@ -9,9 +9,10 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/errx"
-	"github.com/zeromicro/go-zero/core/logx"
 	"strings"
 	"time"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterationAction, error) {
