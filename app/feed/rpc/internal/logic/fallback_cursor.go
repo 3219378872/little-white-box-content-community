@@ -1,35 +1,38 @@
 package logic
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"esx/app/feed/rpc/internal/model"
 )
 
-const fallbackCursorPrefix = "feedv2."
+const (
+	fallbackCursorPrefix = "feedv3."
+	fallbackCursorTTL    = 10 * time.Minute
+)
 
 type fallbackCursor struct {
-	Version int   `json:"v"`
-	Page    int32 `json:"p"`
-	// 各降级源的帖子列表游标（content keyset cursor），翻页时原样透传。
-	HotCursor    string `json:"h,omitempty"`
-	LatestCursor string `json:"l,omitempty"`
-	RequestID    string `json:"r"`
-	ExpiresAt    int64  `json:"e"`
+	Version   int                   `json:"v"`
+	StateID   string                `json:"state"`
+	Binding   model.FallbackBinding `json:"binding"`
+	ExpiresAt int64                 `json:"e"`
 }
 
-func encodeFallbackCursor(secret, requestID string, page int32, hotCursor, latestCursor string, now time.Time) (string, error) {
-	if secret == "" || requestID == "" || page <= 0 {
+func encodeFallbackCursor(secret, stateID string, binding model.FallbackBinding, expiresAt int64, now time.Time) (string, error) {
+	if secret == "" || stateID == "" || binding.IdentityHash == "" || binding.RequestID == "" || binding.PageSize <= 0 || expiresAt <= now.Unix() || expiresAt > now.Add(fallbackCursorTTL).Unix() {
 		return "", fmt.Errorf("invalid fallback cursor input")
 	}
 	payload, err := json.Marshal(fallbackCursor{
-		Version: 2, Page: page,
-		HotCursor: hotCursor, LatestCursor: latestCursor,
-		RequestID: requestID, ExpiresAt: now.Add(30 * time.Minute).Unix(),
+		Version: 3, StateID: stateID, Binding: binding, ExpiresAt: expiresAt,
 	})
 	if err != nil {
 		return "", err
@@ -39,33 +42,40 @@ func encodeFallbackCursor(secret, requestID string, page int32, hotCursor, lates
 	return fallbackCursorPrefix + encoded + "." + signature, nil
 }
 
-func decodeFallbackCursor(secret, token, requestID string, now time.Time) (page int32, hotCursor, latestCursor string, matched bool, err error) {
+func decodeFallbackCursor(secret, token string, binding model.FallbackBinding, now time.Time) (stateID string, expiresAt int64, matched bool, err error) {
 	if !strings.HasPrefix(token, fallbackCursorPrefix) {
-		return 0, "", "", false, nil
+		if strings.HasPrefix(token, "feedv") {
+			return "", 0, true, fmt.Errorf("unsupported fallback cursor")
+		}
+		return "", 0, false, nil
 	}
-	if secret == "" || requestID == "" {
-		return 0, "", "", true, fmt.Errorf("fallback cursor cannot be verified")
+	if secret == "" || len(token) > 4096 {
+		return "", 0, true, fmt.Errorf("fallback cursor cannot be verified")
 	}
 	parts := strings.Split(strings.TrimPrefix(token, fallbackCursorPrefix), ".")
 	if len(parts) != 2 || !hmac.Equal([]byte(parts[1]), []byte(signFallbackCursor(secret, parts[0]))) {
-		return 0, "", "", true, fmt.Errorf("invalid fallback cursor signature")
+		return "", 0, true, fmt.Errorf("invalid fallback cursor signature")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return 0, "", "", true, fmt.Errorf("decode fallback cursor: %w", err)
+		return "", 0, true, fmt.Errorf("decode fallback cursor: %w", err)
 	}
 	var cursor fallbackCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil {
-		return 0, "", "", true, fmt.Errorf("parse fallback cursor: %w", err)
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&cursor); err != nil {
+		return "", 0, true, fmt.Errorf("parse fallback cursor: %w", err)
 	}
-	// v2 起携带各源游标；旧版本 token 一律拒绝（30 分钟内自然过期，客户端回到首页）。
-	if cursor.Version != 2 || cursor.Page <= 0 || cursor.Page > 10_000 || cursor.RequestID != requestID {
-		return 0, "", "", true, fmt.Errorf("invalid fallback cursor payload")
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return "", 0, true, fmt.Errorf("trailing fallback cursor data")
 	}
-	if cursor.ExpiresAt < now.Unix() {
-		return 0, "", "", true, fmt.Errorf("fallback cursor expired")
+	if cursor.Version != 3 || cursor.StateID == "" || cursor.Binding != binding {
+		return "", 0, true, fmt.Errorf("invalid fallback cursor payload")
 	}
-	return cursor.Page, cursor.HotCursor, cursor.LatestCursor, true, nil
+	if cursor.ExpiresAt <= now.Unix() {
+		return "", 0, true, fmt.Errorf("fallback cursor expired")
+	}
+	return cursor.StateID, cursor.ExpiresAt, true, nil
 }
 
 func signFallbackCursor(secret, payload string) string {

@@ -30,7 +30,7 @@ func formatPosts(prefix string, infos []*contentservice.PostInfo) (string, []sto
 	b.WriteString(prefix)
 	sources := make([]store.SourceRef, 0, len(infos))
 	for _, info := range infos {
-		snippet := truncateRunes(info.Content, maxEvidenceSnippetRunes)
+		snippet := excerptRunes(info.Content, maxEvidenceSnippetRunes)
 		src := postSource(info, snippet)
 		fmt.Fprintf(&b, "- handle=%s 《%s》 %s\n", src.Handle, info.Title, snippet)
 		sources = append(sources, src)

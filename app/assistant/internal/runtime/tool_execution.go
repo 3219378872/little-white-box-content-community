@@ -14,6 +14,9 @@ import (
 )
 
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
+	if HardLimitExceeded(*run, store.NowMs()) {
+		return e.stopAtResourceLimit(persistCtx, *run)
+	}
 	sess := e.toolSession(*run)
 	if err := e.populateToolLiveMessageIDs(persistCtx, *run, sess); err != nil {
 		return err
@@ -65,6 +68,9 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	}
 	if err := e.requireFrozenConsent(persistCtx, run); err != nil {
 		return err
+	}
+	if HardLimitExceeded(*run, store.NowMs()) {
+		return e.stopAtResourceLimit(persistCtx, *run)
 	}
 	var (
 		text    string

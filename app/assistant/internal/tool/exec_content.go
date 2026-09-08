@@ -78,13 +78,13 @@ func getPostCommentsExecutor(content contentservice.ContentService) executorFunc
 			return "", nil, errx.FromRPCError(err)
 		}
 		var b strings.Builder
-		sources := []store.SourceRef{postSource(post.GetPost(), truncateRunes(post.GetPost().Content, 120))}
+		sources := []store.SourceRef{postSource(post.GetPost(), excerptRunes(post.GetPost().Content, 120))}
 		for _, c := range resp.GetComments() {
 			if c == nil || c.Status != commentActiveStatus {
 				continue
 			}
 			fmt.Fprintf(&b, "- comment:%d %s\n", c.Id, truncateRunes(c.Content, 160))
-			sources[0].Evidence = append(sources[0].Evidence, store.Evidence{Kind: "comment", Text: truncateRunes(c.Content, 160), CommentID: strconv.FormatInt(c.Id, 10)})
+			sources[0].Evidence = append(sources[0].Evidence, store.Evidence{Kind: "comment", Text: excerptRunes(c.Content, 160), CommentID: strconv.FormatInt(c.Id, 10)})
 		}
 		if b.Len() == 0 {
 			return "没有可展示的评论。", sources, nil

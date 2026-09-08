@@ -7,7 +7,6 @@ import (
 	"esx/app/content/visibility"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
-	"esx/pkg/visibilityx"
 )
 
 const (
@@ -69,19 +68,6 @@ func renderFeedItem(base *pb.FeedItem, post *contentservice.PostInfo) *pb.FeedIt
 		CommentCount:  post.CommentCount,
 		FavoriteCount: post.FavoriteCount,
 	}
-}
-
-func fallbackFeedItem(post *contentservice.PostInfo, source string) *pb.FeedItem {
-	if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
-		return nil
-	}
-	return renderFeedItem(&pb.FeedItem{
-		PostId:       post.Id,
-		FeedType:     feedTypeRecommend,
-		Reason:       source + " fallback",
-		RecallSource: source,
-		ModelVersion: "rule-fallback-v2",
-	}, post)
 }
 
 func cloneStrings(values []string) []string {

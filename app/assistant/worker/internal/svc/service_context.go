@@ -62,8 +62,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	interactionService := interactionservice.NewInteractionService(newClient(c.InteractionRpc))
 	userService := userservice.NewUserService(newClient(c.UserRpc))
 
-	// SQL arguments may contain prompts and tool payloads. Metrics remain enabled,
-	// but statement logging is disabled for this worker process.
+	// SQL arguments contain prompts and tool payloads; suppress SQL logs (REL-022).
 	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	st := store.NewSQLStore(conn)

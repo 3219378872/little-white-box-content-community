@@ -73,8 +73,10 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 
 	logger := logx.WithContext(persistCtx)
 	if recovered {
-		if err := e.resetRecoveredStreams(persistCtx, run); err != nil && !errors.Is(err, store.ErrLeaseLost) {
-			logger.Errorw("assistant-agent reset recovered stream failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+		if err := e.resetRecoveredStreams(persistCtx, run); err != nil {
+			if !errors.Is(err, store.ErrLeaseLost) {
+				logger.Errorw("assistant-agent reset recovered stream failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+			}
 			return
 		}
 	}
@@ -86,14 +88,14 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 			return
 		}
 		if errors.Is(err, errRunCancelled) {
-			if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
+			if fresh, getErr := e.ownedRun(persistCtx, run); getErr == nil &&
 				!store.IsTerminalStatus(fresh.Status) {
 				_ = e.cancel(persistCtx, *fresh)
 			}
 			return
 		}
 		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
-		if fresh, getErr := e.Store.GetRun(persistCtx, run.ID); getErr == nil && fresh != nil &&
+		if fresh, getErr := e.ownedRun(persistCtx, run); getErr == nil &&
 			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
 			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", err.Error())
 		}

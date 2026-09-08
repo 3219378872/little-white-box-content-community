@@ -30,6 +30,7 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	sqlx.DisableLog()
 	if err := util.InitSnowflakeFromEnv(4, 1); err != nil {
 		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
 	}

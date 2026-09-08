@@ -4,7 +4,7 @@ layer: design
 title: 持久异步 Assistant Agent Runtime
 status: active
 owner: agent
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 tracks:
 - AGENT-001
 - AGENT-002
@@ -197,6 +197,10 @@ lease 接管前若已有公开 delta，先写 `response_reset(streamId)`，恢�
 获胜 attempt。模型在已流式输出用户可见正文后只调用 `present_sources` 时不写 `response_reset`，
 该正文作为可见 assistant 消息保留；`present_sources` 不是失败 attempt。
 
+每次 Execute 固定 claim 时的 `(lease_owner, lease_generation)`。加载新 run 状态前先比较该 fence，
+不能采用接管者的新身份；正常、取消、错误和恢复收尾都使用原 claim fence。取消监视器观察到 owner
+变化只停止旧 work context，不替新 owner 修改状态。最终 step 事务仍作权威 fence 校验，覆盖读后接管。
+
 用户 run 优先于 Watch、后者优先于 memory-review。claim 按 priority/created_at；前台消息可设置后台
 run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
 
@@ -231,6 +235,8 @@ compact 优先以上一次 provider prompt usage 为锚点，只估算后续新�
 低于目标阈值，否则保留原消息并明确失败。事务成功后才提交摘要、新 prompt epoch/sidecar/capability
 快照和 compact 标志。原 message 在 365 天保留期内通过 outbox 可检索；worker 启动及每小时执行有界
 批次清理，物理删除与 ES delete outbox 同事务，旧 upsert payload 同时移除。
+每次摘要输入都将旧 `compact_summary` 与本轮待压缩消息作为 JSON 历史材料送入模型，不进入 system；
+旧摘要与序列化开销计入输入预算。第二次及后续 compact 不能仅摘要本轮新增消息后覆盖旧条件。
 隐藏 sidecar（工具轮与 Watch 注入）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
 
 ## Memory Review
@@ -238,6 +244,8 @@ compact 优先以上一次 provider prompt usage 为锚点，只估算后续新�
 每个 session 记录连续成功未中断 user turn。达到 10 的倍数写 memory-review run，限制 16 provider round
 与 600k input token，工具表只含 memory add/replace/remove/batch/read。前台 run claim/accept 时取消未完成
 审查。成功 change 在 thread 插入 `kind=memory_changed, unread=false` 系统行及 undo action。
+通知从已成功或成功重放的工具记录推导，统一在 run 的成功、取消、失败及资源终止事务中按 change ID
+去重发布。取消剩余审查不撤销已完成变更，也不能隐藏撤销入口；没有成功 change 时不制造通知。
 
 ## History Search
 
@@ -300,6 +308,9 @@ run counter 在每个 step 事务累计 rounds、tool calls、input/output/cache
 critical 按时间、round、output 三个维度以唯一 `(run, level, dimension)` 记录指标和日志，并向下一模型 step
 加入不可见 convergence instruction。硬上限检查在 claim、provider 前后和工具前；触顶写
 `AGENT_RESOURCE_LIMIT` error，payload 包含 partial text 与完成 journal 摘要。
+主模型与 compact 请求的 MaxTokens 还受 run 剩余总输出额度约束；辅助模型调用也累计 rounds/usage/cost，
+即使摘要为空或无收益，已消费预算仍持久化。消费 usage 后、同轮每个工具执行前以及最终发布前再查硬限额，
+结构化回答或等待问答不能绕开触顶终止。memory-review 发起请求前同时检查累计输入和本次估算预算。
 
 Prometheus 覆盖 queue age、lease claim/recovery/renew failure、run phase/elapsed/idle、token/cost、journal hit、
 confirmation、compact、BM25/outbox、Watch bucket/rate、review、Redis notify failure 和 SSE poll fallback。

@@ -11,7 +11,7 @@ import (
 func (s *executionState) loadRound(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 
-	fresh, err := e.Store.GetRun(persistCtx, s.run.ID)
+	fresh, err := e.ownedRun(persistCtx, s.run)
 	if err != nil {
 		return iterationFinished, err
 	}

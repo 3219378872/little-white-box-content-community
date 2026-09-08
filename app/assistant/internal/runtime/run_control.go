@@ -18,7 +18,7 @@ func watchCancel(persistCtx context.Context, st store.Store, claimed store.Run, 
 		defer ticker.Stop()
 		check := func() bool {
 			run, err := st.GetRun(watchCtx, claimed.ID)
-			if err == nil && run != nil && run.CancelRequested {
+			if err == nil && run != nil && (run.Fence() != claimed.Fence() || run.CancelRequested) {
 				return true
 			}
 			version, granted, consentErr := st.AgentConsent(watchCtx, claimed.UserID)
@@ -51,6 +51,17 @@ func watchCancel(persistCtx context.Context, st store.Store, claimed store.Run, 
 		stop()
 		<-done
 	}
+}
+
+func (e *Engine) ownedRun(ctx context.Context, claimed store.Run) (*store.Run, error) {
+	run, err := e.Store.GetRun(ctx, claimed.ID)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil || run.Fence() != claimed.Fence() {
+		return nil, store.ErrLeaseLost
+	}
+	return run, nil
 }
 
 func (e *Engine) cancelled(persistCtx context.Context, run *store.Run) bool {

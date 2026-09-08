@@ -36,6 +36,8 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	// SQL arguments contain community text and outbox payloads (REL-022).
+	sqlx.DisableLog()
 	db, err := sql.Open("mysql", c.DataSource)
 	if err != nil {
 		panic(fmt.Sprintf("数据库连接失败: %v", err))

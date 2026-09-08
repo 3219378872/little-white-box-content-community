@@ -52,6 +52,8 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		Status:           req.Status,
 		ExpectedRevision: req.ExpectedRevision,
 		MediaIds:         req.MediaIds,
+		ImagesProvided:   req.Images != nil,
+		MediaIdsProvided: req.MediaIds != nil,
 	})
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "ContentService.UpdatePost", err, logx.Field("postId", req.PostId))

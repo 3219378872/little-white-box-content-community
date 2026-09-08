@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"esx/app/assistant/internal/llm"
+	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/pkg/errx"
 )
@@ -37,6 +39,28 @@ func SingleOutputLimit(provider int) int {
 		return MaxSingleOutput
 	}
 	return provider
+}
+
+func remainingOutputLimit(run store.Run, provider int) int {
+	return int(min(int64(SingleOutputLimit(provider)), max(int64(0), HardOutputTokens-run.OutputTokens)))
+}
+
+func reviewInputFits(run store.Run, req llm.Request) bool {
+	if run.Source != store.SourceMemoryReview {
+		return true
+	}
+	estimate := EstimatePromptTokens(req.Messages) + EstimateTokens(string(prompt.EncodeTools(req.Tools))) + EstimateTokens(req.Convergence)
+	return run.InputTokens+int64(estimate) <= ReviewMaxInput
+}
+
+func recordModelUsage(run *store.Run, usage llm.Usage) {
+	run.InputTokens += usage.PromptTokens
+	run.OutputTokens += usage.CompletionTokens
+	run.CacheTokens += usage.CacheTokens
+	run.CacheWriteTokens += usage.CacheWriteTokens
+	run.ReasoningTokens += usage.ReasoningTokens
+	run.UsageEstimated = run.UsageEstimated || usage.Estimated
+	run.CostUSD += usage.CostUSD
 }
 
 type Alarm struct {

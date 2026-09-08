@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-09-08
 tracks:
 - CORE-001
 - CORE-002
@@ -210,6 +210,15 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。候选特征按 `revision` 单调覆盖，
 旧快照不回写。
 
+推荐快照翻页以原始候选序列的实际消费位置推进，不能用过滤后条目数替代原始偏移。Recommend 的合法
+空结果原样返回；参数错误、上下文不匹配和已有普通游标的失败不得重启为降级首页。仅首屏明确的依赖
+不可用可进入 Feed 规则降级，回源可见性或已认证用户的负反馈读取不可用时仍失败关闭。
+
+Feed 降级的 `feedv3` 签名游标绑定同样的身份、请求、场景、会话、实验和页大小，并指向 Redis 中的
+不可变继续状态。状态保存每个来源的未消费候选、上游游标、耗尽标记、交织位置与已展示 ID；整个链
+以首次请求的 600 秒到期点为准，不续期。每页重验负反馈、内容及关注关系，来源耗尽后不重新请求首页。
+Redis 无法保存分页状态时不得返回无法继续的成功页；旧 `feedv*`、过期和状态缺失返回参数错误。
+
 ### Assistant Agent
 
 消息页虚拟线程由 assistant RPC 提供独立 read model，不创建 message 用户。所有用户输入先写
@@ -228,6 +237,15 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 赞/评/关通知生产者。`message-push` 消费者不是当前产品路径，部署可不启动；主题保留不
 构成对外能力。
 
+帖子新增媒体只接受 Media RPC 验证为本人且上传完成的 `mediaIds`，`images` 若提供必须与解析的 URL
+一致，不能覆盖校验结果。编辑允许保留或移除同帖原有 URL、加入新验证的媒体；旧 ID 失效时拒绝部分
+保留，不把已知失效媒体改作 legacy URL 接受，用户仍可完整清空或以已验证 ID 整体替换。纯历史 URL
+只能在同一作者的同一帖子内保留，不能在新建或其他帖子上作为新增引用使用。
+
+公开更新请求的 `images` / `mediaIds` 缺省表示保留，显式空数组表示清空。Gateway 将 slice presence
+写入内部 RPC 的 `images_provided` / `media_ids_provided`，避免 protobuf repeated 丢失空集合的存在性；
+内容事务同时更新图片与媒体 ID，幂等摘要包含 presence。公开 Gateway API 字段不变。
+
 媒体图片在读取完整像素前用标准图片头解析校验 `8192 px / 25 MP`，每个 media-rpc 实例用容量 2 的
 信号量覆盖完整解码、缩放和编码生命周期，生产容器限制为 512 MiB。对象上传先于权威行提交时，任一
 后续步骤失败或幂等命中都删除本次随机对象；立即删除失败则写现有 media-delete outbox，由清理消费者
@@ -238,6 +256,11 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 Gateway 接收白名单动作。曝光的 50%/1s 由客户端判定，服务端只强制 `(requestId, postId)`
 去重（REL-004）。完整 IP 在写入 ClickHouse 前哈希。业务日志不写手机号、验证码、正文或
 私信。关闭个性化后 recommend-mq 定时清特征，24 小时内完成（REL-023）。
+
+所有使用 sqlx 的服务入口在建立连接前调用 `sqlx.DisableLog()`，同时关闭正常、慢查询和错误路径的
+参数展开 SQL 日志，覆盖私信及其他正文/认证数据。当前 go-zero 的同一 guard 也负责 SQL timing metric，
+关闭后不声称该指标仍在；请求、RPC 与领域指标继续提供可观测性。AST wiring 回归与私信真实模型的
+合成敏感值测试分别约束生产装配和日志行为，不依赖提高日志等级隐藏原文。
 
 ### 健康与观测
 

@@ -100,67 +100,48 @@ func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error 
 	if fresh != nil && fresh.Status == store.StatusDone {
 		return nil
 	}
-	changeIDs, err := e.memoryChangeIDs(ctx, run.ID)
+	return e.finish(ctx, run, store.StatusDone, store.EventDone, store.EventPayload{})
+}
+
+func publishMemoryChanges(ctx context.Context, tx store.Store, run store.Run, thread *store.Thread, now int64) error {
+	changeIDs, err := memoryChangeIDs(ctx, tx, run.ID)
 	if err != nil {
 		return err
 	}
-	now := store.NowMs()
-	err = e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
-		cancelled, err := runCancellationRequested(ctx, tx, run.ID)
-		if err != nil {
-			return err
-		}
-		existing, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
-		if err != nil {
-			return err
-		}
-		seen := make(map[int64]struct{})
-		for _, msg := range existing {
-			if msg.Kind == store.KindMemoryChanged && msg.ChangeID > 0 {
-				seen[msg.ChangeID] = struct{}{}
-			}
-		}
-		thread, err := tx.LockThread(ctx, run.UserID)
-		if err != nil {
-			return err
-		}
-		for _, changeID := range changeIDs {
-			if _, ok := seen[changeID]; ok {
-				continue
-			}
-			msg, err := tx.InsertMessage(ctx, store.Message{
-				UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleSystem,
-				Kind: store.KindMemoryChanged, Content: "记忆已更新，可撤销。", Visible: true,
-				Unread: false, ChangeID: changeID, CreatedAtMs: now,
-			})
-			if err != nil {
-				return err
-			}
-			thread.LastMessageID = msg.ID
-			thread.LastMessagePreview = msg.Content
-			thread.LastMessageAtMs = now
-			thread.UpdatedAtMs = now
-			if _, err := appendEventTx(ctx, tx, run, store.EventMemoryChanged, store.EventPayload{ChangeID: changeID}, now); err != nil {
-				return err
-			}
-		}
-		if err := tx.SaveThread(ctx, *thread); err != nil {
-			return err
-		}
-		status, eventType := store.StatusDone, store.EventDone
-		payload := store.EventPayload{}
-		if cancelled {
-			status = store.StatusCancelled
-			eventType = store.EventError
-			payload = store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"}
-		}
-		_, err = finishRunTx(ctx, tx, run, status, eventType, payload, now)
-		return err
-	})
-	if err == nil {
-		e.wake(ctx, run.ID)
+	if len(changeIDs) == 0 {
+		return nil
 	}
-	return err
+	existing, err := tx.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
+	if err != nil {
+		return err
+	}
+	seen := make(map[int64]struct{})
+	for _, msg := range existing {
+		if msg.Kind == store.KindMemoryChanged && msg.ChangeID > 0 {
+			seen[msg.ChangeID] = struct{}{}
+		}
+	}
+	for _, changeID := range changeIDs {
+		if _, ok := seen[changeID]; ok {
+			continue
+		}
+		msg, err := tx.InsertMessage(ctx, store.Message{
+			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleSystem,
+			Kind: store.KindMemoryChanged, Content: "记忆已更新，可撤销。", Visible: true,
+			Unread: false, ChangeID: changeID, CreatedAtMs: now,
+		})
+		if err != nil {
+			return err
+		}
+		thread.LastMessageID = msg.ID
+		thread.LastMessagePreview = msg.Content
+		thread.LastMessageAtMs = now
+		thread.UpdatedAtMs = now
+		if _, err := appendEventTx(ctx, tx, run, store.EventMemoryChanged, store.EventPayload{ChangeID: changeID}, now); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runCancellationRequested(ctx context.Context, tx store.Store, runID int64) (bool, error) {
@@ -171,14 +152,14 @@ func runCancellationRequested(ctx context.Context, tx store.Store, runID int64) 
 	return fresh.CancelRequested, nil
 }
 
-func (e *Engine) memoryChangeIDs(ctx context.Context, runID int64) ([]int64, error) {
-	calls, err := e.Store.ListToolCalls(ctx, runID)
+func memoryChangeIDs(ctx context.Context, st store.Store, runID int64) ([]int64, error) {
+	calls, err := st.ListToolCalls(ctx, runID)
 	if err != nil {
 		return nil, err
 	}
 	seen := make(map[int64]struct{})
 	for _, call := range calls {
-		if call.Status != "success" {
+		if call.Status != "success" && call.Status != "replay" {
 			continue
 		}
 		switch call.Tool {

@@ -696,6 +696,8 @@ type UpdatePostReq struct {
 	ExpectedRevision int64                  `protobuf:"varint,8,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"` // 调用者最后读取的预期 revision，冲突返回 409
 	MediaIds         []int64                `protobuf:"varint,9,rep,packed,name=media_ids,json=mediaIds,proto3" json:"media_ids,omitempty"`                  // 引用的已上传媒体标识（CORE-024）
 	IdempotencyKey   string                 `protobuf:"bytes,10,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`       // 可选稳定命令键；与 revision CAS 在同一事务提交
+	ImagesProvided   bool                   `protobuf:"varint,11,opt,name=images_provided,json=imagesProvided,proto3" json:"images_provided,omitempty"`      // 保留 JSON 中未提供与显式空数组的区别
+	MediaIdsProvided bool                   `protobuf:"varint,12,opt,name=media_ids_provided,json=mediaIdsProvided,proto3" json:"media_ids_provided,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -798,6 +800,20 @@ func (x *UpdatePostReq) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *UpdatePostReq) GetImagesProvided() bool {
+	if x != nil {
+		return x.ImagesProvided
+	}
+	return false
+}
+
+func (x *UpdatePostReq) GetMediaIdsProvided() bool {
+	if x != nil {
+		return x.MediaIdsProvided
+	}
+	return false
 }
 
 // 更新帖子响应
@@ -2174,7 +2190,7 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\vGetPostResp\x12%\n" +
 	"\x04post\x18\x01 \x01(\v2\x11.content.PostInfoR\x04post\x12\x19\n" +
 	"\bis_liked\x18\x02 \x01(\bR\aisLiked\x12!\n" +
-	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\xbc\x02\n" +
+	"\fis_favorited\x18\x03 \x01(\bR\visFavorited\"\x93\x03\n" +
 	"\rUpdatePostReq\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\x03R\bauthorId\x12\x14\n" +
@@ -2186,7 +2202,9 @@ const file_proto_content_content_proto_rawDesc = "" +
 	"\x11expected_revision\x18\b \x01(\x03R\x10expectedRevision\x12\x1b\n" +
 	"\tmedia_ids\x18\t \x03(\x03R\bmediaIds\x12'\n" +
 	"\x0fidempotency_key\x18\n" +
-	" \x01(\tR\x0eidempotencyKeyB\t\n" +
+	" \x01(\tR\x0eidempotencyKey\x12'\n" +
+	"\x0fimages_provided\x18\v \x01(\bR\x0eimagesProvided\x12,\n" +
+	"\x12media_ids_provided\x18\f \x01(\bR\x10mediaIdsProvidedB\t\n" +
 	"\a_status\"D\n" +
 	"\x0eUpdatePostResp\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x12\x1a\n" +

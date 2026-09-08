@@ -47,5 +47,5 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(req *types.SendVerifyCodeReq) (resp
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "UserService.SendVerifyCode", err)
 	}
-	return
+	return &types.SendVerifyCodeResp{}, nil
 }

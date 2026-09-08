@@ -56,9 +56,9 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if err != nil {
 		return nil, err
 	}
-	images := in.Images
-	if len(images) == 0 && len(mediaURLs) > 0 {
-		images = mediaURLs
+	images, err := createPostImages(in.Images, mediaURLs)
+	if err != nil {
+		return nil, err
 	}
 	post, err := l.newPost(in, images)
 	if err != nil {

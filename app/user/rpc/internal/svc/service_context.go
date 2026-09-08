@@ -72,6 +72,8 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	// SQL arguments contain phone numbers and private profile fields (REL-022).
+	sqlx.DisableLog()
 	// 注入MySQL
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,

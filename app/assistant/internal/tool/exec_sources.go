@@ -83,7 +83,7 @@ func revalidateSource(ctx context.Context, clients Clients, src store.Source, pu
 		}
 		return store.SourceRef{
 			Handle: src.Handle, Kind: src.Kind, AuthorityID: src.AuthorityID, Title: info.Title,
-			Revision: info.Revision, PayloadJSON: sourcePayloadJSON(info.Title, truncateRunes(info.Content, maxEvidenceSnippetRunes), ""), Available: true,
+			Revision: info.Revision, PayloadJSON: sourcePayloadJSON(info.Title, excerptRunes(info.Content, maxEvidenceSnippetRunes), ""), Available: true,
 		}, true
 	case "web":
 		if clients.Web == nil || strings.TrimSpace(src.AuthorityID) == "" {
@@ -97,7 +97,7 @@ func revalidateSource(ctx context.Context, clients Clients, src store.Source, pu
 			if strings.TrimSpace(item.URL) == strings.TrimSpace(src.AuthorityID) {
 				return store.SourceRef{
 					Handle: src.Handle, Kind: src.Kind, AuthorityID: item.URL, Title: item.Title,
-					PayloadJSON: sourcePayloadJSON(item.Title, truncateRunes(item.Content, maxEvidenceSnippetRunes), item.URL), Available: true,
+					PayloadJSON: sourcePayloadJSON(item.Title, excerptRunes(item.Content, maxEvidenceSnippetRunes), item.URL), Available: true,
 				}, true
 			}
 		}

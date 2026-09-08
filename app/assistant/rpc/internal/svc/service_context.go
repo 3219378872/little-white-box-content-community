@@ -52,10 +52,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	var mem memory.Store
 	var watchStore watch.Store
 	if strings.TrimSpace(c.DataSource) != "" {
-		conn := sqlx.NewMysql(c.DataSource)
-		// Assistant rows include user text, provider-bound context and tool
-		// payloads. Keep SQL timing metrics, but never log interpolated SQL.
+		// Assistant SQL parameters contain prompts and tool payloads (REL-022).
 		sqlx.DisableLog()
+		conn := sqlx.NewMysql(c.DataSource)
 		st = store.NewSQLStore(conn)
 		watchStore = watch.NewSQLStore(conn)
 		var filter safety.Filter

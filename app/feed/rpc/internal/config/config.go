@@ -17,6 +17,7 @@ type Config struct {
 	ContentRpc      zrpc.RpcClientConf
 	RecommendRpc    zrpc.RpcClientConf
 	CursorSecret    string
+	FeatureVersion  string `json:",default=v1"`
 	MQ              mqx.ConsumerConfig
 	BigVThreshold   int64
 	FanoutBatchSize int64

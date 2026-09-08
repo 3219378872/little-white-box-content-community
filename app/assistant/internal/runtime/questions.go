@@ -27,6 +27,10 @@ type QuestionContext struct {
 
 func (e *Engine) waitForQuestions(ctx context.Context, run *store.Run, call llm.ToolCall, question store.QuestionRequest) error {
 	now := store.NowMs()
+	if run.ToolCalls+1 >= HardTools || HardLimitExceeded(*run, now) {
+		run.ToolCalls++
+		return e.stopAtResourceLimit(ctx, *run)
+	}
 	question.CreatedAtMs = now
 	question.DeadlineMs = now + HardIdle.Milliseconds()
 	if run.StartedAtMs > 0 {

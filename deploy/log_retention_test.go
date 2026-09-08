@@ -1,11 +1,76 @@
 package deploy
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestSQLServiceContextsDisableParameterLogging(t *testing.T) {
+	checked := 0
+	err := filepath.WalkDir("../app", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || entry.Name() != "service_context.go" {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			return err
+		}
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Name.Name != "NewServiceContext" {
+				continue
+			}
+			var disabled, opened token.Pos
+			ast.Inspect(function.Body, func(node ast.Node) bool {
+				call, ok := node.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				selector, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+				qualifier, ok := selector.X.(*ast.Ident)
+				if !ok || qualifier.Name != "sqlx" {
+					return true
+				}
+				switch selector.Sel.Name {
+				case "DisableLog":
+					if disabled == token.NoPos {
+						disabled = call.Pos()
+					}
+				case "NewMysql", "NewConn", "NewSqlConn", "NewSqlConnFromDB":
+					if opened == token.NoPos {
+						opened = call.Pos()
+					}
+				}
+				return true
+			})
+			if opened != token.NoPos {
+				checked++
+				if disabled == token.NoPos || disabled > opened {
+					t.Errorf("%s must disable normal, slow and error SQL parameter logs before opening a connection (REL-022)", path)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checked < 10 {
+		t.Fatalf("expected at least 10 SQL service contexts, checked %d", checked)
+	}
+}
 
 // REL-022：业务日志最多保留 30 天（Loki retention_period）。
 func TestLokiBusinessLogRetentionIsThirtyDays(t *testing.T) {

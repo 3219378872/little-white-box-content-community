@@ -44,6 +44,7 @@ type ContentService interface {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	sqlx.DisableLog()
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,
 		DriverName: "mysql",

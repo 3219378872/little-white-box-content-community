@@ -2,10 +2,12 @@ package svc
 
 import (
 	"context"
+	"time"
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
+	"esx/app/recommend/feedback"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/interceptor"
@@ -41,6 +43,10 @@ type RecommendService interface {
 	GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...grpc.CallOption) (*recommendservice.GetRecommendPostsResp, error)
 }
 
+type NegativeFeedback interface {
+	HiddenPosts(context.Context, int64) (map[int64]struct{}, error)
+}
+
 type ServiceContext struct {
 	Config           config.Config
 	Conn             sqlx.SqlConn
@@ -50,11 +56,15 @@ type ServiceContext struct {
 	UserService      UserService
 	ContentService   ContentService
 	RecommendService RecommendService
+	FallbackStates   model.FallbackStateStore
+	NegativeFeedback NegativeFeedback
+	Now              func() time.Time
 	BigVThreshold    int64
 	FanoutBatchSize  int64
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	rds := redis.MustNewRedis(c.Redis.RedisConf)
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
@@ -72,6 +82,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserService:      userservice.NewUserService(userClient),
 		ContentService:   contentservice.NewContentService(contentClient),
 		RecommendService: recommendservice.NewRecommendService(recommendClient),
+		FallbackStates:   model.NewFallbackStateStore(rds),
+		NegativeFeedback: feedback.NewHiddenPostReader(rds, c.FeatureVersion),
+		Now:              time.Now,
 		BigVThreshold:    c.BigVThreshold,
 		FanoutBatchSize:  c.FanoutBatchSize,
 	}

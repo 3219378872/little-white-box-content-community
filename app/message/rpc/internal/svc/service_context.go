@@ -57,6 +57,8 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	// Suppress normal, slow and failed SQL logs containing private messages.
+	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	cacheConf := cache.CacheConf{
 		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},

@@ -33,7 +33,7 @@ func webSearchExecutor(searcher websearch.Searcher) executorFunc {
 			if !SafeSourceURL(item.URL) {
 				continue
 			}
-			src := store.SourceRef{Handle: randomHandle(), Kind: "web", AuthorityID: item.URL, Title: item.Title, PayloadJSON: truncateRunes(item.Content, maxEvidenceSnippetRunes)}
+			src := store.SourceRef{Handle: randomHandle(), Kind: "web", AuthorityID: item.URL, Title: item.Title, PayloadJSON: excerptRunes(item.Content, maxEvidenceSnippetRunes)}
 			fmt.Fprintf(&b, "- handle=%s %s %s\n", src.Handle, item.Title, truncateRunes(item.Content, maxEvidenceSnippetRunes))
 			sources = append(sources, src)
 		}

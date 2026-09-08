@@ -19,13 +19,17 @@ func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterati
 	e := s.engine
 	var err error
 
-	s.result, err = e.completeModel(workCtx, persistCtx, s.run, s.client, llm.Request{
+	req := llm.Request{
 		SuppressText: s.suppressText,
 		Messages:     s.turns,
 		Tools:        s.registry.Definitions(),
-		MaxTokens:    SingleOutputLimit(s.client.MaxOutputTokens()),
+		MaxTokens:    remainingOutputLimit(s.run, s.client.MaxOutputTokens()),
 		Convergence:  s.convergence,
-	})
+	}
+	if HardLimitExceeded(s.run, store.NowMs()) || !reviewInputFits(s.run, req) {
+		return iterationFinished, e.resourceLimit(persistCtx, s.run)
+	}
+	s.result, err = e.completeModel(workCtx, persistCtx, s.run, s.client, req)
 	if err != nil {
 		if errors.Is(err, errRunRedirected) {
 			return iterationRestart, nil
@@ -59,20 +63,17 @@ func (s *executionState) consumeResult(workCtx, persistCtx context.Context) (ite
 	e := s.engine
 
 	s.run.Rounds++
-	s.run.InputTokens += s.result.Usage.PromptTokens
-	s.run.OutputTokens += s.result.Usage.CompletionTokens
-	s.run.CacheTokens += s.result.Usage.CacheTokens
-	s.run.CacheWriteTokens += s.result.Usage.CacheWriteTokens
-	s.run.ReasoningTokens += s.result.Usage.ReasoningTokens
-	s.run.UsageEstimated = s.run.UsageEstimated || s.result.Usage.Estimated
+	recordModelUsage(&s.run, s.result.Usage)
 	if s.result.Usage.PromptTokens > 0 {
 		s.run.LastPromptTokens = s.result.Usage.PromptTokens
 	}
-	s.run.CostUSD += s.result.Usage.CostUSD
 	s.run.LastActivityAtMs = store.NowMs()
 	s.result.Text = prompt.SanitizeOutput(s.result.Text)
 	if aborted, abortErr := e.abortIfRequested(persistCtx, s.run); aborted {
 		return iterationFinished, abortErr
+	}
+	if HardLimitExceeded(s.run, store.NowMs()) {
+		return iterationFinished, e.resourceLimitResult(persistCtx, s.run, s.result)
 	}
 	if s.result.IncompleteReason != "" {
 		agentLLMCalls.Inc("incomplete")
@@ -123,6 +124,9 @@ func (s *executionState) executeCalls(workCtx, persistCtx context.Context) (iter
 	}
 	if len(calls) > 1 && requiresExclusiveRound(calls) {
 		for _, call := range calls {
+			if HardLimitExceeded(s.run, store.NowMs()) {
+				return iterationFinished, e.resourceLimit(persistCtx, s.run)
+			}
 			digest, err := canonical.DigestArgs(call.Arguments)
 			if err != nil {
 				digest = "invalid:" + call.ID

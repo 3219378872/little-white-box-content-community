@@ -2,6 +2,7 @@ package login
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestSendVerifyCodeLogic(t *testing.T) {
 			svcCtx := newUnitSvcCtx(userSvc)
 			logic := NewSendVerifyCodeLogic(context.Background(), svcCtx)
 
-			_, err := logic.SendVerifyCode(tt.req)
+			response, err := logic.SendVerifyCode(tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -70,6 +71,10 @@ func TestSendVerifyCodeLogic(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
+				require.NotNil(t, response)
+				encoded, encodeErr := json.Marshal(response)
+				require.NoError(t, encodeErr)
+				assert.JSONEq(t, "{}", string(encoded))
 			}
 			userSvc.AssertExpectations(t)
 		})

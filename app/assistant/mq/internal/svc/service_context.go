@@ -33,8 +33,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
 		zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 	)
-	// Watch hit titles and summaries are user/content data; disable go-zero's
-	// interpolated SQL info log for this process while retaining metrics.
+	// Watch titles and summaries must not appear in normal, slow or failed SQL logs.
 	sqlx.DisableLog()
 	return &ServiceContext{
 		Config:  c,

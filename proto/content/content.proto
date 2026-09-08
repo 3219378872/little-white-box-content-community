@@ -123,6 +123,8 @@ message UpdatePostReq {
   int64           expected_revision = 8; // 调用者最后读取的预期 revision，冲突返回 409
   repeated int64  media_ids = 9; // 引用的已上传媒体标识（CORE-024）
   string          idempotency_key = 10; // 可选稳定命令键；与 revision CAS 在同一事务提交
+  bool            images_provided = 11; // 保留 JSON 中未提供与显式空数组的区别
+  bool            media_ids_provided = 12;
 }
 
 // 更新帖子响应

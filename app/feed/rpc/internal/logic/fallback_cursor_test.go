@@ -4,40 +4,54 @@ import (
 	"testing"
 	"time"
 
+	"esx/app/feed/rpc/internal/model"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFallbackCursorRoundTripAndTamperDetection(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
-	token, err := encodeFallbackCursor("test-secret", "request-1", 3, "hot-c", "latest-c", now)
+	binding := model.FallbackBinding{IdentityHash: "identity", RequestID: "request-1", Scene: "home", PageSize: 2}
+	token, err := encodeFallbackCursor("test-secret", "state-1", binding, now.Add(fallbackCursorTTL).Unix(), now)
 	require.NoError(t, err)
 
-	page, hotCursor, latestCursor, matched, err := decodeFallbackCursor("test-secret", token, "request-1", now.Add(time.Minute))
+	stateID, expiresAt, matched, err := decodeFallbackCursor("test-secret", token, binding, now.Add(time.Minute))
 	require.NoError(t, err)
 	assert.True(t, matched)
-	assert.Equal(t, int32(3), page)
-	assert.Equal(t, "hot-c", hotCursor)
-	assert.Equal(t, "latest-c", latestCursor)
+	assert.Equal(t, "state-1", stateID)
+	assert.Equal(t, now.Add(fallbackCursorTTL).Unix(), expiresAt)
 
-	_, _, _, matched, err = decodeFallbackCursor("wrong-secret", token, "request-1", now)
+	_, _, matched, err = decodeFallbackCursor("wrong-secret", token, binding, now)
 	assert.True(t, matched)
 	assert.Error(t, err)
 }
 
 func TestFallbackCursorRejectsCrossRequestAndExpiry(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
-	token, err := encodeFallbackCursor("test-secret", "request-1", 2, "", "", now)
+	binding := model.FallbackBinding{IdentityHash: "identity", RequestID: "request-1", Scene: "home", SessionID: "session", ExperimentID: "exp", PageSize: 2}
+	token, err := encodeFallbackCursor("test-secret", "state-1", binding, now.Add(fallbackCursorTTL).Unix(), now)
 	require.NoError(t, err)
 
-	_, _, _, _, err = decodeFallbackCursor("test-secret", token, "request-2", now)
-	assert.Error(t, err)
-	_, _, _, _, err = decodeFallbackCursor("test-secret", token, "request-1", now.Add(time.Hour))
+	for _, mutate := range []func(*model.FallbackBinding){
+		func(b *model.FallbackBinding) { b.IdentityHash = "other" },
+		func(b *model.FallbackBinding) { b.RequestID = "other" },
+		func(b *model.FallbackBinding) { b.Scene = "other" },
+		func(b *model.FallbackBinding) { b.SessionID = "other" },
+		func(b *model.FallbackBinding) { b.ExperimentID = "other" },
+		func(b *model.FallbackBinding) { b.PageSize = 3 },
+	} {
+		other := binding
+		mutate(&other)
+		_, _, _, err = decodeFallbackCursor("test-secret", token, other, now)
+		assert.Error(t, err)
+	}
+	_, _, _, err = decodeFallbackCursor("test-secret", token, binding, now.Add(10*time.Minute))
 	assert.Error(t, err)
 }
 
 func TestFallbackCursorIgnoresRecommendCursor(t *testing.T) {
-	_, _, _, matched, err := decodeFallbackCursor("test-secret", "recommend-token", "request-1", time.Now())
+	_, _, matched, err := decodeFallbackCursor("test-secret", "recommend-token", model.FallbackBinding{}, time.Now())
 	assert.NoError(t, err)
 	assert.False(t, matched)
 }

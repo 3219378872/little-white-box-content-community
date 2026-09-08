@@ -4,7 +4,7 @@ layer: design
 title: 社区复杂需求与可信回答交付
 status: active
 owner: agent
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 tracks:
 - AGENT-031
 - WCH-011
@@ -93,6 +93,10 @@ queued 状态。相同提交返回原结果，不同提交竞争返回冲突。S
 内容确定；记录片段类型、评论身份及取得时间。工具返回片段与 evidenceId，不只返回网页标题。
 `read_source(handle,cursor)` 只能读取当前 run 的来源，帖子按 1,200 字窗口回源并检查原 revision；
 网页只使用搜索服务实际返回的摘录，不新增任意 URL 爬虫，不声称已取得网页全文。
+
+持久 evidence 使用原文的精确 Unicode 子串，正文 360 字、评论 160 字等截取上限不附加展示省略号；
+来源预览与引用证据各守自己的格式。已保存的旧错误片段不改写，仍按原文、revision 与归属严格校验，
+需重新取源生成合法 evidence。修复片段生成不放宽发布时的精确子串验证。
 
 发布时帖子重新验证归属边界、published 和 revision；评论通过 Content RPC 的 GetCommentsByIds 按
 父帖批量回源并校验状态及实际片段。网页 URL 仅允许无凭证的 HTTP/HTTPS 公共地址，拒绝本机、私网和

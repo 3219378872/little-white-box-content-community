@@ -8,6 +8,7 @@ import (
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
+	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
 	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/recommend/rpc/recommendservice"
@@ -116,7 +117,7 @@ func TestGetRecommendFeedLogic_RecommendFailureUsesInterleavedFallback(t *testin
 	contentSvc := new(mockContentService)
 	recommendSvc.On("GetRecommendPosts", mock.Anything, &recommendservice.GetRecommendPostsReq{
 		AnonymousId: "device-1", Scene: "home", RequestId: "req-fallback", PageSize: 4, ExperimentId: "exp-fallback",
-	}).Return(nil, errors.New("recommend unavailable")).Once()
+	}).Return(nil, errx.NewWithCode(errx.ServiceUnavailable)).Once()
 	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 4, SortBy: 3}).Return(&contentservice.GetPostListResp{
 		NextCursor: "hot-next",
 		Posts: []*contentservice.PostInfo{
@@ -129,8 +130,12 @@ func TestGetRecommendFeedLogic_RecommendFailureUsesInterleavedFallback(t *testin
 	}, nil).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
-		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc, RecommendService: recommendSvc,
+		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc, RecommendService: recommendSvc, FallbackStates: newMemoryFallbackStates(),
 	})
+	contentSvc.On("GetPostsByIds", mock.Anything, mock.Anything).Return(&contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{
+		{Id: 21, AuthorId: 201, Title: "popular", Content: "popular content", Images: []string{"popular.png"}, Tags: []string{"hot"}, Status: 1, ViewCount: 6, LikeCount: 5, CommentCount: 4, FavoriteCount: 3, CreatedAt: 2001},
+		{Id: 22, AuthorId: 202, Status: 1}, {Id: 23, AuthorId: 203, Status: 1},
+	}}, nil).Once()
 	resp, err := logic.GetRecommendFeed(&pb.GetRecommendFeedReq{
 		AnonymousId: "device-1", RequestId: "req-fallback", PageSize: 4, ExperimentId: "exp-fallback",
 	})
@@ -162,7 +167,13 @@ func TestGetRecommendFeedLogic_FallbackCursorContinuesWithoutRecommend(t *testin
 	contentSvc := new(mockContentService)
 	const hotPage2 = "hot-page-2"
 	const latestPage2 = "latest-page-2"
-	cursor, err := encodeFallbackCursor("cursor-secret", "req-2", 2, hotPage2, latestPage2, timeNowForTest())
+	request := &pb.GetRecommendFeedReq{AnonymousId: "device-2", RequestId: "req-2", PageSize: 2}
+	binding := fallbackRequestBinding(request)
+	now := timeNowForTest()
+	states := newMemoryFallbackStates()
+	state := model.FallbackState{Binding: binding, ExpiresAt: now.Add(fallbackCursorTTL).Unix(), Sources: []model.FallbackSource{{Name: "popular", Cursor: hotPage2}, {Name: "latest", Cursor: latestPage2}}}
+	require.NoError(t, states.Save(context.Background(), "state-2", state, 600))
+	cursor, err := encodeFallbackCursor("cursor-secret", "state-2", binding, state.ExpiresAt, now)
 	require.NoError(t, err)
 	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 3, Cursor: hotPage2}).Return(&contentservice.GetPostListResp{
 		Posts: []*contentservice.PostInfo{{Id: 31, Status: 1}},
@@ -172,8 +183,9 @@ func TestGetRecommendFeedLogic_FallbackCursorContinuesWithoutRecommend(t *testin
 	}, nil).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
-		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc,
+		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc, FallbackStates: states,
 	})
+	contentSvc.On("GetPostsByIds", mock.Anything, mock.Anything).Return(&contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 31, Status: 1}, {Id: 32, Status: 1}}}, nil).Once()
 	resp, err := logic.GetRecommendFeed(&pb.GetRecommendFeedReq{
 		AnonymousId: "device-2", RequestId: "req-2", Cursor: cursor, PageSize: 2,
 	})
@@ -185,27 +197,22 @@ func TestGetRecommendFeedLogic_FallbackCursorContinuesWithoutRecommend(t *testin
 	contentSvc.AssertExpectations(t)
 }
 
-func TestGetRecommendFeedLogic_EnrichmentFailureFallsBack(t *testing.T) {
+func TestGetRecommendFeedLogic_EnrichmentFailureClosesRequest(t *testing.T) {
 	recommendSvc := new(mockRecommendService)
 	contentSvc := new(mockContentService)
 	recommendSvc.On("GetRecommendPosts", mock.Anything, mock.Anything).Return(&recommendservice.GetRecommendPostsResp{
 		Posts: []*recommendservice.RecommendPost{{PostId: 41}},
 	}, nil).Once()
 	contentSvc.On("GetPostsByIds", mock.Anything, &contentservice.GetPostsByIdsReq{PostIds: []int64{41}}).Return(nil, errors.New("content unavailable")).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 3}).Return(&contentservice.GetPostListResp{
-		Posts: []*contentservice.PostInfo{{Id: 42, Title: "fallback", Status: 1}},
-	}, nil).Once()
-	contentSvc.On("GetPostList", mock.Anything, &contentservice.GetPostListReq{PageSize: 2, SortBy: 1}).Return(nil, errors.New("latest unavailable")).Once()
 
 	logic := NewGetRecommendFeedLogic(context.Background(), &svc.ServiceContext{
 		Config: config.Config{CursorSecret: "cursor-secret"}, ContentService: contentSvc, RecommendService: recommendSvc,
 	})
 	resp, err := logic.GetRecommendFeed(&pb.GetRecommendFeedReq{UserId: 1, RequestId: "req-3", PageSize: 2})
 
-	require.NoError(t, err)
-	require.Len(t, resp.Items, 1)
-	assert.Equal(t, int64(42), resp.Items[0].PostId)
-	assert.Equal(t, "fallback", resp.Items[0].Title)
+	require.Nil(t, resp)
+	require.True(t, errx.Is(err, errx.ServiceUnavailable))
+	contentSvc.AssertNotCalled(t, "GetPostList", mock.Anything, mock.Anything)
 	contentSvc.AssertExpectations(t)
 }
 
@@ -218,7 +225,7 @@ func TestGetRecommendFeedLogic_AllFallbackSourcesFail(t *testing.T) {
 
 	require.Nil(t, resp)
 	require.Error(t, err)
-	assert.Equal(t, errx.SystemError, errx.GetCode(err))
+	assert.Equal(t, errx.ServiceUnavailable, errx.GetCode(err))
 }
 
 func TestGetRecommendFeedLogic_InvalidInput(t *testing.T) {

@@ -182,6 +182,11 @@ func truncateRunes(value string, limit int) string {
 	return string(runes[:limit]) + "…"
 }
 
+func excerptRunes(value string, limit int) string {
+	runes := []rune(value)
+	return string(runes[:min(len(runes), limit)])
+}
+
 func sessionUserID(session *Session) (int64, error) {
 	if session == nil || session.UserID <= 0 {
 		return 0, errx.NewWithCode(errx.LoginRequired)

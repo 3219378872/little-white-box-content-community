@@ -226,7 +226,16 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 		RequestId: binding.RequestID,
 	}
 	if response.HasMore {
-		response.NextCursor, err = l.svcCtx.CursorCodec.Encode(payload.SnapshotID, payload.Offset+end, payload.ExpiresAt, binding)
+		lastID := visible[end-1].PostID
+		nextOffset := payload.Offset
+		for nextOffset < len(snapshot.Posts) {
+			post := snapshot.Posts[nextOffset]
+			nextOffset++
+			if post.PostID == lastID {
+				break
+			}
+		}
+		response.NextCursor, err = l.svcCtx.CursorCodec.Encode(payload.SnapshotID, nextOffset, payload.ExpiresAt, binding)
 		if err != nil {
 			return nil, errx.Wrap(err, errx.SystemError)
 		}

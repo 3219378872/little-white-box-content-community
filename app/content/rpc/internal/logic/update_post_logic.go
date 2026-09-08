@@ -144,7 +144,9 @@ func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord
 		Status           *int32   `json:"status"`
 		ExpectedRevision int64    `json:"expected_revision"`
 		MediaIDs         []int64  `json:"media_ids"`
-	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds})
+		ImagesProvided   bool     `json:"images_provided"`
+		MediaIDsProvided bool     `json:"media_ids_provided"`
+	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds, in.ImagesProvided, in.MediaIdsProvided})
 	if err != nil {
 		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
 	}
@@ -189,7 +191,7 @@ func validateUpdatePost(in *pb.UpdatePostReq) error {
 		return errx.NewWithCode(errx.ParamError)
 	}
 	if in.Title == "" && in.Content == "" && in.Images == nil && in.Tags == nil &&
-		in.Status == nil && len(in.MediaIds) == 0 {
+		in.Status == nil && len(in.MediaIds) == 0 && !in.ImagesProvided && !in.MediaIdsProvided {
 		return errx.NewWithCode(errx.ParamError)
 	}
 
@@ -268,18 +270,8 @@ func (l *UpdatePostLogic) mergePostFields(in *pb.UpdatePostReq, post *model.Post
 		"title":   mergedTitle,
 		"content": mergedContent,
 	}
-	if len(in.Images) > 0 {
-		fields["images"] = model.ToJSONObject(in.Images)
-	} else if len(in.MediaIds) > 0 && len(mediaURLs) > 0 {
-		fields["images"] = model.ToJSONObject(mediaURLs)
-	}
-	if len(in.MediaIds) > 0 {
-		mediaIDsJSON, encodeErr := encodeInt64sJSON(in.MediaIds)
-		if encodeErr != nil {
-			l.Errorw("json convert media ids failed", logx.Field("err", encodeErr.Error()))
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		fields["media_ids"] = mediaIDsJSON
+	if err := l.mergePostMedia(in, post, mediaURLs, fields); err != nil {
+		return nil, err
 	}
 	// Status 只在显式设置时更新，支持 draft ⇄ published 双向转换
 	if in.Status != nil && int64(*in.Status) != post.Status {

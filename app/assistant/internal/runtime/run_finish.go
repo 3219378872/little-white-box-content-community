@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"strings"
@@ -20,6 +21,17 @@ func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
 }
 
 func (e *Engine) resourceLimit(ctx context.Context, run store.Run) error {
+	return e.resourceLimitResult(ctx, run, llm.Result{})
+}
+
+func (e *Engine) stopAtResourceLimit(ctx context.Context, run store.Run) error {
+	if err := e.resourceLimit(ctx, run); err != nil {
+		return err
+	}
+	return errRunTerminated
+}
+
+func (e *Engine) resourceLimitResult(ctx context.Context, run store.Run, result llm.Result) error {
 	journals, err := e.Store.ListSuccessfulJournal(ctx, run.UserID, run.RequestID)
 	if err != nil {
 		return err
@@ -28,9 +40,15 @@ func (e *Engine) resourceLimit(ctx context.Context, run store.Run) error {
 	for _, row := range journals {
 		summary = append(summary, row.Tool)
 	}
-	return e.finish(ctx, run, store.StatusError, store.EventError, store.EventPayload{
+	payload := store.EventPayload{
 		ErrorCode: "AGENT_RESOURCE_LIMIT", Text: "资源预算已耗尽", Journal: strings.Join(summary, ","),
-	})
+	}
+	if text := strings.TrimSpace(prompt.SanitizeOutput(result.Text)); text != "" && run.Source == store.SourceUser {
+		payload.Partial = text
+		return e.finishWithMessageEvent(ctx, run, store.StatusError, store.EventError, payload, text,
+			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
+	}
+	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
 
 func (e *Engine) fail(ctx context.Context, run store.Run, code, text string) error {
@@ -72,6 +90,9 @@ func (e *Engine) finishWithMessageEvent(
 
 func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload, message string, apiContent []byte, emitToken bool, streamID string, before func(context.Context, store.Store) error) error {
 	now := store.NowMs()
+	if status == store.StatusDone && HardLimitExceeded(run, now) {
+		return e.resourceLimitResult(ctx, run, llm.Result{Text: message, Streamed: !emitToken, StreamID: streamID})
+	}
 	run.Status = status
 	run.Phase = store.PhaseDone
 	run.EndedAtMs = now
@@ -116,6 +137,11 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 		thread, err := tx.LockThread(ctx, run.UserID)
 		if err != nil {
 			return err
+		}
+		if run.Source == store.SourceMemoryReview {
+			if err := publishMemoryChanges(ctx, tx, run, thread, now); err != nil {
+				return err
+			}
 		}
 		publication := terminalPublication{run: run, payload: &payload, message: message, apiContent: apiContent, emitToken: emitToken, streamID: streamID, now: now}
 		if err := publication.write(ctx, tx, thread); err != nil {
