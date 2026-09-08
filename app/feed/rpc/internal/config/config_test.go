@@ -71,3 +71,28 @@ func TestFeedYAMLLoadsCursorSecretFromEnvironment(t *testing.T) {
 		t.Fatalf("CursorSecret = %q", c.CursorSecret)
 	}
 }
+
+func TestFeedFeatureVersionMatchesRecommendationProducerAndReader(t *testing.T) {
+	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
+	t.Setenv("FEED_CURSOR_SECRET", "configured-feed-cursor-secret")
+	var feed Config
+	if err := conf.Load("../../etc/feed.yaml", &feed, conf.UseEnv()); err != nil {
+		t.Fatalf("load feed.yaml: %v", err)
+	}
+	var defaults Config
+	if err := conf.FillDefault(&defaults); err != nil {
+		t.Fatalf("fill Feed defaults: %v", err)
+	}
+	for _, path := range []string{
+		"../../../../recommend/rpc/etc/recommend.yaml",
+		"../../../../recommend/mq/etc/recommend-consumer.yaml",
+	} {
+		var recommendation struct{ FeatureVersion string }
+		if err := conf.Load(path, &recommendation); err != nil {
+			t.Fatalf("load recommendation config %s: %v", path, err)
+		}
+		if recommendation.FeatureVersion == "" || feed.FeatureVersion != recommendation.FeatureVersion || defaults.FeatureVersion != recommendation.FeatureVersion {
+			t.Fatalf("feature version mismatch: Feed YAML=%q default=%q, %s=%q", feed.FeatureVersion, defaults.FeatureVersion, path, recommendation.FeatureVersion)
+		}
+	}
+}

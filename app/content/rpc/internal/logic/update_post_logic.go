@@ -144,9 +144,10 @@ func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord
 		Status           *int32   `json:"status"`
 		ExpectedRevision int64    `json:"expected_revision"`
 		MediaIDs         []int64  `json:"media_ids"`
-		ImagesProvided   bool     `json:"images_provided"`
-		MediaIDsProvided bool     `json:"media_ids_provided"`
-	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds, in.ImagesProvided, in.MediaIdsProvided})
+		ImagesProvided   bool     `json:"images_provided,omitempty"`
+		MediaIDsProvided bool     `json:"media_ids_provided,omitempty"`
+	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds,
+		in.ImagesProvided && len(in.Images) == 0, in.MediaIdsProvided && len(in.MediaIds) == 0})
 	if err != nil {
 		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
 	}

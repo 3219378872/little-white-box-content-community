@@ -25,7 +25,7 @@ func TestHiddenPostReaderUsesExistingNegativeFeatureKeys(t *testing.T) {
 	reader := NewHiddenPostReader(redis, "")
 	ids, err := reader.HiddenPosts(context.Background(), 7)
 	require.NoError(t, err)
-	assert.Equal(t, "feature:v1:u:7:negative", redis.key)
+	assert.Equal(t, "feature:v2:u:7:negative", redis.key)
 	assert.Equal(t, map[int64]struct{}{44: {}}, ids)
 	redis.err = errors.New("redis unavailable")
 	_, err = reader.HiddenPosts(context.Background(), 7)
@@ -34,12 +34,20 @@ func TestHiddenPostReaderUsesExistingNegativeFeatureKeys(t *testing.T) {
 	redis.values = map[string]string{"post:bad": "1"}
 	_, err = reader.HiddenPosts(context.Background(), 7)
 	assert.Error(t, err)
-	_, err = NewHiddenPostReader(nil, "v1").HiddenPosts(context.Background(), 7)
+	_, err = NewHiddenPostReader(nil, "v2").HiddenPosts(context.Background(), 7)
 	assert.Error(t, err)
 }
 
+func TestHiddenPostReaderPreservesConfiguredFeatureVersion(t *testing.T) {
+	redis := &fakeHashes{values: map[string]string{"post:44": "1"}}
+	ids, err := NewHiddenPostReader(redis, "custom-version").HiddenPosts(context.Background(), 7)
+	require.NoError(t, err)
+	assert.Equal(t, "feature:custom-version:u:7:negative", redis.key)
+	assert.Equal(t, map[int64]struct{}{44: {}}, ids)
+}
+
 func TestAnonymousFallbackDoesNotReadOrCreateProfile(t *testing.T) {
-	reader := NewHiddenPostReader(nil, "v1")
+	reader := NewHiddenPostReader(nil, "v2")
 	ids, err := reader.HiddenPosts(context.Background(), 0)
 	require.NoError(t, err)
 	assert.Empty(t, ids)

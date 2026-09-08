@@ -33,6 +33,7 @@ RecommendRpc:
       - 127.0.0.1:2379
     Key: recommend.rpc
 CursorSecret: "${FEED_CURSOR_SECRET}"
+FeatureVersion: v2
 MQ:
   NameServer: "${MQ_NAMESERVER}"
   GroupName: "feed-service-group"

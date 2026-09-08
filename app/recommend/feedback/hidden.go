@@ -18,7 +18,7 @@ type HiddenPostReader struct {
 
 func NewHiddenPostReader(client hashReader, version string) *HiddenPostReader {
 	if version == "" {
-		version = "v1"
+		version = "v2"
 	}
 	return &HiddenPostReader{redis: client, version: version}
 }
