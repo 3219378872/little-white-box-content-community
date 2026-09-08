@@ -4,7 +4,7 @@ layer: implementation
 title: 反馈与可靠性实现映射
 status: active
 owner: agent
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 code_paths:
 - app/behavior
 - app/pipeline/behaviorlog
@@ -12,6 +12,13 @@ code_paths:
 - pkg/outboxx
 - app/gateway
 - app/assistant
+- app/content
+- app/interaction
+- app/message
+- app/media
+- app/user
+- app/feed
+- deploy/log_retention_test.go
 - deploy/loki/loki-config.yaml
 - deploy/docker-compose.production.yml
 - scripts/spec_evals.py
@@ -26,23 +33,23 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| REL-001 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-002 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-003 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-004 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-005 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-006 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-007 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-008 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-010 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-011 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-012 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-013 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-020 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-021 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-022 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-023 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-024 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-001 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-002 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-003 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-004 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-005 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-006 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-007 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-008 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-010 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-011 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-012 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-013 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-020 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-021 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-022 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-023 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-024 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
 | REL-030 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-031 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-032 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
@@ -51,28 +58,28 @@ code_paths:
 | REL-041 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-042 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-043 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
-| REL-044 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-045 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-050 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-051 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-052 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-053 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-044 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-045 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-050 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-051 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-052 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-053 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
 | REL-054 | DES-content-community-backend | unknown | gap: 十二项均已逐条登记，但完整故障注入矩阵尚未关闭。 |
-| REL-054-01 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-02 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-03 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-04 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-05 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-06 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-07 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-08 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-09 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-01 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-02 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-03 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-04 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-05 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-06 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-07 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-08 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-09 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
 | REL-054-10 | DES-content-community-backend | unknown | gap: 业务继续路径有设计；指标后端故障与监控缺口告警缺独立注入证据。 |
-| REL-054-11 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-054-12 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-060 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-061 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
-| REL-A01 | DES-content-community-backend | aligned | EVD-20260907-module-refactor |
+| REL-054-11 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-054-12 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-060 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-061 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
+| REL-A01 | DES-content-community-backend | aligned | EVD-20260908-review-remediation |
 | REL-A02 | DES-content-community-backend | unknown | gap: 未运行完整跨服务“推荐 → 曝光 → 动作 → 分析/特征”闭环。 |
 | REL-A03 | DES-content-community-backend | diverged | gap: 尚未逐项注入 REL-054-01 至 REL-054-12 并验证响应、健康、指标和日志。 |
 | REL-A04 | DES-content-community-backend | unknown | gap: 未运行全部保留期与关闭个性化后 24 小时清理集成。 |
@@ -85,5 +92,6 @@ code_paths:
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260907-watch-contract`。旧 `implementation/evidence/` 记录只保留历史上下文，
+当前确定性验证见 `EVD-20260908-review-remediation`，包含 SQL 日志隐私、生产入口装配及失败路径。
+旧 `implementation/evidence/` 记录只保留历史上下文，
 不参与当前 `aligned` 判定。人类、真实 provider、浏览器、设备和生产证据未执行时不会被推断。

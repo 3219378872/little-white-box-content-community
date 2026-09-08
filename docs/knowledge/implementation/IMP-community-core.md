@@ -4,7 +4,7 @@ layer: implementation
 title: 社区核心实现映射
 status: active
 owner: agent
-updated_at: 2026-09-07
+updated_at: 2026-09-08
 code_paths:
 - app/content
 - app/interaction
@@ -79,6 +79,9 @@ code_paths:
 跨模块行为通过上游 DES 与本表中的精确条款关联。
 
 ## 证据边界
+
+`EVD-20260908-review-remediation` 补充 R04/R13 的媒体授权、JSON/RPC presence、幂等兼容及全模块
+race 回归，不把这部分验证直接升级为社区每项跨服务验收；本页既有 unknown 保持。
 
 `EVD-20260906-community-core` 覆盖组含 `app/user`，登录锁定修复使该组对当前工作树过期；
 相关条款暂为 `unknown`。旧 `implementation/evidence/` 记录只保留历史上下文，不参与当前
