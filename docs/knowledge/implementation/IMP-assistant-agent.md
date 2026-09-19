@@ -4,8 +4,9 @@ layer: implementation
 title: Assistant Agent 实现映射
 status: active
 owner: agent
-updated_at: 2026-09-08
+updated_at: 2026-09-19
 code_paths:
+- pkg/interceptor
 - app/assistant/internal/runtime
 - app/assistant/internal/store
 - app/assistant/internal/lease
@@ -31,10 +32,10 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
+| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
 | AGENT-100 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-101 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-102 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
@@ -46,52 +47,52 @@ code_paths:
 | AGENT-113 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-114 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-115 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
-| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260908-review-remediation |
-| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
+| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
 | AGENT-070 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-071 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-072 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-073 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-074 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-075 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
-| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
-| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260908-review-remediation |
+| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
 | AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，Watch 5 分钟与生产 p95 未验证。 |
 | AGENT-A01 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A02 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
@@ -113,6 +114,7 @@ code_paths:
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260908-review-remediation`，含真实 SQL 接管及 R02/R06/R07/R14/R17 回归。
+当前确定性验证见 `EVD-20260919-backend-quality-fixes`，含真实 SQL 接管、历史删除回滚、索引清理
+重试及全模块回归；历史删除失败不再丢失派生索引清理意图。
 来源支持关系和长研究质量仍保留上述 gap。旧 `implementation/evidence/` 记录只保留历史上下文，
 不参与当前 `aligned` 判定。未执行的人类、真实 provider、浏览器、设备和生产证据不会被推断。

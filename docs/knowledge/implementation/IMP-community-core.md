@@ -4,8 +4,9 @@ layer: implementation
 title: 社区核心实现映射
 status: active
 owner: agent
-updated_at: 2026-09-08
+updated_at: 2026-09-19
 code_paths:
+- pkg/interceptor
 - app/content
 - app/interaction
 - app/message
@@ -80,8 +81,8 @@ code_paths:
 
 ## 证据边界
 
-`EVD-20260908-review-remediation` 补充 R04/R13 的媒体授权、JSON/RPC presence、幂等兼容及全模块
-race 回归，不把这部分验证直接升级为社区每项跨服务验收；本页既有 unknown 保持。
+`EVD-20260919-backend-quality-fixes` 补充 JSON 图片局部更新、取消互动绕过旧缓存、验证码与刷新
+令牌原子操作及全模块 race 回归，不把这些验证直接升级为社区每项跨服务验收；本页既有 unknown 保持。
 
 `EVD-20260906-community-core` 覆盖组含 `app/user`，登录锁定修复使该组对当前工作树过期；
 相关条款暂为 `unknown`。旧 `implementation/evidence/` 记录只保留历史上下文，不参与当前
