@@ -233,7 +233,9 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 			return err
 		}
 		for _, id := range ids {
-			_ = tx.InsertOutbox(ctx, store.Outbox{UserID: userID, MessageID: id, Op: store.IndexOpDelete, CreatedAtMs: now})
+			if err := tx.InsertOutbox(ctx, store.Outbox{UserID: userID, MessageID: id, Op: store.IndexOpDelete, CreatedAtMs: now}); err != nil {
+				return err
+			}
 		}
 		thread, err := tx.LockThread(ctx, userID)
 		if err != nil {

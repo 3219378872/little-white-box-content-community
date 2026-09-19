@@ -26,7 +26,7 @@ func main() {
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.MessageService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterMessageServiceServer(grpcServer, server.NewMessageServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

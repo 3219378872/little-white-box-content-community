@@ -69,7 +69,7 @@ func main() {
 		}
 	}()
 
-	contentClient := zrpc.MustNewClient(c.ContentRpc,
+	contentClient := interceptor.MustNewClient(c.ContentRpc,
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	source := contentservice.NewContentService(contentClient)
 	count, err := rebuild.Run(ctx, source, target, c.Rebuild.PageSize)

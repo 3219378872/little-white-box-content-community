@@ -105,20 +105,9 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		return nil, errx.NewWithCode(errx.UserAlreadyExist)
 	}
 
-	code, err := l.svcCtx.RedisClient.GetCtx(l.ctx, verifyCodeRedisKey(in.Phone))
-	if err != nil {
-		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
-		return nil, errx.Wrap(err, errx.SystemError)
+	if err := consumeVerifyCode(l.ctx, l.svcCtx.RedisClient, in.Phone, in.VerifyCode); err != nil {
+		return nil, err
 	}
-	if code == "" {
-		return nil, errx.New(errx.VerifyCodeExpired, "验证码过期")
-	}
-
-	if code != in.VerifyCode {
-		recordVerifyCodeFailure(l.ctx, l.svcCtx.RedisClient, in.Phone)
-		return nil, errx.NewWithCode(errx.VerifyCodeError)
-	}
-	clearVerifyCodeFailures(l.ctx, l.svcCtx.RedisClient, in.Phone)
 
 	user, err := l.newUser(in)
 	if err != nil {
@@ -128,9 +117,6 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 	_, err = l.svcCtx.UserProfileModel.Insert(l.ctx, user)
 	if err != nil {
 		return nil, mapUserInsertError(err)
-	}
-	if _, err = l.svcCtx.RedisClient.DelCtx(l.ctx, verifyCodeRedisKey(in.Phone)); err != nil {
-		l.Errorw("Redis.DelCtx failed", logx.Field("err", err.Error()))
 	}
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
@@ -205,38 +191,6 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 	}, nil
 }
 
-// 验证码暴力尝试限制：窗口内允许的最大错误次数；达到后验证码作废。
-const (
-	verifyCodeMaxAttempts          = 5
-	verifyCodeAttemptWindowSeconds = 600
-)
-
-// recordVerifyCodeFailure 记录一次验证码校验失败；达到上限后作废验证码
-// （注册与登录共享同一计数，总错误尝试受限）。Redis 故障时仅记录失败，
-// 不阻断校验（防暴力是纵深防御）。
-func recordVerifyCodeFailure(ctx context.Context, redis svc.RedisStore, phone string) {
-	if redis == nil || phone == "" {
-		return
-	}
-	attemptKey := fmt.Sprintf("verify:attempts:%s", phone)
-	attempts, err := redis.IncrCtx(ctx, attemptKey)
-	if err != nil {
-		logx.WithContext(ctx).Errorw("verify attempts incr failed",
-			logx.Field("err", err.Error()))
-		return
-	}
-	if attempts == 1 {
-		_ = redis.ExpireCtx(ctx, attemptKey, verifyCodeAttemptWindowSeconds)
-	}
-	if attempts >= verifyCodeMaxAttempts {
-		_, _ = redis.DelCtx(ctx, verifyCodeRedisKey(phone))
-	}
-}
-
-func verifyCodeRedisKey(phone string) string {
-	return "verify:code:" + phone
-}
-
 func mapUserInsertError(err error) error {
 	if isDuplicateKeyError(err) {
 		return errx.NewWithCode(errx.UserAlreadyExist)
@@ -247,12 +201,4 @@ func mapUserInsertError(err error) error {
 func isDuplicateKeyError(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
-}
-
-// clearVerifyCodeFailures 校验成功后清理尝试计数。
-func clearVerifyCodeFailures(ctx context.Context, redis svc.RedisStore, phone string) {
-	if redis == nil || phone == "" {
-		return
-	}
-	_, _ = redis.DelCtx(ctx, fmt.Sprintf("verify:attempts:%s", phone))
 }

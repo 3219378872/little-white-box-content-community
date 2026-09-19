@@ -37,6 +37,19 @@ func NewLikeRecordModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Opti
 	}
 }
 
+// Cancellation decisions must observe the authoritative relation even while a
+// failed cache deletion is waiting for a retry. Shadow the generated cached read.
+func (m *customLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Context, userID, targetID, targetType int64) (*LikeRecord, error) {
+	var record LikeRecord
+	err := m.QueryRowNoCacheCtx(ctx, &record,
+		"SELECT "+likeRecordRows+" FROM "+m.table+" WHERE user_id=? AND target_id=? AND target_type=? LIMIT 1",
+		userID, targetID, targetType)
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 func (m *customLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error) {
 	offset := (page - 1) * pageSize
 

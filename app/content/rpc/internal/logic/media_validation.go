@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"slices"
-	"strings"
 
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
@@ -83,7 +82,7 @@ func (l *UpdatePostLogic) mergePostMedia(in *pb.UpdatePostReq, post *model.Post,
 		allowed := make(map[string]int64, len(images)+len(verifiedURLs))
 		if len(images) > 0 {
 			if post.Images.Valid {
-				for _, url := range strings.Split(post.Images.String, ",") {
+				for _, url := range decodeStringSlice(post.Images.String, true) {
 					allowed[url] = 0
 				}
 			}

@@ -28,7 +28,7 @@ func main() {
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.SearchService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterSearchServiceServer(grpcServer, server.NewSearchServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

@@ -121,6 +121,9 @@ func (c *Client) apply(ctx context.Context, row store.Outbox) error {
 			return err
 		}
 		defer func() { _ = res.Body.Close() }()
+		if res.IsError() && res.StatusCode != 404 {
+			return fmt.Errorf("delete history message: HTTP %d", res.StatusCode)
+		}
 		return nil
 	}
 	var doc Document

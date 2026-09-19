@@ -30,7 +30,7 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
-	userRpcClient := zrpc.MustNewClient(c.UserRpc,
+	userRpcClient := interceptor.MustNewClient(c.UserRpc,
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	return &ServiceContext{
 		Config:          c,

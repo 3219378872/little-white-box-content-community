@@ -270,11 +270,9 @@ func authenticatedRPCClient(secret string) func(zrpc.RpcClientConf) zrpc.Client 
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(secret)
 	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(secret)
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		conf.Middlewares.Duration = false
-		return zrpc.MustNewClient(conf,
+		return interceptor.MustNewClient(conf,
 			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
 		)
 	}

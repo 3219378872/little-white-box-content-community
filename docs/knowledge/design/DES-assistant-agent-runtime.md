@@ -4,7 +4,7 @@ layer: design
 title: 持久异步 Assistant Agent Runtime
 status: active
 owner: agent
-updated_at: 2026-09-08
+updated_at: 2026-09-19
 tracks:
 - AGENT-001
 - AGENT-002
@@ -180,7 +180,9 @@ user run。数据库提交前不报告 accepted。
 线程 `last_message_at_ms` 距今不少于 30 分钟后，下一次新建 user 或 Watch run 在同一 session 上滚动
 prompt epoch，重建 Safety/SOUL/工具规则/MEMORY，并保留 `compact_summary`。redirect、steer、FIFO
 和崩溃恢复复用已保存快照。clear history 逻辑删除 message、写 ES
-delete outbox、清 thread 可见摘要，不删 Memory/Watch。显式 Stop 只把 `cancel_requested` 置 1，该位
+delete outbox、清 thread 可见摘要，不删 Memory/Watch。消息删除与 delete outbox 插入在同一事务内，
+发件箱写入失败必须回滚删除。ES 删除仅在成功或 404 时确认完成，其他 HTTP 错误保留事件等待重试。
+显式 Stop 只把 `cancel_requested` 置 1，该位
 一旦置位就不能被后续 `UpdateRun` 清掉。worker 为 in-flight 模型/工具请求单独派生 work context：
 轮询到取消位后立即 cancel 该 context（HTTP 随 request context 中止），并在每个模型/工具安全点
 重新读库；已取消则写 `CANCELLED` 终止事件，不得把随后返回的模型正文当 `done`。持久化用未取消的

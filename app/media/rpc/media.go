@@ -46,7 +46,7 @@ func main() {
 		}
 	}()
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.MediaService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterMediaServiceServer(grpcServer, server.NewMediaServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

@@ -59,15 +59,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
 			zrpc.WithUnaryClientInterceptor(traceInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
 		}, opts...)
 	}
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		// go-zero's default duration interceptor logs the complete protobuf request
-		// on failures. The replacement above keeps method/error/latency only.
-		conf.Middlewares.Duration = false
-		return zrpc.MustNewClient(conf, withInternalAuth()...)
+		return interceptor.MustNewClient(conf, withInternalAuth()...)
 	}
 
 	userClient := newClient(c.UserRpc)

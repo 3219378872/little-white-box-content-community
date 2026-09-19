@@ -40,7 +40,7 @@ func main() {
 		}
 	}()
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.UserService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterUserServiceServer(grpcServer, server.NewUserServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

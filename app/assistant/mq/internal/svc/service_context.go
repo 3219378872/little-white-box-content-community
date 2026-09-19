@@ -26,12 +26,9 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return nil, fmt.Errorf("assistant-watch-matcher: InternalSecret is required")
 	}
-	contentConf := c.ContentRpc
-	contentConf.Middlewares.Duration = false
-	contentClient := zrpc.MustNewClient(contentConf,
+	contentClient := interceptor.MustNewClient(c.ContentRpc,
 		zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
-		zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 	)
 	// Watch titles and summaries must not appear in normal, slow or failed SQL logs.
 	sqlx.DisableLog()

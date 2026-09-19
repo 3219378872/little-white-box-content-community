@@ -69,9 +69,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	rds := redis.MustNewRedis(c.Redis.RedisConf)
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	userClient := zrpc.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
-	contentClient := zrpc.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
-	recommendClient := zrpc.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	userClient := interceptor.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	contentClient := interceptor.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	recommendClient := interceptor.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
 
 	return &ServiceContext{
 		Config:           c,

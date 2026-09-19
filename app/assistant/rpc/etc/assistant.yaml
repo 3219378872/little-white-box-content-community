@@ -3,10 +3,15 @@ ListenOn: 0.0.0.0:9024
 Health: true
 Middlewares:
   StatConf:
-    # REL-022：不记录 Assistant 全量输入/事件内容。
+    # REL-022：入口还会按生成的 ServiceDesc 排除全部 RPC 请求正文。
     IgnoreContentMethods:
       - /assistant.AssistantService/PostMessage
       - /assistant.AssistantService/SubscribeRunEvents
+      - /assistant.AssistantService/AddMemory
+      - /assistant.AssistantService/ReplaceMemory
+      - /assistant.AssistantService/AnswerQuestions
+      - /assistant.AssistantService/CreateWatchTask
+      - /assistant.AssistantService/UpdateWatchTask
 DevServer:
   Enabled: true
   Host: 0.0.0.0

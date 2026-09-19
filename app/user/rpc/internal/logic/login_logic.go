@@ -47,28 +47,8 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 
-		// 校验信息
-		verifyCode, err := l.svcCtx.RedisClient.GetCtx(l.ctx, verifyCodeRedisKey(in.Phone))
-		if err != nil {
-			l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
-			return nil, errx.Wrap(err, errx.SystemError)
-		}
-		if verifyCode == "" {
-			// 与注册语义一致：验证码不存在/已过期与"错误"区分开。
-			return nil, errx.NewWithCode(errx.VerifyCodeExpired)
-		}
-		if in.VerifyCode != verifyCode {
-			// 与注册共享验证码尝试计数：总错误次数受限，防暴力破解登录。
-			recordVerifyCodeFailure(l.ctx, l.svcCtx.RedisClient, in.Phone)
-			return nil, errx.NewWithCode(errx.VerifyCodeError)
-		}
-		clearVerifyCodeFailures(l.ctx, l.svcCtx.RedisClient, in.Phone)
-
-		// 删除验证码
-		_, err = l.svcCtx.RedisClient.DelCtx(l.ctx, verifyCodeRedisKey(in.Phone))
-		if err != nil {
-			l.Errorw("Redis.DelCtx failed", logx.Field("err", err.Error()))
-			return nil, errx.Wrap(err, errx.SystemError)
+		if err := consumeVerifyCode(l.ctx, l.svcCtx.RedisClient, in.Phone, in.VerifyCode); err != nil {
+			return nil, err
 		}
 	} else {
 		user, err = l.svcCtx.UserProfileModel.FindOneByUsername(l.ctx, in.Username)

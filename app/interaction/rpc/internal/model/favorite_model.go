@@ -36,6 +36,18 @@ func NewFavoriteModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option
 	}
 }
 
+// Read authority before deciding whether an unfavorite command is a no-op;
+// asynchronous cache cleanup must not suppress a committed relation's removal.
+func (m *customFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userID, postID int64) (*Favorite, error) {
+	var record Favorite
+	err := m.QueryRowNoCacheCtx(ctx, &record,
+		"SELECT "+favoriteRows+" FROM "+m.table+" WHERE user_id=? AND post_id=? LIMIT 1", userID, postID)
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int64, page, pageSize int32) ([]int64, int64, error) {
 	offset := (page - 1) * pageSize
 

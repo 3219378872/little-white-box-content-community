@@ -80,6 +80,29 @@ func TestUpdatePostRetainsOwnedMediaAndRejectsForeignURLs(t *testing.T) {
 	assert.Equal(t, sql.NullString{}, patch.fields["media_ids"])
 }
 
+func TestCreatedPostImagesSupportPartialUpdate(t *testing.T) {
+	ctx := context.Background()
+	urls := []string{"first.jpg", "second.jpg"}
+	post, err := NewCreatePostLogic(ctx, nil).newPost(&pb.CreatePostReq{
+		AuthorId: 1, Title: "title", Content: "body", Status: 1, MediaIds: []int64{10, 11},
+	}, urls)
+	require.NoError(t, err)
+	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{
+		{Id: 10, UserId: 1, Status: 1, Url: urls[0]}, {Id: 11, UserId: 1, Status: 1, Url: urls[1]},
+	}}}
+	l := NewUpdatePostLogic(ctx, &svc.ServiceContext{MediaService: media})
+	for _, images := range [][]string{{urls[1]}, {urls[1], urls[0]}} {
+		patch, err := l.mergePostFields(&pb.UpdatePostReq{AuthorId: 1, ImagesProvided: true, Images: images}, post, nil)
+		require.NoError(t, err)
+		require.Equal(t, images, patch.fields["images"].(*model.JSONField[[]string]).Data)
+		ids := decodeInt64sJSON(patch.fields["media_ids"].(sql.NullString))
+		require.Equal(t, int64(11), ids[0])
+		require.Len(t, ids, len(images))
+	}
+	_, err = l.mergePostFields(&pb.UpdatePostReq{AuthorId: 1, Images: []string{"foreign.jpg"}}, post, nil)
+	require.True(t, errx.Is(err, errx.ParamError))
+}
+
 func TestUpdatePostRecoversFromInvalidExistingMediaWithoutRetainingURLs(t *testing.T) {
 	post := &model.Post{Title: "title", Content: "body", Status: 1, Images: sql.NullString{String: "deleted.jpg,retained.jpg", Valid: true}, MediaIds: sql.NullString{String: "[10,11]", Valid: true}}
 	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 11, UserId: 1, Status: 1, Url: "retained.jpg"}}}}

@@ -31,7 +31,7 @@ func main() {
 	logger := logx.WithContext(context.Background())
 	defer cleanupx.Shutdown(logger, "behavior producer", ctx.Close)
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.BehaviorService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterBehaviorServiceServer(grpcServer, server.NewBehaviorServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

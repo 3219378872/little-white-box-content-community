@@ -40,7 +40,7 @@ func main() {
 		}
 	}()
 
-	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.ContentService_ServiceDesc), func(grpcServer *grpc.Server) {
 		pb.RegisterContentServiceServer(grpcServer, server.NewContentServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {

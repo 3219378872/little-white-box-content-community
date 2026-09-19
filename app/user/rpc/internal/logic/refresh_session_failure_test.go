@@ -85,4 +85,26 @@ func TestRotateRefreshToken_ConsumeJTIFailed(t *testing.T) {
 	_, _, err = rotateRefreshToken(context.Background(), svcCtx, oldRefresh)
 	require.Error(t, err)
 	assert.Equal(t, errx.SystemError, errx.GetCode(err))
+
+	// A failed atomic write must leave the old token usable once Redis recovers.
+	mem.onEval = nil
+	_, next, err := rotateRefreshToken(context.Background(), svcCtx, oldRefresh)
+	require.NoError(t, err)
+	require.NotEmpty(t, next)
+	_, _, err = rotateRefreshToken(context.Background(), svcCtx, oldRefresh)
+	require.True(t, errx.Is(err, errx.LoginRequired))
+}
+
+func TestRotateRefreshToken_OwnerMismatchKeepsOldToken(t *testing.T) {
+	svcCtx, mem := refreshTestSvcCtx()
+	_, old, err := issueTokenPair(context.Background(), svcCtx, 12, "frank")
+	require.NoError(t, err)
+	claims, err := jwtx.ParseRefreshToken(old, svcCtx.Config.JwtConfig)
+	require.NoError(t, err)
+	require.NoError(t, mem.SetexCtx(context.Background(), refreshJTIKey(claims.ID), "13", 120))
+	_, _, err = rotateRefreshToken(context.Background(), svcCtx, old)
+	require.True(t, errx.Is(err, errx.LoginRequired))
+	owner, err := mem.GetCtx(context.Background(), refreshJTIKey(claims.ID))
+	require.NoError(t, err)
+	require.Equal(t, "13", owner)
 }

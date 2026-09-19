@@ -70,10 +70,10 @@ func (r *memoryRedis) GetCtx(_ context.Context, key string) (string, error) {
 	return r.values[key], nil
 }
 
-func (r *memoryRedis) EvalCtx(_ context.Context, _ string, keys []string, args ...any) (any, error) {
+func (r *memoryRedis) EvalCtx(_ context.Context, script string, keys []string, args ...any) (any, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(keys) != 1 || len(args) != 1 {
+	if len(keys) != 2 || len(args) < 2 {
 		return nil, errors.New("memory redis: invalid eval arguments")
 	}
 	want, ok := args[0].(string)
@@ -85,7 +85,26 @@ func (r *memoryRedis) EvalCtx(_ context.Context, _ string, keys []string, args .
 		return int64(0), nil
 	}
 	if current != want {
+		if script == consumeVerifyCodeScript {
+			attempts, _ := strconv.Atoi(r.values[keys[1]])
+			attempts++
+			r.values[keys[1]] = strconv.Itoa(attempts)
+			if attempts >= args[1].(int) {
+				delete(r.values, keys[0])
+			}
+		}
 		return int64(-1), nil
+	}
+	switch script {
+	case consumeVerifyCodeScript:
+		delete(r.values, keys[1])
+	case rotateRefreshJTIScript:
+		if _, exists := r.values[keys[1]]; exists {
+			return int64(-2), nil
+		}
+		r.values[keys[1]] = want
+	default:
+		return nil, errors.New("memory redis: unsupported script")
 	}
 	delete(r.values, keys[0])
 	return int64(1), nil

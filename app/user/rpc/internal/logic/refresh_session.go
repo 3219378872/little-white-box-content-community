@@ -16,7 +16,7 @@ import (
 // 用于轮换时校验归属并使旧令牌一次性失效。
 const refreshKeyPrefix = "auth:refresh:"
 
-const consumeRefreshJTIScript = `
+const rotateRefreshJTIScript = `
 local current = redis.call('GET', KEYS[1])
 if not current then
   return 0
@@ -24,6 +24,10 @@ end
 if current ~= ARGV[1] then
   return -1
 end
+-- Register the successor first: a write/TTL error must leave the old token
+-- valid. Lua scripts are atomic with respect to peers but do not roll back.
+local created = redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2], 'NX')
+if not created then return -2 end
 redis.call('DEL', KEYS[1])
 return 1
 `
@@ -31,6 +35,17 @@ return 1
 // issueTokenPair 签发访问/刷新令牌对，并把新 refresh token 的 jti
 // 写入 Redis 白名单（TTL 与令牌有效期一致）。
 func issueTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId int64, username string) (access, refresh string, err error) {
+	access, refresh, err = generateTokenPair(ctx, svcCtx, userId, username)
+	if err != nil {
+		return "", "", err
+	}
+	if err := storeRefreshJTI(ctx, svcCtx, refresh, userId); err != nil {
+		return "", "", err
+	}
+	return access, refresh, nil
+}
+
+func generateTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId int64, username string) (access, refresh string, err error) {
 	cfg := svcCtx.Config.JwtConfig
 	access, err = jwtx.GenerateToken(userId, username, cfg)
 	if err != nil {
@@ -43,9 +58,6 @@ func issueTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId int6
 		logx.WithContext(ctx).Errorw("jwtx.GenerateRefreshToken failed",
 			logx.Field("userId", userId), logx.Field("err", err.Error()))
 		return "", "", errx.NewWithCode(errx.SystemError)
-	}
-	if err := storeRefreshJTI(ctx, svcCtx, refresh, userId); err != nil {
-		return "", "", err
 	}
 	return access, refresh, nil
 }
@@ -84,9 +96,21 @@ func rotateRefreshToken(ctx context.Context, svcCtx *svc.ServiceContext, oldRefr
 	}
 	key := refreshJTIKey(claims.ID)
 	wantOwner := strconv.FormatInt(claims.UserId, 10)
-	result, err := svcCtx.RedisClient.EvalCtx(ctx, consumeRefreshJTIScript, []string{key}, wantOwner)
+	access, refresh, err = generateTokenPair(ctx, svcCtx, claims.UserId, claims.Username)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("consume refresh jti failed",
+		return "", "", err
+	}
+	next, err := jwtx.ParseRefreshToken(refresh, svcCtx.Config.JwtConfig)
+	if err != nil {
+		return "", "", errx.NewWithCode(errx.SystemError)
+	}
+	ttl := svcCtx.Config.JwtConfig.RefreshExpire
+	if ttl <= 0 {
+		ttl = 7 * 24 * 3600
+	}
+	result, err := svcCtx.RedisClient.EvalCtx(ctx, rotateRefreshJTIScript, []string{key, refreshJTIKey(next.ID)}, wantOwner, ttl)
+	if err != nil {
+		logx.WithContext(ctx).Errorw("rotate refresh jti failed",
 			logx.Field("err", err.Error()))
 		return "", "", errx.Wrap(err, errx.SystemError)
 	}
@@ -96,11 +120,14 @@ func rotateRefreshToken(ctx context.Context, svcCtx *svc.ServiceContext, oldRefr
 			logx.Field("err", err.Error()))
 		return "", "", errx.Wrap(err, errx.SystemError)
 	}
+	if consumed == -2 {
+		return "", "", errx.NewWithCode(errx.SystemError)
+	}
 	if consumed != 1 {
 		// jti 已被轮换消费或与声明归属不符：疑似重放，拒绝。
 		return "", "", errx.NewWithCode(errx.LoginRequired)
 	}
-	return issueTokenPair(ctx, svcCtx, claims.UserId, claims.Username)
+	return access, refresh, nil
 }
 
 func redisInteger(value any) (int64, error) {

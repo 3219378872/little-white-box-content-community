@@ -37,11 +37,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
 	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
 	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		conf.Middlewares.Duration = false
-		return zrpc.MustNewClient(conf,
+		return interceptor.MustNewClient(conf,
 			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
 			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithUnaryClientInterceptor(interceptor.SafeDurationUnaryClientInterceptor()),
 		)
 	}
 	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))

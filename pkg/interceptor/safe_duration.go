@@ -6,6 +6,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 // SafeDurationUnaryClientInterceptor replaces go-zero's duration interceptor,
@@ -19,7 +20,7 @@ func SafeDurationUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 			logx.WithContext(ctx).Errorw("rpc client call failed",
 				logx.Field("method", method),
 				logx.Field("duration_ms", time.Since(started).Milliseconds()),
-				logx.Field("err", err.Error()))
+				logx.Field("grpc_code", status.Code(err).String()))
 		}
 		return err
 	}

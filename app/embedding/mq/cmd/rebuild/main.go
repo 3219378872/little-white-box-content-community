@@ -106,7 +106,7 @@ func run() (err error) {
 		}
 	}()
 
-	contentClient, err := zrpc.NewClient(c.ContentRpc,
+	contentClient, err := interceptor.NewClient(c.ContentRpc,
 		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
 	if err != nil {
 		return fmt.Errorf("initialize Content RPC client: %w", err)

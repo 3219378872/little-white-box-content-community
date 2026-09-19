@@ -11,6 +11,59 @@ import (
 	"testing"
 )
 
+func TestRPCConstructorsApplyContentLoggingPolicy(t *testing.T) {
+	servers := 0
+	err := filepath.WalkDir("../app", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			qualifier, ok := selector.X.(*ast.Ident)
+			if !ok || qualifier.Name != "zrpc" {
+				return true
+			}
+			switch selector.Sel.Name {
+			case "NewClient", "MustNewClient", "NewClientWithTarget":
+				t.Errorf("%s: use interceptor.NewClient/MustNewClient to suppress RPC payload and error-detail logs", path)
+			case "NewServer", "MustNewServer":
+				servers++
+				confCall, ok := call.Args[0].(*ast.CallExpr)
+				if !ok || len(confCall.Args) < 2 {
+					t.Errorf("%s: apply ServerWithoutContent with the generated service descriptor", path)
+					return true
+				}
+				policy, ok := confCall.Fun.(*ast.SelectorExpr)
+				if !ok || policy.Sel.Name != "ServerWithoutContent" {
+					t.Errorf("%s: RPC server must use ServerWithoutContent", path)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if servers < 10 {
+		t.Fatalf("expected at least 10 RPC servers, checked %d", servers)
+	}
+}
+
 func TestSQLServiceContextsDisableParameterLogging(t *testing.T) {
 	checked := 0
 	err := filepath.WalkDir("../app", func(path string, entry fs.DirEntry, walkErr error) error {

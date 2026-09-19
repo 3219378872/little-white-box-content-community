@@ -78,7 +78,7 @@ func TestRegisterByPhone_PhoneAlreadyExists(t *testing.T) {
 func TestRegisterByPhone_VerifyCodeLookupFailed(t *testing.T) {
 	mem := &flakyRedis{
 		memoryRedis: &memoryRedis{values: map[string]string{}},
-		onGet: func(key string) error {
+		onEval: func(keys []string, args ...any) error {
 			return errInjectedRedis
 		},
 	}
@@ -109,20 +109,21 @@ func TestRegisterByPhone_InsertConflict(t *testing.T) {
 func TestRegisterByPhone_ConsumeVerifyCodeFailed(t *testing.T) {
 	mem := &flakyRedis{
 		memoryRedis: &memoryRedis{values: map[string]string{verifyCodeRedisKey("13800110005"): "654321"}},
-		onDel: func(keys ...string) error {
+		onEval: func(keys []string, args ...any) error {
 			return errInjectedRedis
 		},
 	}
 	profile := &MockUserProfileModel{}
 	profile.On("FindOneByPhone", mock.Anything, mock.Anything).Return(nil, model.ErrNotFound).Once()
-	profile.On("Insert", mock.Anything, mock.AnythingOfType("*model.UserProfile")).
-		Return(nil, nil).Once()
-
 	req := &pb.RegisterReq{Phone: "13800110005", VerifyCode: "654321"}
 	resp, err := NewRegisterLogic(context.Background(), registerPhoneSvcCtx(mem, profile)).Register(req)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Greater(t, resp.UserId, int64(0))
+	require.Error(t, err)
+	require.Equal(t, errx.SystemError, errx.GetCode(err))
+	require.Nil(t, resp)
+	profile.AssertNotCalled(t, "Insert", mock.Anything, mock.Anything)
+	code, lookupErr := mem.GetCtx(context.Background(), verifyCodeRedisKey(req.Phone))
+	require.NoError(t, lookupErr)
+	require.Equal(t, req.VerifyCode, code)
 	profile.AssertExpectations(t)
 }
 
