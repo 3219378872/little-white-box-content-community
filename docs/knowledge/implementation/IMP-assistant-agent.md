@@ -32,10 +32,10 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
 | AGENT-100 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-101 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-102 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
@@ -47,52 +47,52 @@ code_paths:
 | AGENT-113 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-114 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-115 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
-| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260919-profile-follow-state |
+| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
 | AGENT-070 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-071 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-072 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-073 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-074 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-075 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
-| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
+| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260919-profile-follow-state |
 | AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，Watch 5 分钟与生产 p95 未验证。 |
 | AGENT-A01 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A02 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
@@ -114,7 +114,8 @@ code_paths:
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260919-backend-quality-fixes`，含真实 SQL 接管、历史删除回滚、索引清理
-重试及全模块回归；历史删除失败不再丢失派生索引清理意图。
+当前确定性验证见 `EVD-20260919-profile-follow-state`，因共享 gateway.api 变更重跑全模块及隔离 SQL
+回归，包含 main 新增的真实 SQL 接管、历史删除回滚和索引清理重试。原
+`EVD-20260919-backend-quality-fixes` 保留其历史修复说明；历史删除失败不再丢失派生索引清理意图。
 来源支持关系和长研究质量仍保留上述 gap。旧 `implementation/evidence/` 记录只保留历史上下文，
 不参与当前 `aligned` 判定。未执行的人类、真实 provider、浏览器、设备和生产证据不会被推断。

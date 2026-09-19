@@ -20,6 +20,7 @@ code_paths:
 - proto/interaction/interaction.proto
 - proto/message/message.proto
 - proto/media/media.proto
+- proto/user/user.proto
 ---
 
 # 社区核心实现映射
@@ -83,6 +84,9 @@ code_paths:
 
 `EVD-20260919-backend-quality-fixes` 补充 JSON 图片局部更新、取消互动绕过旧缓存、验证码与刷新
 令牌原子操作及全模块 race 回归，不把这些验证直接升级为社区每项跨服务验收；本页既有 unknown 保持。
+
+`EVD-20260919-profile-follow-state` 补充资料访问者关注状态：Gateway 透传认证 viewer、User RPC
+权威查询、失败关闭以及隔离 MySQL 的关注/取消读取回归；本页既有 unknown 状态和 gap 保持原样。
 
 `EVD-20260906-community-core` 覆盖组含 `app/user`，登录锁定修复使该组对当前工作树过期；
 相关条款暂为 `unknown`。旧 `implementation/evidence/` 记录只保留历史上下文，不参与当前
