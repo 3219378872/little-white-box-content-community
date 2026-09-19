@@ -177,6 +177,10 @@ published 行。
 `BatchCheckLiked`/`BatchCheckFavorited` 回填（CORE-032）。Content proto 可保留这两个
 字段但 Content Logic 不再填写；对外以 Gateway 为准。
 
+用户资料 `GetUserResp.isFollowing` 按当前访问者读取 User 的权威关注表。Gateway 只从 OptionalAuth
+验证过的上下文传递 `GetUserReq.viewer_id`，不接受客户端自报访问者；匿名/本人返回 false，关系查询
+失败返回业务错误。该字段不写入公共 UserInfo 或用户缓存，关注与取消后的下一次读取直接反映关系。
+
 `Total` 只按本页过滤回减（CORE-015 / DISC-001）。全库精确计数需要索引与权威完全同步，
 当前不做。
 

@@ -8,6 +8,7 @@ import (
 
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
@@ -31,7 +32,8 @@ func NewGetUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserLo
 }
 
 func (l *GetUserLogic) GetUser(req *types.GetUserReq) (resp *types.GetUserResp, err error) {
-	result, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId})
+	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
+	result, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId, ViewerId: viewerID})
 	if err != nil {
 		l.Errorw("UserService.GetUser RPC failed",
 			logx.Field("userId", req.UserId),
@@ -55,5 +57,6 @@ func (l *GetUserLogic) GetUser(req *types.GetUserReq) (resp *types.GetUserResp, 
 		FollowingCount:   result.User.FollowingCount,
 		PostCount:        result.User.PostCount,
 		FavoritesVisible: favoritesVisible,
+		IsFollowing:      result.IsFollowing,
 	}, nil
 }

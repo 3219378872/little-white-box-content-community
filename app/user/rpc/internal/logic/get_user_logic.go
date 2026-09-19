@@ -39,7 +39,23 @@ func (l *GetUserLogic) GetUser(in *pb.GetUserReq) (*pb.GetUserResp, error) {
 		}
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	isFollowing := false
+	if in.ViewerId > 0 && in.ViewerId != in.UserId {
+		if l.svcCtx.UserFollowModel == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		_, followErr := l.svcCtx.UserFollowModel.FindOneByUserIdTargetUserId(l.ctx, in.ViewerId, in.UserId)
+		switch {
+		case followErr == nil:
+			isFollowing = true
+		case errors.Is(followErr, model.ErrNotFound):
+		default:
+			l.Errorw("UserFollowModel relation lookup failed", logx.Field("err", followErr.Error()))
+			return nil, errx.NewWithCode(errx.SystemError)
+		}
+	}
 	return &pb.GetUserResp{
-		User: UserProfileToUserInfo(one),
+		User:        UserProfileToUserInfo(one),
+		IsFollowing: isFollowing,
 	}, nil
 }

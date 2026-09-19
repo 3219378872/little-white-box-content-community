@@ -60,11 +60,13 @@ message UserInfo {
 // 获取用户信息请求
 message GetUserReq {
   int64 user_id = 1;
+  int64 viewer_id = 2; // Gateway 验证的访问者；0 表示匿名
 }
 
 // 获取用户信息响应
 message GetUserResp {
   UserInfo user = 1;
+  bool is_following = 2;
 }
 
 // 批量获取用户信息请求

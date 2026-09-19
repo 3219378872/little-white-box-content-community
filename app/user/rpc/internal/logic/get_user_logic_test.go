@@ -83,3 +83,51 @@ func TestGetUserLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestGetUserViewerFollowState(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		viewer      int64
+		relationErr error
+		following   bool
+		wantErr     bool
+	}{
+		{"anonymous", 0, nil, false, false},
+		{"self", 2, nil, false, false},
+		{"followed", 1, nil, true, false},
+		{"not followed", 3, model.ErrNotFound, false, false},
+		{"lookup failure", 4, errors.New("database unavailable"), false, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			profiles := new(MockUserProfileModel)
+			profiles.On("FindOne", mock.Anything, int64(2)).Return(sampleUser(2, "target"), nil).Once()
+			follows := new(MockUserFollowStore)
+			if tt.viewer > 0 && tt.viewer != 2 {
+				var relation *model.UserFollow
+				if tt.following {
+					relation = &model.UserFollow{UserId: tt.viewer, TargetUserId: 2}
+				}
+				follows.On("FindOneByUserIdTargetUserId", mock.Anything, tt.viewer, int64(2)).Return(relation, tt.relationErr).Once()
+			}
+			response, err := NewGetUserLogic(context.Background(), newUnitSvcCtx(profiles, follows)).GetUser(&pb.GetUserReq{UserId: 2, ViewerId: tt.viewer})
+			if tt.wantErr {
+				require.True(t, errx.Is(err, errx.SystemError))
+				require.Nil(t, response)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.following, response.IsFollowing)
+			}
+			profiles.AssertExpectations(t)
+			follows.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetUserRequiresRelationStoreForAuthenticatedViewer(t *testing.T) {
+	profiles := new(MockUserProfileModel)
+	profiles.On("FindOne", mock.Anything, int64(2)).Return(sampleUser(2, "target"), nil).Once()
+	response, err := NewGetUserLogic(context.Background(), newUnitSvcCtx(profiles, nil)).GetUser(&pb.GetUserReq{UserId: 2, ViewerId: 1})
+	require.True(t, errx.Is(err, errx.ServiceUnavailable))
+	require.Nil(t, response)
+	profiles.AssertExpectations(t)
+}

@@ -44,6 +44,7 @@ type GetUserResp struct {
 	FollowingCount   int64  `json:"followingCount"`
 	PostCount        int64  `json:"postCount"`
 	FavoritesVisible bool   `json:"favoritesVisible"`
+	IsFollowing      bool   `json:"isFollowing"`
 }
 
 type SetPersonalizationPreferenceReq struct {

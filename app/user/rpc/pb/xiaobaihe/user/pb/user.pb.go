@@ -158,6 +158,7 @@ func (x *UserInfo) GetFavoritesVisibility() int32 {
 type GetUserReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ViewerId      int64                  `protobuf:"varint,2,opt,name=viewer_id,json=viewerId,proto3" json:"viewer_id,omitempty"` // Gateway 验证的访问者；0 表示匿名
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -199,10 +200,18 @@ func (x *GetUserReq) GetUserId() int64 {
 	return 0
 }
 
+func (x *GetUserReq) GetViewerId() int64 {
+	if x != nil {
+		return x.ViewerId
+	}
+	return 0
+}
+
 // 获取用户信息响应
 type GetUserResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *UserInfo              `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	IsFollowing   bool                   `protobuf:"varint,2,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -242,6 +251,13 @@ func (x *GetUserResp) GetUser() *UserInfo {
 		return x.User
 	}
 	return nil
+}
+
+func (x *GetUserResp) GetIsFollowing() bool {
+	if x != nil {
+		return x.IsFollowing
+	}
+	return false
 }
 
 // 批量获取用户信息请求
@@ -1949,12 +1965,14 @@ const file_user_proto_rawDesc = "" +
 	" \x01(\x03R\tlikeCount\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\v \x01(\x03R\tcreatedAt\x121\n" +
-	"\x14favorites_visibility\x18\f \x01(\x05R\x13favoritesVisibility\"%\n" +
+	"\x14favorites_visibility\x18\f \x01(\x05R\x13favoritesVisibility\"B\n" +
 	"\n" +
 	"GetUserReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"1\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tviewer_id\x18\x02 \x01(\x03R\bviewerId\"T\n" +
 	"\vGetUserResp\x12\"\n" +
-	"\x04user\x18\x01 \x01(\v2\x0e.user.UserInfoR\x04user\"-\n" +
+	"\x04user\x18\x01 \x01(\v2\x0e.user.UserInfoR\x04user\x12!\n" +
+	"\fis_following\x18\x02 \x01(\bR\visFollowing\"-\n" +
 	"\x10BatchGetUsersReq\x12\x19\n" +
 	"\buser_ids\x18\x01 \x03(\x03R\auserIds\"9\n" +
 	"\x11BatchGetUsersResp\x12$\n" +

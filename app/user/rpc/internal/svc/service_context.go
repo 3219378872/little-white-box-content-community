@@ -26,6 +26,7 @@ type UserProfileStore interface {
 }
 
 type UserFollowStore interface {
+	FindOneByUserIdTargetUserId(ctx context.Context, userID, targetUserID int64) (*model.UserFollow, error)
 	Follow(ctx context.Context, userID, targetUserID int64) error
 	Unfollow(ctx context.Context, userID, targetUserID int64) error
 	FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*model.UserProfile, error)
