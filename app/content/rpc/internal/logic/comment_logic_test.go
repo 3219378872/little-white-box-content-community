@@ -392,7 +392,7 @@ func TestGetCommentListLogic(t *testing.T) {
 			setupMock: func(pm *MockPostModel, cm *MockCommentModel) {
 				pm.On("FindPostById", mock.Anything, int64(1000)).Return(&model2.Post{Id: 1000, Status: 1}, nil)
 				cm.On("FindByPostId", mock.Anything, int64(1000), 1, 10, 0).Return(comments, int64(2), nil)
-				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000, 3001}).Return(nil, nil)
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000, 3001}, previewReplyLimit).Return(nil, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
 				assert.Len(t, resp.Comments, 2)
@@ -408,7 +408,7 @@ func TestGetCommentListLogic(t *testing.T) {
 					{Id: 3000, PostId: 1000, UserId: 400, Content: "父评论", Status: 1, ReplyCount: 4},
 				}, int64(1), nil)
 				parentID := sql.NullInt64{Int64: 3000, Valid: true}
-				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}).Return([]*model2.Comment{
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}, previewReplyLimit).Return([]*model2.Comment{
 					{Id: 4000, PostId: 1000, UserId: 401, Content: "回1", Status: 1, ParentId: parentID},
 					{Id: 4001, PostId: 1000, UserId: 402, Content: "回2", Status: 1, ParentId: parentID},
 					{Id: 4002, PostId: 1000, UserId: 403, Content: "回3", Status: 1, ParentId: parentID},
@@ -457,7 +457,7 @@ func TestGetCommentListLogic(t *testing.T) {
 					{Id: 3000, PostId: 1000, UserId: 400, Content: "live", Status: 1},
 					{Id: 3001, PostId: 1000, UserId: 401, Content: "gone", Status: 0},
 				}, int64(4), nil)
-				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}).Return(nil, nil)
+				cm.On("FindByParentIds", mock.Anything, int64(1000), []int64{3000}, previewReplyLimit).Return(nil, nil)
 			},
 			check: func(t *testing.T, resp *pb.GetCommentListResp) {
 				assert.Len(t, resp.Comments, 1)

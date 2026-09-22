@@ -6,6 +6,7 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
+	"esx/pkg/pageutil"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -29,7 +30,10 @@ func (l *GetFollowingLogic) GetFollowing(in *pb.GetFollowingReq) (*pb.GetFollowi
 	if in.UserId <= 0 || in.Page <= 0 || in.PageSize <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	offset := int64((in.Page - 1) * in.PageSize)
+	offset, err := pageutil.PageOffset(in.Page, in.PageSize)
+	if err != nil {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
 	limit := int64(in.PageSize)
 
 	users, err := l.svcCtx.UserFollowModel.FindFollowing(l.ctx, in.UserId, offset, limit)

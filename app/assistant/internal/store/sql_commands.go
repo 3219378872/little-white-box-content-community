@@ -231,6 +231,51 @@ func (s *SQLStore) GetConfirmation(ctx context.Context, runID int64, callID stri
 	}, nil
 }
 
+func (s *SQLStore) PendingConfirmation(ctx context.Context, runID int64) (*Confirmation, error) {
+	var row struct {
+		ID                  int64         `db:"id"`
+		UserID              int64         `db:"user_id"`
+		SessionID           int64         `db:"session_id"`
+		RunID               int64         `db:"run_id"`
+		CallID              string        `db:"call_id"`
+		Tool                string        `db:"tool"`
+		CanonicalArgsDigest string        `db:"canonical_args_digest"`
+		TargetRevision      int64         `db:"target_revision"`
+		Status              string        `db:"status"`
+		CreatedAtMs         int64         `db:"created_at_ms"`
+		ResolvedAtMs        sql.NullInt64 `db:"resolved_at_ms"`
+	}
+	err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, session_id, run_id, call_id, tool, canonical_args_digest, target_revision, status, created_at_ms, resolved_at_ms
+		FROM agent_confirmation WHERE run_id=? AND status=? ORDER BY id LIMIT 1`, runID, ConfirmPending)
+	if err == sqlx.ErrNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &Confirmation{
+		ID: row.ID, UserID: row.UserID, SessionID: row.SessionID, RunID: row.RunID, CallID: row.CallID, Tool: row.Tool,
+		CanonicalArgsDigest: row.CanonicalArgsDigest, TargetRevision: row.TargetRevision, Status: row.Status,
+		CreatedAtMs: row.CreatedAtMs, ResolvedAtMs: row.ResolvedAtMs.Int64,
+	}, nil
+}
+
+func (s *SQLStore) UpdateConfirmation(ctx context.Context, row Confirmation) error {
+	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_confirmation SET status=?, resolved_at_ms=? WHERE id=? AND status=?`,
+		row.Status, row.ResolvedAtMs, row.ID, ConfirmPending)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sqlx.ErrNotFound
+	}
+	return nil
+}
+
 func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error) {
 	status := ConfirmRejected
 	if approved {

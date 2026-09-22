@@ -57,6 +57,18 @@ func TestPostEvent_Validate(t *testing.T) {
 	}
 }
 
+func TestPostEventIndexTextPrefersFullBody(t *testing.T) {
+	e := PostEvent{BodyExcerpt: "excerpt", Body: "full body past the excerpt"}
+	assert.Equal(t, "full body past the excerpt", e.IndexText())
+	e.Body = ""
+	assert.Equal(t, "excerpt", e.IndexText())
+}
+
+func TestPostEvent_Validate_CountedAllowsZeroAuthor(t *testing.T) {
+	e := PostEvent{EventID: 1, EventTime: 1, Type: PostEventCounted, PostID: 100, LikeCount: 3, CommentCount: 2}
+	assert.NoError(t, e.Validate())
+}
+
 func TestPostEvent_Validate_DeleteAllowsZeroAuthor(t *testing.T) {
 	e := PostEvent{EventID: 1, EventTime: 1, Type: PostEventDeleted, PostID: 100}
 	assert.NoError(t, e.Validate())

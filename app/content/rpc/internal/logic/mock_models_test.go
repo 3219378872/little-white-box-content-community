@@ -103,6 +103,10 @@ func (m *MockPostModel) DecrCommentCount(ctx context.Context, postId int64) erro
 	return m.Called(ctx, postId).Error(0)
 }
 
+func (m *MockPostModel) IncrViewCount(ctx context.Context, postId int64) error {
+	return m.Called(ctx, postId).Error(0)
+}
+
 // ─── MockCommentModel ─────────────────────────────────────────────────────────
 
 type MockCommentModel struct {
@@ -152,8 +156,8 @@ func (m *MockCommentModel) FindByParentId(ctx context.Context, parentId int64, p
 	return args.Get(0).([]*model2.Comment), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*model2.Comment, error) {
-	args := m.Called(ctx, postId, parentIds)
+func (m *MockCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64, perParent int) ([]*model2.Comment, error) {
+	args := m.Called(ctx, postId, parentIds, perParent)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

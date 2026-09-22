@@ -3,13 +3,17 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
 
 	"esx/pkg/event"
+	"esx/pkg/mqx"
+	"esx/pkg/outboxx"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -68,7 +72,7 @@ func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.
 		return nil
 	}
 
-	if err := s.applyDelta(ctx, behavior.TargetType, behavior.TargetID, column, delta); err != nil {
+	if err := s.applyDelta(ctx, behavior.TargetType, behavior.TargetID, column, delta, behavior.EventID); err != nil {
 		// 占位在增量应用前设置；应用失败时移除占位，MQ 重投后能重新应用。
 		// 占位删除失败则保留占位：宁可漏一次也不对同一事件重复计数。
 		if _, delErr := s.redis.DelCtx(ctx, dedupKey); delErr != nil {
@@ -96,9 +100,14 @@ func behaviorCountUpdate(action string) (column string, delta int64, ok bool) {
 	}
 }
 
-func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targetID int64, column string, delta int64) error {
+func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targetID int64, column string, delta, eventID int64) error {
 	if column != "like_count" && column != "favorite_count" {
 		return fmt.Errorf("count-sync: unsupported column %q", column)
+	}
+	if targetType == "post" && column == "like_count" {
+		if db, ok := s.db.(*sql.DB); ok {
+			return applyPostLikeCount(ctx, db, targetID, delta, eventID)
+		}
 	}
 	switch targetType {
 	case "post":
@@ -126,6 +135,54 @@ func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targ
 	default:
 		return fmt.Errorf("count-sync: unsupported target type %q", targetType)
 	}
+}
+
+func applyPostLikeCount(ctx context.Context, db *sql.DB, postID, delta, eventID int64) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var result sql.Result
+	if delta > 0 {
+		result, err = tx.ExecContext(ctx,
+			"UPDATE `post` SET `like_count` = `like_count` + ? WHERE `id` = ?", delta, postID)
+	} else {
+		result, err = tx.ExecContext(ctx,
+			"UPDATE `post` SET `like_count` = GREATEST(`like_count` + ?, 0) WHERE `id` = ?", delta, postID)
+	}
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return fmt.Errorf("count-sync: post %d was not updated", postID)
+	}
+	var likeCount, commentCount int64
+	if err = tx.QueryRowContext(ctx,
+		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ?", postID,
+	).Scan(&likeCount, &commentCount); err != nil {
+		return err
+	}
+	now := time.Now().UnixMilli()
+	payload, err := json.Marshal(event.PostEvent{
+		EventID: eventID, EventTime: now, Type: event.PostEventCounted, PostID: postID,
+		LikeCount: likeCount, CommentCount: commentCount, StatsSeq: now,
+	})
+	if err != nil {
+		return err
+	}
+	if err = (&outboxx.SQLStore{}).EnqueueTx(ctx, tx, outboxx.Event{
+		ID: eventID, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault,
+		Key: strconv.FormatInt(postID, 10), Payload: payload,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *countSyncStore) invalidateCaches(ctx context.Context, targetType string, targetID int64) {

@@ -22,12 +22,13 @@ const (
 	PhaseDone          = "done"
 	PhaseWaitingInput  = "waiting_input"
 
-	StatusQueued       = "queued"
-	StatusRunning      = "running"
-	StatusDone         = "done"
-	StatusError        = "error"
-	StatusCancelled    = "cancelled"
-	StatusWaitingInput = "waiting_input"
+	StatusQueued         = "queued"
+	StatusRunning        = "running"
+	StatusDone           = "done"
+	StatusError          = "error"
+	StatusCancelled      = "cancelled"
+	StatusWaitingInput   = "waiting_input"
+	StatusWaitingConfirm = "waiting_confirm"
 
 	DispositionStarted    = "started"
 	DispositionRedirected = "redirected"
@@ -67,6 +68,7 @@ const (
 	ConfirmPending  = "pending"
 	ConfirmApproved = "approved"
 	ConfirmRejected = "rejected"
+	ConfirmExpired  = "expired"
 
 	JournalPending = "pending"
 	JournalSuccess = "success"

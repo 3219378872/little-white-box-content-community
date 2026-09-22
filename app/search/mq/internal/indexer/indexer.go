@@ -1,6 +1,12 @@
 package indexer
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrNotIndexed means a count patch arrived before the post document existed.
+var ErrNotIndexed = errors.New("search document is not indexed")
 
 // IndexDoc is a generic document for indexing.
 type IndexDoc struct {
@@ -14,4 +20,5 @@ type IndexDoc struct {
 type Indexer interface {
 	Index(ctx context.Context, doc IndexDoc) error
 	Delete(ctx context.Context, docID string, revision int64) error
+	PatchCounts(ctx context.Context, doc IndexDoc) error
 }

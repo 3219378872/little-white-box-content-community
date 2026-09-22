@@ -19,7 +19,10 @@ func getMyFavoritesExecutor(clients Clients) executorFunc {
 		if err != nil {
 			return "", nil, err
 		}
-		page, pageSize := parsePage(argsJSON)
+		page, pageSize, err := parsePage(argsJSON)
+		if err != nil {
+			return "", nil, err
+		}
 		resp, err := clients.Interaction.GetFavoriteList(ctx, &interactionservice.GetFavoriteListReq{UserId: userID, Page: page, PageSize: pageSize})
 		if err != nil {
 			return "", nil, errx.FromRPCError(err)
@@ -37,7 +40,10 @@ func getMyLikesExecutor(clients Clients) executorFunc {
 		if err != nil {
 			return "", nil, err
 		}
-		page, pageSize := parsePage(argsJSON)
+		page, pageSize, err := parsePage(argsJSON)
+		if err != nil {
+			return "", nil, err
+		}
 		resp, err := clients.Interaction.GetLikeList(ctx, &interactionservice.GetLikeListReq{UserId: userID, Page: page, PageSize: pageSize})
 		if err != nil {
 			return "", nil, errx.FromRPCError(err)
@@ -55,7 +61,10 @@ func getMyFollowingExecutor(user userservice.UserService) executorFunc {
 		if err != nil {
 			return "", nil, err
 		}
-		page, pageSize := parsePage(argsJSON)
+		page, pageSize, err := parsePage(argsJSON)
+		if err != nil {
+			return "", nil, err
+		}
 		resp, err := user.GetFollowing(ctx, &userservice.GetFollowingReq{UserId: userID, Page: page, PageSize: pageSize})
 		if err != nil {
 			return "", nil, errx.FromRPCError(err)

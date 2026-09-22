@@ -17,6 +17,7 @@ import (
 	"esx/pkg/jwtx"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
 
 type GetPostLogic struct {
@@ -37,7 +38,8 @@ func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLo
 func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, err error) {
 	userId, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 
-	result, err := l.svcCtx.ContentService.GetPost(l.ctx, &contentservice.GetPostReq{
+	callCtx := metadata.AppendToOutgoingContext(l.ctx, "x-xbh-record-view", "1")
+	result, err := l.svcCtx.ContentService.GetPost(callCtx, &contentservice.GetPostReq{
 		PostId: req.PostId,
 		UserId: userId,
 	})

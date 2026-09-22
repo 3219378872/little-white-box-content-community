@@ -8,6 +8,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/pkg/errx"
+	"esx/pkg/pageutil"
 	"esx/pkg/visibilityx"
 	"fmt"
 	"strconv"
@@ -53,7 +54,7 @@ func formatUserPosts(ctx context.Context, content contentservice.ContentService,
 	return text, sources, nil
 }
 
-func parsePage(argsJSON string) (int32, int32) {
+func parsePage(argsJSON string) (int32, int32, error) {
 	var args struct {
 		Page     int32 `json:"page"`
 		PageSize int32 `json:"page_size"`
@@ -65,7 +66,10 @@ func parsePage(argsJSON string) (int32, int32) {
 	if args.PageSize <= 0 || args.PageSize > 20 {
 		args.PageSize = 10
 	}
-	return args.Page, args.PageSize
+	if _, err := pageutil.PageOffset(args.Page, args.PageSize); err != nil {
+		return 0, 0, errx.New(errx.ParamError, "page window exceeds 10000")
+	}
+	return args.Page, args.PageSize, nil
 }
 
 func numericInt64(value any) (int64, bool) {

@@ -8,6 +8,8 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"time"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type iterationAction int
@@ -42,7 +44,9 @@ func (e *Engine) prepareExecution(persistCtx context.Context, run store.Run) (*e
 	}
 	session, err := e.Store.GetSession(persistCtx, run.SessionID)
 	if err != nil {
-		return nil, e.fail(persistCtx, run, "SESSION_MISSING", err.Error())
+		logx.WithContext(persistCtx).Errorw("assistant session missing",
+			logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+		return nil, e.fail(persistCtx, run, "SESSION_MISSING", "会话不存在")
 	}
 	snap, ok := prompt.DecodeSnapshot(session.PromptSnapshot)
 	if !ok {

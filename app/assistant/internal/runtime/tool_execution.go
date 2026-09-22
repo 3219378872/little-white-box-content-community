@@ -51,17 +51,15 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 		if err := e.requireConfirm(workCtx, persistCtx, run, call, digest); err != nil {
 			return err
 		}
-		if journal == nil || !journal.Takeover {
-			rechecked, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
-			if err != nil {
-				return err
-			}
-			recheckedDigest, err := canonical.DigestArgs(rechecked)
-			if err != nil || recheckedDigest != digest {
-				return errx.New(errx.ContentVersionConflict, "delete_post changed after confirmation")
-			}
-			call.Arguments = rechecked
+		rechecked, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
+		if err != nil {
+			return err
 		}
+		recheckedDigest, err := canonical.DigestArgs(rechecked)
+		if err != nil || recheckedDigest != digest {
+			return errx.New(errx.ContentVersionConflict, "delete_post changed after confirmation")
+		}
+		call.Arguments = rechecked
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled

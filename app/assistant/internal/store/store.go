@@ -71,7 +71,10 @@ type Store interface {
 
 	InsertConfirmation(ctx context.Context, row Confirmation) (Confirmation, error)
 	GetConfirmation(ctx context.Context, runID int64, callID string) (*Confirmation, error)
+	PendingConfirmation(ctx context.Context, runID int64) (*Confirmation, error)
+	UpdateConfirmation(ctx context.Context, row Confirmation) error
 	ResolveConfirmation(ctx context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error)
+	ListWaitingConfirmRuns(ctx context.Context) ([]Run, error)
 	GetInputCommand(ctx context.Context, userID int64, requestID string) (*InputCommand, error)
 	InsertInputCommand(ctx context.Context, command InputCommand) (InputCommand, error)
 

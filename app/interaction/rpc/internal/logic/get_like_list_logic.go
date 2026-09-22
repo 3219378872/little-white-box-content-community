@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
@@ -33,6 +34,9 @@ func (l *GetLikeListLogic) GetLikeList(in *pb.GetLikeListReq) (*pb.GetLikeListRe
 
 	postIDs, total, err := l.svcCtx.LikeRecordModel.FindActiveTargetIds(l.ctx, in.UserId, likeListTargetTypePost, page, pageSize)
 	if err != nil {
+		if errors.Is(err, pageutil.ErrPageWindow) {
+			return nil, errx.NewWithCode(errx.ParamError)
+		}
 		l.Errorf("get like list failed: %v", err)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}

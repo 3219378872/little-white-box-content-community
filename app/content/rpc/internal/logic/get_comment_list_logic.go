@@ -70,7 +70,7 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 	var replies []*model2.Comment
 	if len(parentIds) > 0 {
 		var err error
-		replies, err = l.svcCtx.CommentModel.FindByParentIds(l.ctx, in.PostId, parentIds)
+		replies, err = l.svcCtx.CommentModel.FindByParentIds(l.ctx, in.PostId, parentIds, previewReplyLimit)
 		if err != nil {
 			l.Errorw("CommentModel.FindByParentIds failed",
 				logx.Field("postId", in.PostId),

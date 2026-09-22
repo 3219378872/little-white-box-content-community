@@ -88,20 +88,20 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	}
 
 	createdAt := time.Now().UnixMilli()
-	bodyExcerpt := in.GetContent()
-	if len(bodyExcerpt) > 256 {
-		bodyExcerpt = bodyExcerpt[:256]
-	}
+	content := in.GetContent()
 	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostCreate, event.PostEvent{
 		EventTime:   createdAt,
 		Type:        event.PostEventCreated,
 		PostID:      id,
 		AuthorID:    in.GetAuthorId(),
 		Title:       in.GetTitle(),
-		BodyExcerpt: bodyExcerpt,
+		Body:        content,
+		BodyExcerpt: runePrefix(content, postEventExcerptRunes),
 		Tags:        validTags,
 		Status:      in.GetStatus(),
 		Revision:    1,
+		CreatedAt:   createdAt,
+		StatsSeq:    createdAt,
 	})
 	if err != nil {
 		l.Errorw("build post-created event failed", logx.Field("err", err.Error()))

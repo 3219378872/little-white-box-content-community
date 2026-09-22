@@ -49,6 +49,22 @@ func (m *MemoryStore) HasDeletedRunHistory(_ context.Context, run Run) (bool, er
 	return false, nil
 }
 
+func (m *MemoryStore) ListWaitingConfirmRuns(context.Context) ([]Run, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []Run
+	for _, run := range m.runs {
+		if run.Status == StatusWaitingConfirm {
+			out = append(out, run)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].LastActivityAtMs < out[j].LastActivityAtMs })
+	if len(out) > 100 {
+		out = out[:100]
+	}
+	return out, nil
+}
+
 func (m *MemoryStore) ListWaitingRuns(context.Context) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"esx/pkg/pageutil"
+
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -51,7 +53,10 @@ func (m *customLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Co
 }
 
 func (m *customLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error) {
-	offset := (page - 1) * pageSize
+	offset, err := pageutil.PageOffset(page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	var rows []struct {
 		TargetID int64 `db:"target_id"`

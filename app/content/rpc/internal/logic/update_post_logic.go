@@ -82,19 +82,23 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	}
 	replaceTags, eventTags, modelTags, modelTagIDs := tags.replace, tags.event, tags.values, tags.ids
 
-	bodyExcerpt := mergedContent
-	if len(bodyExcerpt) > 256 {
-		bodyExcerpt = bodyExcerpt[:256]
+	createdAt := post.CreatedAt.UnixMilli()
+	if createdAt < 0 {
+		createdAt = 0
 	}
 	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostUpdate, event.PostEvent{
-		Type:        event.PostEventUpdated,
-		PostID:      post.Id,
-		AuthorID:    post.AuthorId,
-		Title:       mergedTitle,
-		BodyExcerpt: bodyExcerpt,
-		Tags:        eventTags,
-		Status:      int32(newStatus),
-		Revision:    post.Revision + 1,
+		Type:         event.PostEventUpdated,
+		PostID:       post.Id,
+		AuthorID:     post.AuthorId,
+		Title:        mergedTitle,
+		Body:         mergedContent,
+		BodyExcerpt:  runePrefix(mergedContent, postEventExcerptRunes),
+		Tags:         eventTags,
+		Status:       int32(newStatus),
+		Revision:     post.Revision + 1,
+		LikeCount:    post.LikeCount,
+		CommentCount: post.CommentCount,
+		CreatedAt:    createdAt,
 	})
 	if err != nil {
 		l.Errorw("build post-updated event failed", logx.Field("err", err.Error()))

@@ -1,6 +1,10 @@
 package pageutil
 
-import "testing"
+import (
+	"errors"
+	"math"
+	"testing"
+)
 
 func TestClampPage(t *testing.T) {
 	tests := []struct {
@@ -16,6 +20,25 @@ func TestClampPage(t *testing.T) {
 		if got := ClampPage(tt.in); got != tt.want {
 			t.Fatalf("ClampPage(%d) = %d, want %d", tt.in, got, tt.want)
 		}
+	}
+}
+
+func TestPageOffsetRejectsInt32OverflowWindow(t *testing.T) {
+	offset, err := PageOffset(1, 20)
+	if err != nil || offset != 0 {
+		t.Fatalf("first page offset=%d err=%v", offset, err)
+	}
+	offset, err = PageOffset(100, 100)
+	if err != nil || offset != 9900 {
+		t.Fatalf("last legal window offset=%d err=%v", offset, err)
+	}
+	_, err = PageOffset(101, 100)
+	if !errors.Is(err, ErrPageWindow) {
+		t.Fatalf("page 101 err=%v", err)
+	}
+	_, err = PageOffset(math.MaxInt32, 100)
+	if !errors.Is(err, ErrPageWindow) {
+		t.Fatalf("overflowing page err=%v", err)
 	}
 }
 

@@ -113,7 +113,7 @@ func Match(task Task, ev event.PostEvent) (hit bool, summary string) {
 			return false, ""
 		}
 		needle := strings.ToLower(strings.TrimSpace(task.TargetText))
-		blob := strings.ToLower(ev.Title + " " + ev.BodyExcerpt)
+		blob := strings.ToLower(ev.Title + " " + ev.IndexText())
 		if needle != "" && strings.Contains(blob, needle) {
 			return true, "关键词匹配到新帖"
 		}

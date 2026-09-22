@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -33,38 +34,42 @@ func TestDeleteConfirmationBindsConcreteTargetRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 	engine := &Engine{Store: mem}
-	result := make(chan error, 1)
-	go func() { result <- engine.requireConfirm(ctx, ctx, run, call, digest) }()
-	var confirmation *store.Confirmation
-	deadline := time.NewTimer(500 * time.Millisecond)
-	defer deadline.Stop()
-	for confirmation == nil {
-		select {
-		case <-deadline.C:
-			t.Fatal("confirmation was not persisted")
-		default:
-			confirmation, err = mem.GetConfirmation(ctx, run.ID, call.ID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if confirmation == nil {
-				time.Sleep(time.Millisecond)
-			}
-		}
+	if err := engine.requireConfirm(ctx, ctx, run, call, digest); !errors.Is(err, errRunWaiting) {
+		t.Fatalf("pending confirmation should yield the worker, err=%v", err)
 	}
-	if confirmation.TargetRevision != 7 || confirmation.CanonicalArgsDigest != digest {
-		t.Fatalf("confirmation=%+v", confirmation)
+	confirmation, err := mem.GetConfirmation(ctx, run.ID, call.ID)
+	if err != nil || confirmation == nil || confirmation.TargetRevision != 7 || confirmation.CanonicalArgsDigest != digest {
+		t.Fatalf("confirmation=%+v err=%v", confirmation, err)
+	}
+	waiting, err := mem.GetRun(ctx, run.ID)
+	if err != nil || waiting.Status != store.StatusWaitingConfirm {
+		t.Fatalf("run=%+v err=%v", waiting, err)
+	}
+	other, err := mem.InsertRun(ctx, store.Run{
+		UserID: 8, SessionID: 8, RequestID: "other", Source: store.SourceUser,
+		Status: store.StatusQueued, Phase: store.PhaseQueued, CreatedAtMs: store.NowMs(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := mem.Claim(ctx, "worker", store.NowMs(), 60_000)
+	if err != nil || claimed == nil || claimed.ID != other.ID {
+		t.Fatalf("confirmation blocked claim: claimed=%+v err=%v", claimed, err)
 	}
 	resolved, err := mem.ResolveConfirmation(ctx, run.UserID, run.ID, call.ID, digest, true, store.NowMs())
 	if err != nil || resolved == nil || resolved.Status != store.ConfirmApproved {
 		t.Fatalf("resolve=%+v err=%v", resolved, err)
 	}
-	select {
-	case err := <-result:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-ctx.Done():
-		t.Fatal("confirmation waiter did not resume")
+	waiting.Status = store.StatusQueued
+	waiting.Phase = store.PhaseQueued
+	if err := mem.UpdateRun(ctx, *waiting); err != nil {
+		t.Fatal(err)
+	}
+	resumed, err := mem.Claim(ctx, "worker-2", store.NowMs(), 60_000)
+	if err != nil || resumed == nil || resumed.ID != run.ID {
+		t.Fatalf("resume claim=%+v err=%v", resumed, err)
+	}
+	if err := engine.requireConfirm(ctx, ctx, resumed, call, digest); err != nil {
+		t.Fatal(err)
 	}
 }

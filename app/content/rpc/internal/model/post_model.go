@@ -42,6 +42,7 @@ type (
 		InvalidatePostCache(ctx context.Context, id int64) error
 		IncrCommentCount(ctx context.Context, postId int64) error
 		DecrCommentCount(ctx context.Context, postId int64) error
+		IncrViewCount(ctx context.Context, postId int64) error
 	}
 
 	customPostModel struct {
@@ -280,6 +281,13 @@ func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map
 
 func (m *customPostModel) InvalidatePostCache(ctx context.Context, id int64) error {
 	return m.DelCacheCtx(ctx, fmt.Sprintf("%s%v", cachePostIdPrefix, id))
+}
+
+// IncrViewCount 原子递增浏览数。不删除帖子缓存，避免每次详情阅读打穿缓存。
+func (m *customPostModel) IncrViewCount(ctx context.Context, postId int64) error {
+	query := fmt.Sprintf("update %s set `view_count`=`view_count`+1 where `id`=? and `status`=1", m.table)
+	_, err := m.ExecNoCacheCtx(ctx, query, postId)
+	return err
 }
 
 // IncrCommentCount 原子递增评论数，避免并发写丢失

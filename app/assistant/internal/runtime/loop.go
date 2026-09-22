@@ -97,7 +97,7 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
 		if fresh, getErr := e.ownedRun(persistCtx, run); getErr == nil &&
 			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
-			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", err.Error())
+			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", "助手暂时无法完成这个请求")
 		}
 	}
 }

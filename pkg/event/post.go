@@ -9,22 +9,38 @@ const (
 	PostEventCreated PostEventType = "post.created"
 	PostEventUpdated PostEventType = "post.updated"
 	PostEventDeleted PostEventType = "post.deleted"
+	// PostEventCounted carries absolute like/comment counts without replacing the indexed body.
+	PostEventCounted PostEventType = "post.counted"
 )
 
 // PostEvent 是 search-index / embedding / content-cleanup / feed-fanout 等 L1 消费者
 // 共享的帖子事件载荷。字段尽量保持稳定，避免因下游不同消费方各自定义 schema。
 type PostEvent struct {
-	EventID     int64         `json:"event_id"`
-	EventTime   int64         `json:"event_time"` // Unix ms
-	Type        PostEventType `json:"type"`
-	PostID      int64         `json:"post_id"`
-	AuthorID    int64         `json:"author_id"`
-	Title       string        `json:"title,omitempty"`
-	BodyExcerpt string        `json:"body_excerpt,omitempty"`
-	CategoryID  int64         `json:"category_id,omitempty"`
-	Tags        []string      `json:"tags,omitempty"`
-	Status      int32         `json:"status,omitempty"` // 0:草稿 1:已发布 2:已删除（CORE-015）
-	Revision    int64         `json:"revision,omitempty"`
+	EventID      int64         `json:"event_id"`
+	EventTime    int64         `json:"event_time"` // Unix ms
+	Type         PostEventType `json:"type"`
+	PostID       int64         `json:"post_id"`
+	AuthorID     int64         `json:"author_id"`
+	Title        string        `json:"title,omitempty"`
+	BodyExcerpt  string        `json:"body_excerpt,omitempty"`
+	Body         string        `json:"body,omitempty"`
+	CategoryID   int64         `json:"category_id,omitempty"`
+	Tags         []string      `json:"tags,omitempty"`
+	Status       int32         `json:"status,omitempty"` // 0:草稿 1:已发布 2:已删除（CORE-015）
+	Revision     int64         `json:"revision,omitempty"`
+	LikeCount    int64         `json:"like_count,omitempty"`
+	CommentCount int64         `json:"comment_count,omitempty"`
+	CreatedAt    int64         `json:"created_at,omitempty"` // unix milliseconds
+	StatsSeq     int64         `json:"stats_seq,omitempty"`
+}
+
+// IndexText is the body used by search, embeddings and keyword watches.
+// Older events only carry BodyExcerpt.
+func (e PostEvent) IndexText() string {
+	if e.Body != "" {
+		return e.Body
+	}
+	return e.BodyExcerpt
 }
 
 func (e *PostEvent) Validate() error {
@@ -38,11 +54,14 @@ func (e *PostEvent) Validate() error {
 		return fmt.Errorf("type is required")
 	}
 	switch e.Type {
-	case PostEventCreated, PostEventUpdated, PostEventDeleted:
+	case PostEventCreated, PostEventUpdated, PostEventDeleted, PostEventCounted:
 	default:
 		return fmt.Errorf("unknown post event type: %s", e.Type)
 	}
-	if e.Type != PostEventDeleted && e.AuthorID <= 0 {
+	if e.Type == PostEventCounted || e.Type == PostEventDeleted {
+		return nil
+	}
+	if e.AuthorID <= 0 {
 		return fmt.Errorf("author_id is required for non-delete events")
 	}
 	return nil

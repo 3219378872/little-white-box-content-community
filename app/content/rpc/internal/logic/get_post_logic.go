@@ -10,7 +10,19 @@ import (
 	"esx/pkg/visibilityx"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
 )
+
+const recordViewMetadata = "x-xbh-record-view"
+
+func recordViewRequested(ctx context.Context) bool {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false
+	}
+	values := md.Get(recordViewMetadata)
+	return len(values) > 0 && values[0] == "1"
+}
 
 type GetPostLogic struct {
 	ctx    context.Context
@@ -48,6 +60,13 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 	// 已发布内容对所有人可见。
 	if !visibilityx.IsPublished(int32(post.Status)) && in.GetUserId() != post.AuthorId {
 		return nil, errx.NewWithCode(errx.ContentNotFound)
+	}
+	if recordViewRequested(l.ctx) && visibilityx.IsPublished(int32(post.Status)) {
+		if err = l.svcCtx.PostModel.IncrViewCount(l.ctx, post.Id); err != nil {
+			l.Errorw("IncrViewCount failed", logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+		} else {
+			post.ViewCount++
+		}
 	}
 
 	tags, err := l.svcCtx.PostTagModel.FindTagNamesByPostId(l.ctx, post.Id)

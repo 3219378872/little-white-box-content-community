@@ -22,7 +22,7 @@ type (
 		InsertComment(ctx context.Context, comment *Comment) error
 		FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error)
 		FindByParentId(ctx context.Context, parentId int64, page, pageSize int) ([]*Comment, int64, error)
-		FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*Comment, error)
+		FindByParentIds(ctx context.Context, postId int64, parentIds []int64, perParent int) ([]*Comment, error)
 		FindActiveByIds(ctx context.Context, postID int64, ids []int64) ([]*Comment, error)
 		UpdateStatus(ctx context.Context, id int64, status int64) error
 		InvalidateCommentCache(ctx context.Context, id int64) error
@@ -127,23 +127,26 @@ func (m *customCommentModel) FindByParentId(ctx context.Context, parentId int64,
 	return comments, total, nil
 }
 
-// FindByParentIds 批量读取多条一级评论的可见回复（时间正序），供评论列表内嵌预览。
-// 返回行不按父分组，由调用方在内存中按 ParentId 归组截断。
-func (m *customCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64) ([]*Comment, error) {
+// FindByParentIds 批量读取多条一级评论的可见回复（时间正序），每条父评论最多 perParent 行。
+func (m *customCommentModel) FindByParentIds(ctx context.Context, postId int64, parentIds []int64, perParent int) ([]*Comment, error) {
 	if len(parentIds) == 0 {
 		return nil, nil
 	}
+	if perParent <= 0 {
+		perParent = 3
+	}
 	placeholders := make([]string, 0, len(parentIds))
-	args := make([]any, 0, len(parentIds)+1)
+	args := make([]any, 0, len(parentIds)+2)
 	args = append(args, postId)
 	for _, id := range parentIds {
 		placeholders = append(placeholders, "?")
 		args = append(args, id)
 	}
+	args = append(args, perParent)
 	var comments []*Comment
 	query := fmt.Sprintf(
-		"select %s from %s where `post_id` = ? and `status` = 1 and `parent_id` in (%s) order by `created_at` asc, `id` asc",
-		commentRows, m.table, strings.Join(placeholders, ","),
+		"select %s from (select %s, row_number() over (partition by `parent_id` order by `created_at` asc, `id` asc) as preview_rn from %s where `post_id` = ? and `status` = 1 and `parent_id` in (%s)) preview where preview_rn <= ? order by `created_at` asc, `id` asc",
+		commentRows, commentRows, m.table, strings.Join(placeholders, ","),
 	)
 	err := m.QueryRowsNoCacheCtx(ctx, &comments, query, args...)
 	if err != nil {

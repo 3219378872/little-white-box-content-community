@@ -153,5 +153,12 @@ func Confirm(ctx context.Context, st store.Store, userID, runID int64, callID st
 	if approved && resolved.Status != store.ConfirmApproved {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	return nil
+	fresh, err := st.GetRun(ctx, runID)
+	if err != nil || fresh == nil || fresh.Status != store.StatusWaitingConfirm {
+		return err
+	}
+	fresh.Status = store.StatusQueued
+	fresh.Phase = store.PhaseQueued
+	fresh.LastActivityAtMs = store.NowMs()
+	return st.UpdateRun(ctx, *fresh)
 }

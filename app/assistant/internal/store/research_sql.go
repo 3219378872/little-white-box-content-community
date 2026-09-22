@@ -40,6 +40,16 @@ func (s *SQLStore) HasDeletedRunHistory(ctx context.Context, run Run) (bool, err
 	return row.N > 0, err
 }
 
+func (s *SQLStore) ListWaitingConfirmRuns(ctx context.Context) ([]Run, error) {
+	var rows []runRow
+	err := s.exec.QueryRowsCtx(ctx, &rows, runSelect+" WHERE status='waiting_confirm' ORDER BY last_activity_at_ms, id LIMIT 100")
+	out := make([]Run, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.toRun())
+	}
+	return out, err
+}
+
 func (s *SQLStore) ListWaitingRuns(ctx context.Context) ([]Run, error) {
 	var rows []runRow
 	err := s.exec.QueryRowsCtx(ctx, &rows, runSelect+" WHERE status='waiting_input' ORDER BY last_activity_at_ms, id LIMIT 100")

@@ -54,7 +54,7 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 	var nextCursor string
 	if hasMore && len(posts) > 0 {
 		boundary := posts[len(posts)-1]
-		nextCursor, err = encodePostCursor(sortBy, boundary)
+		nextCursor, err = encodePostCursor(cursor.SortBy, boundary)
 		if err != nil {
 			l.Errorw("encode post cursor failed", logx.Field("err", err.Error()))
 			nextCursor = ""

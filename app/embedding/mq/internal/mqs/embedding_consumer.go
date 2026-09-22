@@ -53,6 +53,10 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
+		if e.Type == event.PostEventCounted {
+			embeddingConsumerMessages.Inc("processed")
+			continue
+		}
 		storedRevision, err := vs.CurrentRevision(ctx, e.PostID)
 		if err != nil {
 			logx.WithContext(ctx).Errorw("embedding-consumer: read revision failed",
@@ -84,7 +88,7 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 				embeddingConsumerMessages.Inc("processed")
 				continue
 			}
-			text := e.Title + "\n" + e.BodyExcerpt
+			text := e.Title + "\n" + e.IndexText()
 			result, err := emb.Embed(ctx, text)
 			if err != nil {
 				logx.WithContext(ctx).Errorw("embedding-consumer: embed failed",

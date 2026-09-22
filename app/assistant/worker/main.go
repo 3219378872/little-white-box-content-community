@@ -84,6 +84,9 @@ func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
 					logx.WithContext(ctx).Errorw("assistant waiting resolution failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
 				}
 			}
+			if err := runtime.ExpireConfirmationWaits(ctx, svcCtx.Store, store.NowMs()); err != nil {
+				logx.WithContext(ctx).Errorw("assistant confirmation wait scan failed", logx.Field("err", err.Error()))
+			}
 		}
 	}
 }

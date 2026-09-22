@@ -149,7 +149,7 @@ func (s *SQLStore) RequestCancel(ctx context.Context, userID, runID int64) error
 
 func (s *SQLStore) RequestCancelAll(ctx context.Context, userID int64) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET cancel_requested=1
-		WHERE user_id=? AND status IN ('queued','running','waiting_input')`, userID)
+		WHERE user_id=? AND status IN ('queued','running','waiting_input','waiting_confirm')`, userID)
 	return err
 }
 
@@ -160,7 +160,7 @@ func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sourc
 	// Accept may redirect the active foreground run after it locks the thread.
 	// Lock every open run first so worker completion and input acceptance both
 	// use agent_run -> assistant_thread.
-	query := runSelect + ` WHERE user_id=? AND status IN ('queued','running','waiting_input') ORDER BY id FOR UPDATE`
+	query := runSelect + ` WHERE user_id=? AND status IN ('queued','running','waiting_input','waiting_confirm') ORDER BY id FOR UPDATE`
 	var rows []runRow
 	if err := s.exec.QueryRowsCtx(ctx, &rows, query, userID); err != nil {
 		return nil, err

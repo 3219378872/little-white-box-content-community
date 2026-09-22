@@ -11,6 +11,19 @@ import (
 	"esx/pkg/util"
 )
 
+const postEventExcerptRunes = 256
+
+func runePrefix(s string, n int) string {
+	if n <= 0 || s == "" {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
+}
+
 func buildPostOutboxEvent(topic string, e event.PostEvent) (outboxx.Event, error) {
 	if e.EventID == 0 {
 		id, err := util.NextID()

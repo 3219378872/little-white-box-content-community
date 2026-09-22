@@ -162,7 +162,10 @@ func getMyPostsExecutor(content contentservice.ContentService) executorFunc {
 		if err != nil {
 			return "", nil, err
 		}
-		_, pageSize := parsePage(argsJSON)
+		_, pageSize, err := parsePage(argsJSON)
+		if err != nil {
+			return "", nil, err
+		}
 		resp, err := content.GetUserPosts(ctx, &contentservice.GetUserPostsReq{UserId: userID, PageSize: pageSize, SortBy: 1})
 		if err != nil {
 			return "", nil, errx.FromRPCError(err)

@@ -21,6 +21,9 @@ func (e *errorIndexer) Index(ctx context.Context, doc indexer.IndexDoc) error { 
 func (e *errorIndexer) Delete(ctx context.Context, docID string, _ int64) error {
 	return e.err
 }
+func (e *errorIndexer) PatchCounts(ctx context.Context, doc indexer.IndexDoc) error {
+	return e.err
+}
 
 type recordingIndexer struct {
 	indexed []indexer.IndexDoc
@@ -36,6 +39,10 @@ func (r *recordingIndexer) Index(ctx context.Context, doc indexer.IndexDoc) erro
 		return nil
 	}
 	r.revs[doc.DocID] = doc.Revision
+	r.indexed = append(r.indexed, doc)
+	return nil
+}
+func (r *recordingIndexer) PatchCounts(ctx context.Context, doc indexer.IndexDoc) error {
 	r.indexed = append(r.indexed, doc)
 	return nil
 }

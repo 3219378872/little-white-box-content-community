@@ -131,6 +131,35 @@ func (m *MemoryStore) GetConfirmation(_ context.Context, runID int64, callID str
 	return &cp, nil
 }
 
+func (m *MemoryStore) PendingConfirmation(_ context.Context, runID int64) (*Confirmation, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var found *Confirmation
+	for _, row := range m.confirms {
+		if row.RunID == runID && row.Status == ConfirmPending {
+			cp := row
+			if found == nil || cp.ID < found.ID {
+				found = &cp
+			}
+		}
+	}
+	return found, nil
+}
+
+func (m *MemoryStore) UpdateConfirmation(_ context.Context, row Confirmation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := confirmKey(row.RunID, row.CallID)
+	existing, ok := m.confirms[key]
+	if !ok || existing.Status != ConfirmPending {
+		return sqlx.ErrNotFound
+	}
+	existing.Status = row.Status
+	existing.ResolvedAtMs = row.ResolvedAtMs
+	m.confirms[key] = existing
+	return nil
+}
+
 func (m *MemoryStore) ResolveConfirmation(_ context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"esx/pkg/pageutil"
+
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -49,7 +51,10 @@ func (m *customFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userID,
 }
 
 func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int64, page, pageSize int32) ([]int64, int64, error) {
-	offset := (page - 1) * pageSize
+	offset, err := pageutil.PageOffset(page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	var rows []struct {
 		PostID int64 `db:"post_id"`

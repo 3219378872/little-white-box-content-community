@@ -53,6 +53,18 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 			searchConsumerMessages.Inc("invalid")
 			continue
 		}
+		if e.Type == event.PostEventCounted {
+			if err := idx.PatchCounts(ctx, indexer.PostEventToIndexDoc(e)); err != nil {
+				logx.WithContext(ctx).Errorw("search-consumer: count patch failed",
+					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
+					logx.Field("err", err.Error()))
+				searchConsumerMessages.Inc("retry")
+				return consumer.ConsumeRetryLater
+			}
+			searchConsumerMessages.Inc("processed")
+			observeSearchIndexLag(e.EventTime, time.Now())
+			continue
+		}
 		switch e.Type {
 		case event.PostEventCreated, event.PostEventUpdated:
 			// CORE-015：草稿/取消发布的内容不得进入搜索索引。

@@ -2,10 +2,16 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"esx/pkg/idempotencyx"
 	"fmt"
+	"strconv"
+	"time"
 
+	"esx/pkg/event"
+	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
+	"esx/pkg/util"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -78,7 +84,10 @@ func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Commen
 		}
 		commentID = comment.Id
 		created = true
-		return m.outbox.Enqueue(ctx, session, event)
+		if err := m.outbox.Enqueue(ctx, session, event); err != nil {
+			return err
+		}
+		return enqueuePostCounts(ctx, session, m.outbox, comment.PostId)
 	})
 	return commentID, created, err
 }
@@ -131,6 +140,39 @@ func (m *commentCommandModel) DeleteComment(ctx context.Context, comment *Commen
 			"UPDATE post SET comment_count = GREATEST(comment_count - ?, 0) WHERE id = ?",
 			postDelta, comment.PostId,
 		)
+		if err != nil {
+			return err
+		}
+		if m.outbox == nil {
+			return nil
+		}
+		return enqueuePostCounts(ctx, session, m.outbox, comment.PostId)
+	})
+}
+
+func enqueuePostCounts(ctx context.Context, session sqlx.Session, outbox OutboxEnqueuer, postID int64) error {
+	var counts struct {
+		LikeCount    int64 `db:"like_count"`
+		CommentCount int64 `db:"comment_count"`
+	}
+	if err := session.QueryRowCtx(ctx, &counts,
+		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ? LIMIT 1", postID); err != nil {
 		return err
+	}
+	id, err := util.NextID()
+	if err != nil {
+		return err
+	}
+	now := time.Now().UnixMilli()
+	payload, err := json.Marshal(event.PostEvent{
+		EventID: id, EventTime: now, Type: event.PostEventCounted, PostID: postID,
+		LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: now,
+	})
+	if err != nil {
+		return err
+	}
+	return outbox.Enqueue(ctx, session, outboxx.Event{
+		ID: id, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault,
+		Key: strconv.FormatInt(postID, 10), Payload: payload,
 	})
 }

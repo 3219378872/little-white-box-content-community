@@ -84,6 +84,58 @@ func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
 	return nil
 }
 
+const patchCountsScript = `
+if (ctx._source.post_id == null) {
+  ctx.op = 'noop';
+  return;
+}
+long stored = ctx._source.stats_seq == null ? 0L : (long) ctx._source.stats_seq;
+if (params.stats_seq <= stored) {
+  ctx.op = 'noop';
+  return;
+}
+ctx._source.like_count = params.like_count;
+ctx._source.comment_count = params.comment_count;
+ctx._source.stats_seq = params.stats_seq;
+`
+
+// PatchCounts updates interaction counters without replacing the indexed body.
+// A missing document is ErrNotIndexed so the caller can retry after the create event lands.
+func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
+	payload, err := json.Marshal(map[string]any{
+		"script": map[string]any{
+			"lang":   "painless",
+			"source": patchCountsScript,
+			"params": map[string]any{
+				"like_count":    doc.Body["like_count"],
+				"comment_count": doc.Body["comment_count"],
+				"stats_seq":     doc.Body["stats_seq"],
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("marshal count patch: %w", err)
+	}
+	res, err := (esapi.UpdateRequest{
+		Index:      e.index,
+		DocumentID: doc.DocID,
+		Body:       bytes.NewReader(payload),
+		Refresh:    "false",
+	}).Do(ctx, e.client)
+	if err != nil {
+		return fmt.Errorf("ES count patch: %w", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode == http.StatusNotFound {
+		return ErrNotIndexed
+	}
+	if res.IsError() {
+		raw, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("ES count patch failed status=%s body=%s", res.Status(), string(raw))
+	}
+	return nil
+}
+
 func (e *ESIndexer) Delete(ctx context.Context, docID string, revision int64) error {
 	req := esapi.DeleteRequest{
 		Index:      e.index,
@@ -269,6 +321,14 @@ const PostIndexMapping = `{
 // PostEventToIndexDoc 把 PostEvent 转成 ESIndexer 可消费的 IndexDoc。
 // 提供给消费者层使用，避免消费者直接耦合 ES 字段命名。
 func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
+	createdAt := e.CreatedAt
+	if createdAt <= 0 {
+		createdAt = e.EventTime
+	}
+	statsSeq := e.StatsSeq
+	if statsSeq <= 0 {
+		statsSeq = e.EventTime
+	}
 	return IndexDoc{
 		DocID:    strconv.FormatInt(e.PostID, 10),
 		Type:     string(e.Type),
@@ -278,12 +338,13 @@ func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 			"author_id":     e.AuthorID,
 			"category_id":   e.CategoryID,
 			"title":         e.Title,
-			"body":          e.BodyExcerpt,
+			"body":          e.IndexText(),
 			"tags":          e.Tags,
-			"like_count":    0,
-			"comment_count": 0,
-			"created_at":    e.EventTime,
+			"like_count":    e.LikeCount,
+			"comment_count": e.CommentCount,
+			"created_at":    createdAt,
 			"revision":      e.Revision,
+			"stats_seq":     statsSeq,
 		},
 	}
 }
