@@ -73,6 +73,17 @@ func (r *memoryRedis) GetCtx(_ context.Context, key string) (string, error) {
 func (r *memoryRedis) EvalCtx(_ context.Context, script string, keys []string, args ...any) (any, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if script == loginLockCheckScript || script == loginLockFailureScript {
+		if len(keys) != 1 || len(args) != 1 {
+			return nil, errors.New("memory redis: invalid login lock arguments")
+		}
+		attempts, _ := strconv.ParseInt(r.values[keys[0]], 10, 64)
+		if script == loginLockFailureScript {
+			attempts++
+			r.values[keys[0]] = strconv.FormatInt(attempts, 10)
+		}
+		return attempts, nil
+	}
 	if len(keys) != 2 || len(args) < 2 {
 		return nil, errors.New("memory redis: invalid eval arguments")
 	}

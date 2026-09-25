@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"esx/pkg/event"
@@ -15,6 +16,7 @@ type CandidateStore interface {
 }
 
 type RedisCandidateStore struct {
+	privacy        *RedisBehaviorStore
 	redis          RedisEvaler
 	featureVersion string
 	recallPrefix   string
@@ -26,9 +28,11 @@ func NewRedisCandidateStore(
 	featureVersion string,
 	recallKeyPrefix string,
 	ttlSeconds int,
+	readers ...PersonalizationPreferenceReader,
 ) *RedisCandidateStore {
 	return &RedisCandidateStore{
-		redis: redis, featureVersion: featureVersion,
+		privacy: NewRedisBehaviorStore(redis, featureVersion, recallKeyPrefix, ttlSeconds, readers...),
+		redis:   redis, featureVersion: featureVersion,
 		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
 	}
 }
@@ -43,14 +47,45 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 	}
 	postID := strconv.FormatInt(post.PostID, 10)
 	authorID := strconv.FormatInt(post.AuthorID, 10)
-	_, err := s.redis.EvalCtx(ctx, recordPostCandidateScript, []string{
+	// Post fan-out also derives per-user recommendations. Re-check durable
+	// consent instead of trusting follower membership left by an older event.
+	allowed := map[string]bool{}
+	if members, ok := s.redis.(interface {
+		SmembersCtx(context.Context, string) ([]string, error)
+	}); ok && post.Type != event.PostEventDeleted {
+		followers, err := members.SmembersCtx(ctx, s.recallPrefix+":follow:author:"+authorID+":followers")
+		if err != nil {
+			return fmt.Errorf("load candidate followers: %w", err)
+		}
+		for _, identity := range followers {
+			if !strings.HasPrefix(identity, "u:") {
+				continue
+			}
+			userID, err := strconv.ParseInt(strings.TrimPrefix(identity, "u:"), 10, 64)
+			if err != nil || userID <= 0 {
+				continue
+			}
+			optedOut, err := s.privacy.personalizationOptedOut(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("check candidate follower preference: %w", err)
+			}
+			if !optedOut {
+				allowed[identity] = true
+			}
+		}
+	}
+	allowedJSON, err := json.Marshal(allowed)
+	if err != nil {
+		return fmt.Errorf("marshal candidate preferences: %w", err)
+	}
+	_, err = s.redis.EvalCtx(ctx, recordPostCandidateScript, []string{
 		"feature:" + s.featureVersion + ":post:" + postID,
 		s.recallPrefix + ":recall:post:hot:home",
 		s.recallPrefix + ":recall:post:explore:home",
 		s.recallPrefix + ":author:" + authorID + ":posts",
 		s.recallPrefix + ":follow:author:" + authorID + ":followers",
 	}, string(post.Type), postID, authorID, category, post.EventTime,
-		s.ttlSeconds, s.recallPrefix, post.Revision)
+		s.ttlSeconds, s.recallPrefix, post.Revision, string(allowedJSON))
 	if err != nil {
 		return fmt.Errorf("record recommendation post candidates: %w", err)
 	}
@@ -88,13 +123,17 @@ else
   redis.call('ZADD', KEYS[4], event_time, post_id)
 end
 
+local allowed_followers = cjson.decode(ARGV[9])
 local followers = redis.call('SMEMBERS', KEYS[5])
 for _, identity in ipairs(followers) do
   local follow_key = recall_prefix .. ':recall:post:follow:' .. identity .. ':home'
   if event_type == 'post.deleted' then
     redis.call('ZREM', follow_key, post_id)
-  else
+  elseif allowed_followers[identity] then
     redis.call('ZADD', follow_key, event_time, post_id)
+  else
+    redis.call('DEL', follow_key)
+    redis.call('SREM', KEYS[5], identity)
   end
   redis.call('EXPIRE', follow_key, ttl)
 end

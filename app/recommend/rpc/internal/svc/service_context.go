@@ -119,7 +119,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		PostRecallSources:  postSources,
 		SimilarPostSources: similarSources,
 		UserRecallSources:  userSources,
-		FeatureRepository:  model.NewRedisFeatureRepository(redisClient, c.FeatureVersion),
+		FeatureRepository:  model.NewRedisFeatureRepository(redisClient, c.FeatureVersion, userService),
 		SnapshotStore:      model.NewRedisSnapshotStore(redisClient, prefix),
 		CursorCodec:        cursorCodec,
 		Now:                now,

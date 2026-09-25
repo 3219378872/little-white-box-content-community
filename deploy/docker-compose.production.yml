@@ -545,9 +545,12 @@ services:
         SERVICE_PATH: app/recommend/mq
         SERVICE_CONFIG: app/recommend/mq/etc/recommend-consumer.yaml
     environment:
-      <<: [*redis-env, *mq-env]
+      <<: [*redis-env, *mq-env, *etcd-env]
+      RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
     healthcheck: *process-healthcheck
     depends_on:
+      user-rpc:
+        condition: service_healthy
       redis:
         condition: service_healthy
       rocketmq-broker:

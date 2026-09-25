@@ -153,10 +153,9 @@ func (s *SQLStore) RequestCancelAll(ctx context.Context, userID int64) error {
 	return err
 }
 
-func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error) {
-	if len(sources) == 0 {
-		return nil, nil
-	}
+// LockOpenRuns serializes acceptance, background scheduling and history deletion
+// before any of them acquires the thread lock or inserts another run.
+func (s *SQLStore) LockOpenRuns(ctx context.Context, userID int64) ([]Run, error) {
 	// Accept may redirect the active foreground run after it locks the thread.
 	// Lock every open run first so worker completion and input acceptance both
 	// use agent_run -> assistant_thread.
@@ -165,13 +164,27 @@ func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sourc
 	if err := s.exec.QueryRowsCtx(ctx, &rows, query, userID); err != nil {
 		return nil, err
 	}
+	runs := make([]Run, 0, len(rows))
+	for _, row := range rows {
+		runs = append(runs, row.toRun())
+	}
+	return runs, nil
+}
+
+func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error) {
+	if len(sources) == 0 {
+		return nil, nil
+	}
+	runs, err := s.LockOpenRuns(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	wanted := make(map[string]struct{}, len(sources))
 	for _, source := range sources {
 		wanted[source] = struct{}{}
 	}
-	out := make([]Run, 0, len(rows))
-	for _, row := range rows {
-		run := row.toRun()
+	out := make([]Run, 0, len(runs))
+	for _, run := range runs {
 		if _, ok := wanted[run.Source]; !ok {
 			continue
 		}

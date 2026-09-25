@@ -12,7 +12,9 @@ import (
 
 	"esx/pkg/event"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	"esx/app/user/rpc/userservice"
+
+	"google.golang.org/grpc"
 )
 
 type BehaviorStore interface {
@@ -26,7 +28,12 @@ type RedisEvaler interface {
 	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 }
 
+type PersonalizationPreferenceReader interface {
+	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error)
+}
+
 type RedisBehaviorStore struct {
+	preferences    PersonalizationPreferenceReader
 	redis          RedisEvaler
 	featureVersion string
 	recallPrefix   string
@@ -40,11 +47,15 @@ type RedisGetter interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 }
 
-func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int) *RedisBehaviorStore {
-	return &RedisBehaviorStore{
+func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
+	s := &RedisBehaviorStore{
 		redis: redis, featureVersion: featureVersion,
 		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
 	}
+	if len(readers) > 0 {
+		s.preferences = readers[0]
+	}
+	return s
 }
 
 func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.BehaviorEvent) error {
@@ -116,18 +127,23 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 }
 
 func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
-	getter, ok := s.redis.(RedisGetter)
-	if !ok {
-		return false, nil
-	}
-	value, err := getter.GetCtx(ctx, personalizationOptOutKeyPrefix+strconv.FormatInt(userID, 10))
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return false, nil
+	if getter, ok := s.redis.(RedisGetter); ok {
+		value, err := getter.GetCtx(ctx, personalizationOptOutKeyPrefix+strconv.FormatInt(userID, 10))
+		if err == nil && value != "" {
+			return true, nil
 		}
-		return false, err
 	}
-	return value != "", nil
+	if s.preferences == nil {
+		return true, fmt.Errorf("personalization preference service unavailable")
+	}
+	preference, err := s.preferences.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
+	if err != nil {
+		return true, err
+	}
+	if preference == nil {
+		return true, fmt.Errorf("personalization preference response is nil")
+	}
+	return !preference.Enabled, nil
 }
 
 // purgeIdentityFeatures 删除该身份的全部在线个性化特征与个性化召回键。
@@ -139,20 +155,47 @@ func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity
 	if !ok {
 		return nil
 	}
-	_, err := purger.EvalCtx(ctx, purgeIdentityFeaturesScript, []string{
+	keys := []string{
 		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
 		prefix + ":state", prefix + ":blocked_authors",
 		s.recallPrefix + ":recall:post:itemcf:" + identity,
 		s.recallPrefix + ":recall:post:follow:" + identity,
 		s.recallPrefix + ":recall:user:interest:" + identity,
 		s.recallPrefix + ":recall:user:mutual:" + identity,
-	}, 0)
+	}
+	if lister, ok := privacyKeyLister(s.redis); ok {
+		for _, key := range append([]string(nil), keys[6:]...) {
+			found, err := lister.KeysCtx(ctx, key+":*")
+			if err != nil {
+				return err
+			}
+			for _, candidate := range found {
+				if strings.HasPrefix(candidate, key+":") {
+					keys = append(keys, candidate)
+				}
+			}
+		}
+	}
+	followers := []string{}
+	if lister, ok := privacyKeyLister(s.redis); ok {
+		var err error
+		followers, err = lister.KeysCtx(ctx, s.recallPrefix+":follow:author:*:followers")
+		if err != nil {
+			return err
+		}
+	}
+	deleteCount := len(keys)
+	keys = append(keys, followers...)
+	_, err := purger.EvalCtx(ctx, purgeIdentityFeaturesScript, keys, deleteCount, identity)
 	return err
 }
 
 const purgeIdentityFeaturesScript = `
-for index = 1, #KEYS do
+for index = 1, tonumber(ARGV[1]) do
   redis.call('DEL', KEYS[index])
+end
+for index = tonumber(ARGV[1]) + 1, #KEYS do
+  redis.call('SREM', KEYS[index], ARGV[2])
 end
 return 1
 `
@@ -313,6 +356,40 @@ type RedisKeyLister interface {
 	KeysCtx(ctx context.Context, pattern string) ([]string, error)
 }
 
+type redisKeyScanner interface {
+	ScanCtx(context.Context, uint64, string, int64) ([]string, uint64, error)
+}
+type scanningKeyLister struct{ scanner redisKeyScanner }
+
+func (l scanningKeyLister) KeysCtx(ctx context.Context, pattern string) ([]string, error) {
+	var cursor uint64
+	var keys []string
+	seen := make(map[string]bool)
+	for {
+		batch, next, err := l.scanner.ScanCtx(ctx, cursor, pattern, 256)
+		if err != nil {
+			return nil, err
+		}
+		for _, key := range batch {
+			if !seen[key] {
+				seen[key] = true
+				keys = append(keys, key)
+			}
+		}
+		if next == 0 {
+			return keys, nil
+		}
+		cursor = next
+	}
+}
+func privacyKeyLister(client RedisEvaler) (RedisKeyLister, bool) {
+	if scanner, ok := client.(redisKeyScanner); ok {
+		return scanningKeyLister{scanner}, true
+	}
+	lister, ok := client.(RedisKeyLister)
+	return lister, ok
+}
+
 // PurgeOptedOutFeatures 主动清理已关闭个性化用户的在线特征（REL-023）。
 // 由 recommend-mq 定时任务周期调用：枚举 `personalization:optout:<userID>`
 // 关闭标记并删除对应身份的全部特征键，确保关闭后 24 小时内删除在线特征，
@@ -321,13 +398,53 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 	if s == nil || s.redis == nil {
 		return 0, nil
 	}
-	lister, ok := s.redis.(RedisKeyLister)
+	lister, ok := privacyKeyLister(s.redis)
 	if !ok {
 		return 0, nil
 	}
 	keys, err := lister.KeysCtx(ctx, personalizationOptOutKeyPrefix+"*")
 	if err != nil {
 		return 0, fmt.Errorf("list personalization opt-out markers: %w", err)
+	}
+	// Discover retained profiles independently of cache markers. This also repairs
+	// opt-outs whose marker write failed and users who never send another event.
+	identities := make(map[int64]bool)
+	for _, pattern := range []string{"feature:" + s.featureVersion + ":u:*", s.recallPrefix + ":recall:*"} {
+		retained, err := lister.KeysCtx(ctx, pattern)
+		if err != nil {
+			return 0, err
+		}
+		for _, key := range retained {
+			parts := strings.Split(key, ":")
+			for i, part := range parts {
+				if part == "u" && i+1 < len(parts) {
+					id, err := strconv.ParseInt(parts[i+1], 10, 64)
+					if err == nil && id > 0 {
+						identities[id] = true
+					}
+					break
+				}
+			}
+		}
+	}
+	for _, key := range keys {
+		if strings.HasPrefix(key, personalizationOptOutKeyPrefix) {
+			id, err := strconv.ParseInt(strings.TrimPrefix(key, personalizationOptOutKeyPrefix), 10, 64)
+			if err == nil && id > 0 {
+				delete(identities, id)
+			}
+		}
+	}
+	var failures []error
+	for id := range identities {
+		optedOut, err := s.personalizationOptedOut(ctx, id)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("load retained profile preference for user %d: %w", id, err))
+			continue
+		}
+		if optedOut {
+			keys = append(keys, personalizationOptOutKeyPrefix+strconv.FormatInt(id, 10))
+		}
 	}
 	purged := 0
 	for _, key := range keys {
@@ -341,5 +458,5 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 		}
 		purged++
 	}
-	return purged, nil
+	return purged, errors.Join(failures...)
 }

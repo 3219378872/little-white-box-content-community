@@ -14,6 +14,7 @@ type Store interface {
 	CreateSession(ctx context.Context, session Session) (Session, error)
 	GetSession(ctx context.Context, id int64) (*Session, error)
 	UpdateSession(ctx context.Context, session Session) error
+	ClearSessionHistory(ctx context.Context, userID int64) error
 	CloseSession(ctx context.Context, id int64, closedAtMs int64) error
 
 	InsertMessage(ctx context.Context, msg Message) (Message, error)
@@ -37,6 +38,7 @@ type Store interface {
 	SetRunInput(ctx context.Context, runID int64, payload []byte, lastActivityMs int64) error
 	RequestCancel(ctx context.Context, userID, runID int64) error
 	RequestCancelAll(ctx context.Context, userID int64) error
+	LockOpenRuns(ctx context.Context, userID int64) ([]Run, error)
 	CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error)
 	Claim(ctx context.Context, owner string, nowMs, leaseMs int64) (*Run, error)
 	RenewLease(ctx context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error)

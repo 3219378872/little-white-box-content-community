@@ -10,8 +10,6 @@ import (
 	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/pkg/errx"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -63,21 +61,21 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 			return nil, errx.New(errx.ParamError, "密码未设置，请使用手机登录并设置密码后登录")
 		}
 		// 先看锁定：窗口内错误次数已达上限则拒绝，正确密码也不能登录。
-		if locked, lockErr := l.loginLocked(in.Username); lockErr != nil {
+		if locked, lockErr := l.loginLocked(user.Id); lockErr != nil {
 			l.Errorw("login lock check failed",
 				logx.Field("username", in.Username), logx.Field("err", lockErr.Error()))
 		} else if locked {
 			return nil, errx.NewWithCode(errx.TooManyReq)
 		}
 		if password.Compare(user.Password, in.Password) != nil {
-			if recErr := l.recordLoginFailure(in.Username); recErr != nil {
+			if recErr := l.recordLoginFailure(user.Id); recErr != nil {
 				l.Errorw("login failure record failed",
 					logx.Field("username", in.Username), logx.Field("err", recErr.Error()))
 			}
 			return nil, errx.NewWithCode(errx.PasswordError)
 		}
 		if l.svcCtx.RedisClient != nil {
-			_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, loginLockKey(in.Username))
+			_, _ = l.svcCtx.RedisClient.DelCtx(l.ctx, loginLockKey(user.Id))
 		}
 	}
 
@@ -97,43 +95,53 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 
 }
 
-func loginLockKey(username string) string {
-	return fmt.Sprintf("login:lock:%s", username)
+// The database username comparison is case/accent insensitive. Use the resolved
+// account ID so every spelling of one account shares the same failure window.
+func loginLockKey(userID int64) string {
+	return fmt.Sprintf("login:lock:user:%d", userID)
 }
 
-// loginLocked 读取当前失败计数；窗口内达到上限返回 true。Redis 故障由调用方 fail-open。
-func (l *LoginLogic) loginLocked(username string) (bool, error) {
-	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || strings.TrimSpace(username) == "" {
+// Both reads and increments repair counters without TTL. The check must repair
+// an already locked counter too, since such a request never reaches INCR.
+const loginLockCheckScript = `
+local attempts = redis.call('GET', KEYS[1])
+if not attempts then return 0 end
+if redis.call('TTL', KEYS[1]) < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return tonumber(attempts)
+`
+
+const loginLockFailureScript = `
+local attempts = redis.call('INCR', KEYS[1])
+if redis.call('TTL', KEYS[1]) < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return attempts
+`
+
+// loginLocked reads and repairs the failure window atomically. The caller keeps
+// the existing fail-open policy for Redis outages.
+func (l *LoginLogic) loginLocked(userID int64) (bool, error) {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || userID <= 0 {
 		return false, nil
 	}
-	raw, err := l.svcCtx.RedisClient.GetCtx(l.ctx, loginLockKey(username))
+	result, err := l.svcCtx.RedisClient.EvalCtx(l.ctx, loginLockCheckScript,
+		[]string{loginLockKey(userID)}, loginLockWindowSeconds)
 	if err != nil {
 		return false, err
 	}
-	if raw == "" {
-		return false, nil
-	}
-	attempts, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return false, nil
-	}
-	return attempts >= loginLockMaxAttempts, nil
+	attempts, err := redisInteger(result)
+	return attempts >= loginLockMaxAttempts, err
 }
 
-// recordLoginFailure 仅在密码比对失败后递增计数；首次写入时设置窗口 TTL。
-func (l *LoginLogic) recordLoginFailure(username string) error {
-	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || strings.TrimSpace(username) == "" {
+func (l *LoginLogic) recordLoginFailure(userID int64) error {
+	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || userID <= 0 {
 		return nil
 	}
-	lockKey := loginLockKey(username)
-	attempts, err := l.svcCtx.RedisClient.IncrCtx(l.ctx, lockKey)
-	if err != nil {
-		return err
-	}
-	if attempts == 1 {
-		_ = l.svcCtx.RedisClient.ExpireCtx(l.ctx, lockKey, loginLockWindowSeconds)
-	}
-	return nil
+	_, err := l.svcCtx.RedisClient.EvalCtx(l.ctx, loginLockFailureScript,
+		[]string{loginLockKey(userID)}, loginLockWindowSeconds)
+	return err
 }
 
 // 密码登录失败锁定：窗口内允许的错误次数。

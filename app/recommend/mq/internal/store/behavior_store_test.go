@@ -47,7 +47,7 @@ func featureBehavior() event.BehaviorEvent {
 
 func TestRedisBehaviorStoreUsesVersionedAtomicKeys(t *testing.T) {
 	redis := &fakeEvaler{}
-	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences())
 	behavior := featureBehavior()
 	behavior.RequestID = "request-1"
 
@@ -74,13 +74,13 @@ func TestRedisBehaviorStoreSkipsAnonymousFeatureRecording(t *testing.T) {
 	behavior.UserID = 0
 	behavior.AnonymousID = "device/unsafe:key"
 
-	require.NoError(t, NewRedisBehaviorStore(redis, "v2", "recommend", 3600).Record(context.Background(), behavior))
+	require.NoError(t, NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences()).Record(context.Background(), behavior))
 	// DISC-031：匿名事件不进入推荐在线特征，不建立跨会话匿名画像。
 	assert.Empty(t, redis.keys, "anonymous events must not write feature keys")
 }
 
 func TestRedisBehaviorStorePropagatesRedisFailure(t *testing.T) {
-	err := NewRedisBehaviorStore(&fakeEvaler{err: errors.New("redis down")}, "v2", "recommend", 3600).
+	err := NewRedisBehaviorStore(&fakeEvaler{err: errors.New("redis down")}, "v2", "recommend", 3600, enabledPreferences()).
 		Record(context.Background(), featureBehavior())
 	assert.ErrorContains(t, err, "redis down")
 }
@@ -90,7 +90,7 @@ func TestRedisBehaviorStoreSkipsAndPurgesFeaturesWhenOptedOut(t *testing.T) {
 	store := NewRedisBehaviorStore(&fakeGetterEvaler{
 		fakeEvaler: evaler,
 		getValues:  map[string]string{"personalization:optout:42": "1"},
-	}, "v2", "recommend", 3600)
+	}, "v2", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, store.Record(context.Background(), featureBehavior()))
 
@@ -105,7 +105,7 @@ func TestRedisBehaviorStoreStillRecordsWhenOptIn(t *testing.T) {
 	store := NewRedisBehaviorStore(&fakeGetterEvaler{
 		fakeEvaler: evaler,
 		getValues:  map[string]string{"personalization:optout:42": ""},
-	}, "v2", "recommend", 3600)
+	}, "v2", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, store.Record(context.Background(), featureBehavior()))
 	require.Len(t, evaler.keys, 16)
@@ -113,7 +113,7 @@ func TestRedisBehaviorStoreStillRecordsWhenOptIn(t *testing.T) {
 
 func TestRedisBehaviorStoreExposureCarriesRequestPostDedupKey(t *testing.T) {
 	redis := &fakeEvaler{}
-	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences())
 	behavior := featureBehavior()
 	behavior.Action = event.BehaviorActionExposure
 	behavior.RequestID = "request-1"
@@ -144,7 +144,7 @@ func (f *fakePurgeRedis) EvalCtx(_ context.Context, _ string, keys []string, _ .
 
 func TestPurgeOptedOutFeaturesDeletesFeatureKeys(t *testing.T) {
 	redis := &fakePurgeRedis{keys: []string{"personalization:optout:42", "personalization:optout:7"}}
-	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences())
 
 	purged, err := store.PurgeOptedOutFeatures(context.Background())
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestPurgeOptedOutFeaturesSkipsInvalidMarkers(t *testing.T) {
 		"personalization:optout:0",
 		"unrelated:key",
 	}}
-	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences())
 
 	purged, err := store.PurgeOptedOutFeatures(context.Background())
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestPurgeOptedOutFeaturesSkipsInvalidMarkers(t *testing.T) {
 
 func TestPurgeOptedOutFeaturesListFailure(t *testing.T) {
 	redis := &fakePurgeRedis{keysErr: errors.New("redis down")}
-	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, enabledPreferences())
 
 	_, err := store.PurgeOptedOutFeatures(context.Background())
 	assert.ErrorContains(t, err, "redis down")
@@ -185,7 +185,7 @@ func TestPurgeOptedOutFeaturesListFailure(t *testing.T) {
 
 func TestPurgeOptedOutFeaturesWithoutKeyLister(t *testing.T) {
 	// 仅实现 EvalCtx 的存储不支持键枚举：返回 0,nil，不视为故障。
-	store := NewRedisBehaviorStore(&fakeEvaler{}, "v2", "recommend", 3600)
+	store := NewRedisBehaviorStore(&fakeEvaler{}, "v2", "recommend", 3600, enabledPreferences())
 
 	purged, err := store.PurgeOptedOutFeatures(context.Background())
 	require.NoError(t, err)

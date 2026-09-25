@@ -43,7 +43,7 @@ func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEven
 		UserId: userID, RunId: req.Id, AfterSeq: req.AfterSeq,
 	})
 	if err != nil {
-		return errx.FromRPCError(err)
+		return errx.FromRPCError(errx.FromGRPCError(err))
 	}
 	for {
 		event, recvErr := stream.Recv()
@@ -57,7 +57,7 @@ func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEven
 			if status.Code(recvErr) == codes.Canceled {
 				return nil
 			}
-			return errx.FromRPCError(recvErr)
+			return errx.FromRPCError(errx.FromGRPCError(recvErr))
 		}
 		mapped := mapRunEvent(event)
 		if mapped == nil {

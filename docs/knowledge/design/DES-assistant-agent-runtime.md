@@ -325,3 +325,15 @@ confirmation、compact、BM25/outbox、Watch bucket/rate、review、Redis notify
 - provider contract：Chat Completions 与 Responses 的非流式/流式 tool-call fixture、cache usage、错误分类、
   Retry-After、fallback、canary 与跨 chunk scrub。
 - 根真实栈：授权、异步发送、断线重连、删除确认、memory-review、compact 新 epoch、history、Watch 主动消息。
+
+## 2026-09-25 历史删除与订阅失败边界
+
+历史删除在同一事务中按 run → thread 的顺序锁定并取消所有活跃任务，关闭等待交互、清理队列和
+历史派生数据，清除会话压缩摘要与 prompt snapshot 并推进 epoch，MEMORY/USER 和 Watch 定义保留。
+取消终态使旧 worker 的 RunStep 失效，防止 compact 或回答写回。事务内读取 session 使用当前读，
+防止并发请求的 repeatable-read 快照恢复删除前的历史；Watch 调度遵守相同 run/thread 锁顺序。
+
+订阅发现 run 终态后再次读取持久事件，以补齐两次查询之间提交的最终结果。网关在流尚未开始时
+按公共错误映射返回 JSON 4xx/5xx；开始后发送无 id 的 transport_error，携带公共错误及 retryable。
+该帧是连接结果，不是持久 run 事件，不推进恢复游标、不将 run 伪造为终止。写失败或客户端离开
+取消该订阅上下文，不取消后台 run。

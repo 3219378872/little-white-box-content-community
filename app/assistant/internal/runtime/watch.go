@@ -94,6 +94,11 @@ func scheduleBucket(ctx context.Context, st store.Store, memories memory.Store, 
 		if freshBucket == nil || (freshBucket.Status != "pending" && freshBucket.Status != "deferred") {
 			return nil
 		}
+		// Match acceptance/deletion and worker completion: run locks precede
+		// the thread lock, including the gap into which a Watch run is inserted.
+		if _, err := tx.LockOpenRuns(ctx, bucket.UserID); err != nil {
+			return err
+		}
 		thread, err := tx.LockThread(ctx, bucket.UserID)
 		if err != nil {
 			return err

@@ -108,6 +108,18 @@ func (m *MemoryStore) RequestCancelAll(_ context.Context, userID int64) error {
 	return nil
 }
 
+func (m *MemoryStore) LockOpenRuns(_ context.Context, userID int64) ([]Run, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var runs []Run
+	for _, run := range m.runs {
+		if run.UserID == userID && !IsTerminalStatus(run.Status) {
+			runs = append(runs, run)
+		}
+	}
+	return runs, nil
+}
+
 func (m *MemoryStore) CancelOpenBackground(_ context.Context, userID int64, sources []string) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

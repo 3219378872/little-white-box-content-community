@@ -209,47 +209,6 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	return AcceptResult{MessageID: msg.ID, SessionID: session.ID, RunID: runID, Disposition: disposition}, nil
 }
 
-func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
-	if userID <= 0 {
-		return errx.NewWithCode(errx.LoginRequired)
-	}
-	if err := a.Store.RequestCancelAll(ctx, userID); err != nil {
-		return err
-	}
-	if thread, err := a.Store.GetThread(ctx, userID); err != nil {
-		return err
-	} else if thread.ActiveRunID > 0 {
-		if err := ResolveWaiting(ctx, a.Store, a.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
-			return err
-		}
-	}
-	return a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
-		now := store.NowMs()
-		ids, err := tx.SoftDeleteMessages(ctx, userID, now)
-		if err != nil {
-			return err
-		}
-		if err := tx.ClearResearchHistory(ctx, userID); err != nil {
-			return err
-		}
-		for _, id := range ids {
-			if err := tx.InsertOutbox(ctx, store.Outbox{UserID: userID, MessageID: id, Op: store.IndexOpDelete, CreatedAtMs: now}); err != nil {
-				return err
-			}
-		}
-		thread, err := tx.LockThread(ctx, userID)
-		if err != nil {
-			return err
-		}
-		thread.LastMessageID = 0
-		thread.LastMessagePreview = ""
-		thread.LastMessageAtMs = 0
-		thread.UnreadCount = 0
-		thread.UpdatedAtMs = now
-		return tx.SaveThread(ctx, *thread)
-	})
-}
-
 func (a *Acceptor) MarkRead(ctx context.Context, userID int64) (int32, error) {
 	if userID <= 0 {
 		return 0, errx.NewWithCode(errx.LoginRequired)

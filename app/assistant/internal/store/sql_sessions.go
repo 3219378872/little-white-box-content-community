@@ -95,8 +95,14 @@ func (s *SQLStore) GetSession(ctx context.Context, id int64) (*Session, error) {
 		CreatedAtMs         int64          `db:"created_at_ms"`
 		ClosedAtMs          sql.NullInt64  `db:"closed_at_ms"`
 	}
-	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, prompt_epoch, prompt_snapshot, tool_snapshot, compact_summary,
-		status, successful_user_turns, created_at_ms, closed_at_ms FROM assistant_session WHERE id = ?`, id); err != nil {
+	query := `SELECT id, user_id, prompt_epoch, prompt_snapshot, tool_snapshot, compact_summary,
+		status, successful_user_turns, created_at_ms, closed_at_ms FROM assistant_session WHERE id = ?`
+	if s.conn == nil {
+		// A transaction may have opened its repeatable-read snapshot before
+		// waiting for the run/thread locks. Never restore a pre-deletion prompt.
+		query += " FOR UPDATE"
+	}
+	if err := s.exec.QueryRowCtx(ctx, &row, query, id); err != nil {
 		return nil, err
 	}
 	return &Session{
@@ -116,5 +122,14 @@ func (s *SQLStore) UpdateSession(ctx context.Context, session Session) error {
 
 func (s *SQLStore) CloseSession(ctx context.Context, id int64, closedAtMs int64) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE assistant_session SET status=?, closed_at_ms=? WHERE id=?`, SessionClosed, closedAtMs, id)
+	return err
+}
+
+// ClearSessionHistory invalidates history-derived prompts after all open runs
+// have been fenced in the same transaction. MEMORY/USER remain authoritative
+// in their own store and are reloaded when the next prompt is constructed.
+func (s *SQLStore) ClearSessionHistory(ctx context.Context, userID int64) error {
+	_, err := s.exec.ExecCtx(ctx, `UPDATE assistant_session SET prompt_epoch=prompt_epoch+1,
+		prompt_snapshot=NULL, compact_summary=NULL, successful_user_turns=0 WHERE user_id=?`, userID)
 	return err
 }

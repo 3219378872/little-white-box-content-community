@@ -178,7 +178,37 @@ func TestLoginPasswordLockoutRejectsCorrectPassword(t *testing.T) {
 	assert.True(t, errx.Is(loginErr, errx.TooManyReq),
 		"6th attempt with correct password is rejected while locked, got %v", loginErr)
 
-	lockVal, getErr := mem.GetCtx(context.Background(), loginLockKey(username))
+	lockVal, getErr := mem.GetCtx(context.Background(), loginLockKey(1))
 	require.NoError(t, getErr)
 	assert.Equal(t, "5", lockVal, "successful guess must not clear the lock")
+}
+
+func TestLoginLockUsesResolvedAccountID(t *testing.T) {
+	mem := &memoryRedis{values: map[string]string{}}
+	profile := &MockUserProfileModel{}
+	for _, spelling := range []string{"alice", "ALICE", "álîce"} {
+		profile.On("FindOneByUsername", mock.Anything, spelling).
+			Return(&model.UserProfile{Id: 1, Username: "alice", Password: "hash"}, nil).Maybe()
+	}
+	s := &svc.ServiceContext{RedisClient: mem, UserProfileModel: profile}
+	for range loginLockMaxAttempts {
+		_, err := NewLoginLogic(context.Background(), s).Login(&pb.LoginReq{Username: "alice", Password: "wrong", LoginType: 1})
+		require.True(t, errx.Is(err, errx.PasswordError))
+	}
+	for _, spelling := range []string{"ALICE", "álîce"} {
+		_, err := NewLoginLogic(context.Background(), s).Login(&pb.LoginReq{Username: spelling, Password: "wrong", LoginType: 1})
+		require.True(t, errx.Is(err, errx.TooManyReq), "same account spelling %q must remain locked: %v", spelling, err)
+	}
+	require.Equal(t, map[string]string{loginLockKey(1): "5"}, mem.values)
+}
+
+func TestLoginLockPropagatesAtomicStoreFailure(t *testing.T) {
+	r := &flakyRedis{memoryRedis: &memoryRedis{values: map[string]string{}},
+		onEval: func([]string, ...any) error { return errInjectedRedis }}
+	l := NewLoginLogic(context.Background(), &svc.ServiceContext{RedisClient: r})
+	require.ErrorIs(t, l.recordLoginFailure(1), errInjectedRedis)
+	locked, err := l.loginLocked(1)
+	require.ErrorIs(t, err, errInjectedRedis)
+	require.False(t, locked)
+	require.Empty(t, r.values)
 }

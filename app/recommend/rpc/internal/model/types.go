@@ -86,6 +86,7 @@ type RankedPost struct {
 }
 
 type PostSnapshot struct {
+	RuleOnly     bool         `json:"rule_only"`
 	RequestID    string       `json:"request_id"`
 	IdentityHash string       `json:"identity_hash"`
 	Scene        string       `json:"scene"`

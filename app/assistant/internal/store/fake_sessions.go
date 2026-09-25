@@ -74,3 +74,18 @@ func (m *MemoryStore) CloseSession(_ context.Context, id int64, closedAtMs int64
 	m.sessions[id] = session
 	return nil
 }
+
+func (m *MemoryStore) ClearSessionHistory(_ context.Context, userID int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, session := range m.sessions {
+		if session.UserID == userID {
+			session.PromptEpoch++
+			session.PromptSnapshot = nil
+			session.CompactSummary = ""
+			session.SuccessfulUserTurns = 0
+			m.sessions[id] = session
+		}
+	}
+	return nil
+}

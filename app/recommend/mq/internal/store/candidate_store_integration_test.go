@@ -21,8 +21,8 @@ func TestRedisCandidatePipelineProducesOnlineRecallKeys(t *testing.T) {
 	env := testutil.SetupRedisEnv(t)
 	t.Cleanup(env.Close)
 	ctx := context.Background()
-	candidates := NewRedisCandidateStore(env.Redis, "v2", "recommend", 3600)
-	behaviors := NewRedisBehaviorStore(env.Redis, "v2", "recommend", 3600)
+	candidates := NewRedisCandidateStore(env.Redis, "v2", "recommend", 3600, enabledPreferences())
+	behaviors := NewRedisBehaviorStore(env.Redis, "v2", "recommend", 3600, enabledPreferences())
 
 	for _, postID := range []int64{101, 102} {
 		require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
@@ -76,7 +76,7 @@ func TestRedisCandidateStoreIgnoresStaleRevision(t *testing.T) {
 	env := testutil.SetupRedisEnv(t)
 	t.Cleanup(env.Close)
 	ctx := context.Background()
-	candidates := NewRedisCandidateStore(env.Redis, "v2-rev", "recommend", 3600)
+	candidates := NewRedisCandidateStore(env.Redis, "v2-rev", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
 		EventID: 302, EventTime: 2_000, Type: event.PostEventUpdated,
@@ -111,8 +111,8 @@ func TestRedisBehaviorStoreKeepsEventTimeOrderAndLatestFollowState(t *testing.T)
 	env := testutil.SetupRedisEnv(t)
 	t.Cleanup(env.Close)
 	ctx := context.Background()
-	store := NewRedisBehaviorStore(env.Redis, "v2-ordering", "recommend", 3600)
-	candidates := NewRedisCandidateStore(env.Redis, "v2-ordering", "recommend", 3600)
+	store := NewRedisBehaviorStore(env.Redis, "v2-ordering", "recommend", 3600, enabledPreferences())
+	candidates := NewRedisCandidateStore(env.Redis, "v2-ordering", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
 		EventID: 201, EventTime: 1_000, Type: event.PostEventCreated,

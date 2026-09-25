@@ -9,6 +9,7 @@ import (
 	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
 	"esx/pkg/errx"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -48,7 +49,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		PageSize:     pageSize,
 	}
 	if in.GetCursor() != "" {
-		return l.pageFromCursor(in.GetCursor(), pageSize, binding)
+		return l.pageFromCursor(in.GetCursor(), pageSize, binding, identity)
 	}
 
 	privacyOptOut := l.personalizationOptedOut(in.GetUserId())
@@ -121,7 +122,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 			Position:     int32(index + 1),
 		})
 	}
-	response, err := l.firstPage(ranked, pageSize, binding)
+	response, err := l.firstPage(ranked, pageSize, binding, privacyOptOut || in.GetUserId() <= 0)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +147,7 @@ func (l *GetRecommendPostsLogic) personalizationOptedOut(userID int64) bool {
 	return optedOut
 }
 
-func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize int, binding cursor.Binding) (*pb.GetRecommendPostsResp, error) {
+func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize int, binding cursor.Binding, ruleOnly bool) (*pb.GetRecommendPostsResp, error) {
 	posts, err := filterPublishedRankedPosts(l.ctx, l.svcCtx.ContentService, posts)
 	if err != nil {
 		return nil, recommendationRPCError(err)
@@ -173,6 +174,7 @@ func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize in
 	}
 	expiresAt := now().Unix() + int64(cursorTTL(l.svcCtx.Config))
 	snapshot := model.PostSnapshot{
+		RuleOnly:     ruleOnly,
 		RequestID:    binding.RequestID,
 		IdentityHash: binding.IdentityHash,
 		Scene:        binding.Scene,
@@ -192,7 +194,7 @@ func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize in
 	return response, nil
 }
 
-func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, binding cursor.Binding) (*pb.GetRecommendPostsResp, error) {
+func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, binding cursor.Binding, identity string) (*pb.GetRecommendPostsResp, error) {
 	if l.svcCtx.CursorCodec == nil || l.svcCtx.SnapshotStore == nil {
 		return nil, errx.NewWithCode(errx.ServiceUnavailable)
 	}
@@ -212,12 +214,38 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 		snapshot.ExperimentID != binding.ExperimentID || snapshot.ExpiresAt != payload.ExpiresAt {
 		return nil, recommendationRPCError(fmt.Errorf("recommendation snapshot binding is invalid"))
 	}
+	// Personalization may have been disabled since the snapshot was created.
+	// Old serialized snapshots lack RuleOnly and are conservatively invalidated.
+	if strings.HasPrefix(identity, "u:") && !snapshot.RuleOnly {
+		userID, err := strconv.ParseInt(strings.TrimPrefix(identity, "u:"), 10, 64)
+		if err != nil || userID <= 0 || l.personalizationOptedOut(userID) {
+			return nil, errx.New(errx.ParamError, "recommendation cursor expired after personalization changed")
+		}
+	}
 	if payload.Offset >= len(snapshot.Posts) {
 		return nil, errx.New(errx.ParamError, "invalid or expired recommendation cursor")
 	}
 	visible, err := filterPublishedRankedPosts(l.ctx, l.svcCtx.ContentService, snapshot.Posts[payload.Offset:])
 	if err != nil {
 		return nil, recommendationRPCError(err)
+	}
+	// A snapshot freezes ranking, not explicit feedback. Another tab can hide
+	// a remaining candidate after the first page was returned (DISC-035).
+	if strings.HasPrefix(identity, "u:") {
+		if l.svcCtx.FeatureRepository == nil {
+			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		}
+		viewer, err := l.svcCtx.FeatureRepository.LoadViewerFeatures(l.ctx, identity)
+		if err != nil {
+			return nil, recommendationRPCError(err)
+		}
+		filtered := make([]model.RankedPost, 0, len(visible))
+		for _, post := range visible {
+			if !containsID(viewer.NegativePostIDs, post.PostID) {
+				filtered = append(filtered, post)
+			}
+		}
+		visible = filtered
 	}
 	end := min(pageSize, len(visible))
 	response := &pb.GetRecommendPostsResp{

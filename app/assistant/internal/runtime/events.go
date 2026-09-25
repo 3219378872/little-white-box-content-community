@@ -113,7 +113,10 @@ func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, ru
 			}
 			fresh, ferr := st.GetRun(ctx, runID)
 			if ferr == nil && store.IsTerminalStatus(fresh.Status) {
-				return nil
+				// Completion may commit after the preceding event read. The
+				// terminal state and final events commit together, so drain once
+				// more after observing that state before closing the stream.
+				return send()
 			}
 		}
 	}
@@ -153,12 +156,14 @@ func Confirm(ctx context.Context, st store.Store, userID, runID int64, callID st
 	if approved && resolved.Status != store.ConfirmApproved {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	fresh, err := st.GetRun(ctx, runID)
-	if err != nil || fresh == nil || fresh.Status != store.StatusWaitingConfirm {
-		return err
-	}
-	fresh.Status = store.StatusQueued
-	fresh.Phase = store.PhaseQueued
-	fresh.LastActivityAtMs = store.NowMs()
-	return st.UpdateRun(ctx, *fresh)
+	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+		fresh, err := tx.LockRun(ctx, runID)
+		if err != nil || fresh == nil || fresh.Status != store.StatusWaitingConfirm {
+			return err
+		}
+		fresh.Status = store.StatusQueued
+		fresh.Phase = store.PhaseQueued
+		fresh.LastActivityAtMs = store.NowMs()
+		return tx.UpdateRun(ctx, *fresh)
+	})
 }

@@ -12,7 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"esx/app/user/rpc/userservice"
+
 	"github.com/zeromicro/go-zero/core/stores/redis"
+	"google.golang.org/grpc"
 )
 
 type redisClient interface {
@@ -110,7 +113,12 @@ func (s *RedisUserRecallSource) Recall(ctx context.Context, req RecallRequest) (
 	return result, nil
 }
 
+type PersonalizationPreferenceReader interface {
+	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error)
+}
+
 type RedisFeatureRepository struct {
+	preferences    PersonalizationPreferenceReader
 	redis          redisClient
 	featureVersion string
 	now            func() time.Time
@@ -118,8 +126,12 @@ type RedisFeatureRepository struct {
 
 const featureLoadWorkers = 16
 
-func NewRedisFeatureRepository(redisClient redisClient, featureVersion string) *RedisFeatureRepository {
-	return &RedisFeatureRepository{redis: redisClient, featureVersion: featureVersion}
+func NewRedisFeatureRepository(redisClient redisClient, featureVersion string, readers ...PersonalizationPreferenceReader) *RedisFeatureRepository {
+	r := &RedisFeatureRepository{redis: redisClient, featureVersion: featureVersion}
+	if len(readers) > 0 {
+		r.preferences = readers[0]
+	}
+	return r
 }
 
 func (r *RedisFeatureRepository) LoadViewerFeatures(ctx context.Context, identity string) (ViewerFeatures, error) {
@@ -301,12 +313,23 @@ func (r *RedisFeatureRepository) IsPersonalizationOptedOut(ctx context.Context, 
 	if userID <= 0 {
 		return false, nil
 	}
-	key := fmt.Sprintf("personalization:optout:%d", userID)
-	value, err := r.redis.GetCtx(ctx, key)
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return false, fmt.Errorf("check personalization opt-out: %w", err)
+	// A missing/expired marker is never proof of consent. A cache outage also
+	// falls back to the user service, which owns the durable preference.
+	value, err := r.redis.GetCtx(ctx, fmt.Sprintf("personalization:optout:%d", userID))
+	if err == nil && value != "" {
+		return true, nil
 	}
-	return value != "", nil
+	if r.preferences == nil {
+		return true, fmt.Errorf("personalization preference service unavailable")
+	}
+	preference, err := r.preferences.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
+	if err != nil {
+		return true, fmt.Errorf("load personalization preference: %w", err)
+	}
+	if preference == nil {
+		return true, fmt.Errorf("personalization preference response is nil")
+	}
+	return !preference.Enabled, nil
 }
 
 type RedisSnapshotStore struct {
