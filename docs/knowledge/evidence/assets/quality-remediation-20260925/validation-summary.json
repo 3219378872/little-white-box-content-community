@@ -1,0 +1,50 @@
+{
+  "observed_commit": "fca6d503942f63f677aaedd8ff4acd3fd56da234",
+  "scope": [
+    "static",
+    "unit",
+    "integration"
+  ],
+  "race": true,
+  "tests": {
+    "skip_package": 7,
+    "pass_test": 1790,
+    "pass_package": 195
+  },
+  "commands": [
+    {
+      "command": "GOMAXPROCS=4 make fmt-check vet lint vulncheck spec-evals-test python-unit",
+      "exit_code": 0,
+      "seconds": 84.8
+    },
+    {
+      "command": "GOMAXPROCS=4 make test ARGS='-count=1 -p=2' TEST_JSON_DIR=/tmp/little-remediation-final/backend-json",
+      "exit_code": 0,
+      "seconds": 211.12
+    },
+    {
+      "command": "GOMAXPROCS=4 GOFLAGS=-race make integration-critical",
+      "exit_code": 0,
+      "seconds": 102.92
+    },
+    {
+      "command": "GOMAXPROCS=4 go test -p 1 -tags=integration -race -count=1 -timeout=10m ./app/assistant/internal/runtime ./app/assistant/internal/store ./app/content/rpc/internal/logic ./app/feed/rpc/internal/svc ./app/recommend/mq/internal/store",
+      "exit_code": 0,
+      "seconds": 133.06
+    }
+  ],
+  "integration": "isolated MySQL and Redis containers only",
+  "vulnerabilities": {
+    "reachable": 0,
+    "uncalled_imported_package_notices": 1,
+    "uncalled_module_notices": 2
+  },
+  "unverified": [
+    "live-provider",
+    "browser",
+    "device",
+    "capacity",
+    "production",
+    "full live stack"
+  ]
+}

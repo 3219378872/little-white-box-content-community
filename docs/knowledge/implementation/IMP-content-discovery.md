@@ -4,7 +4,7 @@ layer: implementation
 title: 内容发现实现映射
 status: active
 owner: agent
-updated_at: 2026-09-19
+updated_at: 2026-09-25
 code_paths:
 - pkg/interceptor
 - app/feed
@@ -27,39 +27,39 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| DISC-001 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-002 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-003 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-004 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-010 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-011 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-012 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-020 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-021 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-022 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-023 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-030 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-031 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-032 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-033 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-034 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-035 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-036 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-040 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-041 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-042 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-050 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-051 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-052 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
+| DISC-001 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-002 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-003 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-004 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-010 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-011 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-012 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-020 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-021 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-022 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-023 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-030 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-031 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-032 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-033 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-034 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-035 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-036 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-040 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-041 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-042 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-050 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-051 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-052 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
 | DISC-060 | DES-content-community-backend | unknown | gap: 当前数据为合成开发集；缺两名人类独立评审并消歧的正式 qrels。 |
-| DISC-061 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
+| DISC-061 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
 | DISC-062 | DES-content-community-backend | diverged | gap: 默认 OnlineInfer / ModelVersion:auto 缺少 10k exposures + 1k identities 晋级门禁。 |
 | DISC-063 | DES-content-community-backend | diverged | gap: 当前规则模型相对规则基线提升为 0，未达到 5% 与 bootstrap 下界要求。 |
-| DISC-A01 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-A02 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-A03 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-A04 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
-| DISC-A05 | DES-content-community-backend | aligned | EVD-20260919-backend-quality-fixes |
+| DISC-A01 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-A02 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-A03 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-A04 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-A05 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
 | DISC-A06 | DES-content-community-backend | diverged | gap: 人类双评审搜索集缺失，且学习排序效果门禁已知未达到。 |
 
 ## 代码边界
@@ -69,6 +69,7 @@ code_paths:
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260919-backend-quality-fixes`，含普通/降级游标、负反馈失败关闭和真实 Redis
-特征版本接线。旧 `implementation/evidence/` 记录只保留历史上下文，
-不参与当前 `aligned` 判定。人类、真实 provider、浏览器、设备和生产证据未执行时不会被推断。
+当前确定性验证见 `EVD-20260925-quality-remediation`。覆盖推荐续页当前隐藏反馈、个性化切换后的游标失效、偏好权威回查及既有发现回归。
+证据在固定实现提交运行全模块 race、静态检查与专用 MySQL/Redis 隔离集成，随后更新本映射；
+历史 EVD 保留原观察结果，不改写为当前证明。原有 unknown/diverged 及其 gap 不提升。
+本轮没有真实模型、浏览器、设备、容量或生产验证，这些范围不能从本地门禁推导。

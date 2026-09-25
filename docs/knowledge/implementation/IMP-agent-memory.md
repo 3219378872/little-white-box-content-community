@@ -4,7 +4,7 @@ layer: implementation
 title: Agent Memory 实现映射
 status: active
 owner: agent
-updated_at: 2026-09-19
+updated_at: 2026-09-25
 code_paths:
 - pkg/interceptor
 - app/assistant/internal/memory
@@ -24,31 +24,31 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
-| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260925-quality-remediation |
+| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260925-quality-remediation |
+| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
+| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
 | MEM-A05 | DES-assistant-agent-runtime | unknown | gap: 非来源边界有单测；真实存储故障集成注入未完成。 |
-| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260919-backend-quality-fixes |
+| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260925-quality-remediation |
 
 ## 代码边界
 
@@ -56,6 +56,7 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 ## 证据边界
 
-当前确定性验证见 `EVD-20260919-backend-quality-fixes`，覆盖真实 Execute 的成功、取消、失败和预算终态
-通知及撤销。旧 `implementation/evidence/` 记录只保留历史上下文，
-不参与当前 `aligned` 判定。未执行的人类、真实 provider、浏览器、设备和生产证据不会被推断。
+当前确定性验证见 `EVD-20260925-quality-remediation`。覆盖 MEMORY/USER 回归及清空历史后记忆保留；在当前提交重验既有 runtime 输入，修复 MEM-001 证据过期。
+证据在固定实现提交运行全模块 race、静态检查与专用 MySQL/Redis 隔离集成，随后更新本映射；
+历史 EVD 保留原观察结果，不改写为当前证明。原有 unknown/diverged 及其 gap 不提升。
+本轮没有真实模型、浏览器、设备、容量或生产验证，这些范围不能从本地门禁推导。
