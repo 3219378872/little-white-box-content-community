@@ -3,12 +3,13 @@ package runtime
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+
+	"github.com/stretchr/testify/require"
 )
 
 type blockingWakeNotifier struct{}
@@ -86,10 +87,10 @@ func (s *finishBetweenEventReads) ListEventsAfter(ctx context.Context, runID, af
 		if s.eventType == store.EventError {
 			s.run.Status = store.StatusError
 		}
-		if err := s.Store.UpdateRun(ctx, s.run); err != nil {
+		if err := s.UpdateRun(ctx, s.run); err != nil {
 			return nil, err
 		}
-		if _, err := s.Store.InsertEvent(ctx, runID, s.eventType, []byte(`{"text":"final result"}`), store.NowMs()); err != nil {
+		if _, err := s.InsertEvent(ctx, runID, s.eventType, []byte(`{"text":"final result"}`), store.NowMs()); err != nil {
 			return nil, err
 		}
 	}
