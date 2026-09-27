@@ -64,3 +64,16 @@ func TestGetMedia_Integration(t *testing.T) {
 		assertBizError(t, err, errx.MediaNotFound)
 	})
 }
+
+func TestMediaModelWritesThumbnailObjectKey(t *testing.T) {
+	id := insertTestMedia(t, 1080, 1)
+	row, err := testSvcCtx.MediaModel.FindOne(context.Background(), id)
+	require.NoError(t, err)
+	row.ThumbnailObjectKey = sql.NullString{String: "thumb/changed.jpg", Valid: true}
+	row.FileSize = 123
+	require.NoError(t, testSvcCtx.MediaModel.Update(context.Background(), row))
+	stored, err := testSvcCtx.MediaModel.FindOne(context.Background(), id)
+	require.NoError(t, err)
+	require.Equal(t, row.ThumbnailObjectKey, stored.ThumbnailObjectKey)
+	require.Equal(t, int64(123), stored.FileSize)
+}

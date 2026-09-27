@@ -69,3 +69,31 @@ func (m *customMediaModel) DelCache(ctx context.Context, id int64) error {
 	mediaIDKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, id)
 	return m.DelCacheCtx(ctx, mediaIDKey)
 }
+
+// The legacy generated Insert/Update omit thumbnail_object_key from their
+// argument lists. Keep schema-aware writes in the handwritten model extension.
+const mediaWriteColumns = "`user_id`,`file_name`,`original_name`,`file_type`,`mime_type`,`url`,`thumbnail_url`,`storage_type`,`bucket`,`object_key`,`thumbnail_object_key`,`file_size`,`width`,`height`,`duration`,`format`,`bit_rate`,`status`"
+
+func mediaWriteValues(data *Media) []any {
+	return []any{data.UserId, data.FileName, data.OriginalName, data.FileType, data.MimeType,
+		data.Url, data.ThumbnailUrl, data.StorageType, data.Bucket, data.ObjectKey,
+		data.ThumbnailObjectKey, data.FileSize, data.Width, data.Height, data.Duration,
+		data.Format, data.BitRate, data.Status}
+}
+
+func (m *customMediaModel) Insert(ctx context.Context, data *Media) (sql.Result, error) {
+	values := mediaWriteValues(data)
+	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
+		query := fmt.Sprintf("insert into %s (%s) values (%s)", m.table, mediaWriteColumns, strings.TrimSuffix(strings.Repeat("?,", len(values)), ","))
+		return conn.ExecCtx(ctx, query, values...)
+	}, fmt.Sprintf("%s%v", cacheMediaIdPrefix, data.Id))
+}
+
+func (m *customMediaModel) Update(ctx context.Context, data *Media) error {
+	values := append(mediaWriteValues(data), data.Id)
+	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
+		query := fmt.Sprintf("update %s set %s=? where `id`=?", m.table, strings.ReplaceAll(mediaWriteColumns, ",", "=?,"))
+		return conn.ExecCtx(ctx, query, values...)
+	}, fmt.Sprintf("%s%v", cacheMediaIdPrefix, data.Id))
+	return err
+}
