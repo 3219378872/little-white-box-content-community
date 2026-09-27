@@ -11,6 +11,10 @@ import (
 
 const canaryTool = "assistant_capability_canary"
 
+// The budget includes reasoning tokens, not just the tiny visible reply. Keep
+// this bounded while leaving room for both reasoning and the protocol payload.
+const canaryMaxTokens = 256
+
 func Canary(ctx context.Context, client Client) error {
 	if client == nil || !client.SupportsTools() {
 		return fmt.Errorf("selected WireAPI must support tool schema/call/result")
@@ -25,7 +29,7 @@ func Canary(ctx context.Context, client Client) error {
 	}
 	first, err := client.Complete(ctx, Request{
 		Messages: []prompt.Turn{{Role: "user", Content: "Call the capability canary exactly once with nonce agent-canary."}},
-		Tools:    []prompt.ToolDef{def}, RequiredTool: canaryTool, MaxTokens: 64,
+		Tools:    []prompt.ToolDef{def}, RequiredTool: canaryTool, MaxTokens: canaryMaxTokens,
 	})
 	if err != nil {
 		return fmt.Errorf("assistant LLM tool canary call: %w", err)
@@ -56,7 +60,7 @@ func Canary(ctx context.Context, client Client) error {
 			{Role: "assistant", ToolCalls: []prompt.ToolCall{{ID: callID, Name: canaryTool, Arguments: call.Arguments}}},
 			{Role: "tool", ToolCallID: callID, Name: canaryTool, Content: `{"ok":true,"nonce":"agent-canary"}`},
 		},
-		DisableTools: true, MaxTokens: 32,
+		DisableTools: true, MaxTokens: canaryMaxTokens,
 	})
 	if err != nil {
 		return fmt.Errorf("assistant LLM tool-result canary: %w", err)

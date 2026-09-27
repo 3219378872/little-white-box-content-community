@@ -20,6 +20,16 @@ func TestCanaryExercisesToolCallAndToolResultReplay(t *testing.T) {
 					t.Fatal(err)
 				}
 				w.Header().Set("Content-Type", "application/json")
+				budget := body["max_tokens"]
+				if wireAPI == WireAPIResponses {
+					budget = body["max_output_tokens"]
+				}
+				// A reasoning provider may spend the first 100 tokens internally.
+				// Returning no visible payload models the live token-exhaustion failure.
+				if n, _ := budget.(float64); n < 128 {
+					_ = json.NewEncoder(w).Encode(map[string]any{"status": "incomplete", "output": []any{}, "choices": []any{map[string]any{"message": map[string]any{"content": ""}}}})
+					return
+				}
 				switch calls {
 				case 1:
 					if _, ok := body["tools"]; !ok {
@@ -94,4 +104,33 @@ func containsJSONText(raw []byte, want string) bool {
 		}
 	}
 	return false
+}
+
+type canaryResultClient struct {
+	Client
+	results []Result
+}
+
+func (c *canaryResultClient) SupportsTools() bool { return true }
+func (c *canaryResultClient) Complete(context.Context, Request) (Result, error) {
+	r := c.results[0]
+	c.results = c.results[1:]
+	return r, nil
+}
+func TestCanaryStillRejectsMissingOrInvalidProtocol(t *testing.T) {
+	valid := Result{ToolCalls: []ToolCall{{ID: "call", Name: canaryTool, Arguments: `{"nonce":"agent-canary"}`}}}
+	for _, tc := range []struct {
+		name    string
+		results []Result
+	}{
+		{"missing tool", []Result{{Text: "ack"}}},
+		{"wrong nonce", []Result{{ToolCalls: []ToolCall{{Name: canaryTool, Arguments: `{"nonce":"wrong"}`}}}}},
+		{"empty acknowledgement", []Result{valid, {Text: " "}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if Canary(context.Background(), &canaryResultClient{results: tc.results}) == nil {
+				t.Fatal("invalid protocol passed readiness")
+			}
+		})
+	}
 }
