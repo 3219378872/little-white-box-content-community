@@ -496,7 +496,7 @@ func startContractServer(t *testing.T) (string, []rest.Route) {
 	t.Helper()
 	port := freePort(t)
 	cfg := config.Config{
-		RestConf: rest.RestConf{Host: "127.0.0.1", Port: port, Timeout: 3000}}
+		RestConf: rest.RestConf{Host: "127.0.0.1", Port: port, Timeout: 3000, MaxBytes: 10 << 20}}
 	cfg.Auth.AccessSecret = contractSecret
 	cfg.Auth.AccessExpire = 3600
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})

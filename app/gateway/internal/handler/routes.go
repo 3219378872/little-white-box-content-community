@@ -294,7 +294,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		),
 		rest.WithPrefix("/api/v1"),
 		rest.WithTimeout(120000*time.Millisecond),
-		rest.WithMaxBytes(-1),
+		rest.WithMaxBytes(9223372036854775807),
 	)
 
 	server.AddRoutes(
@@ -380,7 +380,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		),
 		rest.WithPrefix("/api/v1"),
 		rest.WithTimeout(300000*time.Millisecond),
-		rest.WithMaxBytes(-1),
+		rest.WithMaxBytes(9223372036854775807),
 	)
 
 	server.AddRoutes(

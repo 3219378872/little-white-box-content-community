@@ -1065,7 +1065,7 @@ service gateway {
 	group:      image
 	middleware: RequiredAuth
 	timeout:    120s
-	maxBytes:   "-1"
+	maxBytes:   9223372036854775807
 )
 service gateway {
 	@doc "上传图片"
@@ -1078,7 +1078,7 @@ service gateway {
 	group:      media
 	middleware: RequiredAuth
 	timeout:    300s
-	maxBytes:   "-1"
+	maxBytes:   9223372036854775807
 )
 service gateway {
 	@doc "上传视频（multipart file + idempotencyKey，最大 100 MiB）"
