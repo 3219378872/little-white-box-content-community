@@ -35,7 +35,7 @@ func TestHTTPStatus_MapsEveryBusinessCode(t *testing.T) {
 		IdempotencyConflict:    http.StatusConflict,
 		CannotFollowSelf:       http.StatusBadRequest,
 		FavoritesPrivate:       http.StatusForbidden,
-		FileTooLarge:           http.StatusBadRequest,
+		FileTooLarge:           http.StatusRequestEntityTooLarge,
 		FileTypeNotAllowed:     http.StatusBadRequest,
 		UploadFailed:           http.StatusInternalServerError,
 		MediaNotFound:          http.StatusNotFound,

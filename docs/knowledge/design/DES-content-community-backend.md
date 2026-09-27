@@ -364,7 +364,9 @@ root 凭据完成真实认证，不能把 Access denied 当作健康。
 mediaId、url、fileType、mimeType、fileSize；不伪造缩略图、时长，也不承诺转码或客户端编码兼容。
 
 上传处理把超过 1 MiB 的文件暂存磁盘，总请求预算比文件预算多 1 MiB，解析完仍按文件实际字节校验，
-所有路径移除临时文件。Gateway 图片路由 120 秒，视频/音频 300 秒；普通路由保持原限制。
+所有路径移除临时文件。go-zero 将非正路由 MaxBytes 回退到全局上限，故媒体路由将框架的
+Content-Length 预检设为 int64 上界，真实读取上限仍由 handler 的 MaxBytesReader 强制执行并返回
+业务 JSON；不是取消上传限额。Gateway 图片路由 120 秒，视频/音频 300 秒；普通路由保持原限制。
 视频复用 UploadVideo；音频新增 UploadAudio，复用带限额的 TempSink、内容哈希、事务媒体写入和
 对象补偿/outbox。原图片/视频幂等指纹不变，音频使用独立 media:upload:audio scope，避免跨类型命中。
 

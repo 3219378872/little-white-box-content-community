@@ -15,7 +15,7 @@ func (e *BizError) GRPCCode() codes.Code {
 	switch e.HTTPStatus() {
 	case http.StatusOK:
 		return codes.OK
-	case http.StatusBadRequest:
+	case http.StatusBadRequest, http.StatusRequestEntityTooLarge:
 		return codes.InvalidArgument
 	case http.StatusUnauthorized:
 		return codes.Unauthenticated

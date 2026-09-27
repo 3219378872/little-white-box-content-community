@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net"
@@ -819,5 +820,62 @@ func TestRESTDecisionTable(t *testing.T) {
 	}
 	for key := range coveredRoutes {
 		t.Errorf("decision references an unregistered route: %s", key)
+	}
+}
+
+func TestMediaRoutesUseFileBudgetInsteadOfGlobalRESTLimit(t *testing.T) {
+	base, _ := startContractServer(t)
+	token, err := jwtx.GenerateToken(1, "alice", jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path         string
+		size, status int
+	}{
+		{"video", 21 << 20, http.StatusOK},
+		{"audio", 10 << 20, http.StatusOK},
+		{"audio", (10 << 20) + 1, http.StatusRequestEntityTooLarge},
+	} {
+		t.Run(fmt.Sprintf("%s_%d", tc.path, tc.size), func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			part, e := writer.CreateFormFile("file", "probe.bin")
+			if e != nil {
+				t.Fatal(e)
+			}
+			if _, e = part.Write(make([]byte, tc.size)); e != nil {
+				t.Fatal(e)
+			}
+			if e = writer.WriteField("idempotencyKey", "budget-test"); e != nil {
+				t.Fatal(e)
+			}
+			if e = writer.Close(); e != nil {
+				t.Fatal(e)
+			}
+			req, e := http.NewRequest(http.MethodPost, base+"/api/v1/media/"+tc.path, &body)
+			if e != nil {
+				t.Fatal(e)
+			}
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			req.Header.Set("Authorization", "Bearer "+token)
+			resp, e := http.DefaultClient.Do(req)
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != tc.status {
+				t.Fatalf("status=%d want=%d", resp.StatusCode, tc.status)
+			}
+			if tc.status != http.StatusOK {
+				var response map[string]any
+				if e = json.NewDecoder(resp.Body).Decode(&response); e != nil {
+					t.Fatal(e)
+				}
+				if response["code"] != float64(errx.FileTooLarge) {
+					t.Fatalf("error=%v", response)
+				}
+			}
+		})
 	}
 }

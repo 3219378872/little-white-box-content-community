@@ -104,8 +104,10 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusConflict
 	case CannotFollowSelf, CannotWatchSelf:
 		return http.StatusBadRequest
+	case FileTooLarge:
+		return http.StatusRequestEntityTooLarge
 	case TitleEmpty, ContentEmpty, ContentTooLong,
-		FileTooLarge, FileTypeNotAllowed, MediaMetaMissing,
+		FileTypeNotAllowed, MediaMetaMissing,
 		VerifyCodeError, VerifyCodeExpired:
 		return http.StatusBadRequest
 	case PostAlreadyDeleted:
