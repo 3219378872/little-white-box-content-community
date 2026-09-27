@@ -35,23 +35,23 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| REL-001 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-002 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-003 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-004 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-005 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-006 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-007 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-008 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-010 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-011 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-012 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-013 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-020 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-021 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-022 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-023 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-024 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| REL-001 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-002 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-003 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-004 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-005 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-006 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-007 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-008 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-010 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-011 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-012 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-013 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-020 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-021 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-022 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-023 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-024 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
 | REL-030 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-031 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-032 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
@@ -60,28 +60,28 @@ code_paths:
 | REL-041 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-042 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
 | REL-043 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |
-| REL-044 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-045 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-050 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-051 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-052 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-053 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| REL-044 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-045 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-050 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-051 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-052 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-053 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
 | REL-054 | DES-content-community-backend | unknown | gap: 十二项均已逐条登记，但完整故障注入矩阵尚未关闭。 |
-| REL-054-01 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-02 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-03 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-04 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-05 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-06 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-07 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-08 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-09 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| REL-054-01 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-02 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-03 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-04 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-05 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-06 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-07 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-08 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-09 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
 | REL-054-10 | DES-content-community-backend | unknown | gap: 业务继续路径有设计；指标后端故障与监控缺口告警缺独立注入证据。 |
-| REL-054-11 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-054-12 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-060 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-061 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
-| REL-A01 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| REL-054-11 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-054-12 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-060 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-061 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
+| REL-A01 | DES-content-community-backend | aligned | EVD-20260927-canary-budget |
 | REL-A02 | DES-content-community-backend | unknown | gap: 未运行完整跨服务“推荐 → 曝光 → 动作 → 分析/特征”闭环。 |
 | REL-A03 | DES-content-community-backend | diverged | gap: 尚未逐项注入 REL-054-01 至 REL-054-12 并验证响应、健康、指标和日志。 |
 | REL-A04 | DES-content-community-backend | unknown | gap: 未运行全部保留期与关闭个性化后 24 小时清理集成。 |

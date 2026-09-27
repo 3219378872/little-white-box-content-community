@@ -224,7 +224,9 @@ SOUL 与 Agent/tool 规则冻结为 system 原字节；按 target/id 排序的 M
 字节恢复，冷对话拼接与 compact 成功提交才升级格式。
 
 Provider adapter 实现 Chat Completions 与 Responses 的统一 message/tool-call/stream step。route profile
-声明 WireAPI、模型、窗口、输出、流式与工具能力；启动 canary 强制调用无副作用虚拟工具。resilient
+声明 WireAPI、模型、窗口、输出、流式与工具能力；启动 canary 强制调用无副作用虚拟工具。
+两轮探针分别预留 256 个输出 token（包含 reasoning），受模型输出上限约束，避免 64/32 的小预算
+在推理阶段耗尽；仍要求指定工具、正确 nonce 与非空确认，不能以预算不足为由放行。resilient
 client 将错误分类后最多三次有界抖动退避，尊重上限内 Retry-After，并只向 capability/privacy 兼容的
 route fallback。attempt 结果以内部 run event 审计，不向 SSE 暴露 provider 错误正文。
 

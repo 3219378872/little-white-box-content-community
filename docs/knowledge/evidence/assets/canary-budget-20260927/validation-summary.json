@@ -1,0 +1,13 @@
+{
+  "observed_commit": "5d5a7481a6d5b73afb8bd4661344e7404725a492",
+  "static": "format/vet/lint/vulnerability checks passed",
+  "unit": "go test -race -count=1 ./app/assistant/... passed",
+  "regressions": [
+    "reasoning-token exhaustion leaves no protocol payload",
+    "missing tool rejected",
+    "wrong nonce rejected",
+    "empty acknowledgement rejected"
+  ],
+  "provider_comparison": "GLM 256-token probe passed; deepseek Responses forced tool returns thinking-mode HTTP 400; no model switch",
+  "live_scope": "root workspace separately records worker readiness; no long-run or quality claim"
+}
