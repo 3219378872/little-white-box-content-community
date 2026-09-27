@@ -24,31 +24,31 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260927-media-uploads |
-| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260927-media-uploads |
-| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
-| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
+| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
 | MEM-A05 | DES-assistant-agent-runtime | unknown | gap: 非来源边界有单测；真实存储故障集成注入未完成。 |
-| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-uploads |
+| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
 
 ## 代码边界
 

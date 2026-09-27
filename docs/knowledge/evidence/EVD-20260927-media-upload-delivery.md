@@ -1,0 +1,396 @@
+---
+id: EVD-20260927-media-upload-delivery
+layer: evidence
+title: 视频语音上传最终后端验收
+status: active
+owner: agent
+updated_at: '2026-09-27'
+scope:
+- static
+- unit
+- integration
+commands:
+- GOMAXPROCS=4 make fmt-check vet lint vulncheck
+- GOMAXPROCS=4 make test ARGS='-count=1 -p=2' TEST_JSON_DIR=/tmp/little-media-delivery-final-json
+- GOMAXPROCS=4 GOFLAGS=-race make integration-critical
+- TEST_S3_ENDPOINT=127.0.0.1:18333 GOMAXPROCS=4 go test -p 1 -tags=integration -race
+  -count=1 -timeout=10m ./app/media/rpc/internal/logic ./app/message/rpc/internal/logic
+  ./app/content/rpc/internal/logic
+- GOMAXPROCS=4 go test -p 1 -tags=integration -race -count=1 -timeout=10m ./app/assistant/internal/runtime
+  ./app/assistant/internal/store ./app/feed/rpc/internal/svc ./app/recommend/mq/internal/store
+- make spec-evals-test python-unit
+observed_commit: 7e1efbf4a53208fba2d1f8e359e9cf4246b53f85
+result: passed
+artifacts:
+- docs/knowledge/evidence/assets/media-upload-delivery-20260927/validation-summary.json
+- app/gateway/rest_decision_table_test.go
+- app/media/rpc/internal/logic/upload_audio_integration_test.go
+- app/assistant/internal/llm/canary_test.go
+coverage:
+- requirements:
+  - CORE-001
+  - CORE-002
+  - CORE-003
+  - CORE-004
+  - CORE-005
+  - CORE-010
+  - CORE-011
+  - CORE-012
+  - CORE-013
+  - CORE-014
+  - CORE-015
+  - CORE-016
+  - CORE-020
+  - CORE-021
+  - CORE-022
+  - CORE-023
+  - CORE-024
+  - CORE-030
+  - CORE-031
+  - CORE-033
+  - CORE-034
+  - CORE-040
+  - CORE-041
+  - CORE-042
+  - CORE-043
+  - CORE-044
+  - CORE-050
+  - CORE-051
+  - CORE-052
+  - CORE-053
+  - CORE-054
+  - CORE-060
+  - CORE-061
+  - CORE-062
+  - CORE-063
+  - CORE-A01
+  - CORE-A02
+  - CORE-A03
+  - CORE-A04
+  - CORE-A05
+  - CORE-A06
+  - CORE-A07
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/content
+  - app/interaction
+  - app/message
+  - app/media
+  - app/user
+  - app/gateway
+  - pkg/idempotencyx
+  - pkg/outboxx
+  - pkg/visibilityx
+  - proto/content/content.proto
+  - proto/interaction/interaction.proto
+  - proto/message/message.proto
+  - proto/media/media.proto
+  - go.mod
+  - go.sum
+  - proto/user/user.proto
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - deploy/sql/xbh_media.sql
+  - scripts/integration-env.sh
+  - deploy/seaweedfs/s3_config.json
+  - pkg/errx
+- requirements:
+  - DISC-001
+  - DISC-002
+  - DISC-003
+  - DISC-004
+  - DISC-010
+  - DISC-011
+  - DISC-012
+  - DISC-020
+  - DISC-021
+  - DISC-022
+  - DISC-023
+  - DISC-030
+  - DISC-031
+  - DISC-032
+  - DISC-033
+  - DISC-034
+  - DISC-035
+  - DISC-036
+  - DISC-040
+  - DISC-041
+  - DISC-042
+  - DISC-050
+  - DISC-051
+  - DISC-052
+  - DISC-061
+  - DISC-A01
+  - DISC-A02
+  - DISC-A03
+  - DISC-A04
+  - DISC-A05
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/feed
+  - app/search
+  - app/recommend
+  - app/embedding
+  - algorithm
+  - app/content/visibility
+  - pkg/visibilityx
+  - scripts/spec_evals.py
+  - eval/dev/search_qrels.synthetic.json
+  - eval/dev/recommend_samples.synthetic.json
+  - go.mod
+  - go.sum
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - app/recommend/rpc
+  - app/recommend/mq
+  - app/user
+  - deploy/docker-compose.production.yml
+  - pkg/errx
+- requirements:
+  - AGENT-001
+  - AGENT-002
+  - AGENT-003
+  - AGENT-004
+  - AGENT-010
+  - AGENT-011
+  - AGENT-012
+  - AGENT-013
+  - AGENT-014
+  - AGENT-015
+  - AGENT-020
+  - AGENT-021
+  - AGENT-022
+  - AGENT-023
+  - AGENT-024
+  - AGENT-025
+  - AGENT-026
+  - AGENT-030
+  - AGENT-031
+  - AGENT-032
+  - AGENT-033
+  - AGENT-034
+  - AGENT-035
+  - AGENT-036
+  - AGENT-037
+  - AGENT-040
+  - AGENT-041
+  - AGENT-042
+  - AGENT-043
+  - AGENT-044
+  - AGENT-045
+  - AGENT-050
+  - AGENT-051
+  - AGENT-052
+  - AGENT-053
+  - AGENT-054
+  - AGENT-060
+  - AGENT-061
+  - AGENT-062
+  - AGENT-063
+  - AGENT-080
+  - AGENT-081
+  - AGENT-082
+  - AGENT-083
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/assistant/internal/lease
+  - app/assistant/internal/llm
+  - app/assistant/internal/prompt
+  - app/assistant/internal/tool
+  - app/assistant/worker
+  - app/assistant/rpc
+  - app/gateway/internal/logic/assistant
+  - app/gateway/gateway.api
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
+  - deploy/sql/patches/20260905_agent_research.sql
+  - scripts/spec_evals.py
+  - eval/dev/assistant_cases.synthetic.json
+  - go.mod
+  - go.sum
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - app/gateway/internal/handler/assistant
+  - app/gateway/internal/httpxconfig
+  - pkg/errx
+- requirements:
+  - MEM-001
+  - MEM-002
+  - MEM-003
+  - MEM-004
+  - MEM-010
+  - MEM-011
+  - MEM-012
+  - MEM-013
+  - MEM-014
+  - MEM-020
+  - MEM-021
+  - MEM-022
+  - MEM-023
+  - MEM-024
+  - MEM-025
+  - MEM-030
+  - MEM-031
+  - MEM-032
+  - MEM-033
+  - MEM-A01
+  - MEM-A02
+  - MEM-A03
+  - MEM-A04
+  - MEM-A06
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/assistant/internal/memory
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/assistant/internal/prompt
+  - app/gateway/internal/logic/assistant
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
+  - go.mod
+  - go.sum
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - pkg/errx
+- requirements:
+  - WCH-001
+  - WCH-003
+  - WCH-004
+  - WCH-010
+  - WCH-011
+  - WCH-012
+  - WCH-013
+  - WCH-020
+  - WCH-021
+  - WCH-022
+  - WCH-023
+  - WCH-024
+  - WCH-A02
+  - WCH-A04
+  - WCH-A06
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/assistant/watch
+  - app/assistant/mq
+  - app/assistant/internal/runtime
+  - app/assistant/internal/store
+  - app/assistant/internal/tool
+  - app/gateway/internal/logic/assistant
+  - proto/assistant/assistant.proto
+  - deploy/sql/xbh_assistant.sql
+  - go.mod
+  - go.sum
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - pkg/errx
+- requirements:
+  - REL-001
+  - REL-002
+  - REL-003
+  - REL-004
+  - REL-005
+  - REL-006
+  - REL-007
+  - REL-008
+  - REL-010
+  - REL-011
+  - REL-012
+  - REL-013
+  - REL-020
+  - REL-021
+  - REL-022
+  - REL-023
+  - REL-024
+  - REL-044
+  - REL-045
+  - REL-050
+  - REL-051
+  - REL-052
+  - REL-053
+  - REL-054-01
+  - REL-054-02
+  - REL-054-03
+  - REL-054-04
+  - REL-054-05
+  - REL-054-06
+  - REL-054-07
+  - REL-054-08
+  - REL-054-09
+  - REL-054-11
+  - REL-054-12
+  - REL-060
+  - REL-061
+  - REL-A01
+  paths:
+  - pkg/interceptor
+  - pkg/jwtx
+  - pkg/testutil
+  - app/behavior
+  - app/pipeline/behaviorlog
+  - app/recommend/mq
+  - pkg/outboxx
+  - app/gateway
+  - app/assistant
+  - app/content
+  - app/interaction
+  - app/message
+  - app/media
+  - app/user
+  - app/feed
+  - deploy/log_retention_test.go
+  - deploy/loki/loki-config.yaml
+  - deploy/docker-compose.production.yml
+  - scripts/spec_evals.py
+  - scripts/gateway_performance.py
+  - go.mod
+  - go.sum
+  - proto/user/user.proto
+  - Makefile
+  - scripts/test.sh
+  - scripts/integration-test.sh
+  - scripts/_lib.sh
+  - app/gateway/internal/handler/assistant
+  - app/gateway/internal/httpxconfig
+  - app/recommend/rpc
+  - deploy/docker-compose.middleware.yml
+  - pkg/errx
+---
+
+# 视频语音上传最终后端验收
+
+实施映射见 [社区](../implementation/IMP-community-core.md)，其余组回链各领域 IMP。
+本页在最终实现提交重跑完整 race 单测、格式/vet/lint/漏洞检查、核心隔离集成以及媒体、消息、内容、
+Assistant runtime/store、Feed 和个性化隔离回归，均通过。计数和命令见受跟踪摘要。
+
+新增真实 HTTP 中间件测试显式配置全局 10 MiB 上限，验证 21 MiB 视频、恰好 10 MiB 音频可上传，
+超过音频上限返回业务 JSON 413。go-zero 的非正 MaxBytes 会回退全局值；媒体路由的框架预检设为
+int64 上界，handler 仍用 MaxBytesReader 执行真实请求体和文件限额。FileTooLarge 的 gRPC 语义不变。
+
+前轮已发现并修复的模型写入漏列、思考 token 耗尽探针、容器轨道识别及媒体权威 URL/类型校验均
+包含于最终回归。并行构建时出现过一次推理超时故障注入的时序波动，最终完整 race 运行无失败；
+没有为通过测试删除失败断言、放松就绪判断或改变模型。
+
+本页证明 static/unit/integration；根仓单独记录真实代理、浏览器、媒体同源地址及 Docker 网络迁移。
+设备、容量、生产及长任务模型质量门禁不因此关闭。历史 EVD 保持原观察结果，覆盖组不缩小。

@@ -33,10 +33,10 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
+| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
 | AGENT-100 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-101 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-102 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
@@ -48,52 +48,52 @@ code_paths:
 | AGENT-113 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-114 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-115 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
-| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260927-canary-budget |
-| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
+| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
 | AGENT-070 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-071 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-072 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-073 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-074 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-075 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
-| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
-| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260927-canary-budget |
+| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
 | AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，Watch 5 分钟与生产 p95 未验证。 |
 | AGENT-A01 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A02 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
