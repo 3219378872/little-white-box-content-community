@@ -320,6 +320,14 @@ type (
 // 媒体相关类型
 // ============================================
 type (
+	UploadMediaReq  {}
+	UploadMediaResp {
+		MediaId  int64  `json:"mediaId"`
+		Url      string `json:"url"`
+		FileType string `json:"fileType"`
+		MimeType string `json:"mimeType"`
+		FileSize int64  `json:"fileSize"`
+	}
 	UploadImageReq  {}
 	UploadImageResp {
 		MediaId      int64  `json:"mediaId"`
@@ -1056,11 +1064,30 @@ service gateway {
 	prefix:     /api/v1
 	group:      image
 	middleware: RequiredAuth
+	timeout:    120s
+	maxBytes:   "-1"
 )
 service gateway {
 	@doc "上传图片"
 	@handler UploadImage
 	post /media/image (UploadImageReq) returns (UploadImageResp)
+}
+
+@server (
+	prefix:     /api/v1
+	group:      media
+	middleware: RequiredAuth
+	timeout:    300s
+	maxBytes:   "-1"
+)
+service gateway {
+	@doc "上传视频（multipart file + idempotencyKey，最大 100 MiB）"
+	@handler UploadVideo
+	post /media/video (UploadMediaReq) returns (UploadMediaResp)
+
+	@doc "上传音频（multipart file + idempotencyKey，MP3/WAV/M4A，最大 10 MiB）"
+	@handler UploadAudio
+	post /media/audio (UploadMediaReq) returns (UploadMediaResp)
 }
 
 @server (

@@ -13,34 +13,34 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type UploadVideoLogic struct {
+type UploadAudioLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
 
-func NewUploadVideoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadVideoLogic {
-	return &UploadVideoLogic{
+func NewUploadAudioLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadAudioLogic {
+	return &UploadAudioLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
 		Logger: logx.WithContext(ctx),
 	}
 }
 
-// UploadVideo 接收 client streaming → 落盘 → 嗅探 → 直传（不转码/截图） → 入库 → SendAndClose。
-func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer) error {
+// UploadAudio 接收 client streaming → 落盘 → 嗅探 → 直传（不转码/截图） → 入库 → SendAndClose。
+func (l *UploadAudioLogic) UploadAudio(stream pb2.MediaService_UploadAudioServer) error {
 	upload := l.svcCtx.Config.Upload
-	sink, err := mediautil2.NewTempSink(upload.TempDir, upload.MaxVideoSize)
+	sink, err := mediautil2.NewTempSink(upload.TempDir, upload.MaxAudioSize)
 	if err != nil {
 		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
-	defer cleanupx.Close(l.Logger, "upload video temp sink", sink)
+	defer cleanupx.Close(l.Logger, "upload audio temp sink", sink)
 
 	meta, err := receiveUploadStream(
 		stream.Recv,
-		func(r *pb2.UploadVideoReq) *pb2.UploadMeta { return r.GetMeta() },
-		func(r *pb2.UploadVideoReq) []byte { return r.GetChunk() },
+		func(r *pb2.UploadAudioReq) *pb2.UploadMeta { return r.GetMeta() },
+		func(r *pb2.UploadAudioReq) []byte { return r.GetChunk() },
 		sink,
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 	}
 	contentHash, err := sha256File(l.ctx, sink.Path())
 	if err != nil {
-		l.Errorw("hash uploaded video failed",
+		l.Errorw("hash uploaded audio failed",
 			logx.Field("user_id", meta.GetUserId()),
 			logx.Field("file_name", meta.GetFileName()),
 			logx.Field("err", err.Error()),
@@ -59,6 +59,8 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 	idem := mediaIdempotencyRecord(meta, contentHash)
+	// Preserve existing image/video fingerprints; audio uses a separate namespace.
+	idem.Scope = "media:upload:audio"
 	if !idem.Valid() {
 		return errx.NewWithCode(errx.ParamError)
 	}
@@ -66,7 +68,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		return errx.NewWithCode(errx.SystemError)
 	}
 
-	detected, err := mediautil2.DetectAV(sink.Path(), false)
+	detected, err := mediautil2.DetectAV(sink.Path(), true)
 	if err != nil {
 		return errx.NewWithCode(errx.FileTypeNotAllowed)
 	}
@@ -80,7 +82,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		}
 	}()
 	if err = putFile(l.ctx, l.svcCtx, sink.Path(), objKey, detected.MIME); err != nil {
-		l.Errorw("put video failed",
+		l.Errorw("put audio failed",
 			logx.Field("user_id", meta.GetUserId()),
 			logx.Field("object_key", objKey),
 			logx.Field("err", err.Error()),
@@ -100,7 +102,7 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		UserId:       meta.GetUserId(),
 		FileName:     meta.GetFileName(),
 		OriginalName: nullStringOr(meta.GetFileName()),
-		FileType:     "video",
+		FileType:     "audio",
 		MimeType:     nullStringOr(detected.MIME),
 		Url:          l.svcCtx.Storage.BuildPublicURL(objKey),
 		StorageType:  storageTypeSeaweedFS,
@@ -114,15 +116,15 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		return err
 	}
 	if !created {
-		return stream.SendAndClose(&pb2.UploadVideoResp{Media: toPBMediaInfo(stored)})
+		return stream.SendAndClose(&pb2.UploadAudioResp{Media: toPBMediaInfo(stored)})
 	}
 	keepUploadedObject = true
 
-	l.Infow("upload video success",
+	l.Infow("upload audio success",
 		logx.Field("media_id", mediaId),
 		logx.Field("user_id", meta.GetUserId()),
 		logx.Field("file_size", sink.Size()),
 		logx.Field("object_key", objKey),
 	)
-	return stream.SendAndClose(&pb2.UploadVideoResp{Media: toPBMediaInfo(row)})
+	return stream.SendAndClose(&pb2.UploadAudioResp{Media: toPBMediaInfo(row)})
 }

@@ -286,6 +286,7 @@ type MediaInfo struct {
 	Height        int32                  `protobuf:"varint,9,opt,name=height,proto3" json:"height,omitempty"`
 	Duration      int32                  `protobuf:"varint,10,opt,name=duration,proto3" json:"duration,omitempty"` // 视频时长（秒）
 	Status        int32                  `protobuf:"varint,11,opt,name=status,proto3" json:"status,omitempty"`
+	MimeType      string                 `protobuf:"bytes,13,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
 	CreatedAt     int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // Unix 时间戳（毫秒）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -396,6 +397,13 @@ func (x *MediaInfo) GetStatus() int32 {
 		return x.Status
 	}
 	return 0
+}
+
+func (x *MediaInfo) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
 }
 
 func (x *MediaInfo) GetCreatedAt() int64 {
@@ -765,6 +773,132 @@ func (x *BatchGetMediaResp) GetMedias() []*MediaInfo {
 	return nil
 }
 
+type UploadAudioReq struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Data:
+	//
+	//	*UploadAudioReq_Meta
+	//	*UploadAudioReq_Chunk
+	Data          isUploadAudioReq_Data `protobuf_oneof:"data"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadAudioReq) Reset() {
+	*x = UploadAudioReq{}
+	mi := &file_proto_media_media_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadAudioReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadAudioReq) ProtoMessage() {}
+
+func (x *UploadAudioReq) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_media_media_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadAudioReq.ProtoReflect.Descriptor instead.
+func (*UploadAudioReq) Descriptor() ([]byte, []int) {
+	return file_proto_media_media_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UploadAudioReq) GetData() isUploadAudioReq_Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *UploadAudioReq) GetMeta() *UploadMeta {
+	if x != nil {
+		if x, ok := x.Data.(*UploadAudioReq_Meta); ok {
+			return x.Meta
+		}
+	}
+	return nil
+}
+
+func (x *UploadAudioReq) GetChunk() []byte {
+	if x != nil {
+		if x, ok := x.Data.(*UploadAudioReq_Chunk); ok {
+			return x.Chunk
+		}
+	}
+	return nil
+}
+
+type isUploadAudioReq_Data interface {
+	isUploadAudioReq_Data()
+}
+
+type UploadAudioReq_Meta struct {
+	Meta *UploadMeta `protobuf:"bytes,1,opt,name=meta,proto3,oneof"`
+}
+
+type UploadAudioReq_Chunk struct {
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+}
+
+func (*UploadAudioReq_Meta) isUploadAudioReq_Data() {}
+
+func (*UploadAudioReq_Chunk) isUploadAudioReq_Data() {}
+
+type UploadAudioResp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Media         *MediaInfo             `protobuf:"bytes,1,opt,name=media,proto3" json:"media,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadAudioResp) Reset() {
+	*x = UploadAudioResp{}
+	mi := &file_proto_media_media_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadAudioResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadAudioResp) ProtoMessage() {}
+
+func (x *UploadAudioResp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_media_media_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadAudioResp.ProtoReflect.Descriptor instead.
+func (*UploadAudioResp) Descriptor() ([]byte, []int) {
+	return file_proto_media_media_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UploadAudioResp) GetMedia() *MediaInfo {
+	if x != nil {
+		return x.Media
+	}
+	return nil
+}
+
 var File_proto_media_media_proto protoreflect.FileDescriptor
 
 const file_proto_media_media_proto_rawDesc = "" +
@@ -786,7 +920,7 @@ const file_proto_media_media_proto_rawDesc = "" +
 	"\x0eUploadVideoReq\x12'\n" +
 	"\x04meta\x18\x01 \x01(\v2\x11.media.UploadMetaH\x00R\x04meta\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
-	"\x04data\"\xc3\x02\n" +
+	"\x04data\"\xe0\x02\n" +
 	"\tMediaInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +
@@ -799,7 +933,8 @@ const file_proto_media_media_proto_rawDesc = "" +
 	"\x06height\x18\t \x01(\x05R\x06height\x12\x1a\n" +
 	"\bduration\x18\n" +
 	" \x01(\x05R\bduration\x12\x16\n" +
-	"\x06status\x18\v \x01(\x05R\x06status\x12\x1d\n" +
+	"\x06status\x18\v \x01(\x05R\x06status\x12\x1b\n" +
+	"\tmime_type\x18\r \x01(\tR\bmimeType\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\f \x01(\x03R\tcreatedAt\"9\n" +
 	"\x0fUploadImageResp\x12&\n" +
@@ -817,10 +952,17 @@ const file_proto_media_media_proto_rawDesc = "" +
 	"\x10BatchGetMediaReq\x12\x1b\n" +
 	"\tmedia_ids\x18\x01 \x03(\x03R\bmediaIds\"=\n" +
 	"\x11BatchGetMediaResp\x12(\n" +
-	"\x06medias\x18\x01 \x03(\v2\x10.media.MediaInfoR\x06medias2\xc5\x02\n" +
+	"\x06medias\x18\x01 \x03(\v2\x10.media.MediaInfoR\x06medias\"Y\n" +
+	"\x0eUploadAudioReq\x12'\n" +
+	"\x04meta\x18\x01 \x01(\v2\x11.media.UploadMetaH\x00R\x04meta\x12\x16\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
+	"\x04data\"9\n" +
+	"\x0fUploadAudioResp\x12&\n" +
+	"\x05media\x18\x01 \x01(\v2\x10.media.MediaInfoR\x05media2\x85\x03\n" +
 	"\fMediaService\x12>\n" +
 	"\vUploadImage\x12\x15.media.UploadImageReq\x1a\x16.media.UploadImageResp(\x01\x12>\n" +
-	"\vUploadVideo\x12\x15.media.UploadVideoReq\x1a\x16.media.UploadVideoResp(\x01\x123\n" +
+	"\vUploadVideo\x12\x15.media.UploadVideoReq\x1a\x16.media.UploadVideoResp(\x01\x12>\n" +
+	"\vUploadAudio\x12\x15.media.UploadAudioReq\x1a\x16.media.UploadAudioResp(\x01\x123\n" +
 	"\bGetMedia\x12\x12.media.GetMediaReq\x1a\x13.media.GetMediaResp\x12<\n" +
 	"\vDeleteMedia\x12\x15.media.DeleteMediaReq\x1a\x16.media.DeleteMediaResp\x12B\n" +
 	"\rBatchGetMedia\x12\x17.media.BatchGetMediaReq\x1a\x18.media.BatchGetMediaRespB\x14Z\x12xiaobaihe/media/pbb\x06proto3"
@@ -837,7 +979,7 @@ func file_proto_media_media_proto_rawDescGZIP() []byte {
 	return file_proto_media_media_proto_rawDescData
 }
 
-var file_proto_media_media_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_proto_media_media_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_proto_media_media_proto_goTypes = []any{
 	(*UploadMeta)(nil),        // 0: media.UploadMeta
 	(*UploadImageReq)(nil),    // 1: media.UploadImageReq
@@ -851,6 +993,8 @@ var file_proto_media_media_proto_goTypes = []any{
 	(*DeleteMediaResp)(nil),   // 9: media.DeleteMediaResp
 	(*BatchGetMediaReq)(nil),  // 10: media.BatchGetMediaReq
 	(*BatchGetMediaResp)(nil), // 11: media.BatchGetMediaResp
+	(*UploadAudioReq)(nil),    // 12: media.UploadAudioReq
+	(*UploadAudioResp)(nil),   // 13: media.UploadAudioResp
 }
 var file_proto_media_media_proto_depIdxs = []int32{
 	0,  // 0: media.UploadImageReq.meta:type_name -> media.UploadMeta
@@ -859,21 +1003,25 @@ var file_proto_media_media_proto_depIdxs = []int32{
 	3,  // 3: media.UploadVideoResp.media:type_name -> media.MediaInfo
 	3,  // 4: media.GetMediaResp.media:type_name -> media.MediaInfo
 	3,  // 5: media.BatchGetMediaResp.medias:type_name -> media.MediaInfo
-	1,  // 6: media.MediaService.UploadImage:input_type -> media.UploadImageReq
-	2,  // 7: media.MediaService.UploadVideo:input_type -> media.UploadVideoReq
-	6,  // 8: media.MediaService.GetMedia:input_type -> media.GetMediaReq
-	8,  // 9: media.MediaService.DeleteMedia:input_type -> media.DeleteMediaReq
-	10, // 10: media.MediaService.BatchGetMedia:input_type -> media.BatchGetMediaReq
-	4,  // 11: media.MediaService.UploadImage:output_type -> media.UploadImageResp
-	5,  // 12: media.MediaService.UploadVideo:output_type -> media.UploadVideoResp
-	7,  // 13: media.MediaService.GetMedia:output_type -> media.GetMediaResp
-	9,  // 14: media.MediaService.DeleteMedia:output_type -> media.DeleteMediaResp
-	11, // 15: media.MediaService.BatchGetMedia:output_type -> media.BatchGetMediaResp
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	0,  // 6: media.UploadAudioReq.meta:type_name -> media.UploadMeta
+	3,  // 7: media.UploadAudioResp.media:type_name -> media.MediaInfo
+	1,  // 8: media.MediaService.UploadImage:input_type -> media.UploadImageReq
+	2,  // 9: media.MediaService.UploadVideo:input_type -> media.UploadVideoReq
+	12, // 10: media.MediaService.UploadAudio:input_type -> media.UploadAudioReq
+	6,  // 11: media.MediaService.GetMedia:input_type -> media.GetMediaReq
+	8,  // 12: media.MediaService.DeleteMedia:input_type -> media.DeleteMediaReq
+	10, // 13: media.MediaService.BatchGetMedia:input_type -> media.BatchGetMediaReq
+	4,  // 14: media.MediaService.UploadImage:output_type -> media.UploadImageResp
+	5,  // 15: media.MediaService.UploadVideo:output_type -> media.UploadVideoResp
+	13, // 16: media.MediaService.UploadAudio:output_type -> media.UploadAudioResp
+	7,  // 17: media.MediaService.GetMedia:output_type -> media.GetMediaResp
+	9,  // 18: media.MediaService.DeleteMedia:output_type -> media.DeleteMediaResp
+	11, // 19: media.MediaService.BatchGetMedia:output_type -> media.BatchGetMediaResp
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_proto_media_media_proto_init() }
@@ -889,13 +1037,17 @@ func file_proto_media_media_proto_init() {
 		(*UploadVideoReq_Meta)(nil),
 		(*UploadVideoReq_Chunk)(nil),
 	}
+	file_proto_media_media_proto_msgTypes[12].OneofWrappers = []any{
+		(*UploadAudioReq_Meta)(nil),
+		(*UploadAudioReq_Chunk)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_media_media_proto_rawDesc), len(file_proto_media_media_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

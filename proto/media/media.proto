@@ -9,6 +9,8 @@ service MediaService {
   rpc UploadImage(stream UploadImageReq) returns (UploadImageResp);
   // 上传视频（client streaming，每包 ≤ 1MB）
   rpc UploadVideo(stream UploadVideoReq) returns (UploadVideoResp);
+  // 上传音频（MP3/WAV/M4A，client streaming）
+  rpc UploadAudio(stream UploadAudioReq) returns (UploadAudioResp);
   // 获取媒体信息
   rpc GetMedia(GetMediaReq) returns (GetMediaResp);
   // 删除媒体
@@ -56,6 +58,7 @@ message MediaInfo {
   int32  height        = 9;
   int32  duration      = 10; // 视频时长（秒）
   int32  status        = 11;
+  string mime_type     = 13;
   int64  created_at    = 12; // Unix 时间戳（毫秒）
 }
 
@@ -96,4 +99,14 @@ message BatchGetMediaReq {
 // 批量获取媒体信息响应
 message BatchGetMediaResp {
   repeated MediaInfo medias = 1;
+}
+
+message UploadAudioReq {
+  oneof data {
+    UploadMeta meta = 1;
+    bytes chunk = 2;
+  }
+}
+message UploadAudioResp {
+  MediaInfo media = 1;
 }

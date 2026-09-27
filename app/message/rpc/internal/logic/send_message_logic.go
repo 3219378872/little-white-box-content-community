@@ -40,9 +40,11 @@ func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageRe
 	}
 	// CORE-041：媒体消息必须引用已成功上传且属于发送者的媒体。
 	if in.MsgType != messageTypeText {
-		if err := validateMessageMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.SenderId, in.MediaId); err != nil {
+		url, err := validateMessageMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.SenderId, in.MediaId, in.MsgType)
+		if err != nil {
 			return nil, err
 		}
+		content = url
 	}
 	result, err := l.svcCtx.MessageCommandModel.CreateMessageWithConversations(l.ctx, in.SenderId, in.ReceiverId, content, int64(in.MsgType), in.MediaId, idempotencyKey)
 	if err != nil {

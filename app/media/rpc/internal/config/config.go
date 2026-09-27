@@ -22,6 +22,7 @@ type Config struct {
 type UploadConf struct {
 	MaxImageSize      int64
 	MaxVideoSize      int64
+	MaxAudioSize      int64 `json:",default=10485760"`
 	DefaultQuality    int
 	ThumbnailLongSide int
 	TempDir           string

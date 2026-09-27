@@ -5,6 +5,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	assistant "esx/app/gateway/internal/handler/assistant"
 	behavior "esx/app/gateway/internal/handler/behavior"
@@ -13,6 +14,7 @@ import (
 	image "esx/app/gateway/internal/handler/image"
 	like_favorite "esx/app/gateway/internal/handler/like_favorite"
 	login "esx/app/gateway/internal/handler/login"
+	media "esx/app/gateway/internal/handler/media"
 	message "esx/app/gateway/internal/handler/message"
 	posts "esx/app/gateway/internal/handler/posts"
 	search "esx/app/gateway/internal/handler/search"
@@ -291,6 +293,8 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1"),
+		rest.WithTimeout(120000*time.Millisecond),
+		rest.WithMaxBytes(-1),
 	)
 
 	server.AddRoutes(
@@ -354,6 +358,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequiredAuth},
+			[]rest.Route{
+				{
+					// 上传音频（multipart file + idempotencyKey，MP3/WAV/M4A，最大 10 MiB）
+					Method:  http.MethodPost,
+					Path:    "/media/audio",
+					Handler: media.UploadAudioHandler(serverCtx),
+				},
+				{
+					// 上传视频（multipart file + idempotencyKey，最大 100 MiB）
+					Method:  http.MethodPost,
+					Path:    "/media/video",
+					Handler: media.UploadVideoHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1"),
+		rest.WithTimeout(300000*time.Millisecond),
+		rest.WithMaxBytes(-1),
 	)
 
 	server.AddRoutes(

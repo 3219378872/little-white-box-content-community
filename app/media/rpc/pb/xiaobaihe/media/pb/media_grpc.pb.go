@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	MediaService_UploadImage_FullMethodName   = "/media.MediaService/UploadImage"
 	MediaService_UploadVideo_FullMethodName   = "/media.MediaService/UploadVideo"
+	MediaService_UploadAudio_FullMethodName   = "/media.MediaService/UploadAudio"
 	MediaService_GetMedia_FullMethodName      = "/media.MediaService/GetMedia"
 	MediaService_DeleteMedia_FullMethodName   = "/media.MediaService/DeleteMedia"
 	MediaService_BatchGetMedia_FullMethodName = "/media.MediaService/BatchGetMedia"
@@ -36,6 +37,8 @@ type MediaServiceClient interface {
 	UploadImage(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadImageReq, UploadImageResp], error)
 	// 上传视频（client streaming，每包 ≤ 1MB）
 	UploadVideo(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadVideoReq, UploadVideoResp], error)
+	// 上传音频（MP3/WAV/M4A，client streaming）
+	UploadAudio(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadAudioReq, UploadAudioResp], error)
 	// 获取媒体信息
 	GetMedia(ctx context.Context, in *GetMediaReq, opts ...grpc.CallOption) (*GetMediaResp, error)
 	// 删除媒体
@@ -78,6 +81,19 @@ func (c *mediaServiceClient) UploadVideo(ctx context.Context, opts ...grpc.CallO
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MediaService_UploadVideoClient = grpc.ClientStreamingClient[UploadVideoReq, UploadVideoResp]
 
+func (c *mediaServiceClient) UploadAudio(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadAudioReq, UploadAudioResp], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MediaService_ServiceDesc.Streams[2], MediaService_UploadAudio_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[UploadAudioReq, UploadAudioResp]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MediaService_UploadAudioClient = grpc.ClientStreamingClient[UploadAudioReq, UploadAudioResp]
+
 func (c *mediaServiceClient) GetMedia(ctx context.Context, in *GetMediaReq, opts ...grpc.CallOption) (*GetMediaResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMediaResp)
@@ -118,6 +134,8 @@ type MediaServiceServer interface {
 	UploadImage(grpc.ClientStreamingServer[UploadImageReq, UploadImageResp]) error
 	// 上传视频（client streaming，每包 ≤ 1MB）
 	UploadVideo(grpc.ClientStreamingServer[UploadVideoReq, UploadVideoResp]) error
+	// 上传音频（MP3/WAV/M4A，client streaming）
+	UploadAudio(grpc.ClientStreamingServer[UploadAudioReq, UploadAudioResp]) error
 	// 获取媒体信息
 	GetMedia(context.Context, *GetMediaReq) (*GetMediaResp, error)
 	// 删除媒体
@@ -139,6 +157,9 @@ func (UnimplementedMediaServiceServer) UploadImage(grpc.ClientStreamingServer[Up
 }
 func (UnimplementedMediaServiceServer) UploadVideo(grpc.ClientStreamingServer[UploadVideoReq, UploadVideoResp]) error {
 	return status.Error(codes.Unimplemented, "method UploadVideo not implemented")
+}
+func (UnimplementedMediaServiceServer) UploadAudio(grpc.ClientStreamingServer[UploadAudioReq, UploadAudioResp]) error {
+	return status.Error(codes.Unimplemented, "method UploadAudio not implemented")
 }
 func (UnimplementedMediaServiceServer) GetMedia(context.Context, *GetMediaReq) (*GetMediaResp, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMedia not implemented")
@@ -183,6 +204,13 @@ func _MediaService_UploadVideo_Handler(srv interface{}, stream grpc.ServerStream
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MediaService_UploadVideoServer = grpc.ClientStreamingServer[UploadVideoReq, UploadVideoResp]
+
+func _MediaService_UploadAudio_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MediaServiceServer).UploadAudio(&grpc.GenericServerStream[UploadAudioReq, UploadAudioResp]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MediaService_UploadAudioServer = grpc.ClientStreamingServer[UploadAudioReq, UploadAudioResp]
 
 func _MediaService_GetMedia_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetMediaReq)
@@ -267,6 +295,11 @@ var MediaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "UploadVideo",
 			Handler:       _MediaService_UploadVideo_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "UploadAudio",
+			Handler:       _MediaService_UploadAudio_Handler,
 			ClientStreams: true,
 		},
 	},

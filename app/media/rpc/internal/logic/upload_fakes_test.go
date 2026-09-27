@@ -230,14 +230,18 @@ func unitOversizedPNGHeader(width, height uint32) []byte {
 	return raw.Bytes()
 }
 
-// unitTestMP4 构造仅含 ftyp 头的最小 MP4 魔数：嗅探识别为 video/mp4，上传不做转码。
+// unitTestMP4 has a video handler in a bounded ISO container (no decoding claim).
 func unitTestMP4() []byte {
-	head := []byte{
-		0x00, 0x00, 0x00, 0x18, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm',
-		0x00, 0x00, 0x02, 0x00, 'i', 's', 'o', 'm', 'i', 's', 'o', '2',
-		'a', 'v', 'c', '1', 'm', 'p', '4', '1',
+	box := func(name string, payload []byte) []byte {
+		b := make([]byte, 8+len(payload))
+		binary.BigEndian.PutUint32(b, uint32(len(b)))
+		copy(b[4:], name)
+		copy(b[8:], payload)
+		return b
 	}
-	return append(head, bytes.Repeat([]byte{0x00}, 64)...)
+	handler := append(make([]byte, 8), []byte("vide")...)
+	head := box("ftyp", []byte("isom\x00\x00\x00\x00isommp42"))
+	return append(head, box("moov", box("trak", box("mdia", box("hdlr", handler))))...)
 }
 
 func unitUploadConfig() config.Config {
@@ -247,6 +251,7 @@ func unitUploadConfig() config.Config {
 		},
 		Upload: config.UploadConf{
 			MaxImageSize:      10 * 1024 * 1024,
+			MaxAudioSize:      10 << 20,
 			MaxVideoSize:      10 * 1024 * 1024,
 			DefaultQuality:    85,
 			ThumbnailLongSide: 256,
@@ -270,4 +275,49 @@ func unitAssertBiz(t *testing.T, err error, expectedCode int) {
 	require.Error(t, err)
 	require.True(t, errx.Is(err, expectedCode),
 		"期望错误码 %d，实际错误: %v", expectedCode, err)
+}
+
+// unitAudioStream 模拟 pb.MediaService_UploadAudioServer。
+type unitAudioStream struct {
+	grpc.ClientStreamingServer[pb.UploadAudioReq, pb.UploadAudioResp]
+	reqs    []*pb.UploadAudioReq
+	idx     int
+	resp    *pb.UploadAudioResp
+	ctx     context.Context
+	sendErr error
+}
+
+func (s *unitAudioStream) Context() context.Context    { return s.ctx }
+func (s *unitAudioStream) SetHeader(metadata.MD) error { return nil }
+func (s *unitAudioStream) SendHeader(metadata.MD) error {
+	return nil
+}
+func (s *unitAudioStream) SetTrailer(metadata.MD) {}
+func (s *unitAudioStream) SendAndClose(r *pb.UploadAudioResp) error {
+	s.resp = r
+	return s.sendErr
+}
+func (s *unitAudioStream) Recv() (*pb.UploadAudioReq, error) {
+	if s.idx >= len(s.reqs) {
+		return nil, io.EOF
+	}
+	req := s.reqs[s.idx]
+	s.idx++
+	return req, nil
+}
+
+func unitAudioStreamFromBytes(ctx context.Context, userId int64, filename, idemKey string, data []byte, chunkSize int) *unitAudioStream {
+	reqs := []*pb.UploadAudioReq{
+		{Data: &pb.UploadAudioReq_Meta{Meta: unitMetaReq(userId, filename, idemKey)}},
+	}
+	for i := 0; i < len(data); i += chunkSize {
+		end := min(i+chunkSize, len(data))
+		reqs = append(reqs, &pb.UploadAudioReq{Data: &pb.UploadAudioReq_Chunk{Chunk: data[i:end]}})
+	}
+	return &unitAudioStream{reqs: reqs, ctx: ctx}
+}
+
+// unitTestJPEG 生成一张真实可解码的 JPEG，供嗅探、压缩与缩略图全链路使用。
+func unitTestWAV() []byte {
+	return append([]byte("RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00"), make([]byte, 24)...)
 }

@@ -219,6 +219,48 @@ func (contractMediaService) UploadImage(context.Context, ...grpc.CallOption) (me
 	return &contractUploadStream{failUserID: 999}, nil
 }
 
+type contractVideoStream struct {
+	grpc.ClientStream
+	fail bool
+}
+
+func (s *contractVideoStream) Send(r *mediapb.UploadVideoReq) error {
+	if r.GetMeta() != nil && r.GetMeta().UserId == 999 {
+		s.fail = true
+	}
+	return nil
+}
+func (s *contractVideoStream) CloseAndRecv() (*mediapb.UploadVideoResp, error) {
+	if s.fail {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	return &mediapb.UploadVideoResp{Media: &mediapb.MediaInfo{Id: 32, Url: "https://media/file", FileType: "video", MimeType: "application/octet-stream", FileSize: 3}}, nil
+}
+func (contractMediaService) UploadVideo(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadVideoClient, error) {
+	return &contractVideoStream{}, nil
+}
+
+type contractAudioStream struct {
+	grpc.ClientStream
+	fail bool
+}
+
+func (s *contractAudioStream) Send(r *mediapb.UploadAudioReq) error {
+	if r.GetMeta() != nil && r.GetMeta().UserId == 999 {
+		s.fail = true
+	}
+	return nil
+}
+func (s *contractAudioStream) CloseAndRecv() (*mediapb.UploadAudioResp, error) {
+	if s.fail {
+		return nil, errx.NewWithCode(errx.SystemError)
+	}
+	return &mediapb.UploadAudioResp{Media: &mediapb.MediaInfo{Id: 32, Url: "https://media/file", FileType: "audio", MimeType: "application/octet-stream", FileSize: 3}}, nil
+}
+func (contractMediaService) UploadAudio(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadAudioClient, error) {
+	return &contractAudioStream{}, nil
+}
+
 type contractBehaviorService struct {
 	behaviorservice.BehaviorService
 }
@@ -424,6 +466,9 @@ func imageBody(t *testing.T) (io.Reader, string) {
 	if _, err = part.Write([]byte("png")); err != nil {
 		t.Fatal(err)
 	}
+	if err = writer.WriteField("idempotencyKey", "contract-upload"); err != nil {
+		t.Fatal(err)
+	}
 	if err = writer.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -535,6 +580,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "UNLIKE-VALID", method: http.MethodDelete, path: "/api/v1/like", body: jsonBody(`{"targetId":11,"targetType":1}`), auth: true, wantStatus: http.StatusOK},
 		{id: "FAVORITE-VALID", method: http.MethodPost, path: "/api/v1/favorite", body: jsonBody(`{"postId":11}`), auth: true, wantStatus: http.StatusOK},
 		{id: "UNFAVORITE-VALID", method: http.MethodDelete, path: "/api/v1/favorite", body: jsonBody(`{"postId":11}`), auth: true, wantStatus: http.StatusOK},
+		{id: "MEDIA-VIDEO-VALID", method: http.MethodPost, path: "/api/v1/media/video", body: imageBody, auth: true, wantStatus: http.StatusOK, wantFields: []string{"mediaId", "url", "fileType", "mimeType", "fileSize"}},
+		{id: "MEDIA-AUDIO-VALID", method: http.MethodPost, path: "/api/v1/media/audio", body: imageBody, auth: true, wantStatus: http.StatusOK, wantFields: []string{"mediaId", "url", "fileType", "mimeType", "fileSize"}},
 		{id: "MEDIA-IMAGE-VALID", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, auth: true, wantStatus: http.StatusOK, wantFields: []string{"mediaId", "url", "thumbnailUrl"}},
 		{id: "BEHAVIOR-EVENTS-ANON", method: http.MethodPost, path: "/api/v2/behavior/events", body: jsonBody(`{"anonymousId":"device-1","events":[{"clientEventId":"event-1","occurredAt":1720000000000,"action":"click","targetId":11,"targetType":"post"}]}`), wantStatus: http.StatusAccepted, wantFields: []string{"results", "acceptedCount", "rejectedCount"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
 		{id: "FEED-FOLLOW-VALID", method: http.MethodGet, path: "/api/v2/feed/follow?pageSize=20", auth: true, wantStatus: http.StatusOK, wantFields: []string{"items", "hasMore", "nextCursorCreatedAt", "nextCursorPostId"}, wantItemFields: feedItemFields},
@@ -630,6 +677,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "PERSONALIZATION-GET-RPC-FAIL", method: http.MethodGet, path: "/api/v2/me/personalization", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "PERSONALIZATION-PUT-RPC-FAIL", method: http.MethodPut, path: "/api/v2/me/personalization", body: jsonBody(`{"enabled":false}`), headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MESSAGE-UNREAD-RPC-FAIL", method: http.MethodGet, path: "/api/v2/messages/unread", headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "MEDIA-VIDEO-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/video", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "MEDIA-AUDIO-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/audio", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?cursor=rpc-fail", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-UPDATE-V2-MISSING-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated"}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -746,8 +795,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 61 {
-		t.Fatalf("route inventory drift: got %d success rules, want 61", len(successes))
+	if len(successes) != 63 {
+		t.Fatalf("route inventory drift: got %d success rules, want 63", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

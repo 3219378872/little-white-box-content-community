@@ -21,6 +21,8 @@ type (
 	GetMediaReq       = pb.GetMediaReq
 	GetMediaResp      = pb.GetMediaResp
 	MediaInfo         = pb.MediaInfo
+	UploadAudioReq    = pb.UploadAudioReq
+	UploadAudioResp   = pb.UploadAudioResp
 	UploadImageReq    = pb.UploadImageReq
 	UploadImageResp   = pb.UploadImageResp
 	UploadMeta        = pb.UploadMeta
@@ -32,6 +34,8 @@ type (
 		UploadImage(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadImageClient, error)
 		// 上传视频（client streaming，每包 ≤ 1MB）
 		UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadVideoClient, error)
+		// 上传音频（MP3/WAV/M4A，client streaming）
+		UploadAudio(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadAudioClient, error)
 		// 获取媒体信息
 		GetMedia(ctx context.Context, in *GetMediaReq, opts ...grpc.CallOption) (*GetMediaResp, error)
 		// 删除媒体
@@ -61,6 +65,12 @@ func (m *defaultMediaService) UploadImage(ctx context.Context, opts ...grpc.Call
 func (m *defaultMediaService) UploadVideo(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadVideoClient, error) {
 	client := pb.NewMediaServiceClient(m.cli.Conn())
 	return client.UploadVideo(ctx, opts...)
+}
+
+// 上传音频（MP3/WAV/M4A，client streaming）
+func (m *defaultMediaService) UploadAudio(ctx context.Context, opts ...grpc.CallOption) (pb.MediaService_UploadAudioClient, error) {
+	client := pb.NewMediaServiceClient(m.cli.Conn())
+	return client.UploadAudio(ctx, opts...)
 }
 
 // 获取媒体信息

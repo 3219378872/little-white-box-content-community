@@ -35,6 +35,12 @@ func (s *MediaServiceServer) UploadVideo(stream pb.MediaService_UploadVideoServe
 	return l.UploadVideo(stream)
 }
 
+// 上传音频（MP3/WAV/M4A，client streaming）
+func (s *MediaServiceServer) UploadAudio(stream pb.MediaService_UploadAudioServer) error {
+	l := logic.NewUploadAudioLogic(stream.Context(), s.svcCtx)
+	return l.UploadAudio(stream)
+}
+
 // 获取媒体信息
 func (s *MediaServiceServer) GetMedia(ctx context.Context, in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
 	l := logic.NewGetMediaLogic(ctx, s.svcCtx)

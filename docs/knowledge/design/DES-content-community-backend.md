@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: 2026-09-25
+updated_at: '2026-09-27'
 tracks:
 - CORE-001
 - CORE-002
@@ -356,3 +356,21 @@ root 凭据完成真实认证，不能把 Access denied 当作健康。
 推荐游标冻结排序但不冻结用户的明确隐藏反馈：每次续页重读负反馈并按原快照推进偏移。
 关闭个性化后旧个性化快照失效；关闭后新建的规则快照可继续分页。依赖读取失败不返回未经核验的
 个性化或隐藏条目。
+
+## 私信视频和音频上传（2026-09-27）
+
+承接 CORE-023/024/040/041/042/050/051。Gateway 的 `/api/v1/media/video|audio` 是认证 multipart
+端点，使用 `file` 与必填 `idempotencyKey`（最长 128 字符）；图片旧入口继续兼容可选键。响应包含
+mediaId、url、fileType、mimeType、fileSize；不伪造缩略图、时长，也不承诺转码或客户端编码兼容。
+
+上传处理把超过 1 MiB 的文件暂存磁盘，总请求预算比文件预算多 1 MiB，解析完仍按文件实际字节校验，
+所有路径移除临时文件。Gateway 图片路由 120 秒，视频/音频 300 秒；普通路由保持原限制。
+视频复用 UploadVideo；音频新增 UploadAudio，复用带限额的 TempSink、内容哈希、事务媒体写入和
+对象补偿/outbox。原图片/视频幂等指纹不变，音频使用独立 media:upload:audio scope，避免跨类型命中。
+
+ISO 容器递归读取 moov/trak/mdia/hdlr，视频必须含 vide 轨，音频必须含 soun 且不含 vide；
+WebM/Matroska 读取 TrackType，音频仅接受 MP3/WAV/M4A。解析边界、扩展长度与层数受控，
+不把文件名、请求 MIME 或品牌头当作轨道证明。该检查识别类型，不证明完整解码或可播放性。
+
+Message RPC 在权威写入前检查本人、完成状态和 msgType/fileType 对应关系，持久化媒体记录 URL，
+不使用客户端提供的媒体 URL。发送重试继续遵循现有消息幂等键；客户端上传键与消息键相互独立。

@@ -5,6 +5,7 @@ package logic
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"esx/pkg/errx"
 	"io"
@@ -47,9 +48,11 @@ func (s *fakeUploadVideoStream) RecvMsg(m interface{}) error { return nil }
 
 // fakeMP4 构造一个最小的 MP4 魔数 + 填充数据。
 func fakeMP4(paddingBytes int) []byte {
-	head := []byte{0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32,
-		0x00, 0x00, 0x00, 0x00, 0x6D, 0x70, 0x34, 0x31, 0x6D, 0x70, 0x34, 0x32}
-	return append(head, bytes.Repeat([]byte{0x00}, paddingBytes)...)
+	data := unitTestMP4()
+	padding := make([]byte, 8+paddingBytes)
+	binary.BigEndian.PutUint32(padding, uint32(len(padding)))
+	copy(padding[4:], "free")
+	return append(data, padding...)
 }
 
 func videoStreamFromBytes(ctx context.Context, userId int64, filename string, data []byte, chunkSize int) *fakeUploadVideoStream {

@@ -51,3 +51,12 @@ API/RPC/数据/安全/运维/测试的按需入口。
   （Python 工具单测）、`make gen-frozen-evals`/`gen-recommend-samples`/
   `gen-slo-synthetic`（评测数据生成）。
 - 验证命令：`make check`、`make test`、`make coverage`；报告实际执行结果。
+
+## Compose 网络地址
+
+中间件网络默认 `172.30.240.0/24`，动态分配池 `172.30.240.128/25`，网关 `172.30.240.1`。
+服务使用 Compose DNS 名称，不指定固定 IP。环境重叠时一起覆盖 `XBH_NETWORK_SUBNET`、
+`XBH_NETWORK_IP_RANGE`、`XBH_NETWORK_GATEWAY`，确保地址池及网关属于子网且不重叠。
+Docker 不能原地修改现有网络 IPAM；已有环境需停止应用后以原 Compose project 执行
+`docker compose down`（绝不加 `-v`），再按原配置重新启动。数据卷保留，旧容器的历史固定 IP
+随重建移除。生产环境的维护窗口与运行验收应另行安排。

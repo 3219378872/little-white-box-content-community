@@ -68,6 +68,7 @@ func toPBMediaInfo(m *model2.Media) *pb.MediaInfo {
 		Id:           m.Id,
 		UserId:       m.UserId,
 		FileName:     m.FileName,
+		MimeType:     m.MimeType.String,
 		FileType:     m.FileType,
 		Url:          m.Url,
 		ThumbnailUrl: nullStr(m.ThumbnailUrl),

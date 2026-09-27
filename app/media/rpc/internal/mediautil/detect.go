@@ -16,6 +16,7 @@ const (
 	KindUnknown MediaKind = iota
 	KindImage
 	KindVideo
+	KindAudio
 )
 
 // DetectedType 是 Detect 的结果。

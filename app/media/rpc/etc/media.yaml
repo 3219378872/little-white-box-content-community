@@ -4,6 +4,7 @@ Middlewares:
   StatConf:
     IgnoreContentMethods:
       - /media.MediaService/UploadImage
+      - /media.MediaService/UploadAudio
       - /media.MediaService/UploadVideo
       - /media.MediaService/GetMedia
       - /media.MediaService/BatchGetMedia
@@ -32,6 +33,7 @@ S3Storage:
 Upload:
   MaxImageSize: 10485760
   MaxVideoSize: 104857600
+  MaxAudioSize: 10485760
   DefaultQuality: 85
   ThumbnailLongSide: 256
   TempDir: ""

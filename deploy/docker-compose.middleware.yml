@@ -553,3 +553,10 @@ volumes:
 networks:
   xbh-network:
     driver: bridge
+    # Isolate the default project pool from Docker's automatic allocations.
+    # The lower half is reserved; services use DNS names, never fixed addresses.
+    ipam:
+      config:
+        - subnet: ${XBH_NETWORK_SUBNET:-172.30.240.0/24}
+          ip_range: ${XBH_NETWORK_IP_RANGE:-172.30.240.128/25}
+          gateway: ${XBH_NETWORK_GATEWAY:-172.30.240.1}

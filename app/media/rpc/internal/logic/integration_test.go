@@ -49,6 +49,7 @@ func TestMain(m *testing.M) {
 		},
 		Upload: config.UploadConf{
 			MaxImageSize:      10 * 1024 * 1024,
+			MaxAudioSize:      10 * 1024 * 1024,
 			MaxVideoSize:      100 * 1024 * 1024,
 			DefaultQuality:    85,
 			ThumbnailLongSide: 256,

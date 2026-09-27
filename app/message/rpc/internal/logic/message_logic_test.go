@@ -397,7 +397,7 @@ func TestSendMessageMediaMessageRequiresOwnedCompletedMedia(t *testing.T) {
 		return &svc.ServiceContext{
 			MessageCommandModel: commands,
 			MediaService: &fakeMediaMessageValidator{response: &mediapb.BatchGetMediaResp{
-				Medias: []*mediapb.MediaInfo{{Id: 55, UserId: 1, Status: 1}},
+				Medias: []*mediapb.MediaInfo{{Id: 55, UserId: 1, Status: 1, FileType: "image", Url: "https://media.test/image"}},
 			}},
 		}
 	}
@@ -440,6 +440,21 @@ func TestSendMessageMediaMessageRequiresOwnedCompletedMedia(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, errx.Is(err, errx.ServiceUnavailable))
 	})
+}
+
+func TestSendMediaUsesAuthoritativeURLAndRejectsWrongType(t *testing.T) {
+	for _, kind := range []struct {
+		typ  int32
+		name string
+	}{{2, "image"}, {3, "video"}, {4, "audio"}} {
+		commands := &fakeMessageCommandModel{createdMessageID: 402}
+		ctx := &svc.ServiceContext{MessageCommandModel: commands, MediaService: &fakeMediaMessageValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 55, UserId: 1, Status: 1, FileType: kind.name, Url: "https://media.test/owned"}}}}}
+		_, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 2, Content: "https://evil.test/forged", MsgType: kind.typ, IdempotencyKey: "k", MediaId: 55})
+		require.NoError(t, err)
+		require.Equal(t, "https://media.test/owned", commands.createdContent)
+		_, err = NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{SenderId: 1, ReceiverId: 2, Content: "media", MsgType: 2 + (kind.typ-1)%3, IdempotencyKey: "mismatch", MediaId: 55})
+		require.True(t, errx.Is(err, errx.ParamError))
+	}
 }
 
 func TestGetConversationsReturnsPagedItems(t *testing.T) {
