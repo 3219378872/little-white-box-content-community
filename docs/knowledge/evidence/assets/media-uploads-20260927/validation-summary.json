@@ -1,0 +1,25 @@
+{
+  "observed_commit": "8eba5f49bfbce18249ecd6a494514c2750aa6231",
+  "tests_and_subtests": 1819,
+  "packages": 199,
+  "commands": [
+    "GOMAXPROCS=4 make fmt-check vet lint vulncheck",
+    "GOMAXPROCS=4 make test ARGS='-count=1 -p=8' TEST_JSON_DIR=/tmp/little-media-final-clean-json",
+    "GOMAXPROCS=4 GOFLAGS=-race make integration-critical",
+    "TEST_S3_ENDPOINT=127.0.0.1:18333 GOMAXPROCS=4 go test -p 1 -tags=integration -race -count=1 -timeout=10m ./app/media/rpc/internal/logic ./app/message/rpc/internal/logic ./app/content/rpc/internal/logic",
+    "GOMAXPROCS=4 go test -p 1 -tags=integration -race -count=1 -timeout=10m ./app/assistant/internal/runtime ./app/assistant/internal/store ./app/feed/rpc/internal/svc ./app/recommend/mq/internal/store",
+    "make spec-evals-test python-unit"
+  ],
+  "results": "passed",
+  "isolated_media_storage": "SeaweedFS on 18333; MySQL/Redis testcontainers",
+  "initial_failures": [
+    "legacy media model omitted thumbnail_object_key; repaired and integration rerun passed",
+    "host clock rollback triggered Snowflake guards in initial unit runs; targeted rerun and final complete race suite passed"
+  ],
+  "not_verified": [
+    "live-provider",
+    "device",
+    "capacity",
+    "production"
+  ]
+}

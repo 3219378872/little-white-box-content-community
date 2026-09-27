@@ -27,39 +27,39 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| DISC-001 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-002 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-003 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-004 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-010 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-011 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-012 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-020 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-021 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-022 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-023 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-030 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-031 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-032 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-033 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-034 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-035 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-036 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-040 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-041 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-042 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-050 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-051 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-052 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-001 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-002 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-003 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-004 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-010 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-011 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-012 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-020 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-021 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-022 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-023 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-030 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-031 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-032 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-033 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-034 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-035 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-036 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-040 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-041 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-042 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-050 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-051 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-052 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
 | DISC-060 | DES-content-community-backend | unknown | gap: 当前数据为合成开发集；缺两名人类独立评审并消歧的正式 qrels。 |
-| DISC-061 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-061 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
 | DISC-062 | DES-content-community-backend | diverged | gap: 默认 OnlineInfer / ModelVersion:auto 缺少 10k exposures + 1k identities 晋级门禁。 |
 | DISC-063 | DES-content-community-backend | diverged | gap: 当前规则模型相对规则基线提升为 0，未达到 5% 与 bootstrap 下界要求。 |
-| DISC-A01 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-A02 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-A03 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-A04 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
-| DISC-A05 | DES-content-community-backend | aligned | EVD-20260925-quality-remediation |
+| DISC-A01 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-A02 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-A03 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-A04 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
+| DISC-A05 | DES-content-community-backend | aligned | EVD-20260927-media-uploads |
 | DISC-A06 | DES-content-community-backend | diverged | gap: 人类双评审搜索集缺失，且学习排序效果门禁已知未达到。 |
 
 ## 代码边界
