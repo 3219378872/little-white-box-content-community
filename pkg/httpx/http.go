@@ -101,8 +101,14 @@ func Parse(c *app.RequestContext, out any) error {
 			text = c.Param(name)
 			present = text != ""
 		} else {
-			text = string(c.QueryArgs().Peek(name))
-			present = c.QueryArgs().Has(name)
+			// The public form contract ignores empty values, including empty
+			// optional numbers. Scalar fields use the first nonempty value.
+			for _, value := range c.QueryArgs().PeekAll(name) {
+				if len(value) > 0 {
+					text, present = string(value), true
+					break
+				}
+			}
 		}
 		if !present {
 			if fallback != "" {

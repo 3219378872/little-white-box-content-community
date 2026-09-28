@@ -57,7 +57,7 @@ code_paths:
 | REL-013 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-020 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-021 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
-| REL-022 | DES-content-community-backend | aligned | EVD-20260928-cloudwego-migration |
+| REL-022 | DES-content-community-backend | unknown | gap: HTTP 空查询值兼容修复后待固定提交回归证据。 |
 | REL-023 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-024 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-030 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |

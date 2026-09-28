@@ -73,3 +73,34 @@ func TestUnknownLengthBodyIsBounded(t *testing.T) {
 	_, encodeErr := json.Marshal(body)
 	require.NoError(t, encodeErr)
 }
+
+func TestQueryEmptyValuesPreserveRequiredFieldsAndDefaults(t *testing.T) {
+	for _, tc := range []struct {
+		query string
+		valid bool
+	}{
+		{"", false}, {"keyword=", false}, {"keyword=&keyword=", false},
+		{"keyword=&keyword=go&pageSize=&before=", true},
+		{"keyword=go&pageSize=bad", false},
+	} {
+		t.Run(tc.query, func(t *testing.T) {
+			var request struct {
+				Keyword  string `form:"keyword"`
+				PageSize int64  `form:"pageSize,default=20"`
+				Before   int64  `form:"before,optional"`
+			}
+			r := httptest.NewRequest("GET", "/search?"+tc.query, nil)
+			err := httpx.Parse(httptestx.Context(r), &request)
+			if !tc.valid {
+				var biz *errx.BizError
+				require.ErrorAs(t, err, &biz)
+				require.Equal(t, errx.ParamError, biz.Code)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "go", request.Keyword)
+			require.Equal(t, int64(20), request.PageSize)
+			require.Zero(t, request.Before)
+		})
+	}
+}
