@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package posts
 
 import (
@@ -9,16 +6,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
+	"encoding/json"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/rest/httpx"
-	"google.golang.org/grpc"
 )
 
 // CORE-013：v2 写接口强制乐观锁，缺失或为 0 的 expectedRevision 必须被拒绝。
@@ -40,7 +39,7 @@ type capturePostUpdate struct {
 	request *contentservice.UpdatePostReq
 }
 
-func (c *capturePostUpdate) UpdatePost(_ context.Context, request *contentservice.UpdatePostReq, _ ...grpc.CallOption) (*contentservice.UpdatePostResp, error) {
+func (c *capturePostUpdate) UpdatePost(_ context.Context, request *contentservice.UpdatePostReq, _ ...callopt.Option) (*contentservice.UpdatePostResp, error) {
 	c.request = request
 	return &contentservice.UpdatePostResp{Status: 1, Revision: 3}, nil
 }
@@ -57,7 +56,7 @@ func TestUpdatePostV2PreservesOptionalImagePresence(t *testing.T) {
 			request := httptest.NewRequest("PUT", "/api/v2/post/1", strings.NewReader(test.body))
 			request.Header.Set("Content-Type", "application/json")
 			var input types.UpdatePostV2Req
-			require.NoError(t, httpx.ParseJsonBody(request, &input))
+			require.NoError(t, json.NewDecoder(request.Body).Decode(&input))
 			input.PostId = 1
 			content := new(capturePostUpdate)
 			ctx := jwtx.WithClaimsContext(context.Background(), &jwtx.Claims{UserId: 1})

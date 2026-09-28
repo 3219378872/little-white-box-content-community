@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"esx/app/user/rpc/internal/model"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 
 	"github.com/stretchr/testify/assert"
 )

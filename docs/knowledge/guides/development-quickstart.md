@@ -6,14 +6,14 @@ API/RPC/数据/安全/运维/测试的按需入口。
 ## API 开发
 
 - Gateway 负责 HTTP 参数绑定、鉴权中间件与 RPC 编排；Logic 负责业务流程。
-- 修改 `.api` 后运行项目约定的 goctl API 生成命令；**禁止**手改
-  `internal/handler` 或 `internal/types`（生成文件）。
+- 修改 `app/gateway/openapi.yaml` 后运行 `make generate`；DTO 与路由为生成文件，
+  普通 Handler 手写维护。生成器不会覆盖业务 Handler。
 - 用户输入经 `pkg/validator` 或 API 声明校验；响应不暴露内部堆栈、secret 或数据库细节。
 
 ## RPC 开发
 
-- proto 定义在 `proto/`，生成代码不手动编辑；修改后运行仓库使用的 goctl/protobuf 命令。
-- 所有 zrpc 调用透传原始 ctx；goroutine 使用 ctx 副本并处理取消。
+- proto 定义在 `proto/`，生成代码不手动编辑；修改后运行仓库使用的 OpenAPI/Kitex/protobuf 命令。
+- 所有 Kitex 调用透传原始 ctx；goroutine 使用 ctx 副本并处理取消。
 - 跨服务业务错误使用 `pkg/errx` 与现有 interceptor，不重新定义错误协议。
 - Assistant 先检索用户可见的已发布社区内容，并对帖子与评论回源验证；社区资料不足时，按当前
   capability 和授权使用互联网搜索补充。社区检索故障、可见性不可验证与资料不足必须区分，
@@ -37,7 +37,7 @@ API/RPC/数据/安全/运维/测试的按需入口。
 - 本地中间件由 `deploy/docker-compose.middleware.yml` 管理（MySQL、Redis、etcd、
   RocketMQ、Elasticsearch、Milvus、MinIO/SeaweedFS、ClickHouse、观测组件）。
 - RocketMQ 消费者必须处理重试、幂等与不可恢复错误；不静默吞错。
-- 超时/取消/下游错误沿 ctx 传播；日志使用 `logx.WithContext(ctx)`。
+- 超时/取消/下游错误沿 ctx 传播；日志使用 `logging.WithContext(ctx)`。
 - 排查入口：先日志与配置，再验证依赖健康、注册发现与消息主题，最后定位消费者/RPC。
 
 ## 测试与交付

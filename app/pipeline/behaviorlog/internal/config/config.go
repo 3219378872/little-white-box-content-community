@@ -3,8 +3,8 @@ package config
 import (
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	service "esx/pkg/lifecycle"
+	redis "esx/pkg/redisstore"
 )
 
 type Config struct {

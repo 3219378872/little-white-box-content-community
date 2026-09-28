@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"esx/pkg/httpx"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,36 +10,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/hertz/pkg/common/test/mock"
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/assistant/rpc/assistantservice"
-	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/gateway/internal/httpxconfig"
 	"esx/app/gateway/internal/svc"
+	assistantpb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
+	"esx/pkg/httptestx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/rest"
-	"github.com/zeromicro/go-zero/rest/pathvar"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func assembledAssistantSSEHandler(t *testing.T, service assistantservice.AssistantService) http.HandlerFunc {
 	t.Helper()
-	server, err := rest.NewServer(rest.RestConf{})
-	require.NoError(t, err)
-	server.AddRoute(rest.Route{Method: http.MethodGet, Path: "/api/v2/assistant/runs/:id/events", Handler: AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service})}, rest.WithSSE())
-	// Routes exposes the real WithSSE wrapper installed by AddRoute, including
-	// its eager SSE headers. No listening socket is needed to exercise it.
-	routes := server.Routes()
-	require.Len(t, routes, 1)
-	return routes[0].Handler
+	return httptestx.Adapt(httptestx.Chain(httpx.RoutePolicy(0, 10<<20, true), AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service})))
 }
 
 func assistantEventRequest() *http.Request {
 	req := httptest.NewRequest(http.MethodGet, "/api/v2/assistant/runs/9/events", nil)
-	req = pathvar.WithVars(req, map[string]string{"id": "9"})
+	req = httptestx.WithVars(req, map[string]string{"id": "9"})
 	return req.WithContext(jwtx.WithUserIdContext(req.Context(), 7))
 }
 
@@ -80,27 +77,27 @@ func TestAssistantRunEventsWithSSEKeepsTransportErrorOutsideCursor(t *testing.T)
 
 type lifecycleRunService struct {
 	assistantservice.AssistantService
-	open func(context.Context) assistantpb.AssistantService_SubscribeRunEventsClient
+	open func(context.Context) assistantservice.AssistantService_SubscribeRunEventsClient
 }
 
-func (s *lifecycleRunService) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+func (s *lifecycleRunService) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...callopt.Option) (assistantservice.AssistantService_SubscribeRunEventsClient, error) {
 	return s.open(ctx), nil
 }
 
 type lifecycleRunStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	recv func() (*assistantpb.RunEvent, error)
 }
 
 func (s *lifecycleRunStream) Recv() (*assistantpb.RunEvent, error) { return s.recv() }
 
-type failedEventWriter struct{ *httptest.ResponseRecorder }
+type failedEventConn struct{ *mock.Conn }
 
-func (w failedEventWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+func (c failedEventConn) Flush() error { return io.ErrClosedPipe }
 
 func TestAssistantRunEventsWriteFailureCancelsUpstream(t *testing.T) {
 	stopped := make(chan struct{})
-	service := &lifecycleRunService{open: func(ctx context.Context) assistantpb.AssistantService_SubscribeRunEventsClient {
+	service := &lifecycleRunService{open: func(ctx context.Context) assistantservice.AssistantService_SubscribeRunEventsClient {
 		first := true
 		return &lifecycleRunStream{recv: func() (*assistantpb.RunEvent, error) {
 			if first {
@@ -112,8 +109,10 @@ func TestAssistantRunEventsWriteFailureCancelsUpstream(t *testing.T) {
 			return nil, ctx.Err()
 		}}
 	}}
-	handler := assembledAssistantSSEHandler(t, service)
-	handler(failedEventWriter{httptest.NewRecorder()}, assistantEventRequest())
+	req := assistantEventRequest()
+	c := httptestx.Context(req)
+	c.SetConn(failedEventConn{mock.NewConn("")})
+	AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service})(req.Context(), c)
 	select {
 	case <-stopped:
 	case <-time.After(time.Second):
@@ -125,7 +124,7 @@ func TestAssistantRunEventsPanicCompletesWithoutHanging(t *testing.T) {
 	httpxconfig.ConfigureErrors()
 	for _, streamed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "before stream", true: "after token"}[streamed], func(t *testing.T) {
-			service := &lifecycleRunService{open: func(context.Context) assistantpb.AssistantService_SubscribeRunEventsClient {
+			service := &lifecycleRunService{open: func(context.Context) assistantservice.AssistantService_SubscribeRunEventsClient {
 				sent := false
 				return &lifecycleRunStream{recv: func() (*assistantpb.RunEvent, error) {
 					if streamed && !sent {

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 

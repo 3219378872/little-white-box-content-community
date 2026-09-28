@@ -5,7 +5,7 @@ import (
 	"esx/app/media/rpc/mediaservice"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // validateMessageMedia 校验媒体消息引用的媒体（CORE-041）：媒体必须存在、

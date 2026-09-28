@@ -10,6 +10,11 @@ from typing import Sequence
 
 
 GENERATED_MARKERS = (
+    "/kitex_gen/",
+    "/assistantservice/assistant_service.go",
+    "/behaviorservice/behavior_service.go",
+    "/recommendservice/recommend_service.go",
+    "/searchservice/search_service.go",
     ".pb.go",
     "_grpc.pb.go",
     "/internal/types/",

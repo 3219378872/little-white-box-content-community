@@ -2,10 +2,12 @@ RestConf:
   Name: gateway
   Host: 0.0.0.0
   Port: 8888
-  # go-zero 的 REST Log 中间件会在 JWT/5xx 路径 dump 完整请求（含凭据和正文）。
-  # Gateway 改用只记录方法、路径、状态和耗时的 SafeAccessLog。
-  Middlewares:
-    Log: false
+  DevServer:
+    Enabled: true
+    Host: 0.0.0.0
+    Port: 9180
+    EnableMetrics: true
+    EnablePprof: false
   # 普通路由限制；媒体路由由 handler 分别校验文件与 multipart 开销。
   MaxBytes: 10485760
 Auth:

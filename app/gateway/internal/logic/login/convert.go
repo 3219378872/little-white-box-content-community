@@ -2,7 +2,7 @@ package login
 
 import (
 	"esx/app/gateway/internal/types"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 )
 
 func RegisterReqConvert(req *types.RegisterReq) *pb.RegisterReq {

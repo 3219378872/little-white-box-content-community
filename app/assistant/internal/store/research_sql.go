@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 func (s *SQLStore) LockRun(ctx context.Context, id int64) (*Run, error) {

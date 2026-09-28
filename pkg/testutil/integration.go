@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
+	redis "esx/pkg/redisstore"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	mysqlcontainer "github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type TestEnv struct {

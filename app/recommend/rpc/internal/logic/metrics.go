@@ -1,6 +1,6 @@
 package logic
 
-import "github.com/zeromicro/go-zero/core/metric"
+import metric "esx/pkg/metrics"
 
 var (
 	recommendPipelineTotal = metric.NewCounterVec(&metric.CounterVecOpts{

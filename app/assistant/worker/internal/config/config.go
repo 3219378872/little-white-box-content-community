@@ -1,9 +1,9 @@
 package config
 
 import (
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
+	service "esx/pkg/lifecycle"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
 )
 
 type LLMConfig struct {
@@ -79,12 +79,12 @@ type Config struct {
 	DataSource       string
 	Redis            redis.RedisKeyConf
 	Elasticsearch    ElasticsearchConfig
-	SearchRpc        zrpc.RpcClientConf
-	ContentRpc       zrpc.RpcClientConf
-	MediaRpc         zrpc.RpcClientConf
-	RecommendRpc     zrpc.RpcClientConf
-	InteractionRpc   zrpc.RpcClientConf
-	UserRpc          zrpc.RpcClientConf
+	SearchRpc        rpcx.RpcClientConf
+	ContentRpc       rpcx.RpcClientConf
+	MediaRpc         rpcx.RpcClientConf
+	RecommendRpc     rpcx.RpcClientConf
+	InteractionRpc   rpcx.RpcClientConf
+	UserRpc          rpcx.RpcClientConf
 	AllowedTools     []string
 	LeaseSeconds     int `json:",default=60"`
 	RenewSeconds     int `json:",default=10"`

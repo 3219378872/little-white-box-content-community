@@ -9,7 +9,7 @@ import (
 	"esx/pkg/testutil"
 	"esx/pkg/util"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 var testEnv *testutil.TestEnv

@@ -9,7 +9,7 @@ import (
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // refreshKeyPrefix 刷新令牌 jti 白名单键前缀；值为所属用户 ID，

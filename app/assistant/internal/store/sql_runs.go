@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 func (s *SQLStore) InsertRun(ctx context.Context, run Run) (Run, error) {

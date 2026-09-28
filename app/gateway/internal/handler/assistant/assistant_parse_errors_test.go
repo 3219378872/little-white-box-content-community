@@ -6,15 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/hertz/pkg/app"
+
 	"esx/app/gateway/internal/svc"
 
-	"github.com/zeromicro/go-zero/rest/pathvar"
+	"esx/pkg/httptestx"
 )
 
 func TestAssistantHandlersRejectMalformedInputBeforeCallingServices(t *testing.T) {
 	tests := []struct {
 		name        string
-		handler     func(*svc.ServiceContext) http.HandlerFunc
+		handler     func(*svc.ServiceContext) app.HandlerFunc
 		method      string
 		target      string
 		body        string
@@ -34,10 +36,10 @@ func TestAssistantHandlersRejectMalformedInputBeforeCallingServices(t *testing.T
 				req.Header.Set("Content-Type", test.contentType)
 			}
 			if test.pathVars != nil {
-				req = pathvar.WithVars(req, test.pathVars)
+				req = httptestx.WithVars(req, test.pathVars)
 			}
 			recorder := httptest.NewRecorder()
-			test.handler(nil)(recorder, req)
+			httptestx.Adapt(test.handler(nil))(recorder, req)
 			if recorder.Code != http.StatusBadRequest {
 				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 			}
@@ -48,7 +50,7 @@ func TestAssistantHandlersRejectMalformedInputBeforeCallingServices(t *testing.T
 func TestAssistantListHandlersRejectAnonymousRequests(t *testing.T) {
 	tests := []struct {
 		name    string
-		handler func(*svc.ServiceContext) http.HandlerFunc
+		handler func(*svc.ServiceContext) app.HandlerFunc
 		method  string
 		target  string
 	}{
@@ -60,7 +62,7 @@ func TestAssistantListHandlersRejectAnonymousRequests(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			test.handler(nil)(recorder, httptest.NewRequest(test.method, test.target, nil))
+			httptestx.Adapt(test.handler(nil))(recorder, httptest.NewRequest(test.method, test.target, nil))
 			if recorder.Code != http.StatusUnauthorized {
 				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 			}

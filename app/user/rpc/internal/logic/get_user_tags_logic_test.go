@@ -6,7 +6,7 @@ import (
 
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

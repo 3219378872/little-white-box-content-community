@@ -3,6 +3,7 @@
 package logic
 
 import (
+	"context"
 	"esx/app/interaction/rpc/internal/config"
 	"esx/app/interaction/rpc/internal/svc"
 	"esx/pkg/testutil"
@@ -10,9 +11,10 @@ import (
 	"os"
 	"testing"
 
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 var (
@@ -25,7 +27,7 @@ func TestMain(m *testing.M) {
 
 	cfg := config.Config{
 		InternalSecret: "test-internal-secret",
-		RpcServerConf:  zrpc.RpcServerConf{},
+		RpcServerConf:  rpcx.RpcServerConf{},
 		DataSource:     testEnv.MySQLDSN,
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
@@ -58,7 +60,7 @@ func resetIntegrationState() {
 		"interaction:action_count:910101:1",
 		"interaction:action_count:920001:1",
 	} {
-		if _, err := testSvcCtx.Redis.Del(key); err != nil {
+		if _, err := testSvcCtx.Redis.DelCtx(context.Background(), key); err != nil {
 			fmt.Fprintf(os.Stderr, "清理 Redis key %s 失败: %v\n", key, err)
 			os.Exit(1)
 		}

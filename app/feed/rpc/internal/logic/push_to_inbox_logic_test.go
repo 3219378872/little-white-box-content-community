@@ -7,7 +7,7 @@ import (
 
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/pkg/event"
 
 	"esx/app/user/rpc/userservice"
-
-	"google.golang.org/grpc"
 )
 
 type BehaviorStore interface {
@@ -29,7 +29,7 @@ type RedisEvaler interface {
 }
 
 type PersonalizationPreferenceReader interface {
-	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error)
+	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
 }
 
 type RedisBehaviorStore struct {
@@ -351,7 +351,7 @@ end
 return 1
 `
 
-// RedisKeyLister 枚举 Redis 键（go-zero *redis.Redis 的 KeysCtx 满足该接口）。
+// RedisKeyLister 枚举 Redis 键（redisstore.Redis 的 KeysCtx 满足该接口）。
 type RedisKeyLister interface {
 	KeysCtx(ctx context.Context, pattern string) ([]string, error)
 }

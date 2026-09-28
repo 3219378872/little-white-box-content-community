@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 // CleanupStore 抽象帖子删除后需要执行的 Redis 清理操作，
-// 便于单测 mock，避免直接耦合 go-zero redis.Redis。
+// 便于单测 mock，避免直接耦合 redisstore.Redis。
 type CleanupStore interface {
 	DeletePostState(ctx context.Context, postID int64) error
 	RemoveFromHotZSets(ctx context.Context, postID int64) error

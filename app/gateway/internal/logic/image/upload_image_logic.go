@@ -1,11 +1,8 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package image
 
 import (
 	"context"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 	"io"
@@ -14,7 +11,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const chunkSize = 1 << 20 // 1 MB per chunk

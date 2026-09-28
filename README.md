@@ -1,6 +1,6 @@
 # 小白盒内容社区后端
 
-小白盒的 Go / go-zero 后端，为内容创作、社区互动、内容发现、一对一私信和社区 Agent 提供服务。
+小白盒的 Go / Kitex + Hertz 后端，为内容创作、社区互动、内容发现、一对一私信和社区 Agent 提供服务。
 仓库名为 `little-white-box-content-community`，Go module 为 `esx`，业务服务共享一个根模块。
 
 内容社区是产品主体，关注流、普通搜索、推荐与社区操作独立于 Agent。小白盒 Agent 帮助用户澄清
@@ -37,7 +37,7 @@ flowchart TD
     worker --> tools["社区工具 / 模型 / 外部检索"]
 ```
 
-Gateway 负责 HTTP 入口、鉴权与 RPC 编排，内部 RPC 使用 go-zero / zrpc 与 etcd 服务发现。
+Gateway 负责 HTTP 入口、鉴权与 RPC 编排，内部 RPC 使用 Kitex（gRPC HTTP/2） 与 etcd 服务发现。
 Assistant RPC 接收命令并读取状态；模型与工具循环由独立 worker 执行，任务状态持久化到 MySQL，
 不依赖浏览器持续在线。Watch matcher 处理事件命中与任务调度，不承担模型执行。
 
@@ -104,23 +104,23 @@ make knowledge-setup
 
 | 契约 | 作用 | 更新边界 |
 | --- | --- | --- |
-| [app/gateway/gateway.api](app/gateway/gateway.api) | 公开 REST 与 Dart Gateway SDK 的生成源 | 后端修改契约；前端在自己的仓库同步 SDK |
+| [app/gateway/openapi.yaml](app/gateway/openapi.yaml) | 公开 REST 与 Dart Gateway SDK 的生成源 | 后端修改契约；前端在自己的仓库同步 SDK |
 | [proto/](proto/) 下的 `.proto` | 服务内部 RPC | 不作为 Flutter REST SDK 的生成源 |
 
-修改 `.api` 或 `.proto` 后，在后端仓运行：
+修改 `openapi.yaml` 或 `.proto` 后，在后端仓运行：
 
 ```bash
 make generate
 ```
 
-生成需要 `goctl`、`protoc`、`protoc-gen-go`、`protoc-gen-go-grpc` 和 Python 3；Python 生成依赖按
+生成需要 `kitex v0.16.2`、`protoc`、`protoc-gen-go v1.36.12`、`protoc-gen-go-grpc v1.6.1` 和 Python 3；Python 生成依赖按
 [requirements-generate.txt](scripts/requirements-generate.txt) 安装到隔离环境，运行时确保该环境的
 `python3` 在 PATH 中。完整生成过程以 [生成脚本](scripts/generate.sh) 为准。
 `make generate` 会写入生成文件，运行后检查差异，不手工修改生成物。
 
 后端生成命令不会跨仓更新 Flutter。公开契约变化后，由前端
 [SDK 同步工具](https://github.com/3219378872/little-white-box-front/blob/main/tools/README.md#gateway-sdk-sync)
-从已核验版本的 `gateway.api` 更新两份 SDK，并在前端执行带显式 `BACKEND_API` 的只读检查。
+从已核验版本的 `openapi.yaml` 更新两份 SDK，并在前端执行带显式 `BACKEND_API` 的只读检查。
 整合时根仓 `just contract-check` 会在临时 clone 中检查后端生成漂移，再核对前端 SDK；仍需先备齐
 生成工具。两端变更分别提交，根仓最后更新 gitlink。
 

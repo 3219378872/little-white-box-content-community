@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
-
-	"google.golang.org/grpc"
 )
 
 func allowAllWatchPosts(_ context.Context, _ int64, postIDs []int64) (map[int64]bool, error) {
@@ -167,7 +167,7 @@ type watchPostContent struct {
 	contentservice.ContentService
 }
 
-func (*watchPostContent) GetPost(_ context.Context, in *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (*watchPostContent) GetPost(_ context.Context, in *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 	id := int64(99)
 	if in != nil && in.PostId > 0 {
 		id = in.PostId

@@ -2,28 +2,29 @@ package main
 
 import (
 	"context"
+	native "esx/kitex_gen/behavior/behaviorservice"
+	"esx/pkg/lifecycle"
 	"flag"
 	"fmt"
 
 	"esx/app/behavior/rpc/internal/config"
 	"esx/app/behavior/rpc/internal/server"
 	"esx/app/behavior/rpc/internal/svc"
-	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
-	"esx/pkg/cleanupx"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"esx/pkg/cleanupx"
+
+	conf "esx/pkg/configx"
+	logx "esx/pkg/logging"
+
+	"esx/pkg/rpcx"
 )
 
 var configFile = flag.String("f", "etc/behavior.yaml", "the config file")
 
 func main() {
+	defer lifecycle.CloseResources()
 	flag.Parse()
+	defer rpcx.CloseAllClients()
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
@@ -31,16 +32,11 @@ func main() {
 	logger := logx.WithContext(context.Background())
 	defer cleanupx.Shutdown(logger, "behavior producer", ctx.Close)
 
-	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.BehaviorService_ServiceDesc), func(grpcServer *grpc.Server) {
-		pb.RegisterBehaviorServiceServer(grpcServer, server.NewBehaviorServiceServer(ctx))
-
-		if c.Mode == service.DevMode || c.Mode == service.TestMode {
-			reflection.Register(grpcServer)
-		}
-	})
-	s.AddUnaryInterceptors(interceptor.InternalAuthUnaryServerInterceptor(c.InternalSecret))
-	defer s.Stop()
+	s := native.NewServer(server.NewBehaviorServiceServer(ctx), rpcx.ServerOptions(c.RpcServerConf, c.InternalSecret)...)
+	defer func() { _ = s.Stop() }()
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
-	s.Start()
+	if err := s.Run(); err != nil {
+		panic(err)
+	}
 }

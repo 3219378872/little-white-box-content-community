@@ -5,16 +5,16 @@ import (
 	"esx/app/feed/mq/internal/config"
 	"esx/app/feed/mq/internal/model"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
+	"github.com/cloudwego/kitex/client/callopt"
+
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type UserService interface {
-	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...grpc.CallOption) (*userservice.GetUserResp, error)
-	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...grpc.CallOption) (*userservice.GetFollowersResp, error)
+	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error)
+	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error)
 }
 
 type ServiceContext struct {
@@ -28,10 +28,9 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
-	userRpcClient := interceptor.MustNewClient(c.UserRpc,
-		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	userRpcClient := rpcx.MustNewClient(c.UserRpc,
+		rpcx.WithInternalAuth(c.InternalSecret))
 	return &ServiceContext{
 		Config:          c,
 		Conn:            conn,

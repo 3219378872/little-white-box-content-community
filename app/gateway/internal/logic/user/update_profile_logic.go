@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package user
 
 import (
@@ -9,9 +6,9 @@ import (
 	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type UpdateProfileLogic struct {

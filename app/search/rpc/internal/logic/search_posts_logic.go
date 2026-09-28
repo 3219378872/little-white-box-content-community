@@ -6,12 +6,12 @@ import (
 
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
-	"esx/app/search/rpc/xiaobaihe/search/pb"
+	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
 	"esx/app/user/rpc/userservice"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type SearchPostsLogic struct {

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 func (s *SQLStore) InsertToolCall(ctx context.Context, call ToolCall) (ToolCall, error) {

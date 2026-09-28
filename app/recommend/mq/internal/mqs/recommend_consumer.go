@@ -11,9 +11,10 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 func NewRecommendConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {

@@ -3,7 +3,7 @@ package logic
 import (
 	"database/sql"
 	model2 "esx/app/message/rpc/internal/model"
-	"esx/app/message/rpc/xiaobaihe/message/pb"
+	pb "esx/kitex_gen/message"
 	"esx/pkg/pageutil"
 	"strings"
 	"time"

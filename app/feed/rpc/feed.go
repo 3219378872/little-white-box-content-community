@@ -1,41 +1,36 @@
 package main
 
 import (
+	native "esx/kitex_gen/feed/feedservice"
+	"esx/pkg/lifecycle"
 	"flag"
 	"fmt"
 
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/server"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	conf "esx/pkg/configx"
+
+	"esx/pkg/rpcx"
 )
 
 var configFile = flag.String("f", "etc/feed.yaml", "the config file")
 
 func main() {
+	defer lifecycle.CloseResources()
 	flag.Parse()
+	defer rpcx.CloseAllClients()
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
 
-	s := zrpc.MustNewServer(interceptor.ServerWithoutContent(c.RpcServerConf, &pb.FeedService_ServiceDesc), func(grpcServer *grpc.Server) {
-		pb.RegisterFeedServiceServer(grpcServer, server.NewFeedServiceServer(ctx))
-
-		if c.Mode == service.DevMode || c.Mode == service.TestMode {
-			reflection.Register(grpcServer)
-		}
-	})
-	s.AddUnaryInterceptors(interceptor.InternalAuthUnaryServerInterceptor(c.InternalSecret))
-	defer s.Stop()
+	s := native.NewServer(server.NewFeedServiceServer(ctx), rpcx.ServerOptions(c.RpcServerConf, c.InternalSecret)...)
+	defer func() { _ = s.Stop() }()
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
-	s.Start()
+	if err := s.Run(); err != nil {
+		panic(err)
+	}
 }

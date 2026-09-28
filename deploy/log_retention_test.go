@@ -11,6 +11,8 @@ import (
 	"testing"
 )
 
+// All application RPC entrypoints must install the shared auth, error and
+// content-free logging boundary; socket behavior is tested in pkg/interceptor.
 func TestRPCConstructorsApplyContentLoggingPolicy(t *testing.T) {
 	servers := 0
 	err := filepath.WalkDir("../app", func(path string, entry fs.DirEntry, walkErr error) error {
@@ -30,27 +32,22 @@ func TestRPCConstructorsApplyContentLoggingPolicy(t *testing.T) {
 				return true
 			}
 			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "NewServer" {
+				return true
+			}
+			servers++
+			if len(call.Args) != 2 {
+				t.Errorf("%s: RPC server must install shared options", path)
+				return true
+			}
+			options, ok := call.Args[1].(*ast.CallExpr)
 			if !ok {
+				t.Errorf("%s: missing shared transport policy", path)
 				return true
 			}
-			qualifier, ok := selector.X.(*ast.Ident)
-			if !ok || qualifier.Name != "zrpc" {
-				return true
-			}
-			switch selector.Sel.Name {
-			case "NewClient", "MustNewClient", "NewClientWithTarget":
-				t.Errorf("%s: use interceptor.NewClient/MustNewClient to suppress RPC payload and error-detail logs", path)
-			case "NewServer", "MustNewServer":
-				servers++
-				confCall, ok := call.Args[0].(*ast.CallExpr)
-				if !ok || len(confCall.Args) < 2 {
-					t.Errorf("%s: apply ServerWithoutContent with the generated service descriptor", path)
-					return true
-				}
-				policy, ok := confCall.Fun.(*ast.SelectorExpr)
-				if !ok || policy.Sel.Name != "ServerWithoutContent" {
-					t.Errorf("%s: RPC server must use ServerWithoutContent", path)
-				}
+			policy, ok := options.Fun.(*ast.SelectorExpr)
+			if !ok || policy.Sel.Name != "ServerOptions" {
+				t.Errorf("%s: missing shared transport policy", path)
 			}
 			return true
 		})
@@ -59,12 +56,12 @@ func TestRPCConstructorsApplyContentLoggingPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if servers < 10 {
-		t.Fatalf("expected at least 10 RPC servers, checked %d", servers)
+	if servers != 10 {
+		t.Fatalf("expected 10 RPC servers, checked %d", servers)
 	}
 }
 
-func TestSQLServiceContextsDisableParameterLogging(t *testing.T) {
+func TestSQLServiceContextsUsePrivateSQLBoundary(t *testing.T) {
 	checked := 0
 	err := filepath.WalkDir("../app", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -77,42 +74,12 @@ func TestSQLServiceContextsDisableParameterLogging(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		for _, declaration := range file.Decls {
-			function, ok := declaration.(*ast.FuncDecl)
-			if !ok || function.Name.Name != "NewServiceContext" {
-				continue
-			}
-			var disabled, opened token.Pos
-			ast.Inspect(function.Body, func(node ast.Node) bool {
-				call, ok := node.(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-				selector, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok {
-					return true
-				}
-				qualifier, ok := selector.X.(*ast.Ident)
-				if !ok || qualifier.Name != "sqlx" {
-					return true
-				}
-				switch selector.Sel.Name {
-				case "DisableLog":
-					if disabled == token.NoPos {
-						disabled = call.Pos()
-					}
-				case "NewMysql", "NewConn", "NewSqlConn", "NewSqlConnFromDB":
-					if opened == token.NoPos {
-						opened = call.Pos()
-					}
-				}
-				return true
-			})
-			if opened != token.NoPos {
+		for _, imp := range file.Imports {
+			if imp.Path.Value == `"esx/pkg/sqlstore"` {
 				checked++
-				if disabled == token.NoPos || disabled > opened {
-					t.Errorf("%s must disable normal, slow and error SQL parameter logs before opening a connection (REL-022)", path)
-				}
+			}
+			if strings.Contains(imp.Path.Value, "jmoiron/sqlx") || strings.Contains(imp.Path.Value, "zeromicro/") {
+				t.Errorf("%s: SQL must use the project boundary that never logs queries or parameters", path)
 			}
 		}
 		return nil
@@ -121,7 +88,7 @@ func TestSQLServiceContextsDisableParameterLogging(t *testing.T) {
 		t.Fatal(err)
 	}
 	if checked < 10 {
-		t.Fatalf("expected at least 10 SQL service contexts, checked %d", checked)
+		t.Fatalf("expected at least 10 SQL contexts, checked %d", checked)
 	}
 }
 
@@ -207,55 +174,5 @@ func TestBehaviorAnalyticsNeverStoresFullClientIP(t *testing.T) {
 	}
 	if !strings.Contains(string(schema), "SHA-256") {
 		t.Error("analytics schema must document that client_ip stores a hash, not the full IP")
-	}
-}
-
-// REL-022：每个 RPC 服务必须抑制框架自动的请求/回复内容日志，
-// 避免私信正文、Assistant 输入、社区正文与认证字段进入业务日志。
-func TestEveryRPCSuppressesContentLogging(t *testing.T) {
-	dirs, err := filepath.Glob("../app/*/rpc/etc/*.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(dirs) != 10 {
-		t.Fatalf("expected 10 RPC service configs, found %d", len(dirs))
-	}
-	for _, configPath := range dirs {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		config := string(data)
-		if !strings.Contains(config, "IgnoreContentMethods:") {
-			t.Errorf("%s must set Middlewares.StatConf.IgnoreContentMethods (REL-022)", configPath)
-			continue
-		}
-		if !strings.Contains(config, "Middlewares:") {
-			t.Errorf("%s must declare Middlewares block", configPath)
-		}
-	}
-}
-
-// REL-022：关键敏感方法必须显式列入忽略列表。
-func TestContentSensitiveMethodsAreIgnored(t *testing.T) {
-	checks := []struct {
-		config string
-		method string
-	}{
-		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/PostMessage"},
-		{"../app/assistant/rpc/etc/assistant.yaml", "/assistant.AssistantService/SubscribeRunEvents"},
-		{"../app/message/rpc/etc/message.yaml", "/message.MessageService/SendMessage"},
-		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreatePost"},
-		{"../app/content/rpc/etc/content.yaml", "/content.ContentService/CreateComment"},
-		{"../app/user/rpc/etc/user.yaml", "/user.UserService/Login"},
-	}
-	for _, check := range checks {
-		data, err := os.ReadFile(check.config)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(string(data), check.method) {
-			t.Errorf("%s must ignore content for %s", check.config, check.method)
-		}
 	}
 }

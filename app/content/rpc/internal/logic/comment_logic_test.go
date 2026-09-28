@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	model2 "esx/app/content/rpc/internal/model"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"
 	"fmt"

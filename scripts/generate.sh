@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-for tool in goctl protoc protoc-gen-go protoc-gen-go-grpc python3; do
+for tool in kitex protoc protoc-gen-go protoc-gen-go-grpc python3; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "missing code generation tool: $tool" >&2
     exit 1
@@ -30,7 +30,7 @@ for raw in requirements.read_text(encoding="utf-8").splitlines():
         raise SystemExit(f"invalid exact codegen pin: {line}")
     pins[package] = version
 
-for package in ("grpcio-tools", "protobuf"):
+for package in pins:
     expected = pins.get(package)
     if expected is None:
         raise SystemExit(f"missing codegen pin: {package}")
@@ -49,71 +49,30 @@ then
   exit 1
 fi
 
-goctl rpc protoc proto/behavior/behavior.proto \
-  --go_out=app/behavior/rpc --go-grpc_out=app/behavior/rpc \
-  --zrpc_out=app/behavior/rpc --style=go_zero
-goctl rpc protoc proto/search/search.proto \
-  --go_out=app/search/rpc --go-grpc_out=app/search/rpc \
-  --zrpc_out=app/search/rpc --style=go_zero
-goctl rpc protoc proto/recommend/recommend.proto \
-  --go_out=app/recommend/rpc --go-grpc_out=app/recommend/rpc \
-  --zrpc_out=app/recommend/rpc --style=go_zero
-goctl rpc protoc proto/assistant/assistant.proto \
-  --go_out=app/assistant/rpc --go-grpc_out=app/assistant/rpc \
-  --zrpc_out=app/assistant/rpc --style=go_zero
+# Pin the generator as tightly as the runtime: its private client layout is used
+# by the generated lifecycle adapter.
+[[ "$(kitex --version 2>&1)" == "v0.16.2" ]] || { echo 'kitex v0.16.2 required' >&2; exit 1; }
+[[ "$(protoc-gen-go --version)" == "protoc-gen-go v1.36.12" ]] || { echo 'protoc-gen-go v1.36.12 required' >&2; exit 1; }
+[[ "$(protoc-gen-go-grpc --version)" == "protoc-gen-go-grpc 1.6.1" ]] || { echo 'protoc-gen-go-grpc v1.6.1 required' >&2; exit 1; }
+export KITEX_TOOL_USE_PROTOC=1
+for rpc_proto in \
+  proto/user/user.proto \
+  proto/content/content.proto \
+  proto/media/media.proto \
+  proto/interaction/interaction.proto \
+  proto/feed/feed.proto \
+  proto/message/message.proto \
+  proto/search/search.proto \
+  proto/recommend/recommend.proto \
+  proto/assistant/assistant.proto \
+  proto/behavior/behavior.proto; do
+  kitex -module esx -I . "$rpc_proto"
+done
+python3 scripts/generate_rpc_adapters.py
+python3 scripts/generate_gateway.py
 
-# 单模块仓库：goctl 生成不再需要临时 workspace 解析跨模块依赖。
-user_proto_link="$ROOT_DIR/app/user/rpc/user.proto"
-cleanup_generation() {
-  if [[ -L "$user_proto_link" ]]; then
-    unlink "$user_proto_link"
-  fi
-}
-trap cleanup_generation EXIT
-
-if [[ -e "$user_proto_link" || -L "$user_proto_link" ]]; then
-  echo "refusing to replace existing $user_proto_link" >&2
-  exit 1
-fi
-ln -s "$ROOT_DIR/proto/user/user.proto" "$user_proto_link"
-(
-  cd "$ROOT_DIR/app/user/rpc"
-  goctl rpc protoc user.proto \
-    --go_out=pb --go-grpc_out=pb --zrpc_out=. --style=go_zero
-)
-unlink "$user_proto_link"
-goctl rpc protoc proto/message/message.proto \
-  --go_out=app/message/rpc --go-grpc_out=app/message/rpc \
-  --zrpc_out=app/message/rpc --style=go_zero
-goctl rpc protoc proto/feed/feed.proto \
-  --go_out=app/feed/rpc --go-grpc_out=app/feed/rpc \
-  --zrpc_out=app/feed/rpc --style=go_zero
-goctl rpc protoc proto/content/content.proto \
-  --go_out=app/content/rpc/pb --go-grpc_out=app/content/rpc/pb \
-  --zrpc_out=app/content/rpc --style=go_zero
-goctl rpc protoc proto/interaction/interaction.proto \
-  --go_out=app/interaction/rpc/pb --go-grpc_out=app/interaction/rpc/pb \
-  --zrpc_out=app/interaction/rpc --style=go_zero
-goctl rpc protoc proto/media/media.proto \
-  --go_out=app/media/rpc/pb --go-grpc_out=app/media/rpc/pb \
-  --zrpc_out=app/media/rpc --style=go_zero
-
-protoc -I . --go_out=app/embedding/mq --go-grpc_out=app/embedding/mq \
-  proto/embedding/embedding.proto
-protoc -I . --go_out=app/recommend/rpc --go-grpc_out=app/recommend/rpc \
-  proto/inference/inference.proto
-
+# The Python sidecars retain standard gRPC clients and wire contracts.
+protoc -I . --go_out=app/embedding/mq --go-grpc_out=app/embedding/mq proto/embedding/embedding.proto
+protoc -I . --go_out=app/recommend/rpc --go-grpc_out=app/recommend/rpc proto/inference/inference.proto
 app/embedding/service/generate_proto.sh
 algorithm/online_infer/generate_proto.sh
-
-goctl api go \
-  --api "$ROOT_DIR/app/gateway/gateway.api" \
-  --dir "$ROOT_DIR/app/gateway" \
-  --style=go_zero --type-group
-
-# gateway.api 声明 middleware: OptionalAuth，goctl 会在 internal/middleware 生成
-# 空的 OptionalAuthMiddleware 桩（含误导性 TODO）；真实实现在 pkg/middleware，
-# 路由经 serverCtx.OptionalAuth 装配。删除该死桩，保持生成后工作树干净。
-rm -f \
-  "$ROOT_DIR/app/gateway/internal/middleware/optionalauth_middleware.go" \
-  "$ROOT_DIR/app/gateway/internal/middleware/requiredauth_middleware.go"

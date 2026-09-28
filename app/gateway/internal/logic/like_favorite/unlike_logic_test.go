@@ -4,21 +4,21 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	interactionpb "esx/kitex_gen/interaction"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeInteractionServiceUnlike struct {
 	interactionservice.InteractionService
-	unlikeFn func(ctx context.Context, in *interactionpb.UnlikeReq, opts ...grpc.CallOption) (*interactionpb.UnlikeResp, error)
+	unlikeFn func(ctx context.Context, in *interactionpb.UnlikeReq, opts ...callopt.Option) (*interactionpb.UnlikeResp, error)
 }
 
-func (f *fakeInteractionServiceUnlike) Unlike(ctx context.Context, in *interactionpb.UnlikeReq, opts ...grpc.CallOption) (*interactionpb.UnlikeResp, error) {
+func (f *fakeInteractionServiceUnlike) Unlike(ctx context.Context, in *interactionpb.UnlikeReq, opts ...callopt.Option) (*interactionpb.UnlikeResp, error) {
 	return f.unlikeFn(ctx, in, opts...)
 }
 
@@ -26,7 +26,7 @@ func TestUnlike_Success(t *testing.T) {
 	var capturedReq *interactionpb.UnlikeReq
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionServiceUnlike{
-			unlikeFn: func(_ context.Context, in *interactionpb.UnlikeReq, _ ...grpc.CallOption) (*interactionpb.UnlikeResp, error) {
+			unlikeFn: func(_ context.Context, in *interactionpb.UnlikeReq, _ ...callopt.Option) (*interactionpb.UnlikeResp, error) {
 				capturedReq = in
 				return &interactionpb.UnlikeResp{}, nil
 			},
@@ -51,7 +51,7 @@ func TestUnlike_Success(t *testing.T) {
 func TestUnlike_RPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionServiceUnlike{
-			unlikeFn: func(_ context.Context, _ *interactionpb.UnlikeReq, _ ...grpc.CallOption) (*interactionpb.UnlikeResp, error) {
+			unlikeFn: func(_ context.Context, _ *interactionpb.UnlikeReq, _ ...callopt.Option) (*interactionpb.UnlikeResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},

@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
+	sqlx "esx/pkg/sqlstore"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func setupOutboxMySQL(t *testing.T) (*sql.DB, *SQLStore) {

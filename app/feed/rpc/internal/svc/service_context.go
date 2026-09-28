@@ -4,18 +4,18 @@ import (
 	"context"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/recommend/feedback"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type InboxModel interface {
@@ -29,18 +29,18 @@ type OutboxModel interface {
 }
 
 type UserService interface {
-	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...grpc.CallOption) (*userservice.GetUserResp, error)
-	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...grpc.CallOption) (*userservice.GetFollowersResp, error)
-	GetFollowing(ctx context.Context, in *userservice.GetFollowingReq, opts ...grpc.CallOption) (*userservice.GetFollowingResp, error)
+	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error)
+	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error)
+	GetFollowing(ctx context.Context, in *userservice.GetFollowingReq, opts ...callopt.Option) (*userservice.GetFollowingResp, error)
 }
 
 type ContentService interface {
-	GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error)
-	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error)
+	GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error)
+	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...callopt.Option) (*contentservice.GetPostsByIdsResp, error)
 }
 
 type RecommendService interface {
-	GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...grpc.CallOption) (*recommendservice.GetRecommendPostsResp, error)
+	GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...callopt.Option) (*recommendservice.GetRecommendPostsResp, error)
 }
 
 type NegativeFeedback interface {
@@ -64,14 +64,13 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	rds := redis.MustNewRedis(c.Redis.RedisConf)
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	userClient := interceptor.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
-	contentClient := interceptor.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
-	recommendClient := interceptor.MustNewClient(c.RecommendRpc, zrpc.WithUnaryClientInterceptor(bizErrInterceptor), zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+
+	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
+	userClient := rpcx.MustNewClient(c.UserRpc, internalAuthOption)
+	contentClient := rpcx.MustNewClient(c.ContentRpc, internalAuthOption)
+	recommendClient := rpcx.MustNewClient(c.RecommendRpc, internalAuthOption)
 
 	return &ServiceContext{
 		Config:           c,

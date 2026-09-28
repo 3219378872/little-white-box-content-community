@@ -1,25 +1,23 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package message
 
 import (
-	"net/http"
+	"context"
+	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic/message"
 	"esx/app/gateway/internal/svc"
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // 获取未读汇总
-func GetUnreadSummaryHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		l := message.NewGetUnreadSummaryLogic(r.Context(), svcCtx)
+func GetUnreadSummaryHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		l := message.NewGetUnreadSummaryLogic(ctx, svcCtx)
 		resp, err := l.GetUnreadSummary()
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(ctx, c, resp)
 		}
 	}
 }

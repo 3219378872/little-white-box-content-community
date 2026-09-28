@@ -6,8 +6,9 @@ import (
 	"esx/app/user/rpc/userservice"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type preferenceReader struct {
@@ -17,7 +18,7 @@ type preferenceReader struct {
 	nilResponse bool
 }
 
-func (r *preferenceReader) GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+func (r *preferenceReader) GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error) {
 	r.calls++
 	if r.err != nil {
 		return nil, r.err

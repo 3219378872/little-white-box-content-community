@@ -10,8 +10,9 @@ import (
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/svc"
 
+	sqlx "esx/pkg/sqlstore"
+
 	"github.com/stretchr/testify/mock"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func init() {

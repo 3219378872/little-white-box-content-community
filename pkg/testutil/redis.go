@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	redis "esx/pkg/redisstore"
+
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 // RedisEnv 是只起 Redis 的轻量集成测试环境，

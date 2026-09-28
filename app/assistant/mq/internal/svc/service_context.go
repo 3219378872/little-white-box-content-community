@@ -7,10 +7,9 @@ import (
 	"esx/app/assistant/mq/internal/config"
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type ServiceContext struct {
@@ -26,12 +25,11 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return nil, fmt.Errorf("assistant-watch-matcher: InternalSecret is required")
 	}
-	contentClient := interceptor.MustNewClient(c.ContentRpc,
-		zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
+	contentClient := rpcx.MustNewClient(c.ContentRpc,
+
+		rpcx.WithInternalAuth(c.InternalSecret),
 	)
 	// Watch titles and summaries must not appear in normal, slow or failed SQL logs.
-	sqlx.DisableLog()
 	return &ServiceContext{
 		Config:  c,
 		Watch:   watch.NewSQLStore(sqlx.NewMysql(c.DataSource)),

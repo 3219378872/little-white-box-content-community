@@ -4,10 +4,10 @@ import (
 	"context"
 	"maps"
 
-	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/gateway/internal/logic/authorx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
+	feedpb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 )
 

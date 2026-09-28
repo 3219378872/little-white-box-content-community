@@ -4,13 +4,15 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/media/rpc/mediaservice"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/zeromicro/go-zero/core/logx"
-	"google.golang.org/grpc"
 )
 
 type fakeMediaValidator struct {
@@ -19,7 +21,7 @@ type fakeMediaValidator struct {
 	err      error
 }
 
-func (f *fakeMediaValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGetMediaReq, _ ...grpc.CallOption) (*mediapb.BatchGetMediaResp, error) {
+func (f *fakeMediaValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGetMediaReq, _ ...callopt.Option) (*mediapb.BatchGetMediaResp, error) {
 	return f.response, f.err
 }
 

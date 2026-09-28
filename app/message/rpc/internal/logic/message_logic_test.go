@@ -5,19 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"esx/app/media/rpc/mediaservice"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
-	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"esx/app/user/rpc/userservice"
+	mediapb "esx/kitex_gen/media"
+	pb "esx/kitex_gen/message"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type fakeResult struct{ id int64 }
@@ -154,7 +155,7 @@ type fakeUserService struct {
 	calls int
 }
 
-func (s *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (s *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	s.calls++
 	s.ctx = ctx
 	s.req = in
@@ -387,7 +388,7 @@ type fakeMediaMessageValidator struct {
 	err      error
 }
 
-func (f *fakeMediaMessageValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGetMediaReq, _ ...grpc.CallOption) (*mediapb.BatchGetMediaResp, error) {
+func (f *fakeMediaMessageValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGetMediaReq, _ ...callopt.Option) (*mediapb.BatchGetMediaResp, error) {
 	return f.response, f.err
 }
 

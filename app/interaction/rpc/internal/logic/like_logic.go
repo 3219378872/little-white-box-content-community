@@ -5,11 +5,11 @@ import (
 	"errors"
 	"esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type LikeLogic struct {
@@ -63,7 +63,7 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 		// CORE-053：权威写入已提交，缓存失效失败不得把响应改成可重试失败。
 		l.Errorw("InvalidateLikeRecordCache failed", logx.Field("err", err.Error()))
 	}
-	if err := invalidateActionCountCache(l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
+	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
 	}
 

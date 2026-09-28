@@ -1,13 +1,13 @@
 package config
 
 import (
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret string
 	DataSource     string
-	UserRpc        zrpc.RpcClientConf
-	MediaRpc       zrpc.RpcClientConf
+	UserRpc        rpcx.RpcClientConf
+	MediaRpc       rpcx.RpcClientConf
 }

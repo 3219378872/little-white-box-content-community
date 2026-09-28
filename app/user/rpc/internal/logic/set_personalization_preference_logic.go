@@ -9,9 +9,9 @@ import (
 
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // personalizationOptOutRedisKey 是跨服务共享的个性化关闭标记。

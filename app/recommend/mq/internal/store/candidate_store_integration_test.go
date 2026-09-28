@@ -12,9 +12,10 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/testutil"
 
+	redis "esx/pkg/redisstore"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 func TestRedisCandidatePipelineProducesOnlineRecallKeys(t *testing.T) {

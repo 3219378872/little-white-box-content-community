@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"esx/app/assistant/internal/store"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	pb "esx/kitex_gen/assistant"
 
 	"github.com/stretchr/testify/require"
 )

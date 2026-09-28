@@ -6,17 +6,18 @@ import (
 	"math"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type mockOutboxModel struct{ mock.Mock }
@@ -35,7 +36,7 @@ func (m *mockOutboxModel) FindByAuthorsBefore(ctx context.Context, authorIDs []i
 
 type mockUserService struct{ mock.Mock }
 
-func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...grpc.CallOption) (*userservice.GetUserResp, error) {
+func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetUserResp), args.Error(1)
@@ -43,7 +44,7 @@ func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserRe
 	return nil, args.Error(1)
 }
 
-func (m *mockUserService) GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...grpc.CallOption) (*userservice.GetFollowersResp, error) {
+func (m *mockUserService) GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetFollowersResp), args.Error(1)
@@ -51,7 +52,7 @@ func (m *mockUserService) GetFollowers(ctx context.Context, in *userservice.GetF
 	return nil, args.Error(1)
 }
 
-func (m *mockUserService) GetFollowing(ctx context.Context, in *userservice.GetFollowingReq, opts ...grpc.CallOption) (*userservice.GetFollowingResp, error) {
+func (m *mockUserService) GetFollowing(ctx context.Context, in *userservice.GetFollowingReq, opts ...callopt.Option) (*userservice.GetFollowingResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetFollowingResp), args.Error(1)

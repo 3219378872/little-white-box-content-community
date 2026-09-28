@@ -6,19 +6,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"io"
 	"testing"
 
+	"github.com/cloudwego/kitex/pkg/streaming"
+
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 type fakeUploadVideoStream struct {
-	grpc.ServerStream
+	streaming.Stream
 	reqs []*pb.UploadVideoReq
 	idx  int
 	resp *pb.UploadVideoResp

@@ -5,11 +5,9 @@ import (
 	"time"
 
 	clientprometheus "github.com/prometheus/client_golang/prometheus"
-	zeroprometheus "github.com/zeromicro/go-zero/core/prometheus"
 )
 
 func TestOutboxBacklogMetricsAreExported(t *testing.T) {
-	zeroprometheus.Enable()
 	observeBacklogMetrics("content", Backlog{Count: 7, OldestCreatedAt: 5_000}, time.UnixMilli(10_000))
 	observeDeliveryLatency("content", 5_000, 10_000)
 	outboxBacklogCollectionsTotal.Inc("content", "success")

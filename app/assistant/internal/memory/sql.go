@@ -10,7 +10,7 @@ import (
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type SQLStore struct {

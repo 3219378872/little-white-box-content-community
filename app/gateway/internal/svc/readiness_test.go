@@ -3,19 +3,25 @@ package svc
 import (
 	"testing"
 
-	"google.golang.org/grpc/connectivity"
+	"context"
+	"errors"
 )
 
-func stateProvider(state connectivity.State) func() connectivity.State {
-	return func() connectivity.State { return state }
+func probe(healthy bool) func(context.Context) error {
+	return func(context.Context) error {
+		if healthy {
+			return nil
+		}
+		return errors.New("dependency down")
+	}
 }
 
 func TestReadinessAllRequiredUp(t *testing.T) {
 	ctx := &ServiceContext{Dependencies: []Dependency{
-		{Name: "user", ConnState: stateProvider(connectivity.Ready)},
-		{Name: "search", ConnState: stateProvider(connectivity.Idle), Optional: true},
+		{Name: "user", Probe: probe(true)},
+		{Name: "search", Probe: probe(true), Optional: true},
 	}}
-	status, dependencies := ctx.Readiness()
+	status, dependencies := ctx.Readiness(context.Background())
 	if status != "ready" {
 		t.Fatalf("status = %q, want ready", status)
 	}
@@ -28,10 +34,10 @@ func TestReadinessAllRequiredUp(t *testing.T) {
 
 func TestReadinessRequiredDownIsUnavailable(t *testing.T) {
 	ctx := &ServiceContext{Dependencies: []Dependency{
-		{Name: "user", ConnState: stateProvider(connectivity.TransientFailure)},
-		{Name: "search", ConnState: stateProvider(connectivity.Ready), Optional: true},
+		{Name: "user", Probe: probe(false)},
+		{Name: "search", Probe: probe(true), Optional: true},
 	}}
-	status, _ := ctx.Readiness()
+	status, _ := ctx.Readiness(context.Background())
 	if status != "unavailable" {
 		t.Fatalf("status = %q, want unavailable", status)
 	}
@@ -39,10 +45,10 @@ func TestReadinessRequiredDownIsUnavailable(t *testing.T) {
 
 func TestReadinessOptionalDownIsDegraded(t *testing.T) {
 	ctx := &ServiceContext{Dependencies: []Dependency{
-		{Name: "user", ConnState: stateProvider(connectivity.Ready)},
-		{Name: "search", ConnState: stateProvider(connectivity.TransientFailure), Optional: true},
+		{Name: "user", Probe: probe(true)},
+		{Name: "search", Probe: probe(false), Optional: true},
 	}}
-	status, dependencies := ctx.Readiness()
+	status, dependencies := ctx.Readiness(context.Background())
 	if status != "degraded" {
 		t.Fatalf("status = %q, want degraded", status)
 	}
@@ -55,7 +61,7 @@ func TestReadinessOptionalDownIsDegraded(t *testing.T) {
 
 func TestReadinessNilStateProviderIsDown(t *testing.T) {
 	ctx := &ServiceContext{Dependencies: []Dependency{{Name: "user"}}}
-	status, _ := ctx.Readiness()
+	status, _ := ctx.Readiness(context.Background())
 	if status != "unavailable" {
 		t.Fatalf("status = %q, want unavailable", status)
 	}

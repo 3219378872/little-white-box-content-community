@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type Publisher interface {
@@ -33,7 +33,7 @@ type RelayConfig struct {
 	MaxAttempts  int
 }
 
-// Config uses millisecond integers so go-zero YAML/env loading stays
+// Config uses millisecond integers so project YAML/env loading stays
 // consistent across every business service.
 type Config struct {
 	BatchSize      int

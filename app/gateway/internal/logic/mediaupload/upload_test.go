@@ -5,17 +5,18 @@ import (
 	"context"
 	"esx/app/gateway/internal/svc"
 	"esx/app/media/rpc/mediaservice"
-	pb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type videoStream struct {
-	grpc.ClientStreamingClient[pb.UploadVideoReq, pb.UploadVideoResp]
+	mediaservice.MediaService_UploadVideoClient
 	meta *pb.UploadMeta
 	size int
 	err  error
@@ -33,7 +34,7 @@ func (s *videoStream) CloseAndRecv() (*pb.UploadVideoResp, error) {
 }
 
 type audioStream struct {
-	grpc.ClientStreamingClient[pb.UploadAudioReq, pb.UploadAudioResp]
+	mediaservice.MediaService_UploadAudioClient
 	meta *pb.UploadMeta
 	size int
 	err  error
@@ -56,10 +57,10 @@ type mediaService struct {
 	a *audioStream
 }
 
-func (s *mediaService) UploadVideo(context.Context, ...grpc.CallOption) (pb.MediaService_UploadVideoClient, error) {
+func (s *mediaService) UploadVideo(context.Context, ...callopt.Option) (mediaservice.MediaService_UploadVideoClient, error) {
 	return s.v, nil
 }
-func (s *mediaService) UploadAudio(context.Context, ...grpc.CallOption) (pb.MediaService_UploadAudioClient, error) {
+func (s *mediaService) UploadAudio(context.Context, ...callopt.Option) (mediaservice.MediaService_UploadAudioClient, error) {
 	return s.a, nil
 }
 func TestUploadStreamingMetadataChunksAndFailures(t *testing.T) {

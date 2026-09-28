@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"esx/pkg/rpcx"
 	"flag"
 	"fmt"
 	"time"
@@ -11,14 +12,16 @@ import (
 	"esx/app/assistant/worker/internal/config"
 	"esx/app/assistant/worker/internal/svc"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/proc"
+	conf "esx/pkg/configx"
+	proc "esx/pkg/lifecycle"
+	logx "esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/agent.yaml", "config file")
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer proc.CloseResources()
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())

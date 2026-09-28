@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package recommend;
-option go_package = "xiaobaihe/recommend/pb";
+option go_package = "esx/kitex_gen/recommend;pb";
 
 // RecommendService only serves online recommendation traffic. Behavior writes
 // are accepted by BehaviorService and delivered over user-behavior-v2.

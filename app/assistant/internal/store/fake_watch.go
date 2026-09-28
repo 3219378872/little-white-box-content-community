@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 func (m *MemoryStore) UpsertDeliveryBucket(_ context.Context, userID, hitID, windowStartMs, nowMs int64) (DeliveryBucket, error) {

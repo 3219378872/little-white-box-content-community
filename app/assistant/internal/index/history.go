@@ -13,9 +13,10 @@ import (
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/errx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const IndexName = "assistant-history-v1"

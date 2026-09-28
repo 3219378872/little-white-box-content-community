@@ -1,17 +1,20 @@
 package svc
 
-import "github.com/zeromicro/go-zero/core/stores/redis"
+import (
+	"context"
+	redis "esx/pkg/redisstore"
+)
 
 type RedisStore interface {
-	Hget(key, field string) (string, error)
-	Hset(key, field, value string) error
-	Expire(key string, seconds int) error
-	Exists(key string) (bool, error)
-	Hincrby(key, field string, increment int) (int, error)
-	Del(key string) error
+	Hget(ctx context.Context, key, field string) (string, error)
+	Hset(ctx context.Context, key, field, value string) error
+	Expire(ctx context.Context, key string, seconds int) error
+	Exists(ctx context.Context, key string) (bool, error)
+	Hincrby(ctx context.Context, key, field string, increment int) (int, error)
+	Del(ctx context.Context, key string) error
 }
 
-type goZeroRedisStore struct {
+type redisStore struct {
 	client *redis.Redis
 }
 
@@ -20,30 +23,30 @@ func NewRedisStore(client *redis.Redis) RedisStore {
 		return nil
 	}
 
-	return &goZeroRedisStore{client: client}
+	return &redisStore{client: client}
 }
 
-func (s *goZeroRedisStore) Hget(key, field string) (string, error) {
-	return s.client.Hget(key, field)
+func (s *redisStore) Hget(ctx context.Context, key, field string) (string, error) {
+	return s.client.HgetCtx(ctx, key, field)
 }
 
-func (s *goZeroRedisStore) Hset(key, field, value string) error {
-	return s.client.Hset(key, field, value)
+func (s *redisStore) Hset(ctx context.Context, key, field, value string) error {
+	return s.client.HsetCtx(ctx, key, field, value)
 }
 
-func (s *goZeroRedisStore) Expire(key string, seconds int) error {
-	return s.client.Expire(key, seconds)
+func (s *redisStore) Expire(ctx context.Context, key string, seconds int) error {
+	return s.client.ExpireCtx(ctx, key, seconds)
 }
 
-func (s *goZeroRedisStore) Exists(key string) (bool, error) {
-	return s.client.Exists(key)
+func (s *redisStore) Exists(ctx context.Context, key string) (bool, error) {
+	return s.client.ExistsCtx(ctx, key)
 }
 
-func (s *goZeroRedisStore) Hincrby(key, field string, increment int) (int, error) {
-	return s.client.Hincrby(key, field, increment)
+func (s *redisStore) Hincrby(ctx context.Context, key, field string, increment int) (int, error) {
+	return s.client.HincrbyCtx(ctx, key, field, increment)
 }
 
-func (s *goZeroRedisStore) Del(key string) error {
-	_, err := s.client.Del(key)
+func (s *redisStore) Del(ctx context.Context, key string) error {
+	_, err := s.client.DelCtx(ctx, key)
 	return err
 }

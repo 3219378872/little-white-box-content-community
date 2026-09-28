@@ -11,7 +11,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 const (

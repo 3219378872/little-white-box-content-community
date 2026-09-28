@@ -4,7 +4,7 @@ package logic
 
 import (
 	"context"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"fmt"
 	"testing"
 

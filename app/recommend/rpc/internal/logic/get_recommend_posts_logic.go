@@ -6,13 +6,13 @@ import (
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
-	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type GetRecommendPostsLogic struct {

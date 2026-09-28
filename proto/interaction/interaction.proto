@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package interaction;
-option go_package = "xiaobaihe/interaction/pb";
+option go_package = "esx/kitex_gen/interaction;pb";
 
 // 互动服务
 service InteractionService {

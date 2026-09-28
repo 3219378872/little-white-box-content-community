@@ -10,8 +10,8 @@ import (
 	"esx/app/assistant/watch"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/metric"
+	logx "esx/pkg/logging"
+	metric "esx/pkg/metrics"
 )
 
 var (

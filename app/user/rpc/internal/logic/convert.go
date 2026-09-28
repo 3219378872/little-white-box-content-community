@@ -4,7 +4,7 @@ package logic
 
 import (
 	"esx/app/user/rpc/internal/model"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 )
 
 func UserProfileToUserInfo(profile *model.UserProfile) *pb.UserInfo {

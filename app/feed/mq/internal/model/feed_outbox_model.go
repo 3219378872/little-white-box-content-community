@@ -3,7 +3,7 @@ package model
 import (
 	"context"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type FeedOutbox struct {

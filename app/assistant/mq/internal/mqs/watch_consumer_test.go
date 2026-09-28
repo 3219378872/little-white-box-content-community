@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/event"
@@ -16,7 +18,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type errStore struct {
@@ -29,7 +30,7 @@ type fakeCurrentContent struct {
 	post *contentservice.PostInfo
 }
 
-func (f fakeCurrentContent) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (f fakeCurrentContent) GetPost(context.Context, *contentservice.GetPostReq, ...callopt.Option) (*contentservice.GetPostResp, error) {
 	return &contentservice.GetPostResp{Post: f.post}, nil
 }
 

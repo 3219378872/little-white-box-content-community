@@ -1,2 +1,4 @@
 grpcio-tools==1.71.0
 protobuf==5.29.4
+PyYAML==6.0.3
+openapi-spec-validator==0.7.2

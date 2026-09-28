@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package behavior;
-option go_package = "xiaobaihe/behavior/pb";
+option go_package = "esx/kitex_gen/behavior;pb";
 
 // BehaviorService is the only RPC entrypoint for client-generated behavior.
 service BehaviorService {

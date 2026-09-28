@@ -12,9 +12,10 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // NewPostPublishConsumer 订阅 post-create，按 PostEvent 触发 inbox/outbox fanout。

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"esx/app/assistant/rpc/internal/svc"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 )
 

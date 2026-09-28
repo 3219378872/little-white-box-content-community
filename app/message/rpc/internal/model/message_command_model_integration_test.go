@@ -10,11 +10,12 @@ import (
 	"sync"
 	"testing"
 
+	sqlx "esx/pkg/sqlstore"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	mysqlcontainer "github.com/testcontainers/testcontainers-go/modules/mysql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 func newMessageTestDB(t *testing.T) (sqlx.SqlConn, func()) {

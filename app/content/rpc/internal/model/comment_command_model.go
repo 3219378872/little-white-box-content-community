@@ -13,7 +13,7 @@ import (
 	"esx/pkg/outboxx"
 	"esx/pkg/util"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type CommentCommandModel interface {

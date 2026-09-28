@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 type fakeRedisClient struct {

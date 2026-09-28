@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"esx/pkg/lifecycle"
 	"flag"
 	"fmt"
 	"os/signal"
@@ -12,14 +13,13 @@ import (
 	"esx/app/search/mq/internal/config"
 	"esx/app/search/mq/internal/indexer"
 	"esx/app/search/mq/internal/rebuild"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/zrpc"
+	conf "esx/pkg/configx"
+	"esx/pkg/rpcx"
 )
 
 type commandConfig struct {
-	ContentRpc     zrpc.RpcClientConf
+	ContentRpc     rpcx.RpcClientConf
 	InternalSecret string
 	ES             config.ESConfig
 	Rebuild        struct {
@@ -31,6 +31,8 @@ type commandConfig struct {
 var configFile = flag.String("f", "app/search/mq/etc/search-consumer.yaml", "config file")
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer lifecycle.CloseResources()
 	flag.Parse()
 	var c commandConfig
 	c.Rebuild.PageSize = 50
@@ -69,8 +71,8 @@ func main() {
 		}
 	}()
 
-	contentClient := interceptor.MustNewClient(c.ContentRpc,
-		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	contentClient := rpcx.MustNewClient(c.ContentRpc,
+		rpcx.WithInternalAuth(c.InternalSecret))
 	source := contentservice.NewContentService(contentClient)
 	count, err := rebuild.Run(ctx, source, target, c.Rebuild.PageSize)
 	if err != nil {

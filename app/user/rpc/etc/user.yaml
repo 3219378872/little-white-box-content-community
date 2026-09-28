@@ -1,15 +1,5 @@
 Name: user.rpc
 ListenOn: 0.0.0.0:9090
-Middlewares:
-  StatConf:
-    # REL-022：入口还会按生成的 ServiceDesc 排除全部 RPC 请求正文。
-    IgnoreContentMethods:
-      - /user.UserService/Register
-      - /user.UserService/Login
-      - /user.UserService/RefreshToken
-      - /user.UserService/SendVerifyCode
-      - /user.UserService/UpdateProfile
-      - /user.UserService/SetPersonalizationPreference
 DevServer:
   Enabled: true
   Host: 0.0.0.0

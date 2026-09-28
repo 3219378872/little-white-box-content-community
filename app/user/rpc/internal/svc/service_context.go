@@ -11,8 +11,8 @@ import (
 	"esx/pkg/util"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	redis "esx/pkg/redisstore"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type UserProfileStore interface {
@@ -74,7 +74,6 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	// SQL arguments contain phone numbers and private profile fields (REL-022).
-	sqlx.DisableLog()
 	// 注入MySQL
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,

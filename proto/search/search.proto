@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package search;
-option go_package = "xiaobaihe/search/pb";
+option go_package = "esx/kitex_gen/search;pb";
 
 // 搜索服务
 service SearchService {

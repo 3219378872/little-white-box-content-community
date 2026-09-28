@@ -6,7 +6,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 	"testing"
 
 	"esx/pkg/errx"

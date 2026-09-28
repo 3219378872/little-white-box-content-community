@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/mq/internal/indexer"
-
-	"google.golang.org/grpc"
 )
 
 type fakeSource struct {
@@ -17,7 +17,7 @@ type fakeSource struct {
 	err   error
 }
 
-func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostListReq, _ ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	if f.err != nil {
 		return nil, f.err
 	}

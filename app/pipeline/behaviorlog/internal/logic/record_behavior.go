@@ -8,7 +8,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type Deduper interface {

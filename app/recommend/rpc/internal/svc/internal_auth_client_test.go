@@ -3,22 +3,25 @@ package svc
 import (
 	"context"
 	"errors"
+	native "esx/kitex_gen/content/contentservice"
+	"esx/pkg/lifecycle"
 	"net"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	contentpb "esx/kitex_gen/content"
 	"esx/pkg/errx"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
+	"esx/pkg/rpcx"
 )
 
 const internalAuthTestSecret = "svc-internal-auth-test-secret"
 
 type stubContentServer struct {
-	contentpb.UnimplementedContentServiceServer
+	contentpb.ContentService
 }
 
 func (s *stubContentServer) GetPostList(ctx context.Context,
@@ -35,38 +38,31 @@ func TestInternalAuthClientInterceptorWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			interceptor.InternalAuthUnaryServerInterceptor(internalAuthTestSecret),
-		),
-	)
-	contentpb.RegisterContentServiceServer(server, &stubContentServer{})
-	go func() { _ = server.Serve(listener) }()
+	addr := listener.Addr().String()
+	require.NoError(t, listener.Close())
+	server := native.NewServer(&stubContentServer{}, rpcx.ServerOptions(rpcx.RpcServerConf{
+		ServiceConf: lifecycle.ServiceConf{Name: "content.rpc"}, ListenOn: addr, Health: true,
+		MaxConnections: 100, MaxQPS: 1000,
+	}, internalAuthTestSecret)...)
+	done := make(chan error, 1)
+	go func() { done <- server.Run() }()
 	t.Cleanup(func() {
-		server.Stop()
-		_ = listener.Close()
-	})
-
-	newClient := func(interceptors ...zrpc.ClientOption) contentservice.ContentService {
-		t.Helper()
-		opts := append([]zrpc.ClientOption{
-			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-		}, interceptors...)
-		client, err := zrpc.NewClient(zrpc.RpcClientConf{
-			Endpoints: []string{listener.Addr().String()},
-			Timeout:   3000,
-		}, opts...)
-		if err != nil {
-			t.Fatalf("new zrpc client: %v", err)
+		require.NoError(t, server.Stop())
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("Kitex server did not stop")
 		}
-		t.Cleanup(func() { _ = client.Conn().Close() })
+	})
+	newClient := func(opts ...rpcx.ClientOption) contentservice.ContentService {
+		t.Helper()
+		client, err := rpcx.NewClient(rpcx.RpcClientConf{Endpoints: []string{addr}, Timeout: 3000}, opts...)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, client.Close()) })
+		require.Eventually(t, func() bool { return client.Probe(context.Background()) == nil }, 5*time.Second, 20*time.Millisecond)
 		return contentservice.NewContentService(client)
 	}
-
-	signed := newClient(
-		zrpc.WithUnaryClientInterceptor(
-			interceptor.InternalAuthUnaryClientInterceptor(internalAuthTestSecret)),
-	)
+	signed := newClient(rpcx.WithInternalAuth(internalAuthTestSecret))
 	ctx, cancel := context.WithTimeout(context.Background(), 5_000_000_000)
 	defer cancel()
 	if _, err := signed.GetPostList(ctx, &contentpb.GetPostListReq{PageSize: 5}); err != nil {

@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"time"
 
+	sqlx "esx/pkg/sqlstore"
+
 	"github.com/go-sql-driver/mysql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 // maxIdempotencyKeySize 与 CORE-042/050 一致：客户端幂等键最长 128 字符。

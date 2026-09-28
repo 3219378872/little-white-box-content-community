@@ -7,12 +7,12 @@ import (
 
 	"esx/app/behavior/rpc/internal/publisher"
 	"esx/app/behavior/rpc/internal/svc"
-	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
+	pb "esx/kitex_gen/behavior"
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/metric"
+	logx "esx/pkg/logging"
+	metric "esx/pkg/metrics"
 )
 
 var behaviorRecordTotal = metric.NewCounterVec(&metric.CounterVecOpts{

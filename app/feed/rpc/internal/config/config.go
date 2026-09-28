@@ -6,16 +6,16 @@ import (
 
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret  string
 	DataSource      string
-	UserRpc         zrpc.RpcClientConf
-	ContentRpc      zrpc.RpcClientConf
-	RecommendRpc    zrpc.RpcClientConf
+	UserRpc         rpcx.RpcClientConf
+	ContentRpc      rpcx.RpcClientConf
+	RecommendRpc    rpcx.RpcClientConf
 	CursorSecret    string
 	FeatureVersion  string `json:",default=v2"`
 	MQ              mqx.ConsumerConfig

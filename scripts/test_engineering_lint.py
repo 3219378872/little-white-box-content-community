@@ -28,7 +28,7 @@ class ProtoGenerationLintTest(unittest.TestCase):
 
     def test_allowlisted_ungenerated_proto_is_ok(self):
         (self.root / "scripts" / "generate.sh").write_text(
-            "goctl rpc protoc proto/search/search.proto\n", encoding="utf-8"
+            "kitex -module esx -I . proto/search/search.proto\n", encoding="utf-8"
         )
         (self.root / "proto" / "search" / "search.proto").write_text(
             "service Search { rpc Search(Req) returns (Resp); }\n", encoding="utf-8"
@@ -43,7 +43,7 @@ class ProtoGenerationLintTest(unittest.TestCase):
 
     def test_new_rpc_proto_must_be_generated(self):
         (self.root / "scripts" / "generate.sh").write_text(
-            "goctl rpc protoc proto/search/search.proto\n", encoding="utf-8"
+            "kitex -module esx -I . proto/search/search.proto\n", encoding="utf-8"
         )
         (self.root / "proto" / "search" / "search.proto").write_text(
             "service Search { rpc Search(Req) returns (Resp); }\n", encoding="utf-8"

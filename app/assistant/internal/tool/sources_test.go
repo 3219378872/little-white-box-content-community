@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/store"
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type sourceContent struct {
@@ -17,11 +17,11 @@ type sourceContent struct {
 	posts []*contentservice.PostInfo
 }
 
-func (s *sourceContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (s *sourceContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	return &contentservice.GetPostsByIdsResp{Posts: s.posts}, nil
 }
 
-func (s *sourceContent) GetPost(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (s *sourceContent) GetPost(_ context.Context, _ *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 	if len(s.posts) == 0 {
 		return &contentservice.GetPostResp{}, nil
 	}

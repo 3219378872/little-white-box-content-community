@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 // ErrPersonalizationPreferenceNotFound 表示用户还没有显式设置过偏好（默认开启）。

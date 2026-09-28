@@ -9,7 +9,7 @@ import (
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 

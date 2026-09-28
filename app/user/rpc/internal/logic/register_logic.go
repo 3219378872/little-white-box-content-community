@@ -15,10 +15,11 @@ import (
 	"fmt"
 
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
+
+	logx "esx/pkg/logging"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type RegisterLogic struct {

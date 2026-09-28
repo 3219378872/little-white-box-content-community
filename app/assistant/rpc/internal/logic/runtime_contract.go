@@ -2,7 +2,7 @@ package logic
 
 import (
 	"esx/app/assistant/internal/memory"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 )
 

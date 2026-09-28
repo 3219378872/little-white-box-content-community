@@ -4,11 +4,9 @@ import (
 	"testing"
 
 	clientprometheus "github.com/prometheus/client_golang/prometheus"
-	zeroprometheus "github.com/zeromicro/go-zero/core/prometheus"
 )
 
 func TestRecommendMetricsAreExported(t *testing.T) {
-	zeroprometheus.Enable()
 	recordPipelineStage("posts", "recall", true)
 	recommendInferenceTotal.Inc("posts", "timeout")
 	recommendRecallCandidates.Observe(12, "posts")

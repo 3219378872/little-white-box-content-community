@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type revisionContent struct {
@@ -21,7 +21,7 @@ type revisionContent struct {
 func (c *revisionContent) GetPost(
 	_ context.Context,
 	_ *contentservice.GetPostReq,
-	_ ...grpc.CallOption,
+	_ ...callopt.Option,
 ) (*contentservice.GetPostResp, error) {
 	return &contentservice.GetPostResp{Post: &contentservice.PostInfo{
 		Id: c.postID, AuthorId: c.userID, Revision: c.revision, Status: 1,

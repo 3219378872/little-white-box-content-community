@@ -6,23 +6,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/recommend/rpc/recommendservice"
+	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type mockContentService struct{ mock.Mock }
 
-func (m *mockContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (m *mockContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*contentservice.GetPostListResp), args.Error(1)
@@ -30,7 +31,7 @@ func (m *mockContentService) GetPostList(ctx context.Context, in *contentservice
 	return nil, args.Error(1)
 }
 
-func (m *mockContentService) GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (m *mockContentService) GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*contentservice.GetPostsByIdsResp), args.Error(1)
@@ -40,7 +41,7 @@ func (m *mockContentService) GetPostsByIds(ctx context.Context, in *contentservi
 
 type mockRecommendService struct{ mock.Mock }
 
-func (m *mockRecommendService) GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...grpc.CallOption) (*recommendservice.GetRecommendPostsResp, error) {
+func (m *mockRecommendService) GetRecommendPosts(ctx context.Context, in *recommendservice.GetRecommendPostsReq, opts ...callopt.Option) (*recommendservice.GetRecommendPostsResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*recommendservice.GetRecommendPostsResp), args.Error(1)

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

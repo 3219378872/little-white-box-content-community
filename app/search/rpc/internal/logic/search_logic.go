@@ -5,11 +5,11 @@ import (
 
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
-	"esx/app/search/rpc/xiaobaihe/search/pb"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type SearchLogic struct {

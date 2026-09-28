@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // SafeAccessLogMiddleware records request metadata only. Headers, query values,

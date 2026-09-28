@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc"
+	"github.com/cloudwego/kitex/client/callopt"
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
-	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 )
 
@@ -50,7 +50,7 @@ type fakeRecommendContentService struct {
 	err         error
 }
 
-func (f *fakeRecommendContentService) GetPostsByIds(_ context.Context, in *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (f *fakeRecommendContentService) GetPostsByIds(_ context.Context, in *contentservice.GetPostsByIdsReq, _ ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	if f != nil && f.err != nil {
 		return nil, f.err
 	}

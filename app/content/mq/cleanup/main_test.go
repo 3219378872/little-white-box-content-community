@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 func TestShutdownContentCleanupStopsConsumersBeforeDatabase(t *testing.T) {

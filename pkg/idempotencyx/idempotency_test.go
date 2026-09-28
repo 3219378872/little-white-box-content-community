@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type recordingQuerier struct {

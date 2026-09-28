@@ -9,10 +9,11 @@ import (
 	"esx/app/feed/rpc/internal/config"
 	"esx/pkg/testutil"
 
+	conf "esx/pkg/configx"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 func TestFeedServiceReadsCurrentNegativeFeaturesFromConfiguredRedis(t *testing.T) {
@@ -27,7 +28,7 @@ func TestFeedServiceReadsCurrentNegativeFeaturesFromConfiguredRedis(t *testing.T
 	require.NoError(t, conf.Load("../../etc/feed.yaml", &c, conf.UseEnv()))
 	c.Redis.RedisConf = redis.RedisConf{Host: env.Addr, Type: redis.NodeType}
 	// Only Redis is exercised; nonblocking clients avoid starting other services.
-	client := zrpc.RpcClientConf{Endpoints: []string{"127.0.0.1:1"}, NonBlock: true}
+	client := rpcx.RpcClientConf{Endpoints: []string{"127.0.0.1:1"}, NonBlock: true}
 	c.UserRpc, c.ContentRpc, c.RecommendRpc = client, client, client
 	service := NewServiceContext(c)
 

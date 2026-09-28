@@ -10,12 +10,13 @@ import (
 
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
+
+	redis "esx/pkg/redisstore"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 type memoryPersonalizationStore struct {

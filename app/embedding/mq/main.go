@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"esx/pkg/lifecycle"
+	"esx/pkg/rpcx"
 	"flag"
 	"fmt"
 	"os"
@@ -14,13 +16,15 @@ import (
 	"esx/app/embedding/mq/internal/svc"
 	"esx/pkg/cleanupx"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
+	conf "esx/pkg/configx"
+	logx "esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/embedding-consumer.yaml", "config file")
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer lifecycle.CloseResources()
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())

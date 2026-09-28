@@ -8,8 +8,9 @@ import (
 	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"
 
+	sqlx "esx/pkg/sqlstore"
+
 	"github.com/stretchr/testify/mock"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 
 	"esx/pkg/util"
 )

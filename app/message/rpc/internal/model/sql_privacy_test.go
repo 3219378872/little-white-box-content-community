@@ -11,14 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	logx "esx/pkg/logging"
+	sqlx "esx/pkg/sqlstore"
 )
 
-// Service-context wiring is enforced by deploy.TestSQLServiceContextsDisableParameterLogging.
+// Service-context wiring is enforced by deploy.TestSQLServiceContextsUsePrivateSQLBoundary.
 func TestPrivateMessageSQLLoggingPolicy(t *testing.T) {
-	sqlx.DisableLog()
-	t.Cleanup(func() { sqlx.SetSlowThreshold(500 * time.Millisecond) })
 	for _, scenario := range []struct {
 		name  string
 		delay time.Duration
@@ -29,10 +27,7 @@ func TestPrivateMessageSQLLoggingPolicy(t *testing.T) {
 		{name: "failure", fail: true},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
-			sqlx.SetSlowThreshold(500 * time.Millisecond)
-			if scenario.delay > 0 {
-				sqlx.SetSlowThreshold(time.Nanosecond)
-			}
+
 			const privateText = "SYNTHETIC_PRIVATE_MESSAGE_DO_NOT_LOG"
 			var logs bytes.Buffer
 			previous := logx.Reset()

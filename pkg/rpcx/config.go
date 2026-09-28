@@ -1,0 +1,32 @@
+// Package rpcx owns Kitex service discovery, transport policy and authentication.
+package rpcx
+
+import (
+	"esx/pkg/lifecycle"
+	"esx/pkg/redisstore"
+)
+
+type EtcdConf struct {
+	Hosts      []string
+	Key        string
+	User, Pass string
+}
+type RpcClientConf struct {
+	Etcd      EtcdConf
+	Endpoints []string
+	Target    string
+	NonBlock  bool
+	Timeout   int64 `json:",default=2000"`
+}
+type RpcServerConf struct {
+	lifecycle.ServiceConf
+	ListenOn       string
+	Etcd           EtcdConf
+	Redis          redisstore.RedisKeyConf
+	Timeout        int64 `json:",default=2000"`
+	Health         bool  `json:",default=true"`
+	MaxConnections int   `json:",default=10000"`
+	MaxQPS         int   `json:",default=10000"`
+}
+
+const RegistryPrefix = "/little/kitex"

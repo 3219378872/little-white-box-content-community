@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package svc
 
 import (
@@ -15,20 +12,21 @@ import (
 	"esx/app/message/rpc/messageservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 	"esx/pkg/jwtx"
 	"esx/pkg/middleware"
 
-	"github.com/zeromicro/go-zero/rest"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc/connectivity"
+	"context"
+	"esx/pkg/rpcx"
+	"sync"
+
+	"github.com/cloudwego/hertz/pkg/app"
 )
 
 // Dependency 描述一个就绪检查依赖（REL-053）。
 type Dependency struct {
-	Name      string
-	ConnState func() connectivity.State
-	Optional  bool // 可选能力（如发现）故障只降级，不使整个 Gateway 下线
+	Name     string
+	Probe    func(context.Context) error
+	Optional bool // 可选能力（如发现）故障只降级，不使整个 Gateway 下线
 }
 
 type ServiceContext struct {
@@ -43,27 +41,23 @@ type ServiceContext struct {
 	MessageService     messageservice.MessageService
 	SearchService      searchservice.SearchService
 	AssistantService   assistantservice.AssistantService
-	OptionalAuth       rest.Middleware
-	RequiredAuth       rest.Middleware
-	BehaviorAccepted   rest.Middleware
+	OptionalAuth       app.HandlerFunc
+	RequiredAuth       app.HandlerFunc
+	BehaviorAccepted   app.HandlerFunc
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	traceInterceptor := interceptor.TraceIDUnaryInterceptor()
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)
 
-	withInternalAuth := func(opts ...zrpc.ClientOption) []zrpc.ClientOption {
-		return append([]zrpc.ClientOption{
-			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-			zrpc.WithUnaryClientInterceptor(traceInterceptor),
-			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
+	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
+
+	withInternalAuth := func(opts ...rpcx.ClientOption) []rpcx.ClientOption {
+		return append([]rpcx.ClientOption{
+
+			internalAuthOption,
 		}, opts...)
 	}
-	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		return interceptor.MustNewClient(conf, withInternalAuth()...)
+	newClient := func(conf rpcx.RpcClientConf) rpcx.Client {
+		return rpcx.MustNewClient(conf, withInternalAuth()...)
 	}
 
 	userClient := newClient(c.UserRpc)
@@ -98,15 +92,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
 		Dependencies: []Dependency{
-			{Name: "user", ConnState: func() connectivity.State { return userClient.Conn().GetState() }},
-			{Name: "content", ConnState: func() connectivity.State { return contentClient.Conn().GetState() }},
-			{Name: "media", ConnState: func() connectivity.State { return mediaClient.Conn().GetState() }},
-			{Name: "interaction", ConnState: func() connectivity.State { return interactionClient.Conn().GetState() }},
-			{Name: "behavior", ConnState: func() connectivity.State { return behaviorClient.Conn().GetState() }},
-			{Name: "feed", ConnState: func() connectivity.State { return feedClient.Conn().GetState() }},
-			{Name: "message", ConnState: func() connectivity.State { return messageClient.Conn().GetState() }},
-			{Name: "search", ConnState: func() connectivity.State { return searchClient.Conn().GetState() }, Optional: true},
-			{Name: "assistant", ConnState: func() connectivity.State { return assistantClient.Conn().GetState() }, Optional: true},
+			{Name: "user", Probe: userClient.Probe},
+			{Name: "content", Probe: contentClient.Probe},
+			{Name: "media", Probe: mediaClient.Probe},
+			{Name: "interaction", Probe: interactionClient.Probe},
+			{Name: "behavior", Probe: behaviorClient.Probe},
+			{Name: "feed", Probe: feedClient.Probe},
+			{Name: "message", Probe: messageClient.Probe},
+			{Name: "search", Probe: searchClient.Probe, Optional: true},
+			{Name: "assistant", Probe: assistantClient.Probe, Optional: true},
 		},
 		UserService:        userService,
 		ContentService:     contentService,
@@ -117,9 +111,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MessageService:     messageService,
 		SearchService:      searchService,
 		AssistantService:   assistantService,
-		OptionalAuth:       optionalAuth.Handle,
-		RequiredAuth:       requiredAuth.Handle,
-		BehaviorAccepted:   behaviorAccepted.Handle,
+		OptionalAuth:       optionalAuth.Hertz,
+		RequiredAuth:       requiredAuth.Hertz,
+		BehaviorAccepted:   behaviorAccepted.Hertz,
 	}
 }
 
@@ -132,42 +126,37 @@ type DependencyStatus struct {
 
 // Readiness 检查所有依赖的连接状态。可选能力故障只标记 down；
 // 必需能力故障返回 unavailable。整体状态 ready/degraded/unavailable。
-func (s *ServiceContext) Readiness() (string, []DependencyStatus) {
-	statuses := make([]DependencyStatus, 0, len(s.Dependencies))
-	requiredDown := false
-	optionalDown := false
-	for _, dependency := range s.Dependencies {
-		healthy := dependencyHealthy(dependency)
-		status := "ok"
-		if !healthy {
-			status = "down"
-			if dependency.Optional {
+func (s *ServiceContext) Readiness(ctx context.Context) (string, []DependencyStatus) {
+	statuses := make([]DependencyStatus, len(s.Dependencies))
+	var wg sync.WaitGroup
+	for i, d := range s.Dependencies {
+		wg.Add(1)
+		go func(i int, d Dependency) {
+			defer wg.Done()
+			healthy := d.Probe != nil && d.Probe(ctx) == nil
+			state := "down"
+			if healthy {
+				state = "ok"
+			}
+			statuses[i] = DependencyStatus{Name: d.Name, Status: state, Healthy: healthy}
+		}(i, d)
+	}
+	wg.Wait()
+	requiredDown, optionalDown := false, false
+	for i, status := range statuses {
+		if !status.Healthy {
+			if s.Dependencies[i].Optional {
 				optionalDown = true
 			} else {
 				requiredDown = true
 			}
 		}
-		statuses = append(statuses, DependencyStatus{Name: dependency.Name, Status: status, Healthy: healthy})
 	}
-	switch {
-	case requiredDown:
+	if requiredDown {
 		return "unavailable", statuses
-	case optionalDown:
+	}
+	if optionalDown {
 		return "degraded", statuses
-	default:
-		return "ready", statuses
 	}
-}
-
-func dependencyHealthy(dependency Dependency) bool {
-	if dependency.ConnState == nil {
-		return false
-	}
-	state := dependency.ConnState()
-	switch state {
-	case connectivity.Ready, connectivity.Idle, connectivity.Connecting:
-		return true
-	default:
-		return false
-	}
+	return "ready", statuses
 }

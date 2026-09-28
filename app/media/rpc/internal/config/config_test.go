@@ -3,11 +3,11 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
-// REL-022：media RPC 必须抑制框架自动内容日志。
-func TestMediaConfigSuppressesContentLogging(t *testing.T) {
+// Transport privacy is enforced centrally by rpcx and covered with real RPC calls.
+func TestMediaConfigLoadsNativeTransportPolicy(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("DB_MEDIA", "")
@@ -18,7 +18,7 @@ func TestMediaConfigSuppressesContentLogging(t *testing.T) {
 	if err := conf.Load("../../etc/media.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Middlewares.StatConf.IgnoreContentMethods) == 0 {
-		t.Fatal("media config must set IgnoreContentMethods")
+	if c.Name != "media.rpc" || !c.Health || c.MaxConnections <= 0 || c.Timeout <= 0 {
+		t.Fatalf("invalid native transport policy: name=%s health=%v timeout=%d", c.Name, c.Health, c.Timeout)
 	}
 }

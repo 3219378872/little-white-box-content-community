@@ -10,7 +10,7 @@ import (
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/model"
 	inferencepb "esx/app/recommend/rpc/xiaobaihe/inference/pb"
-	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	pb "esx/kitex_gen/recommend"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

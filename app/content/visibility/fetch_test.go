@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
-
-	"google.golang.org/grpc"
 )
 
 type fakePosts struct {
@@ -18,7 +18,7 @@ type fakePosts struct {
 	calls int
 }
 
-func (f *fakePosts) GetPostsByIds(context.Context, *contentservice.GetPostsByIdsReq, ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (f *fakePosts) GetPostsByIds(context.Context, *contentservice.GetPostsByIdsReq, ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	f.calls++
 	return f.resp, f.err
 }

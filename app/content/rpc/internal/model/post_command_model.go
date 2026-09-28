@@ -11,7 +11,7 @@ import (
 
 	"esx/pkg/outboxx"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type OutboxEnqueuer interface {

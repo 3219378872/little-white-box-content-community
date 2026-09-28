@@ -3,8 +3,9 @@ package config
 import (
 	"testing"
 
+	"esx/pkg/rpcx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 func validConfig() Config {
@@ -14,7 +15,7 @@ func validConfig() Config {
 			TimeoutMs: 1000, MaxTextBytes: 1024, MaxBatchSize: 16, MaxBatchBytes: 4096,
 		},
 		Milvus:     MilvusConfig{Address: "127.0.0.1:19530", Collection: "post_embeddings_current", Dim: 384},
-		ContentRpc: zrpc.RpcClientConf{Target: "dns:///content:8088"},
+		ContentRpc: rpcx.RpcClientConf{Target: "dns:///content:8088"},
 		Rebuild: RebuildConfig{
 			Alias: "post_embeddings_current", CollectionPrefix: "post_embeddings",
 			PageSize: 50, BatchSize: 16, MaxAttempts: 3, RetryBackoffMs: 10, TimeoutSeconds: 60,

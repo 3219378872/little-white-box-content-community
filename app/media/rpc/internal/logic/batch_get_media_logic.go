@@ -3,10 +3,10 @@ package logic
 import (
 	"context"
 	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const maxBatchSize = 100

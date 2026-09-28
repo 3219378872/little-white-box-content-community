@@ -6,11 +6,11 @@ import (
 
 	"esx/app/assistant/internal/runtime"
 	"esx/app/assistant/rpc/internal/svc"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type PostMessageLogic struct {

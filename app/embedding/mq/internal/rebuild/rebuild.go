@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/vectorstore"
 	"esx/pkg/visibilityx"
-
-	"google.golang.org/grpc"
 )
 
 const MaxPageSize int32 = 50
@@ -20,7 +20,7 @@ const MaxPageSize int32 = 50
 var invalidCollectionRune = regexp.MustCompile(`[^A-Za-z0-9_]`)
 
 type PostSource interface {
-	GetPostList(context.Context, *contentservice.GetPostListReq, ...grpc.CallOption) (*contentservice.GetPostListResp, error)
+	GetPostList(context.Context, *contentservice.GetPostListReq, ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
 type Target interface {

@@ -4,41 +4,41 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/message/rpc/messageservice"
-	messagepb "esx/app/message/rpc/xiaobaihe/message/pb"
+	messagepb "esx/kitex_gen/message"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeMessageService struct {
 	messageservice.MessageService
-	getConversationsFn func(context.Context, *messageservice.GetConversationsReq, ...grpc.CallOption) (*messageservice.GetConversationsResp, error)
-	getMessagesFn      func(context.Context, *messageservice.GetMessagesReq, ...grpc.CallOption) (*messageservice.GetMessagesResp, error)
-	sendMessageFn      func(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error)
-	markReadFn         func(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error)
-	getUnreadCountFn   func(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error)
+	getConversationsFn func(context.Context, *messageservice.GetConversationsReq, ...callopt.Option) (*messageservice.GetConversationsResp, error)
+	getMessagesFn      func(context.Context, *messageservice.GetMessagesReq, ...callopt.Option) (*messageservice.GetMessagesResp, error)
+	sendMessageFn      func(context.Context, *messageservice.SendMessageReq, ...callopt.Option) (*messageservice.SendMessageResp, error)
+	markReadFn         func(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error)
+	getUnreadCountFn   func(context.Context, *messageservice.GetUnreadCountReq, ...callopt.Option) (*messageservice.GetUnreadCountResp, error)
 }
 
-func (f *fakeMessageService) GetConversations(ctx context.Context, in *messageservice.GetConversationsReq, opts ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+func (f *fakeMessageService) GetConversations(ctx context.Context, in *messageservice.GetConversationsReq, opts ...callopt.Option) (*messageservice.GetConversationsResp, error) {
 	return f.getConversationsFn(ctx, in, opts...)
 }
 
-func (f *fakeMessageService) GetMessages(ctx context.Context, in *messageservice.GetMessagesReq, opts ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+func (f *fakeMessageService) GetMessages(ctx context.Context, in *messageservice.GetMessagesReq, opts ...callopt.Option) (*messageservice.GetMessagesResp, error) {
 	return f.getMessagesFn(ctx, in, opts...)
 }
 
-func (f *fakeMessageService) SendMessage(ctx context.Context, in *messageservice.SendMessageReq, opts ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+func (f *fakeMessageService) SendMessage(ctx context.Context, in *messageservice.SendMessageReq, opts ...callopt.Option) (*messageservice.SendMessageResp, error) {
 	return f.sendMessageFn(ctx, in, opts...)
 }
 
-func (f *fakeMessageService) MarkRead(ctx context.Context, in *messageservice.MarkReadReq, opts ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+func (f *fakeMessageService) MarkRead(ctx context.Context, in *messageservice.MarkReadReq, opts ...callopt.Option) (*messageservice.MarkReadResp, error) {
 	return f.markReadFn(ctx, in, opts...)
 }
 
-func (f *fakeMessageService) GetUnreadCount(ctx context.Context, in *messageservice.GetUnreadCountReq, opts ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+func (f *fakeMessageService) GetUnreadCount(ctx context.Context, in *messageservice.GetUnreadCountReq, opts ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 	return f.getUnreadCountFn(ctx, in, opts...)
 }
 
@@ -47,7 +47,7 @@ func TestGetConversations_UsesJWTUserAndMapsResponse(t *testing.T) {
 	ctxKey := requestContextKey{}
 	ctx := context.WithValue(jwtx.WithUserIdContext(context.Background(), 42), ctxKey, "preserved")
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		getConversationsFn: func(gotCtx context.Context, in *messageservice.GetConversationsReq, _ ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+		getConversationsFn: func(gotCtx context.Context, in *messageservice.GetConversationsReq, _ ...callopt.Option) (*messageservice.GetConversationsResp, error) {
 			if gotCtx.Value(ctxKey) != "preserved" {
 				t.Fatal("request context was not propagated")
 			}
@@ -79,7 +79,7 @@ func TestGetConversations_UsesJWTUserAndMapsResponse(t *testing.T) {
 
 func TestGetMessages_UsesJWTUserAndMapsResponse(t *testing.T) {
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		getMessagesFn: func(_ context.Context, in *messageservice.GetMessagesReq, _ ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+		getMessagesFn: func(_ context.Context, in *messageservice.GetMessagesReq, _ ...callopt.Option) (*messageservice.GetMessagesResp, error) {
 			if in.UserId != 42 || in.ConversationId != 9 || in.LastId != 100 || in.PageSize != 20 {
 				t.Fatalf("unexpected rpc request: %+v", in)
 			}
@@ -112,7 +112,7 @@ func TestGetMessages_UsesJWTUserAndMapsResponse(t *testing.T) {
 
 func TestSendMessage_DerivesSenderFromJWT(t *testing.T) {
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		sendMessageFn: func(_ context.Context, in *messageservice.SendMessageReq, _ ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+		sendMessageFn: func(_ context.Context, in *messageservice.SendMessageReq, _ ...callopt.Option) (*messageservice.SendMessageResp, error) {
 			if in.SenderId != 42 || in.ReceiverId != 7 || in.Content != "hello" || in.MsgType != 1 || in.IdempotencyKey != "send-1" {
 				t.Fatalf("unexpected rpc request: %+v", in)
 			}
@@ -139,7 +139,7 @@ func TestMarkConversationRead_UsesJWTUserAndPropagatesContext(t *testing.T) {
 	ctxKey := requestContextKey{}
 	ctx := context.WithValue(jwtx.WithUserIdContext(context.Background(), 42), ctxKey, "preserved")
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		markReadFn: func(gotCtx context.Context, in *messageservice.MarkReadReq, _ ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+		markReadFn: func(gotCtx context.Context, in *messageservice.MarkReadReq, _ ...callopt.Option) (*messageservice.MarkReadResp, error) {
 			if gotCtx.Value(ctxKey) != "preserved" {
 				t.Fatal("request context was not propagated")
 			}
@@ -164,7 +164,7 @@ func TestGetUnreadSummary_UsesJWTUserAndMapsResponse(t *testing.T) {
 	ctxKey := requestContextKey{}
 	ctx := context.WithValue(jwtx.WithUserIdContext(context.Background(), 42), ctxKey, "preserved")
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		getUnreadCountFn: func(gotCtx context.Context, in *messageservice.GetUnreadCountReq, _ ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+		getUnreadCountFn: func(gotCtx context.Context, in *messageservice.GetUnreadCountReq, _ ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 			if gotCtx.Value(ctxKey) != "preserved" {
 				t.Fatal("request context was not propagated")
 			}
@@ -187,23 +187,23 @@ func TestGetUnreadSummary_UsesJWTUserAndMapsResponse(t *testing.T) {
 func TestMessageLogics_RejectMissingJWTWithoutRPC(t *testing.T) {
 	called := false
 	fake := &fakeMessageService{
-		getConversationsFn: func(context.Context, *messageservice.GetConversationsReq, ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+		getConversationsFn: func(context.Context, *messageservice.GetConversationsReq, ...callopt.Option) (*messageservice.GetConversationsResp, error) {
 			called = true
 			return &messageservice.GetConversationsResp{}, nil
 		},
-		getMessagesFn: func(context.Context, *messageservice.GetMessagesReq, ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+		getMessagesFn: func(context.Context, *messageservice.GetMessagesReq, ...callopt.Option) (*messageservice.GetMessagesResp, error) {
 			called = true
 			return &messageservice.GetMessagesResp{}, nil
 		},
-		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...callopt.Option) (*messageservice.SendMessageResp, error) {
 			called = true
 			return &messageservice.SendMessageResp{}, nil
 		},
-		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error) {
 			called = true
 			return &messageservice.MarkReadResp{}, nil
 		},
-		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 			called = true
 			return &messageservice.GetUnreadCountResp{}, nil
 		},
@@ -250,19 +250,19 @@ func TestMessageLogics_RejectMissingJWTWithoutRPC(t *testing.T) {
 
 func TestMessageLogics_RPCError(t *testing.T) {
 	fake := &fakeMessageService{
-		getConversationsFn: func(context.Context, *messageservice.GetConversationsReq, ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+		getConversationsFn: func(context.Context, *messageservice.GetConversationsReq, ...callopt.Option) (*messageservice.GetConversationsResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		getMessagesFn: func(context.Context, *messageservice.GetMessagesReq, ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+		getMessagesFn: func(context.Context, *messageservice.GetMessagesReq, ...callopt.Option) (*messageservice.GetMessagesResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...callopt.Option) (*messageservice.SendMessageResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 			return nil, context.DeadlineExceeded
 		},
 	}
@@ -307,7 +307,7 @@ func TestMessageLogics_RPCError(t *testing.T) {
 func TestSendMessage_RejectsMissingIdempotencyKeyWithoutRPC(t *testing.T) {
 	called := false
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+		sendMessageFn: func(context.Context, *messageservice.SendMessageReq, ...callopt.Option) (*messageservice.SendMessageResp, error) {
 			called = true
 			return &messageservice.SendMessageResp{}, nil
 		},
@@ -327,7 +327,7 @@ func TestSendMessage_RejectsMissingIdempotencyKeyWithoutRPC(t *testing.T) {
 func TestMarkConversationRead_RejectsInvalidConversationWithoutRPC(t *testing.T) {
 	called := false
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error) {
 			called = true
 			return &messageservice.MarkReadResp{}, nil
 		},
@@ -346,10 +346,10 @@ func TestMarkConversationRead_RejectsInvalidConversationWithoutRPC(t *testing.T)
 
 func TestMessageReadLogics_RejectNilRPCResponses(t *testing.T) {
 	svcCtx := &svc.ServiceContext{MessageService: &fakeMessageService{
-		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+		markReadFn: func(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error) {
 			return nil, nil
 		},
-		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+		getUnreadCountFn: func(context.Context, *messageservice.GetUnreadCountReq, ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 			return nil, nil
 		},
 	}}

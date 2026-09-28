@@ -13,11 +13,10 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type ServiceContext struct {
@@ -34,12 +33,12 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		return interceptor.MustNewClient(conf,
-			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
+
+	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
+	newClient := func(conf rpcx.RpcClientConf) rpcx.Client {
+		return rpcx.MustNewClient(conf,
+
+			internalAuthOption,
 		)
 	}
 	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))
@@ -51,7 +50,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	var watchStore watch.Store
 	if strings.TrimSpace(c.DataSource) != "" {
 		// Assistant SQL parameters contain prompts and tool payloads (REL-022).
-		sqlx.DisableLog()
 		conn := sqlx.NewMysql(c.DataSource)
 		st = store.NewSQLStore(conn)
 		watchStore = watch.NewSQLStore(conn)

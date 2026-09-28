@@ -11,8 +11,9 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/pkg/testutil"
 
+	sqlx "esx/pkg/sqlstore"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type historySnapshotStore struct {

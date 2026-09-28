@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type FeedInbox struct {

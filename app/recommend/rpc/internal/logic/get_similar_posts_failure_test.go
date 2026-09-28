@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"esx/app/recommend/rpc/internal/model"
-	"esx/app/recommend/rpc/xiaobaihe/recommend/pb"
+	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 )
 

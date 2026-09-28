@@ -12,7 +12,7 @@ import (
 
 	"esx/app/assistant/internal/store"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const (

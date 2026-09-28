@@ -1,11 +1,11 @@
 # 服务架构与模块清单
 
 本文档是非正式操作指南，取代旧 ARCHITECTURE 服务架构文档与 generated 旧快照索引的定位作用。
-它只描述"当前代码如何组织"，不覆盖源码、配置、`.api`、`.proto` 与测试事实。
+它只描述"当前代码如何组织"，不覆盖源码、配置、`openapi.yaml`、`.proto` 与测试事实。
 
 ## 概览
 
-esx 是基于 go-zero 的社交内容平台微服务集群：
+esx 是基于 Kitex + Hertz 的社交内容平台微服务集群：
 
 ```
 Client → Gateway (REST :8888) → User RPC (:9090)
@@ -27,7 +27,7 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 
 | 模块 | 类型 | 入口 | 定义文件 |
 | --- | --- | --- | --- |
-| Gateway | REST API 网关 | `app/gateway/gateway.go` | `app/gateway/gateway.api` |
+| Gateway | REST API 网关 | `app/gateway/gateway.go` | `app/gateway/openapi.yaml` |
 | User | RPC | `app/user/rpc/user.go` | `proto/user/user.proto` |
 | Content | RPC | `app/content/rpc/content.go` | `proto/content/content.proto` |
 | Media | RPC + MQ | `app/media/rpc/media.go`、`app/media/mq/main.go` | `proto/media/media.proto` |
@@ -46,7 +46,7 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 
 ## RPC 服务分层
 
-每个 RPC 服务遵循 go-zero 标准分层：
+每个 RPC 服务遵循 Handler / Logic / Model 分层：
 
 ```
 internal/config/   → 配置结构体
@@ -90,7 +90,7 @@ internal/model/    → 数据访问层
 
 ## 服务间通信
 
-- **Gateway → RPC**：zrpc 客户端 + etcd 服务发现；trace_id 经 gRPC metadata 透传。
+- **Gateway → RPC**：Kitex 客户端 + etcd 服务发现；trace_id 经 gRPC metadata 透传。
 - **RPC → RPC**：Interaction 写赞/藏前问 Content 校验 published；Assistant 经 Content
   重读正文并验证 published。详情/列表的访问者互动状态由 Gateway 回填 Interaction。
   记忆与 Watch 的权威在 assistant RPC（`xbh_assistant`），不新开业务服务。

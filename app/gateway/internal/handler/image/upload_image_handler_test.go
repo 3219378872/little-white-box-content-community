@@ -4,31 +4,28 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"esx/pkg/httptestx"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/media/rpc/mediaservice"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
-
-// httpx.ErrorCtx 默认把 BizError.Error() 写成 "code: N, message: ..." 文本
-var bizErrRe = regexp.MustCompile(`code:\s*(\d+),\s*message:`)
 
 // fakeUploadStream / fakeMediaService 与 logic 测试相同结构（local copy 避免跨包导出）
 type fakeUploadStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	closeResp *mediapb.UploadImageResp
 	closeErr  error
 }
@@ -42,7 +39,7 @@ type fakeMediaService struct {
 	mediaservice.MediaService
 }
 
-func (f *fakeMediaService) UploadImage(_ context.Context, _ ...grpc.CallOption) (mediapb.MediaService_UploadImageClient, error) {
+func (f *fakeMediaService) UploadImage(_ context.Context, _ ...callopt.Option) (mediaservice.MediaService_UploadImageClient, error) {
 	return &fakeUploadStream{
 		closeResp: &mediapb.UploadImageResp{
 			Media: &mediapb.MediaInfo{Id: 1, Url: "u", ThumbnailUrl: "t"},
@@ -85,15 +82,17 @@ func makeMultipartRequest(t *testing.T, formField, filename, contentType string,
 
 func extractBizCode(t *testing.T, body []byte) int {
 	t.Helper()
-	m := bizErrRe.FindSubmatch(body)
-	if len(m) < 2 {
-		t.Fatalf("biz error pattern not found, body=%s", string(body))
+	var payload struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
 	}
-	code, err := strconv.Atoi(string(m[1]))
-	if err != nil {
-		t.Fatalf("parse code: %v", err)
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode public error: %v", err)
 	}
-	return code
+	if payload.Message == "" {
+		t.Fatal("public error message missing")
+	}
+	return payload.Code
 }
 
 func TestUploadImageHandler_NotMultipart_ReturnsParamError(t *testing.T) {
@@ -101,7 +100,7 @@ func TestUploadImageHandler_NotMultipart_ReturnsParamError(t *testing.T) {
 	req.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
 
-	UploadImageHandler(newSvcCtx())(w, req)
+	httptestx.Adapt(UploadImageHandler(newSvcCtx()))(w, req)
 
 	body, _ := io.ReadAll(w.Result().Body)
 	if got := extractBizCode(t, body); got != errx.ParamError {
@@ -113,7 +112,7 @@ func TestUploadImageHandler_MissingFileField_ReturnsParamError(t *testing.T) {
 	req := makeMultipartRequest(t, "other", "x.png", "image/png", []byte("hi"), 1)
 	w := httptest.NewRecorder()
 
-	UploadImageHandler(newSvcCtx())(w, req)
+	httptestx.Adapt(UploadImageHandler(newSvcCtx()))(w, req)
 
 	body, _ := io.ReadAll(w.Result().Body)
 	if got := extractBizCode(t, body); got != errx.ParamError {
@@ -125,7 +124,7 @@ func TestUploadImageHandler_IgnoredDeclaredContentType_StillUploads(t *testing.T
 	req := makeMultipartRequest(t, "file", "x.bin", "application/octet-stream", []byte("hello"), 42)
 	w := httptest.NewRecorder()
 
-	UploadImageHandler(newSvcCtx())(w, req)
+	httptestx.Adapt(UploadImageHandler(newSvcCtx()))(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
@@ -138,7 +137,7 @@ func TestUploadImageHandler_Success_Returns200WithMediaInfo(t *testing.T) {
 	req := makeMultipartRequest(t, "file", "x.png", "image/png", []byte("hello"), 42)
 	w := httptest.NewRecorder()
 
-	UploadImageHandler(newSvcCtx())(w, req)
+	httptestx.Adapt(UploadImageHandler(newSvcCtx()))(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {

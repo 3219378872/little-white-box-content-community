@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 func Close(logger logx.Logger, resource string, closer io.Closer) {

@@ -6,7 +6,7 @@ import (
 	"esx/pkg/outboxx"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 // MediaCommandResult 是一次媒体创建命令的结果。

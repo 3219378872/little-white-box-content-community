@@ -8,11 +8,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"encoding/json"
 )
 
 // RequiredAuthMiddleware authenticates protected REST routes without using
-// go-zero's JWT handler, whose failure path dumps the complete HTTP request.
+// framework JWT handlers that may dump the complete HTTP request on failure.
 type RequiredAuthMiddleware struct {
 	config jwtx.JwtConfig
 }
@@ -47,7 +47,9 @@ func (m *RequiredAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc 
 
 func writeUnauthorized(w http.ResponseWriter, state string) {
 	w.Header().Set(AuthStateHeader, state)
-	httpx.WriteJson(w, http.StatusUnauthorized, map[string]any{
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"code":    errx.LoginRequired,
 		"message": errx.GetMsg(errx.LoginRequired),
 	})

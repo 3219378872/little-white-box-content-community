@@ -4,12 +4,11 @@ import (
 	"esx/app/recommend/mq/internal/config"
 	"esx/app/recommend/mq/internal/store"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	logx "esx/pkg/logging"
+	redis "esx/pkg/redisstore"
 )
 
 type ServiceContext struct {
@@ -21,9 +20,9 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	logx.Must(c.Validate())
-	userClient := interceptor.MustNewClient(c.UserRpc,
-		zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	userClient := rpcx.MustNewClient(c.UserRpc,
+
+		rpcx.WithInternalAuth(c.InternalSecret))
 	userService := userservice.NewUserService(userClient)
 	redisClient := redis.MustNewRedis(c.Redis)
 	candidates := store.NewRedisCandidateStore(

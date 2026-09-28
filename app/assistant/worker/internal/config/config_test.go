@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
 func TestAgentConfigLoadsProviderReliabilitySettings(t *testing.T) {

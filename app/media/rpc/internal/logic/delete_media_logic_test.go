@@ -9,7 +9,7 @@ import (
 	model2 "esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/storage"
 	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	"strconv"

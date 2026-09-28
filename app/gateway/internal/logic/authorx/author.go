@@ -10,7 +10,7 @@ import (
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type Author struct {

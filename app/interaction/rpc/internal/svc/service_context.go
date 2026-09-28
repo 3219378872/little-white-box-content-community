@@ -7,18 +7,19 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/internal/config"
 	model2 "esx/app/interaction/rpc/internal/model"
-	"esx/pkg/interceptor"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	"esx/pkg/util"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
+	"github.com/cloudwego/kitex/client/callopt"
+
+	cache "esx/pkg/modelcache"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
+
 	"golang.org/x/sync/singleflight"
-	"google.golang.org/grpc"
 )
 
 type ServiceContext struct {
@@ -40,11 +41,10 @@ type ServiceContext struct {
 
 // ContentService is the subset Interaction uses to enforce CORE-034.
 type ContentService interface {
-	AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, opts ...grpc.CallOption) (*contentservice.AssertInteractableResp, error)
+	AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, opts ...callopt.Option) (*contentservice.AssertInteractableResp, error)
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	sqlx.DisableLog()
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,
 		DriverName: "mysql",
@@ -90,9 +90,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	var contentService ContentService
 	if len(c.ContentRpc.Etcd.Hosts) > 0 || len(c.ContentRpc.Endpoints) > 0 || c.ContentRpc.Target != "" {
-		contentClient := interceptor.MustNewClient(c.ContentRpc,
-			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-			zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+		contentClient := rpcx.MustNewClient(c.ContentRpc,
+
+			rpcx.WithInternalAuth(c.InternalSecret))
 		contentService = contentservice.NewContentService(contentClient)
 	}
 

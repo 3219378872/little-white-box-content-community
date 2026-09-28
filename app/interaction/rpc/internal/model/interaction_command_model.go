@@ -7,7 +7,7 @@ import (
 
 	"esx/pkg/outboxx"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 var ErrNoStateChange = errors.New("interaction state did not change")

@@ -6,9 +6,9 @@ import (
 	"esx/pkg/errx"
 
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	pb "esx/kitex_gen/feed"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type FanoutPostLogic struct {

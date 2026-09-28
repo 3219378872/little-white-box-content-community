@@ -9,7 +9,7 @@ import (
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 )
 

@@ -8,11 +8,11 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret string
 	JwtConfig      jwtx.JwtConfig
 	DataSource     string

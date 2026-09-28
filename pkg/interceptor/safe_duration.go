@@ -4,12 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
 
-// SafeDurationUnaryClientInterceptor replaces go-zero's duration interceptor,
+// SafeDurationUnaryClientInterceptor records standard gRPC timing without payloads,
 // which includes the complete protobuf request when an RPC fails.
 func SafeDurationUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,

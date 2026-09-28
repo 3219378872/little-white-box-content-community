@@ -12,7 +12,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type PostAssistantMessageLogic struct {

@@ -5,9 +5,9 @@ import (
 
 	"esx/app/assistant/internal/runtime"
 	"esx/app/assistant/rpc/internal/svc"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
+	pb "esx/kitex_gen/assistant"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type ConfirmRunToolLogic struct {

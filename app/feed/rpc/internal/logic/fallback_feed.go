@@ -7,10 +7,11 @@ import (
 
 	"esx/app/content/rpc/contentservice"
 	"esx/app/feed/rpc/internal/model"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
+
 	"google.golang.org/protobuf/proto"
 )
 

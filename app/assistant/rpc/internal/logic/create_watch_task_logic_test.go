@@ -4,22 +4,22 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/rpc/internal/svc"
-	"esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type createWatchUser struct {
 	userservice.UserService
 }
 
-func (createWatchUser) GetUser(_ context.Context, req *userservice.GetUserReq, _ ...grpc.CallOption) (*userservice.GetUserResp, error) {
+func (createWatchUser) GetUser(_ context.Context, req *userservice.GetUserReq, _ ...callopt.Option) (*userservice.GetUserResp, error) {
 	if req.UserId == 8 {
 		return &userservice.GetUserResp{User: &userservice.UserInfo{Id: 8}}, nil
 	}
@@ -30,7 +30,7 @@ type createWatchContent struct {
 	contentservice.ContentService
 }
 
-func (createWatchContent) GetPost(_ context.Context, req *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (createWatchContent) GetPost(_ context.Context, req *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 	switch req.PostId {
 	case 11:
 		return &contentservice.GetPostResp{Post: &contentservice.PostInfo{Id: 11, AuthorId: 8, Status: 1}}, nil
@@ -41,7 +41,7 @@ func (createWatchContent) GetPost(_ context.Context, req *contentservice.GetPost
 	}
 }
 
-func (createWatchContent) GetTags(context.Context, *contentservice.GetTagsReq, ...grpc.CallOption) (*contentservice.GetTagsResp, error) {
+func (createWatchContent) GetTags(context.Context, *contentservice.GetTagsReq, ...callopt.Option) (*contentservice.GetTagsResp, error) {
 	return &contentservice.GetTagsResp{}, nil
 }
 
@@ -49,7 +49,7 @@ type createWatchSearch struct {
 	searchservice.SearchService
 }
 
-func (createWatchSearch) SearchTags(_ context.Context, req *searchservice.SearchTagsReq, _ ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+func (createWatchSearch) SearchTags(_ context.Context, req *searchservice.SearchTagsReq, _ ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 	if req.Keyword == "mhw" {
 		return &searchservice.SearchTagsResp{Tags: []*searchservice.TagSearchResult{{Name: "mhw"}}}, nil
 	}

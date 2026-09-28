@@ -11,21 +11,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/sse"
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/assistant/rpc/assistantservice"
-	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/gateway/internal/httpxconfig"
 	"esx/app/gateway/internal/svc"
+	assistantpb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	"github.com/zeromicro/go-zero/rest/pathvar"
-	"google.golang.org/grpc"
+	"esx/pkg/httptestx"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type handlerRunStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	events []*assistantpb.RunEvent
 }
 
@@ -46,8 +51,8 @@ type handlerAssistantService struct {
 func (s *handlerAssistantService) SubscribeRunEvents(
 	_ context.Context,
 	in *assistantservice.SubscribeRunEventsReq,
-	_ ...grpc.CallOption,
-) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+	_ ...callopt.Option,
+) (assistantservice.AssistantService_SubscribeRunEventsClient, error) {
 	s.received = in
 	return &handlerRunStream{events: []*assistantpb.RunEvent{
 		{RunId: in.RunId, Seq: 6, Type: "token", Text: "hi", SessionId: 3},
@@ -78,9 +83,14 @@ func TestAssistantSSEHeartbeatIsACommentWithinThirtySeconds(t *testing.T) {
 		t.Fatalf("heartbeat interval=%s", assistantSSEHeartbeatInterval)
 	}
 	recorder := httptest.NewRecorder()
-	if err := writeAssistantSSEHeartbeat(recorder); err != nil {
-		t.Fatal(err)
-	}
+	httptestx.Adapt(func(_ context.Context, c *app.RequestContext) {
+		writer := sse.NewWriter(c)
+		if err := writeAssistantSSEHeartbeat(c); err != nil {
+			t.Fatal(err)
+		}
+		_ = writer.Close()
+	})(recorder, httptest.NewRequest("GET", "/", nil))
+
 	if got := recorder.Body.String(); got != ": heartbeat\n\n" {
 		t.Fatalf("heartbeat=%q", got)
 	}
@@ -90,11 +100,11 @@ func TestAssistantRunEventsHandlerStreamsIDsAndUsesNewestCursor(t *testing.T) {
 	service := &handlerAssistantService{}
 	req := httptest.NewRequest(http.MethodGet, "/api/v2/assistant/runs/9/events?afterSeq=3", nil)
 	req.Header.Set("Last-Event-ID", "5")
-	req = pathvar.WithVars(req, map[string]string{"id": "9"})
+	req = httptestx.WithVars(req, map[string]string{"id": "9"})
 	req = req.WithContext(jwtx.WithUserIdContext(req.Context(), 7))
 	recorder := httptest.NewRecorder()
 
-	AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service})(recorder, req)
+	httptestx.Adapt(AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service}))(recorder, req)
 
 	if service.received == nil || service.received.UserId != 7 || service.received.RunId != 9 || service.received.AfterSeq != 5 {
 		t.Fatalf("received=%+v", service.received)
@@ -115,7 +125,7 @@ type failedRunService struct {
 	openFailure bool
 }
 
-func (s *failedRunService) SubscribeRunEvents(_ context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+func (s *failedRunService) SubscribeRunEvents(_ context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...callopt.Option) (assistantservice.AssistantService_SubscribeRunEventsClient, error) {
 	if s.openFailure {
 		return nil, s.failure
 	}
@@ -123,7 +133,7 @@ func (s *failedRunService) SubscribeRunEvents(_ context.Context, _ *assistantser
 }
 
 type failedRunStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	events  []*assistantpb.RunEvent
 	failure error
 }
@@ -138,10 +148,10 @@ func (s *failedRunStream) Recv() (*assistantpb.RunEvent, error) {
 }
 func invokeFailedRunService(service *failedRunService) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/api/v2/assistant/runs/9/events", nil)
-	req = pathvar.WithVars(req, map[string]string{"id": "9"})
+	req = httptestx.WithVars(req, map[string]string{"id": "9"})
 	req = req.WithContext(jwtx.WithUserIdContext(req.Context(), 7))
 	rec := httptest.NewRecorder()
-	AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service})(rec, req)
+	httptestx.Adapt(AssistantRunEventsHandler(&svc.ServiceContext{AssistantService: service}))(rec, req)
 	return rec
 }
 func TestAssistantRunEventsHandlerPreservesInitialErrors(t *testing.T) {

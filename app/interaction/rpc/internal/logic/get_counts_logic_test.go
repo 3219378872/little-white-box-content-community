@@ -5,45 +5,46 @@ import (
 
 	model2 "esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 	"testing"
+
+	logx "esx/pkg/logging"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type mockRedisStore struct {
 	mock.Mock
 }
 
-func (m *mockRedisStore) Hget(key, field string) (string, error) {
+func (m *mockRedisStore) Hget(_ context.Context, key, field string) (string, error) {
 	args := m.Called(key, field)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockRedisStore) Hset(key, field, value string) error {
+func (m *mockRedisStore) Hset(_ context.Context, key, field, value string) error {
 	args := m.Called(key, field, value)
 	return args.Error(0)
 }
 
-func (m *mockRedisStore) Expire(key string, seconds int) error {
+func (m *mockRedisStore) Expire(_ context.Context, key string, seconds int) error {
 	args := m.Called(key, seconds)
 	return args.Error(0)
 }
 
-func (m *mockRedisStore) Exists(key string) (bool, error) {
+func (m *mockRedisStore) Exists(_ context.Context, key string) (bool, error) {
 	args := m.Called(key)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *mockRedisStore) Hincrby(key, field string, increment int) (int, error) {
+func (m *mockRedisStore) Hincrby(_ context.Context, key, field string, increment int) (int, error) {
 	args := m.Called(key, field, increment)
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mockRedisStore) Del(key string) error {
+func (m *mockRedisStore) Del(_ context.Context, key string) error {
 	args := m.Called(key)
 	return args.Error(0)
 }
@@ -162,20 +163,20 @@ func TestGetCountsLogic_RedisStore_FromRedis(t *testing.T) {
 
 func TestInvalidateActionCountCache(t *testing.T) {
 	t.Run("no store", func(t *testing.T) {
-		require.NoError(t, invalidateActionCountCache(&svc.ServiceContext{}, 100, 1))
+		require.NoError(t, invalidateActionCountCache(context.Background(), &svc.ServiceContext{}, 100, 1))
 	})
 
 	t.Run("delete key", func(t *testing.T) {
 		store := new(mockRedisStore)
 		store.On("Del", "interaction:action_count:100:1").Return(nil).Once()
-		require.NoError(t, invalidateActionCountCache(&svc.ServiceContext{RedisStore: store}, 100, 1))
+		require.NoError(t, invalidateActionCountCache(context.Background(), &svc.ServiceContext{RedisStore: store}, 100, 1))
 		store.AssertExpectations(t)
 	})
 
 	t.Run("delete failure", func(t *testing.T) {
 		store := new(mockRedisStore)
 		store.On("Del", "interaction:action_count:100:1").Return(assert.AnError).Once()
-		require.ErrorIs(t, invalidateActionCountCache(&svc.ServiceContext{RedisStore: store}, 100, 1), assert.AnError)
+		require.ErrorIs(t, invalidateActionCountCache(context.Background(), &svc.ServiceContext{RedisStore: store}, 100, 1), assert.AnError)
 		store.AssertExpectations(t)
 	})
 }

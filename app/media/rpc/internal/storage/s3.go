@@ -6,9 +6,10 @@ import (
 	"io"
 	"strings"
 
+	logx "esx/pkg/logging"
+
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // Config 聚合对象存储所需参数。

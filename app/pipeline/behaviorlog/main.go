@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"esx/pkg/lifecycle"
+	"esx/pkg/rpcx"
 	"flag"
 	"fmt"
 	"os"
@@ -17,13 +19,15 @@ import (
 	"esx/pkg/cleanupx"
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
+	conf "esx/pkg/configx"
+	logx "esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/behavior-log.yaml", "config file")
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer lifecycle.CloseResources()
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())

@@ -5,11 +5,11 @@ import (
 	"errors"
 	"esx/app/interaction/rpc/internal/model"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type FavoriteLogic struct {
@@ -61,7 +61,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		}
 	}
 
-	if err := invalidateActionCountCache(l.svcCtx, in.PostId, 1); err != nil {
+	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.PostId, 1); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
 		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
 	}

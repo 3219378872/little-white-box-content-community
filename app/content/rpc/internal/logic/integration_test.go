@@ -6,7 +6,7 @@ import (
 	"context"
 	"esx/app/content/rpc/internal/config"
 	"esx/app/content/rpc/internal/svc"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/testutil"
 	"esx/pkg/util"
 	"fmt"
@@ -15,9 +15,10 @@ import (
 
 	"esx/pkg/errx"
 
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 var testEnv *testutil.TestEnv
@@ -33,7 +34,7 @@ func TestMain(m *testing.M) {
 
 	cfg := config.Config{
 		InternalSecret: "test-internal-secret",
-		RpcServerConf:  zrpc.RpcServerConf{},
+		RpcServerConf:  rpcx.RpcServerConf{},
 		DataSource:     testEnv.MySQLDSN,
 	}
 	cfg.Redis.RedisConf = redis.RedisConf{
@@ -56,7 +57,7 @@ func TestMain(m *testing.M) {
 func truncateAll() {
 	tables := []string{"post_tag", "comment", "post", "tag"}
 	for _, table := range tables {
-		if _, err := testSvcCtx.Conn.Exec("DELETE FROM `" + table + "`"); err != nil {
+		if _, err := testSvcCtx.Conn.ExecCtx(context.Background(), "DELETE FROM `"+table+"`"); err != nil {
 			fmt.Fprintf(os.Stderr, "truncate %s 失败: %v\n", table, err)
 			os.Exit(1)
 		}
@@ -74,7 +75,7 @@ func seedTags() {
 	}
 	for _, s := range seeds {
 		id, _ := util.NextID()
-		_, err := testSvcCtx.Conn.Exec(
+		_, err := testSvcCtx.Conn.ExecCtx(context.Background(),
 			"INSERT INTO `tag` (`id`, `name`, `post_count`, `status`) VALUES (?, ?, ?, 1)",
 			id, s.name, s.postCount,
 		)

@@ -7,8 +7,9 @@ import (
 
 	"esx/pkg/mqx"
 
+	conf "esx/pkg/configx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/conf"
 )
 
 func TestCountSyncConsumerConfigRequiresDistinctGroup(t *testing.T) {

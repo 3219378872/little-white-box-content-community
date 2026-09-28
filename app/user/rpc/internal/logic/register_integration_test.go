@@ -4,9 +4,8 @@ package logic
 
 import (
 	"context"
+	pb "esx/kitex_gen/user"
 	"testing"
-
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

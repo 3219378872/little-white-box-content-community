@@ -6,7 +6,7 @@ import (
 
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 type Config struct {

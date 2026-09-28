@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	sqlx "esx/pkg/sqlstore"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type observedSession struct {

@@ -4,11 +4,9 @@ import (
 	"testing"
 
 	clientprometheus "github.com/prometheus/client_golang/prometheus"
-	zeroprometheus "github.com/zeromicro/go-zero/core/prometheus"
 )
 
 func TestBehaviorMetricsExportMQPublishOutcomes(t *testing.T) {
-	zeroprometheus.Enable()
 	behaviorRecordTotal.Inc("accepted")
 	behaviorMQPublishTotal.Inc("success")
 	behaviorMQPublishTotal.Inc("failure")

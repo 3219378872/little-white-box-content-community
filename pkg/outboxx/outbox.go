@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 const (
@@ -52,7 +52,7 @@ type Record struct {
 	CreatedAt int64  `db:"created_at"`
 }
 
-// sqlRecord stays flat because go-zero's SQL mapper does not populate fields
+// sqlRecord stays flat because SQL rows map explicit fields
 // nested in an embedded struct.
 type sqlRecord struct {
 	ID        int64  `db:"id"`

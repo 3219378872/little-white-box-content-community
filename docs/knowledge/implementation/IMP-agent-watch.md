@@ -6,6 +6,14 @@ status: active
 owner: agent
 updated_at: 2026-09-25
 code_paths:
+- pkg/rpcx
+- pkg/httpx
+- pkg/configx
+- pkg/logging
+- pkg/sqlstore
+- pkg/redisstore
+- pkg/cachedstore
+- kitex_gen
 - pkg/interceptor
 - app/assistant/watch
 - app/assistant/mq
@@ -25,26 +33,26 @@ Watch 条件匹配、两分钟 bucket、配额、恢复与主动 Assistant 消�
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| WCH-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-001 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | WCH-002 | DES-assistant-agent-runtime | diverged | gap: 四种规则匹配与 discussion_spike 预筛选已实现，但实际 matcher 未注入 SpikeJudge；阈值达标仅记录 failed，不能产生模型判定命中。 |
-| WCH-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-004 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-003 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-004 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-010 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-011 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-012 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-013 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | WCH-014 | DES-assistant-agent-runtime | unknown | gap: 结构化发布与回源已实现；主动消息语义质量仍缺真实场景评审。 |
-| WCH-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| WCH-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-020 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-021 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-022 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-023 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| WCH-024 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | WCH-A01 | DES-assistant-agent-runtime | diverged | gap: 单测使用注入的 SpikeJudge；实际 matcher 未接入该判定器，不能以 fixture 通过证明 discussion_spike 已交付。 |
-| WCH-A02 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-A02 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | WCH-A03 | DES-assistant-agent-runtime | unknown | gap: 只读工具与抢占路径有测试；真实 SQL 取消交错缺专门集成覆盖。 |
-| WCH-A04 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-A04 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | WCH-A05 | DES-assistant-agent-runtime | unknown | gap: CRUD 与停用有测试；90 天恢复和不可见内容补投缺集成验证。 |
-| WCH-A06 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| WCH-A06 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 
 ## 代码边界
 

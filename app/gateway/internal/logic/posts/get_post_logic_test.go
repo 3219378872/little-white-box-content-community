@@ -4,15 +4,15 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/user/rpc/userservice"
+	contentpb "esx/kitex_gen/content"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeGetPostInteractionService struct {
@@ -21,7 +21,7 @@ type fakeGetPostInteractionService struct {
 	favorited map[int64]bool
 }
 
-func (f *fakeGetPostInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+func (f *fakeGetPostInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 	results := make(map[int64]bool, len(in.TargetIds))
 	for _, id := range in.TargetIds {
 		results[id] = f.liked[id]
@@ -29,7 +29,7 @@ func (f *fakeGetPostInteractionService) BatchCheckLiked(_ context.Context, in *i
 	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
 }
 
-func (f *fakeGetPostInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckFavoritedResp, error) {
+func (f *fakeGetPostInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...callopt.Option) (*interactionservice.BatchCheckFavoritedResp, error) {
 	results := make(map[int64]bool, len(in.PostIds))
 	for _, id := range in.PostIds {
 		results[id] = f.favorited[id]
@@ -39,26 +39,26 @@ func (f *fakeGetPostInteractionService) BatchCheckFavorited(_ context.Context, i
 
 type fakeGetPostContentService struct {
 	contentservice.ContentService
-	getPostFn func(ctx context.Context, in *contentservice.GetPostReq, opts ...grpc.CallOption) (*contentservice.GetPostResp, error)
+	getPostFn func(ctx context.Context, in *contentservice.GetPostReq, opts ...callopt.Option) (*contentservice.GetPostResp, error)
 }
 
-func (f *fakeGetPostContentService) GetPost(ctx context.Context, in *contentservice.GetPostReq, opts ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (f *fakeGetPostContentService) GetPost(ctx context.Context, in *contentservice.GetPostReq, opts ...callopt.Option) (*contentservice.GetPostResp, error) {
 	return f.getPostFn(ctx, in, opts...)
 }
 
 type fakeGetPostUserService struct {
 	userservice.UserService
-	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 }
 
-func (f *fakeGetPostUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (f *fakeGetPostUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	return f.batchGetUsersFn(ctx, in, opts...)
 }
 
 func TestGetPost_ReturnsStatusAndRevision(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakeGetPostContentService{
-			getPostFn: func(_ context.Context, in *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+			getPostFn: func(_ context.Context, in *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 				if in.PostId != 11 {
 					t.Fatalf("unexpected post id %d", in.PostId)
 				}
@@ -84,7 +84,7 @@ func TestGetPost_ReturnsStatusAndRevision(t *testing.T) {
 func TestGetPost_AuthenticatedFillsViewerState(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakeGetPostContentService{
-			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 				return &contentservice.GetPostResp{Post: &contentpb.PostInfo{
 					Id: 11, AuthorId: 7, Title: "pub", Content: "body", Status: 1, Revision: 2,
 				}}, nil
@@ -109,14 +109,14 @@ func TestGetPost_AuthenticatedFillsViewerState(t *testing.T) {
 func TestGetPost_HydratesAuthorProfile(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakeGetPostContentService{
-			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+			getPostFn: func(_ context.Context, _ *contentservice.GetPostReq, _ ...callopt.Option) (*contentservice.GetPostResp, error) {
 				return &contentservice.GetPostResp{Post: &contentpb.PostInfo{
 					Id: 11, AuthorId: 7, Title: "pub", Content: "body", Status: 1, Revision: 2,
 				}}, nil
 			},
 		},
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				if len(in.UserIds) != 1 || in.UserIds[0] != 7 {
 					t.Fatalf("unexpected author ids %+v", in.UserIds)
 				}

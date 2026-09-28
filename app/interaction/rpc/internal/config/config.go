@@ -4,14 +4,14 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret string
 	DataSource     string
 	MQ             mqx.ProducerConfig
 	Outbox         outboxx.Config
-	ContentRpc     zrpc.RpcClientConf `json:",optional"`
+	ContentRpc     rpcx.RpcClientConf `json:",optional"`
 }

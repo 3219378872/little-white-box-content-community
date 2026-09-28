@@ -1,31 +1,28 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package config
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/zeromicro/go-zero/rest"
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/lifecycle"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	RestConf rest.RestConf
+	RestConf HTTPConfig
 	Auth     struct {
 		AccessSecret string
 		AccessExpire int64
 	}
-	UserRpc        zrpc.RpcClientConf
-	ContentRpc     zrpc.RpcClientConf
-	MediaRpc       zrpc.RpcClientConf
-	InteractionRpc zrpc.RpcClientConf
-	BehaviorRpc    zrpc.RpcClientConf
-	FeedRpc        zrpc.RpcClientConf
-	MessageRpc     zrpc.RpcClientConf
-	SearchRpc      zrpc.RpcClientConf
-	AssistantRpc   zrpc.RpcClientConf
+	UserRpc        rpcx.RpcClientConf
+	ContentRpc     rpcx.RpcClientConf
+	MediaRpc       rpcx.RpcClientConf
+	InteractionRpc rpcx.RpcClientConf
+	BehaviorRpc    rpcx.RpcClientConf
+	FeedRpc        rpcx.RpcClientConf
+	MessageRpc     rpcx.RpcClientConf
+	SearchRpc      rpcx.RpcClientConf
+	AssistantRpc   rpcx.RpcClientConf
 	InternalSecret string
 }
 
@@ -39,4 +36,12 @@ func (c Config) Validate() error {
 		return fmt.Errorf("gateway InternalSecret is required; set RPC_INTERNAL_SECRET")
 	}
 	return nil
+}
+
+// HTTPConfig keeps the established deployment YAML stable while Hertz owns HTTP.
+type HTTPConfig struct {
+	lifecycle.ServiceConf
+	Host     string
+	Port     int
+	MaxBytes int64 `json:",default=10485760"`
 }

@@ -6,8 +6,8 @@ import (
 
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/zrpc"
+	service "esx/pkg/lifecycle"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
@@ -15,7 +15,7 @@ type Config struct {
 	MQ               mqx.ConsumerConfig
 	Embedding        EmbeddingConfig
 	Milvus           MilvusConfig
-	ContentRpc       zrpc.RpcClientConf `json:",optional"`
+	ContentRpc       rpcx.RpcClientConf `json:",optional"`
 	Rebuild          RebuildConfig      `json:",optional"`
 	StartupTimeoutMs int64              `json:",default=30000,range=[100:300000]"`
 	InternalSecret   string

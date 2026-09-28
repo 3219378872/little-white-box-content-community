@@ -6,6 +6,14 @@ status: active
 owner: agent
 updated_at: 2026-09-25
 code_paths:
+- pkg/rpcx
+- pkg/httpx
+- pkg/configx
+- pkg/logging
+- pkg/sqlstore
+- pkg/redisstore
+- pkg/cachedstore
+- kitex_gen
 - pkg/interceptor
 - app/content
 - app/interaction
@@ -31,49 +39,49 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| CORE-001 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-002 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-003 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-004 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-005 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-010 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-011 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-012 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-013 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-014 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-015 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-016 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-020 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-021 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-022 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-023 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-024 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-030 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-031 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
+| CORE-001 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-002 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-003 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-004 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-005 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-010 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-011 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-012 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-013 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-014 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-015 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-016 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-020 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-021 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-022 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-023 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-024 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-030 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-031 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-032 | DES-content-community-backend | unknown | gap: 访问者互动状态已可立即读取；公开计数 30 秒收敛仍缺生产观测。 |
-| CORE-033 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-034 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-040 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-041 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-042 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-043 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-044 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-050 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-051 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-052 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-053 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-054 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-060 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-061 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-062 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-063 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A01 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A02 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A03 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A04 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A05 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A06 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| CORE-A07 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
+| CORE-033 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-034 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-040 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-041 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-042 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-043 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-044 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-050 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-051 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-052 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-053 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-054 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-060 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-061 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-062 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-063 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A01 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A02 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A03 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A04 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A05 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A06 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| CORE-A07 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 
 ## 代码边界
 

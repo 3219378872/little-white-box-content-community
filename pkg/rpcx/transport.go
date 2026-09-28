@@ -1,0 +1,394 @@
+package rpcx
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"esx/pkg/errx"
+	"esx/pkg/lifecycle"
+	"esx/pkg/logging"
+	"fmt"
+	"io"
+	"net"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/cloudwego/kitex/pkg/registry"
+
+	"github.com/cloudwego/kitex/client"
+	"github.com/cloudwego/kitex/pkg/circuitbreak"
+	"github.com/cloudwego/kitex/pkg/discovery"
+	"github.com/cloudwego/kitex/pkg/endpoint"
+	"github.com/cloudwego/kitex/pkg/limit"
+	"github.com/cloudwego/kitex/pkg/remote"
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/codes"
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/status"
+	"github.com/cloudwego/kitex/pkg/rpcinfo"
+	"github.com/cloudwego/kitex/pkg/streaming"
+	"github.com/cloudwego/kitex/server"
+	"github.com/cloudwego/kitex/transport"
+	etcd "github.com/kitex-contrib/registry-etcd"
+	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	grpcstatus "google.golang.org/grpc/status"
+)
+
+func WithTraceID(ctx context.Context, id string) context.Context {
+	return logging.WithTraceID(ctx, id)
+}
+func TraceID(ctx context.Context) string { return logging.TraceID(ctx) }
+
+var calls = prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: "esx", Subsystem: "rpc", Name: "requests_total", Help: "RPC requests by side, method and outcome"}, []string{"side", "method", "code"})
+var latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{Namespace: "esx", Subsystem: "rpc", Name: "duration_seconds", Help: "RPC duration through response completion"}, []string{"side", "method"})
+
+func init() { prometheus.MustRegister(calls, latency); logging.ConfigureFrameworks() }
+func fullMethod(ctx context.Context) string {
+	i := rpcinfo.GetRPCInfo(ctx).Invocation()
+	name := i.ServiceName()
+	if i.PackageName() != "" {
+		name = i.PackageName() + "." + name
+	}
+	return "/" + name + "/" + i.MethodName()
+}
+func signature(secret, ts, method string) string {
+	h := hmac.New(sha256.New, []byte(secret))
+	_, _ = h.Write([]byte(ts))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write([]byte(method))
+	return hex.EncodeToString(h.Sum(nil))
+}
+func exempt(method string) bool { return strings.HasPrefix(method, "/grpc.health.v1.Health/") }
+func authClient(secret string) func(context.Context) (context.Context, error) {
+	return func(ctx context.Context) (context.Context, error) {
+		method := fullMethod(ctx)
+		md, _ := metadata.FromOutgoingContext(ctx)
+		md = md.Copy()
+		if md == nil {
+			md = metadata.MD{}
+		}
+		if secret != "" && !exempt(method) {
+			ts := strconv.FormatInt(time.Now().Unix(), 10)
+			md.Set("x-internal-timestamp", ts)
+			md.Set("x-internal-signature", signature(secret, ts, method))
+		}
+		if id := TraceID(ctx); id != "" {
+			md.Set("trace_id", id)
+		}
+		return metadata.NewOutgoingContext(ctx, md), nil
+	}
+}
+func authServer(secret string) func(context.Context) (context.Context, error) {
+	return func(ctx context.Context) (context.Context, error) {
+		method := fullMethod(ctx)
+		if exempt(method) {
+			return ctx, nil
+		}
+		md, _ := metadata.FromIncomingContext(ctx)
+		ts, sig := md.Get("x-internal-timestamp"), md.Get("x-internal-signature")
+		if len(ts) != 1 || len(sig) != 1 {
+			return ctx, status.Err(codes.Unauthenticated, "internal credentials missing")
+		}
+		n, e := strconv.ParseInt(ts[0], 10, 64)
+		if e != nil {
+			return ctx, status.Err(codes.Unauthenticated, "internal timestamp malformed")
+		}
+		skew := time.Since(time.Unix(n, 0))
+		if skew > 5*time.Minute || skew < -5*time.Minute {
+			return ctx, status.Err(codes.Unauthenticated, "internal timestamp expired")
+		}
+		if !hmac.Equal([]byte(signature(secret, ts[0], method)), []byte(sig[0])) {
+			return ctx, status.Err(codes.PermissionDenied, "internal signature mismatch")
+		}
+		if ids := md.Get("trace_id"); len(ids) == 1 {
+			ctx = WithTraceID(ctx, ids[0])
+		}
+		return ctx, nil
+	}
+}
+func ToTransportError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var native interface{ GRPCStatus() *status.Status }
+	if errors.As(err, &native) {
+		return native.GRPCStatus().Err()
+	}
+	if s, ok := grpcstatus.FromError(err); ok {
+		return status.FromProto(grpcstatus.Convert(errx.FromGRPCError(s.Err())).Proto()).Err()
+	}
+	if errors.Is(err, context.Canceled) {
+		return status.Err(codes.Canceled, "request canceled")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return status.Err(codes.DeadlineExceeded, "request timed out")
+	}
+	return status.FromProto(grpcstatus.Convert(errx.NewWithCode(errx.SystemError)).Proto()).Err()
+}
+func FromTransportError(err error) error {
+	if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+		return err
+	}
+	if err == nil {
+		return nil
+	}
+	var native interface{ GRPCStatus() *status.Status }
+	if errors.As(err, &native) {
+		return errx.FromGRPCError(grpcstatus.FromProto(native.GRPCStatus().Proto()).Err())
+	}
+	return errx.FromRPCError(err)
+}
+
+// A Kitex tracer finishes with the stream, so latency includes all frames.
+type observationKey struct{ side string }
+type observer struct{ side string }
+
+func (o observer) Start(ctx context.Context) context.Context {
+	return context.WithValue(ctx, observationKey(o), time.Now())
+}
+func (o observer) Finish(ctx context.Context) {
+	started, ok := ctx.Value(observationKey(o)).(time.Time)
+	if !ok {
+		return
+	}
+	info := rpcinfo.GetRPCInfo(ctx)
+	if info == nil {
+		return
+	}
+	err := info.Stats().Error()
+	method := fullMethod(ctx)
+	code := "OK"
+	if err != nil {
+		code = "error"
+	}
+	calls.WithLabelValues(o.side, method, code).Inc()
+	latency.WithLabelValues(o.side, method).Observe(time.Since(started).Seconds())
+	if err != nil {
+		logging.WithContext(ctx).Errorw("rpc call failed", logging.Field("side", o.side), logging.Field("method", method), logging.Field("duration_ms", time.Since(started).Milliseconds()))
+	}
+}
+func observed(side string) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req, resp any) error {
+			err := next(ctx, req, resp)
+			if side == "server" {
+				return ToTransportError(err)
+			}
+			return FromTransportError(err)
+		}
+	}
+}
+
+type ClientOption func(*clientSpec)
+type Client interface {
+	Options() []client.Option
+	ServiceName() string
+	Probe(context.Context) error
+	Track(io.Closer)
+	Close() error
+}
+type clientSpec struct {
+	conf     RpcClientConf
+	secret   string
+	resolver discovery.Resolver
+	mu       sync.Mutex
+	closers  []io.Closer
+	cancel   context.CancelFunc
+}
+
+func WithInternalAuth(secret string) ClientOption {
+	if strings.TrimSpace(secret) == "" {
+		panic("RPC_INTERNAL_SECRET is required")
+	}
+	return func(c *clientSpec) { c.secret = secret }
+}
+func NewClient(c RpcClientConf, opts ...ClientOption) (Client, error) {
+	spec := &clientSpec{conf: c}
+	clientsMu.Lock()
+	allClients = append(allClients, spec)
+	clientsMu.Unlock()
+	for _, opt := range opts {
+		opt(spec)
+	}
+	if len(c.Etcd.Hosts) > 0 && len(c.Endpoints) == 0 && c.Target == "" {
+		resolverCtx, cancel := context.WithCancel(context.Background())
+		spec.cancel = cancel
+		r, e := etcd.NewEtcdResolver(c.Etcd.Hosts, etcdOptions(resolverCtx, c.Etcd)...)
+		if e != nil {
+			cancel()
+			return nil, e
+		}
+		spec.resolver = r
+	} else if len(c.Endpoints) == 0 && c.Target == "" {
+		return nil, fmt.Errorf("RPC destination is required")
+	}
+	return spec, nil
+}
+func MustNewClient(c RpcClientConf, opts ...ClientOption) Client {
+	v, e := NewClient(c, opts...)
+	if e != nil {
+		panic(e)
+	}
+	return v
+}
+func (c *clientSpec) ServiceName() string {
+	if c.conf.Etcd.Key != "" {
+		return c.conf.Etcd.Key
+	}
+	return "direct.rpc"
+}
+func (c *clientSpec) addresses() []string {
+	if len(c.conf.Endpoints) > 0 {
+		return c.conf.Endpoints
+	}
+	if c.conf.Target != "" {
+		return []string{strings.TrimPrefix(c.conf.Target, "dns:///")}
+	}
+	return nil
+}
+func (c *clientSpec) Options() []client.Option {
+	opts := []client.Option{client.WithTransportProtocol(transport.GRPC), client.WithConnectTimeout(time.Second), client.WithMiddleware(observed("client")), client.WithTracer(observer{side: "client"}), client.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnConnectStream(authClient(c.secret)))), client.WithCircuitBreaker(circuitbreak.NewCBSuite(circuitbreak.RPCInfo2Key))}
+	// Unary deadlines must not impose a two-second lifetime on media/SSE streams.
+	timeout := c.conf.Timeout
+	if timeout <= 0 {
+		timeout = 2000
+	}
+	opts = append(opts, client.WithUnaryOptions(client.WithUnaryRPCTimeout(time.Duration(timeout)*time.Millisecond)))
+	if c.resolver != nil {
+		opts = append(opts, client.WithResolver(c.resolver))
+	} else {
+		opts = append(opts, client.WithHostPorts(c.addresses()...))
+	}
+	return opts
+}
+func (c *clientSpec) Probe(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	addresses := c.addresses()
+	if c.resolver != nil {
+		r, e := c.resolver.Resolve(ctx, c.ServiceName())
+		if e != nil {
+			return e
+		}
+		for _, i := range r.Instances {
+			addresses = append(addresses, i.Address().String())
+		}
+	}
+	for _, addr := range addresses {
+		conn, e := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithNoProxy())
+		if e != nil {
+			continue
+		}
+		reply, e := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+		_ = conn.Close()
+		if e == nil && reply.Status == healthpb.HealthCheckResponse_SERVING {
+			return nil
+		}
+	}
+	return fmt.Errorf("RPC dependency unavailable")
+}
+func ServerOptions(c RpcServerConf, secret string) []server.Option {
+	if strings.TrimSpace(secret) == "" {
+		panic("RPC_INTERNAL_SECRET is required")
+	}
+	addr, err := net.ResolveTCPAddr("tcp", c.ListenOn)
+	if err != nil {
+		panic(err)
+	}
+	c.MustSetUp()
+	opts := []server.Option{server.WithServiceAddr(addr), server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{ServiceName: c.Name}), server.WithMiddleware(observed("server")), server.WithTracer(observer{side: "server"}), server.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnReadStream(authServer(secret)))), server.WithLimit(&limit.Option{MaxConnections: c.MaxConnections, MaxQPS: c.MaxQPS}), server.WithExitWaitTime(10 * time.Second)}
+	if c.Health {
+		opts = append(opts, server.WithGRPCUnknownServiceHandler(func(ctx context.Context, method string, stream streaming.Stream) error {
+			if method != "Check" || fullMethod(ctx) != "/grpc.health.v1.Health/Check" {
+				return status.Err(codes.Unimplemented, "unknown method")
+			}
+			var req healthpb.HealthCheckRequest
+			if err := stream.RecvMsg(&req); err != nil {
+				return err
+			}
+			return stream.SendMsg(&healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING})
+		}))
+	}
+	if len(c.Etcd.Hosts) > 0 {
+		registryCtx, cancel := context.WithCancel(context.Background())
+		r, e := etcd.NewEtcdRegistry(c.Etcd.Hosts, etcdOptions(registryCtx, c.Etcd)...)
+		if e != nil {
+			panic(e)
+		}
+		managed := &managedRegistry{Registry: r, cancel: cancel}
+		lifecycle.TrackResource(managed)
+		opts = append(opts, server.WithRegistry(managed))
+	}
+	return opts
+}
+
+// NewGRPCClient is restricted to the independent Python inference trust domain.
+func NewGRPCClient(c RpcClientConf) (*grpc.ClientConn, error) {
+	target := c.Target
+	if target == "" && len(c.Endpoints) > 0 {
+		target = c.Endpoints[0]
+	}
+	if target == "" {
+		return nil, fmt.Errorf("python RPC target is required")
+	}
+	return grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithNoProxy())
+}
+
+var clientsMu sync.Mutex
+var allClients []*clientSpec
+
+func (c *clientSpec) Track(closer io.Closer) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.closers = append(c.closers, closer)
+}
+func (c *clientSpec) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var errs []error
+	for _, v := range c.closers {
+		errs = append(errs, v.Close())
+	}
+	c.closers = nil
+	if c.cancel != nil {
+		c.cancel()
+	}
+	return errors.Join(errs...)
+}
+func CloseAllClients() {
+	clientsMu.Lock()
+	clients := allClients
+	allClients = nil
+	clientsMu.Unlock()
+	for _, c := range clients {
+		_ = c.Close()
+	}
+}
+
+func etcdOptions(ctx context.Context, c EtcdConf) []etcd.Option {
+	return []etcd.Option{etcd.WithAuthOpt(c.User, c.Pass), etcd.WithEtcdServicePrefix(RegistryPrefix), etcd.WithDialTimeoutOpt(3 * time.Second), func(cfg *etcd.Config) {
+		cfg.EtcdConfig.Context = ctx
+		cfg.EtcdConfig.DialOptions = append(cfg.EtcdConfig.DialOptions, grpc.WithNoProxy())
+		cfg.EtcdConfig.Logger = zap.NewNop()
+	}}
+}
+
+// The pinned plugin owns its etcd client. Cancel its background context after
+// deregistration, including startup failure where Deregister may never run.
+type managedRegistry struct {
+	registry.Registry
+	cancel context.CancelFunc
+}
+
+func (r *managedRegistry) Deregister(info *registry.Info) error {
+	defer r.cancel()
+	return r.Registry.Deregister(info)
+}
+func (r *managedRegistry) Close() error { r.cancel(); return nil }

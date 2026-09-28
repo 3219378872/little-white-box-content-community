@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 func (m *MemoryStore) LockThread(_ context.Context, userID int64) (*Thread, error) {

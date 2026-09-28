@@ -6,18 +6,18 @@
 
 ## 项目事实
 
-- 根模块为 `esx`，Go 版本见 `go.mod`，框架为 go-zero。
+- 根模块为 `esx`，Go 版本见 `go.mod`，RPC 框架为 Kitex，HTTP 框架为 Hertz。
 - `app/` 包含 Gateway、用户、内容、互动、Feed、搜索、推荐、行为和 Assistant 等服务。
 - `pkg/` 包含错误、鉴权、中间件、事件、MQ、缓存和测试工具等共享代码。
-- 运行时事实以源码、配置、`.api`、`.proto` 和测试为准，知识页面不能覆盖实际行为。
+- 运行时事实以源码、配置、`openapi.yaml`、`.proto` 和测试为准，知识页面不能覆盖实际行为。
 
 ## 不可违反的代码规则
 
 - Handler 只绑定参数、调用 Logic、返回响应；业务逻辑放 Logic，数据访问放 Model。
-- 请求上下文必须透传；日志用 `logx.WithContext(ctx)`，RPC 调用使用入参 `ctx`。
+- 请求上下文必须透传；日志用 `logging.WithContext(ctx)`，RPC 调用使用入参 `ctx`。
 - Logic 返回 `pkg/errx` 业务错误；禁止裸 `errors.New` 和 Handler 手动设置 HTTP 错误状态。
 - 配置从 `etc/*.yaml` 和 `config.Config` 注入；secret 只经环境变量，禁止硬编码。
-- 禁止手改 goctl/protobuf 生成文件；改 `.api` 或 `.proto` 后运行 `make generate` 并检查差异。
+- 禁止手改 OpenAPI/Kitex/protobuf 生成文件；改 `openapi.yaml` 或 `.proto` 后运行 `make generate` 并检查差异。
 - 不为通过测试修改测试；修复实现并覆盖至少一个失败路径。
 - 不引入新依赖，除非用户明确批准。
 

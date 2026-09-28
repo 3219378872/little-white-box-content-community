@@ -5,7 +5,7 @@ package logic
 import (
 	"bytes"
 	"context"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"image"
 	"image/color"
@@ -13,15 +13,16 @@ import (
 	"io"
 	"testing"
 
+	"github.com/cloudwego/kitex/pkg/streaming"
+
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 // fakeUploadImageStream 模拟 pb.MediaService_UploadImageServer。
 type fakeUploadImageStream struct {
-	grpc.ServerStream
+	streaming.Stream
 	reqs []*pb.UploadImageReq
 	idx  int
 	resp *pb.UploadImageResp

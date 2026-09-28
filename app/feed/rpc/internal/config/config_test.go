@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
 func TestConfigValidateRequiresCursorSecret(t *testing.T) {

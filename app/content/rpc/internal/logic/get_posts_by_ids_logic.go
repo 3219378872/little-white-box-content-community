@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"esx/app/content/rpc/internal/svc"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type GetPostsByIdsLogic struct {

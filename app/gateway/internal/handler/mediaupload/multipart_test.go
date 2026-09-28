@@ -3,6 +3,7 @@ package mediaupload
 import (
 	"bytes"
 	"esx/pkg/errx"
+	"esx/pkg/httptestx"
 	"mime/multipart"
 	"net/http/httptest"
 	"testing"
@@ -22,8 +23,9 @@ func TestFileLimitExcludesMultipartOverhead(t *testing.T) {
 		require.NoError(t, mw.Close())
 		r := httptest.NewRequest("POST", "/", &b)
 		r.Header.Set("Content-Type", mw.FormDataContentType())
-		defer Cleanup(r)
-		file, h, key, e := Bind(httptest.NewRecorder(), r, 16)
+		c := httptestx.Context(r)
+		defer Cleanup(c)
+		file, h, key, e := Bind(c, 16)
 		if size > 16 {
 			require.True(t, errx.Is(e, errx.FileTooLarge))
 			continue

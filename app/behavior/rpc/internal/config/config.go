@@ -3,11 +3,11 @@ package config
 import (
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret       string
 	MQ                   mqx.ProducerConfig
 	MaxBatchSize         int   `json:",default=100"`

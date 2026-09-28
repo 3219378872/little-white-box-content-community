@@ -5,18 +5,19 @@ import (
 	"io"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/assistant/rpc/assistantservice"
-	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	assistantpb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeRunStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	ctx    context.Context
 	events []*assistantpb.RunEvent
 	index  int
@@ -37,12 +38,12 @@ type fakeAssistant struct {
 	subscribed *assistantservice.SubscribeRunEventsReq
 }
 
-func (f *fakeAssistant) PostMessage(_ context.Context, in *assistantservice.PostMessageReq, _ ...grpc.CallOption) (*assistantpb.PostMessageResp, error) {
+func (f *fakeAssistant) PostMessage(_ context.Context, in *assistantservice.PostMessageReq, _ ...callopt.Option) (*assistantpb.PostMessageResp, error) {
 	f.posted = in
 	return &assistantpb.PostMessageResp{MessageId: 3, SessionId: 2, RunId: 9, Disposition: "started"}, nil
 }
 
-func (f *fakeAssistant) SubscribeRunEvents(ctx context.Context, req *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+func (f *fakeAssistant) SubscribeRunEvents(ctx context.Context, req *assistantservice.SubscribeRunEventsReq, _ ...callopt.Option) (assistantservice.AssistantService_SubscribeRunEventsClient, error) {
 	f.subscribed = req
 	return &fakeRunStream{ctx: ctx, events: []*assistantpb.RunEvent{
 		{RunId: 9, Seq: 1, Type: "token", Text: "hi", SessionId: 2},

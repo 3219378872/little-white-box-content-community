@@ -5,12 +5,13 @@ import (
 	"errors"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"google.golang.org/grpc/metadata"
+	logx "esx/pkg/logging"
+
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 )
 
 const recordViewMetadata = "x-xbh-record-view"

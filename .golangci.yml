@@ -24,8 +24,8 @@ linters:
       - ".*\\.pb\\.go$"
       - ".*_grpc\\.pb\\.go$"
       - ".*_gen\\.go$"
-      # goctl-generated files (cwd-agnostic so per-module lint also matches).
-      # Editing these is prohibited; they are regenerated from .api / .proto.
+      # Contract-generated files (cwd-agnostic so per-module lint also matches).
+      # Editing these is prohibited; they are regenerated from OpenAPI / .proto.
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
       - "(.*/)?internal/handler/.*_handler\\.go$"
@@ -40,10 +40,10 @@ linters:
         linters:
           - errcheck
         text: "Error return value of `httpx\\.Parse` is not checked"
-      # go-zero uses custom JSON struct tags (json:",optional", json:",default=…")
+      # Project configx uses custom JSON struct tags (json:",optional", json:",default=…")
       # that staticcheck's SA5008 doesn't recognise — suppress the false positives
       # only in config structs where these tags are idiomatic.
-      - path: "(.*/)?internal/config/.*\\.go$"
+      - path: "((.*/)?internal/config/|pkg/(configx|lifecycle|redisstore|rpcx|logging|httpx)/).*\\.go$"
         linters:
           - staticcheck
         text: "SA5008"
@@ -58,8 +58,8 @@ formatters:
       - ".*\\.pb\\.go$"
       - ".*_grpc\\.pb\\.go$"
       - ".*_gen\\.go$"
-      # goctl-generated files (cwd-agnostic so per-module lint also matches).
-      # Editing these is prohibited; they are regenerated from .api / .proto.
+      # Contract-generated files (cwd-agnostic so per-module lint also matches).
+      # Editing these is prohibited; they are regenerated from OpenAPI / .proto.
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
       - "(.*/)?internal/handler/.*_handler\\.go$"

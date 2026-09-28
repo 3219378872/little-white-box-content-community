@@ -1,27 +1,25 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package handler
 
 import (
-	"net/http"
+	"context"
+	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // 就绪检查
-func HealthReadyHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		l := logic.NewHealthReadyLogic(r.Context(), svcCtx)
+func HealthReadyHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		l := logic.NewHealthReadyLogic(ctx, svcCtx)
 		resp, err := l.HealthReady(&types.HealthReq{})
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(ctx, c, resp)
 		}
 	}
 }

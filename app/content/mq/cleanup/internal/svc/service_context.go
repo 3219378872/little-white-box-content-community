@@ -7,7 +7,7 @@ import (
 	"esx/app/content/mq/cleanup/internal/config"
 	"esx/app/content/mq/cleanup/internal/store"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 type ServiceContext struct {

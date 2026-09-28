@@ -4,7 +4,7 @@ package logic
 
 import (
 	"context"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"testing"
 

@@ -9,7 +9,7 @@ import (
 	"esx/app/behavior/rpc/internal/config"
 	"esx/app/behavior/rpc/internal/publisher"
 	"esx/app/behavior/rpc/internal/svc"
-	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
+	pb "esx/kitex_gen/behavior"
 	"esx/pkg/errx"
 	"esx/pkg/event"
 

@@ -15,7 +15,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/testutil"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 var assistantTestEnv *testutil.TestEnv

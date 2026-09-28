@@ -4,30 +4,30 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeSearchService struct {
 	searchservice.SearchService
-	searchFn      func(context.Context, *searchservice.SearchReq, ...grpc.CallOption) (*searchservice.SearchResp, error)
-	searchUsersFn func(context.Context, *searchservice.SearchUsersReq, ...grpc.CallOption) (*searchservice.SearchUsersResp, error)
-	searchTagsFn  func(context.Context, *searchservice.SearchTagsReq, ...grpc.CallOption) (*searchservice.SearchTagsResp, error)
+	searchFn      func(context.Context, *searchservice.SearchReq, ...callopt.Option) (*searchservice.SearchResp, error)
+	searchUsersFn func(context.Context, *searchservice.SearchUsersReq, ...callopt.Option) (*searchservice.SearchUsersResp, error)
+	searchTagsFn  func(context.Context, *searchservice.SearchTagsReq, ...callopt.Option) (*searchservice.SearchTagsResp, error)
 }
 
-func (f *fakeSearchService) Search(ctx context.Context, in *searchservice.SearchReq, opts ...grpc.CallOption) (*searchservice.SearchResp, error) {
+func (f *fakeSearchService) Search(ctx context.Context, in *searchservice.SearchReq, opts ...callopt.Option) (*searchservice.SearchResp, error) {
 	return f.searchFn(ctx, in, opts...)
 }
 
-func (f *fakeSearchService) SearchUsers(ctx context.Context, in *searchservice.SearchUsersReq, opts ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+func (f *fakeSearchService) SearchUsers(ctx context.Context, in *searchservice.SearchUsersReq, opts ...callopt.Option) (*searchservice.SearchUsersResp, error) {
 	return f.searchUsersFn(ctx, in, opts...)
 }
 
-func (f *fakeSearchService) SearchTags(ctx context.Context, in *searchservice.SearchTagsReq, opts ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+func (f *fakeSearchService) SearchTags(ctx context.Context, in *searchservice.SearchTagsReq, opts ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 	return f.searchTagsFn(ctx, in, opts...)
 }
 
@@ -36,7 +36,7 @@ func TestSearch_MapsAllResultKinds(t *testing.T) {
 	ctxKey := requestContextKey{}
 	ctx := context.WithValue(context.Background(), ctxKey, "preserved")
 	svcCtx := &svc.ServiceContext{SearchService: &fakeSearchService{
-		searchFn: func(gotCtx context.Context, in *searchservice.SearchReq, _ ...grpc.CallOption) (*searchservice.SearchResp, error) {
+		searchFn: func(gotCtx context.Context, in *searchservice.SearchReq, _ ...callopt.Option) (*searchservice.SearchResp, error) {
 			if gotCtx.Value(ctxKey) != "preserved" {
 				t.Fatal("request context was not propagated")
 			}
@@ -77,7 +77,7 @@ func TestSearch_MapsAllResultKinds(t *testing.T) {
 
 func TestSearchUsers_MapsResponse(t *testing.T) {
 	svcCtx := &svc.ServiceContext{SearchService: &fakeSearchService{
-		searchUsersFn: func(_ context.Context, in *searchservice.SearchUsersReq, _ ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+		searchUsersFn: func(_ context.Context, in *searchservice.SearchUsersReq, _ ...callopt.Option) (*searchservice.SearchUsersResp, error) {
 			if in.Keyword != "alice" || in.Page != 1 || in.PageSize != 20 {
 				t.Fatalf("unexpected rpc request: %+v", in)
 			}
@@ -99,7 +99,7 @@ func TestSearchUsers_MapsResponse(t *testing.T) {
 
 func TestSearchTags_MapsResponse(t *testing.T) {
 	svcCtx := &svc.ServiceContext{SearchService: &fakeSearchService{
-		searchTagsFn: func(_ context.Context, in *searchservice.SearchTagsReq, _ ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+		searchTagsFn: func(_ context.Context, in *searchservice.SearchTagsReq, _ ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 			if in.Keyword != "go" || in.Limit != 5 {
 				t.Fatalf("unexpected rpc request: %+v", in)
 			}
@@ -119,15 +119,15 @@ func TestSearchTags_MapsResponse(t *testing.T) {
 func TestSearchLogics_RejectEmptyKeywordWithoutRPC(t *testing.T) {
 	called := false
 	fake := &fakeSearchService{
-		searchFn: func(context.Context, *searchservice.SearchReq, ...grpc.CallOption) (*searchservice.SearchResp, error) {
+		searchFn: func(context.Context, *searchservice.SearchReq, ...callopt.Option) (*searchservice.SearchResp, error) {
 			called = true
 			return &searchservice.SearchResp{}, nil
 		},
-		searchUsersFn: func(context.Context, *searchservice.SearchUsersReq, ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+		searchUsersFn: func(context.Context, *searchservice.SearchUsersReq, ...callopt.Option) (*searchservice.SearchUsersResp, error) {
 			called = true
 			return &searchservice.SearchUsersResp{}, nil
 		},
-		searchTagsFn: func(context.Context, *searchservice.SearchTagsReq, ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+		searchTagsFn: func(context.Context, *searchservice.SearchTagsReq, ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 			called = true
 			return &searchservice.SearchTagsResp{}, nil
 		},
@@ -166,13 +166,13 @@ func TestSearchLogics_RejectEmptyKeywordWithoutRPC(t *testing.T) {
 
 func TestSearchLogics_RPCError(t *testing.T) {
 	fake := &fakeSearchService{
-		searchFn: func(context.Context, *searchservice.SearchReq, ...grpc.CallOption) (*searchservice.SearchResp, error) {
+		searchFn: func(context.Context, *searchservice.SearchReq, ...callopt.Option) (*searchservice.SearchResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		searchUsersFn: func(context.Context, *searchservice.SearchUsersReq, ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+		searchUsersFn: func(context.Context, *searchservice.SearchUsersReq, ...callopt.Option) (*searchservice.SearchUsersResp, error) {
 			return nil, context.DeadlineExceeded
 		},
-		searchTagsFn: func(context.Context, *searchservice.SearchTagsReq, ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+		searchTagsFn: func(context.Context, *searchservice.SearchTagsReq, ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 			return nil, context.DeadlineExceeded
 		},
 	}

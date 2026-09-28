@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type SafetyConfig struct {
@@ -11,15 +11,15 @@ type SafetyConfig struct {
 }
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret     string
 	DataSource         string `json:",optional"`
-	SearchRpc          zrpc.RpcClientConf
-	ContentRpc         zrpc.RpcClientConf
-	MediaRpc           zrpc.RpcClientConf
-	RecommendRpc       zrpc.RpcClientConf
-	InteractionRpc     zrpc.RpcClientConf
-	UserRpc            zrpc.RpcClientConf
+	SearchRpc          rpcx.RpcClientConf
+	ContentRpc         rpcx.RpcClientConf
+	MediaRpc           rpcx.RpcClientConf
+	RecommendRpc       rpcx.RpcClientConf
+	InteractionRpc     rpcx.RpcClientConf
+	UserRpc            rpcx.RpcClientConf
 	MaxMessageRunes    int `json:",default=2000,range=[1:10000]"`
 	QuotaWindowSeconds int `json:",default=60,range=[1:86400]"`
 	QuotaRequests      int `json:",default=20,range=[1:10000]"`

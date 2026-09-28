@@ -6,6 +6,14 @@ status: active
 owner: agent
 updated_at: 2026-09-25
 code_paths:
+- pkg/rpcx
+- pkg/httpx
+- pkg/configx
+- pkg/logging
+- pkg/sqlstore
+- pkg/redisstore
+- pkg/cachedstore
+- kitex_gen
 - pkg/interceptor
 - app/assistant/internal/memory
 - app/assistant/internal/runtime
@@ -24,31 +32,31 @@ MEMORY/USER、容量与版本、审查、撤销和不可信 sidecar。
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| MEM-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-004 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| MEM-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-025 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| MEM-030 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-031 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-032 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-033 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-A01 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-A02 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-A03 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| MEM-A04 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-001 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-002 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-003 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-004 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-010 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-011 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-012 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-013 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-014 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-020 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-021 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-022 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-023 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-024 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-025 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-030 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-031 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-032 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-033 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-A01 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-A02 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-A03 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| MEM-A04 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | MEM-A05 | DES-assistant-agent-runtime | unknown | gap: 非来源边界有单测；真实存储故障集成注入未完成。 |
-| MEM-A06 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| MEM-A06 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 
 ## 代码边界
 

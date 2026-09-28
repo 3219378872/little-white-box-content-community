@@ -7,11 +7,11 @@ import (
 	"slices"
 
 	"esx/app/content/rpc/internal/model"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/media/rpc/mediaservice"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // validatePostMedia 校验帖子引用的媒体（CORE-024）：媒体必须存在、已完成上传

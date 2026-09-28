@@ -7,16 +7,16 @@ import (
 	"esx/app/content/rpc/internal/config"
 	model2 "esx/app/content/rpc/internal/model"
 	"esx/app/media/rpc/mediaservice"
-	"esx/pkg/interceptor"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	"esx/pkg/util"
 	"fmt"
 
+	cache "esx/pkg/modelcache"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
+
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type ServiceContext struct {
@@ -37,7 +37,6 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	// SQL arguments contain community text and outbox payloads (REL-022).
-	sqlx.DisableLog()
 	db, err := sql.Open("mysql", c.DataSource)
 	if err != nil {
 		panic(fmt.Sprintf("数据库连接失败: %v", err))
@@ -78,10 +77,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	postModel := model2.NewPostModel(conn, cacheConf)
 	var mediaService mediaservice.MediaService
 	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
-		mediaClient := interceptor.MustNewClient(c.MediaRpc,
-			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-			zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
-			zrpc.WithStreamClientInterceptor(interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)))
+		mediaClient := rpcx.MustNewClient(c.MediaRpc,
+
+			rpcx.WithInternalAuth(c.InternalSecret))
 		mediaService = mediaservice.NewMediaService(mediaClient)
 	}
 

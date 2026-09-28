@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package search
 
 import (
@@ -11,7 +8,7 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type SearchTagsLogic struct {

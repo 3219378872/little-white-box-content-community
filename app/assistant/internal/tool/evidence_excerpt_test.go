@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/store"
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
-func (c *researchContent) GetCommentList(context.Context, *contentservice.GetCommentListReq, ...grpc.CallOption) (*contentservice.GetCommentListResp, error) {
+func (c *researchContent) GetCommentList(context.Context, *contentservice.GetCommentListReq, ...callopt.Option) (*contentservice.GetCommentListResp, error) {
 	return &contentservice.GetCommentListResp{Comments: c.comments}, nil
 }
 

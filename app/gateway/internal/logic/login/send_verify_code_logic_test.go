@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"esx/app/gateway/internal/types"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
 	"esx/app/user/rpc/userservice"

@@ -3,7 +3,7 @@ package config
 import (
 	"esx/pkg/mqx"
 
-	"github.com/zeromicro/go-zero/core/service"
+	service "esx/pkg/lifecycle"
 )
 
 type Config struct {

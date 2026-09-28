@@ -4,32 +4,25 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
-	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
-	behaviorpb "esx/app/behavior/rpc/xiaobaihe/behavior/pb"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
-	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
-	messagepb "esx/app/message/rpc/xiaobaihe/message/pb"
-	recommendpb "esx/app/recommend/rpc/xiaobaihe/recommend/pb"
-	searchpb "esx/app/search/rpc/xiaobaihe/search/pb"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/user"
+	native "esx/kitex_gen/user/userservice"
+	"esx/pkg/errx"
+	"esx/pkg/lifecycle"
+	logx "esx/pkg/logging"
+	"esx/pkg/rpcx"
 
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/proc"
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type lockedLogBuffer struct {
@@ -42,122 +35,85 @@ func (b *lockedLogBuffer) Write(p []byte) (int, error) {
 	defer b.mu.Unlock()
 	return b.buffer.Write(p)
 }
+func (b *lockedLogBuffer) text() string { b.mu.Lock(); defer b.mu.Unlock(); return b.buffer.String() }
 
-func (b *lockedLogBuffer) text() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buffer.String()
-}
+type loggingUserServer struct{ pb.UserService }
 
-// Use every generated method name with opaque synthetic bodies through the
-// actual go-zero server/client middleware. No business services are invoked.
-func TestRPCLogsExcludeBodiesAndErrorDetails(t *testing.T) {
-	descriptors := []*grpc.ServiceDesc{
-		&assistantpb.AssistantService_ServiceDesc, &behaviorpb.BehaviorService_ServiceDesc,
-		&contentpb.ContentService_ServiceDesc, &feedpb.FeedService_ServiceDesc,
-		&interactionpb.InteractionService_ServiceDesc, &mediapb.MediaService_ServiceDesc,
-		&messagepb.MessageService_ServiceDesc, &recommendpb.RecommendService_ServiceDesc,
-		&searchpb.SearchService_ServiceDesc, &userpb.UserService_ServiceDesc,
-		{ServiceName: "future.Service", Methods: []grpc.MethodDesc{{MethodName: "NewMethod"}}},
+func (loggingUserServer) GetUser(ctx context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
+	switch in.UserId {
+	case 2:
+		return nil, errx.NewWithCode(errx.UserNotFound)
+	case 3:
+		return nil, status.Error(codes.Internal, "private-error-detail")
+	case 4:
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
 	}
+	return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, Username: "private-response"}}, nil
+}
+func TestRPCLogsExcludeBodiesAndErrorDetails(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	address := listener.Addr().String()
+	addr := listener.Addr().String()
 	require.NoError(t, listener.Close())
-	var serverConf zrpc.RpcServerConf
-	require.NoError(t, conf.FillDefault(&serverConf))
-	serverConf.Name, serverConf.ListenOn, serverConf.Mode = "rpc-log-test", address, service.TestMode
-	serverConf.DevServer.Enabled = false
-	serverConf.Middlewares.StatConf.SlowThreshold = time.Millisecond
-	safeConf := ServerWithoutContent(serverConf, descriptors...)
-	require.True(t, safeConf.Middlewares.Stat, "keep timing metrics used by load shedding")
-	require.Equal(t, serverConf.CpuThreshold, safeConf.CpuThreshold)
-	ready := make(chan struct{})
-	server, err := zrpc.NewServer(safeConf, func(server *grpc.Server) {
-		for _, descriptor := range descriptors {
-			stub := grpc.ServiceDesc{ServiceName: descriptor.ServiceName, HandlerType: (*interface{})(nil)}
-			for _, method := range descriptor.Methods {
-				fullMethod := "/" + descriptor.ServiceName + "/" + method.MethodName
-				stub.Methods = append(stub.Methods, grpc.MethodDesc{MethodName: method.MethodName,
-					Handler: func(srv any, ctx context.Context, decode func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-						request := new(wrapperspb.StringValue)
-						if err := decode(request); err != nil {
-							return nil, err
-						}
-						return interceptor(ctx, request, &grpc.UnaryServerInfo{Server: srv, FullMethod: fullMethod}, func(context.Context, any) (any, error) {
-							if request.Value == "error-private-request" {
-								return nil, status.Error(codes.InvalidArgument, "private-error-detail")
-							}
-							if request.Value == "slow-private-request" {
-								time.Sleep(3 * time.Millisecond)
-							}
-							return wrapperspb.String("private-response"), nil
-						})
-					}})
-			}
-			server.RegisterService(&stub, struct{}{})
-		}
-		close(ready)
-	})
-	require.NoError(t, err)
+	const secret = "rpc-transport-test-secret"
+	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "user.rpc"}, ListenOn: addr, Health: true, MaxConnections: 100, MaxQPS: 1000}
+	server := native.NewServer(&loggingUserServer{}, rpcx.ServerOptions(conf, secret)...)
 	var logs lockedLogBuffer
 	original := logx.Reset()
 	logx.SetWriter(logx.NewWriter(&logs))
 	t.Cleanup(func() { logx.SetWriter(original) })
-	done := make(chan struct{})
-	go func() { defer close(done); server.Start() }()
+	done := make(chan error, 1)
+	go func() { done <- server.Run() }()
 	t.Cleanup(func() {
-		proc.Shutdown()
+		require.NoError(t, server.Stop())
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			t.Error("RPC server did not stop")
+			t.Error("Kitex server did not stop")
 		}
 	})
-	select {
-	case <-ready:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("RPC server did not start: %s", logs.text())
-	}
-	var clientConf zrpc.RpcClientConf
-	require.NoError(t, conf.FillDefault(&clientConf))
-	clientConf.Endpoints = []string{address}
-	require.True(t, clientConf.Middlewares.Duration, "test must start with unsafe framework defaults")
-	var optionCalls atomic.Int64
-	client, err := NewClient(clientConf, zrpc.WithUnaryClientInterceptor(func(ctx context.Context, method string, req, reply any,
-		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		optionCalls.Add(1)
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}))
+	spec, err := rpcx.NewClient(rpcx.RpcClientConf{Endpoints: []string{addr}, Timeout: 1000}, rpcx.WithInternalAuth(secret))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = client.Conn().Close() })
-	zrpc.SetClientSlowThreshold(time.Millisecond)
-	t.Cleanup(func() { zrpc.SetClientSlowThreshold(500 * time.Millisecond) })
-	var calls int64
-	for _, descriptor := range descriptors {
-		for _, method := range descriptor.Methods {
-			for _, payload := range []string{"normal-private-request", "error-private-request", "slow-private-request"} {
-				var reply wrapperspb.StringValue
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := client.Conn().Invoke(ctx, "/"+descriptor.ServiceName+"/"+method.MethodName, wrapperspb.String(payload), &reply)
-				cancel()
-				if payload == "error-private-request" {
-					require.Equal(t, codes.InvalidArgument, status.Code(err))
-				} else {
-					require.NoError(t, err, "server logs: %s", logs.text())
-					require.Equal(t, "private-response", reply.Value)
-				}
-				calls++
-			}
+	t.Cleanup(func() { require.NoError(t, spec.Close()) })
+	require.Eventually(t, func() bool { return spec.Probe(context.Background()) == nil }, 5*time.Second, 20*time.Millisecond)
+	client := userservice.NewUserService(spec)
+	for _, id := range []int64{1, 2, 3, 4} {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		reply, err := client.GetUser(ctx, &pb.GetUserReq{UserId: id})
+		cancel()
+		switch id {
+		case 2:
+			var biz *errx.BizError
+			require.ErrorAs(t, err, &biz)
+			require.Equal(t, errx.UserNotFound, biz.Code)
+		case 3:
+			require.Error(t, err)
+		default:
+			require.NoError(t, err)
+			require.Equal(t, "private-response", reply.User.Username)
 		}
 	}
-	require.Equal(t, calls, optionCalls.Load(), "existing client interceptors must be preserved")
-	output := logs.text()
-	for _, private := range []string{"private-request", "private-response", "private-error-detail"} {
-		require.NotContains(t, output, private)
+	// A plain grpc-go client proves wire compatibility and enforces authentication.
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithNoProxy())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	var response pb.GetUserResp
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = conn.Invoke(ctx, "/user.UserService/GetUser", &pb.GetUserReq{UserId: 1}, &response)
+	require.Equal(t, codes.Unauthenticated, status.Code(err))
+	timestamp := time.Now().Unix()
+	signed := metadata.NewOutgoingContext(ctx, metadata.Pairs("x-internal-timestamp", strconv.FormatInt(timestamp, 10), "x-internal-signature", SignInternalAuthPayload(secret, timestamp, "/user.UserService/GetUser")))
+	err = conn.Invoke(signed, "/user.UserService/GetUser", &pb.GetUserReq{UserId: 2}, &response)
+	require.Equal(t, codes.NotFound, status.Code(err))
+	require.NotEmpty(t, status.Convert(err).Details())
+	// Existing signing rules remain independently covered by internal_auth_test.go.
+	for _, value := range []string{"private-response", "private-error-detail"} {
+		require.NotContains(t, logs.text(), value)
 	}
-	require.Contains(t, output, "slowcall", "exercise slow server logging")
-	require.Contains(t, output, "rpc client call failed")
-	require.Contains(t, output, "InvalidArgument")
-	t.Logf("checked %d real RPC calls across %d service descriptors", calls, len(descriptors))
+	require.Contains(t, logs.text(), "rpc call failed")
 }

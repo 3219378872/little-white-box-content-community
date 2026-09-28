@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"esx/app/content/rpc/contentservice"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	pb "esx/kitex_gen/feed"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

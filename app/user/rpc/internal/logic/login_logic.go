@@ -7,11 +7,11 @@ import (
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type LoginLogic struct {

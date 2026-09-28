@@ -3,12 +3,12 @@ package logic
 import (
 	"context"
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type BatchCheckLikedLogic struct {

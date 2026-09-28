@@ -11,11 +11,12 @@ import (
 	"esx/pkg/testutil"
 	"esx/pkg/util"
 
+	cache "esx/pkg/modelcache"
+	redis "esx/pkg/redisstore"
+	sqlx "esx/pkg/sqlstore"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 var testEnv *testutil.TestEnv

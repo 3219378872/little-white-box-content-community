@@ -6,21 +6,21 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/gateway/internal/svc"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
+	userpb "esx/kitex_gen/user"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeUserService struct {
 	userservice.UserService
-	fn func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+	fn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	return f.fn(ctx, in, opts...)
 }
 
@@ -60,7 +60,7 @@ func TestPostAuthorIDs(t *testing.T) {
 
 func TestLoad_MapsDisplayFields(t *testing.T) {
 	svcCtx := &svc.ServiceContext{UserService: &fakeUserService{
-		fn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+		fn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 			if !reflect.DeepEqual(in.UserIds, []int64{7, 9}) {
 				t.Fatalf("unexpected ids %v", in.UserIds)
 			}
@@ -93,7 +93,7 @@ func TestLoad_NilServiceIsSystemError(t *testing.T) {
 
 func TestLoadSoft_RPCErrorDegrades(t *testing.T) {
 	svcCtx := &svc.ServiceContext{UserService: &fakeUserService{
-		fn: func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+		fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 			return nil, errors.New("timeout")
 		},
 	}}

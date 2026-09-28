@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: '2026-09-27'
+updated_at: '2026-09-28'
 tracks:
 - CORE-001
 - CORE-002
@@ -138,10 +138,10 @@ tracks:
 
 # 小白盒内容社区后端设计
 
-本设计说明如何以 go-zero 工程结构满足社区核心、发现、持久异步 Assistant Agent 与
+本设计说明如何以 Kitex / Hertz 工程结构满足社区核心、发现、持久异步 Assistant Agent 与
 反馈可靠性规范。Agent Runtime、记忆与 Watch 的细节以
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) 为准。实现对齐状态以
-[六域 IMP](../implementation/README.md) 和源码、`.api`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
+[六域 IMP](../implementation/README.md) 和源码、`openapi.yaml`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
 > 2026-09-05：社区优先、问答、互联网补充与逐项引用由
 > [社区研究设计](DES-agent-community-research.md)承接。下文旧协议的可选来源描述不能豁免新流程的
@@ -277,19 +277,18 @@ Gateway 接收白名单动作。曝光的 50%/1s 由客户端判定，服务端�
 去重（REL-004）。完整 IP 在写入 ClickHouse 前哈希。业务日志不写手机号、验证码、正文或
 私信。关闭个性化后 recommend-mq 定时清特征，24 小时内完成（REL-023）。
 
-所有使用 sqlx 的服务入口在建立连接前调用 `sqlx.DisableLog()`，同时关闭正常、慢查询和错误路径的
-参数展开 SQL 日志，覆盖私信及其他正文/认证数据。当前 go-zero 的同一 guard 也负责 SQL timing metric，
-关闭后不声称该指标仍在；请求、RPC 与领域指标继续提供可观测性。AST wiring 回归与私信真实模型的
-合成敏感值测试分别约束生产装配和日志行为，不依赖提高日志等级隐藏原文。
-
-十个 RPC 服务入口按生成的 `ServiceDesc` 排除全部方法的请求正文日志，保留 go-zero Stat 指标及
-负载保护。所有 go-zero 客户端（包括可选推理与重建命令）通过共享构造器关闭默认 Duration，替换为
-仅记录方法、耗时、状态码的拦截器；错误详情也不输出。生产构造入口由 AST 回归约束，真实本地 RPC
-测试以各描述中的方法覆盖正常、慢调用、错误返回，并断言合成请求、响应及错误原文均不进入日志。
+SQL 通过 `pkg/sqlstore` 的 database/sql + sqlx 映射执行，代码路径不输出 SQL 或参数。
+项目 `slog` 边界记录上下文；Kitex/Hertz 框架日志只记录级别、组件及调用位置，避免框架参数携带
+请求、响应或内部错误。业务 RPC 中间件只记录方法、方向和耗时；生产构造入口由 AST 回归约束，
+真实本地 RPC 与数据库失败路径验证敏感正文不进入日志。框架诊断不包含错误原文，排障应使用
+方法、trace、业务错误码与领域指标关联。
 
 ### 健康与观测
 
 `/health` 存活，`/health/ready` 列出依赖；搜索/Assistant 可选，故障只标 `degraded`。
+Gateway 在独立诊断端口 9180 导出 `esx_gateway_requests_total` 与 `esx_gateway_duration_seconds`；
+RPC 导出 `esx_rpc_requests_total` 与 `esx_rpc_duration_seconds`，Kitex tracer 到流关闭才结束计时。
+Prometheus 开发/生产目标均指向诊断端口，SSE 与普通 HTTP 的业务端口不暴露 metrics。
 MQ 消费者与 outbox relay 暴露 outcome 与延迟。SLO 报告由 `scripts/spec_evals.py slo`
 按 REL-030~033 口径计算；正式关闭依赖真实月度数据。
 
@@ -364,9 +363,9 @@ root 凭据完成真实认证，不能把 Access denied 当作健康。
 mediaId、url、fileType、mimeType、fileSize；不伪造缩略图、时长，也不承诺转码或客户端编码兼容。
 
 上传处理把超过 1 MiB 的文件暂存磁盘，总请求预算比文件预算多 1 MiB，解析完仍按文件实际字节校验，
-所有路径移除临时文件。go-zero 将非正路由 MaxBytes 回退到全局上限，故媒体路由将框架的
-Content-Length 预检设为 int64 上界，真实读取上限仍由 handler 的 MaxBytesReader 强制执行并返回
-业务 JSON；不是取消上传限额。Gateway 图片路由 120 秒，视频/音频 300 秒；普通路由保持原限制。
+所有路径移除临时文件。Hertz 开启流式 body 且禁用 multipart 预解析；路由校验 Content-Length，
+未知长度请求也在读取时执行有界限制，超限返回统一业务 JSON。Gateway 图片路由 120 秒，视频/音频
+300 秒；普通路由保持原限制。SSE 不继承普通请求的总时长限制。
 视频复用 UploadVideo；音频新增 UploadAudio，复用带限额的 TempSink、内容哈希、事务媒体写入和
 对象补偿/outbox。原图片/视频幂等指纹不变，音频使用独立 media:upload:audio scope，避免跨类型命中。
 
@@ -376,3 +375,21 @@ WebM/Matroska 读取 TrackType，音频仅接受 MP3/WAV/M4A。解析边界、�
 
 Message RPC 在权威写入前检查本人、完成状态和 msgType/fileType 对应关系，持久化媒体记录 URL，
 不使用客户端提供的媒体 URL。发送重试继续遵循现有消息幂等键；客户端上传键与消息键相互独立。
+
+## 框架与公开契约迁移（2026-09-28）
+
+内部十个业务服务使用 Kitex v0.16.2，保持 Protobuf wire package、方法和字段编号；生成代码在
+`kitex_gen`。客户端 façade 与服务端分发由 IDL 同步生成，Python embedding/inference 继续使用
+标准 gRPC。etcd 注册前缀为 `/little/kitex`，逻辑服务名不变；整栈切换，不能把旧实例混入新发现域。
+内部 HMAC 与业务错误 details 经过显式 Kitex/标准 gRPC 转换，trace 与取消沿上下文传播。
+
+Gateway 使用 Hertz v0.10.6。`app/gateway/openapi.yaml` 是唯一公开契约源，描述参数位置、必填、
+默认值、认证、multipart 和 SSE；项目生成器输出 DTO、原生路由，前端生成器输出兼容 Dart DTO/API。
+应用自有传输继续负责无损 ID、刷新重试、媒体流和 SSE 游标。普通 RPC 超时不限制流的整体生命周期。
+readiness 主动检查标准 gRPC Health，并保持必需/可选依赖的 ready/degraded/unavailable 区分。
+
+数据库结构与业务幂等键不变。模型缓存改用 `cache:v2:` 前缀；二级索引保存主键引用，主键失效后
+通过索引访问会重新查库。正缓存 7 天、负缓存 60 秒；缓存不可用可回源，已提交写入不因失效失败
+改报失败。入口退出先停止服务器/消费者、排空 outbox，再释放 RPC、SQL、Redis 与诊断资源。
+
+迁移过程证据绑定实际提交；历史 EVD 不证明迁移后的运行。生产容量、月度 SLO 与设备门禁仍独立。

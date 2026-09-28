@@ -6,10 +6,10 @@ import (
 	"errors"
 	model2 "esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type GetMediaLogic struct {

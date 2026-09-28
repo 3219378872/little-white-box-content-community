@@ -9,26 +9,28 @@ import (
 	"net/textproto"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/media/rpc/mediaservice"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
-// fakeUploadStream 实现 grpc.ClientStreamingClient[mediapb.UploadImageReq, mediapb.UploadImageResp]
+// fakeUploadStream 实现 mediaservice.MediaService_UploadImageClient
 type fakeUploadStream struct {
-	grpc.ClientStream // 嵌入接口零值；测试中不使用 stream 元方法
-	sentMetas         []*mediapb.UploadMeta
-	sentChunks        [][]byte
-	sendErr           error
-	sendErrAfter      int // 第几次 Send 后开始返回 sendErr（0 表示从首包就错）
-	sendCount         int
-	closeResp         *mediapb.UploadImageResp
-	closeErr          error
+	streaming.Stream // 嵌入接口零值；测试中不使用 stream 元方法
+	sentMetas        []*mediapb.UploadMeta
+	sentChunks       [][]byte
+	sendErr          error
+	sendErrAfter     int // 第几次 Send 后开始返回 sendErr（0 表示从首包就错）
+	sendCount        int
+	closeResp        *mediapb.UploadImageResp
+	closeErr         error
 }
 
 func (f *fakeUploadStream) Send(req *mediapb.UploadImageReq) error {
@@ -53,10 +55,10 @@ func (f *fakeUploadStream) CloseAndRecv() (*mediapb.UploadImageResp, error) {
 // fakeMediaService 仅覆盖 UploadImage
 type fakeMediaService struct {
 	mediaservice.MediaService
-	uploadFn func(ctx context.Context) (mediapb.MediaService_UploadImageClient, error)
+	uploadFn func(ctx context.Context) (mediaservice.MediaService_UploadImageClient, error)
 }
 
-func (f *fakeMediaService) UploadImage(ctx context.Context, _ ...grpc.CallOption) (mediapb.MediaService_UploadImageClient, error) {
+func (f *fakeMediaService) UploadImage(ctx context.Context, _ ...callopt.Option) (mediaservice.MediaService_UploadImageClient, error) {
 	return f.uploadFn(ctx)
 }
 
@@ -124,7 +126,7 @@ func TestUploadImageMultipart_Success_SendsMetaAndChunks(t *testing.T) {
 		},
 	}
 	ms := &fakeMediaService{
-		uploadFn: func(_ context.Context) (mediapb.MediaService_UploadImageClient, error) {
+		uploadFn: func(_ context.Context) (mediaservice.MediaService_UploadImageClient, error) {
 			return stream, nil
 		},
 	}
@@ -168,7 +170,7 @@ func TestUploadImageMultipart_PassesIdempotencyKey(t *testing.T) {
 		},
 	}
 	ms := &fakeMediaService{
-		uploadFn: func(context.Context) (mediapb.MediaService_UploadImageClient, error) {
+		uploadFn: func(context.Context) (mediaservice.MediaService_UploadImageClient, error) {
 			return stream, nil
 		},
 	}
@@ -188,7 +190,7 @@ func TestUploadImageMultipart_StreamSetupError_WrapsError(t *testing.T) {
 	file, header := makeFile(t, "a.png", []byte("hi"))
 	defer file.Close()
 	ms := &fakeMediaService{
-		uploadFn: func(_ context.Context) (mediapb.MediaService_UploadImageClient, error) {
+		uploadFn: func(_ context.Context) (mediaservice.MediaService_UploadImageClient, error) {
 			return nil, errors.New("dial failed")
 		},
 	}
@@ -204,7 +206,7 @@ func TestUploadImageMultipart_SendMetaError_WrapsError(t *testing.T) {
 	defer file.Close()
 	stream := &fakeUploadStream{sendErr: errors.New("broken pipe")}
 	ms := &fakeMediaService{
-		uploadFn: func(_ context.Context) (mediapb.MediaService_UploadImageClient, error) {
+		uploadFn: func(_ context.Context) (mediaservice.MediaService_UploadImageClient, error) {
 			return stream, nil
 		},
 	}
@@ -220,7 +222,7 @@ func TestUploadImageMultipart_NilMediaInResponse_ReturnsUploadFailed(t *testing.
 	defer file.Close()
 	stream := &fakeUploadStream{closeResp: &mediapb.UploadImageResp{Media: nil}}
 	ms := &fakeMediaService{
-		uploadFn: func(_ context.Context) (mediapb.MediaService_UploadImageClient, error) {
+		uploadFn: func(_ context.Context) (mediaservice.MediaService_UploadImageClient, error) {
 			return stream, nil
 		},
 	}

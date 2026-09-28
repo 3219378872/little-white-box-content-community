@@ -11,9 +11,9 @@ import (
 	"esx/app/feed/rpc/internal/config"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

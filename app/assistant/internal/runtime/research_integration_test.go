@@ -15,9 +15,10 @@ import (
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
+	sqlx "esx/pkg/sqlstore"
 	"esx/pkg/testutil"
+
 	"github.com/go-sql-driver/mysql"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 var errPresentationWrite = errors.New("injected presentation write failure")

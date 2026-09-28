@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
-	"esx/app/search/rpc/xiaobaihe/search/pb"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type fakeStore struct {
@@ -44,7 +45,7 @@ type fakeUserService struct {
 func (f *fakeUserService) SearchUsers(
 	ctx context.Context,
 	in *userservice.SearchUsersReq,
-	_ ...grpc.CallOption,
+	_ ...callopt.Option,
 ) (*userservice.SearchUsersResp, error) {
 	if f.searchUsersFn != nil {
 		return f.searchUsersFn(ctx, in)
@@ -55,7 +56,7 @@ func (f *fakeUserService) SearchUsers(
 func (f *fakeUserService) BatchGetUsers(
 	ctx context.Context,
 	in *userservice.BatchGetUsersReq,
-	_ ...grpc.CallOption,
+	_ ...callopt.Option,
 ) (*userservice.BatchGetUsersResp, error) {
 	if f.batchGetUsersFn != nil {
 		return f.batchGetUsersFn(ctx, in)
@@ -76,7 +77,7 @@ type fakeContentService struct {
 func (f *fakeContentService) GetPostsByIds(
 	ctx context.Context,
 	in *contentservice.GetPostsByIdsReq,
-	_ ...grpc.CallOption,
+	_ ...callopt.Option,
 ) (*contentservice.GetPostsByIdsResp, error) {
 	if f != nil && f.getPostsByIDs != nil {
 		return f.getPostsByIDs(ctx, in)

@@ -14,8 +14,8 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 
 ## Context 传递
 
-- **必须** `logx.WithContext(ctx)` — 禁止不带 ctx 的日志。
-- **必须** 所有 zrpc 调用透传入参 ctx。
+- **必须** `logging.WithContext(ctx)` — 禁止不带 ctx 的日志。
+- **必须** 所有 Kitex 调用透传入参 ctx。
 - **必须** goroutine 内使用 ctx 的拷贝并处理取消。
 - **禁止** `context.Background()` 新建 ctx（除非最外层入口）。
 
@@ -42,8 +42,8 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
   （`POST /api/v1/auth/refresh`）。access 与 refresh 类型互不通用，由 `tokenType`
   声明强制区分。
 - 服务间 gRPC 内部鉴权：所有 RPC server 强制校验 HMAC-SHA256 时间戳签名
-  （`pkg/interceptor.InternalAuth*`），客户端统一经 `RPC_INTERNAL_SECRET` 签名；
-  健康检查与 reflection 豁免；Python 推理旁路（online-infer/embedding-service）
+  （`pkg/rpcx`），客户端统一经 `RPC_INTERNAL_SECRET` 签名；
+  标准健康检查豁免；Python 推理旁路（online-infer/embedding-service）
   属独立信任域不挂此拦截器。
 - 验证码发送三维度频控：号码 5 次/小时、IP 20 次/小时（网关经 TraceMiddleware
   提取 client_ip 传入）、全站 2 万次/日。
@@ -54,7 +54,7 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 
 ## 弹性与可靠性
 
-- go-zero 内置防护：Load Shedding → Rate Limiting → Circuit Breaker → Timeout。
+- Kitex 统一配置连接数/QPS 上限、客户端熔断和普通 RPC 超时；写请求及流式请求不开透明重试。
 - 事务 outbox：权威写入与 outbox 同事务提交，relay 保证投递与幂等。
 - RocketMQ 消费者处理重试、幂等与不可恢复错误；outbox relay 有界指数退避。
 - 权威写入已提交后，缓存失效/索引/通知等异步效果失败不改变成功响应（CORE-053）。

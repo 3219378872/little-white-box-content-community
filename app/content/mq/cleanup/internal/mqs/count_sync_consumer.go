@@ -11,9 +11,10 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // countSyncTagExpression 订阅互动权威事件：like/unlike/favorite/unfavorite。

@@ -11,9 +11,10 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
+	logx "esx/pkg/logging"
+
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // NewCleanupConsumer 订阅 post-delete，调用 CleanupStore 清理 Redis 相关 key。

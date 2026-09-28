@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zeromicro/go-zero/core/service"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
+	service "esx/pkg/lifecycle"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
 )
 
 type Config struct {
 	service.ServiceConf
 	InternalSecret      string
-	UserRpc             zrpc.RpcClientConf
+	UserRpc             rpcx.RpcClientConf
 	MQ                  mqx.ConsumerConfig
 	Redis               redis.RedisConf
 	FeatureVersion      string `json:",default=v2"`

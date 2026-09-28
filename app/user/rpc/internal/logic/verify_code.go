@@ -6,7 +6,7 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const (

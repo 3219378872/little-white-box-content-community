@@ -14,7 +14,7 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/watch"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const (

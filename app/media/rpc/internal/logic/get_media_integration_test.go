@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"esx/app/media/rpc/internal/model"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"testing"
 

@@ -7,10 +7,11 @@ import (
 	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoginLockAtomicWindowIntegration(t *testing.T) {

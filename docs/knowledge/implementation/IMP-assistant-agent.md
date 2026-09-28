@@ -6,6 +6,14 @@ status: active
 owner: agent
 updated_at: 2026-09-25
 code_paths:
+- pkg/rpcx
+- pkg/httpx
+- pkg/configx
+- pkg/logging
+- pkg/sqlstore
+- pkg/redisstore
+- pkg/cachedstore
+- kitex_gen
 - app/gateway/internal/handler/assistant
 - pkg/interceptor
 - app/assistant/internal/runtime
@@ -17,7 +25,7 @@ code_paths:
 - app/assistant/worker
 - app/assistant/rpc
 - app/gateway/internal/logic/assistant
-- app/gateway/gateway.api
+- app/gateway/openapi.yaml
 - proto/assistant/assistant.proto
 - deploy/sql/xbh_assistant.sql
 - deploy/sql/patches/20260905_agent_research.sql
@@ -33,10 +41,10 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| AGENT-001 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-002 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-003 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-004 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-001 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-002 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-003 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-004 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | AGENT-100 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-101 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-102 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
@@ -48,52 +56,52 @@ code_paths:
 | AGENT-113 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-114 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
 | AGENT-115 | DES-agent-community-research | unknown | gap: 协议、存储与工具路径已实现；真实 provider 轨迹和人类语义质量评审未关闭。 |
-| AGENT-010 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-011 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-012 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-013 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-014 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-015 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-020 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-021 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-022 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-023 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-024 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-025 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-026 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-030 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-031 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-032 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-033 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-034 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-035 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-036 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-037 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-040 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-041 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-042 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-043 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-044 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-045 | DES-agent-capability-governance | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-050 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-051 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-052 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-053 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-054 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-060 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-061 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-062 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-063 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-010 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-011 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-012 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-013 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-014 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-015 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-020 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-021 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-022 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-023 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-024 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-025 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-026 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-030 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-031 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-032 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-033 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-034 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-035 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-036 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-037 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-040 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-041 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-042 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-043 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-044 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-045 | DES-agent-capability-governance | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-050 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-051 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-052 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-053 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-054 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-060 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-061 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-062 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-063 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | AGENT-070 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-071 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-072 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-073 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-074 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
 | AGENT-075 | DES-agent-community-research | unknown | gap: 来源 ledger、回源与结构化发布已实现；逐项语义支持仍需人类评审。 |
-| AGENT-080 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-081 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-082 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
-| AGENT-083 | DES-assistant-agent-runtime | aligned | EVD-20260927-media-upload-delivery |
+| AGENT-080 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-081 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-082 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| AGENT-083 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，Watch 5 分钟与生产 p95 未验证。 |
 | AGENT-A01 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A02 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |

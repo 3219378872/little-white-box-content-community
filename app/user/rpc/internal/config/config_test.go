@@ -3,11 +3,11 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
-// REL-022：user RPC 必须抑制框架自动内容日志（认证/资料字段）。
-func TestUserConfigSuppressesContentLogging(t *testing.T) {
+// Transport privacy is enforced centrally by rpcx and covered with real RPC calls.
+func TestUserConfigLoadsNativeTransportPolicy(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("JWT_SECRET_KEY", "test-jwt-secret")
 	t.Setenv("JWT_REFRESH_SECRET", "test-refresh-secret")
@@ -18,16 +18,8 @@ func TestUserConfigSuppressesContentLogging(t *testing.T) {
 	if err := conf.Load("../../etc/user.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
 	}
-	methods := c.Middlewares.StatConf.IgnoreContentMethods
-	if len(methods) == 0 {
-		t.Fatal("user config must set IgnoreContentMethods")
-	}
-	seen := make(map[string]bool, len(methods))
-	for _, method := range methods {
-		seen[method] = true
-	}
-	if !seen["/user.UserService/Login"] || !seen["/user.UserService/Register"] {
-		t.Errorf("user config must ignore content for Login/Register, got %v", methods)
+	if c.Name != "user.rpc" || !c.Health || c.MaxConnections <= 0 || c.Timeout <= 0 {
+		t.Fatalf("invalid native transport policy: name=%s health=%v timeout=%d", c.Name, c.Health, c.Timeout)
 	}
 }
 

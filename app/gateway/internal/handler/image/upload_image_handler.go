@@ -1,36 +1,34 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package image
 
 import (
+	"context"
 	"esx/app/gateway/internal/handler/mediaupload"
-	"net/http"
+	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic/image"
 	"esx/app/gateway/internal/svc"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // UploadImageHandler 上传图片（multipart/form-data，字段名 file）
-func UploadImageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		defer mediaupload.Cleanup(r)
-		file, header, key, err := mediaupload.Bind(w, r, mediaupload.ImageLimit)
+func UploadImageHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		defer mediaupload.Cleanup(c)
+		file, header, key, err := mediaupload.Bind(c, mediaupload.ImageLimit)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
 		defer file.Close()
 
 		// CORE-023：按文件内容识别类型，不在 Handler 用 Content-Type 头拦截。
-		l := image.NewUploadImageLogic(r.Context(), svcCtx)
+		l := image.NewUploadImageLogic(ctx, svcCtx)
 		resp, err := l.UploadImageMultipart(file, header, key)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
-		httpx.OkJsonCtx(r.Context(), w, resp)
+		httpx.OkJsonCtx(ctx, c, resp)
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 
 	"esx/pkg/event"
 	"esx/pkg/mqx"

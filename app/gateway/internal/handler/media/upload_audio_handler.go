@@ -1,27 +1,28 @@
 package media
 
 import (
+	"context"
 	"esx/app/gateway/internal/handler/mediaupload"
 	"esx/app/gateway/internal/logic/media"
 	"esx/app/gateway/internal/svc"
-	"github.com/zeromicro/go-zero/rest/httpx"
-	"net/http"
+	"esx/pkg/httpx"
+	"github.com/cloudwego/hertz/pkg/app"
 )
 
-func UploadAudioHandler(s *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		defer mediaupload.Cleanup(r)
-		file, header, key, err := mediaupload.Bind(w, r, mediaupload.AudioLimit)
+func UploadAudioHandler(s *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
+		defer mediaupload.Cleanup(c)
+		file, header, key, err := mediaupload.Bind(c, mediaupload.AudioLimit)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
 		defer file.Close()
-		resp, err := media.NewUploadAudioLogic(r.Context(), s).UploadMultipart(file, header.Filename, key)
+		resp, err := media.NewUploadAudioLogic(ctx, s).UploadMultipart(file, header.Filename, key)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
-		httpx.OkJsonCtx(r.Context(), w, resp)
+		httpx.OkJsonCtx(ctx, c, resp)
 	}
 }

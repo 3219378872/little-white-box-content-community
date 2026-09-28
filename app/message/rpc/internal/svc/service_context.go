@@ -7,13 +7,13 @@ import (
 	"esx/app/message/rpc/internal/config"
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
+	"github.com/cloudwego/kitex/client/callopt"
+
+	cache "esx/pkg/modelcache"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type ConversationModel interface {
@@ -40,7 +40,7 @@ type NotificationModel interface {
 }
 
 type UserService interface {
-	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 }
 
 type ServiceContext struct {
@@ -58,19 +58,17 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	// Suppress normal, slow and failed SQL logs containing private messages.
-	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	cacheConf := cache.CacheConf{
 		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},
 	}
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
-	userClient := interceptor.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	userClient := rpcx.MustNewClient(c.UserRpc, rpcx.WithInternalAuth(c.InternalSecret))
 	var mediaService mediaservice.MediaService
 	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
-		mediaClient := interceptor.MustNewClient(c.MediaRpc,
-			zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()),
-			zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)),
-			zrpc.WithStreamClientInterceptor(interceptor.InternalAuthStreamClientInterceptor(c.InternalSecret)))
+		mediaClient := rpcx.MustNewClient(c.MediaRpc,
+
+			rpcx.WithInternalAuth(c.InternalSecret))
 		mediaService = mediaservice.NewMediaService(mediaClient)
 	}
 

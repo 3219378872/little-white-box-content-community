@@ -1,32 +1,30 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package user
 
 import (
+	"context"
 	"esx/app/gateway/internal/logic/user"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	"net/http"
+	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // 获取用户的收藏帖子列表
-func GetUserFavoritesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetUserFavoritesHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
 		var req types.GetUserFavoritesReq
-		if err := httpx.Parse(r, &req); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if err := httpx.Parse(c, &req); err != nil {
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
 
-		l := user.NewGetUserFavoritesLogic(r.Context(), svcCtx)
+		l := user.NewGetUserFavoritesLogic(ctx, svcCtx)
 		resp, err := l.GetUserFavorites(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(ctx, c, resp)
 		}
 	}
 }

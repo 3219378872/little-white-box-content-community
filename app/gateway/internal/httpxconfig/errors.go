@@ -1,13 +1,9 @@
 package httpxconfig
 
 import (
-	"context"
 	"errors"
-	"net/http"
 
 	"esx/pkg/errx"
-
-	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
 // MapError 将任意错误转换为网关公开的 (HTTP 状态, JSON 信封)。
@@ -23,17 +19,5 @@ func MapError(err error) (int, any) {
 	}
 }
 
-// ConfigureErrors installs the Gateway's public JSON error contract.
-func ConfigureErrors() {
-	httpx.SetErrorHandlerCtx(func(_ context.Context, err error) (int, any) {
-		return MapError(err)
-	})
-}
-
-// Unauthorized writes the public error envelope for go-zero JWT failures.
-func Unauthorized(w http.ResponseWriter, _ *http.Request, _ error) {
-	httpx.WriteJson(w, http.StatusUnauthorized, map[string]any{
-		"code":    errx.LoginRequired,
-		"message": errx.GetMsg(errx.LoginRequired),
-	})
-}
+// ConfigureErrors is retained for existing setup callers; error mapping is explicit.
+func ConfigureErrors() {}

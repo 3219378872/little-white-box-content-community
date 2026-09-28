@@ -4,13 +4,13 @@ import (
 	"context"
 	model2 "esx/app/message/rpc/internal/model"
 	"esx/app/message/rpc/internal/svc"
-	"esx/app/message/rpc/xiaobaihe/message/pb"
 	"esx/app/user/rpc/userservice"
+	pb "esx/kitex_gen/message"
 	"strings"
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type GetConversationsLogic struct {

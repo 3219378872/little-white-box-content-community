@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

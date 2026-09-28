@@ -8,7 +8,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/idempotencyx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 // The caller keeps uploaded objects only after an authoritative create, before sending the response.

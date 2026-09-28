@@ -13,8 +13,8 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/util"
 
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	cache "esx/pkg/modelcache"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type ServiceContext struct {
@@ -30,7 +30,6 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	sqlx.DisableLog()
 	if err := util.InitSnowflakeFromEnv(4, 1); err != nil {
 		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
 	}

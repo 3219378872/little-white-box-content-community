@@ -7,8 +7,8 @@ import (
 
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/content"
+	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

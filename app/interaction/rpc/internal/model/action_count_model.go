@@ -7,7 +7,7 @@ import (
 
 	"esx/pkg/util"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 var _ ActionCountModel = (*customActionCountModel)(nil)

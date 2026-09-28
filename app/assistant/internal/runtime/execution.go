@@ -9,7 +9,7 @@ import (
 	"esx/app/assistant/internal/tool"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type iterationAction int

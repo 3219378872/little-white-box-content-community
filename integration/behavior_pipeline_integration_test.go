@@ -19,15 +19,16 @@ import (
 	"testing"
 	"time"
 
-	"esx/app/behavior/rpc/xiaobaihe/behavior/pb"
+	pb "esx/kitex_gen/behavior"
 	"esx/pkg/event"
 	"esx/pkg/interceptor"
 	"esx/pkg/mqx"
 	"esx/pkg/testutil"
 
+	redis "esx/pkg/redisstore"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -144,7 +145,11 @@ MaxFutureSkewSeconds: 300
 
 	conn := waitForHealthyGRPC(t, ctx, behaviorAddress, 45*time.Second)
 	t.Cleanup(func() { _ = conn.Close() })
-	client := pb.NewBehaviorServiceClient(conn)
+	recordEvents := func(ctx context.Context, req *pb.RecordEventsReq) (*pb.RecordEventsResp, error) {
+		var resp pb.RecordEventsResp
+		err := conn.Invoke(ctx, "/behavior.BehaviorService/RecordEvents", req, &resp)
+		return &resp, err
+	}
 
 	clientEventID := "client-e2e-" + runID
 	requestID := "request-e2e-" + runID
@@ -160,11 +165,11 @@ MaxFutureSkewSeconds: 300
 		}},
 	}
 
-	first, err := client.RecordEvents(ctx, request)
+	first, err := recordEvents(ctx, request)
 	require.NoError(t, err)
 	require.Len(t, first.Results, 1)
 	require.True(t, first.Results[0].Accepted)
-	second, err := client.RecordEvents(ctx, request)
+	second, err := recordEvents(ctx, request)
 	require.NoError(t, err)
 	require.Len(t, second.Results, 1)
 	require.True(t, second.Results[0].Accepted)
@@ -192,7 +197,7 @@ MaxFutureSkewSeconds: 300
 			Scene: "home", Position: &position,
 		}},
 	}
-	invalidResponse, err := client.RecordEvents(ctx, invalid)
+	invalidResponse, err := recordEvents(ctx, invalid)
 	require.NoError(t, err)
 	require.Len(t, invalidResponse.Results, 1)
 	assert.False(t, invalidResponse.Results[0].Accepted)

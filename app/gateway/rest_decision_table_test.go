@@ -15,93 +15,94 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+	"github.com/cloudwego/kitex/pkg/streaming"
+
 	"esx/app/assistant/rpc/assistantservice"
-	assistantpb "esx/app/assistant/rpc/xiaobaihe/assistant/pb"
 	"esx/app/behavior/rpc/behaviorservice"
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/feed/rpc/feedservice"
-	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/gateway/internal/config"
-	"esx/app/gateway/internal/handler"
 	"esx/app/gateway/internal/httpxconfig"
 	gatewaymiddleware "esx/app/gateway/internal/middleware"
 	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
-	mediapb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
 	"esx/app/message/rpc/messageservice"
-	messagepb "esx/app/message/rpc/xiaobaihe/message/pb"
 	"esx/app/search/rpc/searchservice"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
+	assistantpb "esx/kitex_gen/assistant"
+	contentpb "esx/kitex_gen/content"
+	feedpb "esx/kitex_gen/feed"
+	mediapb "esx/kitex_gen/media"
+	messagepb "esx/kitex_gen/message"
+	userpb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 	"esx/pkg/middleware"
 
-	"github.com/zeromicro/go-zero/rest"
-	"google.golang.org/grpc"
+	"github.com/cloudwego/hertz/pkg/route"
 )
 
 const contractSecret = "rest-decision-table-secret"
 
 type contractUserService struct{ userservice.UserService }
 
-func (contractUserService) GetUser(context.Context, *userservice.GetUserReq, ...grpc.CallOption) (*userservice.GetUserResp, error) {
+func (contractUserService) GetUser(context.Context, *userservice.GetUserReq, ...callopt.Option) (*userservice.GetUserResp, error) {
 	return &userservice.GetUserResp{User: &userpb.UserInfo{Id: 2, Username: "user", FavoritesVisibility: 1}}, nil
 }
-func (contractUserService) BatchGetUsers(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (contractUserService) BatchGetUsers(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	users := make([]*userpb.UserInfo, 0, len(in.UserIds))
 	for _, userID := range in.UserIds {
 		users = append(users, &userpb.UserInfo{Id: userID, Username: "author", Nickname: "Author Name", AvatarUrl: "https://media/avatar.png"})
 	}
 	return &userservice.BatchGetUsersResp{Users: users}, nil
 }
-func (contractUserService) UpdateProfile(context.Context, *userservice.UpdateProfileReq, ...grpc.CallOption) (*userservice.UpdateProfileResp, error) {
+func (contractUserService) UpdateProfile(context.Context, *userservice.UpdateProfileReq, ...callopt.Option) (*userservice.UpdateProfileResp, error) {
 	return &userservice.UpdateProfileResp{}, nil
 }
-func (contractUserService) Follow(context.Context, *userservice.FollowReq, ...grpc.CallOption) (*userservice.FollowResp, error) {
+func (contractUserService) Follow(context.Context, *userservice.FollowReq, ...callopt.Option) (*userservice.FollowResp, error) {
 	return &userservice.FollowResp{}, nil
 }
-func (contractUserService) Unfollow(context.Context, *userservice.UnfollowReq, ...grpc.CallOption) (*userservice.UnfollowResp, error) {
+func (contractUserService) Unfollow(context.Context, *userservice.UnfollowReq, ...callopt.Option) (*userservice.UnfollowResp, error) {
 	return &userservice.UnfollowResp{}, nil
 }
-func (contractUserService) Register(context.Context, *userservice.RegisterReq, ...grpc.CallOption) (*userservice.RegisterResp, error) {
+func (contractUserService) Register(context.Context, *userservice.RegisterReq, ...callopt.Option) (*userservice.RegisterResp, error) {
 	return &userservice.RegisterResp{UserId: 1, Token: "token"}, nil
 }
-func (contractUserService) Login(context.Context, *userservice.LoginReq, ...grpc.CallOption) (*userservice.LoginResp, error) {
+func (contractUserService) Login(context.Context, *userservice.LoginReq, ...callopt.Option) (*userservice.LoginResp, error) {
 	return &userservice.LoginResp{UserId: 1, Token: "token"}, nil
 }
-func (contractUserService) SendVerifyCode(_ context.Context, in *userservice.SendVerifyCodeReq, _ ...grpc.CallOption) (*userservice.SendVerifyCodeResp, error) {
+func (contractUserService) SendVerifyCode(_ context.Context, in *userservice.SendVerifyCodeReq, _ ...callopt.Option) (*userservice.SendVerifyCodeResp, error) {
 	if in.Phone == "13999999999" {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &userservice.SendVerifyCodeResp{}, nil
 }
 
-func (contractUserService) RefreshToken(_ context.Context, in *userservice.RefreshTokenReq, _ ...grpc.CallOption) (*userservice.RefreshTokenResp, error) {
+func (contractUserService) RefreshToken(_ context.Context, in *userservice.RefreshTokenReq, _ ...callopt.Option) (*userservice.RefreshTokenResp, error) {
 	if in.RefreshToken == "stale-refresh-token" {
 		return nil, errx.NewWithCode(errx.LoginRequired)
 	}
 	return &userservice.RefreshTokenResp{Token: "rotated-access", RefreshToken: "rotated-refresh"}, nil
 }
 
-func (contractUserService) GetAgentCapabilityConsent(context.Context, *userservice.GetAgentCapabilityConsentReq, ...grpc.CallOption) (*userservice.GetAgentCapabilityConsentResp, error) {
+func (contractUserService) GetAgentCapabilityConsent(context.Context, *userservice.GetAgentCapabilityConsentReq, ...callopt.Option) (*userservice.GetAgentCapabilityConsentResp, error) {
 	return &userservice.GetAgentCapabilityConsentResp{Granted: false}, nil
 }
 
-func (contractUserService) SetAgentCapabilityConsent(context.Context, *userservice.SetAgentCapabilityConsentReq, ...grpc.CallOption) (*userservice.SetAgentCapabilityConsentResp, error) {
+func (contractUserService) SetAgentCapabilityConsent(context.Context, *userservice.SetAgentCapabilityConsentReq, ...callopt.Option) (*userservice.SetAgentCapabilityConsentResp, error) {
 	return &userservice.SetAgentCapabilityConsentResp{}, nil
 }
 
-func (contractUserService) GetPersonalizationPreference(_ context.Context, in *userservice.GetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error) {
+func (contractUserService) GetPersonalizationPreference(_ context.Context, in *userservice.GetPersonalizationPreferenceReq, _ ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error) {
 	if in.UserId == 999 {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &userservice.GetPersonalizationPreferenceResp{Enabled: true}, nil
 }
 
-func (contractUserService) SetPersonalizationPreference(_ context.Context, in *userservice.SetPersonalizationPreferenceReq, _ ...grpc.CallOption) (*userservice.SetPersonalizationPreferenceResp, error) {
+func (contractUserService) SetPersonalizationPreference(_ context.Context, in *userservice.SetPersonalizationPreferenceReq, _ ...callopt.Option) (*userservice.SetPersonalizationPreferenceResp, error) {
 	if in.UserId == 999 {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -113,48 +114,48 @@ type contractContentService struct{ contentservice.ContentService }
 func contractPost() *contentpb.PostInfo {
 	return &contentpb.PostInfo{Id: 11, AuthorId: 1, Title: "title", Content: "content", Status: 1}
 }
-func (contractContentService) CreatePost(_ context.Context, in *contentservice.CreatePostReq, _ ...grpc.CallOption) (*contentservice.CreatePostResp, error) {
+func (contractContentService) CreatePost(_ context.Context, in *contentservice.CreatePostReq, _ ...callopt.Option) (*contentservice.CreatePostResp, error) {
 	if in.Title == "conflict-title" {
 		// CORE-051：版本冲突必须可区分（REST 409 + 业务码）。
 		return nil, errx.NewWithCode(errx.ContentVersionConflict)
 	}
 	return &contentservice.CreatePostResp{PostId: 11}, nil
 }
-func (contractContentService) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (contractContentService) GetPost(context.Context, *contentservice.GetPostReq, ...callopt.Option) (*contentservice.GetPostResp, error) {
 	return &contentservice.GetPostResp{Post: contractPost()}, nil
 }
-func (contractContentService) UpdatePost(_ context.Context, in *contentservice.UpdatePostReq, _ ...grpc.CallOption) (*contentservice.UpdatePostResp, error) {
+func (contractContentService) UpdatePost(_ context.Context, in *contentservice.UpdatePostReq, _ ...callopt.Option) (*contentservice.UpdatePostResp, error) {
 	if in.ExpectedRevision == 999 {
 		// CORE-013：版本冲突必须返回 409 与 ContentVersionConflict。
 		return nil, errx.NewWithCode(errx.ContentVersionConflict)
 	}
 	return &contentservice.UpdatePostResp{}, nil
 }
-func (contractContentService) DeletePost(context.Context, *contentservice.DeletePostReq, ...grpc.CallOption) (*contentservice.DeletePostResp, error) {
+func (contractContentService) DeletePost(context.Context, *contentservice.DeletePostReq, ...callopt.Option) (*contentservice.DeletePostResp, error) {
 	return &contentservice.DeletePostResp{}, nil
 }
-func (contractContentService) GetPostList(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (contractContentService) GetPostList(_ context.Context, in *contentservice.GetPostListReq, _ ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	if in.Cursor == "rpc-fail" {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &contentservice.GetPostListResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
 }
-func (contractContentService) GetUserPosts(context.Context, *contentservice.GetUserPostsReq, ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
+func (contractContentService) GetUserPosts(context.Context, *contentservice.GetUserPostsReq, ...callopt.Option) (*contentservice.GetUserPostsResp, error) {
 	return &contentservice.GetUserPostsResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
 }
-func (contractContentService) GetPostsByIds(context.Context, *contentservice.GetPostsByIdsReq, ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (contractContentService) GetPostsByIds(context.Context, *contentservice.GetPostsByIdsReq, ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	return &contentservice.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{contractPost()}}, nil
 }
-func (contractContentService) CreateComment(context.Context, *contentservice.CreateCommentReq, ...grpc.CallOption) (*contentservice.CreateCommentResp, error) {
+func (contractContentService) CreateComment(context.Context, *contentservice.CreateCommentReq, ...callopt.Option) (*contentservice.CreateCommentResp, error) {
 	return &contentservice.CreateCommentResp{CommentId: 21}, nil
 }
-func (contractContentService) DeleteComment(context.Context, *contentservice.DeleteCommentReq, ...grpc.CallOption) (*contentservice.DeleteCommentResp, error) {
+func (contractContentService) DeleteComment(context.Context, *contentservice.DeleteCommentReq, ...callopt.Option) (*contentservice.DeleteCommentResp, error) {
 	return &contentservice.DeleteCommentResp{}, nil
 }
-func (contractContentService) GetCommentList(context.Context, *contentservice.GetCommentListReq, ...grpc.CallOption) (*contentservice.GetCommentListResp, error) {
+func (contractContentService) GetCommentList(context.Context, *contentservice.GetCommentListReq, ...callopt.Option) (*contentservice.GetCommentListResp, error) {
 	return &contentservice.GetCommentListResp{Comments: []*contentpb.CommentInfo{{Id: 21, PostId: 11, UserId: 1, Content: "comment"}}, Total: 1}, nil
 }
-func (contractContentService) GetCommentReplies(context.Context, *contentservice.GetCommentRepliesReq, ...grpc.CallOption) (*contentservice.GetCommentRepliesResp, error) {
+func (contractContentService) GetCommentReplies(context.Context, *contentservice.GetCommentRepliesReq, ...callopt.Option) (*contentservice.GetCommentRepliesResp, error) {
 	return &contentservice.GetCommentRepliesResp{Comments: []*contentpb.CommentInfo{{Id: 22, PostId: 11, UserId: 1, ParentId: 21, Content: "reply"}}, Total: 1}, nil
 }
 
@@ -162,25 +163,25 @@ type contractInteractionService struct {
 	interactionservice.InteractionService
 }
 
-func (contractInteractionService) Like(context.Context, *interactionservice.LikeReq, ...grpc.CallOption) (*interactionservice.LikeResp, error) {
+func (contractInteractionService) Like(context.Context, *interactionservice.LikeReq, ...callopt.Option) (*interactionservice.LikeResp, error) {
 	return &interactionservice.LikeResp{}, nil
 }
-func (contractInteractionService) Unlike(context.Context, *interactionservice.UnlikeReq, ...grpc.CallOption) (*interactionservice.UnlikeResp, error) {
+func (contractInteractionService) Unlike(context.Context, *interactionservice.UnlikeReq, ...callopt.Option) (*interactionservice.UnlikeResp, error) {
 	return &interactionservice.UnlikeResp{}, nil
 }
-func (contractInteractionService) Favorite(context.Context, *interactionservice.FavoriteReq, ...grpc.CallOption) (*interactionservice.FavoriteResp, error) {
+func (contractInteractionService) Favorite(context.Context, *interactionservice.FavoriteReq, ...callopt.Option) (*interactionservice.FavoriteResp, error) {
 	return &interactionservice.FavoriteResp{}, nil
 }
-func (contractInteractionService) Unfavorite(context.Context, *interactionservice.UnfavoriteReq, ...grpc.CallOption) (*interactionservice.UnfavoriteResp, error) {
+func (contractInteractionService) Unfavorite(context.Context, *interactionservice.UnfavoriteReq, ...callopt.Option) (*interactionservice.UnfavoriteResp, error) {
 	return &interactionservice.UnfavoriteResp{}, nil
 }
-func (contractInteractionService) GetFavoriteList(context.Context, *interactionservice.GetFavoriteListReq, ...grpc.CallOption) (*interactionservice.GetFavoriteListResp, error) {
+func (contractInteractionService) GetFavoriteList(context.Context, *interactionservice.GetFavoriteListReq, ...callopt.Option) (*interactionservice.GetFavoriteListResp, error) {
 	return &interactionservice.GetFavoriteListResp{PostIds: []int64{11}, Total: 1}, nil
 }
-func (contractInteractionService) GetLikeList(context.Context, *interactionservice.GetLikeListReq, ...grpc.CallOption) (*interactionservice.GetLikeListResp, error) {
+func (contractInteractionService) GetLikeList(context.Context, *interactionservice.GetLikeListReq, ...callopt.Option) (*interactionservice.GetLikeListResp, error) {
 	return &interactionservice.GetLikeListResp{PostIds: []int64{11}, Total: 1}, nil
 }
-func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 	results := make(map[int64]bool, len(in.TargetIds))
 	for _, targetID := range in.TargetIds {
 		results[targetID] = true
@@ -188,7 +189,7 @@ func (contractInteractionService) BatchCheckLiked(_ context.Context, in *interac
 	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
 }
 
-func (contractInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckFavoritedResp, error) {
+func (contractInteractionService) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...callopt.Option) (*interactionservice.BatchCheckFavoritedResp, error) {
 	results := make(map[int64]bool, len(in.PostIds))
 	for _, postID := range in.PostIds {
 		results[postID] = true
@@ -197,7 +198,7 @@ func (contractInteractionService) BatchCheckFavorited(_ context.Context, in *int
 }
 
 type contractUploadStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	failUserID int64
 }
 
@@ -216,12 +217,12 @@ func (s *contractUploadStream) CloseAndRecv() (*mediapb.UploadImageResp, error) 
 
 type contractMediaService struct{ mediaservice.MediaService }
 
-func (contractMediaService) UploadImage(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadImageClient, error) {
+func (contractMediaService) UploadImage(context.Context, ...callopt.Option) (mediaservice.MediaService_UploadImageClient, error) {
 	return &contractUploadStream{failUserID: 999}, nil
 }
 
 type contractVideoStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	fail bool
 }
 
@@ -237,12 +238,12 @@ func (s *contractVideoStream) CloseAndRecv() (*mediapb.UploadVideoResp, error) {
 	}
 	return &mediapb.UploadVideoResp{Media: &mediapb.MediaInfo{Id: 32, Url: "https://media/file", FileType: "video", MimeType: "application/octet-stream", FileSize: 3}}, nil
 }
-func (contractMediaService) UploadVideo(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadVideoClient, error) {
+func (contractMediaService) UploadVideo(context.Context, ...callopt.Option) (mediaservice.MediaService_UploadVideoClient, error) {
 	return &contractVideoStream{}, nil
 }
 
 type contractAudioStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	fail bool
 }
 
@@ -258,7 +259,7 @@ func (s *contractAudioStream) CloseAndRecv() (*mediapb.UploadAudioResp, error) {
 	}
 	return &mediapb.UploadAudioResp{Media: &mediapb.MediaInfo{Id: 32, Url: "https://media/file", FileType: "audio", MimeType: "application/octet-stream", FileSize: 3}}, nil
 }
-func (contractMediaService) UploadAudio(context.Context, ...grpc.CallOption) (mediapb.MediaService_UploadAudioClient, error) {
+func (contractMediaService) UploadAudio(context.Context, ...callopt.Option) (mediaservice.MediaService_UploadAudioClient, error) {
 	return &contractAudioStream{}, nil
 }
 
@@ -266,7 +267,7 @@ type contractBehaviorService struct {
 	behaviorservice.BehaviorService
 }
 
-func (contractBehaviorService) RecordEvents(_ context.Context, in *behaviorservice.RecordEventsReq, _ ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+func (contractBehaviorService) RecordEvents(_ context.Context, in *behaviorservice.RecordEventsReq, _ ...callopt.Option) (*behaviorservice.RecordEventsResp, error) {
 	results := make([]*behaviorservice.RecordEventResult, 0, len(in.Events))
 	for index, event := range in.Events {
 		results = append(results, &behaviorservice.RecordEventResult{ClientEventId: event.ClientEventId, EventId: int64(index + 1), Accepted: true})
@@ -276,7 +277,7 @@ func (contractBehaviorService) RecordEvents(_ context.Context, in *behaviorservi
 
 type contractFeedService struct{ feedservice.FeedService }
 
-func (contractFeedService) GetFollowFeed(context.Context, *feedservice.GetFollowFeedReq, ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+func (contractFeedService) GetFollowFeed(context.Context, *feedservice.GetFollowFeedReq, ...callopt.Option) (*feedservice.GetFollowFeedResp, error) {
 	return &feedservice.GetFollowFeedResp{
 		Items: []*feedpb.FeedItem{{
 			PostId: 11, AuthorId: 1, CreatedAt: 100, FeedType: 1,
@@ -286,7 +287,7 @@ func (contractFeedService) GetFollowFeed(context.Context, *feedservice.GetFollow
 	}, nil
 }
 
-func (contractFeedService) GetRecommendFeed(_ context.Context, in *feedservice.GetRecommendFeedReq, _ ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+func (contractFeedService) GetRecommendFeed(_ context.Context, in *feedservice.GetRecommendFeedReq, _ ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 	if in.RequestId == "rpc-fail" {
 		return nil, context.DeadlineExceeded
 	}
@@ -303,40 +304,40 @@ func (contractFeedService) GetRecommendFeed(_ context.Context, in *feedservice.G
 
 type contractSearchService struct{ searchservice.SearchService }
 
-func (contractSearchService) Search(context.Context, *searchservice.SearchReq, ...grpc.CallOption) (*searchservice.SearchResp, error) {
+func (contractSearchService) Search(context.Context, *searchservice.SearchReq, ...callopt.Option) (*searchservice.SearchResp, error) {
 	return &searchservice.SearchResp{
 		Posts: []*searchservice.PostSearchResult{{Id: 11, Title: "title"}},
 		Users: []*searchservice.UserSearchResult{{Id: 2, Username: "user"}},
 		Tags:  []*searchservice.TagSearchResult{{Name: "tag", PostCount: 1}},
 	}, nil
 }
-func (contractSearchService) SearchUsers(context.Context, *searchservice.SearchUsersReq, ...grpc.CallOption) (*searchservice.SearchUsersResp, error) {
+func (contractSearchService) SearchUsers(context.Context, *searchservice.SearchUsersReq, ...callopt.Option) (*searchservice.SearchUsersResp, error) {
 	return &searchservice.SearchUsersResp{Users: []*searchservice.UserSearchResult{{Id: 2, Username: "user"}}, Total: 1}, nil
 }
-func (contractSearchService) SearchTags(context.Context, *searchservice.SearchTagsReq, ...grpc.CallOption) (*searchservice.SearchTagsResp, error) {
+func (contractSearchService) SearchTags(context.Context, *searchservice.SearchTagsReq, ...callopt.Option) (*searchservice.SearchTagsResp, error) {
 	return &searchservice.SearchTagsResp{Tags: []*searchservice.TagSearchResult{{Name: "tag", PostCount: 1}}}, nil
 }
 
 type contractMessageService struct{ messageservice.MessageService }
 
-func (contractMessageService) GetConversations(context.Context, *messageservice.GetConversationsReq, ...grpc.CallOption) (*messageservice.GetConversationsResp, error) {
+func (contractMessageService) GetConversations(context.Context, *messageservice.GetConversationsReq, ...callopt.Option) (*messageservice.GetConversationsResp, error) {
 	return &messageservice.GetConversationsResp{
 		Conversations: []*messagepb.ConversationInfo{{Id: 41, TargetUserId: 2, TargetUserName: "user", LastMessage: "hello"}},
 		Total:         1,
 	}, nil
 }
-func (contractMessageService) GetMessages(context.Context, *messageservice.GetMessagesReq, ...grpc.CallOption) (*messageservice.GetMessagesResp, error) {
+func (contractMessageService) GetMessages(context.Context, *messageservice.GetMessagesReq, ...callopt.Option) (*messageservice.GetMessagesResp, error) {
 	return &messageservice.GetMessagesResp{
 		Messages: []*messagepb.MessageInfo{{Id: 51, ConversationId: 41, SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1}},
 	}, nil
 }
-func (contractMessageService) SendMessage(context.Context, *messageservice.SendMessageReq, ...grpc.CallOption) (*messageservice.SendMessageResp, error) {
+func (contractMessageService) SendMessage(context.Context, *messageservice.SendMessageReq, ...callopt.Option) (*messageservice.SendMessageResp, error) {
 	return &messageservice.SendMessageResp{MessageId: 51}, nil
 }
-func (contractMessageService) MarkRead(context.Context, *messageservice.MarkReadReq, ...grpc.CallOption) (*messageservice.MarkReadResp, error) {
+func (contractMessageService) MarkRead(context.Context, *messageservice.MarkReadReq, ...callopt.Option) (*messageservice.MarkReadResp, error) {
 	return &messageservice.MarkReadResp{}, nil
 }
-func (contractMessageService) GetUnreadCount(_ context.Context, in *messageservice.GetUnreadCountReq, _ ...grpc.CallOption) (*messageservice.GetUnreadCountResp, error) {
+func (contractMessageService) GetUnreadCount(_ context.Context, in *messageservice.GetUnreadCountReq, _ ...callopt.Option) (*messageservice.GetUnreadCountResp, error) {
 	if in.UserId == 999 {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -344,7 +345,7 @@ func (contractMessageService) GetUnreadCount(_ context.Context, in *messageservi
 }
 
 type contractAssistantStream struct {
-	grpc.ClientStream
+	streaming.Stream
 	ctx    context.Context
 	events []*assistantpb.RunEvent
 	index  int
@@ -365,69 +366,69 @@ type contractAssistantService struct {
 	assistantservice.AssistantService
 }
 
-func (contractAssistantService) GetThread(context.Context, *assistantservice.GetThreadReq, ...grpc.CallOption) (*assistantpb.GetThreadResp, error) {
+func (contractAssistantService) GetThread(context.Context, *assistantservice.GetThreadReq, ...callopt.Option) (*assistantpb.GetThreadResp, error) {
 	return &assistantpb.GetThreadResp{Thread: &assistantpb.AssistantThread{SessionId: 1}}, nil
 }
-func (contractAssistantService) ListMessages(context.Context, *assistantservice.ListMessagesReq, ...grpc.CallOption) (*assistantpb.ListMessagesResp, error) {
+func (contractAssistantService) ListMessages(context.Context, *assistantservice.ListMessagesReq, ...callopt.Option) (*assistantpb.ListMessagesResp, error) {
 	return &assistantpb.ListMessagesResp{}, nil
 }
-func (contractAssistantService) PostMessage(context.Context, *assistantservice.PostMessageReq, ...grpc.CallOption) (*assistantpb.PostMessageResp, error) {
+func (contractAssistantService) PostMessage(context.Context, *assistantservice.PostMessageReq, ...callopt.Option) (*assistantpb.PostMessageResp, error) {
 	return &assistantpb.PostMessageResp{MessageId: 1, SessionId: 1, RunId: 9, Disposition: "started"}, nil
 }
-func (contractAssistantService) MarkThreadRead(context.Context, *assistantservice.MarkThreadReadReq, ...grpc.CallOption) (*assistantpb.MarkThreadReadResp, error) {
+func (contractAssistantService) MarkThreadRead(context.Context, *assistantservice.MarkThreadReadReq, ...callopt.Option) (*assistantpb.MarkThreadReadResp, error) {
 	return &assistantpb.MarkThreadReadResp{}, nil
 }
-func (contractAssistantService) DeleteHistory(context.Context, *assistantservice.DeleteHistoryReq, ...grpc.CallOption) (*assistantpb.DeleteHistoryResp, error) {
+func (contractAssistantService) DeleteHistory(context.Context, *assistantservice.DeleteHistoryReq, ...callopt.Option) (*assistantpb.DeleteHistoryResp, error) {
 	return &assistantpb.DeleteHistoryResp{}, nil
 }
-func (contractAssistantService) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...grpc.CallOption) (assistantpb.AssistantService_SubscribeRunEventsClient, error) {
+func (contractAssistantService) SubscribeRunEvents(ctx context.Context, _ *assistantservice.SubscribeRunEventsReq, _ ...callopt.Option) (assistantservice.AssistantService_SubscribeRunEventsClient, error) {
 	return &contractAssistantStream{ctx: ctx, events: []*assistantpb.RunEvent{
 		{RunId: 9, Seq: 1, Type: "run_started", SessionId: 1},
 		{RunId: 9, Seq: 2, Type: "token", Text: "answer", SessionId: 1},
 		{RunId: 9, Seq: 3, Type: "done", SessionId: 1},
 	}}, nil
 }
-func (contractAssistantService) CancelRun(context.Context, *assistantservice.CancelRunReq, ...grpc.CallOption) (*assistantpb.CancelRunResp, error) {
+func (contractAssistantService) CancelRun(context.Context, *assistantservice.CancelRunReq, ...callopt.Option) (*assistantpb.CancelRunResp, error) {
 	return &assistantpb.CancelRunResp{}, nil
 }
-func (contractAssistantService) ConfirmRunTool(context.Context, *assistantservice.ConfirmRunToolReq, ...grpc.CallOption) (*assistantpb.ConfirmRunToolResp, error) {
+func (contractAssistantService) ConfirmRunTool(context.Context, *assistantservice.ConfirmRunToolReq, ...callopt.Option) (*assistantpb.ConfirmRunToolResp, error) {
 	return &assistantpb.ConfirmRunToolResp{}, nil
 }
 
-func (contractAssistantService) AnswerQuestions(context.Context, *assistantservice.AnswerQuestionsReq, ...grpc.CallOption) (*assistantpb.AnswerQuestionsResp, error) {
+func (contractAssistantService) AnswerQuestions(context.Context, *assistantservice.AnswerQuestionsReq, ...callopt.Option) (*assistantpb.AnswerQuestionsResp, error) {
 	return &assistantpb.AnswerQuestionsResp{QuestionRequestJson: `{"id":"q1","runId":9,"callId":"c1","messageId":2,"status":"answered","questions":[],"answers":[],"deadlineMs":1,"createdAtMs":1}`}, nil
 }
-func (contractAssistantService) ListMemory(context.Context, *assistantservice.ListMemoryReq, ...grpc.CallOption) (*assistantpb.ListMemoryResp, error) {
+func (contractAssistantService) ListMemory(context.Context, *assistantservice.ListMemoryReq, ...callopt.Option) (*assistantpb.ListMemoryResp, error) {
 	return &assistantpb.ListMemoryResp{}, nil
 }
-func (contractAssistantService) AddMemory(context.Context, *assistantservice.AddMemoryReq, ...grpc.CallOption) (*assistantpb.AddMemoryResp, error) {
+func (contractAssistantService) AddMemory(context.Context, *assistantservice.AddMemoryReq, ...callopt.Option) (*assistantpb.AddMemoryResp, error) {
 	return &assistantpb.AddMemoryResp{Entry: &assistantpb.MemoryEntry{Id: 1, Target: "memory", Content: "x", Version: 1}}, nil
 }
-func (contractAssistantService) ReplaceMemory(context.Context, *assistantservice.ReplaceMemoryReq, ...grpc.CallOption) (*assistantpb.ReplaceMemoryResp, error) {
+func (contractAssistantService) ReplaceMemory(context.Context, *assistantservice.ReplaceMemoryReq, ...callopt.Option) (*assistantpb.ReplaceMemoryResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
-func (contractAssistantService) RemoveMemory(context.Context, *assistantservice.RemoveMemoryReq, ...grpc.CallOption) (*assistantpb.RemoveMemoryResp, error) {
+func (contractAssistantService) RemoveMemory(context.Context, *assistantservice.RemoveMemoryReq, ...callopt.Option) (*assistantpb.RemoveMemoryResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
-func (contractAssistantService) BatchMemory(context.Context, *assistantservice.BatchMemoryReq, ...grpc.CallOption) (*assistantpb.BatchMemoryResp, error) {
+func (contractAssistantService) BatchMemory(context.Context, *assistantservice.BatchMemoryReq, ...callopt.Option) (*assistantpb.BatchMemoryResp, error) {
 	return &assistantpb.BatchMemoryResp{}, nil
 }
-func (contractAssistantService) UndoMemoryChange(context.Context, *assistantservice.UndoMemoryChangeReq, ...grpc.CallOption) (*assistantpb.UndoMemoryChangeResp, error) {
+func (contractAssistantService) UndoMemoryChange(context.Context, *assistantservice.UndoMemoryChangeReq, ...callopt.Option) (*assistantpb.UndoMemoryChangeResp, error) {
 	return &assistantpb.UndoMemoryChangeResp{}, nil
 }
-func (contractAssistantService) ListWatchTasks(context.Context, *assistantservice.ListWatchTasksReq, ...grpc.CallOption) (*assistantpb.ListWatchTasksResp, error) {
+func (contractAssistantService) ListWatchTasks(context.Context, *assistantservice.ListWatchTasksReq, ...callopt.Option) (*assistantpb.ListWatchTasksResp, error) {
 	return &assistantpb.ListWatchTasksResp{}, nil
 }
-func (contractAssistantService) CreateWatchTask(context.Context, *assistantservice.CreateWatchTaskReq, ...grpc.CallOption) (*assistantpb.CreateWatchTaskResp, error) {
+func (contractAssistantService) CreateWatchTask(context.Context, *assistantservice.CreateWatchTaskReq, ...callopt.Option) (*assistantpb.CreateWatchTaskResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
-func (contractAssistantService) UpdateWatchTask(context.Context, *assistantservice.UpdateWatchTaskReq, ...grpc.CallOption) (*assistantpb.UpdateWatchTaskResp, error) {
+func (contractAssistantService) UpdateWatchTask(context.Context, *assistantservice.UpdateWatchTaskReq, ...callopt.Option) (*assistantpb.UpdateWatchTaskResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
-func (contractAssistantService) DeleteWatchTask(context.Context, *assistantservice.DeleteWatchTaskReq, ...grpc.CallOption) (*assistantpb.DeleteWatchTaskResp, error) {
+func (contractAssistantService) DeleteWatchTask(context.Context, *assistantservice.DeleteWatchTaskReq, ...callopt.Option) (*assistantpb.DeleteWatchTaskResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
-func (contractAssistantService) SubmitRecommendFeedback(context.Context, *assistantservice.SubmitRecommendFeedbackReq, ...grpc.CallOption) (*assistantpb.SubmitRecommendFeedbackResp, error) {
+func (contractAssistantService) SubmitRecommendFeedback(context.Context, *assistantservice.SubmitRecommendFeedbackReq, ...callopt.Option) (*assistantpb.SubmitRecommendFeedbackResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
 
@@ -492,11 +493,15 @@ func freePort(t *testing.T) int {
 	return listener.Addr().(*net.TCPAddr).Port
 }
 
-func startContractServer(t *testing.T) (string, []rest.Route) {
+func startContractServer(t *testing.T) (string, route.RoutesInfo) {
+	return startContractServerWithAssistant(t, contractAssistantService{})
+}
+
+func startContractServerWithAssistant(t *testing.T, assistant assistantservice.AssistantService) (string, route.RoutesInfo) {
 	t.Helper()
 	port := freePort(t)
 	cfg := config.Config{
-		RestConf: rest.RestConf{Host: "127.0.0.1", Port: port, Timeout: 3000, MaxBytes: 10 << 20}}
+		RestConf: config.HTTPConfig{Host: "127.0.0.1", Port: port, MaxBytes: 10 << 20}}
 	cfg.Auth.AccessSecret = contractSecret
 	cfg.Auth.AccessExpire = 3600
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
@@ -512,18 +517,17 @@ func startContractServer(t *testing.T) (string, []rest.Route) {
 		FeedService:        contractFeedService{},
 		MessageService:     contractMessageService{},
 		SearchService:      contractSearchService{},
-		AssistantService:   contractAssistantService{},
-		OptionalAuth:       optionalAuth.Handle,
-		RequiredAuth:       requiredAuth.Handle,
-		BehaviorAccepted:   behaviorAccepted.Handle,
+		AssistantService:   assistant,
+		OptionalAuth:       optionalAuth.Hertz,
+		RequiredAuth:       requiredAuth.Hertz,
+		BehaviorAccepted:   behaviorAccepted.Hertz,
 	}
 
 	httpxconfig.ConfigureErrors()
-	server := rest.MustNewServer(cfg.RestConf, rest.WithUnauthorizedCallback(httpxconfig.Unauthorized))
-	handler.RegisterHandlers(server, ctx)
+	server := newGateway(cfg, ctx)
 	routes := server.Routes()
-	go server.Start()
-	t.Cleanup(server.Stop)
+	go func() { _ = server.Run() }()
+	t.Cleanup(func() { _ = server.Shutdown(context.Background()) })
 
 	baseURL := "http://127.0.0.1:" + strconv.Itoa(port)
 	deadline := time.Now().Add(3 * time.Second)
@@ -832,12 +836,15 @@ func TestMediaRoutesUseFileBudgetInsteadOfGlobalRESTLimit(t *testing.T) {
 	for _, tc := range []struct {
 		path         string
 		size, status int
+		chunked      bool
 	}{
-		{"video", 21 << 20, http.StatusOK},
-		{"audio", 10 << 20, http.StatusOK},
-		{"audio", (10 << 20) + 1, http.StatusRequestEntityTooLarge},
+		{"video", 21 << 20, http.StatusOK, false},
+		{"audio", 10 << 20, http.StatusOK, false},
+		{"audio", (10 << 20) + 1, http.StatusRequestEntityTooLarge, false},
+		{"video", 21 << 20, http.StatusOK, true},
+		{"audio", 11 << 20, http.StatusRequestEntityTooLarge, true},
 	} {
-		t.Run(fmt.Sprintf("%s_%d", tc.path, tc.size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s_%d_chunked=%t", tc.path, tc.size, tc.chunked), func(t *testing.T) {
 			var body bytes.Buffer
 			writer := multipart.NewWriter(&body)
 			part, e := writer.CreateFormFile("file", "probe.bin")
@@ -853,7 +860,11 @@ func TestMediaRoutesUseFileBudgetInsteadOfGlobalRESTLimit(t *testing.T) {
 			if e = writer.Close(); e != nil {
 				t.Fatal(e)
 			}
-			req, e := http.NewRequest(http.MethodPost, base+"/api/v1/media/"+tc.path, &body)
+			var reader io.Reader = &body
+			if tc.chunked {
+				reader = struct{ io.Reader }{&body}
+			}
+			req, e := http.NewRequest(http.MethodPost, base+"/api/v1/media/"+tc.path, reader)
 			if e != nil {
 				t.Fatal(e)
 			}

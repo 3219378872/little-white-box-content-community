@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"esx/pkg/rpcx"
 	"flag"
 	"fmt"
 
@@ -10,14 +11,16 @@ import (
 	"esx/app/media/mq/internal/svc"
 	"esx/pkg/cleanupx"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/proc"
+	conf "esx/pkg/configx"
+	proc "esx/pkg/lifecycle"
+	logx "esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/media-consumer.yaml", "config file")
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer proc.CloseResources()
 	flag.Parse()
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())

@@ -1,32 +1,30 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package message
 
 import (
-	"net/http"
+	"context"
+	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic/message"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // 发送私信
-func SendMessageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func SendMessageHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
 		var req types.SendMessageReq
-		if err := httpx.Parse(r, &req); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if err := httpx.Parse(c, &req); err != nil {
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
 
-		l := message.NewSendMessageLogic(r.Context(), svcCtx)
+		l := message.NewSendMessageLogic(ctx, svcCtx)
 		resp, err := l.SendMessage(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(ctx, c, resp)
 		}
 	}
 }

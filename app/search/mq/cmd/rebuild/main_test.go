@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
 func TestCommandConfigLoadsSharedSearchYAML(t *testing.T) {

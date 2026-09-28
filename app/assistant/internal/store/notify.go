@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 type RedisNotifier struct {

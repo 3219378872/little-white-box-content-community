@@ -4,17 +4,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeContentService struct {
 	assertFn func(ctx context.Context, in *contentservice.AssertInteractableReq) (*contentservice.AssertInteractableResp, error)
 }
 
-func (f *fakeContentService) AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, _ ...grpc.CallOption) (*contentservice.AssertInteractableResp, error) {
+func (f *fakeContentService) AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, _ ...callopt.Option) (*contentservice.AssertInteractableResp, error) {
 	if f.assertFn != nil {
 		return f.assertFn(ctx, in)
 	}

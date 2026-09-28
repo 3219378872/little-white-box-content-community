@@ -49,7 +49,7 @@ replace_endpoint() {
 
 # Source configs remain convenient for host-based development. The production
 # image rewrites only infrastructure endpoints; secret expansion stays in
-# go-zero's conf.UseEnv path.
+# the project's configx.UseEnv path.
 replace_endpoint 'http://127\.0\.0\.1:8333' "${S3_PUBLIC_BASE_URL:-}"
 replace_endpoint '127\.0\.0\.1:8333' "${S3_ENDPOINT:-}"
 replace_endpoint '127\.0\.0\.1:6379' "${REDIS_HOST:-}"

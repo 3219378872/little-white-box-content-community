@@ -7,8 +7,9 @@ import (
 	"esx/app/pipeline/behaviorlog/internal/config"
 	"esx/pkg/mqx"
 
+	redis "esx/pkg/redisstore"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 func TestNewServiceContext_PanicsWithMissingConfigList(t *testing.T) {

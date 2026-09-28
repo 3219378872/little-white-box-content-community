@@ -8,7 +8,7 @@ import (
 	"errors"
 	"esx/app/media/rpc/internal/mediautil"
 	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/cleanupx"
 	"esx/pkg/errx"
 	"esx/pkg/event"
@@ -25,7 +25,7 @@ import (
 
 	"uuid"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const storageTypeSeaweedFS = 3

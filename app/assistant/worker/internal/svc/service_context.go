@@ -25,11 +25,10 @@ import (
 	"esx/app/recommend/rpc/recommendservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
-	"github.com/zeromicro/go-zero/zrpc"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type ServiceContext struct {
@@ -63,7 +62,6 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	userService := userservice.NewUserService(newClient(c.UserRpc))
 
 	// SQL arguments contain prompts and tool payloads; suppress SQL logs (REL-022).
-	sqlx.DisableLog()
 	conn := sqlx.NewMysql(c.DataSource)
 	st := store.NewSQLStore(conn)
 	var safetyFilter safety.Filter
@@ -265,15 +263,14 @@ func checkConfiguredRoutes(c config.LLMConfig, client llm.Client, routeIDs []str
 	return nil
 }
 
-func authenticatedRPCClient(secret string) func(zrpc.RpcClientConf) zrpc.Client {
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(secret)
-	internalAuthStreamInterceptor := interceptor.InternalAuthStreamClientInterceptor(secret)
-	newClient := func(conf zrpc.RpcClientConf) zrpc.Client {
-		return interceptor.MustNewClient(conf,
-			zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-			zrpc.WithUnaryClientInterceptor(internalAuthInterceptor),
-			zrpc.WithStreamClientInterceptor(internalAuthStreamInterceptor),
+func authenticatedRPCClient(secret string) func(rpcx.RpcClientConf) rpcx.Client {
+
+	internalAuthOption := rpcx.WithInternalAuth(secret)
+
+	newClient := func(conf rpcx.RpcClientConf) rpcx.Client {
+		return rpcx.MustNewClient(conf,
+
+			internalAuthOption,
 		)
 	}
 	return newClient

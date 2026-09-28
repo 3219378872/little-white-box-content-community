@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package user;
-option go_package = "xiaobaihe/user/pb";
+option go_package = "esx/kitex_gen/user;pb";
 
 // 用户服务
 service UserService {

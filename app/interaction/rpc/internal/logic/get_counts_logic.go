@@ -5,13 +5,13 @@ import (
 	"errors"
 	model2 "esx/app/interaction/rpc/internal/model"
 	svc2 "esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 	"fmt"
 	"strconv"
 
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type GetCountsLogic struct {
@@ -73,7 +73,7 @@ func actionCountCacheKey(targetID, targetType int64) string {
 	return fmt.Sprintf("interaction:action_count:%d:%d", targetID, targetType)
 }
 
-func invalidateActionCountCache(svcCtx *svc2.ServiceContext, targetID, targetType int64) error {
+func invalidateActionCountCache(ctx context.Context, svcCtx *svc2.ServiceContext, targetID, targetType int64) error {
 	store := svcCtx.RedisStore
 	if store == nil && svcCtx.Redis != nil {
 		store = svc2.NewRedisStore(svcCtx.Redis)
@@ -81,7 +81,7 @@ func invalidateActionCountCache(svcCtx *svc2.ServiceContext, targetID, targetTyp
 	if store == nil {
 		return nil
 	}
-	return store.Del(actionCountCacheKey(targetID, targetType))
+	return store.Del(ctx, actionCountCacheKey(targetID, targetType))
 }
 
 func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, bool) {
@@ -90,15 +90,15 @@ func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, boo
 		return nil, false
 	}
 
-	likeVal, err := store.Hget(key, "like_count")
+	likeVal, err := store.Hget(l.ctx, key, "like_count")
 	if err != nil {
 		return nil, false
 	}
-	favoriteVal, err := store.Hget(key, "favorite_count")
+	favoriteVal, err := store.Hget(l.ctx, key, "favorite_count")
 	if err != nil {
 		return nil, false
 	}
-	commentVal, err := store.Hget(key, "comment_count")
+	commentVal, err := store.Hget(l.ctx, key, "comment_count")
 	if err != nil {
 		return nil, false
 	}
@@ -116,19 +116,19 @@ func (l *GetCountsLogic) writeCountsToCache(key string, count *model2.ActionCoun
 		return
 	}
 
-	if err := store.Hset(key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
+	if err := store.Hset(l.ctx, key, "like_count", fmt.Sprintf("%d", count.LikeCount)); err != nil {
 		l.Errorf("write like_count cache failed: %v", err)
 	}
-	if err := store.Hset(key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
+	if err := store.Hset(l.ctx, key, "favorite_count", fmt.Sprintf("%d", count.FavoriteCount)); err != nil {
 		l.Errorf("write favorite_count cache failed: %v", err)
 	}
-	if err := store.Hset(key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
+	if err := store.Hset(l.ctx, key, "comment_count", fmt.Sprintf("%d", count.CommentCount)); err != nil {
 		l.Errorf("write comment_count cache failed: %v", err)
 	}
-	if err := store.Hset(key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
+	if err := store.Hset(l.ctx, key, "share_count", fmt.Sprintf("%d", count.ShareCount)); err != nil {
 		l.Errorf("write share_count cache failed: %v", err)
 	}
-	if err := store.Expire(key, ttlSeconds); err != nil {
+	if err := store.Expire(l.ctx, key, ttlSeconds); err != nil {
 		l.Errorf("set cache expire failed: %v", err)
 	}
 }

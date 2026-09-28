@@ -4,21 +4,21 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	interactionpb "esx/kitex_gen/interaction"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeInteractionService struct {
 	interactionservice.InteractionService
-	likeFn func(ctx context.Context, in *interactionpb.LikeReq, opts ...grpc.CallOption) (*interactionpb.LikeResp, error)
+	likeFn func(ctx context.Context, in *interactionpb.LikeReq, opts ...callopt.Option) (*interactionpb.LikeResp, error)
 }
 
-func (f *fakeInteractionService) Like(ctx context.Context, in *interactionpb.LikeReq, opts ...grpc.CallOption) (*interactionpb.LikeResp, error) {
+func (f *fakeInteractionService) Like(ctx context.Context, in *interactionpb.LikeReq, opts ...callopt.Option) (*interactionpb.LikeResp, error) {
 	return f.likeFn(ctx, in, opts...)
 }
 
@@ -26,7 +26,7 @@ func TestLike_Success(t *testing.T) {
 	var capturedReq *interactionpb.LikeReq
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionService{
-			likeFn: func(_ context.Context, in *interactionpb.LikeReq, _ ...grpc.CallOption) (*interactionpb.LikeResp, error) {
+			likeFn: func(_ context.Context, in *interactionpb.LikeReq, _ ...callopt.Option) (*interactionpb.LikeResp, error) {
 				capturedReq = in
 				return &interactionpb.LikeResp{}, nil
 			},
@@ -51,7 +51,7 @@ func TestLike_Success(t *testing.T) {
 func TestLike_RPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionService{
-			likeFn: func(_ context.Context, _ *interactionpb.LikeReq, _ ...grpc.CallOption) (*interactionpb.LikeResp, error) {
+			likeFn: func(_ context.Context, _ *interactionpb.LikeReq, _ ...callopt.Option) (*interactionpb.LikeResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},

@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"esx/app/interaction/rpc/internal/svc"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 	"esx/pkg/errx"
 	"esx/pkg/pageutil"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 const likeListTargetTypePost int64 = 1

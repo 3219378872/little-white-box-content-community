@@ -4,21 +4,21 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	interactionpb "esx/kitex_gen/interaction"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeInteractionServiceUnfavorite struct {
 	interactionservice.InteractionService
-	unfavoriteFn func(ctx context.Context, in *interactionpb.UnfavoriteReq, opts ...grpc.CallOption) (*interactionpb.UnfavoriteResp, error)
+	unfavoriteFn func(ctx context.Context, in *interactionpb.UnfavoriteReq, opts ...callopt.Option) (*interactionpb.UnfavoriteResp, error)
 }
 
-func (f *fakeInteractionServiceUnfavorite) Unfavorite(ctx context.Context, in *interactionpb.UnfavoriteReq, opts ...grpc.CallOption) (*interactionpb.UnfavoriteResp, error) {
+func (f *fakeInteractionServiceUnfavorite) Unfavorite(ctx context.Context, in *interactionpb.UnfavoriteReq, opts ...callopt.Option) (*interactionpb.UnfavoriteResp, error) {
 	return f.unfavoriteFn(ctx, in, opts...)
 }
 
@@ -26,7 +26,7 @@ func TestUnfavorite_Success(t *testing.T) {
 	var capturedReq *interactionpb.UnfavoriteReq
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionServiceUnfavorite{
-			unfavoriteFn: func(_ context.Context, in *interactionpb.UnfavoriteReq, _ ...grpc.CallOption) (*interactionpb.UnfavoriteResp, error) {
+			unfavoriteFn: func(_ context.Context, in *interactionpb.UnfavoriteReq, _ ...callopt.Option) (*interactionpb.UnfavoriteResp, error) {
 				capturedReq = in
 				return &interactionpb.UnfavoriteResp{}, nil
 			},
@@ -51,7 +51,7 @@ func TestUnfavorite_Success(t *testing.T) {
 func TestUnfavorite_RPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		InteractionService: &fakeInteractionServiceUnfavorite{
-			unfavoriteFn: func(_ context.Context, _ *interactionpb.UnfavoriteReq, _ ...grpc.CallOption) (*interactionpb.UnfavoriteResp, error) {
+			unfavoriteFn: func(_ context.Context, _ *interactionpb.UnfavoriteReq, _ ...callopt.Option) (*interactionpb.UnfavoriteResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},

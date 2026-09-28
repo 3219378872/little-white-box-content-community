@@ -6,7 +6,7 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/content/visibility"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/feed/rpc/xiaobaihe/feed/pb"
+	pb "esx/kitex_gen/feed"
 )
 
 const (

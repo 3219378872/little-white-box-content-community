@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	cache "esx/pkg/modelcache"
+	sqlx "esx/pkg/sqlstore"
 )
 
 var _ CommentModel = (*customCommentModel)(nil)

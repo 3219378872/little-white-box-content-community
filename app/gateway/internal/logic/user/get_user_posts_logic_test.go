@@ -4,29 +4,29 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
-
-	"google.golang.org/grpc"
+	contentpb "esx/kitex_gen/content"
+	userpb "esx/kitex_gen/user"
 )
 
 type fakeContentServiceUserPosts struct {
 	contentservice.ContentService
-	getUserPostsFn func(ctx context.Context, in *contentservice.GetUserPostsReq, opts ...grpc.CallOption) (*contentservice.GetUserPostsResp, error)
+	getUserPostsFn func(ctx context.Context, in *contentservice.GetUserPostsReq, opts ...callopt.Option) (*contentservice.GetUserPostsResp, error)
 }
 
-func (f *fakeContentServiceUserPosts) GetUserPosts(ctx context.Context, in *contentservice.GetUserPostsReq, opts ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
+func (f *fakeContentServiceUserPosts) GetUserPosts(ctx context.Context, in *contentservice.GetUserPostsReq, opts ...callopt.Option) (*contentservice.GetUserPostsResp, error) {
 	return f.getUserPostsFn(ctx, in, opts...)
 }
 
 func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				if len(in.UserIds) != 2 || in.UserIds[0] != 7 || in.UserIds[1] != 9 {
 					t.Fatalf("expected deduped author ids [7 9], got %v", in.UserIds)
 				}
@@ -37,7 +37,7 @@ func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 			},
 		},
 		ContentService: &fakeContentServiceUserPosts{
-			getUserPostsFn: func(_ context.Context, in *contentservice.GetUserPostsReq, _ ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
+			getUserPostsFn: func(_ context.Context, in *contentservice.GetUserPostsReq, _ ...callopt.Option) (*contentservice.GetUserPostsResp, error) {
 				if in.UserId != 42 || in.Cursor != "" || in.PageSize != 20 {
 					t.Fatalf("unexpected rpc req: %+v", in)
 				}
@@ -75,12 +75,12 @@ func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 func TestGetUserPosts_BatchGetUsersError_DegradesToEmptyAuthorFields(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
 		ContentService: &fakeContentServiceUserPosts{
-			getUserPostsFn: func(_ context.Context, _ *contentservice.GetUserPostsReq, _ ...grpc.CallOption) (*contentservice.GetUserPostsResp, error) {
+			getUserPostsFn: func(_ context.Context, _ *contentservice.GetUserPostsReq, _ ...callopt.Option) (*contentservice.GetUserPostsResp, error) {
 				return &contentservice.GetUserPostsResp{
 					Posts:      []*contentpb.PostInfo{{Id: 100, AuthorId: 7, Title: "A", Status: 1}},
 					NextCursor: "",

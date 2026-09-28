@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/feed/mq/internal/model"
 	"esx/app/user/rpc/userservice"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 // --- mocks ---
@@ -30,7 +31,7 @@ func (m *mockInboxModel) BatchInsertIgnore(ctx context.Context, rows []*model.Fe
 
 type mockUserService struct{ mock.Mock }
 
-func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...grpc.CallOption) (*userservice.GetUserResp, error) {
+func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetUserResp), args.Error(1)
@@ -38,7 +39,7 @@ func (m *mockUserService) GetUser(ctx context.Context, in *userservice.GetUserRe
 	return nil, args.Error(1)
 }
 
-func (m *mockUserService) GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...grpc.CallOption) (*userservice.GetFollowersResp, error) {
+func (m *mockUserService) GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error) {
 	args := m.Called(ctx, in)
 	if v := args.Get(0); v != nil {
 		return v.(*userservice.GetFollowersResp), args.Error(1)

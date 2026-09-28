@@ -1,6 +1,6 @@
 package model
 
-import "github.com/zeromicro/go-zero/core/stores/sqlx"
+import sqlx "esx/pkg/sqlstore"
 
 var ErrNotFound = sqlx.ErrNotFound
 

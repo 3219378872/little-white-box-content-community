@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"esx/pkg/lifecycle"
 	"flag"
 	"fmt"
 	"os"
@@ -14,11 +15,10 @@ import (
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/rebuild"
 	"esx/app/embedding/mq/internal/vectorstore"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/zrpc"
+	conf "esx/pkg/configx"
+	logx "esx/pkg/logging"
+	"esx/pkg/rpcx"
 )
 
 var (
@@ -27,6 +27,8 @@ var (
 )
 
 func main() {
+	defer rpcx.CloseAllClients()
+	defer lifecycle.CloseResources()
 	flag.Parse()
 	if err := run(); err != nil {
 		logx.Must(err)
@@ -106,12 +108,12 @@ func run() (err error) {
 		}
 	}()
 
-	contentClient, err := interceptor.NewClient(c.ContentRpc,
-		zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	contentClient, err := rpcx.NewClient(c.ContentRpc,
+		rpcx.WithInternalAuth(c.InternalSecret))
 	if err != nil {
 		return fmt.Errorf("initialize Content RPC client: %w", err)
 	}
-	contentConn := contentClient.Conn()
+	contentConn := contentClient
 	defer func() {
 		if closeErr := contentConn.Close(); closeErr != nil && err == nil {
 			err = fmt.Errorf("close Content RPC client: %w", closeErr)

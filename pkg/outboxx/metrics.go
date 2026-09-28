@@ -3,7 +3,7 @@ package outboxx
 import (
 	"time"
 
-	"github.com/zeromicro/go-zero/core/metric"
+	metric "esx/pkg/metrics"
 )
 
 var (

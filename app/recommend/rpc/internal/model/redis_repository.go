@@ -12,10 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/user/rpc/userservice"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"google.golang.org/grpc"
+	redis "esx/pkg/redisstore"
 )
 
 type redisClient interface {
@@ -114,7 +115,7 @@ func (s *RedisUserRecallSource) Recall(ctx context.Context, req RecallRequest) (
 }
 
 type PersonalizationPreferenceReader interface {
-	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...grpc.CallOption) (*userservice.GetPersonalizationPreferenceResp, error)
+	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
 }
 
 type RedisFeatureRepository struct {

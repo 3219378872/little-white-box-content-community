@@ -3,11 +3,11 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
-// REL-022：message RPC 必须抑制框架自动内容日志（请求携带私信正文/通知内容）。
-func TestMessageConfigSuppressesContentLogging(t *testing.T) {
+// Transport privacy is enforced centrally by rpcx and covered with real RPC calls.
+func TestMessageConfigLoadsNativeTransportPolicy(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_PASS", "")
 	t.Setenv("MQ_NAMESERVER", "")
@@ -15,20 +15,7 @@ func TestMessageConfigSuppressesContentLogging(t *testing.T) {
 	if err := conf.Load("../../etc/message.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
 	}
-	methods := c.Middlewares.StatConf.IgnoreContentMethods
-	if len(methods) == 0 {
-		t.Fatal("message config must set IgnoreContentMethods")
-	}
-	seen := make(map[string]bool, len(methods))
-	for _, method := range methods {
-		seen[method] = true
-	}
-	for _, required := range []string{
-		"/message.MessageService/SendMessage",
-		"/message.MessageService/GetMessages",
-	} {
-		if !seen[required] {
-			t.Errorf("message config must ignore content for %s", required)
-		}
+	if c.Name != "message.rpc" || !c.Health || c.MaxConnections <= 0 || c.Timeout <= 0 {
+		t.Fatalf("invalid native transport policy: name=%s health=%v timeout=%d", c.Name, c.Health, c.Timeout)
 	}
 }

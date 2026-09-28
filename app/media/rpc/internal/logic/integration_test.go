@@ -3,6 +3,7 @@
 package logic
 
 import (
+	"context"
 	"esx/app/media/rpc/internal/config"
 	"esx/app/media/rpc/internal/storage"
 	"esx/app/media/rpc/internal/svc"
@@ -13,9 +14,10 @@ import (
 	"os"
 	"testing"
 
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
 )
 
 var testEnv *testutil.TestEnv
@@ -36,7 +38,7 @@ func TestMain(m *testing.M) {
 
 	cfg := config.Config{
 		InternalSecret: "test-internal-secret",
-		RpcServerConf:  zrpc.RpcServerConf{},
+		RpcServerConf:  rpcx.RpcServerConf{},
 		DataSource:     testEnv.MySQLDSN,
 		S3Storage: storage.Config{
 			Endpoint:      s3Endpoint,
@@ -72,7 +74,7 @@ func TestMain(m *testing.M) {
 
 func truncateAll() {
 	for _, t := range []string{"media", "media_task", "event_outbox"} {
-		if _, err := testSvcCtx.Conn.Exec("DELETE FROM `" + t + "`"); err != nil {
+		if _, err := testSvcCtx.Conn.ExecCtx(context.Background(), "DELETE FROM `"+t+"`"); err != nil {
 			fmt.Fprintf(os.Stderr, "truncate %s 失败: %v\n", t, err)
 			os.Exit(1)
 		}

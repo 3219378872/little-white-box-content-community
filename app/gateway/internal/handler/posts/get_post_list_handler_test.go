@@ -3,25 +3,26 @@ package posts
 import (
 	"context"
 	"encoding/json"
+	"esx/pkg/httptestx"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/config"
 	"esx/app/gateway/internal/svc"
+	contentpb "esx/kitex_gen/content"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeContentService struct {
 	contentservice.ContentService
-	getPostListFn func(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error)
+	getPostListFn func(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
-func (f *fakeContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (f *fakeContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	return f.getPostListFn(ctx, in, opts...)
 }
 
@@ -37,7 +38,7 @@ func newPostListSvcCtx() *svc.ServiceContext {
 			},
 		},
 		ContentService: &fakeContentService{
-			getPostListFn: func(_ context.Context, _ *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+			getPostListFn: func(_ context.Context, _ *contentservice.GetPostListReq, _ ...callopt.Option) (*contentservice.GetPostListResp, error) {
 				return &contentservice.GetPostListResp{
 					Posts: []*contentpb.PostInfo{
 						{
@@ -63,7 +64,7 @@ func TestGetPostListHandler_NoToken_Returns200AndAnonymous(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/posts?page=1&pageSize=20&sortBy=1", nil)
 	rec := httptest.NewRecorder()
 
-	GetPostListHandler(newPostListSvcCtx())(rec, req)
+	httptestx.Adapt(GetPostListHandler(newPostListSvcCtx()))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -94,7 +95,7 @@ func TestGetPostListHandler_ExpiredToken_Returns200AndExpired(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	GetPostListHandler(newPostListSvcCtx())(rec, req)
+	httptestx.Adapt(GetPostListHandler(newPostListSvcCtx()))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -114,7 +115,7 @@ func TestGetPostListHandler_ValidToken_Returns200AndAuthenticated(t *testing.T) 
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	GetPostListHandler(newPostListSvcCtx())(rec, req)
+	httptestx.Adapt(GetPostListHandler(newPostListSvcCtx()))(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)

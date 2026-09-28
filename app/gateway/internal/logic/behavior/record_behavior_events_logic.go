@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package behavior
 
 import (
@@ -14,7 +11,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type RecordBehaviorEventsLogic struct {

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"esx/app/interaction/rpc/internal/model"
-	"esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
+	pb "esx/kitex_gen/interaction"
 
 	"github.com/stretchr/testify/require"
 )

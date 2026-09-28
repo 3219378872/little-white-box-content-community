@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
 func TestConfigValidateRequiresAccessSecret(t *testing.T) {
@@ -35,8 +35,8 @@ func TestGatewayYAMLLoadsSecretFromEnvironment(t *testing.T) {
 	if c.Auth.AccessSecret != "configured-gateway-jwt-secret" {
 		t.Fatalf("AccessSecret = %q", c.Auth.AccessSecret)
 	}
-	if c.RestConf.Middlewares.Log {
-		t.Fatal("gateway must disable go-zero request-dump logging")
+	if c.RestConf.Port != 8888 || c.RestConf.MaxBytes != 10<<20 {
+		t.Fatal("gateway HTTP configuration changed")
 	}
 	if err := c.Validate(); err != nil {
 		t.Fatalf("Validate() rejected loaded config: %v", err)

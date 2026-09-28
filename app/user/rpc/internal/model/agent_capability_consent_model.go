@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 // ErrAgentCapabilityConsentNotFound 表示用户从未显式授权过 Agent 能力（默认未授权）。

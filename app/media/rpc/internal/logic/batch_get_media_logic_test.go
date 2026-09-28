@@ -5,7 +5,7 @@ import (
 	"errors"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"testing"
 
 	"esx/pkg/errx"

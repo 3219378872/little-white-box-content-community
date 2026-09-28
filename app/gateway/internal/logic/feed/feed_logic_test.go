@@ -6,48 +6,48 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/feed/rpc/feedservice"
-	feedpb "esx/app/feed/rpc/xiaobaihe/feed/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
+	feedpb "esx/kitex_gen/feed"
+	userpb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeFeedService struct {
 	feedservice.FeedService
-	getFollowFeedFn    func(context.Context, *feedservice.GetFollowFeedReq, ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error)
-	getRecommendFeedFn func(context.Context, *feedservice.GetRecommendFeedReq, ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error)
+	getFollowFeedFn    func(context.Context, *feedservice.GetFollowFeedReq, ...callopt.Option) (*feedservice.GetFollowFeedResp, error)
+	getRecommendFeedFn func(context.Context, *feedservice.GetRecommendFeedReq, ...callopt.Option) (*feedservice.GetRecommendFeedResp, error)
 }
 
-func (f *fakeFeedService) GetFollowFeed(ctx context.Context, in *feedservice.GetFollowFeedReq, opts ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+func (f *fakeFeedService) GetFollowFeed(ctx context.Context, in *feedservice.GetFollowFeedReq, opts ...callopt.Option) (*feedservice.GetFollowFeedResp, error) {
 	return f.getFollowFeedFn(ctx, in, opts...)
 }
 
-func (f *fakeFeedService) GetRecommendFeed(ctx context.Context, in *feedservice.GetRecommendFeedReq, opts ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+func (f *fakeFeedService) GetRecommendFeed(ctx context.Context, in *feedservice.GetRecommendFeedReq, opts ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 	return f.getRecommendFeedFn(ctx, in, opts...)
 }
 
 type fakeUserService struct {
 	userservice.UserService
-	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	return f.batchGetUsersFn(ctx, in, opts...)
 }
 
 type fakeInteractionService struct {
 	interactionservice.InteractionService
-	batchCheckLikedFn func(context.Context, *interactionservice.BatchCheckLikedReq, ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error)
+	batchCheckLikedFn func(context.Context, *interactionservice.BatchCheckLikedReq, ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error)
 }
 
-func (f *fakeInteractionService) BatchCheckLiked(ctx context.Context, in *interactionservice.BatchCheckLikedReq, opts ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+func (f *fakeInteractionService) BatchCheckLiked(ctx context.Context, in *interactionservice.BatchCheckLikedReq, opts ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 	return f.batchCheckLikedFn(ctx, in, opts...)
 }
 
@@ -57,7 +57,7 @@ func TestGetFollowFeed_MapsRPCResponse(t *testing.T) {
 	ctx := context.WithValue(jwtx.WithUserIdContext(context.Background(), 42), ctxKey, "preserved")
 	svcCtx := &svc.ServiceContext{
 		FeedService: &fakeFeedService{
-			getFollowFeedFn: func(gotCtx context.Context, in *feedservice.GetFollowFeedReq, _ ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+			getFollowFeedFn: func(gotCtx context.Context, in *feedservice.GetFollowFeedReq, _ ...callopt.Option) (*feedservice.GetFollowFeedResp, error) {
 				assertPreservedContext(t, gotCtx, ctxKey)
 				if in.UserId != 42 || in.CursorCreatedAt != 100 || in.CursorPostId != 200 || in.PageSize != 10 {
 					t.Fatalf("unexpected feed request: %+v", in)
@@ -75,7 +75,7 @@ func TestGetFollowFeed_MapsRPCResponse(t *testing.T) {
 			},
 		},
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				assertPreservedContext(t, gotCtx, ctxKey)
 				if !reflect.DeepEqual(in.UserIds, []int64{12}) {
 					t.Fatalf("unexpected user request: %+v", in)
@@ -86,7 +86,7 @@ func TestGetFollowFeed_MapsRPCResponse(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionService{
-			batchCheckLikedFn: func(gotCtx context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+			batchCheckLikedFn: func(gotCtx context.Context, in *interactionservice.BatchCheckLikedReq, _ ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 				assertPreservedContext(t, gotCtx, ctxKey)
 				if in.UserId != 42 || in.TargetType != postTargetType || !reflect.DeepEqual(in.TargetIds, []int64{11}) {
 					t.Fatalf("unexpected interaction request: %+v", in)
@@ -126,7 +126,7 @@ func assertPreservedContext[K comparable](t *testing.T, ctx context.Context, key
 
 func TestGetFollowFeed_RPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{FeedService: &fakeFeedService{
-		getFollowFeedFn: func(context.Context, *feedservice.GetFollowFeedReq, ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+		getFollowFeedFn: func(context.Context, *feedservice.GetFollowFeedReq, ...callopt.Option) (*feedservice.GetFollowFeedResp, error) {
 			return nil, context.DeadlineExceeded
 		},
 	}}
@@ -158,7 +158,7 @@ func TestGetRecommendFeed_UsesFeedAndMapsMetadata(t *testing.T) {
 			interactionCalled := false
 			svcCtx := &svc.ServiceContext{
 				FeedService: &fakeFeedService{
-					getRecommendFeedFn: func(gotCtx context.Context, in *feedservice.GetRecommendFeedReq, _ ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+					getRecommendFeedFn: func(gotCtx context.Context, in *feedservice.GetRecommendFeedReq, _ ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 						assertPreservedContext(t, gotCtx, ctxKey)
 						if in.UserId != tt.wantUserID || in.AnonymousId != "device-1" || in.Scene != "home" || in.RequestId != "request-1" || in.Cursor != "cursor-1" || in.PageSize != 10 || in.ExperimentId != "exp-1" {
 							t.Fatalf("unexpected rpc request: %+v", in)
@@ -178,7 +178,7 @@ func TestGetRecommendFeed_UsesFeedAndMapsMetadata(t *testing.T) {
 					},
 				},
 				UserService: &fakeUserService{
-					batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+					batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 						assertPreservedContext(t, gotCtx, ctxKey)
 						if !reflect.DeepEqual(in.UserIds, []int64{42}) {
 							t.Fatalf("unexpected user request: %+v", in)
@@ -189,7 +189,7 @@ func TestGetRecommendFeed_UsesFeedAndMapsMetadata(t *testing.T) {
 					},
 				},
 				InteractionService: &fakeInteractionService{
-					batchCheckLikedFn: func(gotCtx context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+					batchCheckLikedFn: func(gotCtx context.Context, in *interactionservice.BatchCheckLikedReq, _ ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 						interactionCalled = true
 						assertPreservedContext(t, gotCtx, ctxKey)
 						if in.UserId != 42 || in.TargetType != postTargetType || !reflect.DeepEqual(in.TargetIds, []int64{99}) {
@@ -233,7 +233,7 @@ func TestGetRecommendFeed_UsesFeedAndMapsMetadata(t *testing.T) {
 
 func TestGetRecommendFeed_FeedRPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{FeedService: &fakeFeedService{
-		getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+		getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 			return nil, context.DeadlineExceeded
 		},
 	}}
@@ -249,7 +249,7 @@ func TestGetRecommendFeed_FeedRPCError(t *testing.T) {
 func TestGetRecommendFeed_RejectsAnonymousWithoutIdentity(t *testing.T) {
 	called := false
 	svcCtx := &svc.ServiceContext{FeedService: &fakeFeedService{
-		getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+		getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 			called = true
 			return &feedservice.GetRecommendFeedResp{}, nil
 		},
@@ -269,17 +269,17 @@ func TestGetRecommendFeed_RejectsAnonymousWithoutIdentity(t *testing.T) {
 func TestGetFollowFeed_UserEnrichmentFailure(t *testing.T) {
 	tests := []struct {
 		name string
-		fn   func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+		fn   func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 	}{
 		{
 			name: "rpc error",
-			fn: func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
 		{
 			name: "nil response",
-			fn: func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				return nil, nil
 			},
 		},
@@ -289,7 +289,7 @@ func TestGetFollowFeed_UserEnrichmentFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svcCtx := &svc.ServiceContext{
 				FeedService: &fakeFeedService{
-					getFollowFeedFn: func(context.Context, *feedservice.GetFollowFeedReq, ...grpc.CallOption) (*feedservice.GetFollowFeedResp, error) {
+					getFollowFeedFn: func(context.Context, *feedservice.GetFollowFeedReq, ...callopt.Option) (*feedservice.GetFollowFeedResp, error) {
 						return &feedservice.GetFollowFeedResp{Items: []*feedpb.FeedItem{{PostId: 11, AuthorId: 12}}}, nil
 					},
 				},
@@ -308,17 +308,17 @@ func TestGetFollowFeed_UserEnrichmentFailure(t *testing.T) {
 func TestGetRecommendFeed_InteractionEnrichmentFailure(t *testing.T) {
 	tests := []struct {
 		name string
-		fn   func(context.Context, *interactionservice.BatchCheckLikedReq, ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error)
+		fn   func(context.Context, *interactionservice.BatchCheckLikedReq, ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error)
 	}{
 		{
 			name: "rpc error",
-			fn: func(context.Context, *interactionservice.BatchCheckLikedReq, ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+			fn: func(context.Context, *interactionservice.BatchCheckLikedReq, ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
 		{
 			name: "nil response",
-			fn: func(context.Context, *interactionservice.BatchCheckLikedReq, ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+			fn: func(context.Context, *interactionservice.BatchCheckLikedReq, ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 				return nil, nil
 			},
 		},
@@ -328,12 +328,12 @@ func TestGetRecommendFeed_InteractionEnrichmentFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svcCtx := &svc.ServiceContext{
 				FeedService: &fakeFeedService{
-					getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...grpc.CallOption) (*feedservice.GetRecommendFeedResp, error) {
+					getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 						return &feedservice.GetRecommendFeedResp{Items: []*feedpb.FeedItem{{PostId: 11, AuthorId: 12}}}, nil
 					},
 				},
 				UserService: &fakeUserService{
-					batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq, ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+					batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 						return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{{Id: 12, Username: "author"}}}, nil
 					},
 				},

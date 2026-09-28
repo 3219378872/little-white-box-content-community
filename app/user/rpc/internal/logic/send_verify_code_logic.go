@@ -4,7 +4,7 @@ import (
 	"context"
 	cr "crypto/rand"
 	"esx/app/user/rpc/internal/svc"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
+	pb "esx/kitex_gen/user"
 	"fmt"
 	"math/big"
 	"time"
@@ -12,7 +12,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type SendVerifyCodeLogic struct {

@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package logic
 
 import (
@@ -9,7 +6,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type HealthReadyLogic struct {
@@ -33,7 +30,7 @@ func (l *HealthReadyLogic) HealthReady(_ *types.HealthReq) (*types.HealthReadyRe
 	if l.svcCtx == nil {
 		return &types.HealthReadyResp{Status: "unavailable", Dependencies: map[string]string{}}, nil
 	}
-	status, dependencies := l.svcCtx.Readiness()
+	status, dependencies := l.svcCtx.Readiness(l.ctx)
 	byName := make(map[string]string, len(dependencies))
 	for _, dependency := range dependencies {
 		byName[dependency.Name] = dependency.Status

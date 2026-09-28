@@ -5,12 +5,12 @@ import (
 	mediautil2 "esx/app/media/rpc/internal/mediautil"
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/svc"
-	pb2 "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb2 "esx/kitex_gen/media"
 	"esx/pkg/cleanupx"
 	"esx/pkg/errx"
 	"esx/pkg/util"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type UploadAudioLogic struct {

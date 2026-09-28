@@ -7,20 +7,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/app/content/rpc/contentservice"
-
-	"google.golang.org/grpc"
 )
 
 type runtimeContent struct {
 	contentservice.ContentService
 }
 
-func (*runtimeContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error) {
+func (*runtimeContent) GetPostsByIds(_ context.Context, _ *contentservice.GetPostsByIdsReq, _ ...callopt.Option) (*contentservice.GetPostsByIdsResp, error) {
 	return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 9, Status: 1, Revision: 1, Title: "猫粮", Content: "来源正文"}}}, nil
 }
 

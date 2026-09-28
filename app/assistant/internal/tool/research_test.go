@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/store"
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
-
-	"google.golang.org/grpc"
 )
 
 type researchContent struct {
@@ -19,10 +19,10 @@ type researchContent struct {
 	comments []*contentservice.CommentInfo
 }
 
-func (c *researchContent) GetPost(context.Context, *contentservice.GetPostReq, ...grpc.CallOption) (*contentservice.GetPostResp, error) {
+func (c *researchContent) GetPost(context.Context, *contentservice.GetPostReq, ...callopt.Option) (*contentservice.GetPostResp, error) {
 	return &contentservice.GetPostResp{Post: c.post}, nil
 }
-func (c *researchContent) GetCommentsByIds(context.Context, *contentservice.GetCommentsByIdsReq, ...grpc.CallOption) (*contentservice.GetCommentsByIdsResp, error) {
+func (c *researchContent) GetCommentsByIds(context.Context, *contentservice.GetCommentsByIdsReq, ...callopt.Option) (*contentservice.GetCommentsByIdsResp, error) {
 	return &contentservice.GetCommentsByIdsResp{Comments: c.comments}, nil
 }
 

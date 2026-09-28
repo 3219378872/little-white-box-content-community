@@ -1,32 +1,30 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package like_favorite
 
 import (
-	"net/http"
+	"context"
+	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic/like_favorite"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"esx/pkg/httpx"
 )
 
 // 点赞
-func LikeHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func LikeHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
+	return func(ctx context.Context, c *app.RequestContext) {
 		var req types.LikeReq
-		if err := httpx.Parse(r, &req); err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+		if err := httpx.Parse(c, &req); err != nil {
+			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
 
-		l := like_favorite.NewLikeLogic(r.Context(), svcCtx)
+		l := like_favorite.NewLikeLogic(ctx, svcCtx)
 		resp, err := l.Like(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(ctx, c, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(ctx, c, resp)
 		}
 	}
 }

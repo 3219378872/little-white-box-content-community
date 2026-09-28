@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/mq/internal/indexer"
 	"esx/pkg/visibilityx"
-
-	"google.golang.org/grpc"
 )
 
 const MaxPageSize int32 = 50
 
 type PostSource interface {
-	GetPostList(context.Context, *contentservice.GetPostListReq, ...grpc.CallOption) (*contentservice.GetPostListResp, error)
+	GetPostList(context.Context, *contentservice.GetPostListReq, ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
 type Target interface {

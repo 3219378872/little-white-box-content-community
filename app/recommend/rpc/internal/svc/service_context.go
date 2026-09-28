@@ -14,10 +14,9 @@ import (
 	"esx/app/recommend/rpc/internal/model"
 	inferencepb "esx/app/recommend/rpc/xiaobaihe/inference/pb"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
-	"github.com/zeromicro/go-zero/zrpc"
+	redis "esx/pkg/redisstore"
+	"esx/pkg/rpcx"
 )
 
 type ServiceContext struct {
@@ -49,19 +48,19 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initialize recommend redis: %w", err)
 	}
-	bizErrInterceptor := interceptor.BizErrorUnaryInterceptor()
+
 	// content/user 的服务端挂了内部签名校验拦截器，出站必须同样签名；
 	// 否则请求被 Unauthenticated 拒绝并经 errx 映射成 1006，推荐整体降级到规则。
-	internalAuthInterceptor := interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)
-	contentClient, err := interceptor.NewClient(c.ContentRpc,
-		zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-		zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
+	contentClient, err := rpcx.NewClient(c.ContentRpc,
+
+		internalAuthOption)
 	if err != nil {
 		return nil, fmt.Errorf("initialize content rpc client: %w", err)
 	}
-	userClient, err := interceptor.NewClient(c.UserRpc,
-		zrpc.WithUnaryClientInterceptor(bizErrInterceptor),
-		zrpc.WithUnaryClientInterceptor(internalAuthInterceptor))
+	userClient, err := rpcx.NewClient(c.UserRpc,
+
+		internalAuthOption)
 	if err != nil {
 		return nil, fmt.Errorf("initialize user rpc client: %w", err)
 	}
@@ -127,11 +126,12 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		closers:            closers,
 	}
 	if c.OnlineInfer.Enabled {
-		client, err := interceptor.NewClient(c.OnlineInfer.Rpc)
+		client, err := rpcx.NewGRPCClient(c.OnlineInfer.Rpc)
 		if err != nil {
 			return nil, fmt.Errorf("initialize online inference client: %w", err)
 		}
-		serviceContext.InferenceRanker = model.NewGRPCInferenceRanker(inferencepb.NewOnlineInferServiceClient(client.Conn()))
+		serviceContext.closers = append(serviceContext.closers, client)
+		serviceContext.InferenceRanker = model.NewGRPCInferenceRanker(inferencepb.NewOnlineInferServiceClient(client))
 	}
 	return serviceContext, nil
 }

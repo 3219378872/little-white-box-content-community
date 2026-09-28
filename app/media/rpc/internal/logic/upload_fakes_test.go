@@ -8,7 +8,7 @@ import (
 	"esx/app/media/rpc/internal/model"
 	"esx/app/media/rpc/internal/storage"
 	"esx/app/media/rpc/internal/svc"
-	pb "esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"esx/pkg/util"
 	"fmt"
@@ -21,9 +21,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 var unitSnowflakeOnce sync.Once
@@ -91,7 +90,7 @@ func (s *unitObjectStorage) BuildPublicURL(objectKey string) string {
 
 // unitImageStream 模拟 pb.MediaService_UploadImageServer。
 type unitImageStream struct {
-	grpc.ClientStreamingServer[pb.UploadImageReq, pb.UploadImageResp]
+	pb.MediaService_UploadImageServer
 	reqs    []*pb.UploadImageReq
 	idx     int
 	resp    *pb.UploadImageResp
@@ -120,7 +119,7 @@ func (s *unitImageStream) Recv() (*pb.UploadImageReq, error) {
 
 // unitVideoStream 模拟 pb.MediaService_UploadVideoServer。
 type unitVideoStream struct {
-	grpc.ClientStreamingServer[pb.UploadVideoReq, pb.UploadVideoResp]
+	pb.MediaService_UploadVideoServer
 	reqs    []*pb.UploadVideoReq
 	idx     int
 	resp    *pb.UploadVideoResp
@@ -279,7 +278,7 @@ func unitAssertBiz(t *testing.T, err error, expectedCode int) {
 
 // unitAudioStream 模拟 pb.MediaService_UploadAudioServer。
 type unitAudioStream struct {
-	grpc.ClientStreamingServer[pb.UploadAudioReq, pb.UploadAudioResp]
+	pb.MediaService_UploadAudioServer
 	reqs    []*pb.UploadAudioReq
 	idx     int
 	resp    *pb.UploadAudioResp

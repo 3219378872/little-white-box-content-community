@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/zeromicro/go-zero/core/conf"
+	conf "esx/pkg/configx"
 )
 
 func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
@@ -23,7 +23,7 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	}
 }
 
-func TestAssistantConfigSuppressesPostMessageContentLogging(t *testing.T) {
+func TestAssistantConfigLoadsNativeTransportPolicy(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
 	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
@@ -32,19 +32,7 @@ func TestAssistantConfigSuppressesPostMessageContentLogging(t *testing.T) {
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
 		t.Fatal(err)
 	}
-	methods := c.Middlewares.StatConf.IgnoreContentMethods
-	want := map[string]bool{
-		"/assistant.AssistantService/PostMessage":        false,
-		"/assistant.AssistantService/SubscribeRunEvents": false,
-	}
-	for _, method := range methods {
-		if _, ok := want[method]; ok {
-			want[method] = true
-		}
-	}
-	for method, ok := range want {
-		if !ok {
-			t.Fatalf("expected %s to be ignored from content logging, got %v", method, methods)
-		}
+	if c.Name != "assistant.rpc" || !c.Health || c.MaxConnections <= 0 || c.Timeout <= 0 {
+		t.Fatalf("invalid native transport policy: name=%s health=%v timeout=%d", c.Name, c.Health, c.Timeout)
 	}
 }

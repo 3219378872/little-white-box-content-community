@@ -6,6 +6,14 @@ status: active
 owner: agent
 updated_at: 2026-09-25
 code_paths:
+- pkg/rpcx
+- pkg/httpx
+- pkg/configx
+- pkg/logging
+- pkg/sqlstore
+- pkg/redisstore
+- pkg/cachedstore
+- kitex_gen
 - pkg/interceptor
 - app/feed
 - app/search
@@ -27,39 +35,39 @@ code_paths:
 
 | requirement | design | state | evidence or gap |
 | --- | --- | --- | --- |
-| DISC-001 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-002 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-003 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-004 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-010 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-011 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-012 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-020 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-021 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-022 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-023 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-030 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-031 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-032 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-033 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-034 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-035 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-036 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-040 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-041 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-042 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-050 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-051 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-052 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
+| DISC-001 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-002 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-003 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-004 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-010 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-011 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-012 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-020 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-021 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-022 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-023 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-030 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-031 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-032 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-033 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-034 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-035 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-036 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-040 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-041 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-042 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-050 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-051 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-052 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | DISC-060 | DES-content-community-backend | unknown | gap: 当前数据为合成开发集；缺两名人类独立评审并消歧的正式 qrels。 |
-| DISC-061 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
+| DISC-061 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | DISC-062 | DES-content-community-backend | diverged | gap: 默认 OnlineInfer / ModelVersion:auto 缺少 10k exposures + 1k identities 晋级门禁。 |
 | DISC-063 | DES-content-community-backend | diverged | gap: 当前规则模型相对规则基线提升为 0，未达到 5% 与 bootstrap 下界要求。 |
-| DISC-A01 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-A02 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-A03 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-A04 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
-| DISC-A05 | DES-content-community-backend | aligned | EVD-20260927-media-upload-delivery |
+| DISC-A01 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-A02 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-A03 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-A04 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
+| DISC-A05 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | DISC-A06 | DES-content-community-backend | diverged | gap: 人类双评审搜索集缺失，且学习排序效果门禁已知未达到。 |
 
 ## 代码边界

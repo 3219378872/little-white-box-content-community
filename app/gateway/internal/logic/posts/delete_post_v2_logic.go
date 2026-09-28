@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package posts
 
 import (
@@ -12,7 +9,7 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/errx"
 
-	"github.com/zeromicro/go-zero/core/logx"
+	logx "esx/pkg/logging"
 )
 
 type DeletePostV2Logic struct {

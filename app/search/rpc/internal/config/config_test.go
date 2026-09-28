@@ -3,8 +3,9 @@ package config
 import (
 	"testing"
 
+	conf "esx/pkg/configx"
+
 	"github.com/stretchr/testify/require"
-	"github.com/zeromicro/go-zero/core/conf"
 )
 
 func TestSearchConfigLoadsUserServiceDependency(t *testing.T) {

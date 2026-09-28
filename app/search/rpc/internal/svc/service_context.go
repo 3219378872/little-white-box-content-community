@@ -6,23 +6,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/search/rpc/internal/config"
 	"esx/app/search/rpc/internal/store"
 	"esx/app/user/rpc/userservice"
-	"esx/pkg/interceptor"
 
-	"github.com/zeromicro/go-zero/zrpc"
-	"google.golang.org/grpc"
+	"esx/pkg/rpcx"
 )
 
 type UserService interface {
-	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
-	SearchUsers(ctx context.Context, in *userservice.SearchUsersReq, opts ...grpc.CallOption) (*userservice.SearchUsersResp, error)
+	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	SearchUsers(ctx context.Context, in *userservice.SearchUsersReq, opts ...callopt.Option) (*userservice.SearchUsersResp, error)
 }
 
 type ContentService interface {
-	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error)
+	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...callopt.Option) (*contentservice.GetPostsByIdsResp, error)
 }
 
 type ServiceContext struct {
@@ -46,8 +46,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err := esStore.Health(ctx); err != nil {
 		panic(fmt.Errorf("search-rpc: Elasticsearch health check: %w", err))
 	}
-	userClient := interceptor.MustNewClient(c.UserRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
-	contentClient := interceptor.MustNewClient(c.ContentRpc, zrpc.WithUnaryClientInterceptor(interceptor.BizErrorUnaryInterceptor()), zrpc.WithUnaryClientInterceptor(interceptor.InternalAuthUnaryClientInterceptor(c.InternalSecret)))
+	userClient := rpcx.MustNewClient(c.UserRpc, rpcx.WithInternalAuth(c.InternalSecret))
+	contentClient := rpcx.MustNewClient(c.ContentRpc, rpcx.WithInternalAuth(c.InternalSecret))
 	return &ServiceContext{
 		Config:         c,
 		Store:          esStore,

@@ -4,21 +4,21 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/behavior/rpc/behaviorservice"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeBehaviorService struct {
 	behaviorservice.BehaviorService
-	recordEventsFn func(context.Context, *behaviorservice.RecordEventsReq, ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error)
+	recordEventsFn func(context.Context, *behaviorservice.RecordEventsReq, ...callopt.Option) (*behaviorservice.RecordEventsResp, error)
 }
 
-func (f *fakeBehaviorService) RecordEvents(ctx context.Context, in *behaviorservice.RecordEventsReq, opts ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+func (f *fakeBehaviorService) RecordEvents(ctx context.Context, in *behaviorservice.RecordEventsReq, opts ...callopt.Option) (*behaviorservice.RecordEventsResp, error) {
 	return f.recordEventsFn(ctx, in, opts...)
 }
 
@@ -71,7 +71,7 @@ func TestRecordBehaviorEvents_IdentityAndPartialSuccess(t *testing.T) {
 			ctx := context.WithValue(tt.ctx, ctxKey, "preserved")
 			called := false
 			svcCtx := &svc.ServiceContext{BehaviorService: &fakeBehaviorService{
-				recordEventsFn: func(gotCtx context.Context, in *behaviorservice.RecordEventsReq, _ ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+				recordEventsFn: func(gotCtx context.Context, in *behaviorservice.RecordEventsReq, _ ...callopt.Option) (*behaviorservice.RecordEventsResp, error) {
 					called = true
 					if gotCtx.Value(ctxKey) != "preserved" {
 						t.Fatal("request context was not propagated")
@@ -139,7 +139,7 @@ func TestRecordBehaviorEvents_InvalidRequestDoesNotCallRPC(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			called := false
 			svcCtx := &svc.ServiceContext{BehaviorService: &fakeBehaviorService{
-				recordEventsFn: func(context.Context, *behaviorservice.RecordEventsReq, ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+				recordEventsFn: func(context.Context, *behaviorservice.RecordEventsReq, ...callopt.Option) (*behaviorservice.RecordEventsResp, error) {
 					called = true
 					return &behaviorservice.RecordEventsResp{}, nil
 				},
@@ -157,7 +157,7 @@ func TestRecordBehaviorEvents_InvalidRequestDoesNotCallRPC(t *testing.T) {
 
 func TestRecordBehaviorEvents_RPCError(t *testing.T) {
 	svcCtx := &svc.ServiceContext{BehaviorService: &fakeBehaviorService{
-		recordEventsFn: func(context.Context, *behaviorservice.RecordEventsReq, ...grpc.CallOption) (*behaviorservice.RecordEventsResp, error) {
+		recordEventsFn: func(context.Context, *behaviorservice.RecordEventsReq, ...callopt.Option) (*behaviorservice.RecordEventsResp, error) {
 			return nil, context.DeadlineExceeded
 		},
 	}}

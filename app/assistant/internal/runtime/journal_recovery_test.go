@@ -6,13 +6,13 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/assistant/internal/canonical"
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/app/content/rpc/contentservice"
-
-	"google.golang.org/grpc"
 )
 
 type failAfterEffectStore struct {
@@ -49,7 +49,7 @@ type updateRequest struct {
 func (c *idempotentUpdateContent) UpdatePost(
 	_ context.Context,
 	in *contentservice.UpdatePostReq,
-	_ ...grpc.CallOption,
+	_ ...callopt.Option,
 ) (*contentservice.UpdatePostResp, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

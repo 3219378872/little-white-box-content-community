@@ -2,24 +2,22 @@ package interceptor
 
 import (
 	"context"
+	"esx/pkg/rpcx"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-type traceIDContextKey struct{}
-
 const traceIDMetadataKey = "trace_id"
 
 // WithTraceID 把追踪标识写入 ctx，供 TraceIDUnaryInterceptor 透传（REL-052）。
 func WithTraceID(ctx context.Context, traceID string) context.Context {
-	return context.WithValue(ctx, traceIDContextKey{}, traceID)
+	return rpcx.WithTraceID(ctx, traceID)
 }
 
 // GetTraceID 从 ctx 读取追踪标识。
 func GetTraceID(ctx context.Context) string {
-	traceID, _ := ctx.Value(traceIDContextKey{}).(string)
-	return traceID
+	return rpcx.TraceID(ctx)
 }
 
 // TraceIDUnaryInterceptor 把 ctx 中的 trace_id 附加到出站 gRPC 元数据，

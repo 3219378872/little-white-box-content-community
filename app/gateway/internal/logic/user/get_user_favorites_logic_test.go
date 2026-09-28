@@ -4,31 +4,31 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
-	interactionpb "esx/app/interaction/rpc/pb/xiaobaihe/interaction/pb"
-	"esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
+	contentpb "esx/kitex_gen/content"
+	interactionpb "esx/kitex_gen/interaction"
+	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakeUserService struct {
 	userservice.UserService
 	getUserFn       func(ctx context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error)
-	batchGetUsersFn func(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error)
+	batchGetUsersFn func(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
 }
 
-func (f *fakeUserService) GetUser(ctx context.Context, in *pb.GetUserReq, _ ...grpc.CallOption) (*pb.GetUserResp, error) {
+func (f *fakeUserService) GetUser(ctx context.Context, in *pb.GetUserReq, _ ...callopt.Option) (*pb.GetUserResp, error) {
 	return f.getUserFn(ctx, in)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	if f.batchGetUsersFn == nil {
 		return &userservice.BatchGetUsersResp{}, nil
 	}
@@ -48,7 +48,7 @@ func buildFavoritesLogic(requesterID int64, visibility int32) *GetUserFavoritesL
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				return &interactionpb.GetFavoriteListResp{PostIds: []int64{}, Total: 0}, nil
 			},
 		},
@@ -112,16 +112,16 @@ func TestGetUserFavorites_PublicAndNotOwner_ReturnsEmptyList(t *testing.T) {
 
 type fakeInteractionServiceFavorites struct {
 	interactionservice.InteractionService
-	getFavoriteListFn func(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error)
+	getFavoriteListFn func(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...callopt.Option) (*interactionpb.GetFavoriteListResp, error)
 	liked             map[int64]bool
 	favorited         map[int64]bool
 }
 
-func (f *fakeInteractionServiceFavorites) GetFavoriteList(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+func (f *fakeInteractionServiceFavorites) GetFavoriteList(ctx context.Context, in *interactionpb.GetFavoriteListReq, opts ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 	return f.getFavoriteListFn(ctx, in, opts...)
 }
 
-func (f *fakeInteractionServiceFavorites) BatchCheckLiked(_ context.Context, in *interactionpb.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionpb.BatchCheckLikedResp, error) {
+func (f *fakeInteractionServiceFavorites) BatchCheckLiked(_ context.Context, in *interactionpb.BatchCheckLikedReq, _ ...callopt.Option) (*interactionpb.BatchCheckLikedResp, error) {
 	result := make(map[int64]bool, len(in.TargetIds))
 	for _, id := range in.TargetIds {
 		if f.liked != nil && f.liked[id] {
@@ -131,7 +131,7 @@ func (f *fakeInteractionServiceFavorites) BatchCheckLiked(_ context.Context, in 
 	return &interactionpb.BatchCheckLikedResp{Results: result}, nil
 }
 
-func (f *fakeInteractionServiceFavorites) BatchCheckFavorited(_ context.Context, in *interactionpb.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionpb.BatchCheckFavoritedResp, error) {
+func (f *fakeInteractionServiceFavorites) BatchCheckFavorited(_ context.Context, in *interactionpb.BatchCheckFavoritedReq, _ ...callopt.Option) (*interactionpb.BatchCheckFavoritedResp, error) {
 	result := make(map[int64]bool, len(in.PostIds))
 	for _, id := range in.PostIds {
 		if f.favorited != nil && f.favorited[id] {
@@ -143,10 +143,10 @@ func (f *fakeInteractionServiceFavorites) BatchCheckFavorited(_ context.Context,
 
 type fakeContentServiceFavorites struct {
 	contentservice.ContentService
-	getPostsByIdsFn func(ctx context.Context, in *contentpb.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error)
+	getPostsByIdsFn func(ctx context.Context, in *contentpb.GetPostsByIdsReq, opts ...callopt.Option) (*contentpb.GetPostsByIdsResp, error)
 }
 
-func (f *fakeContentServiceFavorites) GetPostsByIds(ctx context.Context, in *contentpb.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+func (f *fakeContentServiceFavorites) GetPostsByIds(ctx context.Context, in *contentpb.GetPostsByIdsReq, opts ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 	return f.getPostsByIdsFn(ctx, in, opts...)
 }
 
@@ -156,7 +156,7 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
 				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
 			},
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				if len(in.UserIds) != 2 || in.UserIds[0] != 1 || in.UserIds[1] != 2 {
 					t.Fatalf("expected deduped author ids [1 2], got %v", in.UserIds)
 				}
@@ -167,7 +167,7 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, in *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, in *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				if in.UserId != 42 {
 					t.Fatalf("expected userId 42, got %d", in.UserId)
 				}
@@ -180,7 +180,7 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 			favorited: map[int64]bool{100: true, 200: true},
 		},
 		ContentService: &fakeContentServiceFavorites{
-			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 				if len(in.PostIds) != 2 {
 					t.Fatalf("expected 2 post ids, got %d", len(in.PostIds))
 				}
@@ -233,7 +233,7 @@ func TestGetUserFavorites_NonOwnerUsesViewerFavoriteState(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, in *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, in *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				if in.UserId != 42 {
 					t.Fatalf("expected owner 42, got %d", in.UserId)
 				}
@@ -243,7 +243,7 @@ func TestGetUserFavorites_NonOwnerUsesViewerFavoriteState(t *testing.T) {
 			favorited: map[int64]bool{100: true},
 		},
 		ContentService: &fakeContentServiceFavorites{
-			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+			getPostsByIdsFn: func(_ context.Context, in *contentpb.GetPostsByIdsReq, _ ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
 					{Id: 100, AuthorId: 1, Title: "Post A", Status: 1},
 					{Id: 200, AuthorId: 2, Title: "Post B", Status: 1},
@@ -276,13 +276,13 @@ func TestGetUserFavorites_DropsUnavailablePosts(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				return &interactionpb.GetFavoriteListResp{PostIds: []int64{100, 200}, Total: 5}, nil
 			},
 			favorited: map[int64]bool{100: true},
 		},
 		ContentService: &fakeContentServiceFavorites{
-			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
 					{Id: 100, AuthorId: 1, Title: "live", Status: 1},
 				}}, nil
@@ -311,7 +311,7 @@ func TestGetUserFavorites_InteractionRPCError_ReturnsSystemError(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
@@ -334,12 +334,12 @@ func TestGetUserFavorites_ContentRPCError_ReturnsSystemError(t *testing.T) {
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				return &interactionpb.GetFavoriteListResp{PostIds: []int64{100}, Total: 1}, nil
 			},
 		},
 		ContentService: &fakeContentServiceFavorites{
-			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
@@ -360,17 +360,17 @@ func TestGetUserFavorites_BatchGetUsersError_DegradesToEmptyAuthorFields(t *test
 			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
 				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
 			},
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
 		InteractionService: &fakeInteractionServiceFavorites{
-			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...grpc.CallOption) (*interactionpb.GetFavoriteListResp, error) {
+			getFavoriteListFn: func(_ context.Context, _ *interactionpb.GetFavoriteListReq, _ ...callopt.Option) (*interactionpb.GetFavoriteListResp, error) {
 				return &interactionpb.GetFavoriteListResp{PostIds: []int64{100}, Total: 1}, nil
 			},
 		},
 		ContentService: &fakeContentServiceFavorites{
-			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...grpc.CallOption) (*contentpb.GetPostsByIdsResp, error) {
+			getPostsByIdsFn: func(_ context.Context, _ *contentpb.GetPostsByIdsReq, _ ...callopt.Option) (*contentpb.GetPostsByIdsResp, error) {
 				return &contentpb.GetPostsByIdsResp{Posts: []*contentpb.PostInfo{
 					{Id: 100, AuthorId: 5, Title: "live", Status: 1},
 				}}, nil

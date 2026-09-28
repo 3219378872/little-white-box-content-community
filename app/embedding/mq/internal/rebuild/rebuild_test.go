@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/vectorstore"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 type fakeSource struct {
@@ -22,7 +23,7 @@ type fakeSource struct {
 	calls    int
 }
 
-func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (f *fakeSource) GetPostList(_ context.Context, req *contentservice.GetPostListReq, _ ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	f.calls++
 	if f.calls <= f.failures {
 		return nil, errors.New("content unavailable")

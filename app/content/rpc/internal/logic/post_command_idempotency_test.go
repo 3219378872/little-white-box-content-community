@@ -7,7 +7,7 @@ import (
 
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"

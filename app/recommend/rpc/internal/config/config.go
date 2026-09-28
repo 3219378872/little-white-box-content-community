@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zeromicro/go-zero/zrpc"
+	"esx/pkg/rpcx"
 )
 
 type OnlineInferConfig struct {
 	Enabled      bool
-	Rpc          zrpc.RpcClientConf
+	Rpc          rpcx.RpcClientConf
 	ModelVersion string `json:",default=auto"`
 	TimeoutMs    int64  `json:",default=80,range=[1:1000]"`
 }
@@ -35,10 +35,10 @@ type MilvusRecallConfig struct {
 }
 
 type Config struct {
-	zrpc.RpcServerConf
+	rpcx.RpcServerConf
 	InternalSecret      string
-	ContentRpc          zrpc.RpcClientConf
-	UserRpc             zrpc.RpcClientConf
+	ContentRpc          rpcx.RpcClientConf
+	UserRpc             rpcx.RpcClientConf
 	FeatureVersion      string `json:",default=v2"`
 	RecallKeyPrefix     string `json:",default=recommend"`
 	DefaultPageSize     int    `json:",default=20,range=[1:100]"`

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"esx/app/content/rpc/pb/xiaobaihe/content/pb"
+	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
 	"github.com/stretchr/testify/assert"

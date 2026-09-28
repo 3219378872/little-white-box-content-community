@@ -16,7 +16,7 @@ import (
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/testutil"
 
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	sqlx "esx/pkg/sqlstore"
 )
 
 type sqlExecutePauseStore struct {

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/feed/mq/internal/model"
 	"esx/app/user/rpc/userservice"
 
-	"github.com/zeromicro/go-zero/core/logx"
-	"google.golang.org/grpc"
+	logx "esx/pkg/logging"
 )
 
 type PostPublished struct {
@@ -26,8 +27,8 @@ type InboxBatchInserter interface {
 }
 
 type UserGetter interface {
-	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...grpc.CallOption) (*userservice.GetUserResp, error)
-	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...grpc.CallOption) (*userservice.GetFollowersResp, error)
+	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error)
+	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error)
 }
 
 func HandlePostPublished(

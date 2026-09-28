@@ -14,7 +14,7 @@ import (
 	"esx/app/pipeline/behaviorlog/internal/store"
 	"esx/pkg/event"
 
-	"github.com/zeromicro/go-zero/core/stores/redis"
+	redis "esx/pkg/redisstore"
 )
 
 type BehaviorStore interface {

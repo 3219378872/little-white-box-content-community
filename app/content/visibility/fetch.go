@@ -3,16 +3,16 @@ package visibility
 import (
 	"context"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
-
-	"google.golang.org/grpc"
 )
 
 // PostsByIDs is the Content authority used to verify published posts.
 type PostsByIDs interface {
-	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...grpc.CallOption) (*contentservice.GetPostsByIdsResp, error)
+	GetPostsByIds(ctx context.Context, in *contentservice.GetPostsByIdsReq, opts ...callopt.Option) (*contentservice.GetPostsByIdsResp, error)
 }
 
 // Fetch adapts a Content GetPostsByIds client to visibilityx.Fetcher.

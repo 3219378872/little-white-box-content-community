@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"esx/app/media/rpc/internal/mediautil"
-	"esx/app/media/rpc/pb/xiaobaihe/media/pb"
+	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 	"io"
 	"os"

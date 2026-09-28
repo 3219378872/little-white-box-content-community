@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/gateway/internal/svc"
 	"esx/app/interaction/rpc/interactionservice"
-
-	"google.golang.org/grpc"
 )
 
 type fakeInteraction struct {
@@ -19,7 +19,7 @@ type fakeInteraction struct {
 	favoritedErr error
 }
 
-func (f *fakeInteraction) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckLikedResp, error) {
+func (f *fakeInteraction) BatchCheckLiked(_ context.Context, in *interactionservice.BatchCheckLikedReq, _ ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
 	if f.likedErr != nil {
 		return nil, f.likedErr
 	}
@@ -32,7 +32,7 @@ func (f *fakeInteraction) BatchCheckLiked(_ context.Context, in *interactionserv
 	return &interactionservice.BatchCheckLikedResp{Results: results}, nil
 }
 
-func (f *fakeInteraction) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...grpc.CallOption) (*interactionservice.BatchCheckFavoritedResp, error) {
+func (f *fakeInteraction) BatchCheckFavorited(_ context.Context, in *interactionservice.BatchCheckFavoritedReq, _ ...callopt.Option) (*interactionservice.BatchCheckFavoritedResp, error) {
 	if f.favoritedErr != nil {
 		return nil, f.favoritedErr
 	}

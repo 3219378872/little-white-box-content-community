@@ -4,23 +4,23 @@ import (
 	"context"
 	"testing"
 
+	"github.com/cloudwego/kitex/client/callopt"
+
 	"esx/app/content/rpc/contentservice"
-	contentpb "esx/app/content/rpc/pb/xiaobaihe/content/pb"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
-	userpb "esx/app/user/rpc/pb/xiaobaihe/user/pb"
 	"esx/app/user/rpc/userservice"
+	contentpb "esx/kitex_gen/content"
+	userpb "esx/kitex_gen/user"
 	"esx/pkg/jwtx"
-
-	"google.golang.org/grpc"
 )
 
 type fakePostListContentService struct {
 	contentservice.ContentService
-	getPostListFn func(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error)
+	getPostListFn func(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
-func (f *fakePostListContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+func (f *fakePostListContentService) GetPostList(ctx context.Context, in *contentservice.GetPostListReq, opts ...callopt.Option) (*contentservice.GetPostListResp, error) {
 	return f.getPostListFn(ctx, in, opts...)
 }
 
@@ -29,7 +29,7 @@ func newLogic(t *testing.T, ctx context.Context, expectedUserId int64) *GetPostL
 
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakePostListContentService{
-			getPostListFn: func(_ context.Context, in *contentservice.GetPostListReq, _ ...grpc.CallOption) (*contentservice.GetPostListResp, error) {
+			getPostListFn: func(_ context.Context, in *contentservice.GetPostListReq, _ ...callopt.Option) (*contentservice.GetPostListResp, error) {
 				if in.Cursor != "" || in.PageSize != 20 || in.SortBy != 1 {
 					t.Fatalf("unexpected rpc req: %+v", in)
 				}
@@ -110,7 +110,7 @@ func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
 func TestGetPostList_EnrichesAuthor(t *testing.T) {
 	l := newLogic(t, context.Background(), 0)
 	l.svcCtx.UserService = &fakeGetPostUserService{
-		batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...grpc.CallOption) (*userservice.BatchGetUsersResp, error) {
+		batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 			if len(in.UserIds) != 1 || in.UserIds[0] != 200 {
 				t.Fatalf("unexpected author ids %v", in.UserIds)
 			}

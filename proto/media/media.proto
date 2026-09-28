@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package media;
-option go_package = "xiaobaihe/media/pb";
+option go_package = "esx/kitex_gen/media;pb";
 
 // 媒体服务
 service MediaService {
