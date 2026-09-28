@@ -1,0 +1,32 @@
+{
+  "observedCommit": "4af041f7950991fc45636119213251d570c1a40d",
+  "checks": {
+    "check": {
+      "result": "passed",
+      "sha256": "a965c40ad6eec6e5f3c01b4373cec1cf03b2f48f93710beba6ea1f1b4f8646f9",
+      "goPackagesPassed": 0
+    },
+    "test": {
+      "result": "passed",
+      "sha256": "cff1870094215dbcd781706b9da8fa0abc4b54f01e8ddbf5975914acf3811c2b",
+      "goPackagesPassed": 120
+    },
+    "coverage": {
+      "result": "passed",
+      "sha256": "194623c971611239fc8bbaaf988418fe4d7deaa4fc95952a9446c8ecfcfd5e0c",
+      "goPackagesPassed": 120
+    }
+  },
+  "coveragePercent": {
+    "handler": 89.0,
+    "logic": 78.0,
+    "model": 15.2,
+    "mqConsumer": 72.4,
+    "shared": 60.5
+  },
+  "scope": [
+    "static",
+    "unit"
+  ],
+  "integrationBaselineCommit": "ad42706db2e3a744da188b55f310e1314cf1be38"
+}
