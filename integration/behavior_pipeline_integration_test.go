@@ -20,9 +20,13 @@ import (
 	"time"
 
 	pb "esx/kitex_gen/behavior"
+	userpb "esx/kitex_gen/user"
+	userserver "esx/kitex_gen/user/userservice"
 	"esx/pkg/event"
 	"esx/pkg/interceptor"
+	"esx/pkg/lifecycle"
 	"esx/pkg/mqx"
+	"esx/pkg/rpcx"
 	"esx/pkg/testutil"
 
 	redis "esx/pkg/redisstore"
@@ -91,8 +95,12 @@ Redis:
 DedupTTL: 3600
 `, yamlString(rocketEnv.NameServer), yamlString(behaviorLogGroup),
 		yamlString(mqx.TopicUserBehaviorV2), yamlString(clickHouseEnv.DSN), yamlString(redisEnv.Addr)))
+	preferenceAddress := startPreferenceService(t)
 	recommendConfig := writeConfig(t, configDir, "recommend-feature.yaml", fmt.Sprintf(`
 Name: recommend-feature-consumer-integration
+InternalSecret: %s
+UserRpc:
+  Endpoints: [%s]
 MQ:
   NameServer: %s
   GroupName: %s
@@ -109,7 +117,7 @@ RecallKeyPrefix: %s
 CandidateTTL: 3600
 DeadLetterTTL: 3600
 DeadLetterMaxLength: 100
-`, yamlString(rocketEnv.NameServer), yamlString(recommendGroup),
+`, yamlString(internalSecret), yamlString(preferenceAddress), yamlString(rocketEnv.NameServer), yamlString(recommendGroup),
 		yamlString(mqx.TopicUserBehaviorV2), yamlString(redisEnv.Addr),
 		yamlString(featureVersion), yamlString(recallKeyPrefix)))
 
@@ -454,4 +462,32 @@ func (p *managedProcess) terminateGracefully(t *testing.T, timeout time.Duration
 		contents, _ := os.ReadFile(p.logFile.Name())
 		t.Fatalf("process did not exit within %s after SIGTERM\n%s", timeout, contents)
 	}
+}
+
+// User preferences are an isolated, signed Kitex fixture. The pipeline under
+// test still runs real service binaries, RocketMQ, ClickHouse and Redis.
+type optedInUserFixture struct{ userpb.UserService }
+
+func (*optedInUserFixture) GetPersonalizationPreference(_ context.Context, req *userpb.GetPersonalizationPreferenceReq) (*userpb.GetPersonalizationPreferenceResp, error) {
+	return &userpb.GetPersonalizationPreferenceResp{Enabled: req.UserId == behaviorUserID}, nil
+}
+func startPreferenceService(t *testing.T) string {
+	t.Helper()
+	address := net.JoinHostPort("127.0.0.1", strconv.Itoa(availablePort(t)))
+	server := userserver.NewServer(&optedInUserFixture{}, rpcx.ServerOptions(rpcx.RpcServerConf{
+		ServiceConf: lifecycle.ServiceConf{Name: "user.pipeline.integration"}, ListenOn: address, Health: true, MaxConnections: 100, MaxQPS: 1000,
+	}, internalSecret)...)
+	done := make(chan error, 1)
+	go func() { done <- server.Run() }()
+	t.Cleanup(func() {
+		require.NoError(t, server.Stop())
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("preference fixture did not stop")
+		}
+	})
+	conn := waitForHealthyGRPC(t, context.Background(), address, 5*time.Second)
+	require.NoError(t, conn.Close())
+	return address
 }
