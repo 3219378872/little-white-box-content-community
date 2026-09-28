@@ -103,7 +103,7 @@ func grpcCodeToBizCode(c codes.Code) int {
 }
 
 // FromRPCError converts a client-side RPC error back to its business error.
-// The gateway's zrpc client interceptor already converts gRPC status errors to
+// The gateway's Kitex client middleware already converts gRPC status errors to
 // *BizError via FromGRPCError; this helper preserves that code. Non-business
 // errors (timeouts, breakers, connection failures) are wrapped as SystemError so
 // callers never leak raw internal details (CORE-054).

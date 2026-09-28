@@ -35,7 +35,7 @@ func TestGatewayYAMLLoadsSecretFromEnvironment(t *testing.T) {
 	if c.Auth.AccessSecret != "configured-gateway-jwt-secret" {
 		t.Fatalf("AccessSecret = %q", c.Auth.AccessSecret)
 	}
-	if c.RestConf.Port != 8888 || c.RestConf.MaxBytes != 10<<20 {
+	if c.RestConf.Port != 8888 || c.RestConf.MaxBytes != 10<<20 || c.RestConf.Timeout != 3000 {
 		t.Fatal("gateway HTTP configuration changed")
 	}
 	if err := c.Validate(); err != nil {

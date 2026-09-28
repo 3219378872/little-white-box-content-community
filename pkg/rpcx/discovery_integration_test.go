@@ -45,7 +45,7 @@ func TestEtcdDiscoveryRecoversAfterInstanceReplacement(t *testing.T) {
 		require.NoError(t, err)
 		addr := listener.Addr().String()
 		require.NoError(t, listener.Close())
-		conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: etcd.Key}, ListenOn: addr, Etcd: etcd, Health: true, MaxConnections: 100, MaxQPS: 1000}
+		conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "display.user.rpc"}, ListenOn: addr, Etcd: etcd, Health: true, MaxConnections: 100, MaxQPS: 1000}
 		server := native.NewServer(&discoveredUser{version: version}, rpcx.ServerOptions(conf, "discovery-secret")...)
 		done := make(chan error, 1)
 		go func() { done <- server.Run() }()

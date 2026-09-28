@@ -70,7 +70,14 @@ func (contractUserService) Unfollow(context.Context, *userservice.UnfollowReq, .
 func (contractUserService) Register(context.Context, *userservice.RegisterReq, ...callopt.Option) (*userservice.RegisterResp, error) {
 	return &userservice.RegisterResp{UserId: 1, Token: "token"}, nil
 }
-func (contractUserService) Login(context.Context, *userservice.LoginReq, ...callopt.Option) (*userservice.LoginResp, error) {
+func (contractUserService) Login(ctx context.Context, req *userservice.LoginReq, _ ...callopt.Option) (*userservice.LoginResp, error) {
+	if req.Username == "deadline-test" {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 	return &userservice.LoginResp{UserId: 1, Token: "token"}, nil
 }
 func (contractUserService) SendVerifyCode(_ context.Context, in *userservice.SendVerifyCodeReq, _ ...callopt.Option) (*userservice.SendVerifyCodeResp, error) {
@@ -498,10 +505,14 @@ func startContractServer(t *testing.T) (string, route.RoutesInfo) {
 }
 
 func startContractServerWithAssistant(t *testing.T, assistant assistantservice.AssistantService) (string, route.RoutesInfo) {
+	return startConfiguredContractServer(t, assistant, 3000, 10<<20)
+}
+
+func startConfiguredContractServer(t *testing.T, assistant assistantservice.AssistantService, timeout, maxBytes int64) (string, route.RoutesInfo) {
 	t.Helper()
 	port := freePort(t)
 	cfg := config.Config{
-		RestConf: config.HTTPConfig{Host: "127.0.0.1", Port: port, MaxBytes: 10 << 20}}
+		RestConf: config.HTTPConfig{Host: "127.0.0.1", Port: port, Timeout: timeout, MaxBytes: maxBytes}}
 	cfg.Auth.AccessSecret = contractSecret
 	cfg.Auth.AccessExpire = 3600
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{AccessSecret: contractSecret, AccessExpire: 3600})
@@ -886,6 +897,42 @@ func TestMediaRoutesUseFileBudgetInsteadOfGlobalRESTLimit(t *testing.T) {
 				if response["code"] != float64(errx.FileTooLarge) {
 					t.Fatalf("error=%v", response)
 				}
+			}
+		})
+	}
+}
+
+func TestConfiguredHTTPBodyLimitAndTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		timeout, maxBytes int64
+		body              string
+		status            int
+		chunked           bool
+	}{
+		{"body limit", 3000, 16, `{"username":"user","password":"password"}`, 413, false},
+		{"chunked limit", 3000, 16, `{"username":"user","password":"password"}`, 413, true},
+		{"zero disables limits", 0, 0, `{"loginType":1,"username":"deadline-test","password":"password"}`, 200, true},
+		{"configured deadline", 20, 1024, `{"loginType":1,"username":"deadline-test","password":"password"}`, 500, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, _ := startConfiguredContractServer(t, contractAssistantService{}, tc.timeout, tc.maxBytes)
+			req, err := http.NewRequest(http.MethodPost, base+"/api/v1/auth/login", strings.NewReader(tc.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			if tc.chunked {
+				req.ContentLength = -1
+			}
+			client := &http.Client{Timeout: 3 * time.Second}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != tc.status {
+				t.Fatalf("got HTTP %d, want %d", resp.StatusCode, tc.status)
 			}
 		})
 	}

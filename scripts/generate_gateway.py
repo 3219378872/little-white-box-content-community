@@ -72,7 +72,11 @@ def generate():
     lines += [f'\t{g.replace("_", "")} "esx/app/gateway/internal/handler/{g}"\n' for g in groups]
     lines += [')\n\nfunc RegisterHandlers(server *server.Hertz, serverCtx *svc.ServiceContext) {\n']
     for path, method, operation, group in operations:
-        chain = [f'httpx.RoutePolicy({operation["x-timeout-ms"]}, {operation["x-max-body-bytes"]}, {str(operation.get("x-sse", False)).lower()})']
+        content = operation.get('requestBody', {}).get('content', {})
+        special = operation.get('x-sse') or 'multipart/form-data' in content
+        timeout = str(operation['x-timeout-ms']) if special else 'serverCtx.Config.RestConf.Timeout'
+        limit = str(operation['x-max-body-bytes']) if special else 'serverCtx.Config.RestConf.MaxBytes'
+        chain = [f'httpx.RoutePolicy({timeout}, {limit}, {str(operation.get("x-sse", False)).lower()})']
         if operation.get('x-optional-auth'):
             chain.append('serverCtx.OptionalAuth')
         elif operation.get('security'):

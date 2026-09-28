@@ -45,6 +45,12 @@ func (loggingUserServer) GetUser(ctx context.Context, in *pb.GetUserReq) (*pb.Ge
 		return nil, errx.NewWithCode(errx.UserNotFound)
 	case 3:
 		return nil, status.Error(codes.Internal, "private-error-detail")
+	case 5:
+		if _, ok := ctx.Deadline(); !ok {
+			return nil, status.Error(codes.Internal, "missing server deadline")
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
 	case 4:
 		select {
 		case <-ctx.Done():
@@ -60,7 +66,7 @@ func TestRPCLogsExcludeBodiesAndErrorDetails(t *testing.T) {
 	addr := listener.Addr().String()
 	require.NoError(t, listener.Close())
 	const secret = "rpc-transport-test-secret"
-	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "user.rpc"}, ListenOn: addr, Health: true, MaxConnections: 100, MaxQPS: 1000}
+	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "user.rpc"}, ListenOn: addr, Timeout: 100, Health: true, MaxConnections: 100, MaxQPS: 1000}
 	server := native.NewServer(&loggingUserServer{}, rpcx.ServerOptions(conf, secret)...)
 	var logs lockedLogBuffer
 	original := logx.Reset()
@@ -111,6 +117,19 @@ func TestRPCLogsExcludeBodiesAndErrorDetails(t *testing.T) {
 	err = conn.Invoke(signed, "/user.UserService/GetUser", &pb.GetUserReq{UserId: 2}, &response)
 	require.Equal(t, codes.NotFound, status.Code(err))
 	require.NotEmpty(t, status.Convert(err).Details())
+	// No caller deadline: the configured server cap must reach the handler.
+	signed = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("x-internal-timestamp", strconv.FormatInt(timestamp, 10), "x-internal-signature", SignInternalAuthPayload(secret, timestamp, "/user.UserService/GetUser")))
+	finished := make(chan error, 1)
+	go func() {
+		var deadlineReply pb.GetUserResp
+		finished <- conn.Invoke(signed, "/user.UserService/GetUser", &pb.GetUserReq{UserId: 5}, &deadlineReply)
+	}()
+	select {
+	case err := <-finished:
+		require.Equal(t, codes.DeadlineExceeded, status.Code(err))
+	case <-time.After(2 * time.Second):
+		t.Fatal("server deadline was ignored")
+	}
 	// Existing signing rules remain independently covered by internal_auth_test.go.
 	for _, value := range []string{"private-response", "private-error-detail"} {
 		require.NotContains(t, logs.text(), value)

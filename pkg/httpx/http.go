@@ -44,11 +44,14 @@ func Parse(c *app.RequestContext, out any) error {
 			limit = raw.(int64)
 		}
 		if reader := c.Request.BodyStream(); reader != nil {
-			data, err = io.ReadAll(io.LimitReader(reader, limit+1))
+			if limit > 0 {
+				reader = io.LimitReader(reader, limit+1)
+			}
+			data, err = io.ReadAll(reader)
 		} else {
 			data, err = c.Request.BodyE()
 		}
-		if int64(len(data)) > limit {
+		if limit > 0 && int64(len(data)) > limit {
 			return errx.NewWithCode(errx.FileTooLarge)
 		}
 		if err != nil {
@@ -140,7 +143,7 @@ func Parse(c *app.RequestContext, out any) error {
 // RoutePolicy bounds request ingestion without buffering multipart files or SSE output.
 func RoutePolicy(timeoutMS int64, maxBody int64, sse bool) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		if int64(c.Request.Header.ContentLength()) > maxBody {
+		if maxBody > 0 && int64(c.Request.Header.ContentLength()) > maxBody {
 			ErrorCtx(ctx, c, errx.NewWithCode(errx.FileTooLarge))
 			c.Abort()
 			return

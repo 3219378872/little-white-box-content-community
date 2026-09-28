@@ -29,6 +29,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/status"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
+	"github.com/cloudwego/kitex/pkg/serviceinfo"
 	"github.com/cloudwego/kitex/pkg/streaming"
 	"github.com/cloudwego/kitex/server"
 	"github.com/cloudwego/kitex/transport"
@@ -257,9 +258,6 @@ func (c *clientSpec) Options() []client.Option {
 	opts := []client.Option{client.WithTransportProtocol(transport.GRPC), client.WithConnectTimeout(time.Second), client.WithMiddleware(observed("client")), client.WithTracer(observer{side: "client"}), client.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnConnectStream(authClient(c.secret)))), client.WithCircuitBreaker(circuitbreak.NewCBSuite(circuitbreak.RPCInfo2Key))}
 	// Unary deadlines must not impose a two-second lifetime on media/SSE streams.
 	timeout := c.conf.Timeout
-	if timeout <= 0 {
-		timeout = 2000
-	}
 	opts = append(opts, client.WithUnaryOptions(client.WithUnaryRPCTimeout(time.Duration(timeout)*time.Millisecond)))
 	if c.resolver != nil {
 		opts = append(opts, client.WithResolver(c.resolver))
@@ -303,7 +301,7 @@ func ServerOptions(c RpcServerConf, secret string) []server.Option {
 		panic(err)
 	}
 	c.MustSetUp()
-	opts := []server.Option{server.WithServiceAddr(addr), server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{ServiceName: c.Name}), server.WithMiddleware(observed("server")), server.WithTracer(observer{side: "server"}), server.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnReadStream(authServer(secret)))), server.WithLimit(&limit.Option{MaxConnections: c.MaxConnections, MaxQPS: c.MaxQPS}), server.WithExitWaitTime(10 * time.Second)}
+	opts := []server.Option{server.WithServiceAddr(addr), server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{ServiceName: c.Name}), server.WithMiddleware(observed("server")), server.WithMiddleware(serverDeadline(c.Timeout)), server.WithTracer(observer{side: "server"}), server.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnReadStream(authServer(secret)))), server.WithLimit(&limit.Option{MaxConnections: c.MaxConnections, MaxQPS: c.MaxQPS}), server.WithExitWaitTime(10 * time.Second)}
 	if c.Health {
 		opts = append(opts, server.WithGRPCUnknownServiceHandler(func(ctx context.Context, method string, stream streaming.Stream) error {
 			if method != "Check" || fullMethod(ctx) != "/grpc.health.v1.Health/Check" {
@@ -325,6 +323,9 @@ func ServerOptions(c RpcServerConf, secret string) []server.Option {
 		managed := &managedRegistry{Registry: r, cancel: cancel}
 		lifecycle.TrackResource(managed)
 		opts = append(opts, server.WithRegistry(managed))
+		if c.Etcd.Key != "" {
+			opts = append(opts, server.WithRegistryInfo(&registry.Info{ServiceName: c.Etcd.Key}))
+		}
 	}
 	return opts
 }
@@ -392,3 +393,19 @@ func (r *managedRegistry) Deregister(info *registry.Info) error {
 	return r.Registry.Deregister(info)
 }
 func (r *managedRegistry) Close() error { r.cancel(); return nil }
+
+// serverDeadline caps unary work even when a caller supplies no deadline.
+// Streams retain their own cancellation and lifetime policy.
+func serverDeadline(timeoutMS int64) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req, resp any) error {
+			mode := rpcinfo.GetRPCInfo(ctx).Invocation().StreamingMode()
+			if timeoutMS > 0 && (mode == serviceinfo.StreamingNone || mode == serviceinfo.StreamingUnary) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+				defer cancel()
+			}
+			return next(ctx, req, resp)
+		}
+	}
+}

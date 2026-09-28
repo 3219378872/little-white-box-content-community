@@ -75,7 +75,7 @@ func startTransport(t *testing.T, create func(...server.Option) server.Server) r
 	require.NoError(t, err)
 	addr := listener.Addr().String()
 	require.NoError(t, listener.Close())
-	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "stream.rpc"}, ListenOn: addr, Health: true, MaxConnections: 100, MaxQPS: 1000}
+	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "stream.rpc"}, ListenOn: addr, Timeout: 50, Health: true, MaxConnections: 100, MaxQPS: 1000}
 	srv := create(rpcx.ServerOptions(conf, "stream-secret")...)
 	done := make(chan error, 1)
 	go func() { done <- srv.Run() }()

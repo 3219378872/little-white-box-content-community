@@ -43,5 +43,6 @@ type HTTPConfig struct {
 	lifecycle.ServiceConf
 	Host     string
 	Port     int
+	Timeout  int64 `json:",default=3000"`
 	MaxBytes int64 `json:",default=10485760"`
 }

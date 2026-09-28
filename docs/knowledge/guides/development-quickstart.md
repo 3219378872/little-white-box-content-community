@@ -60,3 +60,11 @@ API/RPC/数据/安全/运维/测试的按需入口。
 Docker 不能原地修改现有网络 IPAM；已有环境需停止应用后以原 Compose project 执行
 `docker compose down`（绝不加 `-v`），再按原配置重新启动。数据卷保留，旧容器的历史固定 IP
 随重建移除。生产环境的维护窗口与运行验收应另行安排。
+
+### 框架迁移后的配置兼容
+
+`RestConf.Timeout`（默认 3000 毫秒）与 `RestConf.MaxBytes`（默认 10 MiB）控制普通
+Gateway 请求；显式零值关闭对应普通请求限制。媒体 multipart 和 SSE 使用 OpenAPI 中的独立
+路由策略，普通 HTTP 超时不截断 SSE。RPC `Timeout` 默认 2000 毫秒，服务端和客户端仅作用于
+普通调用，显式零值不设置截止时间。流式上传和事件订阅保留调用方的取消与生命周期。
+`Etcd.Key` 是 Kitex 注册/发现的逻辑服务名，允许与日志展示的 `Name` 不同。
