@@ -1,0 +1,54 @@
+{
+  "observedCommit": "ad42706db2e3a744da188b55f310e1314cf1be38",
+  "frameworks": {
+    "kitex": "v0.16.2",
+    "hertz": "v0.10.6",
+    "registry-etcd": "v0.3.0"
+  },
+  "goZeroDependency": false,
+  "checks": {
+    "check": {
+      "result": "passed",
+      "logSha256": "282aa07dbd1c6f55ac4076c5d24d90a75a63f5ce0c4390f722ee84fa92842aba",
+      "goPackagesPassed": 0
+    },
+    "test": {
+      "result": "passed",
+      "logSha256": "3f51f413030af4877333323b6180e468fc925114032956055375d1badc165a5b",
+      "goPackagesPassed": 120
+    },
+    "coverage": {
+      "result": "passed",
+      "logSha256": "10746ac38856534f109cbcd182087ba3fa9e02ccd8e0ea9eb61bc9a94f71f8cf",
+      "goPackagesPassed": 120
+    },
+    "integration": {
+      "result": "passed",
+      "logSha256": "4f124339273678368084a92962ac7452b721062bb081bc6108c7d96f46f5ab36",
+      "goPackagesPassed": 128
+    },
+    "generation": {
+      "result": "passed",
+      "logSha256": "b6c825d71a4a3143c9a286a9c59047fe8d565d5b27002d3397fea04ca461c62a",
+      "goPackagesPassed": 0,
+      "independentRuns": 2,
+      "drift": false
+    }
+  },
+  "coveragePercent": {
+    "handler": 89.0,
+    "logic": 78.0,
+    "model": 15.2,
+    "mqConsumer": 72.4,
+    "shared": 60.4
+  },
+  "reachableVulnerabilities": 0,
+  "importedPackageVulnerabilitiesNotCalled": 2,
+  "requiredModuleVulnerabilitiesNotCalled": 1,
+  "openapiSha256": "fdc025ee4dfde3bdba014c11883894114a88ed6dd94d006f82a8c0979c8535f2",
+  "boundaries": [
+    "isolated services and real sockets",
+    "no production deployment or capacity claim",
+    "browser and live-provider checks belong to root workspace evidence"
+  ]
+}
