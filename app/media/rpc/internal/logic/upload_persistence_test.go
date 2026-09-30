@@ -26,17 +26,18 @@ func TestCommittedUploadSurvivesResponseFailure(t *testing.T) {
 			config.Upload.TempDir = t.TempDir()
 			svcCtx := unitSvcCtx(config, &fakeMediaModel{}, command, storage)
 			var err error
-			if kind == "image" {
+			switch kind {
+			case "image":
 				stream := unitImageStreamFromBytes(ctx, 1, "image.jpg", "committed-image", unitTestJPEG(t, 32, 24), 256)
 				stream.sendErr = sendErr
 				err = NewUploadImageLogic(ctx, svcCtx).UploadImage(stream)
 				require.Len(t, storage.putCalls, 2)
-			} else if kind == "video" {
+			case "video":
 				stream := unitVideoStreamFromBytes(ctx, 1, "video.mp4", "committed-video", unitTestMP4(), 64)
 				stream.sendErr = sendErr
 				err = NewUploadVideoLogic(ctx, svcCtx).UploadVideo(stream)
 				require.Len(t, storage.putCalls, 1)
-			} else {
+			default:
 				stream := unitAudioStreamFromBytes(ctx, 1, "audio.wav", "committed-audio", unitTestWAV(), 64)
 				stream.sendErr = sendErr
 				err = NewUploadAudioLogic(ctx, svcCtx).UploadAudio(stream)
