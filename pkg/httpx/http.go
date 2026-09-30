@@ -159,6 +159,18 @@ func RoutePolicy(timeoutMS int64, maxBody int64, sse bool) app.HandlerFunc {
 			var cancel context.CancelFunc
 			ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
 			defer cancel()
+			// A context deadline alone does not interrupt BodyStream.Read.
+			// Bound actual socket reads, but leave writes available for the
+			// established JSON error boundary after downstream cancellation.
+			if conn := c.GetConn(); conn != nil {
+				deadline, _ := ctx.Deadline()
+				if err := conn.SetReadDeadline(deadline); err != nil {
+					ErrorCtx(ctx, c, errx.NewWithCode(errx.ServiceUnavailable))
+					c.Abort()
+					return
+				}
+				defer func() { _ = conn.SetReadDeadline(time.Time{}) }()
+			}
 		}
 		c.Next(ctx)
 	}

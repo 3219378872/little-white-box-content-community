@@ -57,7 +57,7 @@ code_paths:
 | REL-013 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-020 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-021 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
-| REL-022 | DES-content-community-backend | unknown | gap: 媒体提交补偿及诊断日志已变更，原 CloudWeGo 证据输入过期；待新提交上的完整日志隐私验收。 Assistant 提交边界已改变，既有全量覆盖已过期；待本提交上的完整日志与错误隐私验收。 Memory/Watch 业务边界已改变，既有全量覆盖过期；待本提交上的完整日志与错误隐私验收。 共享缓存与媒体读取路径已变更，旧日志安全证据不再覆盖当前实现；待最终提交上的对应验收证据。 |
+| REL-022 | DES-content-community-backend | unknown | gap: 媒体提交补偿及诊断日志已变更，原 CloudWeGo 证据输入过期；待新提交上的完整日志隐私验收。 Assistant 提交边界已改变，既有全量覆盖已过期；待本提交上的完整日志与错误隐私验收。 Memory/Watch 业务边界已改变，既有全量覆盖过期；待本提交上的完整日志与错误隐私验收。 共享缓存与媒体读取路径已变更，旧日志安全证据不再覆盖当前实现；待最终提交上的对应验收证据。 HTTP 摄取连接读取截止时间的行为已改变；旧全量覆盖过期，待最终提交上的跨服务错误与隐私验收。 |
 | REL-023 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-024 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | REL-030 | DES-content-community-backend | unknown | gap: 口径/指标或恢复机制已实现；缺真实 UTC 自然月生产观测。 |

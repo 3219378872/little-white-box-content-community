@@ -68,3 +68,17 @@ Gateway 请求；显式零值关闭对应普通请求限制。媒体 multipart �
 路由策略，普通 HTTP 超时不截断 SSE。RPC `Timeout` 默认 2000 毫秒，服务端和客户端仅作用于
 普通调用，显式零值不设置截止时间。流式上传和事件订阅保留调用方的取消与生命周期。
 `Etcd.Key` 是 Kitex 注册/发现的逻辑服务名，允许与日志展示的 `Name` 不同。
+
+### Streaming request ingestion deadlines
+
+Ordinary API and multipart route deadlines now cancel the request context and set an absolute
+connection read deadline, which interrupts blocked JSON/multipart reads. The read deadline
+is reset before the request returns, preserving subsequent keep-alive requests and allowing
+the existing JSON error response after downstream cancellation. Explicit zero timeout and SSE retain their existing exemptions.
+The proxy must
+stream ordinary request bodies (`proxy_request_buffering off`) so slow clients are visible
+to this absolute deadline; nginx `client_body_timeout` is only an inactivity guard.
+
+Loopback tests cover slow chunked JSON and multipart on default and standard Hertz
+transports, plus successful keep-alive and SSE. Real nginx/full-stack verification remains
+open until the required runtime is available.
