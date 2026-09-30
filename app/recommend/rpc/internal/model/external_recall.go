@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"esx/pkg/vectorprojection"
+
 	milvusclient "github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"google.golang.org/grpc"
@@ -216,26 +218,27 @@ func (s *MilvusPostRecallSource) Recall(ctx context.Context, req RecallRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("connect milvus recall: %w", err)
 	}
-	rows, err := client.Query(requestCtx, s.collection, nil,
-		"post_id in ["+joinInt64(seedIDs)+"]", []string{"embedding"})
+	seeds, err := vectorprojection.Latest(requestCtx, client, s.collection, seedIDs, true)
 	if err != nil {
-		return nil, fmt.Errorf("query milvus recall seed vectors: %w", err)
+		return nil, fmt.Errorf("query latest seed vectors: %w", err)
 	}
-	column, ok := rows.GetColumn("embedding").(*entity.ColumnFloatVector)
-	if !ok || column.Len() == 0 {
+	vectors := make([]entity.Vector, 0, len(seeds))
+	for _, id := range seedIDs {
+		if row, ok := seeds[id]; ok && !row.Deleted {
+			vectors = append(vectors, entity.FloatVector(row.Vector))
+		}
+	}
+	if len(vectors) == 0 {
 		return nil, ErrNotApplicable
 	}
-	vectors := make([]entity.Vector, 0, column.Len())
-	for _, vector := range column.Data() {
-		vectors = append(vectors, entity.FloatVector(vector))
-	}
+
 	searchParams, err := entity.NewIndexIvfFlatSearchParam(s.nprobe)
 	if err != nil {
 		return nil, fmt.Errorf("create milvus recall search parameters: %w", err)
 	}
 	results, err := client.Search(requestCtx, s.collection, nil,
-		"post_id not in ["+joinInt64(seedIDs)+"]", nil, vectors,
-		"embedding", entity.L2, req.Limit, searchParams)
+		"deleted == false && post_id not in ["+joinInt64(seedIDs)+"]", []string{"post_id", "revision"}, vectors,
+		"embedding", entity.L2, req.Limit, searchParams, milvusclient.WithSearchQueryConsistencyLevel(entity.ClStrong))
 	if err != nil {
 		return nil, fmt.Errorf("search milvus recall neighbors: %w", err)
 	}
@@ -243,26 +246,47 @@ func (s *MilvusPostRecallSource) Recall(ctx context.Context, req RecallRequest) 
 	if req.SeedPostID > 0 {
 		reason = "semantically similar"
 	}
-	merged := make(map[int64]PostCandidate)
+	type hit struct {
+		id, revision int64
+		distance     float64
+	}
+	var hits []hit
+	candidateIDs := make([]int64, 0)
+	seenIDs := map[int64]bool{}
 	for _, searchResult := range results {
 		if searchResult.Err != nil {
 			return nil, fmt.Errorf("decode milvus recall result: %w", searchResult.Err)
 		}
-		for index := 0; index < searchResult.ResultCount; index++ {
-			postID, err := searchResult.IDs.GetAsInt64(index)
-			if err != nil || postID <= 0 || containsInt64(seedIDs, postID) {
+		ids, ok := searchResult.Fields.GetColumn("post_id").(*entity.ColumnInt64)
+		revisions, revOK := searchResult.Fields.GetColumn("revision").(*entity.ColumnInt64)
+		if !ok || !revOK || ids.Len() != searchResult.ResultCount || revisions.Len() != searchResult.ResultCount || len(searchResult.Scores) != searchResult.ResultCount {
+			return nil, fmt.Errorf("versioned Milvus recall metadata missing; rebuild required")
+		}
+		for i, id := range ids.Data() {
+			if id <= 0 || containsInt64(seedIDs, id) {
 				continue
 			}
-			distance := float64(searchResult.Scores[index])
-			if distance < 0 {
-				distance = 0
+			hits = append(hits, hit{id: id, revision: revisions.Data()[i], distance: float64(searchResult.Scores[i])})
+			if !seenIDs[id] {
+				candidateIDs = append(candidateIDs, id)
+				seenIDs[id] = true
 			}
-			candidate := PostCandidate{
-				PostID: postID, RecallScore: 1 / (1 + distance), RecallSource: s.Name(), Reason: reason,
-			}
-			if current, exists := merged[postID]; !exists || candidate.RecallScore > current.RecallScore {
-				merged[postID] = candidate
-			}
+		}
+	}
+	latest, err := vectorprojection.Latest(requestCtx, client, s.collection, candidateIDs, false)
+	if err != nil {
+		return nil, fmt.Errorf("verify latest recall revisions: %w", err)
+	}
+	merged := make(map[int64]PostCandidate)
+	for _, hit := range hits {
+		row, ok := latest[hit.id]
+		if !ok || row.Deleted || row.Revision != hit.revision {
+			continue
+		}
+		distance := max(hit.distance, 0)
+		candidate := PostCandidate{PostID: hit.id, RecallScore: 1 / (1 + distance), RecallSource: s.Name(), Reason: reason}
+		if current, exists := merged[hit.id]; !exists || candidate.RecallScore > current.RecallScore {
+			merged[hit.id] = candidate
 		}
 	}
 	result := make([]PostCandidate, 0, len(merged))

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"esx/app/content/rpc/contentservice"
+	"esx/app/content/visibility"
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/svc"
 	"esx/app/embedding/mq/internal/vectorstore"
@@ -27,7 +29,7 @@ func NewEmbeddingConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 		return nil, fmt.Errorf("embedding-consumer: create consumer: %w", err)
 	}
 	handler := func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-		return consumeEmbeddingBatch(ctx, svcCtx.Embedder, svcCtx.VectorStore, msgs...), nil
+		return consumeEmbeddingBatch(ctx, svcCtx.Embedder, svcCtx.VectorStore, svcCtx.Content, msgs...), nil
 	}
 	for _, topic := range []string{mqx.TopicPostCreate, mqx.TopicPostUpdate, mqx.TopicPostDelete} {
 		if err := c.SubscribeWithTopic(topic, mqx.TagDefault, handler); err != nil {
@@ -37,7 +39,7 @@ func NewEmbeddingConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
-func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vectorstore.VectorStore, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vectorstore.VectorStore, source visibility.PostsByIDs, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	for _, msg := range msgs {
@@ -73,60 +75,63 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 			embeddingConsumerMessages.Inc("processed")
 			continue
 		}
-		switch e.Type {
-		case event.PostEventCreated, event.PostEventUpdated:
-			// CORE-015：草稿/取消发布的内容不进入向量库；如已存在则删除。
-			if !visibilityx.IsPublished(int32(e.Status)) {
-				if err := vs.Delete(ctx, e.PostID); err != nil {
-					logx.WithContext(ctx).Errorw("embedding-consumer: delete non-published failed",
-						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-						logx.Field("err", err.Error()))
-					embeddingConsumerMessages.Inc("retry")
-					return consumer.ConsumeRetryLater
-				}
-				logx.WithContext(ctx).Infow("embedding-consumer: non-published embedding removed",
-					logx.Field("post_id", e.PostID), logx.Field("status", e.Status))
-				embeddingConsumerMessages.Inc("processed")
-				continue
+		// Reconcile from Content authority even on historical replay. Rebuilds
+		// contain published rows only, so an absent old tombstone cannot justify
+		// trusting an old event body after alias promotion.
+		post, err := authoritativePost(ctx, source, e.PostID)
+		if err != nil {
+			logx.WithContext(ctx).Errorw("embedding-consumer: authority lookup failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+			embeddingConsumerMessages.Inc("retry")
+			return consumer.ConsumeRetryLater
+		}
+		if post == nil {
+			if err := vs.Delete(ctx, e.PostID, max(e.Revision, storedRevision, 1)); err != nil {
+				logx.WithContext(ctx).Errorw("embedding-consumer: tombstone failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+				embeddingConsumerMessages.Inc("retry")
+				return consumer.ConsumeRetryLater
 			}
-			text := e.Title + "\n" + e.IndexText()
-			result, err := emb.Embed(ctx, text)
+		} else {
+			if post.Revision < max(e.Revision, 1) {
+				// Do not acknowledge an event from a newer authority snapshot
+				// against a lagging Content endpoint.
+				embeddingConsumerMessages.Inc("retry")
+				return consumer.ConsumeRetryLater
+			}
+			result, err := emb.Embed(ctx, post.Title+"\n"+post.Content)
 			if err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: embed failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+				logx.WithContext(ctx).Errorw("embedding-consumer: embed failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
 				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
-			if err := vs.Upsert(ctx, vectorstore.Record{
-				PostID:       e.PostID,
-				Vector:       result.Vector,
-				ModelVersion: result.ModelVersion,
-				Dimension:    result.Dimension,
-				Revision:     e.Revision,
-			}); err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: upsert failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+			if err := vs.Upsert(ctx, vectorstore.Record{PostID: e.PostID, Vector: result.Vector, ModelVersion: result.ModelVersion, Dimension: result.Dimension, Revision: post.Revision}); err != nil {
+				logx.WithContext(ctx).Errorw("embedding-consumer: upsert failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
 				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
-			logx.WithContext(ctx).Infow("embedding-consumer: vector upserted",
-				logx.Field("post_id", e.PostID), logx.Field("type", string(e.Type)),
-				logx.Field("model_version", result.ModelVersion), logx.Field("dimension", result.Dimension))
-		case event.PostEventDeleted:
-			if err := vs.Delete(ctx, e.PostID); err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: delete failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
-				embeddingConsumerMessages.Inc("retry")
-				return consumer.ConsumeRetryLater
-			}
-			logx.WithContext(ctx).Infow("embedding-consumer: vector deleted",
-				logx.Field("post_id", e.PostID))
 		}
 		embeddingConsumerMessages.Inc("processed")
 		observeEmbeddingIndexLag(e.EventTime, time.Now())
 	}
 	return consumer.ConsumeSuccess
+}
+
+// An empty successful protobuf repeated field decodes as nil. It represents an
+// authoritative absence; a nil response or RPC error does not.
+func authoritativePost(ctx context.Context, source visibility.PostsByIDs, id int64) (*contentservice.PostInfo, error) {
+	if source == nil {
+		return nil, fmt.Errorf("content authority is required")
+	}
+	response, err := source.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: []int64{id}})
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, fmt.Errorf("nil Content authority response")
+	}
+	for _, post := range response.Posts {
+		if post != nil && post.Id == id && visibilityx.IsPublished(post.Status) {
+			return post, nil
+		}
+	}
+	return nil, nil
 }

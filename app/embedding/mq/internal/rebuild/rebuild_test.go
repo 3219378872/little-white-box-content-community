@@ -102,10 +102,10 @@ func TestRunAndPromoteRetriesAndIndexesOnlyPublishedPosts(t *testing.T) {
 		failures: 1,
 		pages: map[string]*contentservice.GetPostListResp{
 			"": {NextCursor: "c2", Posts: []*contentservice.PostInfo{
-				{Id: 1, Title: "one", Content: "body", Status: 1},
+				{Id: 1, Title: "one", Content: "body", Status: 1, Revision: 1},
 				{Id: 2, Status: 0},
 			}},
-			"c2": {Posts: []*contentservice.PostInfo{{Id: 3, Title: "three", Status: 1}}},
+			"c2": {Posts: []*contentservice.PostInfo{{Id: 3, Title: "three", Status: 1, Revision: 1}}},
 		},
 	}
 	emb := &fakeBatchEmbedder{failures: 1}
@@ -115,6 +115,7 @@ func TestRunAndPromoteRetriesAndIndexesOnlyPublishedPosts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), count)
 	assert.Len(t, target.records, 2)
+	assert.Equal(t, int64(1), target.records[0].Revision)
 	assert.True(t, target.flushed)
 	assert.Equal(t, "post_embeddings_current", target.promoted)
 	assert.GreaterOrEqual(t, source.calls, 3)
@@ -124,7 +125,7 @@ func TestRunAndPromoteRetriesAndIndexesOnlyPublishedPosts(t *testing.T) {
 
 func TestRunAndPromoteDoesNotPromotePartialBuild(t *testing.T) {
 	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
-		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
+		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1, Revision: 1}}},
 	}}
 	target := &fakeTarget{failures: 10}
 
@@ -136,7 +137,7 @@ func TestRunAndPromoteDoesNotPromotePartialBuild(t *testing.T) {
 
 func TestRunAndPromoteRejectsCountMismatch(t *testing.T) {
 	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{
-		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1}}},
+		"": {Posts: []*contentservice.PostInfo{{Id: 1, Title: "one", Status: 1, Revision: 1}}},
 	}}
 	target := &fakeTarget{}
 	target.count = 99
@@ -161,4 +162,13 @@ func TestVersionedCollectionNameIsMilvusSafeAndTraceable(t *testing.T) {
 	name, err := VersionedCollectionName("post-embeddings", "multilingual/model@abc123", time.Date(2026, 7, 29, 1, 2, 3, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Equal(t, "post_embeddings_multilingual_model_abc123_20260729_010203_000000000", name)
+}
+
+func TestRebuildRejectsMissingAuthorityRevision(t *testing.T) {
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{"": {Posts: []*contentservice.PostInfo{{Id: 1, Status: 1}}}}}
+	target := &fakeTarget{}
+	_, err := RunAndPromote(context.Background(), source, &fakeBatchEmbedder{}, target, "active", testOptions())
+	require.ErrorContains(t, err, "no authoritative revision")
+	require.Empty(t, target.promoted)
+	require.Empty(t, target.records)
 }

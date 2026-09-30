@@ -76,7 +76,10 @@ func TestMilvusRecallAgainstRealCollection(t *testing.T) {
 		CollectionName: collection,
 		AutoID:         false,
 		Fields: []*entity.Field{
-			{Name: "post_id", DataType: entity.FieldTypeInt64, PrimaryKey: true, AutoID: false},
+			{Name: "projection_id", DataType: entity.FieldTypeVarChar, PrimaryKey: true, TypeParams: map[string]string{"max_length": "64"}},
+			{Name: "post_id", DataType: entity.FieldTypeInt64},
+			{Name: "revision", DataType: entity.FieldTypeInt64},
+			{Name: "deleted", DataType: entity.FieldTypeBool},
 			{Name: "embedding", DataType: entity.FieldTypeFloatVector, TypeParams: map[string]string{"dim": strconv.Itoa(dimension)}},
 		},
 	}
@@ -85,7 +88,10 @@ func TestMilvusRecallAgainstRealCollection(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, client.CreateIndex(ctx, collection, "embedding", index, false))
 	_, err = client.Insert(ctx, collection, "",
+		entity.NewColumnVarChar("projection_id", []string{"42001:1", "42002:1", "42003:1"}),
 		entity.NewColumnInt64("post_id", []int64{42001, 42002, 42003}),
+		entity.NewColumnInt64("revision", []int64{1, 1, 1}),
+		entity.NewColumnBool("deleted", []bool{false, false, false}),
 		entity.NewColumnFloatVector("embedding", dimension, [][]float32{
 			{1, 0, 0, 0},
 			{0.9, 0.1, 0, 0},

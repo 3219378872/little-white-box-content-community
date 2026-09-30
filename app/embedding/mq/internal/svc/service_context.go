@@ -6,15 +6,20 @@ import (
 	"fmt"
 	"time"
 
+	"esx/app/content/rpc/contentservice"
 	"esx/app/embedding/mq/internal/config"
 	"esx/app/embedding/mq/internal/embedder"
 	"esx/app/embedding/mq/internal/vectorstore"
+	"esx/pkg/rpcx"
+	"io"
 )
 
 type ServiceContext struct {
-	Config      config.Config
-	Embedder    embedder.Embedder
-	VectorStore vectorstore.VectorStore
+	Config        config.Config
+	Embedder      embedder.Embedder
+	VectorStore   vectorstore.VectorStore
+	Content       contentservice.ContentService
+	contentCloser io.Closer
 
 	grpcEmbedder *embedder.GRPCEmbedder
 	milvusStore  *vectorstore.MilvusVectorStore
@@ -47,9 +52,16 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 		_ = grpcEmbedder.Close()
 		return nil, fmt.Errorf("open required Milvus collection: %w", err)
 	}
+	contentClient, err := rpcx.NewClient(c.ContentRpc, rpcx.WithInternalAuth(c.InternalSecret))
+	if err != nil {
+		_ = store.Close()
+		_ = grpcEmbedder.Close()
+		return nil, fmt.Errorf("initialize Content RPC client: %w", err)
+	}
 	return &ServiceContext{
 		Config: c, Embedder: grpcEmbedder, VectorStore: store,
 		grpcEmbedder: grpcEmbedder, milvusStore: store,
+		Content: contentservice.NewContentService(contentClient), contentCloser: contentClient,
 	}, nil
 }
 
@@ -73,6 +85,9 @@ func (s *ServiceContext) Close() error {
 		return nil
 	}
 	var errs []error
+	if s.contentCloser != nil {
+		errs = append(errs, s.contentCloser.Close())
+	}
 	if s.milvusStore != nil {
 		errs = append(errs, s.milvusStore.Close())
 	}

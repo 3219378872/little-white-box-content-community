@@ -94,6 +94,9 @@ func RunAndPromote(
 			batch := posts[start:end]
 			texts := make([]string, len(batch))
 			for i, post := range batch {
+				if post.Revision <= 0 {
+					return indexed, fmt.Errorf("published post %d has no authoritative revision", post.Id)
+				}
 				texts[i] = post.Title + "\n" + post.Content
 			}
 			results, err := retryValue(ctx, options, func() ([]embedder.Embedding, error) {
@@ -109,6 +112,7 @@ func RunAndPromote(
 			for i, post := range batch {
 				records[i] = vectorstore.Record{
 					PostID:       post.Id,
+					Revision:     post.Revision,
 					Vector:       results[i].Vector,
 					ModelVersion: results[i].ModelVersion,
 					Dimension:    results[i].Dimension,

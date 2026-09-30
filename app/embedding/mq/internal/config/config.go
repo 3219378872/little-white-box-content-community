@@ -79,6 +79,9 @@ func (c Config) ValidateRebuild() error {
 }
 
 func (c Config) ValidateRuntime() error {
+	if len(c.ContentRpc.Endpoints) == 0 && strings.TrimSpace(c.ContentRpc.Target) == "" && strings.TrimSpace(c.ContentRpc.Etcd.Key) == "" {
+		return fmt.Errorf("ContentRpc authority is required")
+	}
 	if strings.TrimSpace(c.Embedding.Address) == "" {
 		return fmt.Errorf("Embedding.Address is required")
 	}

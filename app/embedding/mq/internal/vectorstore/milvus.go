@@ -2,6 +2,7 @@ package vectorstore
 
 import (
 	"context"
+	"esx/pkg/vectorprojection"
 	"fmt"
 	"math"
 	"strconv"
@@ -218,7 +219,10 @@ func (m *MilvusVectorStore) schema() *entity.Schema {
 		Description:    "versioned post embeddings for search and recommendation",
 		AutoID:         false,
 		Fields: []*entity.Field{
-			{Name: "post_id", DataType: entity.FieldTypeInt64, PrimaryKey: true, AutoID: false},
+			{Name: "projection_id", DataType: entity.FieldTypeVarChar, PrimaryKey: true, AutoID: false, TypeParams: map[string]string{"max_length": "64"}},
+			{Name: "post_id", DataType: entity.FieldTypeInt64},
+			{Name: "revision", DataType: entity.FieldTypeInt64},
+			{Name: "deleted", DataType: entity.FieldTypeBool},
 			{Name: "embedding", DataType: entity.FieldTypeFloatVector, TypeParams: map[string]string{"dim": strconv.Itoa(m.dim)}},
 			{Name: "model_version", DataType: entity.FieldTypeVarChar, TypeParams: map[string]string{"max_length": strconv.Itoa(modelVersionMaxLength)}},
 			{Name: "dimension", DataType: entity.FieldTypeInt32},
@@ -238,11 +242,22 @@ func (m *MilvusVectorStore) validateExistingCollection(ctx context.Context) erro
 	if err := validateSchema(collection.Schema, m.dim); err != nil {
 		return fmt.Errorf("milvus collection %q schema is incompatible: %w", m.collection, err)
 	}
+	// The SDK's Collection.Name echoes the lookup argument (possibly an
+	// alias); Schema.CollectionName is the server's canonical physical name.
+	// Pin writes so a delayed RPC from this process cannot target a newly
+	// promoted collection after rebuild. Restart consumers after promotion.
+	if strings.TrimSpace(collection.Schema.CollectionName) == "" {
+		return fmt.Errorf("milvus collection %q has no physical schema name", m.collection)
+	}
+	m.collection = collection.Schema.CollectionName
 	return nil
 }
 
 func validateSchema(schema *entity.Schema, expectedDim int) error {
 	want := map[string]entity.FieldType{
+		"projection_id": entity.FieldTypeVarChar,
+		"revision":      entity.FieldTypeInt64,
+		"deleted":       entity.FieldTypeBool,
 		"post_id":       entity.FieldTypeInt64,
 		"embedding":     entity.FieldTypeFloatVector,
 		"model_version": entity.FieldTypeVarChar,
@@ -257,8 +272,14 @@ func validateSchema(schema *entity.Schema, expectedDim int) error {
 		if field.DataType != fieldType {
 			return fmt.Errorf("field %s has type %s, want %s", field.Name, field.DataType.Name(), fieldType.Name())
 		}
-		if field.Name == "post_id" && (!field.PrimaryKey || field.AutoID) {
-			return fmt.Errorf("post_id must be a non-auto primary key")
+		if field.Name == "projection_id" && (!field.PrimaryKey || field.AutoID) {
+			return fmt.Errorf("projection_id must be a non-auto primary key")
+		}
+		if field.Name == "projection_id" {
+			maxLength, err := strconv.Atoi(field.TypeParams["max_length"])
+			if err != nil || maxLength < 64 {
+				return fmt.Errorf("projection_id max_length must be at least 64")
+			}
 		}
 		if field.Name == "embedding" {
 			dim, err := strconv.Atoi(field.TypeParams["dim"])
@@ -283,6 +304,9 @@ func validateSchema(schema *entity.Schema, expectedDim int) error {
 }
 
 func validateRecord(record Record, expectedDim int) error {
+	if record.Revision <= 0 {
+		return fmt.Errorf("revision must be positive")
+	}
 	if record.PostID <= 0 {
 		return fmt.Errorf("post ID must be positive")
 	}
@@ -322,6 +346,8 @@ func (m *MilvusVectorStore) UpsertBatch(ctx context.Context, records []Record) e
 		return fmt.Errorf("milvus upsert batch is empty")
 	}
 	ids := make([]int64, len(records))
+	keys := make([]string, len(records))
+	revisions := make([]int64, len(records))
 	vectors := make([][]float32, len(records))
 	versions := make([]string, len(records))
 	dimensions := make([]int32, len(records))
@@ -330,12 +356,17 @@ func (m *MilvusVectorStore) UpsertBatch(ctx context.Context, records []Record) e
 			return fmt.Errorf("record %d: %w", i, err)
 		}
 		ids[i] = record.PostID
+		keys[i] = fmt.Sprintf("%d:%d", record.PostID, record.Revision)
+		revisions[i] = record.Revision
 		vectors[i] = record.Vector
 		versions[i] = record.ModelVersion
 		dimensions[i] = int32(record.Dimension)
 	}
 	if _, err := m.cli.Upsert(ctx, m.collection, "",
+		entity.NewColumnVarChar("projection_id", keys),
 		entity.NewColumnInt64("post_id", ids),
+		entity.NewColumnInt64("revision", revisions),
+		entity.NewColumnBool("deleted", make([]bool, len(records))),
 		entity.NewColumnFloatVector("embedding", m.dim, vectors),
 		entity.NewColumnVarChar("model_version", versions),
 		entity.NewColumnInt32("dimension", dimensions),
@@ -345,19 +376,32 @@ func (m *MilvusVectorStore) UpsertBatch(ctx context.Context, records []Record) e
 	return nil
 }
 
-func (m *MilvusVectorStore) Delete(ctx context.Context, postID int64) error {
-	if postID <= 0 {
-		return fmt.Errorf("post ID must be positive")
+// Immutable revision keys remove the remote read/write CAS race: a delayed old
+// RPC can add only its own revision, never replace a newer vector or tombstone.
+// Readers MUST resolve Latest with strong consistency before using a candidate.
+func (m *MilvusVectorStore) Delete(ctx context.Context, postID, revision int64) error {
+	if postID <= 0 || revision <= 0 {
+		return fmt.Errorf("post ID and revision must be positive")
 	}
-	if err := m.cli.Delete(ctx, m.collection, "", fmt.Sprintf("post_id == %d", postID)); err != nil {
-		return fmt.Errorf("milvus delete from %q: %w", m.collection, err)
+	// A separate tombstone key wins even if a same-revision upsert races it.
+	vector := make([]float32, m.dim)
+	vector[0] = 1
+	_, err := m.cli.Upsert(ctx, m.collection, "",
+		entity.NewColumnVarChar("projection_id", []string{fmt.Sprintf("%d:%d:deleted", postID, revision)}),
+		entity.NewColumnInt64("post_id", []int64{postID}), entity.NewColumnInt64("revision", []int64{revision}),
+		entity.NewColumnBool("deleted", []bool{true}), entity.NewColumnFloatVector("embedding", m.dim, [][]float32{vector}),
+		entity.NewColumnVarChar("model_version", []string{"tombstone"}), entity.NewColumnInt32("dimension", []int32{int32(m.dim)}))
+	if err != nil {
+		return fmt.Errorf("milvus tombstone: %w", err)
 	}
 	return nil
 }
-
-func (m *MilvusVectorStore) CurrentRevision(context.Context, int64) (int64, error) {
-	// Existing collections have no revision field; unversioned projections always apply.
-	return 0, nil
+func (m *MilvusVectorStore) CurrentRevision(ctx context.Context, postID int64) (int64, error) {
+	rows, err := vectorprojection.Latest(ctx, m.cli, m.collection, []int64{postID}, false)
+	if err != nil {
+		return 0, err
+	}
+	return rows[postID].Revision, nil
 }
 
 func (m *MilvusVectorStore) Flush(ctx context.Context) error {

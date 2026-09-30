@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"esx/pkg/testutil"
+	"esx/pkg/vectorprojection"
 
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"github.com/stretchr/testify/assert"
@@ -59,20 +60,20 @@ func sampleVec(seed float32) []float32 {
 func queryPostIDs(t *testing.T, ctx context.Context, ids []int64) []int64 {
 	t.Helper()
 	require.NoError(t, store.cli.Flush(ctx, testColl, false))
-	cols, err := store.cli.QueryByPks(ctx, testColl, []string{},
-		entity.NewColumnInt64("post_id", ids), []string{"post_id"})
+	rows, err := vectorprojection.Latest(ctx, store.cli, testColl, ids, false)
 	require.NoError(t, err)
-	if len(cols) == 0 {
-		return nil
+	result := make([]int64, 0)
+	for _, id := range ids {
+		if row, ok := rows[id]; ok && !row.Deleted {
+			result = append(result, id)
+		}
 	}
-	idCol, ok := cols[0].(*entity.ColumnInt64)
-	require.True(t, ok)
-	return idCol.Data()
+	return result
 }
 
 func record(postID int64, seed float32) Record {
 	return Record{
-		PostID: postID, Vector: sampleVec(seed), ModelVersion: "integration-model@v1", Dimension: testDim,
+		PostID: postID, Revision: 1, Vector: sampleVec(seed), ModelVersion: "integration-model@v1", Dimension: testDim,
 	}
 }
 
@@ -83,7 +84,7 @@ func TestMilvus_Upsert_InsertsRecordWithMetadata(t *testing.T) {
 	got := queryPostIDs(t, ctx, []int64{30001})
 	assert.Equal(t, []int64{30001}, got)
 	cols, err := store.cli.QueryByPks(ctx, testColl, []string{},
-		entity.NewColumnInt64("post_id", []int64{30001}), []string{"model_version", "dimension"})
+		entity.NewColumnVarChar("projection_id", []string{"30001:1"}), []string{"model_version", "dimension"})
 	require.NoError(t, err)
 	columnsByName := make(map[string]entity.Column, len(cols))
 	for _, column := range cols {
@@ -111,7 +112,7 @@ func TestMilvus_Delete_RemovesRecord(t *testing.T) {
 	require.NoError(t, store.Upsert(ctx, record(30003, 0.3)))
 	// 先 Flush 确保插入可见，然后再 Delete
 	require.NoError(t, store.cli.Flush(ctx, testColl, false))
-	require.NoError(t, store.Delete(ctx, 30003))
+	require.NoError(t, store.Delete(ctx, 30003, 2))
 
 	got := queryPostIDs(t, ctx, []int64{30003})
 	assert.Empty(t, got)
@@ -119,7 +120,54 @@ func TestMilvus_Delete_RemovesRecord(t *testing.T) {
 
 func TestMilvus_Upsert_DimMismatch_Errors(t *testing.T) {
 	ctx := context.Background()
-	err := store.Upsert(ctx, Record{PostID: 30004, Vector: []float32{0.1}, ModelVersion: "integration-model@v1", Dimension: testDim})
+	err := store.Upsert(ctx, Record{PostID: 30004, Revision: 1, Vector: []float32{0.1}, ModelVersion: "integration-model@v1", Dimension: testDim})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dim mismatch")
+}
+
+func TestMilvusConcurrentOldWriteAndTombstoneSurviveReconnect(t *testing.T) {
+	ctx := context.Background()
+	errs := make(chan error, 3)
+	for _, revision := range []int64{1, 2} {
+		go func(revision int64) { r := record(30100, 0.1); r.Revision = revision; errs <- store.Upsert(ctx, r) }(revision)
+	}
+	go func() { errs <- store.Delete(ctx, 30100, 3) }()
+	for range 3 {
+		require.NoError(t, <-errs)
+	}
+	reconnected, err := NewMilvusVectorStore(ctx, milvusEnv.Address, testColl, testDim)
+	require.NoError(t, err)
+	defer reconnected.Close()
+	r := record(30100, 0.4)
+	r.Revision = 2
+	require.NoError(t, reconnected.Upsert(ctx, r))
+	rows, err := vectorprojection.Latest(ctx, reconnected.cli, testColl, []int64{30100}, false)
+	require.NoError(t, err)
+	require.True(t, rows[30100].Deleted)
+	require.Equal(t, int64(3), rows[30100].Revision)
+}
+
+func TestMilvusAliasPromotionCannotRetargetOldWriter(t *testing.T) {
+	ctx := context.Background()
+	const alias = "xbh_projection_pin_current"
+	require.NoError(t, store.cli.CreateAlias(ctx, testColl, alias))
+	oldWriter, err := NewMilvusVectorStore(ctx, milvusEnv.Address, alias, testDim)
+	require.NoError(t, err)
+	defer oldWriter.Close()
+	require.NoError(t, oldWriter.OpenCollection(ctx))
+	require.Equal(t, testColl, oldWriter.collection, "server schema must expose canonical physical name")
+	newTarget, err := NewMilvusVectorStore(ctx, milvusEnv.Address, "xbh_projection_pin_new", testDim)
+	require.NoError(t, err)
+	defer newTarget.Close()
+	require.NoError(t, newTarget.EnsureCollection(ctx))
+	require.NoError(t, newTarget.PromoteAlias(ctx, alias))
+	require.NoError(t, oldWriter.Upsert(ctx, record(30101, 0.1)))
+	current, err := newTarget.CurrentRevision(ctx, 30101)
+	require.NoError(t, err)
+	require.Zero(t, current, "old writer must not enter newly promoted collection")
+	restarted, err := NewMilvusVectorStore(ctx, milvusEnv.Address, alias, testDim)
+	require.NoError(t, err)
+	defer restarted.Close()
+	require.NoError(t, restarted.OpenCollection(ctx))
+	require.Equal(t, "xbh_projection_pin_new", restarted.collection)
 }

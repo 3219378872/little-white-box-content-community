@@ -36,7 +36,7 @@ func TestMilvusStartupErrorsAreTheOnlyRetryableConnectionFailures(t *testing.T) 
 }
 
 func TestValidateRecordRequiresTraceableFiniteVector(t *testing.T) {
-	valid := Record{PostID: 1, Vector: []float32{0.1, 0.2}, ModelVersion: "model@sha", Dimension: 2}
+	valid := Record{PostID: 1, Revision: 1, Vector: []float32{0.1, 0.2}, ModelVersion: "model@sha", Dimension: 2}
 	require.NoError(t, validateRecord(valid, 2))
 
 	tests := []struct {
@@ -66,9 +66,13 @@ func TestValidateSchemaRequiresMetadataAndExpectedDimension(t *testing.T) {
 	schema := (&MilvusVectorStore{collection: "target", dim: 4}).schema()
 	require.NoError(t, validateSchema(schema, 4))
 
-	missingMetadata := &entity.Schema{Fields: []*entity.Field{
-		schema.Fields[0], schema.Fields[1], schema.Fields[3],
-	}}
+	missingMetadata := &entity.Schema{}
+	for _, field := range schema.Fields {
+		if field.Name != "model_version" {
+			missingMetadata.Fields = append(missingMetadata.Fields, field)
+		}
+	}
+
 	err := validateSchema(missingMetadata, 4)
 	require.ErrorContains(t, err, "model_version")
 

@@ -106,11 +106,15 @@ func (f *fakeMilvusRecallClient) Close() error {
 func TestMilvusRecallLoadsSeedVectorRanksDistanceAndCloses(t *testing.T) {
 	fake := &fakeMilvusRecallClient{
 		queryResult: milvusclient.ResultSet{
-			entity.NewColumnFloatVector("embedding", 2, [][]float32{{1, 0}}),
+			entity.NewColumnFloatVector("embedding", 2, [][]float32{{1, 0}, {0.9, 0.1}, {0.5, 0.5}}),
+			entity.NewColumnInt64("post_id", []int64{10, 11, 12}),
+			entity.NewColumnInt64("revision", []int64{1, 1, 1}),
+			entity.NewColumnBool("deleted", []bool{false, false, false}),
 		},
 		searchResult: []milvusclient.SearchResult{{
 			ResultCount: 3,
-			IDs:         entity.NewColumnInt64("post_id", []int64{10, 12, 11}),
+			IDs:         entity.NewColumnVarChar("projection_id", []string{"10:1", "12:1", "11:1"}),
+			Fields:      milvusclient.ResultSet{entity.NewColumnInt64("post_id", []int64{10, 12, 11}), entity.NewColumnInt64("revision", []int64{1, 1, 1})},
 			Scores:      []float32{0, 0.5, 0.1},
 		}},
 	}
@@ -145,5 +149,24 @@ func TestExternalRecallWithoutSeedIsNotApplicable(t *testing.T) {
 	_, err = source.Recall(context.Background(), RecallRequest{Identity: "u:42", Limit: 5})
 	if !errors.Is(err, ErrNotApplicable) {
 		t.Fatalf("error=%v want ErrNotApplicable", err)
+	}
+}
+
+func TestMilvusRecallRejectsStaleAndDeletedRevisions(t *testing.T) {
+	fake := &fakeMilvusRecallClient{
+		queryResult: milvusclient.ResultSet{
+			entity.NewColumnInt64("post_id", []int64{10, 11, 12, 13}), entity.NewColumnInt64("revision", []int64{1, 3, 4, 2}),
+			entity.NewColumnBool("deleted", []bool{false, false, true, false}), entity.NewColumnFloatVector("embedding", 2, [][]float32{{1, 0}, {1, 0}, {1, 0}, {1, 0}}),
+		},
+		searchResult: []milvusclient.SearchResult{{ResultCount: 3, Fields: milvusclient.ResultSet{entity.NewColumnInt64("post_id", []int64{11, 12, 13}), entity.NewColumnInt64("revision", []int64{2, 3, 2})}, Scores: []float32{0.1, 0.2, 0.3}}},
+	}
+	source := NewMilvusPostRecallSource("milvus:19530", "test", "", "", "", "v2", 16, nil, time.Second)
+	source.factory = func(context.Context, milvusclient.Config) (milvusRecallClient, error) { return fake, nil }
+	result, err := source.Recall(context.Background(), RecallRequest{SeedPostID: 10, Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 1 || result[0].PostID != 13 {
+		t.Fatalf("stale/deleted vector returned: %#v", result)
 	}
 }

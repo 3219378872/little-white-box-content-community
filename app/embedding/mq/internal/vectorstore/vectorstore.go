@@ -12,7 +12,7 @@ type Record struct {
 
 type VectorStore interface {
 	Upsert(ctx context.Context, record Record) error
-	Delete(ctx context.Context, postID int64) error
+	Delete(ctx context.Context, postID, revision int64) error
 	CurrentRevision(ctx context.Context, postID int64) (int64, error)
 }
 

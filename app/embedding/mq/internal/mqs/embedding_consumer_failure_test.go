@@ -16,7 +16,7 @@ func TestEmbeddingConsumer_InvalidEvent_Skips(t *testing.T) {
 	store := newRecordingStore()
 	// 缺少 event_id：Validate 失败，按无效消息跳过。
 	e := event.PostEvent{EventTime: 9, Type: event.PostEventCreated, PostID: 1006, AuthorID: 42, Status: 1}
-	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store,
+	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, contentFor(e),
 		mq("m9", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeSuccess, res)
 	assert.Empty(t, store.upserted)
@@ -30,7 +30,7 @@ func TestEmbeddingConsumer_ReadRevisionError_ReturnsRetry(t *testing.T) {
 		EventID: 10, EventTime: 10, Type: event.PostEventUpdated,
 		PostID: 1007, AuthorID: 42, Title: "t", Status: 1,
 	}
-	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store,
+	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, contentFor(e),
 		mq("m10", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeRetryLater, res)
 	assert.Empty(t, store.upserted)
@@ -42,7 +42,7 @@ func TestEmbeddingConsumer_DeleteEventTypeError_ReturnsRetry(t *testing.T) {
 	e := event.PostEvent{
 		EventID: 11, EventTime: 11, Type: event.PostEventDeleted, PostID: 1008,
 	}
-	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store,
+	res := consumeEmbeddingBatch(context.Background(), fixedEmbedder{}, store, contentFor(e),
 		mq("m11", mustMarshal(t, e)))
 	assert.Equal(t, consumer.ConsumeRetryLater, res)
 }

@@ -70,7 +70,7 @@ code_paths:
 | CORE-051 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-052 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-053 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
-| CORE-054 | DES-content-community-backend | unknown | gap: 媒体提交补偿路径已变更，原 CloudWeGo 证据输入过期；待新提交上的完整错误码与传输验收。 Assistant 接受输入改为事务内当前读，既有覆盖已过期；待本提交上的跨服务错误契约验收。 Memory/Watch 业务边界已改变，既有全量覆盖过期；待本提交上的跨服务错误契约验收。 缓存填充围栏与媒体权威读取路径已变更，旧错误响应证据不再覆盖当前实现；待最终提交上的对应验收证据。 HTTP 摄取连接读取截止时间的行为已改变；旧全量覆盖过期，待最终提交上的跨服务错误与隐私验收。 |
+| CORE-054 | DES-content-community-backend | unknown | gap: 媒体提交补偿路径已变更，原 CloudWeGo 证据输入过期；待新提交上的完整错误码与传输验收。 Assistant 接受输入改为事务内当前读，既有覆盖已过期；待本提交上的跨服务错误契约验收。 Memory/Watch 业务边界已改变，既有全量覆盖过期；待本提交上的跨服务错误契约验收。 缓存填充围栏与媒体权威读取路径已变更，旧错误响应证据不再覆盖当前实现；待最终提交上的对应验收证据。 HTTP 摄取连接读取截止时间的行为已改变；旧全量覆盖过期，待最终提交上的跨服务错误与隐私验收。 向量投影修改使既有大范围验收输入失效；本批 targeted race 已通过，完整框架兼容性门禁需重验。 |
 | CORE-060 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-061 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-062 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |

@@ -222,6 +222,11 @@ ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `pos
 候选来自规则召回，可选 OnlineInfer。匿名或关闭个性化只走规则冷启动（DISC-031）。
 游标 HMAC 绑定身份/请求/场景/会话/实验/页大小，TTL 600s。作者配额、负反馈 30 天、
 曝光 7 天按 DISC-034/035。返回前 `visibilityx` 过滤；可见性失败关闭，推理失败规则降级。
+Milvus 向量投影以 `(post_id, revision)` 不可变键保存历史，删除以独立持久墓碑保存。
+最新 revision（同版本墓碑优先）构成有效投影；强一致读取验证种子与 ANN 命中的版本后才使用。
+消费者先回源 Content，再用当前正文/版本更新，避免重建后历史事件复活已删除数据。新 schema
+要求独立集合重建与协调切换，见 [迁移说明](../guides/vector-projection-migration.md)。
+
 推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。候选特征按 `revision` 单调覆盖，
 旧快照不回写。
 
