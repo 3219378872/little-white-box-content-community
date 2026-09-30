@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"esx/app/content/rpc/contentservice"
+	"esx/app/recommend/feedback"
 	"esx/app/recommend/rpc/internal/config"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
@@ -19,6 +21,11 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// NegativeFeedback is mandatory filtering, independent of optional profiles.
+type NegativeFeedback interface {
+	HiddenPosts(context.Context, int64) (map[int64]struct{}, error)
+}
+
 type ServiceContext struct {
 	Config             config.Config
 	ContentService     contentservice.ContentService
@@ -27,6 +34,7 @@ type ServiceContext struct {
 	SimilarPostSources []model.PostRecallSource
 	UserRecallSources  []model.UserRecallSource
 	FeatureRepository  model.FeatureRepository
+	NegativeFeedback   NegativeFeedback
 	SnapshotStore      model.SnapshotStore
 	InferenceRanker    model.InferenceRanker
 	CursorCodec        *cursor.Codec
@@ -119,6 +127,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		SimilarPostSources: similarSources,
 		UserRecallSources:  userSources,
 		FeatureRepository:  model.NewRedisFeatureRepository(redisClient, c.FeatureVersion, userService),
+		NegativeFeedback:   feedback.NewHiddenPostReader(redisClient, c.FeatureVersion),
 		SnapshotStore:      model.NewRedisSnapshotStore(redisClient, prefix),
 		CursorCodec:        cursorCodec,
 		Now:                now,

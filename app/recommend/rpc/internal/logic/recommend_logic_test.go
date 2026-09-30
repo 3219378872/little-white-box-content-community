@@ -66,6 +66,15 @@ func (f *fakeRecommendContentService) GetPostsByIds(_ context.Context, in *conte
 	return &contentservice.GetPostsByIdsResp{Posts: posts}, nil
 }
 
+type fakeHiddenFeedback struct {
+	hidden map[int64]struct{}
+	err    error
+}
+
+func (f *fakeHiddenFeedback) HiddenPosts(context.Context, int64) (map[int64]struct{}, error) {
+	return f.hidden, f.err
+}
+
 type fakeFeatureRepository struct {
 	viewer      model.ViewerFeatures
 	posts       map[int64]model.PostFeatures
@@ -144,11 +153,12 @@ func newTestServiceContext(t *testing.T, now time.Time) *svc.ServiceContext {
 			DefaultPageSize: 2, MaxPageSize: 20, CandidateMultiplier: 4,
 			CursorTTLSeconds: 600, RuleModelVersion: "rules-test", MaxPerAuthor: 2,
 		},
-		CursorCodec:    codec,
-		SnapshotStore:  &memorySnapshotStore{items: make(map[string]model.PostSnapshot)},
-		Now:            func() time.Time { return now },
-		NewSnapshotID:  func() (string, error) { return "snapshot-1", nil },
-		ContentService: &fakeRecommendContentService{},
+		CursorCodec:      codec,
+		SnapshotStore:    &memorySnapshotStore{items: make(map[string]model.PostSnapshot)},
+		Now:              func() time.Time { return now },
+		NewSnapshotID:    func() (string, error) { return "snapshot-1", nil },
+		ContentService:   &fakeRecommendContentService{},
+		NegativeFeedback: &fakeHiddenFeedback{},
 	}
 }
 

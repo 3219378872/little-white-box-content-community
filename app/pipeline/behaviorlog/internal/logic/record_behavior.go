@@ -2,7 +2,10 @@ package logic
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
 	"esx/pkg/event"
@@ -51,7 +54,7 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 		return mqx.ErrPermanentEvent(fmt.Sprintf("validate behavior event: %v", err))
 	}
 
-	eventID := e.EventIDString()
+	eventID := behaviorDedupKey(e)
 	dup, err := r.dedup.IsDuplicate(ctx, eventID)
 	if err != nil {
 		return fmt.Errorf("behavior-log: dedup check: %w", err)
@@ -95,4 +98,17 @@ func eventTimeFromMeta(meta MessageMeta) int64 {
 		return meta.BornTimestamp
 	}
 	return time.Now().UnixMilli()
+}
+
+// Redis is only a delivery optimization: the durable canonical ClickHouse view
+// applies the same business boundary even if a write ACK or receipt is lost.
+// Preserve event IDs for non-exposures and never mutate the original envelope.
+func behaviorDedupKey(e event.BehaviorEvent) string {
+	if e.Action != event.BehaviorActionExposure || e.TargetType != "post" {
+		return e.EventIDString()
+	}
+	// A structured tuple cannot alias requests containing separators.
+	key := strconv.Itoa(len(e.RequestID)) + ":" + e.RequestID + ":" + strconv.FormatInt(e.TargetID, 10)
+	digest := sha256.Sum256([]byte(key))
+	return "exposure:" + hex.EncodeToString(digest[:])
 }

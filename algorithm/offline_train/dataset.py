@@ -18,14 +18,14 @@ WITH
             countIf(action IN ('like', 'favorite', 'comment', 'share')) AS positives,
             count() AS activity,
             min(event_time) AS first_seen
-        FROM xbh_analytics.behavior_events FINAL
+        FROM xbh_analytics.behavior_facts
         WHERE event_time >= feature_start AND event_time < sample_start
           AND target_type = 'post'
         GROUP BY target_id
     ),
     positives AS (
         SELECT request_id, target_id, min(event_time) AS positive_time
-        FROM xbh_analytics.behavior_events FINAL
+        FROM xbh_analytics.behavior_facts
         WHERE event_time >= sample_start AND event_time < sample_end
           AND action IN ('click', 'like', 'favorite', 'comment', 'share')
           AND target_type = 'post' AND request_id != ''
@@ -47,7 +47,7 @@ SELECT
     log1p(toFloat64(stats.activity)) AS popularity,
     recall_score * 0.5 + quality * 0.18 + ctr * 0.12 AS coarse_score,
     exposure.recall_source AS category
-FROM xbh_analytics.behavior_events AS exposure FINAL
+FROM xbh_analytics.behavior_facts AS exposure
 LEFT JOIN item_stats AS stats ON stats.target_id = exposure.target_id
 LEFT JOIN positives AS positive
     ON positive.request_id = exposure.request_id AND positive.target_id = exposure.target_id

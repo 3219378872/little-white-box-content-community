@@ -103,7 +103,7 @@ func nullableInt64(value *int64) any {
 
 // AggregateDaily 把指定日期窗口内的原始行为按 (date,user_id,action,target_type)
 // 聚合进 daily_aggregates（REL-020：去标识聚合结果保留 365 天）。
-// 读取 behavior_events FINAL（按 event_id 去重收敛），目标表用
+// 读取 behavior_facts（按事件与曝光业务键去重收敛），目标表用
 // ReplacingMergeTree(aggregated_at)，重复执行幂等、不重复累计。
 // 返回窗口内聚合行的数量。
 func (s *ClickHouseStore) AggregateDaily(ctx context.Context, from, to time.Time) (int64, error) {
@@ -115,16 +115,27 @@ func (s *ClickHouseStore) AggregateDaily(ctx context.Context, from, to time.Time
 	}
 	const query = `
 INSERT INTO xbh_analytics.daily_aggregates (date, user_id, action, target_type, cnt, aggregated_at)
-SELECT toDate(event_time) AS date, user_id, action, target_type, count() AS cnt, now64(3)
-FROM xbh_analytics.behavior_events FINAL
-WHERE toDate(event_time) >= ? AND toDate(event_time) < ?
+SELECT date, user_id, action, target_type, sum(cnt) AS cnt, now64(3)
+FROM (
+    SELECT toDate(event_time) AS date, user_id, action, target_type, count() AS cnt
+    FROM xbh_analytics.behavior_facts
+    WHERE toDate(event_time) >= ? AND toDate(event_time) < ?
+    GROUP BY date, user_id, action, target_type
+    UNION ALL
+    SELECT date, user_id, action, target_type, toUInt64(0) AS cnt
+    FROM xbh_analytics.daily_aggregates FINAL
+    WHERE date >= ? AND date < ?
+)
 GROUP BY date, user_id, action, target_type`
-	if _, err := s.db.ExecContext(ctx, query, from.Format("2006-01-02"), to.Format("2006-01-02")); err != nil {
+	// Include previous group keys with zero so backfills also clear groups whose
+	// only historical inputs were duplicate exposures attributed to another day.
+	fromDate, toDate := from.Format("2006-01-02"), to.Format("2006-01-02")
+	if _, err := s.db.ExecContext(ctx, query, fromDate, toDate, fromDate, toDate); err != nil {
 		return 0, fmt.Errorf("aggregate daily: %w", err)
 	}
 	var count int64
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT count() FROM xbh_analytics.daily_aggregates FINAL WHERE date >= ? AND date < ?`,
+		`SELECT count() FROM xbh_analytics.daily_aggregates FINAL WHERE date >= ? AND date < ? AND cnt > 0`,
 		from.Format("2006-01-02"), to.Format("2006-01-02")).Scan(&count); err != nil {
 		return 0, fmt.Errorf("aggregate daily count: %w", err)
 	}

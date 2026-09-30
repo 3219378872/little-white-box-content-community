@@ -200,3 +200,62 @@ func TestClickHouseStoreAggregateDailyDedupesAndIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, createQuery, "toIntervalDay(365)", "daily_aggregates TTL must retain 365 days")
 }
+
+func TestCanonicalExposureFactsSurviveMissingReceiptsAndHistoricalDuplicates(t *testing.T) {
+	s := NewClickHouseStore(chEnv.DB)
+	ctx := context.Background()
+	first := canonicalEvent(81001, 81001, 81001, "exposure")
+	first.RequestID = "audit-exposure-business-key"
+	first.Position = new(int32(1))
+	first.EventTime = time.Now().AddDate(0, 0, -2).UnixMilli()
+	second := first
+	second.EventID++
+	second.ClientEventID += "-other"
+	second.EventTime = time.Now().AddDate(0, 0, -1).UnixMilli()
+	// These writes model concurrent delivery, a lost INSERT ACK, missing Redis
+	// receipts and old already-stored duplicates. No receipt can undo a raw write.
+	for _, e := range []event.BehaviorEvent{first, second, first, second} {
+		require.NoError(t, s.Insert(ctx, e))
+	}
+	var raw, canonical, selected uint64
+	require.NoError(t, chEnv.DB.QueryRowContext(ctx, "SELECT count() FROM xbh_analytics.behavior_events FINAL WHERE request_id = ?", first.RequestID).Scan(&raw))
+	require.Equal(t, uint64(2), raw)
+	require.NoError(t, chEnv.DB.QueryRowContext(ctx, "SELECT count(), min(event_id) FROM xbh_analytics.behavior_facts WHERE request_id = ?", first.RequestID).Scan(&canonical, &selected))
+	require.Equal(t, uint64(1), canonical)
+	require.Equal(t, uint64(first.EventID), selected)
+	var daily uint64
+	require.NoError(t, chEnv.DB.QueryRowContext(ctx, "SELECT sum(cnt) FROM xbh_analytics.user_action_daily WHERE user_id = ? AND action = 'exposure'", first.UserID).Scan(&daily))
+	require.Equal(t, uint64(1), daily)
+	// A previously computed duplicate-only day must be overwritten with zero
+	// during backfill, rather than surviving because the canonical group is empty.
+	_, err := chEnv.DB.ExecContext(ctx, `INSERT INTO xbh_analytics.daily_aggregates
+  (date, user_id, action, target_type, cnt, aggregated_at)
+  VALUES (?, ?, 'exposure', 'post', 1, now64(3) - INTERVAL 1 DAY)`,
+		time.UnixMilli(second.EventTime).UTC().Format(time.DateOnly), first.UserID)
+	require.NoError(t, err)
+	from := time.Now().UTC().AddDate(0, 0, -3)
+	to := time.Now().UTC().AddDate(0, 0, 1)
+	_, err = s.AggregateDaily(ctx, from, to)
+	require.NoError(t, err)
+	require.NoError(t, chEnv.DB.QueryRowContext(ctx, `SELECT sum(cnt) FROM xbh_analytics.daily_aggregates FINAL
+  WHERE user_id = ? AND action = 'exposure'`, first.UserID).Scan(&daily))
+	require.Equal(t, uint64(1), daily)
+	// Distinct post/request pairs and non-exposure actions remain separate facts.
+	third := first
+	third.EventID += 2
+	third.ClientEventID += "-third"
+	third.TargetID++
+	fourth := first
+	fourth.EventID += 3
+	fourth.ClientEventID += "-fourth"
+	fourth.RequestID += "-next"
+	click := first
+	click.EventID += 4
+	click.ClientEventID += "-click"
+	click.Action = "click"
+	for _, e := range []event.BehaviorEvent{third, fourth, click} {
+		require.NoError(t, s.Insert(ctx, e))
+	}
+	require.NoError(t, chEnv.DB.QueryRowContext(ctx, "SELECT count() FROM xbh_analytics.behavior_facts WHERE user_id = ?", first.UserID).Scan(&canonical))
+	require.Equal(t, uint64(4), canonical)
+}

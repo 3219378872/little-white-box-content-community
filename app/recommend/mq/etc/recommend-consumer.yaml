@@ -19,6 +19,10 @@ Redis:
 
 FeatureVersion: v2
 FeatureTTL: 2592000
+DedupTTL: 7776000
+# Set to the previously deployed FeatureTTL before upgrading live receipts.
+LegacyDedupTTL: 2592000
+DedupMigrationTimeoutSeconds: 30
 RecallKeyPrefix: recommend
 CandidateTTL: 2592000
 DeadLetterTTL: 604800
