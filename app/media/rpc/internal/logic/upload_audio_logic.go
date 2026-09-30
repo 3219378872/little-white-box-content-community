@@ -111,14 +111,14 @@ func (l *UploadAudioLogic) UploadAudio(stream pb2.MediaService_UploadAudioServer
 		FileSize:     sink.Size(),
 		Status:       1,
 	}
-	stored, created, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	stored, keepObjects, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	keepUploadedObject = keepObjects
 	if err != nil {
 		return err
 	}
-	if !created {
+	if !keepObjects {
 		return stream.SendAndClose(&pb2.UploadAudioResp{Media: toPBMediaInfo(stored)})
 	}
-	keepUploadedObject = true
 
 	l.Infow("upload audio success",
 		logx.Field("media_id", mediaId),

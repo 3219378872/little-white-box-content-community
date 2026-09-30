@@ -143,7 +143,7 @@ func TestUploadVideoLogic_CreateMediaIdempotencyConflict(t *testing.T) {
 	store := &unitObjectStorage{}
 	commandModel := &fakeMediaCommandModel{
 		createMediaFn: func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
-			return model.MediaCommandResult{}, idempotencyx.ErrIdempotencyConflict
+			return model.MediaCommandResult{Outcome: model.MediaNotCommitted}, idempotencyx.ErrIdempotencyConflict
 		},
 	}
 	stream := unitVideoStreamFromBytes(ctx, 5006, "conflict.mp4", "idem-vconflict", unitTestMP4(), 64)
@@ -159,7 +159,7 @@ func TestUploadVideoLogic_CreateMediaUnexpectedError(t *testing.T) {
 	store := &unitObjectStorage{}
 	commandModel := &fakeMediaCommandModel{
 		createMediaFn: func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
-			return model.MediaCommandResult{}, assert.AnError
+			return model.MediaCommandResult{Outcome: model.MediaNotCommitted}, assert.AnError
 		},
 	}
 	stream := unitVideoStreamFromBytes(ctx, 5007, "dberr.mp4", "idem-vdberr", unitTestMP4(), 64)
