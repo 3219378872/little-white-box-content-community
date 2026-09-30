@@ -81,8 +81,21 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 		recordRecommendationResult("posts", 0)
 		return nil, recommendationRPCError(fmt.Errorf("no post candidates remain after partial recall failure"))
 	}
+	// Explicit exclusions are required even when personalization is disabled or
+	// optional viewer features are unavailable. Fail closed on this dependency.
+	hidden, err := l.hiddenPosts(in.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]model.PostCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if !containsID(hidden, candidate.PostID) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	candidates = filtered
 	candidates, featureDegraded, err := enrichAndFilterPosts(
-		l.ctx, l.svcCtx.FeatureRepository, identity, candidates, 0, privacyOptOut,
+		l.ctx, l.svcCtx.FeatureRepository, identity, candidates, 0, privacyOptOut || in.GetUserId() <= 0,
 	)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "features", "unavailable")
@@ -232,21 +245,23 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 	// A snapshot freezes ranking, not explicit feedback. Another tab can hide
 	// a remaining candidate after the first page was returned (DISC-035).
 	if strings.HasPrefix(identity, "u:") {
-		if l.svcCtx.FeatureRepository == nil {
-			return nil, errx.NewWithCode(errx.ServiceUnavailable)
+		userID, parseErr := strconv.ParseInt(strings.TrimPrefix(identity, "u:"), 10, 64)
+		if parseErr != nil || userID <= 0 {
+			return nil, errx.NewWithCode(errx.ParamError)
 		}
-		viewer, err := l.svcCtx.FeatureRepository.LoadViewerFeatures(l.ctx, identity)
+		hidden, err := l.hiddenPosts(userID)
 		if err != nil {
-			return nil, recommendationRPCError(err)
+			return nil, err
 		}
 		filtered := make([]model.RankedPost, 0, len(visible))
 		for _, post := range visible {
-			if !containsID(viewer.NegativePostIDs, post.PostID) {
+			if !containsID(hidden, post.PostID) {
 				filtered = append(filtered, post)
 			}
 		}
 		visible = filtered
 	}
+
 	end := min(pageSize, len(visible))
 	response := &pb.GetRecommendPostsResp{
 		Posts:     recommendPostsToPB(visible[:end]),
@@ -309,4 +324,19 @@ func (l *GetRecommendPostsLogic) rankVisiblePosts(candidates []model.PostCandida
 		return nil, recommendationRPCError(err)
 	}
 	return candidates, nil
+}
+
+func (l *GetRecommendPostsLogic) hiddenPosts(userID int64) (map[int64]struct{}, error) {
+	if userID <= 0 {
+		return nil, nil
+	}
+	if l.svcCtx.NegativeFeedback == nil {
+		return nil, errx.NewWithCode(errx.ServiceUnavailable)
+	}
+	hidden, err := l.svcCtx.NegativeFeedback.HiddenPosts(l.ctx, userID)
+	if err != nil {
+		l.Errorw("required negative feedback unavailable", logx.Field("user_id", userID), logx.Field("err", err.Error()))
+		return nil, recommendationRPCError(err)
+	}
+	return hidden, nil
 }

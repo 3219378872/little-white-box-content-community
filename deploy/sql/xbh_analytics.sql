@@ -1,7 +1,8 @@
 CREATE DATABASE IF NOT EXISTS xbh_analytics;
 
--- Raw canonical facts. ReplacingMergeTree converges duplicate at-least-once
--- deliveries by event_id; consumers also maintain an exact Redis dedup key.
+-- Raw accepted envelopes retain their original event IDs. FINAL converges
+-- repeated delivery of one event; semantic consumers must read behavior_facts
+-- below to collapse different event IDs describing one exposure.
 CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_events (
     event_id        Int64,
     client_event_id String,
@@ -29,31 +30,43 @@ PARTITION BY toYYYYMMDD(event_time)
 ORDER BY event_id
 TTL toDateTime(received_at) + INTERVAL 90 DAY DELETE;
 
+-- REL-004/011: durable canonical facts, independent of Redis receipts. This
+-- also repairs the read boundary for historical exposure duplicates. Earliest
+-- event_time then event_id picks one deterministic attribution for each request/post.
+CREATE OR REPLACE VIEW xbh_analytics.behavior_facts AS
+SELECT *
+FROM xbh_analytics.behavior_events FINAL
+ORDER BY event_time, event_id
+LIMIT 1 BY
+    if(action = 'exposure' AND target_type = 'post', 'exposure', 'event'),
+    if(action = 'exposure' AND target_type = 'post', request_id, ''),
+    if(action = 'exposure' AND target_type = 'post', target_id, event_id);
+
 -- Regular views aggregate the deduplicated raw facts at query time. An
 -- insert-triggered materialized view would overcount at-least-once delivery.
-CREATE VIEW IF NOT EXISTS xbh_analytics.user_action_daily AS
+CREATE OR REPLACE VIEW xbh_analytics.user_action_daily AS
 SELECT
     toDate(event_time) AS date,
     user_id,
     action,
     target_type,
     count() AS cnt
-FROM xbh_analytics.behavior_events FINAL
+FROM xbh_analytics.behavior_facts
 GROUP BY date, user_id, action, target_type;
 
-CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_time AS
+CREATE OR REPLACE VIEW xbh_analytics.behavior_events_by_time AS
 SELECT *
-FROM xbh_analytics.behavior_events FINAL
+FROM xbh_analytics.behavior_facts
 ORDER BY event_time, user_id, event_id;
 
-CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_scene AS
+CREATE OR REPLACE VIEW xbh_analytics.behavior_events_by_scene AS
 SELECT *
-FROM xbh_analytics.behavior_events FINAL
+FROM xbh_analytics.behavior_facts
 ORDER BY scene, event_time, event_id;
 
-CREATE VIEW IF NOT EXISTS xbh_analytics.behavior_events_by_model AS
+CREATE OR REPLACE VIEW xbh_analytics.behavior_events_by_model AS
 SELECT *
-FROM xbh_analytics.behavior_events FINAL
+FROM xbh_analytics.behavior_facts
 ORDER BY model_version, experiment_id, event_time, event_id;
 
 CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_dead_letters (
@@ -68,7 +81,7 @@ ORDER BY (received_at, message_id)
 TTL toDateTime(received_at) + INTERVAL 7 DAY DELETE;
 
 -- REL-020：去标识聚合结果保留 365 天。ReplacingMergeTree(aggregated_at) 使定时
--- 聚合重复执行幂等；聚合读取 behavior_events FINAL（已按 event_id 收敛），
+-- 聚合重复执行幂等；聚合读取 behavior_facts（已按事件/曝光业务键收敛），
 -- 避免 at-least-once 投递在聚合侧重复计数。
 CREATE TABLE IF NOT EXISTS xbh_analytics.daily_aggregates (
     date           Date,

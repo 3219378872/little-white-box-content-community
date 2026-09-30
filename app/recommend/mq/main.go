@@ -30,6 +30,15 @@ func main() {
 	c.MustSetUp()
 
 	svcCtx := svc.NewServiceContext(c)
+	// Upgrade still-live legacy receipts before allowing any redelivery effects.
+	// The migration is bounded and idempotent; failure prevents unsafe consumption.
+	migrationCtx, cancelMigration := context.WithTimeout(context.Background(), time.Duration(c.DedupMigrationTimeoutSeconds)*time.Second)
+	upgraded, migrationErr := svcCtx.UpgradeDedupRetention(migrationCtx)
+	cancelMigration()
+	if migrationErr != nil {
+		logx.Must(fmt.Errorf("upgrade behavior dedup retention: %w", migrationErr))
+	}
+	logx.WithContext(context.Background()).Infow("behavior dedup retention ready", logx.Field("upgraded_receipts", upgraded))
 
 	recConsumer, err := mqs.NewRecommendConsumer(svcCtx)
 	if err != nil {

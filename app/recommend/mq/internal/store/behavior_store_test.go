@@ -95,9 +95,10 @@ func TestRedisBehaviorStoreSkipsAndPurgesFeaturesWhenOptedOut(t *testing.T) {
 	require.NoError(t, store.Record(context.Background(), featureBehavior()))
 
 	// 只执行一次 purge DEL 脚本，不再记录行为特征
-	require.Len(t, evaler.keys, 10)
+	require.Len(t, evaler.keys, 9)
 	assert.Equal(t, "feature:v2:u:42:recent", evaler.keys[0])
-	assert.Equal(t, "recommend:v2:recall:post:itemcf:u:42", evaler.keys[6])
+	assert.NotContains(t, evaler.keys, "feature:v2:u:42:negative")
+	assert.Equal(t, "recommend:v2:recall:post:itemcf:u:42", evaler.keys[5])
 }
 
 func TestRedisBehaviorStoreStillRecordsWhenOptIn(t *testing.T) {
@@ -152,6 +153,7 @@ func TestPurgeOptedOutFeaturesDeletesFeatureKeys(t *testing.T) {
 	require.Len(t, redis.purges, 2)
 	// 每次 purge 覆盖该身份的在线特征与召回键（REL-023 24h 删除）。
 	assert.Contains(t, redis.purges[0], "feature:v2:u:42:recent")
+	assert.NotContains(t, redis.purges[0], "feature:v2:u:42:negative")
 	assert.Contains(t, redis.purges[0], "feature:v2:u:42:state")
 	assert.Contains(t, redis.purges[0], "recommend:v2:recall:user:interest:u:42")
 	assert.Contains(t, redis.purges[1], "feature:v2:u:7:recent")
@@ -172,6 +174,7 @@ func TestPurgeOptedOutFeaturesSkipsInvalidMarkers(t *testing.T) {
 	assert.Equal(t, 1, purged, "only the valid user marker should be purged")
 	require.Len(t, redis.purges, 1)
 	assert.Contains(t, redis.purges[0], "feature:v2:u:42:recent")
+	assert.NotContains(t, redis.purges[0], "feature:v2:u:42:negative")
 }
 
 func TestPurgeOptedOutFeaturesListFailure(t *testing.T) {
@@ -190,4 +193,61 @@ func TestPurgeOptedOutFeaturesWithoutKeyLister(t *testing.T) {
 	purged, err := store.PurgeOptedOutFeatures(context.Background())
 	require.NoError(t, err)
 	assert.Zero(t, purged)
+}
+
+// The dedicated opt-out path must record only the required exclusion and then
+// purge optional features, without putting a hidden key in the purge set.
+type exclusionEvaler struct {
+	calls []struct {
+		script string
+		keys   []string
+		args   []any
+	}
+	err error
+}
+
+func (r *exclusionEvaler) EvalCtx(_ context.Context, script string, keys []string, args ...any) (any, error) {
+	r.calls = append(r.calls, struct {
+		script string
+		keys   []string
+		args   []any
+	}{script, keys, args})
+	return int64(1), r.err
+}
+func TestOptOutAndUnknownPreferenceStillAcceptExplicitExclusions(t *testing.T) {
+	for _, action := range []string{"hide", "dislike"} {
+		for _, unknown := range []bool{false, true} {
+			t.Run(action+map[bool]string{false: "/disabled", true: "/unknown"}[unknown], func(t *testing.T) {
+				redis := &exclusionEvaler{}
+				preference := &preferenceReader{enabled: false}
+				if unknown {
+					preference.err = errors.New("preference unavailable")
+				}
+				store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, preference)
+				behavior := featureBehavior()
+				behavior.Action = action
+				require.NoError(t, store.Record(context.Background(), behavior))
+				n := 2
+				if unknown {
+					n = 1
+				}
+				require.Len(t, redis.calls, n)
+				require.Equal(t, recordExplicitExclusionScript, redis.calls[0].script)
+				require.Equal(t, []string{"feature:v2:dedup:1", "feature:v2:u:42:negative"}, redis.calls[0].keys)
+				require.Equal(t, []any{90 * 24 * 3600, 30 * 24 * 3600, "post:9"}, redis.calls[0].args)
+				if !unknown {
+					require.Equal(t, purgeIdentityFeaturesScript, redis.calls[1].script)
+					require.NotContains(t, redis.calls[1].keys, "feature:v2:u:42:negative")
+				}
+			})
+		}
+	}
+}
+func TestExplicitExclusionRedisFailureRemainsRetryable(t *testing.T) {
+	redis := &exclusionEvaler{err: errors.New("negative store unavailable")}
+	store := NewRedisBehaviorStore(redis, "v2", "recommend", 3600, &preferenceReader{enabled: false})
+	behavior := featureBehavior()
+	behavior.Action = "hide"
+	require.ErrorContains(t, store.Record(context.Background(), behavior), "negative store unavailable")
+	require.Len(t, redis.calls, 1, "failed mandatory write must not be mistaken for completed cleanup")
 }

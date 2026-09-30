@@ -70,7 +70,7 @@ code_paths:
 | CORE-051 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-052 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-053 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
-| CORE-054 | DES-content-community-backend | aligned | EVD-20260928-cloudwego-query |
+| CORE-054 | DES-content-community-backend | unknown | gap: 推荐必需负反馈路径已变更，原 CloudWeGo 证据输入过期；待新提交上的完整错误码与传输验收。 |
 | CORE-060 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-061 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | CORE-062 | DES-content-community-backend | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |

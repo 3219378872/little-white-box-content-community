@@ -33,11 +33,12 @@ type PersonalizationPreferenceReader interface {
 }
 
 type RedisBehaviorStore struct {
-	preferences    PersonalizationPreferenceReader
-	redis          RedisEvaler
-	featureVersion string
-	recallPrefix   string
-	ttlSeconds     int
+	preferences       PersonalizationPreferenceReader
+	redis             RedisEvaler
+	featureVersion    string
+	recallPrefix      string
+	featureTTLSeconds int
+	dedupTTLSeconds   int
 }
 
 // personalizationOptOutKeyPrefix 与 user 服务写入的关闭标记保持一致（REL-023）。
@@ -47,10 +48,18 @@ type RedisGetter interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 }
 
-func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
+const DefaultBehaviorDedupTTL = 90 * 24 * 3600
+
+// Keep callers that only choose feature retention safe by default.
+func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, featureTTLSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
+	return NewRedisBehaviorStoreWithRetention(redis, featureVersion, recallKeyPrefix, featureTTLSeconds, DefaultBehaviorDedupTTL, readers...)
+}
+
+func NewRedisBehaviorStoreWithRetention(redis RedisEvaler, featureVersion, recallKeyPrefix string, featureTTLSeconds, dedupTTLSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
 	s := &RedisBehaviorStore{
 		redis: redis, featureVersion: featureVersion,
-		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
+		recallPrefix:      recallKeyPrefix + ":" + featureVersion,
+		featureTTLSeconds: featureTTLSeconds, dedupTTLSeconds: dedupTTLSeconds,
 	}
 	if len(readers) > 0 {
 		s.preferences = readers[0]
@@ -59,6 +68,9 @@ func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix st
 }
 
 func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.BehaviorEvent) error {
+	if s.featureTTLSeconds <= 0 || s.dedupTTLSeconds != DefaultBehaviorDedupTTL {
+		return fmt.Errorf("behavior retention requires positive feature TTL and 90-day dedup TTL")
+	}
 	if err := behavior.Validate(); err != nil {
 		return fmt.Errorf("validate behavior feature event: %w", err)
 	}
@@ -73,9 +85,19 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	}
 	optedOut, err := s.personalizationOptedOut(ctx, behavior.UserID)
 	if err != nil {
+		// A direct hide/dislike is a required exclusion, not permission to build an
+		// optional profile. It remains actionable when preference lookup is down.
+		if explicitPostExclusion(behavior) {
+			return s.recordExplicitExclusion(ctx, identity, behavior)
+		}
 		return fmt.Errorf("check personalization opt-out: %w", err)
 	}
 	if optedOut {
+		if explicitPostExclusion(behavior) {
+			if err := s.recordExplicitExclusion(ctx, identity, behavior); err != nil {
+				return err
+			}
+		}
 		// REL-023：关闭个性化后立即停止新行为用于个性化，并清理在线特征。
 		if err := s.purgeIdentityFeatures(ctx, identity); err != nil {
 			return fmt.Errorf("purge opted-out features: %w", err)
@@ -117,9 +139,9 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 		s.recallPrefix + ":recall:post:follow:" + identity + ":" + scene,
 		"feature:" + s.featureVersion + ":post:" + targetID,
 		prefix + ":state",
-	}, s.ttlSeconds, string(recent), behavior.Action,
+	}, s.featureTTLSeconds, string(recent), behavior.Action,
 		behavior.TargetType+":"+targetID, scene, targetID, behavior.TargetType,
-		identity, s.recallPrefix, behavior.EventTime, behavior.ClientEventID)
+		identity, s.recallPrefix, behavior.EventTime, behavior.ClientEventID, s.dedupTTLSeconds)
 	if err != nil {
 		return fmt.Errorf("record behavior features: %w", err)
 	}
@@ -146,7 +168,8 @@ func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID
 	return !preference.Enabled, nil
 }
 
-// purgeIdentityFeatures 删除该身份的全部在线个性化特征与个性化召回键。
+// purgeIdentityFeatures deletes optional profiles/recall, retaining the mandatory
+// explicit negative-feedback boundary required by DISC-035.
 func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity string) error {
 	prefix := "feature:" + s.featureVersion + ":" + identity
 	purger, ok := s.redis.(interface {
@@ -156,7 +179,7 @@ func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity
 		return nil
 	}
 	keys := []string{
-		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
+		prefix + ":recent", prefix + ":positive", prefix + ":scene",
 		prefix + ":state", prefix + ":blocked_authors",
 		s.recallPrefix + ":recall:post:itemcf:" + identity,
 		s.recallPrefix + ":recall:post:follow:" + identity,
@@ -164,7 +187,7 @@ func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity
 		s.recallPrefix + ":recall:user:mutual:" + identity,
 	}
 	if lister, ok := privacyKeyLister(s.redis); ok {
-		for _, key := range append([]string(nil), keys[6:]...) {
+		for _, key := range append([]string(nil), keys[5:]...) {
 			found, err := lister.KeysCtx(ctx, key+":*")
 			if err != nil {
 				return err
@@ -215,7 +238,7 @@ const recordFeatureScript = `
 if redis.call('EXISTS', KEYS[1]) == 1 then
   return 0
 end
-redis.call('SETEX', KEYS[1], ARGV[1], '1')
+redis.call('SETEX', KEYS[1], ARGV[12], 'v3')
 -- REL-004：同一 (requestId, postId) 最多记录一次曝光；KEYS[2] 为曝光去重键，
 -- 非曝光事件为空字符串且不会在此分支被引用。
 local action = ARGV[3]
@@ -223,7 +246,7 @@ if action == 'exposure' and KEYS[2] ~= '' then
   if redis.call('EXISTS', KEYS[2]) == 1 then
     return 0
   end
-  redis.call('SETEX', KEYS[2], ARGV[1], '1')
+  redis.call('SETEX', KEYS[2], ARGV[12], 'v3')
 end
 local recent = redis.call('LRANGE', KEYS[3], 0, 49)
 table.insert(recent, ARGV[2])
@@ -460,3 +483,30 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 	}
 	return purged, errors.Join(failures...)
 }
+
+func explicitPostExclusion(behavior event.BehaviorEvent) bool {
+	return behavior.TargetType == "post" && (behavior.Action == event.BehaviorActionHide || behavior.Action == event.BehaviorActionDislike)
+}
+
+// The existing negative boundary is shared with HiddenPostReader and Feed. This
+// narrow write creates no recent/positive/scene profile or personalized recall.
+func (s *RedisBehaviorStore) recordExplicitExclusion(ctx context.Context, identity string, behavior event.BehaviorEvent) error {
+	_, err := s.redis.EvalCtx(ctx, recordExplicitExclusionScript, []string{
+		"feature:" + s.featureVersion + ":dedup:" + behavior.EventIDString(),
+		"feature:" + s.featureVersion + ":" + identity + ":negative",
+	}, s.dedupTTLSeconds, 30*24*3600, "post:"+strconv.FormatInt(behavior.TargetID, 10))
+	if err != nil {
+		return fmt.Errorf("record explicit negative feedback: %w", err)
+	}
+	return nil
+}
+
+const recordExplicitExclusionScript = `
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return 0
+end
+redis.call('HSET', KEYS[2], ARGV[3], 1)
+redis.call('EXPIRE', KEYS[2], ARGV[2])
+redis.call('SETEX', KEYS[1], ARGV[1], 'v3')
+return 1
+`

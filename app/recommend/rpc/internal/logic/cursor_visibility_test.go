@@ -8,6 +8,7 @@ import (
 
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
+	"esx/app/recommend/rpc/internal/svc"
 	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 
@@ -44,7 +45,7 @@ func TestRecommendationCursorRechecksExplicitHides(t *testing.T) {
 	binding := cursor.Binding{IdentityHash: cursor.IdentityHash("u:1"), RequestID: "request", Scene: "home", PageSize: 2}
 	first, err := l.firstPage([]model.RankedPost{{PostID: 1}, {PostID: 2}, {PostID: 3}, {PostID: 4}, {PostID: 5}, {PostID: 6}}, 2, binding, false)
 	require.NoError(t, err)
-	repo.viewer.NegativePostIDs = map[int64]struct{}{3: {}}
+	s.NegativeFeedback = &fakeHiddenFeedback{hidden: map[int64]struct{}{3: {}}}
 	second, err := l.pageFromCursor(first.NextCursor, 2, binding, "u:1")
 	require.NoError(t, err)
 	require.Len(t, second.Posts, 2)
@@ -57,7 +58,7 @@ func TestRecommendationCursorRechecksExplicitHides(t *testing.T) {
 	assert.Equal(t, int64(6), third.Posts[0].PostId)
 	assert.False(t, third.HasMore)
 	// All remaining candidates hidden is a successful end of the chain.
-	repo.viewer.NegativePostIDs = map[int64]struct{}{3: {}, 4: {}, 5: {}, 6: {}}
+	s.NegativeFeedback = &fakeHiddenFeedback{hidden: map[int64]struct{}{3: {}, 4: {}, 5: {}, 6: {}}}
 	empty, err := l.pageFromCursor(first.NextCursor, 2, binding, "u:1")
 	require.NoError(t, err)
 	require.Empty(t, empty.Posts)
@@ -69,17 +70,17 @@ func TestRecommendationCursorHiddenFeedbackUnavailable(t *testing.T) {
 	s := newTestServiceContext(t, time.Unix(1800000000, 0))
 	l := NewGetRecommendPostsLogic(context.Background(), s)
 	binding := cursor.Binding{IdentityHash: cursor.IdentityHash("u:1"), RequestID: "request", Scene: "home", PageSize: 1}
-	first, err := l.firstPage([]model.RankedPost{{PostID: 1}, {PostID: 2}}, 1, binding, false)
+	first, err := l.firstPage([]model.RankedPost{{PostID: 1}, {PostID: 2}}, 1, binding, true)
 	require.NoError(t, err)
-	for _, repo := range []model.FeatureRepository{nil, &fakeFeatureRepository{viewerErr: errors.New("feedback unavailable")}} {
-		s.FeatureRepository = repo
+	for _, hidden := range []svc.NegativeFeedback{nil, &fakeHiddenFeedback{err: errors.New("feedback unavailable")}} {
+		s.NegativeFeedback = hidden
 		page, err := l.pageFromCursor(first.NextCursor, 1, binding, "u:1")
 		require.Error(t, err)
 		require.Nil(t, page)
 	}
 	// Anonymous paging must not query or establish any viewer profile.
 	binding.IdentityHash = cursor.IdentityHash("a:anon")
-	first, err = l.firstPage([]model.RankedPost{{PostID: 1}, {PostID: 2}}, 1, binding, false)
+	first, err = l.firstPage([]model.RankedPost{{PostID: 1}, {PostID: 2}}, 1, binding, true)
 	require.NoError(t, err)
 	page, err := l.pageFromCursor(first.NextCursor, 1, binding, "a:anon")
 	require.NoError(t, err)
