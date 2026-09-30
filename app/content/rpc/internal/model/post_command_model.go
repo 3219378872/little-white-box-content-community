@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"esx/pkg/outboxx"
+	"esx/pkg/poststats"
 
 	sqlx "esx/pkg/sqlstore"
 )
@@ -69,12 +70,15 @@ func (m *postCommandModel) CreatePost(
 		if err := insertPostSession(ctx, session, post); err != nil {
 			return err
 		}
+		if err := poststats.SeedCreated(ctx, session, post.Id, event.Payload); err != nil {
+			return err
+		}
 		if err := insertPostTagsSession(ctx, session, post.Id, tags, tagIDs); err != nil {
 			return err
 		}
 		postID = post.Id
 		created = true
-		return m.outbox.Enqueue(ctx, session, event)
+		return m.enqueuePostSnapshot(ctx, session, postID, event)
 	})
 	return postID, created, err
 }
@@ -107,7 +111,7 @@ func (m *postCommandModel) UpdatePost(
 				return err
 			}
 		}
-		return m.outbox.Enqueue(ctx, session, event)
+		return m.enqueuePostSnapshot(ctx, session, postID, event)
 	})
 }
 
@@ -178,7 +182,7 @@ func (m *postCommandModel) UpdatePostIdempotent(
 			}
 		}
 		applied = true
-		return m.outbox.Enqueue(ctx, session, event)
+		return m.enqueuePostSnapshot(ctx, session, postID, event)
 	})
 	return applied, err
 }
@@ -318,4 +322,13 @@ func updatePostFieldsSession(
 		return ErrVersionConflict
 	}
 	return nil
+}
+
+func (m *postCommandModel) enqueuePostSnapshot(ctx context.Context, session sqlx.Session, postID int64, out outboxx.Event) error {
+	payload, err := poststats.StampLifecycle(ctx, session, postID, out.Payload)
+	if err != nil {
+		return err
+	}
+	out.Payload = payload
+	return m.outbox.Enqueue(ctx, session, out)
 }

@@ -4,6 +4,7 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -53,7 +54,7 @@ func nextID(t *testing.T) int64 {
 
 func outboxEvent(t *testing.T, topic string) outboxx.Event {
 	t.Helper()
-	payload := []byte(`{"probe":true}`)
+	payload := []byte(`{"probe":true,"event_time":100,"stats_seq":100}`)
 	return outboxx.Event{
 		ID:      nextID(t),
 		Topic:   topic,
@@ -75,7 +76,7 @@ func countOutboxRows(t *testing.T) int64 {
 func seedPost(t *testing.T, id, authorID, status, revision int64, title string) {
 	t.Helper()
 	_, err := newTestConn().ExecCtx(context.Background(),
-		"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `status`, `revision`) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `status`, `revision`, `stats_seq`) VALUES (?, ?, ?, ?, ?, ?, 100)",
 		id, authorID, title, "body "+title, status, revision)
 	require.NoError(t, err)
 }
@@ -440,4 +441,30 @@ func TestTagAndPostTagModels(t *testing.T) {
 	empty, err := postTagModel.FindTagNamesByPostId(ctx, postA)
 	require.NoError(t, err)
 	assert.Empty(t, empty)
+}
+
+func TestLifecycleSnapshotUsesLockedCountsAndIndependentSequence(t *testing.T) {
+	testEnv.TruncateAll(t, "post_tag", "post", "event_outbox")
+	id := nextID(t)
+	seedPost(t, id, 7, 1, 1, "before")
+	_, err := testEnv.DB.ExecContext(context.Background(), "UPDATE post SET like_count = 7, comment_count = 8 WHERE id = ?", id)
+	require.NoError(t, err)
+	conn := newTestConn()
+	command := NewPostCommandModel(conn, outboxx.NewSQLStore(conn))
+	out := outboxEvent(t, "post-update")
+	out.Payload = []byte(`{"revision":2,"like_count":-1,"comment_count":-1,"stats_seq":1,"event_time":100}`)
+	require.NoError(t, command.UpdatePost(context.Background(), id, map[string]any{"title": "after"}, nil, nil, out, 1, false))
+	var raw []byte
+	require.NoError(t, testEnv.DB.QueryRow("SELECT payload FROM event_outbox WHERE id = ?", out.ID).Scan(&raw))
+	var snapshot struct {
+		Like     int64 `json:"like_count"`
+		Comments int64 `json:"comment_count"`
+		Sequence int64 `json:"stats_seq"`
+		Revision int64 `json:"revision"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &snapshot))
+	require.Equal(t, int64(7), snapshot.Like)
+	require.Equal(t, int64(8), snapshot.Comments)
+	require.Equal(t, int64(101), snapshot.Sequence)
+	require.Equal(t, int64(2), snapshot.Revision)
 }

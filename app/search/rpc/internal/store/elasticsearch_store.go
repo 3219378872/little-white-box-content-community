@@ -173,10 +173,10 @@ func postQuery(keyword string, tags []string) map[string]any {
 		"operator": "or", "minimum_should_match": "20%",
 	}}}
 	if len(tags) == 0 {
-		return map[string]any{"bool": map[string]any{"must": must}}
+		return map[string]any{"bool": map[string]any{"must": must, "must_not": map[string]any{"term": map[string]any{"projection_deleted": true}}}}
 	}
 	return map[string]any{"bool": map[string]any{
-		"must": must, "filter": []any{map[string]any{"terms": map[string]any{"tags": tags}}},
+		"must": must, "must_not": map[string]any{"term": map[string]any{"projection_deleted": true}}, "filter": []any{map[string]any{"terms": map[string]any{"tags": tags}}},
 	}}
 }
 

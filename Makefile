@@ -149,7 +149,7 @@ fault-injection-recommend: ## Verify OnlineInfer timeout/outage rule fallback
 		./app/recommend/rpc/internal/logic
 
 search-rebuild: ## Rebuild the post search index and atomically promote its alias
-	go run ./app/search/mq/cmd/rebuild -f $(SEARCH_REBUILD_CONFIG)
+	go run ./app/search/mq/cmd/rebuild -f $(SEARCH_REBUILD_CONFIG) $(ARGS)
 
 embedding-rebuild: ## Rebuild post embeddings and atomically promote the Milvus alias
 	go run ./app/embedding/mq/cmd/rebuild -f $(EMBEDDING_REBUILD_CONFIG)

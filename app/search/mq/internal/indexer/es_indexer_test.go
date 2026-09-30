@@ -96,42 +96,34 @@ func TestPromoteToAliasRejectsInvalidAlias(t *testing.T) {
 	}
 }
 
-func TestIndexTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
-	var gotVersion, gotVersionType string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		gotVersion = r.URL.Query().Get("version")
-		gotVersionType = r.URL.Query().Get("version_type")
-		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
-	}))
-	defer server.Close()
-
-	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := idx.Index(t.Context(), IndexDoc{
-		DocID: "9", Revision: 2, Body: map[string]any{"title": "B"},
-	}); err != nil {
-		t.Fatalf("stale index should be ignored: %v", err)
-	}
-	if gotVersion != "2" || gotVersionType != "external" {
-		t.Fatalf("version=%q type=%q", gotVersion, gotVersionType)
-	}
-}
-
-func TestDeleteTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
-	}))
-	defer server.Close()
-
-	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := idx.Delete(t.Context(), "9", 2); err != nil {
-		t.Fatalf("stale delete should be ignored: %v", err)
+func TestSnapshotConflictsRetryWithoutExternalVersionCoupling(t *testing.T) {
+	for _, operation := range []string{"index", "delete"} {
+		t.Run(operation, func(t *testing.T) {
+			var version, versionType, retries, path string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Elastic-Product", "Elasticsearch")
+				version = r.URL.Query().Get("version")
+				versionType = r.URL.Query().Get("version_type")
+				retries = r.URL.Query().Get("retry_on_conflict")
+				path = r.URL.Path
+				http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
+			}))
+			defer server.Close()
+			idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if operation == "index" {
+				err = idx.Index(t.Context(), IndexDoc{DocID: "9", Revision: 2, Body: map[string]any{"title": "B"}})
+			} else {
+				err = idx.Delete(t.Context(), "9", 2)
+			}
+			if err == nil {
+				t.Fatal("exhausted update conflicts must retry; they are not evidence of a stale business revision")
+			}
+			if version != "" || versionType != "" || retries != "8" || path != "/xbh_posts/_update/9" {
+				t.Fatalf("version=%s type=%s retries=%s path=%s", version, versionType, retries, path)
+			}
+		})
 	}
 }

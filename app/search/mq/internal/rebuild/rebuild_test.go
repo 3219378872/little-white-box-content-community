@@ -56,7 +56,7 @@ func TestRunIndexesPublishedPostsAcrossPages(t *testing.T) {
 	}}
 	target := &fakeTarget{}
 
-	count, err := Run(context.Background(), source, target, 2)
+	count, err := Run(context.Background(), source, target, 2, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,17 +74,31 @@ func TestRunStopsOnIndexFailureWithoutRefresh(t *testing.T) {
 	}}
 	target := &fakeTarget{indexErrAt: 1}
 
-	count, err := Run(context.Background(), source, target, 1)
+	count, err := Run(context.Background(), source, target, 1, 100)
 	if err == nil || count != 0 || target.refreshed {
 		t.Fatalf("count=%d err=%v refreshed=%v", count, err, target.refreshed)
 	}
 }
 
 func TestRunRejectsInvalidConfiguration(t *testing.T) {
-	if _, err := Run(context.Background(), nil, &fakeTarget{}, 1); err == nil {
+	if _, err := Run(context.Background(), nil, &fakeTarget{}, 1, 100); err == nil {
 		t.Fatal("expected missing source error")
 	}
-	if _, err := Run(context.Background(), &fakeSource{}, &fakeTarget{}, MaxPageSize+1); err == nil {
+	if _, err := Run(context.Background(), &fakeSource{}, &fakeTarget{}, MaxPageSize+1, 100); err == nil {
 		t.Fatal("expected page size error")
+	}
+}
+
+func TestRebuildRequiresAndCarriesVerifiedStatsFloor(t *testing.T) {
+	source := &fakeSource{pages: map[string]*contentservice.GetPostListResp{"": {Posts: []*contentservice.PostInfo{{Id: 1, Status: 1, Revision: 1}}}}}
+	target := &fakeTarget{}
+	if _, err := Run(context.Background(), source, target, 1, 0); err == nil {
+		t.Fatal("missing stats floor must fail")
+	}
+	if _, err := Run(context.Background(), source, target, 1, 9000000000000); err != nil {
+		t.Fatal(err)
+	}
+	if len(target.docs) != 1 || target.docs[0].Body["stats_seq"] != int64(9000000000000) {
+		t.Fatalf("stats floor not retained: %#v", target.docs)
 	}
 }

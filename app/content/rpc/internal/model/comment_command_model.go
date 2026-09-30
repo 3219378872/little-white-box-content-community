@@ -11,6 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
+	"esx/pkg/poststats"
 	"esx/pkg/util"
 
 	sqlx "esx/pkg/sqlstore"
@@ -151,12 +152,8 @@ func (m *commentCommandModel) DeleteComment(ctx context.Context, comment *Commen
 }
 
 func enqueuePostCounts(ctx context.Context, session sqlx.Session, outbox OutboxEnqueuer, postID int64) error {
-	var counts struct {
-		LikeCount    int64 `db:"like_count"`
-		CommentCount int64 `db:"comment_count"`
-	}
-	if err := session.QueryRowCtx(ctx, &counts,
-		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ? LIMIT 1", postID); err != nil {
+	counts, err := poststats.Advance(ctx, session, postID)
+	if err != nil {
 		return err
 	}
 	id, err := util.NextID()
@@ -166,7 +163,7 @@ func enqueuePostCounts(ctx context.Context, session sqlx.Session, outbox OutboxE
 	now := time.Now().UnixMilli()
 	payload, err := json.Marshal(event.PostEvent{
 		EventID: id, EventTime: now, Type: event.PostEventCounted, PostID: postID,
-		LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: now,
+		LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: counts.Sequence,
 	})
 	if err != nil {
 		return err

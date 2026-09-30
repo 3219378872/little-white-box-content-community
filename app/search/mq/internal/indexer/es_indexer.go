@@ -52,34 +52,53 @@ func WithCACert(pem []byte) ESOption {
 	}
 }
 
-// Index 把 PostEvent 序列化为 ES 文档 upsert。
-// 输入参数 doc 中的 Body 字段在 PostEvent → IndexDoc 适配中携带原始事件。
+// Content revision and stats sequence are application watermarks. ES internal
+// _version changes on every count patch, so it must never gate lifecycle writes.
+const indexSnapshotScript = `
+long storedRevision = ctx._source.revision == null ? 0L : (long) ctx._source.revision;
+long incomingRevision = params.revision;
+boolean deleted = ctx._source.projection_deleted == true;
+boolean replaceBody = incomingRevision > storedRevision || (incomingRevision <= 0L && storedRevision <= 0L && !deleted);
+boolean changed = false;
+if (replaceBody) {
+  for (def entry : params.doc.entrySet()) {
+    if (entry.getKey() != 'like_count' && entry.getKey() != 'comment_count' && entry.getKey() != 'stats_seq') {
+      ctx._source[entry.getKey()] = entry.getValue();
+    }
+  }
+  ctx._source.revision = incomingRevision;
+  ctx._source.projection_deleted = false;
+  changed = true;
+}
+long storedStats = ctx._source.stats_seq == null ? 0L : (long) ctx._source.stats_seq;
+long incomingStats = params.doc.stats_seq == null ? 0L : (long) params.doc.stats_seq;
+if (ctx._source.post_id != null && ctx._source.projection_deleted != true && (ctx._source.like_count == null || incomingStats > storedStats)) {
+  ctx._source.like_count = params.doc.like_count;
+  ctx._source.comment_count = params.doc.comment_count;
+  ctx._source.stats_seq = incomingStats;
+  changed = true;
+}
+if (!changed) { ctx.op = 'noop'; }
+`
+
+// Index atomically applies independent content and count snapshot versions.
 func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
-	body, err := json.Marshal(doc.Body)
+	return e.applySnapshot(ctx, doc.DocID, indexSnapshotScript, map[string]any{"doc": doc.Body, "revision": doc.Revision})
+}
+func (e *ESIndexer) applySnapshot(ctx context.Context, id, script string, params map[string]any) error {
+	payload, err := json.Marshal(map[string]any{"scripted_upsert": true, "upsert": map[string]any{}, "script": map[string]any{"lang": "painless", "source": script, "params": params}})
 	if err != nil {
-		return fmt.Errorf("marshal index body: %w", err)
+		return fmt.Errorf("marshal projection snapshot: %w", err)
 	}
-	req := esapi.IndexRequest{
-		Index:      e.index,
-		DocumentID: doc.DocID,
-		Body:       bytes.NewReader(body),
-		Refresh:    "false",
-	}
-	if version, ok := externalVersion(doc.Revision); ok {
-		req.Version = version
-		req.VersionType = "external"
-	}
-	res, err := req.Do(ctx, e.client)
+	retries := 8
+	response, err := (esapi.UpdateRequest{Index: e.index, DocumentID: id, Body: bytes.NewReader(payload), Refresh: "false", RetryOnConflict: &retries}).Do(ctx, e.client)
 	if err != nil {
-		return fmt.Errorf("ES index request: %w", err)
+		return fmt.Errorf("ES projection update: %w", err)
 	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode == http.StatusConflict {
-		return nil
-	}
-	if res.IsError() {
-		raw, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("ES index failed status=%s body=%s", res.Status(), string(raw))
+	defer func() { _ = response.Body.Close() }()
+	if response.IsError() {
+		raw, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("ES projection update failed status=%s body=%s", response.Status(), string(raw))
 	}
 	return nil
 }
@@ -116,11 +135,13 @@ func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
 	if err != nil {
 		return fmt.Errorf("marshal count patch: %w", err)
 	}
+	retries := 8
 	res, err := (esapi.UpdateRequest{
-		Index:      e.index,
-		DocumentID: doc.DocID,
-		Body:       bytes.NewReader(payload),
-		Refresh:    "false",
+		RetryOnConflict: &retries,
+		Index:           e.index,
+		DocumentID:      doc.DocID,
+		Body:            bytes.NewReader(payload),
+		Refresh:         "false",
 	}).Do(ctx, e.client)
 	if err != nil {
 		return fmt.Errorf("ES count patch: %w", err)
@@ -136,38 +157,24 @@ func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
 	return nil
 }
 
-func (e *ESIndexer) Delete(ctx context.Context, docID string, revision int64) error {
-	req := esapi.DeleteRequest{
-		Index:      e.index,
-		DocumentID: docID,
-		Refresh:    "false",
-	}
-	if version, ok := externalVersion(revision); ok {
-		req.Version = version
-		req.VersionType = "external"
-	}
-	res, err := req.Do(ctx, e.client)
-	if err != nil {
-		return fmt.Errorf("ES delete request: %w", err)
-	}
-	defer func() { _ = res.Body.Close() }()
-	// 404 视为已删除（幂等）；409 表示更旧的删除，保留较新文档。
-	if res.StatusCode == http.StatusNotFound || res.StatusCode == http.StatusConflict {
-		return nil
-	}
-	if res.IsError() {
-		raw, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("ES delete failed status=%s body=%s", res.Status(), string(raw))
-	}
-	return nil
-}
+// Keep a durable content-revision tombstone. Physical deletion would lose the
+// application watermark and allow a delayed old full snapshot to resurrect it.
+const deleteSnapshotScript = `
+long stored = ctx._source.revision == null ? 0L : (long) ctx._source.revision;
+long incoming = params.revision;
+if (incoming > stored || (incoming <= 0L && stored <= 0L)) {
+  def stats = ctx._source.stats_seq;
+  def likes = ctx._source.like_count;
+  def comments = ctx._source.comment_count;
+  ctx._source.clear();
+  ctx._source.revision = incoming;
+  ctx._source.projection_deleted = true;
+  if (stats != null) { ctx._source.stats_seq = stats; ctx._source.like_count = likes; ctx._source.comment_count = comments; }
+} else { ctx.op = 'noop'; }
+`
 
-func externalVersion(revision int64) (*int, bool) {
-	if revision <= 0 {
-		return nil, false
-	}
-	version := int(revision)
-	return &version, true
+func (e *ESIndexer) Delete(ctx context.Context, docID string, revision int64) error {
+	return e.applySnapshot(ctx, docID, deleteSnapshotScript, map[string]any{"revision": revision})
 }
 
 // EnsureIndex 在启动时确保索引存在，使用与父 spec phase-3 §1.2 一致的 mapping。
@@ -313,7 +320,9 @@ const PostIndexMapping = `{
 	  "like_count":  {"type": "long"},
 	  "comment_count":{"type": "long"},
       "created_at":  {"type": "date", "format": "epoch_millis"},
-      "revision":    {"type": "long"}
+      "revision":    {"type": "long"},
+      "stats_seq": {"type": "long"},
+      "projection_deleted": {"type": "boolean"}
     }
   }
 }`

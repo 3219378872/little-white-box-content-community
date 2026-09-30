@@ -9,197 +9,162 @@ import (
 	"strconv"
 	"time"
 
-	logx "esx/pkg/logging"
-
+	"esx/pkg/cachedstore"
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
+	"esx/pkg/poststats"
 
 	"github.com/go-sql-driver/mysql"
 )
 
-// countSyncDedupTTLSeconds 与 REL-008 去重语义一致（90 天）。
-const countSyncDedupTTLSeconds = 7776000
-
 const (
 	postCacheKeyPrefix    = "cache:post:id:"
 	commentCacheKeyPrefix = "cache:comment:id:"
-	countSyncDedupPrefix  = "content:countsync:dedup:"
 )
 
-// CountSyncStore 将互动权威事务产生的行为事件同步到内容计数列（CORE-032）。
 type CountSyncStore interface {
-	ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error
+	ApplyBehaviorCount(context.Context, event.BehaviorEvent) error
 }
-
 type RedisCmdable interface {
-	SetnxExCtx(ctx context.Context, key, value string, seconds int) (bool, error)
-	DelCtx(ctx context.Context, keys ...string) (int, error)
+	DelCtx(context.Context, ...string) (int, error)
 }
-
-type DBExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
-
 type countSyncStore struct {
-	db    DBExecutor
+	db    *sql.DB
 	redis RedisCmdable
 }
 
-func NewCountSyncStore(db DBExecutor, redisClient RedisCmdable) CountSyncStore {
-	return &countSyncStore{db: db, redis: redisClient}
+func NewCountSyncStore(db *sql.DB, redis RedisCmdable) CountSyncStore {
+	return &countSyncStore{db: db, redis: redis}
 }
 
+// A complete target snapshot makes delivery order irrelevant. The receipt,
+// version fence, both counts, and downstream search event commit together.
+// Redis is disposable: neither a reservation nor its loss can acknowledge work.
 func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error {
 	if err := behavior.Validate(); err != nil {
 		return fmt.Errorf("count-sync: invalid behavior event: %w", err)
 	}
-	column, delta, ok := behaviorCountUpdate(behavior.Action)
-	if !ok {
+	switch behavior.Action {
+	case event.BehaviorActionLike, event.BehaviorActionUnlike, event.BehaviorActionFavorite, event.BehaviorActionUnfavorite:
+	default:
 		return nil
 	}
-	if behavior.TargetID <= 0 {
-		return fmt.Errorf("count-sync: target id is required")
+	snapshot := behavior.CountSnapshot
+	if snapshot != nil && (snapshot.Revision <= 0 || snapshot.LikeCount < 0 || snapshot.FavoriteCount < 0) {
+		return fmt.Errorf("count-sync: authoritative count snapshot required; reconcile legacy events before replay")
 	}
-
-	// 去重：同事件重投/重放不得重复累计（REL-008）。
-	dedupKey := countSyncDedupPrefix + behavior.EventIDString()
-	first, err := s.redis.SetnxExCtx(ctx, dedupKey, "1", countSyncDedupTTLSeconds)
-	if err != nil {
-		return fmt.Errorf("count-sync: dedup reserve failed: %w", err)
+	table := behavior.TargetType
+	if table != "post" && table != "comment" {
+		return fmt.Errorf("count-sync: unsupported target type %q", table)
 	}
-	if !first {
-		return nil
+	if s.db == nil {
+		return fmt.Errorf("count-sync: database is not configured")
 	}
-
-	if err := s.applyDelta(ctx, behavior.TargetType, behavior.TargetID, column, delta, behavior.EventID); err != nil {
-		// 占位在增量应用前设置；应用失败时移除占位，MQ 重投后能重新应用。
-		// 占位删除失败则保留占位：宁可漏一次也不对同一事件重复计数。
-		if _, delErr := s.redis.DelCtx(ctx, dedupKey); delErr != nil {
-			logx.WithContext(ctx).Errorw("count-sync: failed to release dedup key after apply failure",
-				logx.Field("dedup_key", dedupKey), logx.Field("err", delErr.Error()))
-		}
-		return fmt.Errorf("count-sync: apply delta: %w", err)
-	}
-	s.invalidateCaches(ctx, behavior.TargetType, behavior.TargetID)
-	return nil
-}
-
-func behaviorCountUpdate(action string) (column string, delta int64, ok bool) {
-	switch action {
-	case event.BehaviorActionLike:
-		return "like_count", 1, true
-	case event.BehaviorActionUnlike:
-		return "like_count", -1, true
-	case event.BehaviorActionFavorite:
-		return "favorite_count", 1, true
-	case event.BehaviorActionUnfavorite:
-		return "favorite_count", -1, true
-	default:
-		return "", 0, false
-	}
-}
-
-func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targetID int64, column string, delta, eventID int64) error {
-	if column != "like_count" && column != "favorite_count" {
-		return fmt.Errorf("count-sync: unsupported column %q", column)
-	}
-	if targetType == "post" && column == "like_count" {
-		if db, ok := s.db.(*sql.DB); ok {
-			return applyPostLikeCount(ctx, db, targetID, delta, eventID)
-		}
-	}
-	switch targetType {
-	case "post":
-		if delta > 0 {
-			_, err := s.db.ExecContext(ctx,
-				"UPDATE `post` SET `"+column+"` = `"+column+"` + ? WHERE `id` = ?",
-				delta, targetID)
-			return err
-		}
-		_, err := s.db.ExecContext(ctx,
-			"UPDATE `post` SET `"+column+"` = GREATEST(`"+column+"` + ?, 0) WHERE `id` = ?",
-			delta, targetID)
-		return err
-	case "comment":
-		if delta > 0 {
-			_, err := s.db.ExecContext(ctx,
-				"UPDATE `comment` SET `"+column+"` = `"+column+"` + ? WHERE `id` = ?",
-				delta, targetID)
-			return err
-		}
-		_, err := s.db.ExecContext(ctx,
-			"UPDATE `comment` SET `"+column+"` = GREATEST(`"+column+"` + ?, 0) WHERE `id` = ?",
-			delta, targetID)
-		return err
-	default:
-		return fmt.Errorf("count-sync: unsupported target type %q", targetType)
-	}
-}
-
-func applyPostLikeCount(ctx context.Context, db *sql.DB, postID, delta, eventID int64) error {
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-
-	var result sql.Result
-	if delta > 0 {
-		result, err = tx.ExecContext(ctx,
-			"UPDATE `post` SET `like_count` = `like_count` + ? WHERE `id` = ?", delta, postID)
-	} else {
-		result, err = tx.ExecContext(ctx,
-			"UPDATE `post` SET `like_count` = GREATEST(`like_count` + ?, 0) WHERE `id` = ?", delta, postID)
+	if snapshot == nil {
+		// Only a completed, paused-writer reconciliation makes historical
+		// unversioned events safe to acknowledge without reapplying deltas.
+		var reconciled bool
+		if err = tx.QueryRowContext(ctx, "SELECT legacy_reconciled FROM content_count_projection_control WHERE id = 1").Scan(&reconciled); err != nil {
+			return err
+		}
+		if !reconciled {
+			return fmt.Errorf("count-sync: authoritative count snapshot required; complete legacy reconciliation before replay")
+		}
+	}
+	// A duplicate INSERT blocks behind an uncommitted original transaction. Only
+	// a committed receipt is a no-op; a rollback/crash lets redelivery acquire it.
+	_, err = tx.ExecContext(ctx, "INSERT INTO content_count_receipt (event_id, created_at) VALUES (?, ?)", behavior.EventID, time.Now().UnixMilli())
+	if IsDuplicateKeyError(err) {
+		s.invalidateCaches(ctx, table, behavior.TargetID)
+		return nil
 	}
 	if err != nil {
 		return err
 	}
-	changed, err := result.RowsAffected()
+	if snapshot == nil {
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+		s.invalidateCaches(ctx, table, behavior.TargetID)
+		return nil
+	}
+	_, err = tx.ExecContext(ctx, "INSERT INTO content_count_projection (target_type, target_id, revision) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE target_id = VALUES(target_id)", table, behavior.TargetID)
 	if err != nil {
 		return err
 	}
-	if changed != 1 {
-		return fmt.Errorf("count-sync: post %d was not updated", postID)
-	}
-	var likeCount, commentCount int64
-	if err = tx.QueryRowContext(ctx,
-		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ?", postID,
-	).Scan(&likeCount, &commentCount); err != nil {
+	var current int64
+	if err = tx.QueryRowContext(ctx, "SELECT revision FROM content_count_projection WHERE target_type = ? AND target_id = ? FOR UPDATE", table, behavior.TargetID).Scan(&current); err != nil {
 		return err
 	}
-	now := time.Now().UnixMilli()
-	payload, err := json.Marshal(event.PostEvent{
-		EventID: eventID, EventTime: now, Type: event.PostEventCounted, PostID: postID,
-		LikeCount: likeCount, CommentCount: commentCount, StatsSeq: now,
-	})
-	if err != nil {
+	if snapshot.Revision > current {
+		// Lock/check existence separately. A zero-to-zero snapshot is legitimate,
+		// independent of the driver's clientFoundRows setting.
+		var commentCount int64
+		if table == "post" {
+			err = tx.QueryRowContext(ctx, "SELECT comment_count FROM `post` WHERE id = ? FOR UPDATE", behavior.TargetID).Scan(&commentCount)
+		} else {
+			var id int64
+			err = tx.QueryRowContext(ctx, "SELECT id FROM `comment` WHERE id = ? FOR UPDATE", behavior.TargetID).Scan(&id)
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		if err == nil {
+			if table == "post" {
+				_, err = tx.ExecContext(ctx, "UPDATE `post` SET like_count = ?, favorite_count = ? WHERE id = ?", snapshot.LikeCount, snapshot.FavoriteCount, behavior.TargetID)
+			} else {
+				_, err = tx.ExecContext(ctx, "UPDATE `comment` SET like_count = ? WHERE id = ?", snapshot.LikeCount, behavior.TargetID)
+			}
+			if err != nil {
+				return err
+			}
+			if table == "post" {
+				counts, err := poststats.AdvanceTx(ctx, tx, behavior.TargetID)
+				if err != nil {
+					return err
+				}
+				now := time.Now().UnixMilli()
+				payload, marshalErr := json.Marshal(event.PostEvent{EventID: behavior.EventID, EventTime: now, Type: event.PostEventCounted, PostID: behavior.TargetID, LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: counts.Sequence})
+				if marshalErr != nil {
+					return marshalErr
+				}
+				if err = (&outboxx.SQLStore{}).EnqueueTx(ctx, tx, outboxx.Event{ID: behavior.EventID, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault, Key: strconv.FormatInt(behavior.TargetID, 10), Payload: payload}); err != nil {
+					return err
+				}
+			}
+		}
+		// Missing content is terminal (deleted IDs are never reused), but retain the
+		// version fence so an old snapshot cannot revive its projection later.
+		if _, err = tx.ExecContext(ctx, "UPDATE content_count_projection SET revision = ? WHERE target_type = ? AND target_id = ?", snapshot.Revision, table, behavior.TargetID); err != nil {
+			return err
+		}
+	}
+	if err = tx.Commit(); err != nil {
 		return err
 	}
-	if err = (&outboxx.SQLStore{}).EnqueueTx(ctx, tx, outboxx.Event{
-		ID: eventID, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault,
-		Key: strconv.FormatInt(postID, 10), Payload: payload,
-	}); err != nil {
-		return err
-	}
-	return tx.Commit()
+	s.invalidateCaches(ctx, table, behavior.TargetID)
+	return nil
 }
 
 func (s *countSyncStore) invalidateCaches(ctx context.Context, targetType string, targetID int64) {
+	if s.redis == nil {
+		return
+	}
 	key := postCacheKeyPrefix + strconv.FormatInt(targetID, 10)
 	if targetType == "comment" {
 		key = commentCacheKeyPrefix + strconv.FormatInt(targetID, 10)
 	}
-	if _, err := s.redis.DelCtx(ctx, key); err != nil {
-		// 缓存失效失败不改变已提交的计数（CORE-053）；只记录。
-		return
-	}
+	// One key per command works for Redis Cluster without cross-slot DEL.
+	_, _ = s.redis.DelCtx(ctx, key)
+	_, _ = s.redis.DelCtx(ctx, cachedstore.Prefix+key)
 }
-
-// IsDuplicateKeyError 供测试与日志判断唯一键冲突。
 func IsDuplicateKeyError(err error) bool {
 	var mysqlErr *mysql.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }
-
-var _ = sql.ErrNoRows
