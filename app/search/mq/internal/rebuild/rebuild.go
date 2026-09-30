@@ -3,6 +3,7 @@ package rebuild
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/cloudwego/kitex/client/callopt"
@@ -23,7 +24,10 @@ type Target interface {
 	Refresh(context.Context) error
 }
 
-func Run(ctx context.Context, source PostSource, target Target, pageSize int32) (int64, error) {
+func Run(ctx context.Context, source PostSource, target Target, pageSize int32, statsFloor int64) (int64, error) {
+	if statsFloor <= 0 || statsFloor == math.MaxInt64 {
+		return 0, fmt.Errorf("verified positive stats sequence floor below MaxInt64 is required")
+	}
 	if source == nil || target == nil {
 		return 0, fmt.Errorf("search rebuild requires source and target")
 	}
@@ -63,6 +67,7 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 					"tags":          post.Tags,
 					"like_count":    post.LikeCount,
 					"comment_count": post.CommentCount,
+					"stats_seq":     statsFloor,
 					"created_at":    post.CreatedAt,
 				},
 			}

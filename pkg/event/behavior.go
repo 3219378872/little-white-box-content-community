@@ -80,6 +80,16 @@ type BehaviorEvent struct {
 	Producer      string `json:"producer"`
 	ClientIP      string `json:"client_ip"`
 	ClientVersion string `json:"client_version"`
+	// CountSnapshot is written by the interaction transaction, never by clients.
+	CountSnapshot *InteractionCountSnapshot `json:"count_snapshot,omitempty"`
+}
+
+// InteractionCountSnapshot is a per-target authoritative snapshot. Revision is
+// incremented under the action_count row lock, not derived from event/time IDs.
+type InteractionCountSnapshot struct {
+	Revision      int64 `json:"revision" db:"revision"`
+	LikeCount     int64 `json:"like_count" db:"like_count"`
+	FavoriteCount int64 `json:"favorite_count" db:"favorite_count"`
 }
 
 func (e BehaviorEvent) Validate() error {

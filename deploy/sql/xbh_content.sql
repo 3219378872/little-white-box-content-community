@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `post` (
     `cover_url` VARCHAR(255) DEFAULT NULL COMMENT '封面URL,未使用',
     `status` TINYINT DEFAULT 1 COMMENT '状态 0:草稿 1:已发布 2:已删除 3:审核中',
     `revision` BIGINT NOT NULL DEFAULT 0 COMMENT '内容版本，每次成功变更单调递增',
+    `stats_seq` BIGINT NOT NULL DEFAULT 0 COMMENT 'Durable shared post-count snapshot sequence',
     `view_count` BIGINT DEFAULT 0 COMMENT '浏览数',
     `like_count` BIGINT DEFAULT 0 COMMENT '点赞数',
     `comment_count` BIGINT DEFAULT 0 COMMENT '评论数',
@@ -136,3 +137,22 @@ CREATE TABLE IF NOT EXISTS `idempotency` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uniq_scope_user_key` (`scope`, `user_id`, `key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='命令幂等表';
+
+-- Retain projection fences permanently; receipts for at least the supported
+-- replay horizon (90 days). No automatic receipt deletion is installed.
+CREATE TABLE IF NOT EXISTS `content_count_projection` (
+ `target_type` VARCHAR(16) NOT NULL,
+ `target_id` BIGINT NOT NULL,
+ `revision` BIGINT NOT NULL DEFAULT 0,
+ PRIMARY KEY (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+CREATE TABLE IF NOT EXISTS `content_count_receipt` (
+ `event_id` BIGINT NOT NULL,
+ `created_at` BIGINT NOT NULL,
+ PRIMARY KEY (`event_id`), KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+CREATE TABLE IF NOT EXISTS `content_count_projection_control` (
+ `id` TINYINT NOT NULL, `legacy_reconciled` BOOLEAN NOT NULL DEFAULT FALSE,
+ PRIMARY KEY (`id`)
+) ENGINE=InnoDB;

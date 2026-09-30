@@ -28,12 +28,22 @@ type commandConfig struct {
 	}
 }
 
+var maintenanceConfirmed = flag.Bool("maintenance-confirmed", false, "confirm writers/consumers are paused and SQL post.stats_seq is seeded to the supplied verified floor")
+
+var statsSeqFloor = flag.Int64("stats-seq-floor", 0, "verified maximum durable SQL/Search/retained-event stats sequence; required after pausing writers")
+
 var configFile = flag.String("f", "app/search/mq/etc/search-consumer.yaml", "config file")
 
 func main() {
 	defer rpcx.CloseAllClients()
 	defer lifecycle.CloseResources()
 	flag.Parse()
+	if !*maintenanceConfirmed {
+		panic("-maintenance-confirmed is required: pause writers/consumers and seed SQL stats sequences before every rebuild")
+	}
+	if *statsSeqFloor <= 0 || *statsSeqFloor == 9223372036854775807 {
+		panic("-stats-seq-floor is required; seed SQL sequences to the same verified watermark before rebuilding")
+	}
 	var c commandConfig
 	c.Rebuild.PageSize = 50
 	c.Rebuild.TimeoutSeconds = 900
@@ -74,7 +84,7 @@ func main() {
 	contentClient := rpcx.MustNewClient(c.ContentRpc,
 		rpcx.WithInternalAuth(c.InternalSecret))
 	source := contentservice.NewContentService(contentClient)
-	count, err := rebuild.Run(ctx, source, target, c.Rebuild.PageSize)
+	count, err := rebuild.Run(ctx, source, target, c.Rebuild.PageSize, *statsSeqFloor)
 	if err != nil {
 		panic(err)
 	}

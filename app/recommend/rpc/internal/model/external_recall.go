@@ -89,7 +89,7 @@ func (s *ElasticsearchPostRecallSource) Recall(ctx context.Context, req RecallRe
 				"fields": []string{"title", "body"}, "like": like,
 				"min_term_freq": 1, "min_doc_freq": 1,
 			}},
-			"must_not": map[string]any{"ids": map[string]any{"values": excluded}},
+			"must_not": []any{map[string]any{"ids": map[string]any{"values": excluded}}, map[string]any{"term": map[string]any{"projection_deleted": true}}},
 		}},
 	})
 	if err != nil {

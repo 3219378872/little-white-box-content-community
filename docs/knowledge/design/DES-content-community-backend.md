@@ -194,7 +194,14 @@ published 行。
 计数和 outbox 仍由已有事务及条件更新原子提交，重复取消不重复扣减或投递。
 
 公开计数：关系以 Interaction 为准；`post.like_count`/`favorite_count` 由 count-sync
-异步收敛，目标 30 秒（CORE-032）。评论计数在 Content 事务内更新。
+异步收敛，目标 30 秒（CORE-032）。Interaction 的 action_count 锁事务生成单调 revision 与完整
+计数快照；Content 在同事务提交事件收据、目标版本门槛、计数替换与派生 outbox，Redis 不承担
+持久去重。乱序旧快照不能覆盖新状态；零到零无需 RowsAffected=1。存量卷必须暂停写入并完成
+[权威基线迁移](../guides/count-projection-migration.md) 后才能确认历史无版本事件。
+评论数量在 Content 事务内更新，评论点赞走同一版本快照协议。Content 的 `post.stats_seq`
+由互动、评论和帖子 lifecycle 事务在同一 post 行锁下单调分配；lifecycle 计数载荷取自锁内当前行。
+Search 独立比较正文 revision 与 stats_seq，保留删除墓碑，不再用 ES 内部 `_version` 代替业务版本。
+存量统计序列须先覆盖现有 SQL/Search 与全部可重放旧事件水位；未初始化序列失败关闭。
 
 ### 认证凭据消费
 
