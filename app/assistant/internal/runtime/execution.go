@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/prompt"
@@ -80,7 +81,23 @@ func (e *Engine) prepareExecution(persistCtx context.Context, run store.Run) (*e
 	return &executionState{engine: e, run: run, session: session, snapshot: snap, registry: registry, client: modelClient, started: started}, nil
 }
 
-func (s *executionState) iterate(workCtx, persistCtx context.Context) (iterationAction, error) {
+func (s *executionState) iterate(workCtx, persistCtx context.Context) (action iterationAction, err error) {
+	defer func() {
+		if !errors.Is(err, errRunRedirected) {
+			return
+		}
+		// A streaming attempt may already have emitted tokens before acceptance.
+		// Reset only that losing stream, without adopting a new lease identity.
+		if s.result.Streamed && s.result.StreamID != "" {
+			if _, resetErr := s.engine.appendEvent(persistCtx, s.run, store.EventResponseReset,
+				store.EventPayload{StreamID: s.result.StreamID}); resetErr != nil {
+				action, err = iterationFinished, resetErr
+				return
+			}
+		}
+		s.result = llm.Result{}
+		action, err = iterationRestart, nil
+	}()
 	if action, err := s.loadRound(workCtx, persistCtx); action != iterationNext || err != nil {
 		return action, err
 	}

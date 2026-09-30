@@ -199,6 +199,12 @@ lease 接管前若已有公开 delta，先写 `response_reset(streamId)`，恢�
 获胜 attempt。模型在已流式输出用户可见正文后只调用 `present_sources` 时不写 `response_reset`，
 该正文作为可见 assistant 消息保留；`present_sources` 不是失败 attempt。
 
+模型结果提交在相同 run 锁事务内再次比较本轮 `input_version`：普通文本、失败/不完整终态以及
+工具意图与 `tool_executing` 阶段转换均不能越过已接受的 redirect。失配时不终止 run、不清空
+active run，重置该轮已公开的 stream 并读取新输入重启。工具阶段已提交后继续沿用 steer/journal
+语义，不给所有通用工具 step 增加输入版本拒绝。接受输入时以 `LockOpenRuns` 的当前锁定读决定
+阶段，避免 MySQL REPEATABLE READ 下先前 consent/幂等读取留下的旧快照误判 disposition。
+
 每次 Execute 固定 claim 时的 `(lease_owner, lease_generation)`。加载新 run 状态前先比较该 fence，
 不能采用接管者的新身份；正常、取消、错误和恢复收尾都使用原 claim fence。取消监视器观察到 owner
 变化只停止旧 work context，不替新 owner 修改状态。最终 step 事务仍作权威 fence 校验，覆盖读后接管。

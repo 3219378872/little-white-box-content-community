@@ -76,6 +76,9 @@ func (m *MemoryStore) Transact(ctx context.Context, fn func(ctx context.Context,
 }
 
 func (m *MemoryStore) RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error {
+	// Match SQL's serialization of input acceptance with worker commits.
+	m.txMu.Lock()
+	defer m.txMu.Unlock()
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
 	m.mu.Lock()

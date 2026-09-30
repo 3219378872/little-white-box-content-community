@@ -89,6 +89,7 @@ func (e *Engine) finishWithMessageEvent(
 }
 
 func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, eventType string, payload store.EventPayload, message string, apiContent []byte, emitToken bool, streamID string, before func(context.Context, store.Store) error) error {
+	modelResult := run.Phase == store.PhaseModelRequest
 	now := store.NowMs()
 	if status == store.StatusDone && HardLimitExceeded(run, now) {
 		return e.resourceLimitResult(ctx, run, llm.Result{Text: message, Streamed: !emitToken, StreamID: streamID})
@@ -120,6 +121,11 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 			run.Status = store.StatusCancelled
 			run.CancelRequested = true
 			run.ErrorCode = "CANCELLED"
+		}
+		// A model-stage terminal response must lose to an accepted redirect.
+		// Tool-stage completions keep their established steer/recovery semantics.
+		if modelResult && status != store.StatusCancelled && fresh.InputVersion != run.InputVersion {
+			return errRunRedirected
 		}
 		if status != store.StatusDone {
 			if err := closePendingCalls(ctx, tx, run, status); err != nil {

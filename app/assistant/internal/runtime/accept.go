@@ -151,7 +151,7 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 		return AcceptResult{}, err
 	}
 
-	active, disposition, err := activeInputDisposition(ctx, tx, thread.ActiveRunID, in.ClientProtocolVersion)
+	active, disposition, err := activeInputDisposition(ctx, tx, in.UserID, thread.ActiveRunID, in.ClientProtocolVersion)
 	if err != nil {
 		return AcceptResult{}, err
 	}
@@ -341,13 +341,21 @@ func insertAcceptedMessage(ctx context.Context, tx store.Store, in AcceptInput, 
 	return msg, nil
 }
 
-func activeInputDisposition(ctx context.Context, tx store.Store, activeRunID int64, protocolVersion int) (*store.Run, string, error) {
-	var err error
+func activeInputDisposition(ctx context.Context, tx store.Store, userID, activeRunID int64, protocolVersion int) (*store.Run, string, error) {
 	var active *store.Run
 	if activeRunID > 0 {
-		active, err = tx.GetRun(ctx, activeRunID)
-		if err != nil {
-			active = nil
+		// Acceptance has already performed snapshot reads (consent/idempotency).
+		// Under MySQL REPEATABLE READ a plain GetRun can still see the phase
+		// from before a worker commit. Decide from a current locking read.
+		runs, lockErr := tx.LockOpenRuns(ctx, userID)
+		if lockErr != nil {
+			return nil, "", lockErr
+		}
+		for i := range runs {
+			if runs[i].ID == activeRunID {
+				active = &runs[i]
+				break
+			}
 		}
 	}
 	disposition := DecideDisposition(active)

@@ -176,14 +176,30 @@ func watchInputChange(ctx context.Context, st store.Store, runID, inputVersion i
 	}
 }
 
-func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn prompt.Turn, reviewLive *[]prompt.Turn) error {
-	if run.Source == store.SourceMemoryReview {
-		if reviewLive != nil {
-			*reviewLive = append(*reviewLive, turn)
-		}
-		return e.updateRun(ctx, run)
-	}
+// modelResultStep makes model input identity part of the same locked transaction
+// that commits the response. Generic tool steps deliberately retain lease-only
+// fencing: inputs accepted after this boundary are steers, not redirects.
+func (e *Engine) modelResultStep(ctx context.Context, run store.Run, fn func(context.Context, store.Store) error) error {
 	return e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
+		fresh, err := tx.GetRun(ctx, run.ID)
+		if err != nil {
+			return err
+		}
+		if fresh.CancelRequested {
+			return errRunCancelled
+		}
+		if fresh.InputVersion != run.InputVersion {
+			return errRunRedirected
+		}
+		return fn(ctx, tx)
+	})
+}
+
+func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn prompt.Turn, reviewLive *[]prompt.Turn) error {
+	err := e.modelResultStep(ctx, run, func(ctx context.Context, tx store.Store) error {
+		if run.Source == store.SourceMemoryReview {
+			return tx.UpdateRun(ctx, run)
+		}
 		if err := tx.UpdateRun(ctx, run); err != nil {
 			return err
 		}
@@ -195,6 +211,10 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 		})
 		return err
 	})
+	if err == nil && run.Source == store.SourceMemoryReview && reviewLive != nil {
+		*reviewLive = append(*reviewLive, turn)
+	}
+	return err
 }
 
 func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}, history []prompt.Turn) ([]prompt.Turn, int64, error) {
