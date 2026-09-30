@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"esx/app/assistant/internal/store"
 	"testing"
 
 	"esx/app/assistant/watch"
@@ -10,7 +11,7 @@ import (
 func TestWatchSideEffectsReconcileCommittedRecovery(t *testing.T) {
 	ctx := context.Background()
 	watches := watch.NewMapStore()
-	registry, err := NewRegistry(Clients{Watch: watches}, []string{CreateWatchTask, UpdateWatchTask, DeleteWatchTask})
+	registry, err := NewRegistry(Clients{Watch: watches, Store: store.NewMemoryStore()}, []string{CreateWatchTask, UpdateWatchTask, DeleteWatchTask})
 	if err != nil {
 		t.Fatal(err)
 	}

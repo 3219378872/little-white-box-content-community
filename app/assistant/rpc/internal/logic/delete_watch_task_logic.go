@@ -33,7 +33,7 @@ func (l *DeleteWatchTaskLogic) DeleteWatchTask(in *pb.DeleteWatchTaskReq) (*pb.D
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
 		return nil, unavailableUntilStore()
 	}
-	if err := l.svcCtx.Watch.Delete(l.ctx, in.UserId, in.Id, in.ExpectedVersion); err != nil {
+	if err := l.svcCtx.WatchMutations().Delete(l.ctx, in.UserId, in.Id, in.ExpectedVersion); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteWatchTaskResp{}, nil

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -79,12 +80,24 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 	if userID <= 0 {
 		return nil, nil, errx.NewWithCode(errx.LoginRequired)
 	}
+	if len(ops) == 0 {
+		return nil, nil, errx.NewWithCode(errx.ParamError)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// Execute on a private copy so any validation failure rolls back the batch.
+	tx := &MapStore{next: m.next, entries: maps.Clone(m.entries), changes: maps.Clone(m.changes), Scanner: m.Scanner}
 	entries := make([]Entry, 0)
 	ids := make([]int64, 0)
-	for _, op := range ops {
-		entry, changeID, err := m.applyLocked(ctx, userID, requestID, op, nowMs)
+	for i, op := range ops {
+		req := requestID
+		if req == "" {
+			req = "anon"
+		}
+		if len(ops) > 1 {
+			req += "#" + itoa(int64(i))
+		}
+		entry, changeID, err := tx.applyLocked(ctx, userID, req, op, nowMs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -95,6 +108,7 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 			ids = append(ids, changeID)
 		}
 	}
+	m.next, m.entries, m.changes = tx.next, tx.entries, tx.changes
 	return entries, ids, nil
 }
 
@@ -156,6 +170,11 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		if err := ScanContent(ctx, m.Scanner, content); err != nil {
 			return nil, 0, err
 		}
+		for _, existing := range m.entries {
+			if existing.UserID == userID && existing.Target == current.Target && !existing.Deleted && existing.ID != current.ID && Normalize(existing.Content) == Normalize(content) {
+				return nil, 0, errx.New(errx.ParamError, "memory content duplicates another entry")
+			}
+		}
 		all := m.activeLocked(userID, current.Target)
 		used := UsedRunes(all, current.Target) - utf8.RuneCountInString(current.Content) + utf8.RuneCountInString(content)
 		if used > LimitFor(current.Target) {
@@ -182,7 +201,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		current.UpdatedAtMs = nowMs
 		m.entries[op.ID] = current
 		changeID := m.recordLocked(userID, op.ID, OpRemove, &before, &current, current.Version, requestID, nowMs)
-		return &current, changeID, nil
+		return nil, changeID, nil
 	default:
 		return nil, 0, errx.New(errx.ParamError, "unknown memory op")
 	}
@@ -214,6 +233,19 @@ func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) 
 	case OpReplace, OpRemove:
 		if change.Before == nil {
 			return nil, errx.NewWithCode(errx.SystemError)
+		}
+		all := m.activeLocked(userID, current.Target)
+		for _, existing := range all {
+			if existing.ID != current.ID && Normalize(existing.Content) == Normalize(change.Before.Content) {
+				return nil, errx.New(errx.ContentVersionConflict, "memory content already exists")
+			}
+		}
+		used := UsedRunes(all, current.Target) + utf8.RuneCountInString(change.Before.Content)
+		if !current.Deleted {
+			used -= utf8.RuneCountInString(current.Content)
+		}
+		if used > LimitFor(current.Target) {
+			return nil, errx.New(errx.ParamError, "memory capacity exceeded")
 		}
 		restored := *change.Before
 		restored.Deleted = false

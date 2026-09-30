@@ -38,7 +38,7 @@ func (l *CreateWatchTaskLogic) CreateWatchTask(in *pb.CreateWatchTaskReq) (*pb.C
 	if err := tool.WatchLookups(l.svcCtx.WatchLookups()).Validate(l.ctx, task); err != nil {
 		return nil, err
 	}
-	created, err := l.svcCtx.Watch.Create(l.ctx, task)
+	created, err := l.svcCtx.WatchMutations().Create(l.ctx, task)
 	if err != nil {
 		return nil, err
 	}

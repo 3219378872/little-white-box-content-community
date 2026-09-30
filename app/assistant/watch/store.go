@@ -212,7 +212,7 @@ func (s *SQLStore) ListEnabled(ctx context.Context) ([]Task, error) {
 	return out, nil
 }
 
-func (s *SQLStore) Create(ctx context.Context, task Task) (Task, error) {
+func (s *SQLStore) create(ctx context.Context, task Task) (Task, error) {
 	if err := ValidateTask(task); err != nil {
 		return Task{}, err
 	}
@@ -234,7 +234,7 @@ func (s *SQLStore) Create(ctx context.Context, task Task) (Task, error) {
 	return task, nil
 }
 
-func (s *SQLStore) UpdateEnabled(ctx context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error) {
+func (s *SQLStore) updateEnabled(ctx context.Context, userID, id int64, enabled bool, expectedVersion int32) (Task, error) {
 	if expectedVersion <= 0 {
 		return Task{}, errx.NewWithCode(errx.ParamError)
 	}
@@ -259,7 +259,7 @@ func (s *SQLStore) UpdateEnabled(ctx context.Context, userID, id int64, enabled 
 	return Task{}, errx.New(errx.ContentVersionConflict, "watch version conflict")
 }
 
-func (s *SQLStore) Delete(ctx context.Context, userID, id int64, expectedVersion int32) error {
+func (s *SQLStore) delete(ctx context.Context, userID, id int64, expectedVersion int32) error {
 	if expectedVersion <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}

@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"esx/app/assistant/internal/consent"
 	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
@@ -47,7 +48,7 @@ const (
 	ReadSource      = "read_source"
 	PublishAnswer   = "publish_answer"
 
-	CurrentConsentVersion   int32 = 2
+	CurrentConsentVersion   int32 = consent.CurrentVersion
 	maxEvidenceSnippetRunes       = 360
 	defaultPageResult             = 5
 	maxTitleRunes                 = 120

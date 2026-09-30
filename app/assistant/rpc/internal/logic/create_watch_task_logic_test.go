@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"esx/app/assistant/internal/store"
 	"testing"
 
 	"github.com/cloudwego/kitex/client/callopt"
@@ -59,6 +60,7 @@ func (createWatchSearch) SearchTags(_ context.Context, req *searchservice.Search
 func TestCreateWatchTaskLogicValidatesTargets(t *testing.T) {
 	logic := NewCreateWatchTaskLogic(context.Background(), &svc.ServiceContext{
 		Watch:          watch.NewMapStore(),
+		Store:          store.NewMemoryStore(),
 		UserService:    createWatchUser{},
 		ContentService: createWatchContent{},
 		SearchService:  createWatchSearch{},

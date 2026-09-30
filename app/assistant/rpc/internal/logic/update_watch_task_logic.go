@@ -33,7 +33,7 @@ func (l *UpdateWatchTaskLogic) UpdateWatchTask(in *pb.UpdateWatchTaskReq) (*pb.U
 	if l.svcCtx == nil || l.svcCtx.Watch == nil {
 		return nil, unavailableUntilStore()
 	}
-	task, err := l.svcCtx.Watch.UpdateEnabled(l.ctx, in.UserId, in.Id, in.Enabled, in.ExpectedVersion)
+	task, err := l.svcCtx.WatchMutations().UpdateEnabled(l.ctx, in.UserId, in.Id, in.Enabled, in.ExpectedVersion)
 	if err != nil {
 		return nil, err
 	}

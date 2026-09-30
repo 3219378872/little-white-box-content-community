@@ -120,10 +120,10 @@ func definitionAvailable(name string, clients Clients) bool {
 		return nonNil(clients.Interaction) && nonNil(clients.Content)
 	case GetMyFollowing:
 		return nonNil(clients.User)
-	case ListWatchTasks, UpdateWatchTask, DeleteWatchTask:
+	case ListWatchTasks:
 		return nonNil(clients.Watch)
-	case CreateWatchTask:
-		return nonNil(clients.Watch)
+	case CreateWatchTask, UpdateWatchTask, DeleteWatchTask:
+		return nonNil(clients.Watch) && nonNil(clients.Store)
 	case WebSearch:
 		return nonNil(clients.Web)
 	case CreatePost:

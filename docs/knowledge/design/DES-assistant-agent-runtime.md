@@ -282,7 +282,24 @@ authority_id, revision, payload)`。需要来源的 executor 在 ledger 不可�
 不得把未登记结果返回给模型。工具结果只给模型 handle 和安全摘要。`present_sources` 复核同 run 最多
 10 个 handle，写 source_card event；普通最终文本不做 ID/URL 解析。
 
+## Memory 全文身份与兼容
+
+Memory add/replace/undo 在现有 `(user_id,target)` mutation lock 下读取当前有效全文，以 Go
+`Normalize(content)` 精确比较全部字符；SQL 读取使用 `FOR UPDATE`，避免事务取得 target 锁前建立
+的旧快照影响去重与容量。MEMORY/USER 总字符容量有界，因此比较整个有效集合不需要新增摘要索引。
+旧 `content_norm VARCHAR(512)` 继续写入供旧版本兼容，但不再作为身份判断依据；现存行直接使用
+已有 content 全文，不需迁移、补写或删除。新旧版本回滚不会改变存储格式，但旧版本仍有前缀去重
+缺陷，不应混跑来宣称该缺陷已修复。MapStore 以私有副本提交整个 batch，并使用与 SQL 相同的
+逐项 request id，失败不保留 entry/change，replace/undo 同样拒绝全文重复。
+
 ## Watch 投递
+
+Watch RPC 与模型工具经过共享 consent mutation 入口，缺少、撤销、旧版本、未知版本或读取失败
+均拒绝 create/update/delete；当前授权版本是 2。SQLStore 在同一 mutation 事务中以
+`SELECT ... FOR SHARE` 锁定 `xbh_user.agent_capability_consent`，再执行归属/version 校验与写入，
+使撤权与变更形成唯一提交次序。只有底层测试 MapStore 可独立用于预置数据。
+此处遵循 WCH-021：停用与删除也要求当前 consent。撤权后的任务保留，调度继续禁止新 run；用户
+若要清理任务需重新授权。这是既有规格的 UX 取舍，未增加撤权后自助清理的语义例外。
 
 `WCH-011` 的只读边界限制平台业务变更，不禁止向本人 Assistant 线程交付经校验的回答。Watch v2
 使用 `read_source` 与 `publish_answer`，旧冻结快照继续兼容原路径；工具映射由

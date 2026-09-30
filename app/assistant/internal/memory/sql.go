@@ -303,7 +303,7 @@ func (s *SQLStore) addOne(ctx context.Context, session sqlx.Session, userID int6
 	if existing != nil {
 		return existing, 0, nil
 	}
-	all, err := s.listActive(ctx, session, userID, target)
+	all, err := s.listActiveForUpdate(ctx, session, userID, target)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -343,7 +343,7 @@ func (s *SQLStore) replaceOne(ctx context.Context, session sqlx.Session, userID,
 	if duplicate != nil && duplicate.ID != current.ID {
 		return nil, 0, errx.New(errx.ParamError, "memory content duplicates another entry")
 	}
-	all, err := s.listActive(ctx, session, userID, current.Target)
+	all, err := s.listActiveForUpdate(ctx, session, userID, current.Target)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -532,7 +532,7 @@ func (s *SQLStore) validateUndoRestore(ctx context.Context, session sqlx.Session
 	if duplicate != nil && duplicate.ID != current.ID {
 		return errx.New(errx.ContentVersionConflict, "memory content already exists")
 	}
-	all, err := s.listActive(ctx, session, userID, current.Target)
+	all, err := s.listActiveForUpdate(ctx, session, userID, current.Target)
 	if err != nil {
 		return err
 	}
@@ -571,6 +571,14 @@ type rowQuerier interface {
 }
 
 func (s *SQLStore) listActive(ctx context.Context, q rowQuerier, userID int64, target string) ([]Entry, error) {
+	return s.listActiveQuery(ctx, q, userID, target, false)
+}
+
+func (s *SQLStore) listActiveForUpdate(ctx context.Context, q rowQuerier, userID int64, target string) ([]Entry, error) {
+	return s.listActiveQuery(ctx, q, userID, target, true)
+}
+
+func (s *SQLStore) listActiveQuery(ctx context.Context, q rowQuerier, userID int64, target string, forUpdate bool) ([]Entry, error) {
 	query := `SELECT id, user_id, target, content, version, created_at_ms, updated_at_ms FROM core_memory_entry WHERE user_id=? AND deleted_at_ms IS NULL`
 	args := []any{userID}
 	if target != "" {
@@ -578,6 +586,9 @@ func (s *SQLStore) listActive(ctx context.Context, q rowQuerier, userID int64, t
 		args = append(args, target)
 	}
 	query += ` ORDER BY target ASC, id ASC`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
 	var rows []struct {
 		ID          int64  `db:"id"`
 		UserID      int64  `db:"user_id"`
@@ -612,27 +623,21 @@ func (s *SQLStore) capacities(ctx context.Context, q rowQuerier, userID int64) [
 	}
 }
 
+// The bounded active document is the identity authority. content_norm remains
+// a legacy prefix for rollback compatibility, not an equality/uniqueness key.
+// Read current rows under the target mutation lock, even if an earlier lookup
+// established a REPEATABLE READ snapshot before that lock was acquired.
 func (s *SQLStore) findByNorm(ctx context.Context, q rowQuerier, userID int64, target, norm string) (*Entry, error) {
-	var row struct {
-		ID          int64  `db:"id"`
-		UserID      int64  `db:"user_id"`
-		Target      string `db:"target"`
-		Content     string `db:"content"`
-		Version     int64  `db:"version"`
-		CreatedAtMs int64  `db:"created_at_ms"`
-		UpdatedAtMs int64  `db:"updated_at_ms"`
-	}
-	err := q.QueryRowCtx(ctx, &row, `SELECT id, user_id, target, content, version, created_at_ms, updated_at_ms
-		FROM core_memory_entry WHERE user_id=? AND target=? AND content_norm=? AND deleted_at_ms IS NULL LIMIT 1`,
-		userID, target, clipNorm(norm))
-	if err == sqlx.ErrNotFound {
-		return nil, nil
-	}
+	entries, err := s.listActiveForUpdate(ctx, q, userID, target)
 	if err != nil {
 		return nil, err
 	}
-	return &Entry{ID: row.ID, UserID: row.UserID, Target: row.Target, Content: row.Content,
-		Version: int32(row.Version), CreatedAtMs: row.CreatedAtMs, UpdatedAtMs: row.UpdatedAtMs}, nil
+	for i := range entries {
+		if Normalize(entries[i].Content) == norm {
+			return &entries[i], nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *SQLStore) getOwned(ctx context.Context, q rowQuerier, userID, id int64) (*Entry, error) {

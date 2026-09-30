@@ -88,3 +88,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 func (s *ServiceContext) WatchLookups() tool.Clients {
 	return tool.Clients{Search: s.SearchService, Content: s.ContentService, User: s.UserService, Watch: s.Watch}
 }
+
+func (s *ServiceContext) WatchMutations() watch.Store {
+	return watch.WithConsent(s.Watch, s.Store)
+}
