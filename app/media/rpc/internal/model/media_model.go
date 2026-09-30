@@ -63,8 +63,8 @@ func (m *customMediaModel) UpdateStatus(ctx context.Context, id int64, expectedS
 	}, mediaIDKey)
 }
 
-// DelCache 删除单条媒体的缓存键；事务写入（如 outbox 软删）提交后必须调用，
-// 否则读路径会返回陈旧状态。
+// DelCache 删除事务写入后的派生缓存。媒体状态与所有权读取始终直查数据库，
+// 不依赖失效成功来保证权限判断。
 func (m *customMediaModel) DelCache(ctx context.Context, id int64) error {
 	mediaIDKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, id)
 	return m.DelCacheCtx(ctx, mediaIDKey)

@@ -75,12 +75,11 @@ func (m *defaultMediaModel) Delete(ctx context.Context, id int64) error {
 }
 
 func (m *defaultMediaModel) FindOne(ctx context.Context, id int64) (*Media, error) {
-	mediaIdKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, id)
 	var resp Media
-	err := m.QueryRowCtx(ctx, &resp, mediaIdKey, func(ctx context.Context, conn sqlx.SqlConn, v any) error {
-		query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", mediaRows, m.table)
-		return conn.QueryRowCtx(ctx, v, query, id)
-	})
+	// Status and ownership authorize media use. Even a fenced cache cannot
+	// provide authoritative state when post-commit invalidation fails.
+	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", mediaRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &resp, query, id)
 	switch err {
 	case nil:
 		return &resp, nil

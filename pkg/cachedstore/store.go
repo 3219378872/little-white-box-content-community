@@ -15,7 +15,8 @@ import (
 
 var ErrNotFound = sql.ErrNoRows
 
-const Prefix = "cache:v2:"
+// v3 isolates entries written before cache fills were fenced by reservations.
+const Prefix = "cache:v3:"
 
 type CachedConn struct {
 	conn    sqlstore.SqlConn
@@ -54,12 +55,15 @@ func (c CachedConn) DelCacheCtx(ctx context.Context, keys ...string) error {
 	if c.redis == nil || len(keys) == 0 {
 		return nil
 	}
-	prefixed := make([]string, len(keys))
-	for i, k := range keys {
-		prefixed[i] = Prefix + k
+	var errs []error
+	for _, k := range keys {
+		// Each DEL is single-key, like the fill script, so unrelated keys work
+		// in Redis Cluster too. Attempt every invalidation on partial failure.
+		if _, err := c.redis.DelCtx(ctx, Prefix+k); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	_, err := c.redis.DelCtx(ctx, prefixed...)
-	return err
+	return errors.Join(errs...)
 }
 func (c CachedConn) ExecCtx(ctx context.Context, fn func(context.Context, sqlstore.SqlConn) (sql.Result, error), keys ...string) (sql.Result, error) {
 	result, err := fn(ctx, c.conn)
@@ -72,6 +76,7 @@ func (c CachedConn) ExecCtx(ctx context.Context, fn func(context.Context, sqlsto
 	return result, nil
 }
 func (c CachedConn) QueryRowCtx(ctx context.Context, v any, key string, query func(context.Context, sqlstore.SqlConn, any) error) error {
+	var reservation string
 	if c.redis != nil {
 		value, err := c.redis.GetCtx(ctx, Prefix+key)
 		if err == nil && value != "" {
@@ -88,46 +93,59 @@ func (c CachedConn) QueryRowCtx(ctx context.Context, v any, key string, query fu
 				}
 			}
 		}
+		if err == nil && value == "" {
+			// Acquire before the SQL read. An invalidation removes this marker,
+			// preventing that read from repopulating the cache afterward.
+			reservation = c.reserveFill(ctx, Prefix+key)
+		}
 	}
 	err := query(ctx, c.conn, v)
-	if c.redis != nil && (err == nil || errors.Is(err, ErrNotFound)) {
+	if reservation != "" {
+		c.finishFill(ctx, Prefix+key, reservation, v, err)
+	}
+	return err
+}
+
+func (c CachedConn) finishFill(ctx context.Context, key, reservation string, v any, err error) {
+	var value string
+	var ttl int
+	if err == nil || errors.Is(err, ErrNotFound) {
 		cached := struct {
 			Missing bool
 			Value   any
 		}{Missing: errors.Is(err, ErrNotFound)}
-		ttl := c.options.NotFoundTTLSeconds
+		ttl = c.options.NotFoundTTLSeconds
 		if err == nil {
 			cached.Value = v
 			ttl = c.options.TTLSeconds
 		}
 		if b, e := json.Marshal(cached); e == nil {
-			_ = c.redis.SetexCtx(ctx, Prefix+key, string(b), ttl)
+			value = string(b)
 		}
 	}
-	return err
+	// Only the original reservation owner can fill or release the key. Redis
+	// errors, eviction, expiry and invalidation all fail closed for cache fill.
+	_, _ = c.redis.EvalCtx(ctx, finishFillScript, []string{key}, reservation, value, ttl)
 }
 
 // Index entries contain only the primary ID. Row updates invalidate the primary
 // cache without needing to discover every secondary lookup that has been used.
 func (c CachedConn) QueryRowIndexCtx(ctx context.Context, v any, key string, primaryKey func(any) string, index func(context.Context, sqlstore.SqlConn, any) (any, error), primary func(context.Context, sqlstore.SqlConn, any, any) error) error {
 	var id string
-	loaded := false
 	err := c.QueryRowCtx(ctx, &id, key, func(ctx context.Context, conn sqlstore.SqlConn, _ any) error {
 		value, err := index(ctx, conn, v)
 		if err != nil {
 			return err
 		}
 		id = fmt.Sprint(value)
-		loaded = true
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 	return c.QueryRowCtx(ctx, v, primaryKey(id), func(ctx context.Context, conn sqlstore.SqlConn, out any) error {
-		if loaded {
-			return nil
-		}
+		// The index query may precede a primary invalidation. Never transfer
+		// that earlier row into a reservation acquired after the invalidation.
 		return primary(ctx, conn, out, id)
 	})
 }
