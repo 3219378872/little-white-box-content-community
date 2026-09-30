@@ -46,6 +46,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		Content:          req.Content,
 		Images:           req.Images,
 		Tags:             req.Tags,
+		TagsProvided:     req.Tags != nil,
 		Status:           req.Status,
 		ExpectedRevision: req.ExpectedRevision,
 		MediaIds:         req.MediaIds,

@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // CORE-013：v2 写接口强制乐观锁，缺失或为 0 的 expectedRevision 必须被拒绝。
@@ -77,6 +78,34 @@ func TestDeletePostV2RejectsMissingOrZeroRevision(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, err := l.DeletePostV2(req)
 			assert.True(t, errx.Is(err, errx.ParamError), "want ParamError, got %v", err)
+		})
+	}
+}
+
+func TestUpdatePostV2TagsPresenceSurvivesRPC(t *testing.T) {
+	for _, tt := range []struct {
+		body    string
+		present bool
+		count   int
+	}{
+		{`{"title":"title","expectedRevision":2}`, false, 0},
+		{`{"tags":[],"expectedRevision":2}`, true, 0},
+		{`{"tags":["tag"],"expectedRevision":2}`, true, 1},
+	} {
+		t.Run(tt.body, func(t *testing.T) {
+			var input types.UpdatePostV2Req
+			require.NoError(t, json.Unmarshal([]byte(tt.body), &input))
+			input.PostId = 1
+			content := new(capturePostUpdate)
+			ctx := jwtx.WithClaimsContext(context.Background(), &jwtx.Claims{UserId: 1})
+			_, err := NewUpdatePostV2Logic(ctx, &svc.ServiceContext{ContentService: content}).UpdatePostV2(&input)
+			require.NoError(t, err)
+			wire, err := proto.Marshal(content.request)
+			require.NoError(t, err)
+			decoded := new(contentservice.UpdatePostReq)
+			require.NoError(t, proto.Unmarshal(wire, decoded))
+			require.Equal(t, tt.present, decoded.TagsProvided)
+			require.Len(t, decoded.Tags, tt.count)
 		})
 	}
 }

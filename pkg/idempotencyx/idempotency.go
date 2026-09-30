@@ -3,6 +3,7 @@ package idempotencyx
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -25,6 +26,9 @@ type IdempotencyRecord struct {
 	UserID      int64
 	Key         string
 	CommandHash string
+	// LegacyCommandHash is allowed only when the caller can prove the old
+	// encoding identifies the same command. Never set this for ambiguous input.
+	LegacyCommandHash string
 }
 
 // CommandHash 对命令参数生成 sha256 指纹，用于区分同键异命令。
@@ -35,6 +39,27 @@ func CommandHash(parts ...string) string {
 		_, _ = h.Write([]byte{0})
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// VersionedCommandHash uses a domain/version and length-prefixed byte strings.
+// Unlike CommandHash, NUL and other delimiters cannot erase field boundaries.
+// The digest remains 64 hex characters for the existing persistence schema.
+func VersionedCommandHash(version string, parts ...string) string {
+	h := sha256.New()
+	var size [8]byte
+	for _, part := range append([]string{version}, parts...) {
+		binary.BigEndian.PutUint64(size[:], uint64(len(part)))
+		_, _ = h.Write(size[:])
+		_, _ = h.Write([]byte(part))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// Matches keeps explicitly safe legacy retries compatible without accepting
+// arbitrary old fingerprints as an alternative to the current encoding.
+func (r IdempotencyRecord) Matches(storedHash string) bool {
+	return storedHash != "" && (storedHash == r.CommandHash ||
+		(r.LegacyCommandHash != "" && storedHash == r.LegacyCommandHash))
 }
 
 // Valid 校验幂等记录；空 Key 表示调用方未提供幂等键（不做去重）。
@@ -69,7 +94,7 @@ func ResolveIdempotencySession(
 		return 0, false, err
 	}
 	if found {
-		if existing.CommandHash != rec.CommandHash {
+		if !rec.Matches(existing.CommandHash) {
 			return 0, false, ErrIdempotencyConflict
 		}
 		return existing.ResourceID, false, nil
@@ -94,7 +119,7 @@ func ResolveIdempotencySession(
 	if !found {
 		return 0, false, err
 	}
-	if existing.CommandHash != rec.CommandHash {
+	if !rec.Matches(existing.CommandHash) {
 		return 0, false, ErrIdempotencyConflict
 	}
 	return existing.ResourceID, false, nil

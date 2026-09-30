@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"slices"
+	"strings"
 
 	"esx/app/content/rpc/internal/model"
 	"esx/app/media/rpc/mediaservice"
@@ -38,7 +39,7 @@ func validatePostMedia(ctx context.Context, logger logx.Logger, media mediaservi
 			continue
 		}
 		byID[mediaInfo.Id] = mediaInfo
-		if mediaInfo.UserId != userID || mediaInfo.Status != 1 {
+		if mediaInfo.UserId != userID || mediaInfo.Status != 1 || mediaInfo.FileType != "image" || strings.TrimSpace(mediaInfo.Url) == "" {
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
 	}

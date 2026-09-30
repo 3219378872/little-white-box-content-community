@@ -5728,7 +5728,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: followerCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         followingCount:
           type: integer
@@ -5737,7 +5737,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: followingCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         postCount:
           type: integer
@@ -5746,7 +5746,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: postCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         favoritesVisible:
           type: boolean
@@ -5991,7 +5991,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - postId
@@ -6100,7 +6100,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: viewCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         likeCount:
           type: integer
@@ -6109,7 +6109,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         commentCount:
           type: integer
@@ -6118,7 +6118,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: commentCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         favoriteCount:
           type: integer
@@ -6127,7 +6127,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: favoriteCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         isLiked:
           type: boolean
@@ -6152,7 +6152,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         createdAt:
           type: integer
@@ -6161,7 +6161,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         mediaIds:
           type: array
@@ -6211,7 +6211,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - status
@@ -6286,7 +6286,7 @@ components:
           x-binding: json
           description: 必填；缺失/0 → 参数错误
           x-dart-name: expectedRevision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         mediaIds:
           type: array
@@ -6323,7 +6323,7 @@ components:
           x-binding: json
           description: 必填；缺失/0 → 参数错误
           x-dart-name: expectedRevision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - postId
@@ -6450,7 +6450,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: viewCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         likeCount:
           type: integer
@@ -6459,7 +6459,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         commentCount:
           type: integer
@@ -6468,7 +6468,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: commentCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         favoriteCount:
           type: integer
@@ -6477,7 +6477,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: favoriteCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         isLiked:
           type: boolean
@@ -6502,7 +6502,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         createdAt:
           type: integer
@@ -6511,7 +6511,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         mediaIds:
           type: array
@@ -6598,6 +6598,17 @@ components:
           x-dart-name: replyUserId
           x-dart-type: Object
           x-dart-required: true
+        replyToCommentId:
+          type: integer
+          format: int64
+          x-go-name: ReplyToCommentId
+          x-go-type: int64
+          x-binding: json
+          description: Actual visible root or child being replied to; parentId remains the root. Omitted uses the root for compatibility.
+          x-dart-name: replyToCommentId
+          x-dart-type: Object?
+          x-dart-required: false
+          x-dart-omit-null: true
         content:
           type: string
           x-go-name: Content
@@ -6763,7 +6774,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         createdAt:
           type: integer
@@ -6772,7 +6783,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         replyCount:
           type: integer
@@ -6782,7 +6793,7 @@ components:
           x-binding: json
           description: 楼中楼回复总数，仅顶级评论有值
           x-dart-name: replyCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         replies:
           type: array
@@ -6827,7 +6838,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: total
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         page:
           type: integer
@@ -6906,7 +6917,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: total
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         page:
           type: integer
@@ -7100,7 +7111,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: fileSize
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - mediaId
@@ -7161,7 +7172,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: occurredAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         action:
           type: string
@@ -7222,7 +7233,7 @@ components:
           x-go-type: '*int64'
           x-binding: json
           x-dart-name: durationMs
-          x-dart-type: int?
+          x-dart-type: Object?
           x-dart-required: true
         recallSource:
           type: string
@@ -7415,7 +7426,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         feedType:
           type: integer
@@ -7469,7 +7480,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: viewCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         likeCount:
           type: integer
@@ -7478,7 +7489,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         commentCount:
           type: integer
@@ -7487,7 +7498,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: commentCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         favoriteCount:
           type: integer
@@ -7496,7 +7507,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: favoriteCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         isLiked:
           type: boolean
@@ -7532,7 +7543,7 @@ components:
           x-go-type: int64
           x-binding: query
           x-dart-name: cursorCreatedAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         cursorPostId:
           type: integer
@@ -7581,7 +7592,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: nextCursorCreatedAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         nextCursorPostId:
           type: integer
@@ -7705,7 +7716,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         feedType:
           type: integer
@@ -7759,7 +7770,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: viewCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         likeCount:
           type: integer
@@ -7768,7 +7779,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         commentCount:
           type: integer
@@ -7777,7 +7788,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: commentCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         favoriteCount:
           type: integer
@@ -7786,7 +7797,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: favoriteCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         isLiked:
           type: boolean
@@ -8003,7 +8014,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: likeCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         commentCount:
           type: integer
@@ -8012,7 +8023,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: commentCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         createdAt:
           type: integer
@@ -8021,7 +8032,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -8084,7 +8095,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: followerCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -8111,7 +8122,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: postCount
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - name
@@ -8225,7 +8236,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: total
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - users
@@ -8343,7 +8354,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: lastMessageTime
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         unreadCount:
           type: integer
@@ -8382,7 +8393,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: total
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - conversations
@@ -8492,7 +8503,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         mediaId:
           type: integer
@@ -8660,7 +8671,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: optedOutAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - enabled
@@ -8699,7 +8710,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: grantedAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         revokedAt:
           type: integer
@@ -8708,7 +8719,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revokedAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         consentVersion:
           type: integer
@@ -8816,7 +8827,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: lastMessageAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         activeRunId:
           type: integer
@@ -8982,7 +8993,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         changeId:
           type: integer
@@ -9193,7 +9204,7 @@ components:
           x-go-type: int64
           x-binding: query
           x-dart-name: afterSeq
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -9278,7 +9289,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         payloadJson:
           type: string
@@ -9313,7 +9324,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: seq
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         type:
           type: string
@@ -9594,7 +9605,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: deadlineMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         createdAtMs:
           type: integer
@@ -9603,7 +9614,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -9756,7 +9767,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: retrievedAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -9872,7 +9883,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: revision
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         url:
           type: string
@@ -9905,7 +9916,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: publishedAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         available:
           type: boolean
@@ -10094,7 +10105,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
         updatedAtMs:
           type: integer
@@ -10103,7 +10114,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: updatedAtMs
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
@@ -10541,7 +10552,7 @@ components:
           x-go-type: int64
           x-binding: json
           x-dart-name: createdAt
-          x-dart-type: num
+          x-dart-type: Object
           x-dart-required: true
       required:
       - id
