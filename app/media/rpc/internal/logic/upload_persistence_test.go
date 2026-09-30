@@ -14,7 +14,7 @@ import (
 
 func TestCommittedUploadSurvivesResponseFailure(t *testing.T) {
 	unitInitSnowflake(t)
-	for _, kind := range []string{"image", "video"} {
+	for _, kind := range []string{"image", "video", "audio"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			sendErr := errors.New("client disconnected after commit")
@@ -31,10 +31,15 @@ func TestCommittedUploadSurvivesResponseFailure(t *testing.T) {
 				stream.sendErr = sendErr
 				err = NewUploadImageLogic(ctx, svcCtx).UploadImage(stream)
 				require.Len(t, storage.putCalls, 2)
-			} else {
+			} else if kind == "video" {
 				stream := unitVideoStreamFromBytes(ctx, 1, "video.mp4", "committed-video", unitTestMP4(), 64)
 				stream.sendErr = sendErr
 				err = NewUploadVideoLogic(ctx, svcCtx).UploadVideo(stream)
+				require.Len(t, storage.putCalls, 1)
+			} else {
+				stream := unitAudioStreamFromBytes(ctx, 1, "audio.wav", "committed-audio", unitTestWAV(), 64)
+				stream.sendErr = sendErr
+				err = NewUploadAudioLogic(ctx, svcCtx).UploadAudio(stream)
 				require.Len(t, storage.putCalls, 1)
 			}
 			require.ErrorIs(t, err, sendErr)
@@ -42,6 +47,27 @@ func TestCommittedUploadSurvivesResponseFailure(t *testing.T) {
 			files, err := os.ReadDir(config.Upload.TempDir)
 			require.NoError(t, err)
 			require.Empty(t, files)
+		})
+	}
+}
+
+// An adapter that cannot classify a failure must opt into retention by default;
+// the zero value must never grant permission to delete possibly committed data.
+func TestUnclassifiedUploadFailureRetainsObjects(t *testing.T) {
+	unitInitSnowflake(t)
+	for _, kind := range []string{"image", "video", "audio"} {
+		t.Run(kind, func(t *testing.T) {
+			storage := &unitObjectStorage{}
+			command := &fakeMediaCommandModel{createMediaFn: func(context.Context, *model.Media, idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
+				return model.MediaCommandResult{}, errors.New("unclassified persistence failure")
+			}}
+			cfg := unitUploadConfig()
+			cfg.Upload.TempDir = t.TempDir()
+			sc := unitSvcCtx(cfg, &fakeMediaModel{}, command, storage)
+			_, err := runCommitSafetyUpload(t, context.Background(), sc, kind, "unknown-adapter")
+			require.Error(t, err)
+			require.NotEmpty(t, storage.putCalls)
+			require.Empty(t, storage.deleteKeys)
 		})
 	}
 }

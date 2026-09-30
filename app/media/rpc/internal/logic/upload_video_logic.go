@@ -109,14 +109,14 @@ func (l *UploadVideoLogic) UploadVideo(stream pb2.MediaService_UploadVideoServer
 		FileSize:     sink.Size(),
 		Status:       1,
 	}
-	stored, created, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	stored, keepObjects, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	keepUploadedObject = keepObjects
 	if err != nil {
 		return err
 	}
-	if !created {
+	if !keepObjects {
 		return stream.SendAndClose(&pb2.UploadVideoResp{Media: toPBMediaInfo(stored)})
 	}
-	keepUploadedObject = true
 
 	l.Infow("upload video success",
 		logx.Field("media_id", mediaId),

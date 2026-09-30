@@ -125,14 +125,14 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		return err
 	}
 
-	stored, created, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	stored, keepObjects, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	keepUploadedObjects = keepObjects
 	if err != nil {
 		return err
 	}
-	if !created {
+	if !keepObjects {
 		return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(stored)})
 	}
-	keepUploadedObjects = true
 
 	l.Infow("upload image success",
 		logx.Field("media_id", row.Id),

@@ -130,8 +130,9 @@ func nullInt(v int) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(v), Valid: true}
 }
 
-// compensateUploadedObjects deletes objects created before the media row was
-// committed. An S3 failure is converted into a durable media-delete outbox
+// compensateUploadedObjects deletes only this attempt's objects after a
+// definite pre-commit failure or confirmed duplicate. Unknown commits must never
+// reach this unconditional cleanup path. An S3 failure is converted into a durable media-delete outbox
 // event so broker delivery and the existing cleanup consumer can retry it.
 func compensateUploadedObjects(ctx context.Context, logger logx.Logger, svcCtx *svc.ServiceContext, objectKeys ...string) {
 	if logger == nil || svcCtx == nil || svcCtx.Storage == nil {

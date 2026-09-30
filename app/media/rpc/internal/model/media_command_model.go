@@ -2,17 +2,32 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"esx/pkg/idempotencyx"
 	"esx/pkg/outboxx"
 	"fmt"
+	"time"
 
 	sqlx "esx/pkg/sqlstore"
 )
+
+// MediaCommitOutcome describes whether uploaded objects may have a durable owner.
+// The zero value is deliberately unknown: an unclassified failure must not delete data.
+type MediaCommitOutcome uint8
+
+const (
+	MediaCommitUnknown MediaCommitOutcome = iota
+	MediaNotCommitted
+	MediaCommitted
+)
+
+const mediaCommitReconcileTimeout = 2 * time.Second
 
 // MediaCommandResult 是一次媒体创建命令的结果。
 type MediaCommandResult struct {
 	MediaID int64
 	Created bool
+	Outcome MediaCommitOutcome
 }
 
 // OutboxEnqueuer 在业务事务内写入事务发件箱（outbox）。
@@ -55,16 +70,18 @@ func NewMediaCommandModel(conn sqlx.SqlConn, outbox OutboxEnqueuer) MediaCommand
 // CreateMedia 在同事务内插入媒体行与幂等记录，避免重试产生重复资源（CORE-050）。
 func (m *mediaCommandModel) CreateMedia(ctx context.Context, media *Media, idem idempotencyx.IdempotencyRecord) (MediaCommandResult, error) {
 	if media == nil || m.conn == nil {
-		return MediaCommandResult{}, fmt.Errorf("media command model is not configured")
+		return MediaCommandResult{Outcome: MediaNotCommitted}, fmt.Errorf("media command model is not configured")
 	}
-	var result MediaCommandResult
+	// A callback error cannot issue COMMIT. Once the callback succeeds, a
+	// transaction error is ambiguous (including cancellation before its ACK).
+	result := MediaCommandResult{Outcome: MediaNotCommitted}
 	err := m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
 		resourceID, created, err := idempotencyx.ResolveIdempotencySession(ctx, session, idem, media.Id, media.Id)
 		if err != nil {
 			return err
 		}
 		if !created {
-			result = MediaCommandResult{MediaID: resourceID, Created: false}
+			result = MediaCommandResult{MediaID: resourceID, Created: false, Outcome: MediaCommitUnknown}
 			return nil
 		}
 		if _, err := session.ExecCtx(ctx, `INSERT INTO media
@@ -77,10 +94,62 @@ func (m *mediaCommandModel) CreateMedia(ctx context.Context, media *Media, idem 
 		); err != nil {
 			return err
 		}
-		result = MediaCommandResult{MediaID: media.Id, Created: true}
+		result = MediaCommandResult{MediaID: media.Id, Created: true, Outcome: MediaCommitUnknown}
 		return nil
 	})
+	if err == nil {
+		result.Outcome = MediaCommitted
+	} else if result.Outcome == MediaCommitUnknown && m.reconcileCreate(ctx, media, idem, result) {
+		result.Outcome = MediaCommitted
+		err = nil
+	}
 	return result, err
+}
+
+// reconcileCreate only upgrades positive proof of commit. A missing row, failed
+// lookup or mismatched owner is NOT evidence of rollback. Use the command DB
+// directly (the same authoritative writer, no cache/replica) and detach only the
+// cancellation/deadline, keeping request values for tracing with a bounded budget.
+func (m *mediaCommandModel) reconcileCreate(ctx context.Context, media *Media, idem idempotencyx.IdempotencyRecord, result MediaCommandResult) bool {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), mediaCommitReconcileTimeout)
+	defer cancel()
+	var owner struct {
+		ID                 int64          `db:"id"`
+		UserID             int64          `db:"user_id"`
+		ObjectKey          sql.NullString `db:"object_key"`
+		ThumbnailObjectKey sql.NullString `db:"thumbnail_object_key"`
+		Status             int64          `db:"status"`
+	}
+	query := `SELECT m.id, m.user_id, m.object_key, m.thumbnail_object_key, m.status FROM media m`
+	args := []any{result.MediaID}
+	if idem.Key != "" {
+		query += " JOIN `idempotency` i ON i.resource_id = m.id" +
+			" WHERE m.id = ? AND i.scope = ? AND i.user_id = ? AND i.`key` = ? AND i.command_hash = ?"
+		args = append(args, idem.Scope, idem.UserID, idem.Key, idem.CommandHash)
+	} else {
+		query += " WHERE m.id = ?"
+	}
+	query += " LIMIT 1"
+	if err := m.conn.QueryRowCtx(ctx, &owner, query, args...); err != nil {
+		return false
+	}
+	if owner.ID != result.MediaID || owner.UserID != media.UserId || owner.Status != 1 {
+		return false
+	}
+	if result.Created {
+		return owner.ID == media.Id && owner.ObjectKey == media.ObjectKey && owner.ThumbnailObjectKey == media.ThumbnailObjectKey
+	}
+	// A confirmed duplicate may discard only this attempt's fresh keys. Never
+	// interpret a key collision or inconsistent identity as permission to delete.
+	if owner.ID == media.Id {
+		return false
+	}
+	for _, key := range []sql.NullString{media.ObjectKey, media.ThumbnailObjectKey} {
+		if key.Valid && key.String != "" && (key == owner.ObjectKey || key == owner.ThumbnailObjectKey) {
+			return false
+		}
+	}
+	return true
 }
 
 // SoftDelete 条件软删并在同事务投递 outbox 事件（架构约定：权威业务事务通过

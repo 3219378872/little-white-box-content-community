@@ -252,7 +252,7 @@ func TestUploadImageLogic_CreateMediaIdempotencyConflict(t *testing.T) {
 	store := &unitObjectStorage{}
 	commandModel := &fakeMediaCommandModel{
 		createMediaFn: func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
-			return model.MediaCommandResult{}, idempotencyx.ErrIdempotencyConflict
+			return model.MediaCommandResult{Outcome: model.MediaNotCommitted}, idempotencyx.ErrIdempotencyConflict
 		},
 	}
 	stream := unitImageStreamFromBytes(ctx, 4010, "conflict.jpg", "idem-conflict", data, 256)
@@ -270,7 +270,7 @@ func TestUploadImageLogic_CreateMediaUnexpectedError(t *testing.T) {
 	store := &unitObjectStorage{}
 	commandModel := &fakeMediaCommandModel{
 		createMediaFn: func(ctx context.Context, media *model.Media, idem idempotencyx.IdempotencyRecord) (model.MediaCommandResult, error) {
-			return model.MediaCommandResult{}, assert.AnError
+			return model.MediaCommandResult{Outcome: model.MediaNotCommitted}, assert.AnError
 		},
 	}
 	stream := unitImageStreamFromBytes(ctx, 4011, "dberr.jpg", "idem-dberr", data, 256)
