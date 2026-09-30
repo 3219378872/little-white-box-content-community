@@ -29,16 +29,18 @@ type CreateCommentLogic struct {
 // 哈希覆盖内容、帖子、回复目标评论与被回复用户：同键异命令返回幂等冲突，
 // 而不是静默返回旧评论。
 func commentIdempotencyRecord(in *pb.CreateCommentReq) idempotencyx.IdempotencyRecord {
+	// Explicit root targets and the omitted legacy target represent the same
+	// command. Keep the old fingerprint for those retries.
+	parts := []string{in.GetContent(), strconv.FormatInt(in.GetPostId(), 10),
+		strconv.FormatInt(in.GetParentId(), 10), strconv.FormatInt(in.GetReplyUserId(), 10)}
+	hash := idempotencyx.CommandHash(parts...)
+	if in.ReplyToCommentId != 0 && in.ReplyToCommentId != in.ParentId {
+		hash = idempotencyx.VersionedCommandHash("comment:create:v2", append(parts,
+			strconv.FormatInt(in.ReplyToCommentId, 10))...)
+	}
 	return idempotencyx.IdempotencyRecord{
-		Scope:  "comment:create",
-		UserID: in.GetUserId(),
-		Key:    strings.TrimSpace(in.GetIdempotencyKey()),
-		CommandHash: idempotencyx.CommandHash(
-			in.GetContent(),
-			strconv.FormatInt(in.GetPostId(), 10),
-			strconv.FormatInt(in.GetParentId(), 10),
-			strconv.FormatInt(in.GetReplyUserId(), 10),
-		),
+		Scope: "comment:create", UserID: in.GetUserId(),
+		Key: strings.TrimSpace(in.GetIdempotencyKey()), CommandHash: hash,
 	}
 }
 
@@ -151,8 +153,8 @@ func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) erro
 	// 楼中楼为严格两层：回复必须同时携带父评论与被回复用户，且父评论必须是
 	// 当前帖子上可见的顶级评论。ReplyUserId 由客户端传入且用于构造回复通知，
 	// 必须校验其与父评论的从属关系，防止对任意用户伪造"评论回复"通知。
-	if in.ParentId > 0 || in.ReplyUserId > 0 {
-		if in.ParentId <= 0 || in.ReplyUserId <= 0 {
+	if in.ParentId != 0 || in.ReplyUserId != 0 || in.ReplyToCommentId != 0 {
+		if in.ParentId <= 0 || in.ReplyUserId <= 0 || in.ReplyToCommentId < 0 {
 			return errx.NewWithCode(errx.ParamError)
 		}
 		parent, err := l.svcCtx.CommentModel.FindCommentById(l.ctx, in.ParentId)
@@ -166,7 +168,7 @@ func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) erro
 			)
 			return errx.NewWithCode(errx.SystemError)
 		}
-		if parent.PostId != in.PostId || parent.UserId != in.ReplyUserId {
+		if parent == nil || parent.PostId != in.PostId {
 			return errx.NewWithCode(errx.ParamError)
 		}
 		if parent.Status != 1 {
@@ -174,6 +176,28 @@ func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) erro
 		}
 		if parent.ParentId.Valid {
 			// 不支持对楼中楼再嵌套；客户端应将 parent 归一到顶级评论。
+			return errx.NewWithCode(errx.ParamError)
+		}
+		target := parent
+		if in.ReplyToCommentId > 0 && in.ReplyToCommentId != parent.Id {
+			target, err = l.svcCtx.CommentModel.FindCommentById(l.ctx, in.ReplyToCommentId)
+			if errors.Is(err, model2.ErrNotFound) {
+				return errx.NewWithCode(errx.ParamError)
+			}
+			if err != nil {
+				l.Errorw("CommentModel.FindCommentById reply target failed", logx.Field("replyToCommentId", in.ReplyToCommentId), logx.Field("err", err.Error()))
+				return errx.NewWithCode(errx.SystemError)
+			}
+			if target == nil || target.PostId != in.PostId || !target.ParentId.Valid || target.ParentId.Int64 != parent.Id {
+				return errx.NewWithCode(errx.ParamError)
+			}
+			if target.Status != 1 {
+				return errx.NewWithCode(errx.ContentNotFound)
+			}
+		}
+		// A flattened reply may target a child, but the claimed recipient must
+		// be that exact visible comment's author; never trust a user ID alone.
+		if target.UserId != in.ReplyUserId {
 			return errx.NewWithCode(errx.ParamError)
 		}
 	}

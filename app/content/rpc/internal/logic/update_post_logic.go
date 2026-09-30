@@ -138,6 +138,11 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 
 func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord, error) {
 	key := strings.TrimSpace(in.GetIdempotencyKey())
+	// protobuf encodes both nil and [] as an absent repeated value.
+	tags := in.Tags
+	if len(tags) == 0 {
+		tags = nil
+	}
 	payload, err := json.Marshal(struct {
 		PostID           int64    `json:"post_id"`
 		AuthorID         int64    `json:"author_id"`
@@ -150,8 +155,9 @@ func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord
 		MediaIDs         []int64  `json:"media_ids"`
 		ImagesProvided   bool     `json:"images_provided,omitempty"`
 		MediaIDsProvided bool     `json:"media_ids_provided,omitempty"`
-	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds,
-		in.ImagesProvided && len(in.Images) == 0, in.MediaIdsProvided && len(in.MediaIds) == 0})
+		TagsProvided     bool     `json:"tags_provided,omitempty"`
+	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, tags, in.Status, in.ExpectedRevision, in.MediaIds,
+		in.ImagesProvided && len(in.Images) == 0, in.MediaIdsProvided && len(in.MediaIds) == 0, (in.TagsProvided || in.Tags != nil) && len(in.Tags) == 0})
 	if err != nil {
 		return idempotencyx.IdempotencyRecord{}, errx.NewWithCode(errx.ParamError)
 	}
@@ -196,7 +202,7 @@ func validateUpdatePost(in *pb.UpdatePostReq) error {
 		return errx.NewWithCode(errx.ParamError)
 	}
 	if in.Title == "" && in.Content == "" && in.Images == nil && in.Tags == nil &&
-		in.Status == nil && len(in.MediaIds) == 0 && !in.ImagesProvided && !in.MediaIdsProvided {
+		in.Status == nil && len(in.MediaIds) == 0 && !in.ImagesProvided && !in.MediaIdsProvided && !in.TagsProvided {
 		return errx.NewWithCode(errx.ParamError)
 	}
 
@@ -302,7 +308,7 @@ func (l *UpdatePostLogic) tagsForUpdate(in *pb.UpdatePostReq, post *model.Post) 
 	// 标签仅在显式提供时替换；缺省时保留现有标签并让事件沿用旧值，
 	// 避免 title-only 更新静默清空标签（B3）。模型层在 replaceTags=false
 	// 时不触碰 post_tag，因此传空切片。
-	replaceTags := in.Tags != nil
+	replaceTags := in.TagsProvided || in.Tags != nil
 	var eventTags []string
 	var modelTags []string
 	var modelTagIDs []int64

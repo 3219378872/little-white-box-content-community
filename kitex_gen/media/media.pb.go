@@ -117,7 +117,6 @@ type UploadImageReq struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Data:
-	//
 	//	*UploadImageReq_Meta
 	//	*UploadImageReq_Chunk
 	Data isUploadImageReq_Data `protobuf_oneof:"data"`
@@ -199,7 +198,6 @@ type UploadVideoReq struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Data:
-	//
 	//	*UploadVideoReq_Meta
 	//	*UploadVideoReq_Chunk
 	Data isUploadVideoReq_Data `protobuf_oneof:"data"`
@@ -807,7 +805,6 @@ type UploadAudioReq struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Data:
-	//
 	//	*UploadAudioReq_Meta
 	//	*UploadAudioReq_Chunk
 	Data isUploadAudioReq_Data `protobuf_oneof:"data"`

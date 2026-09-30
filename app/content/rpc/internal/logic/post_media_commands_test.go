@@ -60,7 +60,7 @@ func TestUpdatePostMediaPresenceSurvivesRPC(t *testing.T) {
 }
 
 func TestUpdatePostRetainsOwnedMediaAndRejectsForeignURLs(t *testing.T) {
-	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 10, UserId: 1, Status: 1, Url: "old.jpg"}}}}
+	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 10, UserId: 1, Status: 1, FileType: "image", Url: "old.jpg"}}}}
 	l := NewUpdatePostLogic(context.Background(), &svc.ServiceContext{MediaService: media})
 	post := &model.Post{Title: "title", Content: "body", Status: 1, Images: sql.NullString{String: "legacy.jpg,old.jpg", Valid: true}, MediaIds: sql.NullString{String: "[10]", Valid: true}}
 	request := &pb.UpdatePostReq{AuthorId: 1, Images: []string{"old.jpg", "new.jpg"}, MediaIds: []int64{20}}
@@ -88,7 +88,7 @@ func TestCreatedPostImagesSupportPartialUpdate(t *testing.T) {
 	}, urls)
 	require.NoError(t, err)
 	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{
-		{Id: 10, UserId: 1, Status: 1, Url: urls[0]}, {Id: 11, UserId: 1, Status: 1, Url: urls[1]},
+		{Id: 10, UserId: 1, Status: 1, FileType: "image", Url: urls[0]}, {Id: 11, UserId: 1, Status: 1, FileType: "image", Url: urls[1]},
 	}}}
 	l := NewUpdatePostLogic(ctx, &svc.ServiceContext{MediaService: media})
 	for _, images := range [][]string{{urls[1]}, {urls[1], urls[0]}} {
@@ -105,7 +105,7 @@ func TestCreatedPostImagesSupportPartialUpdate(t *testing.T) {
 
 func TestUpdatePostRecoversFromInvalidExistingMediaWithoutRetainingURLs(t *testing.T) {
 	post := &model.Post{Title: "title", Content: "body", Status: 1, Images: sql.NullString{String: "deleted.jpg,retained.jpg", Valid: true}, MediaIds: sql.NullString{String: "[10,11]", Valid: true}}
-	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 11, UserId: 1, Status: 1, Url: "retained.jpg"}}}}
+	media := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 11, UserId: 1, Status: 1, FileType: "image", Url: "retained.jpg"}}}}
 	l := NewUpdatePostLogic(context.Background(), &svc.ServiceContext{MediaService: media})
 	_, err := l.mergePostFields(&pb.UpdatePostReq{AuthorId: 1, Images: []string{"retained.jpg"}}, post, nil)
 	require.True(t, errx.Is(err, errx.ParamError))

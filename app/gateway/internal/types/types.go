@@ -301,11 +301,12 @@ type CreateAssistantWatchResp struct {
 }
 
 type CreateCommentReq struct {
-	PostId         int64  `json:"postId"`
-	ParentId       int64  `json:"parentId,optional"`
-	ReplyUserId    int64  `json:"replyUserId,optional"`
-	Content        string `json:"content"`
-	IdempotencyKey string `json:"idempotencyKey,optional"`
+	PostId           int64  `json:"postId"`
+	ParentId         int64  `json:"parentId,optional"`
+	ReplyUserId      int64  `json:"replyUserId,optional"`
+	ReplyToCommentId int64  `json:"replyToCommentId,optional"`
+	Content          string `json:"content"`
+	IdempotencyKey   string `json:"idempotencyKey,optional"`
 }
 
 type CreateCommentResp struct {

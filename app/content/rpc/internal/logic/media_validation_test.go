@@ -2,6 +2,8 @@ package logic
 
 import (
 	"context"
+	"esx/app/content/rpc/internal/svc"
+	pb "esx/kitex_gen/content"
 	"testing"
 
 	"github.com/cloudwego/kitex/client/callopt"
@@ -26,7 +28,7 @@ func (f *fakeMediaValidator) BatchGetMedia(_ context.Context, _ *mediapb.BatchGe
 }
 
 func completedMedia(id, userID int64) *mediapb.MediaInfo {
-	return &mediapb.MediaInfo{Id: id, UserId: userID, Status: 1}
+	return &mediapb.MediaInfo{Id: id, UserId: userID, Status: 1, FileType: "image", Url: "https://media.example/image"}
 }
 
 func TestValidatePostMedia(t *testing.T) {
@@ -81,4 +83,29 @@ func TestValidatePostMedia(t *testing.T) {
 		_, err := validatePostMedia(context.Background(), logger, fake, 1, []int64{10})
 		assert.True(t, errx.Is(err, errx.ServiceUnavailable))
 	})
+}
+
+func TestPostMediaRejectsWrongKindAndEmptyURL(t *testing.T) {
+	for _, tt := range []struct{ kind, url string }{{"audio", "audio.mp3"}, {"video", "video.mp4"}, {"image", ""}, {"image", " \n\t"}, {"", "image.jpg"}} {
+		t.Run(tt.kind+tt.url, func(t *testing.T) {
+			service := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 10, UserId: 1, Status: 1, FileType: tt.kind, Url: tt.url}}}}
+			ctx := context.Background()
+			_, err := validatePostMedia(ctx, logx.WithContext(ctx), service, 1, []int64{10})
+			assert.True(t, errx.Is(err, errx.ParamError))
+		})
+	}
+}
+
+func TestPostCreateAndUpdateRejectInvalidImageMedia(t *testing.T) {
+	for _, tt := range []struct{ kind, url string }{{"audio", "audio.mp3"}, {"video", "video.mp4"}, {"image", ""}} {
+		service := &fakeMediaValidator{response: &mediapb.BatchGetMediaResp{Medias: []*mediapb.MediaInfo{{Id: 10, UserId: 1, Status: 1, FileType: tt.kind, Url: tt.url}}}}
+		ctx := context.Background()
+		sc := &svc.ServiceContext{MediaService: service}
+		created, err := NewCreatePostLogic(ctx, sc).CreatePost(&pb.CreatePostReq{AuthorId: 1, Title: "title", Content: "body", Status: 1, MediaIds: []int64{10}})
+		assert.Nil(t, created)
+		assert.True(t, errx.Is(err, errx.ParamError))
+		updated, err := NewUpdatePostLogic(ctx, sc).UpdatePost(&pb.UpdatePostReq{PostId: 5, AuthorId: 1, ExpectedRevision: 3, MediaIds: []int64{10}})
+		assert.Nil(t, updated)
+		assert.True(t, errx.Is(err, errx.ParamError))
+	}
 }

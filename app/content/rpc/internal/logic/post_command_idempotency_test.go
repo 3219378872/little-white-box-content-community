@@ -86,6 +86,7 @@ func TestUpdatePostIdempotencyPreservesExistingCommandHashes(t *testing.T) {
 		request *pb.UpdatePostReq
 	}{
 		{"title only", &pb.UpdatePostReq{Title: "after"}},
+		{"nonempty tags", &pb.UpdatePostReq{Tags: []string{"tag"}, TagsProvided: true}},
 		{"existing images", &pb.UpdatePostReq{Images: []string{"owned.jpg"}, ImagesProvided: true}},
 		{"existing media IDs", &pb.UpdatePostReq{MediaIds: []int64{10}, MediaIdsProvided: true}},
 		{"existing images and media IDs", &pb.UpdatePostReq{Images: []string{"owned.jpg"}, ImagesProvided: true, MediaIds: []int64{10}, MediaIdsProvided: true}},
@@ -111,12 +112,15 @@ func TestUpdatePostIdempotencyPreservesExistingCommandHashes(t *testing.T) {
 
 func TestUpdatePostExplicitEmptyMediaConflictsWithOmittedReplay(t *testing.T) {
 	base := &pb.UpdatePostReq{PostId: 9, AuthorId: 3, Title: "after", ExpectedRevision: 7, IdempotencyKey: "agent:update:r:c"}
-	for _, field := range []string{"images", "media IDs"} {
+	for _, field := range []string{"images", "media IDs", "tags"} {
 		t.Run(field, func(t *testing.T) {
 			request := proto.Clone(base).(*pb.UpdatePostReq)
-			if field == "images" {
+			switch field {
+			case "images":
 				request.ImagesProvided, request.Images = true, []string{}
-			} else {
+			case "tags":
+				request.TagsProvided, request.Tags = true, []string{}
+			default:
 				request.MediaIdsProvided, request.MediaIds = true, []int64{}
 			}
 			wire, err := proto.Marshal(request)
@@ -148,4 +152,17 @@ func legacyUpdatePostHash(t *testing.T, in *pb.UpdatePostReq) string {
 	}{in.PostId, in.AuthorId, in.Title, in.Content, in.Images, in.Tags, in.Status, in.ExpectedRevision, in.MediaIds})
 	require.NoError(t, err)
 	return idempotencyx.CommandHash(string(payload))
+}
+
+func TestExplicitEmptyTagsHashStableAcrossRPC(t *testing.T) {
+	request := &pb.UpdatePostReq{PostId: 9, AuthorId: 3, ExpectedRevision: 7, Tags: []string{}, TagsProvided: true, IdempotencyKey: "key"}
+	before, err := updatePostIdempotency(request)
+	require.NoError(t, err)
+	wire, err := proto.Marshal(request)
+	require.NoError(t, err)
+	decoded := new(pb.UpdatePostReq)
+	require.NoError(t, proto.Unmarshal(wire, decoded))
+	after, err := updatePostIdempotency(decoded)
+	require.NoError(t, err)
+	require.Equal(t, before.CommandHash, after.CommandHash)
 }

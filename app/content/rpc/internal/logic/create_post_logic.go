@@ -12,7 +12,6 @@ import (
 	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
 	"esx/pkg/util"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,16 +38,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if err := validateCreatePost(in); err != nil {
 		return nil, err
 	}
-	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
-	idem := idempotencyx.IdempotencyRecord{
-		Scope:  "post:create",
-		UserID: in.AuthorId,
-		Key:    idempotencyKey,
-		CommandHash: idempotencyx.CommandHash(
-			in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
-			strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
-		),
-	}
+	idem := createPostIdempotencyRecord(in)
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}

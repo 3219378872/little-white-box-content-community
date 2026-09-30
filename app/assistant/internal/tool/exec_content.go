@@ -263,6 +263,7 @@ func updatePostExecutor(content contentservice.ContentService, media mediaservic
 		}
 		if args.Tags != nil {
 			req.Tags = sanitizeTags(args.Tags)
+			req.TagsProvided = true
 		}
 		if args.Status != nil {
 			req.Status = args.Status
