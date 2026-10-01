@@ -30,6 +30,11 @@ type fakeStore struct {
 	assetID    int64
 
 	err, qualsErr, idErr, snapshotErr error
+	// getAssetErr / recorded 单独覆盖 GetAsset 的结果；都未设置时沿用 asset 与 err。
+	getAssetErr error
+	recorded    *store.Asset
+	// replayed 模拟幂等重放：CreateAsset 返回首次上传的记录。
+	replayed *store.Asset
 
 	calls           map[string]int
 	advertiserInput store.AdvertiserInput
@@ -112,17 +117,27 @@ func (f *fakeStore) CreateAsset(_ context.Context, asset store.Asset, _ string, 
 	if f.err != nil {
 		return nil, f.err
 	}
+	if f.replayed != nil {
+		return f.replayed, nil
+	}
 	return &asset, nil
 }
 
 func (f *fakeStore) GetAsset(context.Context, int64) (*store.Asset, error) {
 	f.record("GetAsset")
+	if f.getAssetErr != nil {
+		return nil, f.getAssetErr
+	}
+	if f.recorded != nil {
+		return f.recorded, nil
+	}
 	return f.asset, f.err
 }
 
 type fakeAssets struct {
-	objects        map[string][]byte
-	putErr, getErr error
+	objects                   map[string][]byte
+	deleted                   []string
+	putErr, getErr, deleteErr error
 }
 
 func (f *fakeAssets) PutPrivate(_ context.Context, key string, content []byte, _ string) error {
@@ -133,6 +148,18 @@ func (f *fakeAssets) PutPrivate(_ context.Context, key string, content []byte, _
 		f.objects = map[string][]byte{}
 	}
 	f.objects[key] = content
+	return nil
+}
+
+func (f *fakeAssets) DeletePrivate(ctx context.Context, key string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	f.deleted = append(f.deleted, key)
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	delete(f.objects, key)
 	return nil
 }
 

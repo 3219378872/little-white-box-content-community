@@ -28,6 +28,7 @@ type Store interface {
 type AssetStorage interface {
 	PutPrivate(ctx context.Context, key string, content []byte, mime string) error
 	GetPrivate(ctx context.Context, key string) ([]byte, error)
+	DeletePrivate(ctx context.Context, key string) error
 }
 
 var (

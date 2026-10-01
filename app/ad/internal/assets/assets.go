@@ -130,6 +130,14 @@ func (s *Storage) PutPrivate(ctx context.Context, key string, content []byte, mi
 	return nil
 }
 
+// DeletePrivate 删除私有对象；对象不存在时返回 nil（幂等）。
+func (s *Storage) DeletePrivate(ctx context.Context, key string) error {
+	if err := s.cli.RemoveObject(ctx, s.private, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("assets: delete private: %w", err)
+	}
+	return nil
+}
+
 // GetPrivate 读取私有对象（经 Gateway 鉴权后流式返回）。
 func (s *Storage) GetPrivate(ctx context.Context, key string) ([]byte, error) {
 	object, err := s.cli.GetObject(ctx, s.private, key, minio.GetObjectOptions{})

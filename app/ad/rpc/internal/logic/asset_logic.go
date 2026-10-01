@@ -2,13 +2,17 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 
 	"esx/app/ad/internal/assets"
 	"esx/app/ad/internal/store"
 	"esx/app/ad/rpc/internal/svc"
 	pb "esx/kitex_gen/ad"
 	"esx/pkg/errx"
+
+	logx "esx/pkg/logging"
 )
 
 type UploadAssetLogic struct{ base }
@@ -43,11 +47,41 @@ func (l *UploadAssetLogic) UploadAsset(in *pb.UploadAssetReq) (*pb.UploadAssetRe
 		SizeBytes: inspected.Size, ObjectKey: key,
 	}, in.GetIdempotencyKey(), l.svcCtx.Now())
 	if err != nil {
+		l.discardUnrecorded(id, key)
 		return nil, l.mapError(err, "record asset")
+	}
+	if asset.ObjectKey != key {
+		// 幂等重放返回首次上传的记录，本次写入的对象无人引用。
+		l.deletePrivate(key)
 	}
 	return &pb.UploadAssetResp{Asset: &pb.AssetView{
 		AssetId: asset.ID, Kind: asset.Kind, Sha256: asset.SHA256, MimeType: asset.MimeType, Size: asset.SizeBytes,
 	}}, nil
+}
+
+// assetCleanupTimeout 限定回滚删除的耗时；删除不随请求取消，客户端断开也会完成清理。
+const assetCleanupTimeout = 10 * time.Second
+
+// discardUnrecorded 在登记失败后删除已写入的私有对象。事务可能在返回错误前已提交，
+// 因此只有确认记录不存在时才删除；无法确认时保留对象，宁可遗留也不让已登记的资产丢失内容。
+func (l *UploadAssetLogic) discardUnrecorded(id int64, key string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(l.ctx), assetCleanupTimeout)
+	defer cancel()
+	if _, err := l.svcCtx.Store.GetAsset(ctx, id); !errors.Is(err, store.ErrNotFound) {
+		if err != nil {
+			l.Errorw("keep private asset: record state unknown", logx.Field("objectKey", key), logx.Field("err", err.Error()))
+		}
+		return
+	}
+	l.deletePrivate(key)
+}
+
+func (l *UploadAssetLogic) deletePrivate(key string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(l.ctx), assetCleanupTimeout)
+	defer cancel()
+	if err := l.svcCtx.Assets.DeletePrivate(ctx, key); err != nil {
+		l.Errorw("delete orphaned private asset failed", logx.Field("objectKey", key), logx.Field("err", err.Error()))
+	}
 }
 
 type ReadAssetLogic struct{ base }

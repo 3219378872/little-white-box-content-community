@@ -71,6 +71,88 @@ func TestUploadAssetFailures(t *testing.T) {
 	}
 }
 
+func TestUploadAssetRollsBackUnrecordedObjects(t *testing.T) {
+	content := pngBytes(t)
+	upload := func(t *testing.T, ctx context.Context, fs *fakeStore, objects *fakeAssets) error {
+		t.Helper()
+		svcCtx, _, _ := newSvcCtx(fs)
+		svcCtx.Assets = objects
+		_, err := NewUploadAssetLogic(ctx, svcCtx).UploadAsset(&pb.UploadAssetReq{
+			UserId: 1, Kind: store.AssetCreative, Content: content,
+		})
+		return err
+	}
+	key := assets.PrivateKey(77)
+
+	t.Run("record absent: object deleted", func(t *testing.T) {
+		fs, objects := &fakeStore{assetID: 77, err: errBoom, getAssetErr: store.ErrNotFound}, &fakeAssets{}
+		requireCode(t, upload(t, context.Background(), fs, objects), errx.SystemError)
+		require.Equal(t, []string{key}, objects.deleted)
+		require.NotContains(t, objects.objects, key)
+	})
+
+	t.Run("record committed despite the error: object kept", func(t *testing.T) {
+		fs := &fakeStore{assetID: 77, err: errBoom, recorded: &store.Asset{ID: 77, ObjectKey: key}}
+		objects := &fakeAssets{}
+		requireCode(t, upload(t, context.Background(), fs, objects), errx.SystemError)
+		require.Empty(t, objects.deleted)
+		require.Contains(t, objects.objects, key)
+	})
+
+	t.Run("record state unknown: object kept", func(t *testing.T) {
+		fs, objects := &fakeStore{assetID: 77, err: errBoom}, &fakeAssets{}
+		requireCode(t, upload(t, context.Background(), fs, objects), errx.SystemError)
+		require.Empty(t, objects.deleted)
+	})
+
+	t.Run("cleanup failure keeps the original error", func(t *testing.T) {
+		fs := &fakeStore{assetID: 77, err: store.ErrAssetInvalid, getAssetErr: store.ErrNotFound}
+		objects := &fakeAssets{deleteErr: errBoom}
+		requireCode(t, upload(t, context.Background(), fs, objects), errx.AdMediaInvalid)
+		require.Equal(t, []string{key}, objects.deleted)
+	})
+
+	t.Run("cleanup survives a canceled request", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		fs, objects := &fakeStore{assetID: 77, err: errBoom, getAssetErr: store.ErrNotFound}, &fakeAssets{}
+		requireCode(t, upload(t, ctx, fs, objects), errx.SystemError)
+		require.Equal(t, []string{key}, objects.deleted)
+	})
+}
+
+func TestUploadAssetReplayDeletesTheDuplicateObject(t *testing.T) {
+	first := &store.Asset{ID: 5, UserID: 1, Kind: store.AssetCreative, SHA256: "abc", MimeType: "image/png", ObjectKey: assets.PrivateKey(5)}
+	fs := &fakeStore{assetID: 77, replayed: first}
+	svcCtx, objects, _ := newSvcCtx(fs)
+	objects.objects = map[string][]byte{first.ObjectKey: []byte("original")}
+
+	resp, err := NewUploadAssetLogic(context.Background(), svcCtx).UploadAsset(&pb.UploadAssetReq{
+		UserId: 1, Kind: store.AssetCreative, Content: pngBytes(t), IdempotencyKey: "k",
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(5), resp.Asset.AssetId, "the replay answers with the first upload")
+	require.Equal(t, []string{assets.PrivateKey(77)}, objects.deleted)
+	require.Equal(t, []byte("original"), objects.objects[first.ObjectKey])
+
+	objects.deleteErr = errBoom
+	_, err = NewUploadAssetLogic(context.Background(), svcCtx).UploadAsset(&pb.UploadAssetReq{
+		UserId: 1, Kind: store.AssetCreative, Content: pngBytes(t), IdempotencyKey: "k",
+	})
+	require.NoError(t, err, "a failed cleanup does not fail an idempotent replay")
+}
+
+func TestUploadAssetKeepsRecordedObjects(t *testing.T) {
+	fs := &fakeStore{assetID: 77}
+	svcCtx, objects, _ := newSvcCtx(fs)
+	_, err := NewUploadAssetLogic(context.Background(), svcCtx).UploadAsset(&pb.UploadAssetReq{
+		UserId: 1, Kind: store.AssetCreative, Content: pngBytes(t),
+	})
+	require.NoError(t, err)
+	require.Empty(t, objects.deleted)
+	require.Contains(t, objects.objects, assets.PrivateKey(77))
+}
+
 func TestReadAssetOnlyForOwnerOrAuthorizedReviewer(t *testing.T) {
 	ctx := context.Background()
 	asset := &store.Asset{ID: 5, UserID: 1, ObjectKey: "assets/5", MimeType: "image/png"}
