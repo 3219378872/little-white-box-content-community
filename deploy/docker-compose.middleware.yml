@@ -199,28 +199,7 @@ services:
     networks:
       - xbh-network
 
-  # Milvus 依赖的 MinIO（端口映射到 9100 避免与业务 MinIO 冲突）
-  minio-milvus:
-    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-    container_name: xbh-milvus-minio
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "127.0.0.1:9100:9000"
-      - "127.0.0.1:9101:9001"
-    volumes:
-      - milvus_minio:/minio_data
-    command: minio server /minio_data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    networks:
-      - xbh-network
-
+  # Milvus 的对象存储走 SeaweedFS S3（独立桶与凭据），不再单独部署 MinIO
   milvus:
     image: milvusdb/milvus:v2.2.8
     container_name: xbh-milvus
@@ -228,7 +207,10 @@ services:
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd-milvus:2379
-      MINIO_ADDRESS: minio-milvus:9000
+      MINIO_ADDRESS: seaweedfs:8333
+      MINIO_ACCESS_KEY_ID: xbh-milvus
+      MINIO_SECRET_ACCESS_KEY: xbh-milvus-secret
+      MINIO_BUCKET_NAME: xbh-milvus
     ports:
       - "127.0.0.1:19530:19530"
       - "127.0.0.1:9091:9091"
@@ -242,34 +224,12 @@ services:
     depends_on:
       etcd-milvus:
         condition: service_healthy
-      minio-milvus:
+      seaweedfs:
         condition: service_healthy
     networks:
       - xbh-network
 
-  # MinIO 对象存储（业务使用）
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    container_name: xbh-minio
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-Xbh@Minio2024!}
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    networks:
-      - xbh-network
-
-  # SeaweedFS（业务对象存储，替代 MinIO）
+  # SeaweedFS（唯一对象存储：业务媒体、广告素材、Milvus 与模型仓库各用独立桶）
   seaweedfs:
     image: chrislusf/seaweedfs:4.41
     container_name: xbh-seaweedfs
@@ -447,9 +407,9 @@ services:
       MODEL_MANIFEST_JSON: '[{"version":"rank-v1","uri":"/models/rank-v1.json","active":true}]'
       MODEL_REGISTRY_MANIFEST_URI: ${MODEL_REGISTRY_MANIFEST_URI:-}
       MODEL_REGISTRY_VERSION: ${MODEL_REGISTRY_VERSION:-}
-      MODEL_S3_ENDPOINT: ${MODEL_S3_ENDPOINT:-http://minio:9000}
-      MODEL_S3_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MODEL_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MODEL_S3_ENDPOINT: ${MODEL_S3_ENDPOINT:-http://seaweedfs:8333}
+      MODEL_S3_ACCESS_KEY: ${MODEL_S3_ACCESS_KEY}
+      MODEL_S3_SECRET_KEY: ${MODEL_S3_SECRET_KEY}
       MODEL_S3_REGION: ${MODEL_S3_REGION:-us-east-1}
       GRPC_WORKERS: "16"
       SHADOW_WORKERS: "2"
@@ -496,22 +456,23 @@ services:
     networks:
       - xbh-network
 
+  # 用 SeaweedFS 自带的 weed shell 经 master/filer 管理面建桶，无需 S3 凭据
   model-registry-init:
     profiles: ["training"]
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: chrislusf/seaweedfs:4.41
     container_name: xbh-model-registry-init
     entrypoint:
       - /bin/sh
       - -ec
       - |
-        mc alias set registry http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
-        mc mb --ignore-existing "registry/$${MODEL_REGISTRY_BUCKET}"
+        shell() { echo "$$1" | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888; }
+        has_bucket() { shell "s3.bucket.list" | awk '{print $$1}' | grep -qx "$${MODEL_REGISTRY_BUCKET}"; }
+        has_bucket || shell "s3.bucket.create -name $${MODEL_REGISTRY_BUCKET}"
+        has_bucket
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MODEL_REGISTRY_BUCKET: ${MODEL_REGISTRY_BUCKET:-xbh-models}
     depends_on:
-      minio:
+      seaweedfs:
         condition: service_healthy
     networks:
       - xbh-network
@@ -525,9 +486,9 @@ services:
       CLICKHOUSE_DSN: ${CLICKHOUSE_DSN:-http://clickhouse:8123/xbh_analytics}
       MODEL_REGISTRY_BUCKET: ${MODEL_REGISTRY_BUCKET:-xbh-models}
       MODEL_REGISTRY_PREFIX: ${MODEL_REGISTRY_PREFIX:-recommend-models}
-      MODEL_S3_ENDPOINT: ${MODEL_S3_ENDPOINT:-http://minio:9000}
-      MODEL_S3_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MODEL_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MODEL_S3_ENDPOINT: ${MODEL_S3_ENDPOINT:-http://seaweedfs:8333}
+      MODEL_S3_ACCESS_KEY: ${MODEL_S3_ACCESS_KEY}
+      MODEL_S3_SECRET_KEY: ${MODEL_S3_SECRET_KEY}
       MODEL_S3_REGION: ${MODEL_S3_REGION:-us-east-1}
       MODEL_TRAIN_VERSION: ${MODEL_TRAIN_VERSION:-}
       MODEL_FEATURE_START: ${MODEL_FEATURE_START:-}
@@ -573,9 +534,7 @@ volumes:
   rocketmq_broker_store:
   es_data:
   milvus_etcd:
-  milvus_minio:
   milvus_data:
-  minio_data:
   seaweedfs_data:
   prometheus_data:
   grafana_data:

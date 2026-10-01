@@ -19,10 +19,9 @@ func TestTrainingServicesDoNotDefaultCredentials(t *testing.T) {
 	trainingServices := content[start:]
 
 	required := []string{
-		"MINIO_ROOT_USER: ${MINIO_ROOT_USER}",
-		"MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}",
-		"MODEL_S3_ACCESS_KEY: ${MINIO_ROOT_USER}",
-		"MODEL_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}",
+		"MODEL_S3_ENDPOINT: ${MODEL_S3_ENDPOINT:-http://seaweedfs:8333}",
+		"MODEL_S3_ACCESS_KEY: ${MODEL_S3_ACCESS_KEY}",
+		"MODEL_S3_SECRET_KEY: ${MODEL_S3_SECRET_KEY}",
 	}
 	for _, fragment := range required {
 		if !strings.Contains(trainingServices, fragment) {
@@ -31,14 +30,13 @@ func TestTrainingServicesDoNotDefaultCredentials(t *testing.T) {
 	}
 
 	forbidden := []string{
-		"MINIO_ROOT_USER: ${MINIO_ROOT_USER:-",
-		"MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-",
-		"MODEL_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-",
-		"MODEL_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-",
+		"MODEL_S3_ACCESS_KEY: ${MODEL_S3_ACCESS_KEY:-",
+		"MODEL_S3_SECRET_KEY: ${MODEL_S3_SECRET_KEY:-",
+		"minio",
 	}
 	for _, fragment := range forbidden {
 		if strings.Contains(trainingServices, fragment) {
-			t.Errorf("training services contain a credential fallback %q", fragment)
+			t.Errorf("training services contain %q", fragment)
 		}
 	}
 
@@ -51,5 +49,21 @@ func TestTrainingServicesDoNotDefaultCredentials(t *testing.T) {
 		if !strings.Contains(trainingServices, fragment) {
 			t.Errorf("training services lost non-secret default %q", fragment)
 		}
+	}
+}
+
+func TestMiddlewareDoesNotDeployMinIO(t *testing.T) {
+	body, err := os.ReadFile("docker-compose.middleware.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(body)
+	for _, fragment := range []string{"image: minio/", "\n  minio:", "\n  minio-milvus:", "http://minio:"} {
+		if strings.Contains(content, fragment) {
+			t.Errorf("middleware compose still references MinIO: %q", fragment)
+		}
+	}
+	if !strings.Contains(content, "MINIO_ADDRESS: seaweedfs:8333") {
+		t.Error("milvus must use SeaweedFS S3 for object storage")
 	}
 }

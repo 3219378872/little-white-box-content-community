@@ -13,6 +13,26 @@
         }
       ],
       "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    },
+    {
+      "name": "xbh-milvus",
+      "credentials": [
+        {
+          "accessKey": "xbh-milvus",
+          "secretKey": "xbh-milvus-secret"
+        }
+      ],
+      "actions": ["Admin:xbh-milvus", "Read:xbh-milvus", "Write:xbh-milvus", "List:xbh-milvus"]
+    },
+    {
+      "name": "xbh-models",
+      "credentials": [
+        {
+          "accessKey": "xbh-models",
+          "secretKey": "xbh-models-secret"
+        }
+      ],
+      "actions": ["Read:xbh-models", "Write:xbh-models", "List:xbh-models"]
     }
   ]
 }

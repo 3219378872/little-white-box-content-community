@@ -135,7 +135,7 @@ algorithm-test: ## Run dependency-light Python algorithm unit tests
 spec-evals-test: ## Run the spec-quality gate evaluator unit tests
 	cd scripts && python3 -m unittest -v test_spec_evals.py
 
-model-pipeline-integration: ## Verify ClickHouse, LightGBM, MinIO, and OnlineInfer end to end
+model-pipeline-integration: ## Verify ClickHouse, LightGBM, SeaweedFS S3, and OnlineInfer end to end
 	algorithm/integration/run.sh
 
 performance-gateway: ## Check live Gateway P95 targets (JWT via PERF_GATEWAY_TOKEN)

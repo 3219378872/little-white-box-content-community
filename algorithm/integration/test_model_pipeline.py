@@ -78,7 +78,7 @@ class ModelPipelineIntegrationTest(unittest.TestCase):
             except Exception as exc:
                 last_error = exc
                 time.sleep(1)
-        raise RuntimeError("MinIO did not become ready") from last_error
+        raise RuntimeError("SeaweedFS S3 did not become ready") from last_error
 
     def test_clickhouse_training_registry_inference_reload_and_rollback(self):
         # 窗口使用相对当前时间：behavior_events 的 TTL 是 received_at+90 天，

@@ -113,7 +113,18 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 	if project.Services["milvus"].Environment["MINIO_ACCESS_KEY_ID"] == "" ||
 		project.Services["milvus"].Environment["MINIO_SECRET_ACCESS_KEY"] == "" {
-		t.Error("milvus must receive the injected credentials used by minio-milvus")
+		t.Error("milvus must receive the injected SeaweedFS credentials for its bucket")
+	}
+	for _, removed := range []string{"minio", "minio-milvus"} {
+		if _, ok := project.Services[removed]; ok {
+			t.Errorf("production must not deploy %q; SeaweedFS is the only object store", removed)
+		}
+	}
+	if got := project.Services["milvus"].Environment["MINIO_ADDRESS"]; got != "seaweedfs:8333" {
+		t.Errorf("milvus object storage address = %q, want SeaweedFS S3", got)
+	}
+	if got := project.Services["online-infer"].Environment["MODEL_S3_ENDPOINT"]; got != "http://seaweedfs:8333" {
+		t.Errorf("online-infer model registry endpoint = %q, want SeaweedFS S3", got)
 	}
 	if got := project.Services["online-infer"].Environment["MODEL_REGISTRY_MANIFEST_URI"]; got != "s3://xbh-models/recommend-models/rank-production/manifest.json" {
 		t.Errorf("online-infer model registry manifest = %q", got)
@@ -243,7 +254,7 @@ func TestProductionNginxMountsTLSAndStaticAssetsReadOnly(t *testing.T) {
 			t.Errorf("production compose does not require %q", required)
 		}
 	}
-	for _, forbidden := range []string{"Xbh@", "xbh-media-secret", "minioadmin"} {
+	for _, forbidden := range []string{"Xbh@", "xbh-media-secret", "xbh-milvus-secret", "xbh-models-secret", "minioadmin"} {
 		if strings.Contains(text, forbidden) {
 			t.Errorf("production compose contains a hard-coded credential marker %q", forbidden)
 		}
@@ -292,10 +303,10 @@ func loadProductionCompose(t *testing.T) composeProject {
 		"HTTPS_PORT":                                        "18443",
 		"JWT_SECRET_KEY":                                    "contract-jwt-secret",
 		"JWT_REFRESH_SECRET":                                "contract-jwt-refresh-secret",
-		"MILVUS_MINIO_ROOT_PASSWORD":                        "contract-milvus-minio-password",
-		"MILVUS_MINIO_ROOT_USER":                            "contract-milvus-minio-user",
-		"MINIO_ROOT_PASSWORD":                               "contract-minio-password",
-		"MINIO_ROOT_USER":                                   "contract-minio-user",
+		"MILVUS_S3_ACCESS_KEY":                              "contract-milvus-s3-access",
+		"MILVUS_S3_SECRET_KEY":                              "contract-milvus-s3-secret",
+		"MODEL_S3_ACCESS_KEY":                               "contract-model-s3-access",
+		"MODEL_S3_SECRET_KEY":                               "contract-model-s3-secret",
 		"MODEL_REGISTRY_MANIFEST_URI":                       "s3://xbh-models/recommend-models/rank-production/manifest.json",
 		"MYSQL_ROOT_PASSWORD":                               "contract-mysql-password",
 		"RECOMMEND_CURSOR_SECRET":                           "contract-recommend-cursor",
