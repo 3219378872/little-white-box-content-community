@@ -142,6 +142,10 @@ services:
   seaweedfs:
     ports: !override []
     entrypoint: ["/bin/sh", "/opt/xbh/render-config.sh"]
+    # Each collection grows 7 volumes; the default collection plus four buckets
+    # need 35 slots, far above the default cap of 8. Volumes are not
+    # preallocated, so minFreeSpace is what keeps a full disk read-only
+    # instead of corrupt.
     command:
       - server
       - -master
@@ -149,6 +153,8 @@ services:
       - -filer
       - -s3
       - -s3.config=/tmp/s3_config.json
+      - -volume.max=100
+      - -volume.minFreeSpace=5
       - -dir=/data
     environment:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}

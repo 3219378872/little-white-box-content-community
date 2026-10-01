@@ -20,6 +20,7 @@ type composeProject struct {
 
 type composeService struct {
 	Build       *composeBuild                `json:"build"`
+	Command     []string                     `json:"command"`
 	DependsOn   map[string]composeDependency `json:"depends_on"`
 	Environment map[string]string            `json:"environment"`
 	Healthcheck *composeHealthcheck          `json:"healthcheck"`
@@ -125,6 +126,12 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 	if got := project.Services["online-infer"].Environment["MODEL_S3_ENDPOINT"]; got != "http://seaweedfs:8333" {
 		t.Errorf("online-infer model registry endpoint = %q, want SeaweedFS S3", got)
+	}
+	seaweedCommand := strings.Join(project.Services["seaweedfs"].Command, " ")
+	for _, flag := range []string{"-volume.max=100", "-volume.minFreeSpace=5"} {
+		if !strings.Contains(seaweedCommand, flag) {
+			t.Errorf("production seaweedfs command %q lacks %s", seaweedCommand, flag)
+		}
 	}
 	if got := project.Services["online-infer"].Environment["MODEL_REGISTRY_MANIFEST_URI"]; got != "s3://xbh-models/recommend-models/rank-production/manifest.json" {
 		t.Errorf("online-infer model registry manifest = %q", got)
