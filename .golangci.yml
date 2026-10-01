@@ -29,7 +29,6 @@ linters:
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
       - "(.*/)?internal/handler/.*_handler\\.go$"
-      - ".worktree/"
       - "vendor/"
     rules:
       - path: "_test\\.go$"
@@ -63,7 +62,6 @@ formatters:
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
       - "(.*/)?internal/handler/.*_handler\\.go$"
-      - ".worktree/"
       - "vendor/"
 
 issues:
