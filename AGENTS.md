@@ -61,6 +61,7 @@
 
 ## 工作流程
 
-- 在 `.worktree/task-<name>` 创建 `task/<name>` 分支并完成任务。
+- 在 `../.worktree/content-community-task-<name>` 创建 `task/<name>` 分支并完成任务；不要嵌套在
+  本仓库内，否则 agent 会向上重复加载 `CLAUDE.md`/`AGENTS.md`。
 - 回到 main 更新基线，在任务树 rebase 并解决冲突，复跑相关检查。
 - main 只 fast-forward 合并；验证后提交并推送，再删除任务工作树和分支。
