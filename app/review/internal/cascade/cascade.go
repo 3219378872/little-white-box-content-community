@@ -318,7 +318,7 @@ type ruleHit struct {
 
 func (r *runner) applyRules(disposition adpolicy.Disposition) ([]ruleHit, bool) {
 	snap := r.in.Snapshot
-	var hits []ruleHit
+	hits := []ruleHit{}
 	if !adpolicy.IsMarket(snap.Market) || (snap.Industry != "" && !adpolicy.IsIndustry(snap.Industry)) {
 		hits = append(hits, ruleHit{Rule: "market-industry", Code: "FORMAT.FUNCTIONALITY", Action: policy.ActionReject})
 	}

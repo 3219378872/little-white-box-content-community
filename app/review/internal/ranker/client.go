@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"esx/app/review/internal/cascade"
 	pb "esx/app/review/xiaobaihe/moderation/pb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
@@ -27,7 +29,11 @@ func Dial(address string) (*Client, error) {
 	if strings.TrimSpace(address) == "" {
 		return nil, fmt.Errorf("ranker: address is required")
 	}
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithNoProxy())
+	// 侧车晚于 worker 启动或重启时快速恢复；不可用期间调用按降级处理（RVW-011）。
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithNoProxy(),
+		grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.Config{
+			BaseDelay: 200 * time.Millisecond, Multiplier: 1.6, Jitter: 0.2, MaxDelay: 5 * time.Second,
+		}, MinConnectTimeout: 2 * time.Second}))
 	if err != nil {
 		return nil, fmt.Errorf("ranker: dial: %w", err)
 	}
