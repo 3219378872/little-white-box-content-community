@@ -6429,6 +6429,188 @@ paths:
               properties:
                 sessionId:
                   $ref: '#/components/schemas/HideAdReq/properties/sessionId'
+  /api/v2/ads/{adId}/report:
+    post:
+      operationId: ReportAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: ReportAdReq
+      x-response-type: ReportAdResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportAdResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - {}
+      - BearerAuth: []
+      x-optional-auth: true
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: adId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ReportAdReq/properties/adId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  $ref: '#/components/schemas/ReportAdReq/properties/sessionId'
+                reason:
+                  $ref: '#/components/schemas/ReportAdReq/properties/reason'
+              required:
+              - reason
+  /api/v2/ads/{adId}/appeal:
+    post:
+      operationId: AppealAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: AppealAdReq
+      x-response-type: AdResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: adId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/AppealAdReq/properties/adId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idempotencyKey:
+                  $ref: '#/components/schemas/AppealAdReq/properties/idempotencyKey'
   /api/v2/review/me:
     get:
       operationId: GetReviewerProfile
@@ -13321,8 +13503,27 @@ components:
           x-go-name: PauseReason
           x-go-type: string
           x-binding: json
+          description: rescan/qa/report/INDUSTRY.QUALIFICATION
           x-dart-name: pauseReason
           x-dart-type: String
+          x-dart-required: true
+        appealable:
+          type: boolean
+          x-go-name: Appealable
+          x-go-type: bool
+          x-binding: json
+          description: 当前被拒或被下线的 revision 可以申诉（每个 revision 一次）
+          x-dart-name: appealable
+          x-dart-type: bool
+          x-dart-required: true
+        appealedRevision:
+          type: integer
+          format: int64
+          x-go-name: AppealedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: appealedRevision
+          x-dart-type: num
           x-dart-required: true
     AdResp:
       type: object
@@ -13558,6 +13759,72 @@ components:
           x-go-type: string
           x-binding: json
           x-dart-name: sessionId
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - adId
+    ReportAdReq:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        sessionId:
+          type: string
+          x-go-name: SessionId
+          x-go-type: string
+          x-binding: json
+          x-dart-name: sessionId
+          x-dart-type: String
+          x-dart-required: true
+        reason:
+          type: string
+          description: misleading/scam/offensive/inappropriate/irrelevant/other
+          x-go-name: Reason
+          x-go-type: string
+          x-binding: json
+          x-dart-name: reason
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - adId
+      - reason
+    ReportAdResp:
+      type: object
+      properties:
+        counted:
+          type: boolean
+          x-go-name: Counted
+          x-go-type: bool
+          x-binding: json
+          description: 同一身份重复举报或广告已下线时为 false
+          x-dart-name: counted
+          x-dart-type: bool
+          x-dart-required: true
+    AppealAdReq:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        idempotencyKey:
+          type: string
+          x-go-name: IdempotencyKey
+          x-go-type: string
+          x-binding: json
+          x-dart-name: idempotencyKey
           x-dart-type: String
           x-dart-required: true
       required:

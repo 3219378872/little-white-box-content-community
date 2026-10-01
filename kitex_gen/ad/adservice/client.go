@@ -22,6 +22,8 @@ type Client interface {
 	ReadAsset(ctx context.Context, Req *ad.ReadAssetReq, callOptions ...callopt.Option) (r *ad.ReadAssetResp, err error)
 	GetSponsoredSlots(ctx context.Context, Req *ad.GetSponsoredSlotsReq, callOptions ...callopt.Option) (r *ad.GetSponsoredSlotsResp, err error)
 	HideAd(ctx context.Context, Req *ad.HideAdReq, callOptions ...callopt.Option) (r *ad.HideAdResp, err error)
+	ReportAd(ctx context.Context, Req *ad.ReportAdReq, callOptions ...callopt.Option) (r *ad.ReportAdResp, err error)
+	AppealAd(ctx context.Context, Req *ad.AppealAdReq, callOptions ...callopt.Option) (r *ad.AdResp, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -106,4 +108,14 @@ func (p *kAdServiceClient) GetSponsoredSlots(ctx context.Context, Req *ad.GetSpo
 func (p *kAdServiceClient) HideAd(ctx context.Context, Req *ad.HideAdReq, callOptions ...callopt.Option) (r *ad.HideAdResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.HideAd(ctx, Req)
+}
+
+func (p *kAdServiceClient) ReportAd(ctx context.Context, Req *ad.ReportAdReq, callOptions ...callopt.Option) (r *ad.ReportAdResp, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.ReportAd(ctx, Req)
+}
+
+func (p *kAdServiceClient) AppealAd(ctx context.Context, Req *ad.AppealAdReq, callOptions ...callopt.Option) (r *ad.AdResp, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.AppealAd(ctx, Req)
 }

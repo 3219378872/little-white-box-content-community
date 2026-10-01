@@ -4,6 +4,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
-	for _, table := range []string{"advertiser", "advertiser_qualification", "ad", "ad_snapshot", "ad_asset", "event_outbox", "idempotency"} {
+	for _, table := range []string{"advertiser", "advertiser_qualification", "ad", "ad_snapshot", "ad_asset", "ad_report", "event_outbox", "idempotency"} {
 		_, err := testEnv.DB.Exec("DELETE FROM " + table)
 		require.NoError(t, err)
 	}
@@ -217,4 +218,278 @@ func TestReconcileFindsStalePendingAds(t *testing.T) {
 	pending, err = s.PendingAdsWithoutTask(ctx, now.Add(6*time.Minute), 10)
 	require.NoError(t, err)
 	require.Empty(t, pending)
+}
+
+// servingAd 创建并通过一条广告，返回其 ID。
+func servingAd(t *testing.T, s *Store, userID int64, now time.Time) int64 {
+	t.Helper()
+	approvedAdvertiser(t, s, userID, now)
+	created, err := s.CreateAd(context.Background(), userID, adInput("US", "GENERAL"), "", now)
+	require.NoError(t, err)
+	approve := decided(event.ReviewBizAdCreative, created.Ad.ID, 1, event.ReviewVerdictApprove, event.ReviewPurposeInitial)
+	approve.DecidedAt = now.UnixMilli()
+	_, err = s.ApplyAdDecision(context.Background(), approve, now)
+	require.NoError(t, err)
+	return created.Ad.ID
+}
+
+// submissions 按写入顺序返回某目的的送审事件（outbox 载荷是 LONGBLOB，在 Go 侧解码过滤）。
+func submissions(t *testing.T, purpose string) []event.ReviewSubmittedEvent {
+	t.Helper()
+	rows, err := testEnv.DB.Query(`SELECT payload FROM event_outbox WHERE topic = 'review-submitted' ORDER BY created_at, id`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var out []event.ReviewSubmittedEvent
+	for rows.Next() {
+		var payload []byte
+		require.NoError(t, rows.Scan(&payload))
+		var sub event.ReviewSubmittedEvent
+		require.NoError(t, json.Unmarshal(payload, &sub))
+		if sub.Purpose == purpose {
+			require.NoError(t, sub.Validate())
+			out = append(out, sub)
+		}
+	}
+	require.NoError(t, rows.Err())
+	return out
+}
+
+func lastSubmission(t *testing.T, purpose string) event.ReviewSubmittedEvent {
+	t.Helper()
+	subs := submissions(t, purpose)
+	require.NotEmpty(t, subs)
+	return subs[len(subs)-1]
+}
+
+func submissionCount(t *testing.T, purpose string) int {
+	t.Helper()
+	return len(submissions(t, purpose))
+}
+
+// ADS-031 / ADS-A07：回扫暂停结论先停投；人审确认下线，否定恢复；更新的 revision 过审也解除暂停。
+func TestRescanPauseThenResumeOrOffline(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	now := time.UnixMilli(5_000_000)
+	adID := servingAd(t, s, 5, now)
+	interim := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictReject, event.ReviewPurposeRescan, "CONTENT.DECEPTIVE")
+	interim.Interim = true
+	effect, err := s.ApplyAdDecision(ctx, interim, now)
+	require.NoError(t, err)
+	require.True(t, effect.ServingChanged)
+	ad, err := s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingPaused, ad.ServingStatus)
+	require.Equal(t, PauseRescan, ad.PauseReason)
+	require.Equal(t, []string{"CONTENT.DECEPTIVE"}, ad.PolicyCodes())
+
+	// 暂停期间资质失效不覆盖暂停原因。
+	_, err = s.MarkQualificationLapsed(ctx, Qualification{AdvertiserID: ad.AdvertiserID, Market: "US", Industry: "GENERAL"}, now)
+	require.NoError(t, err)
+	resume := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictApprove, event.ReviewPurposeRescan)
+	effect, err = s.ApplyAdDecision(ctx, resume, now)
+	require.NoError(t, err)
+	require.True(t, effect.ServingChanged)
+	ad, err = s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingServing, ad.ServingStatus)
+	require.Empty(t, ad.PauseReason)
+	require.Empty(t, ad.PolicyCodes())
+	again, err := s.ApplyAdDecision(ctx, resume, now)
+	require.NoError(t, err)
+	require.False(t, again.Applied, "重复投递无副作用")
+
+	// 再次暂停后，编辑出的新 revision 过审：投放新快照并解除暂停。
+	_, err = s.ApplyAdDecision(ctx, interim, now)
+	require.NoError(t, err)
+	edit := adInput("US", "GENERAL")
+	edit.Title = "Honest beans"
+	_, err = s.UpdateAd(ctx, 5, adID, 1, edit, "", now)
+	require.NoError(t, err)
+	_, err = s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 2, event.ReviewVerdictApprove, event.ReviewPurposeInitial), now)
+	require.NoError(t, err)
+	ad, err = s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingServing, ad.ServingStatus)
+	require.Equal(t, int64(2), ad.ApprovedRevision)
+	stale, err := s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictReject,
+		event.ReviewPurposeRescan, "CONTENT.DECEPTIVE"), now)
+	require.NoError(t, err)
+	require.False(t, stale.Applied, "旧快照的回扫结论不再改变状态")
+
+	// 人审确认违规：下线并以政策码告知。
+	interim.Revision = 2
+	_, err = s.ApplyAdDecision(ctx, interim, now)
+	require.NoError(t, err)
+	offline, err := s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 2, event.ReviewVerdictReject,
+		event.ReviewPurposeRescan, "CONTENT.DECEPTIVE"), now)
+	require.NoError(t, err)
+	require.True(t, offline.ServingChanged)
+	ad, err = s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingOffline, ad.ServingStatus)
+	require.Equal(t, PauseRescan, ad.PauseReason)
+	require.Equal(t, ReviewRejected, ad.ReviewStatus)
+}
+
+// ADS-014：被下线或被拒的 revision 各可申诉一次；申诉通过恢复投放，拒绝维持原状。
+func TestAppealOncePerRevision(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	now := time.UnixMilli(6_000_000)
+	adID := servingAd(t, s, 6, now)
+	_, err := s.AppealAd(ctx, 6, adID, "", now)
+	require.ErrorIs(t, err, ErrAppealNotAllowed, "在投广告不可申诉")
+	_, err = s.AppealAd(ctx, 999, adID, "", now)
+	require.ErrorIs(t, err, ErrNotFound)
+
+	_, err = s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictReject,
+		event.ReviewPurposeReport, "CONTENT.DECEPTIVE"), now)
+	require.NoError(t, err)
+	appealed, err := s.AppealAd(ctx, 6, adID, "appeal-1", now)
+	require.NoError(t, err)
+	require.Equal(t, ReviewAppealing, appealed.Ad.ReviewStatus)
+	require.Equal(t, int64(1), appealed.Ad.AppealedRevision)
+	replay, err := s.AppealAd(ctx, 6, adID, "appeal-1", now)
+	require.NoError(t, err)
+	require.Equal(t, ReviewAppealing, replay.Ad.ReviewStatus)
+	require.Equal(t, 1, submissionCount(t, event.ReviewPurposeAppeal))
+	sub := lastSubmission(t, event.ReviewPurposeAppeal)
+	require.Equal(t, int64(1), sub.Revision)
+	require.Equal(t, "Fresh beans", sub.Snapshot.Texts["title"])
+	pending, err := s.PendingAdsWithoutTask(ctx, now.Add(6*time.Minute), 10)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "申诉同样受对账保护")
+
+	approve := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictApprove, event.ReviewPurposeAppeal)
+	effect, err := s.ApplyAdDecision(ctx, approve, now)
+	require.NoError(t, err)
+	require.True(t, effect.ServingChanged)
+	ad, err := s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingServing, ad.ServingStatus)
+	require.Equal(t, ReviewApproved, ad.ReviewStatus)
+	require.Empty(t, ad.PauseReason)
+	_, ok := AppealTarget(ad)
+	require.False(t, ok)
+
+	// 新 revision 被拒：可申诉一次，申诉被拒后不可再申诉。
+	_, err = s.UpdateAd(ctx, 6, adID, 1, adInput("US", "GENERAL"), "", now)
+	require.NoError(t, err)
+	_, err = s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 2, event.ReviewVerdictReject,
+		event.ReviewPurposeInitial, "MISLEADING.CLAIM"), now)
+	require.NoError(t, err)
+	_, err = s.AppealAd(ctx, 6, adID, "", now)
+	require.NoError(t, err)
+	rejected, err := s.ApplyAdDecision(ctx, decided(event.ReviewBizAdCreative, adID, 2, event.ReviewVerdictReject,
+		event.ReviewPurposeAppeal, "MISLEADING.CLAIM"), now)
+	require.NoError(t, err)
+	require.True(t, rejected.Applied)
+	_, err = s.AppealAd(ctx, 6, adID, "", now)
+	require.ErrorIs(t, err, ErrAppealNotAllowed)
+	ad, err = s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ReviewRejected, ad.ReviewStatus)
+	require.Equal(t, int64(1), ad.ApprovedRevision, "旧过审快照继续投放")
+	require.Equal(t, ServingServing, ad.ServingStatus)
+}
+
+// ADS-030：同一身份只计一次；批次内举报共用任务并提高优先级；举报成立下线；结论后到达的举报进入新批次。
+func TestReportBatchesAndCarryOver(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	now := time.UnixMilli(7_000_000)
+	adID := servingAd(t, s, 7, now)
+	_, err := s.ReportAd(ctx, ReportInput{AdID: 424242, ReporterKey: "u:1", Reason: "scam"}, now)
+	require.ErrorIs(t, err, ErrNotFound)
+
+	first, err := s.ReportAd(ctx, ReportInput{AdID: adID, ReporterKey: "u:1", Reason: "scam"}, now)
+	require.NoError(t, err)
+	require.Equal(t, ReportResult{Counted: true, Count: 1}, first)
+	dup, err := s.ReportAd(ctx, ReportInput{AdID: adID, ReporterKey: "u:1", Reason: "other"}, now)
+	require.NoError(t, err)
+	require.False(t, dup.Counted)
+	second, err := s.ReportAd(ctx, ReportInput{AdID: adID, ReporterKey: "s:abc", Reason: "misleading"}, now)
+	require.NoError(t, err)
+	require.Equal(t, 2, second.Count)
+	sub := lastSubmission(t, event.ReviewPurposeReport)
+	require.Equal(t, int64(1), sub.Revision)
+	require.Equal(t, ReportPriority(2), sub.Priority)
+	batch := sub.PurposeKey
+	require.NotEmpty(t, batch)
+	require.Equal(t, 2, submissionCount(t, event.ReviewPurposeReport))
+
+	// 举报未成立，但结论作出后又到达一条举报：移入新批次重新送审。
+	decidedAt := now.Add(time.Minute)
+	_, err = s.ReportAd(ctx, ReportInput{AdID: adID, ReporterKey: "u:3", Reason: "scam"}, decidedAt.Add(time.Second))
+	require.NoError(t, err)
+	clear := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictApprove, event.ReviewPurposeReport)
+	clear.PurposeKey, clear.DecidedAt = batch, decidedAt.UnixMilli()
+	require.NoError(t, s.CloseReportBatch(ctx, clear, decidedAt.Add(2*time.Second)))
+	require.NoError(t, s.CloseReportBatch(ctx, clear, decidedAt.Add(2*time.Second)), "重复投递无副作用")
+	carried := lastSubmission(t, event.ReviewPurposeReport)
+	require.NotEqual(t, batch, carried.PurposeKey)
+	require.Equal(t, ReportPriority(1), carried.Priority)
+	require.Equal(t, 4, submissionCount(t, event.ReviewPurposeReport))
+	ad, err := s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, carried.PurposeKey, ad.ReportBatch)
+
+	// 举报成立：下线，关闭批次；下线后的举报不再计数。
+	upheld := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictReject, event.ReviewPurposeReport, "CONTENT.DECEPTIVE")
+	upheld.PurposeKey, upheld.DecidedAt = carried.PurposeKey, decidedAt.Add(time.Hour).UnixMilli()
+	effect, err := s.ApplyAdDecision(ctx, upheld, now)
+	require.NoError(t, err)
+	require.True(t, effect.ServingChanged)
+	require.NoError(t, s.CloseReportBatch(ctx, upheld, now))
+	ad, err = s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, ServingOffline, ad.ServingStatus)
+	require.Equal(t, PauseReport, ad.PauseReason)
+	require.Empty(t, ad.ReportBatch)
+	late, err := s.ReportAd(ctx, ReportInput{AdID: adID, ReporterKey: "u:4", Reason: "scam"}, now)
+	require.NoError(t, err)
+	require.False(t, late.Counted)
+}
+
+// ADS-031：只回扫在投广告；按代次与过审 revision 幂等。
+func TestRescanCandidatesAndSubmission(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	now := time.UnixMilli(8_000_000)
+	adID := servingAd(t, s, 8, now)
+	ad, err := s.AdByID(ctx, adID)
+	require.NoError(t, err)
+	require.Equal(t, now.UnixMilli(), ad.ApprovedAtMs)
+
+	candidates, err := s.RescanCandidates(ctx, "v2+seeds@0", 10)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	ok, err := s.SubmitRescan(ctx, adID, 99, "v2+seeds@0", now)
+	require.NoError(t, err)
+	require.False(t, ok, "过审 revision 已变化时跳过")
+	ok, err = s.SubmitRescan(ctx, adID, 1, "v2+seeds@0", now)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = s.SubmitRescan(ctx, adID, 1, "v2+seeds@0", now)
+	require.NoError(t, err)
+	require.False(t, ok)
+	sub := lastSubmission(t, event.ReviewPurposeRescan)
+	require.Equal(t, "v2+seeds@0", sub.PurposeKey)
+	require.Equal(t, int64(1), sub.Revision)
+	candidates, err = s.RescanCandidates(ctx, "v2+seeds@0", 10)
+	require.NoError(t, err)
+	require.Empty(t, candidates)
+
+	require.NoError(t, s.MarkRescanned(ctx, adID, 1, "v3+seeds@0"))
+	candidates, err = s.RescanCandidates(ctx, "v3+seeds@0", 10)
+	require.NoError(t, err)
+	require.Empty(t, candidates)
+	interim := decided(event.ReviewBizAdCreative, adID, 1, event.ReviewVerdictReject, event.ReviewPurposeRescan, "CONTENT.DECEPTIVE")
+	interim.Interim = true
+	_, err = s.ApplyAdDecision(ctx, interim, now)
+	require.NoError(t, err)
+	candidates, err = s.RescanCandidates(ctx, "v4+seeds@0", 10)
+	require.NoError(t, err)
+	require.Empty(t, candidates, "暂停中的广告等待人审，不重复回扫")
 }

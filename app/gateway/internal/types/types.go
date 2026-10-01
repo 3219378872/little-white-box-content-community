@@ -47,6 +47,8 @@ type AdItem struct {
 	Eligible         bool           `json:"eligible,optional"`
 	UpdatedAtMs      int64          `json:"updatedAtMs,optional"`
 	PauseReason      string         `json:"pauseReason,optional"`
+	Appealable       bool           `json:"appealable,optional"`
+	AppealedRevision int64          `json:"appealedRevision,optional"`
 }
 
 type AdMediaItem struct {
@@ -121,6 +123,11 @@ type AnswerAssistantQuestionsReq struct {
 
 type AnswerAssistantQuestionsResp struct {
 	QuestionRequest AssistantQuestionRequest `json:"questionRequest"`
+}
+
+type AppealAdReq struct {
+	AdId           int64  `path:"adId"`
+	IdempotencyKey string `json:"idempotencyKey,optional"`
 }
 
 type ApplyAdvertiserReq struct {
@@ -943,6 +950,16 @@ type ReplaceAssistantMemoryReq struct {
 type ReplaceAssistantMemoryResp struct {
 	Entry    AssistantMemoryEntry `json:"entry"`
 	ChangeId int64                `json:"changeId"`
+}
+
+type ReportAdReq struct {
+	AdId      int64  `path:"adId"`
+	SessionId string `json:"sessionId,optional"`
+	Reason    string `json:"reason"`
+}
+
+type ReportAdResp struct {
+	Counted bool `json:"counted,optional"`
 }
 
 type ReviewActionResp struct {

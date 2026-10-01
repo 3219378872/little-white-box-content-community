@@ -78,8 +78,10 @@ func (s *Store) MarkQualificationLapsed(ctx context.Context, q Qualification, no
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	_, err := s.exec(ctx, `UPDATE ad SET pause_reason = 'INDUSTRY.QUALIFICATION', updated_at_ms = ?
-		WHERE advertiser_id = ? AND market = ? AND industry = ?`, now.UnixMilli(), q.AdvertiserID, q.Market, q.Industry)
+	// 已暂停或下线的广告保留原因：回扫恢复按 pause_reason 判定，不能被资质原因覆盖。
+	_, err := s.exec(ctx, `UPDATE ad SET pause_reason = ?, updated_at_ms = ?
+		WHERE advertiser_id = ? AND market = ? AND industry = ? AND serving_status NOT IN (?, ?)`,
+		PauseQualification, now.UnixMilli(), q.AdvertiserID, q.Market, q.Industry, ServingPaused, ServingOffline)
 	return ids, err
 }
 

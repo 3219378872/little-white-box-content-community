@@ -17,33 +17,67 @@ type DecisionEffect struct {
 
 // ApplyAdDecision 按（objectId, revision）CAS 应用审核结论（RVW-040）。
 //
-// 乱序或重复到达的旧 revision 结论影响 0 行，只留在审核平台的审计中；通过时只前移
-// approved_revision，旧过审快照在新版本审核期间继续投放（ADS-011）。质检判定违规时
-// 对象立即停止投放（RVW-014）。
+// 乱序或重复到达的旧 revision 结论影响 0 行，只留在审核平台的审计中。
+//   - 送审通过只前移 approved_revision，旧过审快照在新版本审核期间继续投放（ADS-011）；新版本过审时
+//     解除旧快照的回扫暂停。
+//   - 投后任务（质检、举报、回扫）针对 approved_revision：拒绝即下线（RVW-014、ADS-030、ADS-031），
+//     回扫的暂停结论先停投（Interim），回扫人审否定后恢复投放。
+//   - 申诉复审是最终结论（ADS-014）：通过则该 revision 成为过审版本并恢复投放，拒绝维持原状。
 func (s *Store) ApplyAdDecision(ctx context.Context, d event.ReviewDecidedEvent, now time.Time) (DecisionEffect, error) {
 	effect := DecisionEffect{AdID: d.ObjectID}
 	codes := encodeCodes(d.PolicyCodes)
+	approve := d.Verdict == event.ReviewVerdictApprove
 	var affected int64
 	var err error
 	switch {
-	case d.Purpose == event.ReviewPurposeQA && d.Verdict == event.ReviewVerdictReject:
-		affected, err = s.exec(ctx, `UPDATE ad SET serving_status = ?, pause_reason = 'qa', policy_codes = ?,
+	case d.Interim:
+		affected, err = s.exec(ctx, `UPDATE ad SET serving_status = ?, pause_reason = ?, policy_codes = ?, updated_at_ms = ?
+			WHERE id = ? AND approved_revision = ? AND serving_status = ?`,
+			ServingPaused, PauseRescan, codes, now.UnixMilli(), d.ObjectID, d.Revision, ServingServing)
+		effect.ServingChanged = affected > 0
+	case isPostServing(d.Purpose) && !approve:
+		affected, err = s.exec(ctx, `UPDATE ad SET serving_status = ?, pause_reason = ?, policy_codes = ?,
 			review_status = IF(revision = ?, ?, review_status), updated_at_ms = ?
 			WHERE id = ? AND approved_revision = ? AND serving_status <> ?`,
-			ServingOffline, codes, d.Revision, ReviewRejected, now.UnixMilli(), d.ObjectID, d.Revision, ServingOffline)
+			ServingOffline, d.Purpose, codes, d.Revision, ReviewRejected, now.UnixMilli(),
+			d.ObjectID, d.Revision, ServingOffline)
 		effect.ServingChanged = affected > 0
-	case d.Purpose == event.ReviewPurposeQA:
+	case d.Purpose == event.ReviewPurposeRescan:
+		affected, err = s.exec(ctx, `UPDATE ad SET serving_status = ?, pause_reason = '',
+			policy_codes = IF(review_status = ?, '[]', policy_codes), updated_at_ms = ?
+			WHERE id = ? AND approved_revision = ? AND serving_status = ? AND pause_reason = ?`,
+			ServingServing, ReviewApproved, now.UnixMilli(), d.ObjectID, d.Revision, ServingPaused, PauseRescan)
+		effect.ServingChanged = affected > 0
+	case isPostServing(d.Purpose):
 		return effect, nil
-	case d.Verdict == event.ReviewVerdictApprove:
-		affected, err = s.exec(ctx, `UPDATE ad SET approved_revision = ?, review_status = ?, policy_codes = '[]',
-			serving_status = IF(serving_status = ?, ?, serving_status), updated_at_ms = ?
+	case d.Purpose == event.ReviewPurposeAppeal && approve:
+		affected, err = s.exec(ctx, `UPDATE ad SET approved_revision = ?, approved_at_ms = ?, review_status = ?,
+			policy_codes = '[]', serving_status = ?, pause_reason = '', updated_at_ms = ?
+			WHERE id = ? AND revision = ? AND review_status = ? AND appealed_revision = ?`,
+			d.Revision, d.DecidedAt, ReviewApproved, ServingServing, now.UnixMilli(),
+			d.ObjectID, d.Revision, ReviewAppealing, d.Revision)
+		effect.ServingChanged = affected > 0
+	case d.Purpose == event.ReviewPurposeAppeal:
+		affected, err = s.exec(ctx, `UPDATE ad SET review_status = ?, policy_codes = ?, updated_at_ms = ?
+			WHERE id = ? AND revision = ? AND review_status = ? AND appealed_revision = ?`,
+			ReviewRejected, codes, now.UnixMilli(), d.ObjectID, d.Revision, ReviewAppealing, d.Revision)
+	case approve:
+		// MySQL 按书写顺序赋值，pause_reason 读取的是已更新的 serving_status。
+		affected, err = s.exec(ctx, `UPDATE ad SET approved_revision = ?, approved_at_ms = ?, review_status = ?,
+			policy_codes = '[]',
+			serving_status = CASE WHEN serving_status = ? OR (serving_status = ? AND pause_reason = ?) THEN ? ELSE serving_status END,
+			pause_reason = IF(serving_status = ? AND pause_reason = ?, '', pause_reason),
+			updated_at_ms = ?
 			WHERE id = ? AND revision = ? AND approved_revision < ?`,
-			d.Revision, ReviewApproved, ServingNone, ServingServing, now.UnixMilli(), d.ObjectID, d.Revision, d.Revision)
+			d.Revision, d.DecidedAt, ReviewApproved,
+			ServingNone, ServingPaused, PauseRescan, ServingServing,
+			ServingServing, PauseRescan,
+			now.UnixMilli(), d.ObjectID, d.Revision, d.Revision)
 		effect.ServingChanged = affected > 0
 	default:
 		affected, err = s.exec(ctx, `UPDATE ad SET review_status = ?, policy_codes = ?, updated_at_ms = ?
-			WHERE id = ? AND revision = ? AND review_status IN (?, ?)`,
-			ReviewRejected, codes, now.UnixMilli(), d.ObjectID, d.Revision, ReviewPending, ReviewAppealing)
+			WHERE id = ? AND revision = ? AND review_status = ?`,
+			ReviewRejected, codes, now.UnixMilli(), d.ObjectID, d.Revision, ReviewPending)
 	}
 	if err != nil {
 		return effect, err
@@ -56,6 +90,10 @@ func (s *Store) ApplyAdDecision(ctx context.Context, d event.ReviewDecidedEvent,
 		}
 	}
 	return effect, nil
+}
+
+func isPostServing(purpose string) bool {
+	return purpose == event.ReviewPurposeQA || purpose == event.ReviewPurposeReport || purpose == event.ReviewPurposeRescan
 }
 
 // ApplyAdvertiserDecision 应用资质对象结论；随该 revision 送审的资质一并更新。

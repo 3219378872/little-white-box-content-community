@@ -55,6 +55,15 @@ var (
 	ErrQualificationMissing  = errors.New("ad: qualification missing")
 	ErrAssetInvalid          = errors.New("ad: asset invalid")
 	ErrMarketNotAllowed      = errors.New("ad: market not allowed for advertiser")
+	ErrAppealNotAllowed      = errors.New("ad: appeal not allowed")
+)
+
+// 暂停与下线原因（pause_reason）。资质失效不改变投放状态，只记录原因，投放资格在读取时计算。
+const (
+	PauseRescan        = "rescan"
+	PauseQA            = "qa"
+	PauseReport        = "report"
+	PauseQualification = "INDUSTRY.QUALIFICATION"
 )
 
 // Advertiser 是 advertiser 一行。
@@ -116,13 +125,16 @@ type Ad struct {
 	ReviewTaskID      int64  `db:"review_task_id"`
 	SubmittedAtMs     int64  `db:"submitted_at_ms"`
 	PublishedRevision int64  `db:"published_revision"`
+	ApprovedAtMs      int64  `db:"approved_at_ms"`
+	RescanGeneration  string `db:"rescan_generation"`
+	ReportBatch       string `db:"report_batch"`
 	CreatedAtMs       int64  `db:"created_at_ms"`
 	UpdatedAtMs       int64  `db:"updated_at_ms"`
 }
 
 const adColumns = `id, advertiser_id, user_id, revision, approved_revision, review_status, serving_status, market,
 	industry, start_ms, end_ms, policy_codes, pause_reason, appealed_revision, review_task_id, submitted_at_ms,
-	published_revision, created_at_ms, updated_at_ms`
+	published_revision, approved_at_ms, rescan_generation, report_batch, created_at_ms, updated_at_ms`
 
 func (a Ad) PolicyCodes() []string { return decodeCodes(a.PolicyCodesJSON) }
 

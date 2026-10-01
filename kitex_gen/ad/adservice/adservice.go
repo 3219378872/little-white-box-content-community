@@ -92,6 +92,20 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
+	"ReportAd": kitex.NewMethodInfo(
+		reportAdHandler,
+		newReportAdArgs,
+		newReportAdResult,
+		false,
+		kitex.WithStreamingMode(kitex.StreamingUnary),
+	),
+	"AppealAd": kitex.NewMethodInfo(
+		appealAdHandler,
+		newAppealAdArgs,
+		newAppealAdResult,
+		false,
+		kitex.WithStreamingMode(kitex.StreamingUnary),
+	),
 }
 
 var (
@@ -1379,6 +1393,228 @@ func (p *HideAdResult) GetResult() interface{} {
 	return p.Success
 }
 
+func reportAdHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	switch s := arg.(type) {
+	case *streaming.Args:
+		st := s.Stream
+		req := new(ad.ReportAdReq)
+		if err := st.RecvMsg(req); err != nil {
+			return err
+		}
+		resp, err := handler.(ad.AdService).ReportAd(ctx, req)
+		if err != nil {
+			return err
+		}
+		return st.SendMsg(resp)
+	case *ReportAdArgs:
+		success, err := handler.(ad.AdService).ReportAd(ctx, s.Req)
+		if err != nil {
+			return err
+		}
+		realResult := result.(*ReportAdResult)
+		realResult.Success = success
+		return nil
+	default:
+		return errInvalidMessageType
+	}
+}
+func newReportAdArgs() interface{} {
+	return &ReportAdArgs{}
+}
+
+func newReportAdResult() interface{} {
+	return &ReportAdResult{}
+}
+
+type ReportAdArgs struct {
+	Req *ad.ReportAdReq
+}
+
+func (p *ReportAdArgs) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetReq() {
+		return out, nil
+	}
+	return proto.Marshal(p.Req)
+}
+
+func (p *ReportAdArgs) Unmarshal(in []byte) error {
+	msg := new(ad.ReportAdReq)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Req = msg
+	return nil
+}
+
+var ReportAdArgs_Req_DEFAULT *ad.ReportAdReq
+
+func (p *ReportAdArgs) GetReq() *ad.ReportAdReq {
+	if !p.IsSetReq() {
+		return ReportAdArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+
+func (p *ReportAdArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *ReportAdArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+type ReportAdResult struct {
+	Success *ad.ReportAdResp
+}
+
+var ReportAdResult_Success_DEFAULT *ad.ReportAdResp
+
+func (p *ReportAdResult) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetSuccess() {
+		return out, nil
+	}
+	return proto.Marshal(p.Success)
+}
+
+func (p *ReportAdResult) Unmarshal(in []byte) error {
+	msg := new(ad.ReportAdResp)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Success = msg
+	return nil
+}
+
+func (p *ReportAdResult) GetSuccess() *ad.ReportAdResp {
+	if !p.IsSetSuccess() {
+		return ReportAdResult_Success_DEFAULT
+	}
+	return p.Success
+}
+
+func (p *ReportAdResult) SetSuccess(x interface{}) {
+	p.Success = x.(*ad.ReportAdResp)
+}
+
+func (p *ReportAdResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *ReportAdResult) GetResult() interface{} {
+	return p.Success
+}
+
+func appealAdHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	switch s := arg.(type) {
+	case *streaming.Args:
+		st := s.Stream
+		req := new(ad.AppealAdReq)
+		if err := st.RecvMsg(req); err != nil {
+			return err
+		}
+		resp, err := handler.(ad.AdService).AppealAd(ctx, req)
+		if err != nil {
+			return err
+		}
+		return st.SendMsg(resp)
+	case *AppealAdArgs:
+		success, err := handler.(ad.AdService).AppealAd(ctx, s.Req)
+		if err != nil {
+			return err
+		}
+		realResult := result.(*AppealAdResult)
+		realResult.Success = success
+		return nil
+	default:
+		return errInvalidMessageType
+	}
+}
+func newAppealAdArgs() interface{} {
+	return &AppealAdArgs{}
+}
+
+func newAppealAdResult() interface{} {
+	return &AppealAdResult{}
+}
+
+type AppealAdArgs struct {
+	Req *ad.AppealAdReq
+}
+
+func (p *AppealAdArgs) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetReq() {
+		return out, nil
+	}
+	return proto.Marshal(p.Req)
+}
+
+func (p *AppealAdArgs) Unmarshal(in []byte) error {
+	msg := new(ad.AppealAdReq)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Req = msg
+	return nil
+}
+
+var AppealAdArgs_Req_DEFAULT *ad.AppealAdReq
+
+func (p *AppealAdArgs) GetReq() *ad.AppealAdReq {
+	if !p.IsSetReq() {
+		return AppealAdArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+
+func (p *AppealAdArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *AppealAdArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+type AppealAdResult struct {
+	Success *ad.AdResp
+}
+
+var AppealAdResult_Success_DEFAULT *ad.AdResp
+
+func (p *AppealAdResult) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetSuccess() {
+		return out, nil
+	}
+	return proto.Marshal(p.Success)
+}
+
+func (p *AppealAdResult) Unmarshal(in []byte) error {
+	msg := new(ad.AdResp)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Success = msg
+	return nil
+}
+
+func (p *AppealAdResult) GetSuccess() *ad.AdResp {
+	if !p.IsSetSuccess() {
+		return AppealAdResult_Success_DEFAULT
+	}
+	return p.Success
+}
+
+func (p *AppealAdResult) SetSuccess(x interface{}) {
+	p.Success = x.(*ad.AdResp)
+}
+
+func (p *AppealAdResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *AppealAdResult) GetResult() interface{} {
+	return p.Success
+}
+
 type kClient struct {
 	c client.Client
 }
@@ -1494,6 +1730,26 @@ func (p *kClient) HideAd(ctx context.Context, Req *ad.HideAdReq) (r *ad.HideAdRe
 	_args.Req = Req
 	var _result HideAdResult
 	if err = p.c.Call(ctx, "HideAd", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) ReportAd(ctx context.Context, Req *ad.ReportAdReq) (r *ad.ReportAdResp, err error) {
+	var _args ReportAdArgs
+	_args.Req = Req
+	var _result ReportAdResult
+	if err = p.c.Call(ctx, "ReportAd", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) AppealAd(ctx context.Context, Req *ad.AppealAdReq) (r *ad.AdResp, err error) {
+	var _args AppealAdArgs
+	_args.Req = Req
+	var _result AppealAdResult
+	if err = p.c.Call(ctx, "AppealAd", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

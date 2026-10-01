@@ -644,6 +644,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ADS-GET-VALID", method: http.MethodGet, path: "/api/v2/ads/7", routePath: "/api/v2/ads/:adId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
 		{id: "ADS-UPDATE-VALID", method: http.MethodPut, path: "/api/v2/ads/7", routePath: "/api/v2/ads/:adId", body: jsonBody(`{"expectedRevision":1,"title":"Beans","body":"Roasted","cta":"Shop","landingUrl":"https://coffee.shop.com","market":"US","industry":"GENERAL"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
 		{id: "ADS-HIDE-ANON", method: http.MethodPost, path: "/api/v2/ads/7/hide", routePath: "/api/v2/ads/:adId/hide", body: jsonBody(`{"sessionId":"session-1"}`), wantStatus: http.StatusOK, wantFields: []string{"ok"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "ADS-REPORT-ANON", method: http.MethodPost, path: "/api/v2/ads/7/report", routePath: "/api/v2/ads/:adId/report", body: jsonBody(`{"sessionId":"session-1","reason":"scam"}`), wantStatus: http.StatusOK, wantFields: []string{"counted"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "ADS-APPEAL-VALID", method: http.MethodPost, path: "/api/v2/ads/7/appeal", routePath: "/api/v2/ads/:adId/appeal", body: jsonBody(`{"idempotencyKey":"appeal-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
 		{id: "REVIEW-ME-VALID", method: http.MethodGet, path: "/api/v2/review/me", auth: true, wantStatus: http.StatusOK, wantFields: []string{"active", "roles", "markets", "languages"}},
 		{id: "REVIEW-QUEUE-VALID", method: http.MethodGet, path: "/api/v2/review/queue", auth: true, wantStatus: http.StatusOK, wantFields: []string{"buckets", "policyVersion"}},
 		{id: "REVIEW-CLAIM-VALID", method: http.MethodPost, path: "/api/v2/review/tasks/claim", body: jsonBody(`{}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "task"}},
@@ -721,6 +723,9 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MEDIA-AUDIO-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/audio", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "ADS-ADVERTISER-NO-AUTH", method: http.MethodGet, path: "/api/v2/ads/advertiser", wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
+		restDecision{id: "ADS-APPEAL-NO-AUTH", method: http.MethodPost, path: "/api/v2/ads/7/appeal", routePath: "/api/v2/ads/:adId/appeal", body: jsonBody(`{}`), wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
+		restDecision{id: "ADS-APPEAL-NOT-ALLOWED", method: http.MethodPost, path: "/api/v2/ads/8/appeal", routePath: "/api/v2/ads/:adId/appeal", body: jsonBody(`{}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.AdAppealNotAllowed},
+		restDecision{id: "ADS-REPORT-NO-IDENTITY", method: http.MethodPost, path: "/api/v2/ads/7/report", routePath: "/api/v2/ads/:adId/report", body: jsonBody(`{"reason":"scam"}`), wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "REVIEW-RENEW-LEASE-LOST", method: http.MethodPost, path: "/api/v2/review/tasks/3/renew", routePath: "/api/v2/review/tasks/:taskId/renew", body: jsonBody(`{"leaseGeneration":2}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ReviewLeaseLost},
 		restDecision{id: "REVIEW-DECISION-ROLE-REQUIRED", method: http.MethodPost, path: "/api/v2/review/tasks/3/decision", routePath: "/api/v2/review/tasks/:taskId/decision", body: jsonBody(`{"leaseGeneration":1,"verdict":"approve"}`), headerToken: failToken, wantStatus: http.StatusForbidden, wantCode: errx.ReviewRoleRequired},
 		restDecision{id: "REVIEW-EVIDENCE-UNAUTHORIZED", method: http.MethodGet, path: "/api/v2/review/tasks/3/media/8", routePath: "/api/v2/review/tasks/:taskId/media/:mediaId", auth: true, wantStatus: http.StatusNotFound, wantCode: errx.NotFound},
@@ -843,8 +848,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 85 {
-		t.Fatalf("route inventory drift: got %d success rules, want 85", len(successes))
+	if len(successes) != 87 {
+		t.Fatalf("route inventory drift: got %d success rules, want 87", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

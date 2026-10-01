@@ -39,6 +39,9 @@ type GetSponsoredSlotsReq = pb.GetSponsoredSlotsReq
 type GetSponsoredSlotsResp = pb.GetSponsoredSlotsResp
 type HideAdReq = pb.HideAdReq
 type HideAdResp = pb.HideAdResp
+type ReportAdReq = pb.ReportAdReq
+type ReportAdResp = pb.ReportAdResp
+type AppealAdReq = pb.AppealAdReq
 type AdService = native.Client
 type client struct{ native.Client }
 
@@ -89,5 +92,13 @@ func (c *client) GetSponsoredSlots(ctx context.Context, req *pb.GetSponsoredSlot
 }
 func (c *client) HideAd(ctx context.Context, req *pb.HideAdReq, opts ...callopt.Option) (*pb.HideAdResp, error) {
 	v, e := c.Client.HideAd(ctx, req, opts...)
+	return v, rpcx.FromTransportError(e)
+}
+func (c *client) ReportAd(ctx context.Context, req *pb.ReportAdReq, opts ...callopt.Option) (*pb.ReportAdResp, error) {
+	v, e := c.Client.ReportAd(ctx, req, opts...)
+	return v, rpcx.FromTransportError(e)
+}
+func (c *client) AppealAd(ctx context.Context, req *pb.AppealAdReq, opts ...callopt.Option) (*pb.AdResp, error) {
+	v, e := c.Client.AppealAd(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }

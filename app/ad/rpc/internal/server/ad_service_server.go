@@ -47,3 +47,9 @@ func (s *AdServiceServer) GetSponsoredSlots(ctx context.Context, req *pb.GetSpon
 func (s *AdServiceServer) HideAd(ctx context.Context, req *pb.HideAdReq) (*pb.HideAdResp, error) {
 	return logic.NewHideAdLogic(ctx, s.svcCtx).HideAd(req)
 }
+func (s *AdServiceServer) ReportAd(ctx context.Context, req *pb.ReportAdReq) (*pb.ReportAdResp, error) {
+	return logic.NewReportAdLogic(ctx, s.svcCtx).ReportAd(req)
+}
+func (s *AdServiceServer) AppealAd(ctx context.Context, req *pb.AppealAdReq) (*pb.AdResp, error) {
+	return logic.NewAppealAdLogic(ctx, s.svcCtx).AppealAd(req)
+}

@@ -52,7 +52,7 @@ func main() {
 	runTickers(ctx, svcCtx)
 }
 
-// runTickers：对账与资质到期间隔 1 分钟；索引按权威状态定期校正并重试素材发布。
+// runTickers：对账、资质到期与回扫间隔 1 分钟；索引按权威状态定期校正并重试素材发布。
 func runTickers(ctx context.Context, svcCtx *svc.ServiceContext) {
 	reconcile := time.NewTicker(time.Duration(max(svcCtx.Config.ReconcileIntervalMs, 5000)) * time.Millisecond)
 	defer reconcile.Stop()
@@ -66,6 +66,7 @@ func runTickers(ctx context.Context, svcCtx *svc.ServiceContext) {
 		case <-reconcile.C:
 			svcCtx.Reconciler.ReconcileSubmissions(ctx)
 			svcCtx.Reconciler.ExpireQualifications(ctx)
+			svcCtx.Rescanner.Run(ctx)
 		case <-rebuild.C:
 			svcCtx.Reconciler.RebuildIndex(ctx)
 		}

@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS `ad` (
     `review_task_id` BIGINT NOT NULL DEFAULT 0,
     `submitted_at_ms` BIGINT NOT NULL DEFAULT 0,
     `published_revision` BIGINT NOT NULL DEFAULT 0 COMMENT '素材已发布到公开路径的过审 revision',
+    `approved_at_ms` BIGINT NOT NULL DEFAULT 0 COMMENT '当前过审 revision 的结论时间，回扫据此跳过已按新代次审核的广告',
+    `rescan_generation` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '已处理的回扫代次（政策版本+种子变化计数）',
+    `report_batch` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '未决举报批次；举报任务的 purpose_key',
     `created_at_ms` BIGINT NOT NULL,
     `updated_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
@@ -80,6 +83,20 @@ CREATE TABLE IF NOT EXISTS `ad_snapshot` (
     `created_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`ad_id`, `revision`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='广告 revision 快照（只读）';
+
+-- 举报（ADS-030）：同一身份对同一广告只计一次；batch 对应一个举报复审任务。
+CREATE TABLE IF NOT EXISTS `ad_report` (
+    `id` BIGINT NOT NULL,
+    `ad_id` BIGINT NOT NULL,
+    `revision` BIGINT NOT NULL COMMENT '举报时投放的过审 revision',
+    `reporter_key` VARCHAR(64) NOT NULL COMMENT 'u:<userId> 或 s:<会话哈希>，不使用 anonymousId',
+    `reason` VARCHAR(32) NOT NULL,
+    `batch` VARCHAR(32) NOT NULL,
+    `created_at_ms` BIGINT NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_ad_report_reporter` (`ad_id`, `reporter_key`),
+    KEY `idx_ad_report_batch` (`ad_id`, `batch`, `created_at_ms`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='广告举报';
 
 -- 素材与证件只写入私有存储；过审后由 ad-mq 按 ads/<sha256> 复制到公开路径（ADS-015）。
 CREATE TABLE IF NOT EXISTS `ad_asset` (

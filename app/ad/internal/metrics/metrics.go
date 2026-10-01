@@ -34,6 +34,18 @@ var (
 		Namespace: "esx", Subsystem: "ads", Name: "decisions_applied_total",
 		Help: "Review decisions applied by business type and result", Labels: []string{"biz_type", "result"},
 	})
+	reports = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "ads", Name: "reports_total",
+		Help: "User ad reports by outcome", Labels: []string{"outcome"},
+	})
+	appeals = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "ads", Name: "appeals_total",
+		Help: "Advertiser appeals submitted", Labels: []string{},
+	})
+	rescans = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "ads", Name: "rescans_total",
+		Help: "Serving ads handled per rescan generation by outcome", Labels: []string{"outcome"},
+	})
 	repairs = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: "esx", Subsystem: "ads", Name: "review_reconcile_total",
 		Help: "Review reconciliation calls by business type and outcome", Labels: []string{"biz_type", "outcome"},
@@ -46,6 +58,9 @@ func Capped(n int)                      { capped.Add(float64(n)) }
 func Degraded(component, reason string) { degraded.Inc(component, reason) }
 func Applied(bizType, result string)    { applied.Inc(bizType, result) }
 func Reconcile(bizType, outcome string) { repairs.Inc(bizType, outcome) }
+func Report(outcome string)             { reports.Inc(outcome) }
+func Appeal()                           { appeals.Inc() }
+func Rescan(outcome string)             { rescans.Inc(outcome) }
 func Propagation(action string, decidedAtMs int64, now time.Time) {
 	if decidedAtMs > 0 {
 		propagation.ObserveFloat(max(0, now.Sub(time.UnixMilli(decidedAtMs)).Seconds()), action)

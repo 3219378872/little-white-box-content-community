@@ -20,6 +20,13 @@ type fakeStore struct {
 	published int64
 	effect    store.DecisionEffect
 	applied   []event.ReviewDecidedEvent
+	closed    []event.ReviewDecidedEvent
+	closeErr  error
+}
+
+func (f *fakeStore) CloseReportBatch(_ context.Context, d event.ReviewDecidedEvent, _ time.Time) error {
+	f.closed = append(f.closed, d)
+	return f.closeErr
 }
 
 func (f *fakeStore) AdByID(context.Context, int64) (*store.Ad, error) { ad := f.ad; return &ad, nil }
@@ -136,4 +143,118 @@ func TestApplierSkipsStaleRejections(t *testing.T) {
 	approve.Revision, approve.Verdict, approve.PolicyCodes = 2, event.ReviewVerdictApprove, nil
 	require.NoError(t, a.Apply(context.Background(), approve))
 	require.Contains(t, idx.upserts, "DE")
+}
+
+// ADS-031 / ADS-030：暂停结论与投后任务结论即使未改变状态也刷新索引；举报结论关闭批次。
+func TestApplierRefreshesPostServingDecisions(t *testing.T) {
+	fs, idx := servingAd("GENERAL"), &fakeIndex{}
+	fs.ad.ServingStatus = store.ServingPaused
+	a := &Applier{Store: fs, Server: &Server{Store: fs, Publisher: &fakePublisher{}, Index: idx}}
+	interim := event.ReviewDecidedEvent{BizType: event.ReviewBizAdCreative, ObjectID: 1, Revision: 2, TaskID: 5,
+		Purpose: event.ReviewPurposeRescan, Verdict: event.ReviewVerdictReject, PolicyCodes: []string{"CONTENT.DECEPTIVE"},
+		Interim: true}
+	require.NoError(t, a.Apply(context.Background(), interim))
+	require.Len(t, idx.removed, 3, "暂停后从全部市场移除")
+	require.Empty(t, idx.upserts)
+
+	report := interim
+	report.Purpose, report.PurposeKey, report.Interim = event.ReviewPurposeReport, "batch-1", false
+	fs.closeErr = errors.New("db down")
+	require.Error(t, a.Apply(context.Background(), report), "关闭批次失败由消息重试")
+	fs.closeErr = nil
+	require.NoError(t, a.Apply(context.Background(), report))
+	require.Len(t, fs.closed, 3)
+	require.Equal(t, "batch-1", fs.closed[2].PurposeKey)
+}
+
+type fakeRescanStore struct {
+	candidates []store.Ad
+	marked     []int64
+	submitted  []int64
+	skip       map[int64]bool
+	err        error
+	calls      int
+}
+
+func (f *fakeRescanStore) RescanCandidates(_ context.Context, generation string, limit int) ([]store.Ad, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []store.Ad
+	for _, ad := range f.candidates {
+		if ad.RescanGeneration != generation && len(out) < limit {
+			out = append(out, ad)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeRescanStore) setGeneration(id int64, generation string) {
+	for i := range f.candidates {
+		if f.candidates[i].ID == id {
+			f.candidates[i].RescanGeneration = generation
+		}
+	}
+}
+
+func (f *fakeRescanStore) MarkRescanned(_ context.Context, adID, _ int64, generation string) error {
+	f.marked = append(f.marked, adID)
+	f.setGeneration(adID, generation)
+	return nil
+}
+
+func (f *fakeRescanStore) SubmitRescan(_ context.Context, adID, _ int64, generation string, _ time.Time) (bool, error) {
+	if f.skip[adID] {
+		f.setGeneration(adID, generation)
+		return false, nil
+	}
+	f.submitted = append(f.submitted, adID)
+	f.setGeneration(adID, generation)
+	return true, nil
+}
+
+type fakeGenerations struct {
+	gen Generation
+	err error
+}
+
+func (f fakeGenerations) RescanGeneration(context.Context) (Generation, error) { return f.gen, f.err }
+
+// ADS-031：代次生效前过审的在投广告送回扫，之后过审的只记录代次；代次未就绪时不回扫。
+func TestRescannerSubmitsAdsApprovedBeforeTheGeneration(t *testing.T) {
+	fs := &fakeRescanStore{candidates: []store.Ad{
+		{ID: 1, ApprovedRevision: 1, ApprovedAtMs: 100},
+		{ID: 2, ApprovedRevision: 3, ApprovedAtMs: 900},
+		{ID: 3, ApprovedRevision: 1, ApprovedAtMs: 200, RescanGeneration: "v2+seeds@1"},
+		{ID: 4, ApprovedRevision: 2, ApprovedAtMs: 50},
+	}, skip: map[int64]bool{4: true}}
+	r := &Rescanner{Store: fs, Source: fakeGenerations{gen: Generation{Ready: false, Value: "v2+seeds@1"}}}
+	r.Run(context.Background())
+	require.Zero(t, fs.calls)
+
+	r.Source = fakeGenerations{gen: Generation{Ready: true, Value: "v2+seeds@1", EffectiveSinceMs: 500}}
+	r.Run(context.Background())
+	require.Equal(t, []int64{1}, fs.submitted)
+	require.Equal(t, []int64{2}, fs.marked)
+
+	r.Source = fakeGenerations{gen: Generation{Ready: true, Value: "v2+seeds@2", EffectiveSinceMs: 1000}}
+	r.Run(context.Background())
+	require.Equal(t, []int64{1, 1, 2, 3}, fs.submitted, "新代次重扫全部在投广告；被跳过的 4 不送审")
+
+	fs.err = errors.New("db down")
+	r.Run(context.Background())
+	r.Source = fakeGenerations{err: errors.New("rpc down")}
+	r.Run(context.Background())
+}
+
+func TestRescannerPagesThroughLargeGenerations(t *testing.T) {
+	fs := &fakeRescanStore{}
+	for i := range RescanBatch*2 + 5 {
+		fs.candidates = append(fs.candidates, store.Ad{ID: int64(i + 1), ApprovedRevision: 1})
+	}
+	r := &Rescanner{Store: fs, Source: fakeGenerations{gen: Generation{Ready: true, Value: "g", EffectiveSinceMs: 1}}}
+	r.Run(context.Background())
+	require.Len(t, fs.submitted, RescanBatch*2+5)
+	require.Equal(t, 3, fs.calls)
 }

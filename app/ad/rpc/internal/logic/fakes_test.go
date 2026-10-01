@@ -41,6 +41,21 @@ type fakeStore struct {
 	qualInput       store.QualificationInput
 	adInput         store.AdInput
 	createdAsset    store.Asset
+	report          store.ReportResult
+	reportInput     store.ReportInput
+	appealKey       string
+}
+
+func (f *fakeStore) ReportAd(_ context.Context, in store.ReportInput, _ time.Time) (store.ReportResult, error) {
+	f.record("ReportAd")
+	f.reportInput = in
+	return f.report, f.err
+}
+
+func (f *fakeStore) AppealAd(_ context.Context, _, _ int64, key string, _ time.Time) (*store.AdWithSnapshots, error) {
+	f.record("AppealAd")
+	f.appealKey = key
+	return f.ad, f.err
 }
 
 func (f *fakeStore) record(name string) {

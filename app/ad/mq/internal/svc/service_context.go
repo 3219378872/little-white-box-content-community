@@ -25,6 +25,7 @@ type ServiceContext struct {
 	DB         *sql.DB
 	Applier    *apply.Applier
 	Reconciler *apply.Reconciler
+	Rescanner  *apply.Rescanner
 }
 
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
@@ -58,6 +59,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		Config: c, DB: rawDB,
 		Applier:    &apply.Applier{Store: adStore, Server: server},
 		Reconciler: &apply.Reconciler{Store: adStore, Review: ensurer{review}, Server: server},
+		Rescanner:  &apply.Rescanner{Store: adStore, Source: generations{review}},
 	}, nil
 }
 
@@ -80,4 +82,14 @@ func (e ensurer) EnsureSubmitted(ctx context.Context, sub event.ReviewSubmittedE
 		return 0, false, err
 	}
 	return resp.GetTaskId(), resp.GetCreated(), nil
+}
+
+type generations struct{ client reviewservice.ReviewService }
+
+func (g generations) RescanGeneration(ctx context.Context) (apply.Generation, error) {
+	resp, err := g.client.GetRescanGeneration(ctx, &reviewservice.GetRescanGenerationReq{})
+	if err != nil {
+		return apply.Generation{}, err
+	}
+	return apply.Generation{Ready: resp.GetReady(), Value: resp.GetGeneration(), EffectiveSinceMs: resp.GetEffectiveSinceMs()}, nil
 }

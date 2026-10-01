@@ -50,6 +50,8 @@ func (b base) mapError(err error, action string) error {
 		return errx.NewWithCode(errx.AdMediaInvalid)
 	case errors.Is(err, store.ErrMarketNotAllowed):
 		return errx.NewWithCode(errx.AdIndustryUnsupported)
+	case errors.Is(err, store.ErrAppealNotAllowed):
+		return errx.NewWithCode(errx.AdAppealNotAllowed)
 	case errors.Is(err, idempotencyx.ErrIdempotencyConflict):
 		return errx.NewWithCode(errx.IdempotencyConflict)
 	case errors.Is(err, assets.ErrTooLarge):
@@ -88,9 +90,10 @@ func (b base) adView(full *store.AdWithSnapshots, quals []store.Qualification) *
 	view := &pb.AdView{
 		AdId: ad.ID, Revision: ad.Revision, ApprovedRevision: ad.ApprovedRevision, ReviewStatus: ad.ReviewStatus,
 		ServingStatus: ad.ServingStatus, PolicyCodes: ad.PolicyCodes(), StartMs: ad.StartMs, EndMs: ad.EndMs,
-		UpdatedAtMs: ad.UpdatedAtMs, PauseReason: ad.PauseReason,
+		UpdatedAtMs: ad.UpdatedAtMs, PauseReason: ad.PauseReason, AppealedRevision: ad.AppealedRevision,
 		Latest: b.content(full.Latest, false),
 	}
+	_, view.Appealable = store.AppealTarget(ad)
 	if full.Approved != nil {
 		view.Approved = b.content(full.Approved, ad.PublishedRevision >= ad.ApprovedRevision)
 	}

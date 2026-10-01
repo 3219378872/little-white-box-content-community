@@ -56,6 +56,15 @@ func (contractAdService) UpdateAd(context.Context, *adservice.UpdateAdReq, ...ca
 func (contractAdService) HideAd(context.Context, *adservice.HideAdReq, ...callopt.Option) (*adservice.HideAdResp, error) {
 	return &adservice.HideAdResp{}, nil
 }
+func (contractAdService) ReportAd(context.Context, *adservice.ReportAdReq, ...callopt.Option) (*adservice.ReportAdResp, error) {
+	return &adservice.ReportAdResp{Counted: true}, nil
+}
+func (contractAdService) AppealAd(_ context.Context, in *adservice.AppealAdReq, _ ...callopt.Option) (*adservice.AdResp, error) {
+	if in.AdId == 8 {
+		return nil, errx.NewWithCode(errx.AdAppealNotAllowed)
+	}
+	return contractAd(), nil
+}
 func (contractAdService) GetSponsoredSlots(context.Context, *adservice.GetSponsoredSlotsReq, ...callopt.Option) (*adservice.GetSponsoredSlotsResp, error) {
 	return &adservice.GetSponsoredSlotsResp{}, nil
 }

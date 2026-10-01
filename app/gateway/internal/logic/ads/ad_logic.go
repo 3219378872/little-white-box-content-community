@@ -137,6 +137,52 @@ func (l *HideAdLogic) HideAd(req *types.HideAdReq) (*types.AdActionResp, error) 
 	return &types.AdActionResp{Ok: true}, nil
 }
 
+type ReportAdLogic struct{ base }
+
+func NewReportAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReportAdLogic {
+	return &ReportAdLogic{newBase(ctx, svcCtx)}
+}
+
+// ReportAd 举报广告（ADS-030）：生成投后复审任务并对举报人隐藏（ADS-026）；匿名用户按会话识别。
+func (l *ReportAdLogic) ReportAd(req *types.ReportAdReq) (*types.ReportAdResp, error) {
+	userID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
+	sessionID := strings.TrimSpace(req.SessionId)
+	if req.AdId <= 0 || (userID <= 0 && sessionID == "") || len(sessionID) > 128 || len(req.Reason) > 32 {
+		return nil, errx.NewWithCode(errx.ParamError)
+	}
+	if userID < 0 {
+		userID = 0
+	}
+	resp, err := l.svcCtx.AdService.ReportAd(l.ctx, &adservice.ReportAdReq{
+		UserId: userID, SessionId: sessionID, AdId: req.AdId, Reason: strings.TrimSpace(req.Reason),
+	})
+	if err != nil {
+		return nil, l.rpcError(err, "AdService.ReportAd")
+	}
+	return &types.ReportAdResp{Counted: resp.GetCounted()}, nil
+}
+
+type AppealAdLogic struct{ base }
+
+func NewAppealAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AppealAdLogic {
+	return &AppealAdLogic{newBase(ctx, svcCtx)}
+}
+
+// AppealAd 对被拒或被下线的 revision 申诉，每个 revision 一次（ADS-014）。
+func (l *AppealAdLogic) AppealAd(req *types.AppealAdReq) (*types.AdResp, error) {
+	userID, err := l.userID()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := l.svcCtx.AdService.AppealAd(l.ctx, &adservice.AppealAdReq{
+		UserId: userID, AdId: req.AdId, IdempotencyKey: req.IdempotencyKey,
+	})
+	if err != nil {
+		return nil, l.rpcError(err, "AdService.AppealAd")
+	}
+	return &types.AdResp{Ad: adItem(resp.GetAd())}, nil
+}
+
 func adItem(ad *adservice.AdView) types.AdItem {
 	if ad == nil {
 		return types.AdItem{PolicyCodes: []string{}}
@@ -146,6 +192,7 @@ func adItem(ad *adservice.AdView) types.AdItem {
 		ReviewStatus: ad.GetReviewStatus(), ServingStatus: ad.GetServingStatus(), PolicyCodes: nonNil(ad.GetPolicyCodes()),
 		Latest: adContent(ad.GetLatest()), StartMs: ad.GetStartMs(), EndMs: ad.GetEndMs(), Eligible: ad.GetEligible(),
 		UpdatedAtMs: ad.GetUpdatedAtMs(), PauseReason: ad.GetPauseReason(),
+		Appealable: ad.GetAppealable(), AppealedRevision: ad.GetAppealedRevision(),
 	}
 	if ad.GetApproved() != nil {
 		approved := adContent(ad.GetApproved())

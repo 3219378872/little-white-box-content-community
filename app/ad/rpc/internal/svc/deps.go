@@ -22,6 +22,8 @@ type Store interface {
 	NewAssetID() (int64, error)
 	CreateAsset(ctx context.Context, asset store.Asset, idempotencyKey string, now time.Time) (*store.Asset, error)
 	GetAsset(ctx context.Context, id int64) (*store.Asset, error)
+	ReportAd(ctx context.Context, in store.ReportInput, now time.Time) (store.ReportResult, error)
+	AppealAd(ctx context.Context, userID, adID int64, idempotencyKey string, now time.Time) (*store.AdWithSnapshots, error)
 }
 
 // AssetStorage 是私有素材读写能力；生产使用 *assets.Storage。

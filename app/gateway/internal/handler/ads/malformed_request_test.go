@@ -23,6 +23,7 @@ func TestHandlersRejectMalformedJSONBeforeLogic(t *testing.T) {
 	require.NoError(t, err)
 	handlers := map[string]func(*svc.ServiceContext) app.HandlerFunc{
 		"AddAdQualificationHandler": AddAdQualificationHandler,
+		"AppealAdHandler":           AppealAdHandler,
 		"ApplyAdvertiserHandler":    ApplyAdvertiserHandler,
 		"CreateAdHandler":           CreateAdHandler,
 		"GetAdAssetHandler":         GetAdAssetHandler,
@@ -31,6 +32,7 @@ func TestHandlersRejectMalformedJSONBeforeLogic(t *testing.T) {
 		"HideAdHandler":             HideAdHandler,
 		"ListAdPoliciesHandler":     ListAdPoliciesHandler,
 		"ListAdsHandler":            ListAdsHandler,
+		"ReportAdHandler":           ReportAdHandler,
 		"UpdateAdHandler":           UpdateAdHandler,
 	}
 	for name, newHandler := range handlers {

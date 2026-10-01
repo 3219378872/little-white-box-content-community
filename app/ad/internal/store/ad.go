@@ -69,7 +69,7 @@ func (s *Store) CreateAd(ctx context.Context, userID int64, in AdInput, idempote
 			PolicyCodesJSON: "[]", SubmittedAtMs: now.UnixMilli(), CreatedAtMs: now.UnixMilli(), UpdatedAtMs: now.UnixMilli(),
 		}
 		if _, err := session.ExecCtx(ctx, `INSERT INTO ad (`+adColumns+`)
-			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, '[]', '', 0, 0, ?, 0, ?, ?)`,
+			VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, '[]', '', 0, 0, ?, 0, 0, '', '', ?, ?)`,
 			ad.ID, ad.AdvertiserID, ad.UserID, ad.Revision, ad.ReviewStatus, ad.ServingStatus, ad.Market, ad.Industry,
 			ad.StartMs, ad.EndMs, ad.SubmittedAtMs, ad.CreatedAtMs, ad.UpdatedAtMs); err != nil {
 			return err
@@ -206,11 +206,17 @@ func (s *Store) enqueueSubmission(ctx context.Context, session sqlx.Session, sub
 	if err != nil {
 		return err
 	}
+	key := "review-submitted:" + sub.BizType + ":" + strconv.FormatInt(sub.ObjectID, 10) + ":" +
+		strconv.FormatInt(sub.Revision, 10) + ":" + sub.Purpose
+	if sub.PurposeKey != "" {
+		// 同一批举报的后续送审只提高优先级，键带上优先级以免被当作重复消息。
+		key += ":" + sub.PurposeKey + ":" + strconv.FormatInt(int64(sub.Priority), 10)
+	}
+	if len(key) > 128 { // message_key VARCHAR(128)；键只用于追踪，不承担去重
+		key = key[:128]
+	}
 	return s.outbox.Enqueue(ctx, session, outboxx.Event{
-		ID: id, Topic: mqx.TopicReviewSubmitted, Tag: sub.BizType,
-		Key: "review-submitted:" + sub.BizType + ":" + strconv.FormatInt(sub.ObjectID, 10) + ":" +
-			strconv.FormatInt(sub.Revision, 10) + ":" + sub.Purpose,
-		Payload: payload,
+		ID: id, Topic: mqx.TopicReviewSubmitted, Tag: sub.BizType, Key: key, Payload: payload,
 	})
 }
 

@@ -97,6 +97,8 @@ func RegisterHandlers(server *server.Hertz, serverCtx *svc.ServiceContext) {
 	server.GET("/api/v2/ads/:adId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.GetAdHandler(serverCtx))
 	server.PUT("/api/v2/ads/:adId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.UpdateAdHandler(serverCtx))
 	server.POST("/api/v2/ads/:adId/hide", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.OptionalAuth, ads.HideAdHandler(serverCtx))
+	server.POST("/api/v2/ads/:adId/report", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.OptionalAuth, ads.ReportAdHandler(serverCtx))
+	server.POST("/api/v2/ads/:adId/appeal", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.AppealAdHandler(serverCtx))
 	server.GET("/api/v2/review/me", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewerProfileHandler(serverCtx))
 	server.GET("/api/v2/review/queue", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewQueueHandler(serverCtx))
 	server.POST("/api/v2/review/tasks/claim", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.ClaimReviewTaskHandler(serverCtx))

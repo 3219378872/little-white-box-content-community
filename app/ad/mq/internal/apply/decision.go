@@ -15,6 +15,7 @@ import (
 type DecisionStore interface {
 	ApplyAdDecision(ctx context.Context, d event.ReviewDecidedEvent, now time.Time) (store.DecisionEffect, error)
 	ApplyAdvertiserDecision(ctx context.Context, d event.ReviewDecidedEvent, now time.Time) (store.DecisionEffect, error)
+	CloseReportBatch(ctx context.Context, d event.ReviewDecidedEvent, now time.Time) error
 }
 
 // Applier 应用 review-decided 事件。
@@ -38,7 +39,12 @@ func (a *Applier) Apply(ctx context.Context, d event.ReviewDecidedEvent) error {
 			return err
 		}
 		metrics.Applied(d.BizType, result(effect.Applied))
-		if !effect.Applied && d.Verdict != event.ReviewVerdictApprove && d.Purpose != event.ReviewPurposeQA {
+		if err := a.Store.CloseReportBatch(ctx, d, now); err != nil {
+			return err
+		}
+		// 旧 revision 的送审与申诉拒绝不影响投放；其余结论（含投后任务与暂停结论）都按权威状态刷新索引。
+		if !effect.Applied && d.Verdict == event.ReviewVerdictReject &&
+			(d.Purpose == event.ReviewPurposeInitial || d.Purpose == event.ReviewPurposeAppeal) {
 			return nil
 		}
 		// 重复投递时仍刷新索引，保证首轮发布失败后可经消息重试补齐。
@@ -53,7 +59,8 @@ func (a *Applier) Apply(ctx context.Context, d event.ReviewDecidedEvent) error {
 		metrics.Propagation(action, d.DecidedAt, a.Server.now())
 		logx.WithContext(ctx).Infow("ad review decision applied",
 			logx.Field("adId", d.ObjectID), logx.Field("revision", d.Revision),
-			logx.Field("verdict", d.Verdict), logx.Field("applied", effect.Applied), logx.Field("servable", servable))
+			logx.Field("verdict", d.Verdict), logx.Field("purpose", d.Purpose), logx.Field("interim", d.Interim),
+			logx.Field("applied", effect.Applied), logx.Field("servable", servable))
 	case event.ReviewBizAdvertiserQualification:
 		effect, err := a.Store.ApplyAdvertiserDecision(ctx, d, now)
 		if err != nil {
