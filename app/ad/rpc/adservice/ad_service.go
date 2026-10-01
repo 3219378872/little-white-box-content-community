@@ -27,8 +27,11 @@ type GetAdReq = pb.GetAdReq
 type AdResp = pb.AdResp
 type ListAdsReq = pb.ListAdsReq
 type ListAdsResp = pb.ListAdsResp
-type AuthorizeOwnerMediaReq = pb.AuthorizeOwnerMediaReq
-type AuthorizeOwnerMediaResp = pb.AuthorizeOwnerMediaResp
+type UploadAssetReq = pb.UploadAssetReq
+type AssetView = pb.AssetView
+type UploadAssetResp = pb.UploadAssetResp
+type ReadAssetReq = pb.ReadAssetReq
+type ReadAssetResp = pb.ReadAssetResp
 type SponsoredWhy = pb.SponsoredWhy
 type SponsoredAd = pb.SponsoredAd
 type SponsoredSlot = pb.SponsoredSlot
@@ -72,8 +75,12 @@ func (c *client) ListAds(ctx context.Context, req *pb.ListAdsReq, opts ...callop
 	v, e := c.Client.ListAds(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }
-func (c *client) AuthorizeOwnerMedia(ctx context.Context, req *pb.AuthorizeOwnerMediaReq, opts ...callopt.Option) (*pb.AuthorizeOwnerMediaResp, error) {
-	v, e := c.Client.AuthorizeOwnerMedia(ctx, req, opts...)
+func (c *client) UploadAsset(ctx context.Context, req *pb.UploadAssetReq, opts ...callopt.Option) (*pb.UploadAssetResp, error) {
+	v, e := c.Client.UploadAsset(ctx, req, opts...)
+	return v, rpcx.FromTransportError(e)
+}
+func (c *client) ReadAsset(ctx context.Context, req *pb.ReadAssetReq, opts ...callopt.Option) (*pb.ReadAssetResp, error) {
+	v, e := c.Client.ReadAsset(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }
 func (c *client) GetSponsoredSlots(ctx context.Context, req *pb.GetSponsoredSlotsReq, opts ...callopt.Option) (*pb.GetSponsoredSlotsResp, error) {

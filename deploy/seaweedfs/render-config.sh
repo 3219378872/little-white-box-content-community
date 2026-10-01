@@ -15,7 +15,7 @@ umask 077
 {
   printf '%s\n' '{'
   printf '%s\n' '  "identities": ['
-  printf '%s\n' '    {"name":"anonymous","actions":["Read"]},'
+  printf '%s\n' '    {"name":"anonymous","actions":["Read:xbh-media"]},'
   printf '    {"name":"xbh-media","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}\n' "${access_key}" "${secret_key}"
   printf '%s\n' '  ]'
   printf '%s\n' '}'

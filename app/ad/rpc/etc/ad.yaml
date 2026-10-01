@@ -1,0 +1,46 @@
+Name: ad.rpc
+ListenOn: 0.0.0.0:9028
+DevServer:
+  Enabled: true
+  Host: 0.0.0.0
+  Port: 9128
+  EnableMetrics: true
+  EnablePprof: false
+Etcd:
+  Hosts:
+  - 127.0.0.1:2379
+  Key: ad.rpc
+
+DataSource: "${DB_AD}"
+
+Redis:
+  Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASSWORD}"
+  Type: node
+  Key: ad
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "ad-outbox-producer"
+  Retry: 3
+  SendTimeout: 3000
+Outbox:
+  BatchSize: 100
+  PollIntervalMs: 200
+  LeaseMs: 30000
+  BaseBackoffMs: 1000
+  MaxBackoffMs: 60000
+  MaxAttempts: 20
+# 素材与证件写入私有桶；过审后由 ad-mq 复制到公开媒体桶 ads/<sha256>（ADS-015）。
+Assets:
+  Endpoint: "127.0.0.1:8333"
+  AccessKey: "${S3_ACCESS_KEY}"
+  SecretKey: "${S3_SECRET_KEY}"
+  UseSSL: false
+  Region: "us-east-1"
+  PrivateBucket: "xbh-ad-private"
+  PublicBucket: "xbh-media"
+  PublicBaseURL: "http://127.0.0.1:8333/xbh-media"
+EligibilityCacheMs: 10000
+
+# 服务间内部鉴权共享密钥（HMAC），全服务一致
+InternalSecret: ${RPC_INTERNAL_SECRET}

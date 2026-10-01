@@ -73,13 +73,27 @@ CREATE TABLE IF NOT EXISTS `ad_snapshot` (
     `cta` VARCHAR(32) NOT NULL,
     `landing_url` VARCHAR(2048) NOT NULL,
     `landing_domain` VARCHAR(255) NOT NULL,
-    `media` VARCHAR(2048) NOT NULL DEFAULT '[]' COMMENT 'JSON [{mediaId, sha256, publicKey}]',
+    `media` VARCHAR(2048) NOT NULL DEFAULT '[]' COMMENT 'JSON [{mediaId, sha256}]，mediaId 为 ad_asset.id',
     `market` VARCHAR(8) NOT NULL,
     `language` VARCHAR(8) NOT NULL,
     `industry` VARCHAR(32) NOT NULL,
     `created_at_ms` BIGINT NOT NULL,
     PRIMARY KEY (`ad_id`, `revision`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='广告 revision 快照（只读）';
+
+-- 素材与证件只写入私有存储；过审后由 ad-mq 按 ads/<sha256> 复制到公开路径（ADS-015）。
+CREATE TABLE IF NOT EXISTS `ad_asset` (
+    `id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `kind` VARCHAR(16) NOT NULL COMMENT 'creative/document',
+    `sha256` CHAR(64) NOT NULL,
+    `mime_type` VARCHAR(64) NOT NULL,
+    `size_bytes` BIGINT NOT NULL,
+    `object_key` VARCHAR(255) NOT NULL,
+    `created_at_ms` BIGINT NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_ad_asset_owner` (`user_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='私有素材与证件';
 
 CREATE TABLE IF NOT EXISTS `event_outbox` (
     `id` BIGINT NOT NULL COMMENT '事件ID',

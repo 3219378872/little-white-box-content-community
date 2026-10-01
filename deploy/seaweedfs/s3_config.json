@@ -2,7 +2,7 @@
   "identities": [
     {
       "name": "anonymous",
-      "actions": ["Read"]
+      "actions": ["Read:xbh-media"]
     },
     {
       "name": "xbh-media",

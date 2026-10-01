@@ -18,7 +18,8 @@ type Client interface {
 	UpdateAd(ctx context.Context, Req *ad.UpdateAdReq, callOptions ...callopt.Option) (r *ad.AdResp, err error)
 	GetAd(ctx context.Context, Req *ad.GetAdReq, callOptions ...callopt.Option) (r *ad.AdResp, err error)
 	ListAds(ctx context.Context, Req *ad.ListAdsReq, callOptions ...callopt.Option) (r *ad.ListAdsResp, err error)
-	AuthorizeOwnerMedia(ctx context.Context, Req *ad.AuthorizeOwnerMediaReq, callOptions ...callopt.Option) (r *ad.AuthorizeOwnerMediaResp, err error)
+	UploadAsset(ctx context.Context, Req *ad.UploadAssetReq, callOptions ...callopt.Option) (r *ad.UploadAssetResp, err error)
+	ReadAsset(ctx context.Context, Req *ad.ReadAssetReq, callOptions ...callopt.Option) (r *ad.ReadAssetResp, err error)
 	GetSponsoredSlots(ctx context.Context, Req *ad.GetSponsoredSlotsReq, callOptions ...callopt.Option) (r *ad.GetSponsoredSlotsResp, err error)
 	HideAd(ctx context.Context, Req *ad.HideAdReq, callOptions ...callopt.Option) (r *ad.HideAdResp, err error)
 }
@@ -87,9 +88,14 @@ func (p *kAdServiceClient) ListAds(ctx context.Context, Req *ad.ListAdsReq, call
 	return p.kClient.ListAds(ctx, Req)
 }
 
-func (p *kAdServiceClient) AuthorizeOwnerMedia(ctx context.Context, Req *ad.AuthorizeOwnerMediaReq, callOptions ...callopt.Option) (r *ad.AuthorizeOwnerMediaResp, err error) {
+func (p *kAdServiceClient) UploadAsset(ctx context.Context, Req *ad.UploadAssetReq, callOptions ...callopt.Option) (r *ad.UploadAssetResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.AuthorizeOwnerMedia(ctx, Req)
+	return p.kClient.UploadAsset(ctx, Req)
+}
+
+func (p *kAdServiceClient) ReadAsset(ctx context.Context, Req *ad.ReadAssetReq, callOptions ...callopt.Option) (r *ad.ReadAssetResp, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.ReadAsset(ctx, Req)
 }
 
 func (p *kAdServiceClient) GetSponsoredSlots(ctx context.Context, Req *ad.GetSponsoredSlotsReq, callOptions ...callopt.Option) (r *ad.GetSponsoredSlotsResp, err error) {

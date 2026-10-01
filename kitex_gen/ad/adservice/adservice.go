@@ -64,10 +64,17 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
-	"AuthorizeOwnerMedia": kitex.NewMethodInfo(
-		authorizeOwnerMediaHandler,
-		newAuthorizeOwnerMediaArgs,
-		newAuthorizeOwnerMediaResult,
+	"UploadAsset": kitex.NewMethodInfo(
+		uploadAssetHandler,
+		newUploadAssetArgs,
+		newUploadAssetResult,
+		false,
+		kitex.WithStreamingMode(kitex.StreamingUnary),
+	),
+	"ReadAsset": kitex.NewMethodInfo(
+		readAssetHandler,
+		newReadAssetArgs,
+		newReadAssetResult,
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
@@ -928,52 +935,52 @@ func (p *ListAdsResult) GetResult() interface{} {
 	return p.Success
 }
 
-func authorizeOwnerMediaHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+func uploadAssetHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
 	switch s := arg.(type) {
 	case *streaming.Args:
 		st := s.Stream
-		req := new(ad.AuthorizeOwnerMediaReq)
+		req := new(ad.UploadAssetReq)
 		if err := st.RecvMsg(req); err != nil {
 			return err
 		}
-		resp, err := handler.(ad.AdService).AuthorizeOwnerMedia(ctx, req)
+		resp, err := handler.(ad.AdService).UploadAsset(ctx, req)
 		if err != nil {
 			return err
 		}
 		return st.SendMsg(resp)
-	case *AuthorizeOwnerMediaArgs:
-		success, err := handler.(ad.AdService).AuthorizeOwnerMedia(ctx, s.Req)
+	case *UploadAssetArgs:
+		success, err := handler.(ad.AdService).UploadAsset(ctx, s.Req)
 		if err != nil {
 			return err
 		}
-		realResult := result.(*AuthorizeOwnerMediaResult)
+		realResult := result.(*UploadAssetResult)
 		realResult.Success = success
 		return nil
 	default:
 		return errInvalidMessageType
 	}
 }
-func newAuthorizeOwnerMediaArgs() interface{} {
-	return &AuthorizeOwnerMediaArgs{}
+func newUploadAssetArgs() interface{} {
+	return &UploadAssetArgs{}
 }
 
-func newAuthorizeOwnerMediaResult() interface{} {
-	return &AuthorizeOwnerMediaResult{}
+func newUploadAssetResult() interface{} {
+	return &UploadAssetResult{}
 }
 
-type AuthorizeOwnerMediaArgs struct {
-	Req *ad.AuthorizeOwnerMediaReq
+type UploadAssetArgs struct {
+	Req *ad.UploadAssetReq
 }
 
-func (p *AuthorizeOwnerMediaArgs) Marshal(out []byte) ([]byte, error) {
+func (p *UploadAssetArgs) Marshal(out []byte) ([]byte, error) {
 	if !p.IsSetReq() {
 		return out, nil
 	}
 	return proto.Marshal(p.Req)
 }
 
-func (p *AuthorizeOwnerMediaArgs) Unmarshal(in []byte) error {
-	msg := new(ad.AuthorizeOwnerMediaReq)
+func (p *UploadAssetArgs) Unmarshal(in []byte) error {
+	msg := new(ad.UploadAssetReq)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -981,38 +988,38 @@ func (p *AuthorizeOwnerMediaArgs) Unmarshal(in []byte) error {
 	return nil
 }
 
-var AuthorizeOwnerMediaArgs_Req_DEFAULT *ad.AuthorizeOwnerMediaReq
+var UploadAssetArgs_Req_DEFAULT *ad.UploadAssetReq
 
-func (p *AuthorizeOwnerMediaArgs) GetReq() *ad.AuthorizeOwnerMediaReq {
+func (p *UploadAssetArgs) GetReq() *ad.UploadAssetReq {
 	if !p.IsSetReq() {
-		return AuthorizeOwnerMediaArgs_Req_DEFAULT
+		return UploadAssetArgs_Req_DEFAULT
 	}
 	return p.Req
 }
 
-func (p *AuthorizeOwnerMediaArgs) IsSetReq() bool {
+func (p *UploadAssetArgs) IsSetReq() bool {
 	return p.Req != nil
 }
 
-func (p *AuthorizeOwnerMediaArgs) GetFirstArgument() interface{} {
+func (p *UploadAssetArgs) GetFirstArgument() interface{} {
 	return p.Req
 }
 
-type AuthorizeOwnerMediaResult struct {
-	Success *ad.AuthorizeOwnerMediaResp
+type UploadAssetResult struct {
+	Success *ad.UploadAssetResp
 }
 
-var AuthorizeOwnerMediaResult_Success_DEFAULT *ad.AuthorizeOwnerMediaResp
+var UploadAssetResult_Success_DEFAULT *ad.UploadAssetResp
 
-func (p *AuthorizeOwnerMediaResult) Marshal(out []byte) ([]byte, error) {
+func (p *UploadAssetResult) Marshal(out []byte) ([]byte, error) {
 	if !p.IsSetSuccess() {
 		return out, nil
 	}
 	return proto.Marshal(p.Success)
 }
 
-func (p *AuthorizeOwnerMediaResult) Unmarshal(in []byte) error {
-	msg := new(ad.AuthorizeOwnerMediaResp)
+func (p *UploadAssetResult) Unmarshal(in []byte) error {
+	msg := new(ad.UploadAssetResp)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -1020,22 +1027,133 @@ func (p *AuthorizeOwnerMediaResult) Unmarshal(in []byte) error {
 	return nil
 }
 
-func (p *AuthorizeOwnerMediaResult) GetSuccess() *ad.AuthorizeOwnerMediaResp {
+func (p *UploadAssetResult) GetSuccess() *ad.UploadAssetResp {
 	if !p.IsSetSuccess() {
-		return AuthorizeOwnerMediaResult_Success_DEFAULT
+		return UploadAssetResult_Success_DEFAULT
 	}
 	return p.Success
 }
 
-func (p *AuthorizeOwnerMediaResult) SetSuccess(x interface{}) {
-	p.Success = x.(*ad.AuthorizeOwnerMediaResp)
+func (p *UploadAssetResult) SetSuccess(x interface{}) {
+	p.Success = x.(*ad.UploadAssetResp)
 }
 
-func (p *AuthorizeOwnerMediaResult) IsSetSuccess() bool {
+func (p *UploadAssetResult) IsSetSuccess() bool {
 	return p.Success != nil
 }
 
-func (p *AuthorizeOwnerMediaResult) GetResult() interface{} {
+func (p *UploadAssetResult) GetResult() interface{} {
+	return p.Success
+}
+
+func readAssetHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	switch s := arg.(type) {
+	case *streaming.Args:
+		st := s.Stream
+		req := new(ad.ReadAssetReq)
+		if err := st.RecvMsg(req); err != nil {
+			return err
+		}
+		resp, err := handler.(ad.AdService).ReadAsset(ctx, req)
+		if err != nil {
+			return err
+		}
+		return st.SendMsg(resp)
+	case *ReadAssetArgs:
+		success, err := handler.(ad.AdService).ReadAsset(ctx, s.Req)
+		if err != nil {
+			return err
+		}
+		realResult := result.(*ReadAssetResult)
+		realResult.Success = success
+		return nil
+	default:
+		return errInvalidMessageType
+	}
+}
+func newReadAssetArgs() interface{} {
+	return &ReadAssetArgs{}
+}
+
+func newReadAssetResult() interface{} {
+	return &ReadAssetResult{}
+}
+
+type ReadAssetArgs struct {
+	Req *ad.ReadAssetReq
+}
+
+func (p *ReadAssetArgs) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetReq() {
+		return out, nil
+	}
+	return proto.Marshal(p.Req)
+}
+
+func (p *ReadAssetArgs) Unmarshal(in []byte) error {
+	msg := new(ad.ReadAssetReq)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Req = msg
+	return nil
+}
+
+var ReadAssetArgs_Req_DEFAULT *ad.ReadAssetReq
+
+func (p *ReadAssetArgs) GetReq() *ad.ReadAssetReq {
+	if !p.IsSetReq() {
+		return ReadAssetArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+
+func (p *ReadAssetArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *ReadAssetArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+type ReadAssetResult struct {
+	Success *ad.ReadAssetResp
+}
+
+var ReadAssetResult_Success_DEFAULT *ad.ReadAssetResp
+
+func (p *ReadAssetResult) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetSuccess() {
+		return out, nil
+	}
+	return proto.Marshal(p.Success)
+}
+
+func (p *ReadAssetResult) Unmarshal(in []byte) error {
+	msg := new(ad.ReadAssetResp)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Success = msg
+	return nil
+}
+
+func (p *ReadAssetResult) GetSuccess() *ad.ReadAssetResp {
+	if !p.IsSetSuccess() {
+		return ReadAssetResult_Success_DEFAULT
+	}
+	return p.Success
+}
+
+func (p *ReadAssetResult) SetSuccess(x interface{}) {
+	p.Success = x.(*ad.ReadAssetResp)
+}
+
+func (p *ReadAssetResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *ReadAssetResult) GetResult() interface{} {
 	return p.Success
 }
 
@@ -1341,11 +1459,21 @@ func (p *kClient) ListAds(ctx context.Context, Req *ad.ListAdsReq) (r *ad.ListAd
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) AuthorizeOwnerMedia(ctx context.Context, Req *ad.AuthorizeOwnerMediaReq) (r *ad.AuthorizeOwnerMediaResp, err error) {
-	var _args AuthorizeOwnerMediaArgs
+func (p *kClient) UploadAsset(ctx context.Context, Req *ad.UploadAssetReq) (r *ad.UploadAssetResp, err error) {
+	var _args UploadAssetArgs
 	_args.Req = Req
-	var _result AuthorizeOwnerMediaResult
-	if err = p.c.Call(ctx, "AuthorizeOwnerMedia", &_args, &_result); err != nil {
+	var _result UploadAssetResult
+	if err = p.c.Call(ctx, "UploadAsset", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) ReadAsset(ctx context.Context, Req *ad.ReadAssetReq) (r *ad.ReadAssetResp, err error) {
+	var _args ReadAssetArgs
+	_args.Req = Req
+	var _result ReadAssetResult
+	if err = p.c.Call(ctx, "ReadAsset", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

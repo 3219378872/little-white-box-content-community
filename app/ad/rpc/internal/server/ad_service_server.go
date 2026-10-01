@@ -35,8 +35,11 @@ func (s *AdServiceServer) GetAd(ctx context.Context, req *pb.GetAdReq) (*pb.AdRe
 func (s *AdServiceServer) ListAds(ctx context.Context, req *pb.ListAdsReq) (*pb.ListAdsResp, error) {
 	return logic.NewListAdsLogic(ctx, s.svcCtx).ListAds(req)
 }
-func (s *AdServiceServer) AuthorizeOwnerMedia(ctx context.Context, req *pb.AuthorizeOwnerMediaReq) (*pb.AuthorizeOwnerMediaResp, error) {
-	return logic.NewAuthorizeOwnerMediaLogic(ctx, s.svcCtx).AuthorizeOwnerMedia(req)
+func (s *AdServiceServer) UploadAsset(ctx context.Context, req *pb.UploadAssetReq) (*pb.UploadAssetResp, error) {
+	return logic.NewUploadAssetLogic(ctx, s.svcCtx).UploadAsset(req)
+}
+func (s *AdServiceServer) ReadAsset(ctx context.Context, req *pb.ReadAssetReq) (*pb.ReadAssetResp, error) {
+	return logic.NewReadAssetLogic(ctx, s.svcCtx).ReadAsset(req)
 }
 func (s *AdServiceServer) GetSponsoredSlots(ctx context.Context, req *pb.GetSponsoredSlotsReq) (*pb.GetSponsoredSlotsResp, error) {
 	return logic.NewGetSponsoredSlotsLogic(ctx, s.svcCtx).GetSponsoredSlots(req)
