@@ -44,7 +44,7 @@ updated_at: 2026-10-01
 | RVW-021 | DES-review-platform | unknown | gap: 已实现：续期、放弃、提交校验（持有者，代次，租约），失效返回 7001、作废 7002、已决 7004；集成测试通过。尚无 EVD 覆盖组。 |
 | RVW-022 | DES-review-platform | unknown | gap: 已实现：按角色、市场、语言过滤并按优先级、截止时间、ID 排序；集成测试 `TestClaimRespectsScopeAndQAExclusion` 通过。尚无 EVD 覆盖组。 |
 | RVW-023 | DES-review-platform | unknown | gap: 已实现：`GetTask` 展示快照、阶段证据与原结论，证件读取经 `AuthorizeEvidenceMedia` 限资质审核员；Gateway 契约测试通过，前端展示属 W5。尚无 EVD 覆盖组。 |
-| RVW-024 | DES-review-platform | unknown | gap: 已实现：质检任务排除原决策人；申诉直接进入人审，以该 revision 最近一次拒绝为原结论并排除其决策人；集成测试 `TestClaimRespectsScopeAndQAExclusion`、`TestAppealExcludesOriginalDecider` 通过；e2e 已编写未运行。尚无 EVD 覆盖组。 |
+| RVW-024 | DES-review-platform | unknown | gap: 已实现：质检任务排除原决策人；申诉直接进入人审，以该 revision 最近一次拒绝为原结论并排除其决策人；集成测试 `TestClaimRespectsScopeAndQAExclusion`、`TestAppealExcludesOriginalDecider` 通过；根仓 e2e（test_ads_review，本地联调栈，后端 9acc84f4363b、前端 f55b433bf8ba）通过。尚无 EVD 覆盖组。 |
 | RVW-025 | DES-review-platform | unknown | gap: 已实现：领取、续期、放弃、提交、种子与角色变更、政策激活写 `audit_log`；集成测试核对审计条数；应用账号只授予该表 INSERT/SELECT 需在根仓编排验证。尚无 EVD 覆盖组。 |
 | RVW-030 | DES-review-platform | unknown | gap: 已实现：候选种子需不同的政策管理员确认，停用后召回按权威状态复核；集成测试 `TestSeedRequiresSecondPerson` 与 Milvus 集成测试通过。尚无 EVD 覆盖组。 |
 | RVW-040 | DES-review-platform | unknown | gap: 已实现：结论、任务更新与 outbox 同事务，ad-mq 按 revision CAS 应用；集成测试 `TestEditApprovedAdKeepsServingOldSnapshot` 通过。尚无 EVD 覆盖组。 |
@@ -57,7 +57,7 @@ updated_at: 2026-10-01
 | RVW-A02 | DES-review-platform | unknown | gap: 召回与精排超时、不可用、无效输出的注入单测通过；联调栈故障注入未运行。尚无 EVD 覆盖组。 |
 | RVW-A03 | DES-review-platform | unknown | gap: 竞争领取与过期接手后旧持有者三类操作被拒的集成测试通过；e2e 未运行。尚无 EVD 覆盖组。 |
 | RVW-A04 | DES-review-platform | unknown | gap: 影子不改结论、指纹三项一致与通过来源限制的单测通过；e2e 未运行。尚无 EVD 覆盖组。 |
-| RVW-A05 | DES-review-platform | unknown | gap: 质检与申诉换人、角色撤销与审计已有集成测试；申诉换人的根仓 e2e 已编写未运行。尚无 EVD 覆盖组。 |
+| RVW-A05 | DES-review-platform | unknown | gap: 质检与申诉换人、角色撤销与审计已有集成测试；申诉换人的根仓 根仓 e2e（test_ads_review，本地联调栈，后端 9acc84f4363b、前端 f55b433bf8ba）通过。尚无 EVD 覆盖组。 |
 
 ## 代码边界
 
