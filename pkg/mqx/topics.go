@@ -13,6 +13,10 @@ const (
 
 	// 媒体相关 Topic
 	TopicMediaDelete = "media-deleted" // 媒体删除事件（触发 S3 清理）
+
+	// 审核平台 Topic（tag = 业务类型，见 pkg/event/review.go）
+	TopicReviewSubmitted = "review-submitted" // 业务方送审
+	TopicReviewDecided   = "review-decided"   // 审核结论下发
 )
 
 // Tag 定义
@@ -27,4 +31,6 @@ const (
 	GroupContentCleanup        = "content-cleanup-service-group"
 	GroupContentCountSync      = "content-count-sync-service-group"
 	GroupAssistantWatchMatcher = "assistant-watch-matcher-group"
+	GroupReviewWorker          = "review-worker-group"
+	GroupAdDecisionApplier     = "ad-decision-group"
 )

@@ -54,6 +54,19 @@ const (
 	AgentQueueFull     = 6003
 	AgentRunConflict   = 6004
 	CannotWatchSelf    = 6005
+
+	// 审核平台与付费广告错误码 7000-7999（SPEC-review-platform、SPEC-sponsored-ads）
+	ReviewLeaseLost         = 7001
+	ReviewTaskSuperseded    = 7002
+	ReviewRoleRequired      = 7003
+	ReviewTaskDecided       = 7004
+	AdvertiserRequired      = 7101
+	AdvertiserExists        = 7102
+	AdQualificationRequired = 7103
+	AdLandingInvalid        = 7104
+	AdIndustryUnsupported   = 7105
+	AdAppealNotAllowed      = 7106
+	AdMediaInvalid          = 7107
 )
 
 // 错误码消息映射
@@ -103,6 +116,18 @@ var codeMsg = map[int]string{
 	AgentQueueFull:     "Agent 输入队列已满",
 	AgentRunConflict:   "Agent 运行状态冲突",
 	CannotWatchSelf:    "不能关注自己的动态",
+
+	ReviewLeaseLost:         "审核任务持有已失效",
+	ReviewTaskSuperseded:    "审核任务已作废",
+	ReviewRoleRequired:      "缺少审核权限",
+	ReviewTaskDecided:       "审核任务已有结论",
+	AdvertiserRequired:      "需要已过审的广告主身份",
+	AdvertiserExists:        "广告主已存在",
+	AdQualificationRequired: "缺少目标市场要求的行业资质（INDUSTRY.QUALIFICATION）",
+	AdLandingInvalid:        "落地页地址不合规（LANDING.URL）",
+	AdIndustryUnsupported:   "不支持的行业或市场",
+	AdAppealNotAllowed:      "当前版本不可申诉",
+	AdMediaInvalid:          "素材不可用",
 }
 
 // GetMsg 获取错误码对应的消息

@@ -1,0 +1,42 @@
+Name: review-worker
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9137
+  Path: /metrics
+
+MQ:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "review-worker-group"
+  Topic: "review-submitted"
+  Tag: "*"
+  ConsumeOrder: false
+  MaxReconsumeTimes: 8
+Producer:
+  NameServer: "${MQ_NAMESERVER}"
+  GroupName: "review-worker-outbox-producer"
+  Retry: 3
+  SendTimeout: 3000
+Outbox:
+  BatchSize: 100
+  PollIntervalMs: 200
+  LeaseMs: 30000
+  BaseBackoffMs: 1000
+  MaxBackoffMs: 60000
+  MaxAttempts: 20
+
+DataSource: "${DB_REVIEW}"
+PolicyVersion: ads-2026-10-01
+ShadowPolicyVersion: ""
+PollIntervalMs: 500
+
+# 精排占位 sidecar 与召回依赖均可缺省；缺省或不可用时按 RVW-011 降级并转人审。
+Ranker:
+  Address: "${MODERATION_INFER_ADDRESS}"
+Embedding:
+  Address: "${EMBEDDING_GRPC_ADDRESS}"
+  Dim: 384
+Milvus:
+  Address: "${MILVUS_ADDRESS}"
+  Username: "${MILVUS_USERNAME}"
+  Password: "${MILVUS_PASSWORD}"
+  Collection: "review_seed_bank_v1"

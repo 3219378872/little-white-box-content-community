@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package moderation;
+option go_package = "xiaobaihe/moderation/pb";
+
+// 审核精排（Ranker）sidecar：对候选 issue 输出 Yes/No 单 token 概率
+// （DES-review-platform「机审级联」，对应 Filter-And-Refine Algorithm 1）。
+// 广告文案只作为数据字段传递；契约只接受固定的 Yes/No 概率。
+service ModerationInferService {
+  rpc Score(ScoreReq) returns (ScoreResp);
+  rpc Health(ModerationHealthReq) returns (ModerationHealthResp);
+}
+
+message ScoreReq {
+  int64 task_id = 1;
+  string market = 2;
+  string language = 3;
+  string text = 4;
+  repeated string media_sha256 = 5;
+  repeated string issues = 6;
+}
+
+message IssueScore {
+  string issue = 1;
+  double p_yes = 2;
+  double p_no = 3;
+}
+
+message ScoreResp {
+  repeated IssueScore scores = 1;
+  string model_version = 2;
+}
+
+message ModerationHealthReq {}
+
+message ModerationHealthResp {
+  bool ready = 1;
+  string model_version = 2;
+}

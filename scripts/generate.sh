@@ -65,7 +65,9 @@ for rpc_proto in \
   proto/search/search.proto \
   proto/recommend/recommend.proto \
   proto/assistant/assistant.proto \
-  proto/behavior/behavior.proto; do
+  proto/behavior/behavior.proto \
+  proto/review/review.proto \
+  proto/ad/ad.proto; do
   kitex -module esx -I . "$rpc_proto"
 done
 python3 scripts/generate_rpc_adapters.py
@@ -74,5 +76,7 @@ python3 scripts/generate_gateway.py
 # The Python sidecars retain standard gRPC clients and wire contracts.
 protoc -I . --go_out=app/embedding/mq --go-grpc_out=app/embedding/mq proto/embedding/embedding.proto
 protoc -I . --go_out=app/recommend/rpc --go-grpc_out=app/recommend/rpc proto/inference/inference.proto
+protoc -I . --go_out=app/review --go-grpc_out=app/review proto/moderation/moderation.proto
 app/embedding/service/generate_proto.sh
 algorithm/online_infer/generate_proto.sh
+algorithm/moderation_infer/generate_proto.sh

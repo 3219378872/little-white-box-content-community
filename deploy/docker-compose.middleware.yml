@@ -20,6 +20,8 @@ services:
       - ./sql/xbh_media.sql:/docker-entrypoint-initdb.d/050_xbh_media.sql:ro
       - ./sql/xbh_message.sql:/docker-entrypoint-initdb.d/060_xbh_message.sql:ro
       - ./sql/xbh_user.sql:/docker-entrypoint-initdb.d/070_xbh_user.sql:ro
+      - ./sql/xbh_ad.sql:/docker-entrypoint-initdb.d/080_xbh_ad.sql:ro
+      - ./sql/xbh_review.sql:/docker-entrypoint-initdb.d/090_xbh_review.sql:ro
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
@@ -456,6 +458,33 @@ services:
         - python
         - -c
         - "import sys; sys.path.insert(0, '/srv/app/algorithm/online_infer/generated'); import grpc, inference_pb2, inference_pb2_grpc; response = inference_pb2_grpc.OnlineInferServiceStub(grpc.insecure_channel('127.0.0.1:9025')).Health(inference_pb2.InferHealthReq(), timeout=3); raise SystemExit(0 if response.ready else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - xbh-network
+
+  # 审核精排占位 sidecar（DES-review-platform）：stub-v0 对全部 issue 返回 0.5；
+  # 只在 127.0.0.1 发布，gRPC 无鉴权、不暴露 reload。
+  moderation-infer:
+    profiles: ["algorithm"]
+    build:
+      context: ..
+      dockerfile: algorithm/moderation_infer/Dockerfile
+    container_name: xbh-moderation-infer
+    restart: unless-stopped
+    environment:
+      MODERATION_INFER_LISTEN: 0.0.0.0:9026
+      MODERATION_FIXTURE_ENABLED: ${MODERATION_FIXTURE_ENABLED:-0}
+      GRPC_WORKERS: "4"
+    ports:
+      - "127.0.0.1:9026:9026"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys; sys.path.insert(0, '/srv/app/algorithm/moderation_infer/generated'); import grpc, moderation_pb2, moderation_pb2_grpc; response = moderation_pb2_grpc.ModerationInferServiceStub(grpc.insecure_channel('127.0.0.1:9026')).Health(moderation_pb2.ModerationHealthReq(), timeout=3); raise SystemExit(0 if response.ready else 1)"
       interval: 15s
       timeout: 5s
       retries: 10

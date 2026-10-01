@@ -28,6 +28,7 @@ TOPICS=(
   post-create post-update post-delete
   user-behavior-v2
   media-deleted
+  review-submitted review-decided
 )
 
 create_topic() {
@@ -59,6 +60,8 @@ CONSUMER_GROUPS=(
   behavior-log-service-group
   media-service-group
   assistant-watch-matcher-group
+  review-worker-group
+  ad-decision-group
 )
 
 create_group() {

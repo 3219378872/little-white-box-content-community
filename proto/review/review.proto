@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package review;
+option go_package = "esx/kitex_gen/review;pb";
+
+// 审核平台（SPEC-review-platform）。结论只经 review-decided 事件生效，
+// 本服务不提供把对象直接置为通过的写入口（RVW-051）。
+service ReviewService {
+  // 业务方对账：幂等补建送审任务（RVW-041）
+  rpc EnsureSubmitted(EnsureSubmittedReq) returns (EnsureSubmittedResp);
+  // 当前用户的审核角色与授权（每次实时读取，RVW-050）
+  rpc GetReviewer(GetReviewerReq) returns (GetReviewerResp);
+  // 授权范围内的队列概况
+  rpc GetQueueSummary(GetQueueSummaryReq) returns (GetQueueSummaryResp);
+  // 领取下一单（RVW-020、RVW-022）
+  rpc ClaimTask(ClaimTaskReq) returns (TaskResp);
+  // 续期持有（RVW-021）
+  rpc RenewTask(LeaseReq) returns (TaskResp);
+  // 放弃持有（RVW-021）
+  rpc ReleaseTask(LeaseReq) returns (ReleaseTaskResp);
+  // 提交结论（RVW-021、RVW-040）
+  rpc SubmitDecision(SubmitDecisionReq) returns (SubmitDecisionResp);
+  // 读取任务、快照与机审证据（RVW-023）
+  rpc GetTask(GetTaskReq) returns (TaskResp);
+  // 政策码定义与当前政策版本
+  rpc ListPolicies(ListPoliciesReq) returns (ListPoliciesResp);
+  // 种子库（RVW-030）
+  rpc ListSeeds(ListSeedsReq) returns (ListSeedsResp);
+  rpc ConfirmSeed(SeedActionReq) returns (SeedResp);
+  rpc RetireSeed(SeedActionReq) returns (SeedResp);
+  // 资质证件访问授权：只对具备资质审核权限的审核员开放（RVW-023、ADS-040）
+  rpc AuthorizeEvidenceMedia(AuthorizeEvidenceMediaReq) returns (AuthorizeEvidenceMediaResp);
+}
+
+message EnsureSubmittedReq {
+  // pkg/event.ReviewSubmittedEvent 的 JSON
+  string submission_json = 1;
+}
+
+message EnsureSubmittedResp {
+  int64 task_id = 1;
+  bool created = 2;
+  string status = 3;
+}
+
+message GetReviewerReq {
+  int64 user_id = 1;
+}
+
+message GetReviewerResp {
+  bool active = 1;
+  repeated string roles = 2;
+  repeated string markets = 3;
+  repeated string languages = 4;
+}
+
+message GetQueueSummaryReq {
+  int64 user_id = 1;
+}
+
+message QueueBucket {
+  string purpose = 1;
+  int64 pending = 2;
+  int64 oldest_age_ms = 3;
+}
+
+message GetQueueSummaryResp {
+  repeated QueueBucket buckets = 1;
+  string policy_version = 2;
+}
+
+message ClaimTaskReq {
+  int64 user_id = 1;
+  // 可选：只领取指定目的的任务（initial/qa/appeal/report/rescan）
+  string purpose = 2;
+}
+
+message LeaseReq {
+  int64 user_id = 1;
+  int64 task_id = 2;
+  int64 lease_generation = 3;
+}
+
+message StageView {
+  string stage = 1;
+  string component_version = 2;
+  bool shadow = 3;
+  string outcome = 4;
+  string reason = 5;
+  string output_json = 6;
+  int64 latency_ms = 7;
+}
+
+message DecisionView {
+  int64 decision_id = 1;
+  string verdict = 2;
+  repeated string policy_codes = 3;
+  string policy_version = 4;
+  string source = 5;
+  int64 decided_at_ms = 6;
+}
+
+message TaskView {
+  int64 task_id = 1;
+  string biz_type = 2;
+  int64 object_id = 3;
+  int64 object_revision = 4;
+  string purpose = 5;
+  string status = 6;
+  string market = 7;
+  string language = 8;
+  string industry = 9;
+  int32 priority = 10;
+  int64 deadline_ms = 11;
+  int64 lease_generation = 12;
+  int64 lease_until_ms = 13;
+  string snapshot_json = 14;
+  repeated StageView stages = 15;
+  // 质检与申诉展示原结论（FX-113）
+  DecisionView original_decision = 16;
+  DecisionView decision = 17;
+  int64 submitted_at_ms = 18;
+  string escalation_reason = 19;
+  string policy_version = 20;
+  int32 attempts = 21;
+}
+
+message TaskResp {
+  // 队列为空时 found=false
+  bool found = 1;
+  TaskView task = 2;
+}
+
+message ReleaseTaskResp {}
+
+message SubmitDecisionReq {
+  int64 user_id = 1;
+  int64 task_id = 2;
+  int64 lease_generation = 3;
+  string verdict = 4;
+  repeated string policy_codes = 5;
+  string note = 6;
+  string idempotency_key = 7;
+  // 拒绝时可提名候选种子（RVW-030）
+  bool nominate_seed = 8;
+}
+
+message SubmitDecisionResp {
+  int64 decision_id = 1;
+  string verdict = 2;
+  repeated string policy_codes = 3;
+  string policy_version = 4;
+}
+
+message GetTaskReq {
+  int64 user_id = 1;
+  int64 task_id = 2;
+}
+
+message ListPoliciesReq {}
+
+message PolicyCode {
+  string code = 1;
+  string title = 2;
+  string category = 3;
+}
+
+message ListPoliciesResp {
+  string policy_version = 1;
+  repeated PolicyCode codes = 2;
+  repeated string markets = 3;
+}
+
+message SeedView {
+  int64 seed_id = 1;
+  string issue_code = 2;
+  string market = 3;
+  string language = 4;
+  string text = 5;
+  string status = 6;
+  int64 nominated_by = 7;
+  int64 confirmed_by = 8;
+  int64 source_task_id = 9;
+  int64 updated_at_ms = 10;
+}
+
+message ListSeedsReq {
+  int64 user_id = 1;
+  string status = 2;
+  int32 limit = 3;
+}
+
+message ListSeedsResp {
+  repeated SeedView seeds = 1;
+}
+
+message SeedActionReq {
+  int64 user_id = 1;
+  int64 seed_id = 2;
+}
+
+message SeedResp {
+  SeedView seed = 1;
+}
+
+message AuthorizeEvidenceMediaReq {
+  int64 user_id = 1;
+  int64 task_id = 2;
+  int64 media_id = 3;
+}
+
+message AuthorizeEvidenceMediaResp {
+  bool allowed = 1;
+}

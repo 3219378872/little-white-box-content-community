@@ -17,7 +17,7 @@ func TestMySQLInitMountsOnlyMySQLSchemasAndUsesAuthenticatedHealthcheck(t *testi
 	}
 	for _, schema := range []string{
 		"xbh_assistant.sql", "xbh_content.sql", "xbh_feed.sql", "xbh_interaction.sql",
-		"xbh_media.sql", "xbh_message.sql", "xbh_user.sql",
+		"xbh_media.sql", "xbh_message.sql", "xbh_user.sql", "xbh_ad.sql", "xbh_review.sql",
 	} {
 		if !strings.Contains(compose, "./sql/"+schema+":/docker-entrypoint-initdb.d/") {
 			t.Errorf("MySQL init mount is missing %s", schema)

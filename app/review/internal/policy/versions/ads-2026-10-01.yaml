@@ -1,0 +1,69 @@
+# 审核政策版本（policy as code，DES-review-platform「政策配置」）。
+# 演示配置：数值与词表只用于验证级联与按市场分派的机制，不对应任何真实法规或 TikTok 现行规则。
+version: ads-2026-10-01
+industryMatrix: demo-matrix-2026-10-01
+qaSampleRate: 0.05
+protectionSubmissions: 3
+humanDeadlineHours: 24
+routerTopK: 5
+# 召回与精排只覆盖内容类 issue；行业、落地页地址由硬规则处理。
+issues:
+  - MISLEADING.CLAIM
+  - MISLEADING.ABSOLUTE
+  - MISLEADING.CLICKBAIT
+  - MISLEADING.COMPARISON
+  - CONTENT.DECEPTIVE
+  - CONTENT.MISINFORMATION
+  - CONTENT.DISCRIMINATION
+  - CONTENT.VIOLENCE
+  - CONTENT.SELF_HARM
+  - CONTENT.TEEN_SAFETY
+  - INDUSTRY.ADULT
+  - INDUSTRY.DANGEROUS
+thresholds:
+  default: {route: 0.80, pass: 0.20, reject: 0.95, autoReject: false}
+  overrides:
+    - issues: [CONTENT.SELF_HARM, CONTENT.TEEN_SAFETY, INDUSTRY.ADULT]
+      markets: [US, DE, ID]
+      threshold: {route: 0.70, pass: 0.10, reject: 0.90, autoReject: true}
+    - issues: [MISLEADING.CLAIM]
+      markets: [DE]
+      threshold: {route: 0.75, pass: 0.15, reject: 0.95, autoReject: false}
+rules:
+  # action: reject 为硬规则直拒；human 为强制人审。
+  keywords:
+    - code: MISLEADING.CLAIM
+      action: human
+      terms:
+        en: ["guaranteed results", "100% cure", "miracle cure", "lose 10kg"]
+        de: ["garantierte ergebnisse", "wunderheilung", "100% heilung"]
+        id: ["hasil dijamin", "obat ajaib", "sembuh 100%"]
+    - code: MISLEADING.ABSOLUTE
+      action: human
+      terms:
+        en: ["best in the world", "number one in the world", "lowest price ever"]
+        de: ["bester der welt", "weltweit nummer eins"]
+        id: ["terbaik di dunia", "nomor satu di dunia"]
+    - code: MISLEADING.CLICKBAIT
+      action: human
+      terms:
+        en: ["you won", "click to claim", "your phone is infected"]
+        de: ["sie haben gewonnen", "ihr handy ist infiziert"]
+        id: ["anda menang", "ponsel anda terinfeksi"]
+    - code: CONTENT.DECEPTIVE
+      action: reject
+      terms:
+        en: ["double your bitcoin", "send crypto to receive"]
+        de: ["verdoppeln sie ihre bitcoin"]
+        id: ["gandakan bitcoin anda"]
+    - code: CONTENT.SELF_HARM
+      action: reject
+      terms:
+        en: ["how to kill yourself"]
+        de: ["wie man sich umbringt"]
+        id: ["cara bunuh diri"]
+  blockedDomains:
+    - scam-giveaway.com
+    - free-crypto-double.net
+  # 图片向量召回是占位接口，图片只按 sha256 精确匹配黑样本（DES-review-platform）。
+  blockedMedia: []

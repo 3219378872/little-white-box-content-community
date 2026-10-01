@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package ad;
+option go_package = "esx/kitex_gen/ad;pb";
+
+// 付费广告（SPEC-sponsored-ads）。审核结论只经 review-decided 事件应用，
+// 本服务不提供把广告或广告主置为通过的接口（RVW-051）。
+service AdService {
+  // 申请或修改广告主资料；修改产生新 revision 并自动送审（ADS-001）
+  rpc ApplyAdvertiser(ApplyAdvertiserReq) returns (AdvertiserResp);
+  rpc GetMyAdvertiser(GetMyAdvertiserReq) returns (AdvertiserResp);
+  // 新增行业资质；与主体一起作为资质对象送审（ADS-001、ADS-002）
+  rpc AddQualification(AddQualificationReq) returns (AdvertiserResp);
+  // 广告写路径（ADS-011、ADS-013）
+  rpc CreateAd(CreateAdReq) returns (AdResp);
+  rpc UpdateAd(UpdateAdReq) returns (AdResp);
+  rpc GetAd(GetAdReq) returns (AdResp);
+  rpc ListAds(ListAdsReq) returns (ListAdsResp);
+  // 素材与证件访问授权：只允许本人（ADS-040）
+  rpc AuthorizeOwnerMedia(AuthorizeOwnerMediaReq) returns (AuthorizeOwnerMediaResp);
+  // 推荐流广告槽位（ADS-020～025）
+  rpc GetSponsoredSlots(GetSponsoredSlotsReq) returns (GetSponsoredSlotsResp);
+  // 用户隐藏广告（ADS-026）
+  rpc HideAd(HideAdReq) returns (HideAdResp);
+}
+
+message QualificationView {
+  int64 qualification_id = 1;
+  string market = 2;
+  string industry = 3;
+  int64 document_media_id = 4;
+  int64 valid_until_ms = 5;
+  string status = 6;
+  int64 submitted_revision = 7;
+}
+
+message AdvertiserView {
+  int64 advertiser_id = 1;
+  string name = 2;
+  repeated string markets = 3;
+  int64 revision = 4;
+  int64 approved_revision = 5;
+  string review_status = 6;
+  repeated string policy_codes = 7;
+  repeated QualificationView qualifications = 8;
+  int64 updated_at_ms = 9;
+}
+
+message ApplyAdvertiserReq {
+  int64 user_id = 1;
+  string name = 2;
+  repeated string markets = 3;
+  // 首次申请为 0；修改时必须等于当前 revision
+  int64 expected_revision = 4;
+  string idempotency_key = 5;
+}
+
+message GetMyAdvertiserReq {
+  int64 user_id = 1;
+}
+
+message AdvertiserResp {
+  bool found = 1;
+  AdvertiserView advertiser = 2;
+}
+
+message AddQualificationReq {
+  int64 user_id = 1;
+  string market = 2;
+  string industry = 3;
+  int64 document_media_id = 4;
+  int64 valid_until_ms = 5;
+  int64 expected_revision = 6;
+  string idempotency_key = 7;
+}
+
+message AdMedia {
+  int64 media_id = 1;
+  string sha256 = 2;
+  // 过审并发布后的公开地址；未过审时为空（ADS-015）
+  string public_url = 3;
+}
+
+message AdContent {
+  string title = 1;
+  string body = 2;
+  string cta = 3;
+  string landing_url = 4;
+  string landing_domain = 5;
+  repeated AdMedia media = 6;
+  string market = 7;
+  string language = 8;
+  string industry = 9;
+  string advertiser_name = 10;
+  int64 revision = 11;
+}
+
+message AdView {
+  int64 ad_id = 1;
+  int64 revision = 2;
+  int64 approved_revision = 3;
+  string review_status = 4;
+  string serving_status = 5;
+  repeated string policy_codes = 6;
+  AdContent latest = 7;
+  // 最近一次过审快照；从未过审时缺省
+  AdContent approved = 8;
+  int64 start_ms = 9;
+  int64 end_ms = 10;
+  bool eligible = 11;
+  int64 updated_at_ms = 12;
+  string pause_reason = 13;
+}
+
+message AdInput {
+  string title = 1;
+  string body = 2;
+  string cta = 3;
+  string landing_url = 4;
+  repeated int64 media_ids = 5;
+  string market = 6;
+  string industry = 7;
+  int64 start_ms = 8;
+  int64 end_ms = 9;
+}
+
+message CreateAdReq {
+  int64 user_id = 1;
+  AdInput input = 2;
+  string idempotency_key = 3;
+}
+
+message UpdateAdReq {
+  int64 user_id = 1;
+  int64 ad_id = 2;
+  int64 expected_revision = 3;
+  AdInput input = 4;
+  string idempotency_key = 5;
+}
+
+message GetAdReq {
+  int64 user_id = 1;
+  int64 ad_id = 2;
+}
+
+message AdResp {
+  AdView ad = 1;
+}
+
+message ListAdsReq {
+  int64 user_id = 1;
+  int64 cursor = 2;
+  int32 page_size = 3;
+}
+
+message ListAdsResp {
+  repeated AdView ads = 1;
+  int64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+message AuthorizeOwnerMediaReq {
+  int64 user_id = 1;
+  int64 media_id = 2;
+}
+
+message AuthorizeOwnerMediaResp {
+  bool allowed = 1;
+}
+
+message SponsoredWhy {
+  string market = 1;
+  string scene = 2;
+  bool personalized = 3;
+}
+
+message SponsoredAd {
+  int64 ad_id = 1;
+  int64 revision = 2;
+  string advertiser_name = 3;
+  string title = 4;
+  string body = 5;
+  string cta = 6;
+  string landing_url = 7;
+  string landing_domain = 8;
+  repeated string images = 9;
+  SponsoredWhy why = 10;
+}
+
+message SponsoredSlot {
+  string slot_id = 1;
+  // 页内第 after_index 条帖子之后（从 1 开始）；Gateway 换算为 afterPosition
+  int32 after_index = 2;
+  SponsoredAd ad = 3;
+}
+
+message GetSponsoredSlotsReq {
+  int64 user_id = 1;
+  string session_id = 2;
+  string request_id = 3;
+  string cursor = 4;
+  string scene = 5;
+  string market = 6;
+  bool personalized = 7;
+  int32 page_items = 8;
+}
+
+message GetSponsoredSlotsResp {
+  repeated SponsoredSlot slots = 1;
+}
+
+message HideAdReq {
+  int64 user_id = 1;
+  string session_id = 2;
+  int64 ad_id = 3;
+}
+
+message HideAdResp {}
