@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"esx/app/review/internal/intake"
+	"esx/app/review/internal/store"
 	"esx/app/review/worker/internal/svc"
+	"esx/pkg/event"
 	"esx/pkg/mqx"
 
 	logx "esx/pkg/logging"
@@ -31,7 +33,14 @@ func NewSubmittedConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
-func consume(ctx context.Context, in *intake.Ingester, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+// submissionIngester 是 consume 唯一依赖的能力；生产使用 *intake.Ingester。
+type submissionIngester interface {
+	Ingest(ctx context.Context, sub event.ReviewSubmittedEvent) (store.IngestResult, error)
+}
+
+var _ submissionIngester = (*intake.Ingester)(nil)
+
+func consume(ctx context.Context, in submissionIngester, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {

@@ -21,8 +21,8 @@ import (
 type ServiceContext struct {
 	Config      config.Config
 	DB          *sql.DB
-	Store       *store.Store
-	Assets      *assets.Storage
+	Store       Store
+	Assets      AssetStorage
 	Redis       serving.KV
 	Index       serving.Index
 	Cache       *Cache

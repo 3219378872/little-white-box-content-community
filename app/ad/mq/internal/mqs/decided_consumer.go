@@ -33,7 +33,14 @@ func NewDecidedConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
-func consume(ctx context.Context, applier *apply.Applier, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+// decisionApplier 是 consume 唯一依赖的能力；生产使用 *apply.Applier。
+type decisionApplier interface {
+	Apply(ctx context.Context, d event.ReviewDecidedEvent) error
+}
+
+var _ decisionApplier = (*apply.Applier)(nil)
+
+func consume(ctx context.Context, applier decisionApplier, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {

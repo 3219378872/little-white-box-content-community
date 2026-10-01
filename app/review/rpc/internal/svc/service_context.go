@@ -20,9 +20,9 @@ import (
 type ServiceContext struct {
 	Config      config.Config
 	DB          *sql.DB
-	Store       *store.Store
+	Store       Store
 	Policy      *policy.Policy
-	Ingester    *intake.Ingester
+	Ingester    Ingester
 	OutboxRelay *outboxx.Relay
 	MQProducer  *mqx.Producer
 	Clock       func() time.Time
