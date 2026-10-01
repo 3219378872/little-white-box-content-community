@@ -279,9 +279,14 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:8887:8888"
       - "127.0.0.1:8333:8333"
+    # Every collection (the filer default and each S3 bucket) grows 7 volumes
+    # on first write; the default cap of 8 leaves xbh-media without a writable
+    # volume once xbh-ad-private exists. Volumes are not preallocated, so empty
+    # slots cost no disk.
     command: >
       server -master -volume -filer -s3
       -s3.config=/etc/seaweedfs/s3_config.json
+      -volume.max=100
       -dir=/data
     volumes:
       - seaweedfs_data:/data
