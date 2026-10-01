@@ -23,6 +23,12 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 `post-create` / `post-update` / `post-delete` / `user-behavior-v2`，消费组
 `assistant-watch-matcher-group`，把命中写入内部 bucket 并调度 Watch run。
 
+付费广告与审核平台（`DES-sponsored-ads`、`DES-review-platform`）各有独立权威库 `xbh_ad`（`DB_AD`）与
+`xbh_review`（`DB_REVIEW`）。ad-rpc 写广告与快照，同事务经 outbox 发 `review-submitted`（tag 为业务类型）；
+review-worker 消费后建任务并跑机审级联，自动结论或人审结论经 outbox 发 `review-decided`；ad-mq 按
+revision CAS 应用结论、发布过审素材并维护 Redis 投放索引。Gateway 在推荐流声明 `adSlots=1` 时以短超时
+并行查询广告槽位，失败只降级为不含广告。
+
 ## 服务清单
 
 | 模块 | 类型 | 入口 | 定义文件 |
@@ -43,6 +49,12 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 | Behavior | RPC | `app/behavior/rpc/behavior.go` | `proto/behavior/behavior.proto` |
 | Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |
 | Content cleanup | MQ 消费者 | `app/content/mq/cleanup/main.go` | — |
+| Review | RPC（人审领取、证据、种子、对账入口） | `app/review/rpc/review.go` | `proto/review/review.proto` |
+| Review worker | MQ 消费者 + 机审执行器 | `app/review/worker/main.go` | `app/review/worker/etc/review-worker.yaml` |
+| Review rolectl | 角色运维脚本 | `app/review/rolectl/main.go` | — |
+| Moderation infer | 精排占位 sidecar（Python） | `algorithm/moderation_infer/server.py` | `proto/moderation/moderation.proto` |
+| Ad | RPC（广告主、广告、私有素材、投放槽位） | `app/ad/rpc/ad.go` | `proto/ad/ad.proto` |
+| Ad decision consumer | MQ 消费者 + 对账/资质/索引 ticker | `app/ad/mq/main.go` | `app/ad/mq/etc/ad-consumer.yaml` |
 
 ## RPC 服务分层
 

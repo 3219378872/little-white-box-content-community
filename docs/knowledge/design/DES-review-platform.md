@@ -42,8 +42,8 @@ tracks:
 # 审核平台设计
 
 本页承接 [审核平台规范](../spec/SPEC-review-platform.md)。广告业务语义、政策码与投放见
-[DES-sponsored-ads](DES-sponsored-ads.md)。截至 2026-10-01 尚无实现，逐条状态见
-[IMP-review-platform](../implementation/IMP-review-platform.md)；设计完成不等于实现验证完成。
+[DES-sponsored-ads](DES-sponsored-ads.md)。W1～W3 范围已于 2026-10-01 落地，W6（政策回扫、申诉与举报任务）
+尚未实现；逐条状态见 [IMP-review-platform](../implementation/IMP-review-platform.md)，实现完成不等于验证完成。
 
 机审的工程骨架参考 TikTok [Filter-And-Refine](https://arxiv.org/html/2507.17204v1) 的 Router → Ranker
 级联：低成本召回过滤大部分内容，高成本模型只对候选 issue 精排。论文面向先发后审，Router 放过等于不处置；
@@ -70,7 +70,12 @@ embedding 服务（既有）+ Milvus 种子集合
 ```
 
 - 首批业务类型：`ad_creative`（广告素材 revision）与 `advertiser_qualification`（广告主主体与资质）。
-  业务方只依赖两类事件和 `EnsureSubmitted`，不了解审核内部阶段。
+  资质对象是「广告主主体 + 全部未失效资质」一个整体：修改资料或新增资质都前移广告主 revision 并整体送审，
+  以首个经营市场为审核市场，只由 qualification_reviewer 领取。业务方只依赖两类事件和 `EnsureSubmitted`，
+  不了解审核内部阶段。
+- 代码位置：共享领域 `app/review/internal`（快照、政策、存储、级联、召回、精排客户端、指标），
+  review-rpc `app/review/rpc`，review-worker `app/review/worker`，角色运维脚本 `app/review/rolectl`，
+  精排占位 sidecar `algorithm/moderation_infer`（契约 `proto/moderation/moderation.proto`）。
 - 审核平台不提供「把对象置为通过」的接口；结论只经 `review-decided` 事件生效（`RVW-051`）。
 - 权威库为 `xbh_review`，与业务库分离；投递沿用 `pkg/outboxx/outbox.go` 的事务发件箱。
 
@@ -114,7 +119,10 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
 - **Router**：调用既有 embedding 服务（`proto/embedding/embedding.proto`，384 维多语言文本向量），在
   Milvus 种子集合中按市场与状态过滤检索 top-k。集合沿用 `_current` 别名切换版本，迁移方式同
   [向量投影迁移](../guides/vector-projection-migration.md)。版本串形如 `seedbank@<n>+<embedding 版本>`。
-  现有 Milvus 封装位于 internal 包且没有按向量检索的接口，需要在 review 内新写检索适配。
+  现有 Milvus 封装位于 internal 包且没有按向量检索的接口，review 内新写检索适配
+  （`app/review/internal/router`）。当前使用物理集合 `review_seed_bank_v1`（内积度量 + 归一化向量即余弦相似度），
+  尚未接入 `_current` 别名切换；集合可由权威记录重建。市场没有生效种子时视为召回无覆盖，全部 issue 进入精排，
+  避免空种子库让召回把一切放行。
 - **图片**：图片向量 Router 是占位接口，当前只按 sha256 精确匹配黑样本。素材含未经人工确认的图片时
   视为该维度召回不可用，不满足自动通过条件，按 `RVW-011` 转人审；图片 sha256 已在人工通过的快照中
   出现过时，视为已确认。
@@ -123,7 +131,8 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
   每个请求 issue 都有分数、概率在 0～1 且两者之和接近 1、版本非空，否则按无效结果转人审。超时 2 秒，
   worker 异步执行，不在用户请求路径上。
 - **占位模型**：`moderation-infer` 默认实现 `stub-v0` 对所有 issue 返回 0.5，使有候选的任务全部落入
-  灰区进人审；仅在测试 fixture 开关下按请求中的测试标记返回指定分数。版本串带 `stub`，满足 `RVW-018`。
+  灰区进人审；仅在 `MODERATION_FIXTURE_ENABLED=1` 时按文案中的 `[[fixture:<issue>=<p>]]` 标记返回指定分数，
+  版本串为 `stub-v0+fixture`。版本串带 `stub`，满足 `RVW-018`。
   降级标注、超时与故障注入沿用 `app/recommend/rpc/internal/logic/rank.go` 与
   `app/recommend/rpc/internal/logic/inference_fault_injection_test.go` 的做法。
 - **决策**（`RVW-012`、`RVW-013`）：命中硬规则直拒；任一候选 issue 的 pYes ≥ τ_reject 且该（issue，
@@ -166,7 +175,8 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
   要求 `status = 'claimed'` 且租约未过期；影响 0 行时区分「持有已失效」与「任务已作废」返回。
 - **提交**：一个事务内写 `review_decision`、更新任务、写 `review-decided` outbox 与 `audit_log`；客户端
   幂等键经 `pkg/idempotencyx/idempotency.go`（scope `review:decision`）。
-- **attempt**：每次领取加一；超过 5 次的任务提升优先级并告警，避免 agent_run 式的无限重领。
+- **attempt**：每次领取加一；超过 5 次的任务提升优先级（+100，上限 1000）并计入
+  `esx_review_claim_attempts_exceeded_total`，避免 agent_run 式的无限重领。
 - **证据展示**（`RVW-023`）：读取快照、各阶段输出与政策定义；资质证件经 Gateway 鉴权后从私有存储流式
   读取，只对具备资质审核权限的审核员开放。
 - **质检与申诉**（`RVW-014`、`RVW-024`）：自动通过按 ≥ 5% 抽样建 `qa` 任务；申诉建 `appeal` 任务；
@@ -174,9 +184,9 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
 
 ## 种子库
 
-审核员提交拒绝时可提名候选种子；具备政策管理权限的另一人确认后写入 Milvus 集合并置为 active，同一人
-提名与确认会被拒绝（`RVW-030`）。停用时先改权威记录、再从集合删除，Router 检索后按权威状态复核，
-保证停用后新任务不再命中。
+审核员提交拒绝时可提名候选种子（取快照文案，以首个政策码为 issue）；具备政策管理权限的另一人确认后置为
+active，同一人提名与确认会被拒绝（`RVW-030`）。worker 每 30 秒按 `index_state` 把 active 种子写入集合、
+把 retired 种子移出集合。停用时先改权威记录，Router 检索后按权威状态复核，保证停用后新任务不再命中。
 
 ## 结论下发与一致性
 
@@ -190,7 +200,7 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
 ## 权限与安全
 
 - 角色为 reviewer、qa、policy_admin、qualification_reviewer，连同市场与语言授权存 `reviewer` 表，由
-  运维脚本授予与撤销并写审计。Gateway 每次请求实时查询，不进 JWT（`pkg/jwtx/jwt.go` 只有用户标识，
+  运维脚本 `app/review/rolectl` 授予与撤销并写审计。Gateway 每次请求实时查询，不进 JWT（`pkg/jwtx/jwt.go` 只有用户标识，
   access token 有效期 1800 秒），撤销对下一次请求生效（`RVW-050`）。
 - 内部 HMAC（`pkg/rpcx/transport.go`）只证明请求来自内部服务，不识别调用方、不签 body；因此结论不提供
   RPC 写入口，只经事件通道生效。
@@ -234,14 +244,14 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
 
 | 周 | 范围 |
 | --- | --- |
-| W1 | xbh_review、任务与快照、人审领取 / fencing / 提交、结论事件、角色与审计、对账入口 |
-| W2 | 指纹复用、硬规则、政策配置与决策矩阵、降级标注、质检抽样、指标 |
-| W3 | Router（embedding + Milvus 种子集合）、Ranker proto 与占位 sidecar、影子运行、种子流程 |
-| W6 | 政策回扫、申诉与举报任务、证据整理 |
+| W1 | xbh_review、任务与快照、人审领取 / fencing / 提交、结论事件、角色与审计、对账入口（已实现） |
+| W2 | 指纹复用、硬规则、政策配置与决策矩阵、降级标注、质检抽样、指标（已实现） |
+| W3 | Router（embedding + Milvus 种子集合）、Ranker proto 与占位 sidecar、影子运行、种子流程（已实现） |
+| W6 | 政策回扫、申诉与举报任务、证据整理（未开始） |
 
 ## 风险
 
 - 本地 Milvus 为 v2.2.8（`deploy/docker-compose.middleware.yml`），Go SDK 为 v2.4.2，测试容器为 v2.5.6；
-  W3 先验证插入、删除与按向量检索，再决定是否需要升级。
+  种子集合的插入、删除与按向量检索已在 v2.5.6 测试容器上通过集成测试，v2.2.8 尚待联调栈验证。
 - `just infer-up` 只等待在线推理端口，不等待 embedding；worker 必须把 embedding 暂不可用当作降级处理。
 - 占位模型下自动化率接近 0 是预期结果，不能据此评价级联效果。

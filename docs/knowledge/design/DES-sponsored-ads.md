@@ -45,8 +45,11 @@ tracks:
 # 付费广告与投放设计
 
 本页承接 [付费广告与投放规范](../spec/SPEC-sponsored-ads.md)，以及 `DISC-053`、`REL-009` 对发现与行为
-链路的约束。审核流程见 [DES-review-platform](DES-review-platform.md)。截至 2026-10-01 尚无实现，逐条
-状态见 [IMP-sponsored-ads](../implementation/IMP-sponsored-ads.md)。
+链路的约束。审核流程见 [DES-review-platform](DES-review-platform.md)。W1、W2、W4 范围已于 2026-10-01 落地，
+W5（前端联调）与 W6（回扫、举报、申诉）尚未实现；逐条状态见
+[IMP-sponsored-ads](../implementation/IMP-sponsored-ads.md)。代码位置：共享领域 `app/ad/internal`，
+ad-rpc `app/ad/rpc`，ad-mq `app/ad/mq`，Gateway `app/gateway/internal/logic/ads` 与推荐流合并
+`app/gateway/internal/logic/feed/sponsored.go`。
 
 ## 组件与所有权
 
@@ -60,8 +63,8 @@ ad-rpc
 ad-mq
   -> 消费 review-decided（tag = ad_creative / advertiser_qualification），按 revision CAS 应用
   -> 维护投放索引；过审素材发布；ticker：对账、资质过期、暂停传播
-media-rpc
-  -> 广告素材与资质证件写入私有存储；过审后复制到公开内容寻址路径
+ad-rpc（私有资产）
+  -> 广告素材与资质证件写入私有桶 xbh-ad-private；ad-mq 过审后复制到公开媒体桶的内容寻址路径
 behavior / pipeline
   -> targetType = ad 的曝光与点击进入 ClickHouse；recommend-mq 跳过非帖子事件
 ```
@@ -104,8 +107,8 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
   `review-submitted`。approved_revision 不变，旧过审快照继续投放。
 - **应用结论**：通过时 `UPDATE ad SET approved_revision = r, review_status = 'approved' WHERE id = ? AND
   revision = r`，拒绝时只更新审核状态。影响 0 行说明已有更新的 revision，该结论只留审计（`RVW-003`）。
-- **资质失效**（`ADS-002`）：ad-mq ticker 扫描到期资质，把依赖广告移出投放索引，并以
-  `INDUSTRY.QUALIFICATION` 通知广告主（复用既有 SendNotification RPC）。
+- **资质失效**（`ADS-002`）：ad-mq ticker 扫描到期资质，把依赖广告移出投放索引，并在广告上记录
+  `pause_reason = INDUSTRY.QUALIFICATION` 供广告主查看；站内通知（复用既有 SendNotification RPC）尚未接入。
 
 ## 送审前校验
 
@@ -118,24 +121,29 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
 
 ## 素材
 
-现有媒体桶是 public-read（`app/media/rpc/internal/storage/s3.go`），上传后即可外链访问。广告素材与资质
-证件改写到私有存储目标，存储接口补充读取与复制。审核员经 Gateway 鉴权后流式读取。过审后，ad-mq 把
-素材按 `ads/<sha256>` 复制到公开路径：同一内容只写一次、不可覆盖（`ADS-015`）。根仓反代 CSP 只放行
-同源图片，公开路径经 `/xbh-media/` 提供。
+现有媒体桶是 public-read（`app/media/rpc/internal/storage/s3.go`），上传后即可外链访问。为不改动帖子媒体
+既有的上传管线，广告素材与资质证件由 ad-rpc 自管：经 Gateway multipart（`/api/v2/ads/assets/{kind}`）写入
+私有桶 `xbh-ad-private`，按内容识别类型（素材 JPEG/PNG/WebP，证件另含 PDF），受内部 gRPC 单消息上限约束
+单个 2 MiB。SeaweedFS 的匿名身份只授予 `Read:xbh-media`，私有桶不能匿名读取。本人与经审核平台授权的审核员
+经 Gateway 鉴权读取，响应为带 MIME 的 base64 JSON。过审后，ad-mq 把素材按 `ads/<sha256>` 复制到公开媒体桶：
+同一内容只写一次、不可覆盖（`ADS-015`），复制成功前广告不进入投放索引。根仓反代 CSP 只放行同源图片，
+公开路径经 `/xbh-media/` 提供。
 
 ## 投放
 
 - **契约**（`ADS-020`、`ADS-021`、`DISC-053`）：`/api/v2/feed/recommend` 新增可选请求参数 `adSlots`（1 表示
-  支持）；响应新增可选字段 `sponsored`，每项包含 `slotId`、`afterPosition` 与 `ad`。`ad` 含 adId、
-  revision、广告主名称、标题、正文、CTA、落地页与域名、图片、广告标识，以及 `why`（market、scene、
-  personalized）。未声明参数时响应不出现该字段，帖子 `items`、位置、游标与去重完全不变。
-- **组装**（`ADS-022`）：Gateway 在调用 feed-rpc 的同时以 80 ms 超时调用 `GetSponsoredSlots`。ad-rpc 返回
+  支持）与 `market`（演示市场，缺省 US）；响应新增可选字段 `sponsored`，每项包含 `slotId`（页内 `s1`、`s2`）、
+  `afterPosition` 与 `ad`。`ad` 含 adId、revision、广告主名称、标题、正文、CTA、落地页与域名、图片、广告标识
+  `disclosure: "sponsored"`，以及 `why`（market、scene、personalized）。未声明参数或本页无广告时响应不出现该
+  字段（`omitempty`），帖子 `items`、位置、游标与去重完全不变。
+- **组装**（`ADS-022`）：Gateway 在调用 feed-rpc 的同时以 80 ms 超时（`SponsoredTimeoutMs`）调用 `GetSponsoredSlots`。ad-rpc 返回
   页内相对的 afterIndex，Gateway 用本页帖子的 position 换算成 afterPosition，本页帖子不足时丢弃该槽位。
   广告调用失败只记指标并返回空数组；现有帖子 enrichment 失败会导致整页失败，广告路径必须与之隔离
   （`app/gateway/internal/logic/feed/get_recommend_feed_logic.go`）。
 - **选择**（`ADS-041`）：每页最多 2 个槽位，默认在第 4 与第 12 条帖子之后，同一页同一广告主最多一个。
   在市场投放索引中排除已隐藏、当日已达 3 次和资格不满足的广告，优先当日下发最少者，同分按 requestId
-  种子随机。关闭个性化的用户与匿名用户只按市场与场景选择，`why.personalized = false`（`ADS-025`）。
+  种子随机。选择规则不使用任何个人特征，所有用户都只按市场与场景选择，`why.personalized` 恒为 false，
+  因而关闭个性化的用户与匿名用户也只获得非个性化广告（`ADS-025`）。
 - **频控**（`ADS-024`）：在选中时计数，请求结果键保证重试不重复计数。
 - **传播**（`ADS-032`）：暂停或下线事件由 ad-mq 立即移出投放索引；ad-rpc 进程内资格缓存不超过 30 秒，
   合计在 60 秒内对新请求生效。Redis 不可用时不返回广告。
@@ -145,10 +153,12 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
 - 客户端以 `targetType: "ad"`、`targetId: adId` 上报曝光与点击；曝光沿用 50% 可见、连续 1 秒，position 取
   afterPosition（`REL-009`）。
 - recommend-mq 目前会把任意目标的点击写进正反馈、挤占 `:recent` 列表，曝光去重键也不含目标类型
-  （`app/recommend/mq/internal/store/behavior_store.go`）。改为在入口跳过 `target_type != post` 的事件，
-  使广告事件不进入帖子特征、训练数据与帖子曝光去重（`ADS-027`）。
-- ClickHouse 新增按（日期，广告，动作）的物化聚合；曝光按（request_id, target_type, target_id）去重后计数，
-  与 `deploy/sql/xbh_analytics.sql` 现有的 90 天原始事件保留一致。
+  （`app/recommend/mq/internal/store/behavior_store.go`）。改为在入口跳过 `target_type == ad` 的事件
+  （`user` 关注事件仍是特征来源，不能按「非帖子」一并跳过），使广告事件不进入帖子特征、训练数据与帖子
+  曝光去重（`ADS-027`）。
+- ClickHouse 新增普通视图 `ad_daily_stats`（日期，广告）给出曝光、点击与点击率；曝光按（request_id,
+  target_type, target_id）去重后计数。与 `deploy/sql/xbh_analytics.sql` 现有聚合一致读取 `FINAL` 原始事实，
+  不用插入触发的物化视图，避免至少一次投递重复计数；随原始事件 90 天保留。
 - 隐藏与举报不走遥测事件，而是走权威 REST（`ADS-026`、`ADS-030`）：隐藏写入隐藏键；举报写 `ad_report`
   并经 outbox 生成 `report` 审核任务，举报数提升优先级。
 
@@ -201,8 +211,8 @@ ClickHouse 聚合计算（`ADS-050`）。
 
 | 周 | 范围 |
 | --- | --- |
-| W1 | xbh_ad、广告主与广告写路径、快照与送审、结论应用、对账 |
-| W2 | 落地页与行业校验、资质流程、私有素材 |
-| W4 | 投放索引、`GetSponsoredSlots`、Gateway 合并与能力参数、频控、recommend-mq 过滤、ClickHouse 聚合 |
+| W1 | xbh_ad、广告主与广告写路径、快照与送审、结论应用、对账（已实现） |
+| W2 | 落地页与行业校验、资质流程、私有素材（已实现） |
+| W4 | 投放索引、`GetSponsoredSlots`、Gateway 合并与能力参数、频控、recommend-mq 过滤、ClickHouse 聚合（已实现） |
 | W5 | 前端卡片、控制台与工作台联调 |
 | W6 | 回扫、举报、申诉、证据 |
