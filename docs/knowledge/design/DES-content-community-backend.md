@@ -256,8 +256,8 @@ Redis 接线回归验证通过真实 ServiceContext 读取的负反馈命名空�
 
 帖子写路径只有 `/api/v2/post*`，强制 `expectedRevision`（CORE-013/062）。帖子/评论/
 媒体/互动/关注走事务 outbox。私信权威写入以 message 库提交为成功（CORE-044）；不实现
-赞/评/关通知生产者。`message-push` 消费者不是当前产品路径，部署可不启动；主题保留不
-构成对外能力。
+赞/评/关通知生产者。`message-push` 主题、消费组与消费者均已移除，RocketMQ bootstrap
+不再创建该主题，部署与本地联调都不得等待它。
 
 帖子新增媒体只接受 Media RPC 验证为本人且上传完成的 `mediaIds`，`images` 若提供必须与解析的 URL
 一致，不能覆盖校验结果。编辑允许保留或移除同帖原有 URL、加入新验证的媒体；旧 ID 失效时拒绝部分
