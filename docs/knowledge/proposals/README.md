@@ -23,3 +23,6 @@
 - [PROP-20261001-ad-review](PROP-20261001-ad-review.md)：
   付费广告先审后投、通用审核平台与推荐流广告投放（closed：2026-10-01 人类批准，已写入
   `SPEC-review-platform`、`SPEC-sponsored-ads` 及意图修订）。
+- [PROP-20261001-post-serving-supersede](PROP-20261001-post-serving-supersede.md)：
+  投后任务（质检、举报、回扫）不因更新的未决 revision 作废，澄清 `RVW-003`（open，W6 已按此实现，
+  待人类决定是否修订规格）。

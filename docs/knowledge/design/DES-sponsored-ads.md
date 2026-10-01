@@ -45,8 +45,8 @@ tracks:
 # 付费广告与投放设计
 
 本页承接 [付费广告与投放规范](../spec/SPEC-sponsored-ads.md)，以及 `DISC-053`、`REL-009` 对发现与行为
-链路的约束。审核流程见 [DES-review-platform](DES-review-platform.md)。W1、W2、W4 范围已于 2026-10-01 落地，
-W5（前端联调）与 W6（回扫、举报、申诉）尚未实现；逐条状态见
+链路的约束。审核流程见 [DES-review-platform](DES-review-platform.md)。W1、W2、W4 与 W6（回扫、举报、申诉）
+已于 2026-10-01 落地，前端联调属 W5（前端仓）；逐条状态见
 [IMP-sponsored-ads](../implementation/IMP-sponsored-ads.md)。代码位置：共享领域 `app/ad/internal`，
 ad-rpc `app/ad/rpc`，ad-mq `app/ad/mq`，Gateway `app/gateway/internal/logic/ads` 与推荐流合并
 `app/gateway/internal/logic/feed/sponsored.go`。
@@ -55,14 +55,14 @@ ad-rpc `app/ad/rpc`，ad-mq `app/ad/mq`，Gateway `app/gateway/internal/logic/ad
 
 ```text
 Gateway
-  /api/v2/advertisers*、/api/v2/ads*（广告主，需认证）-> ad-rpc
+  /api/v2/ads/advertiser*、/api/v2/ads*、/api/v2/ads/:adId/appeal（广告主，需认证）-> ad-rpc
   /api/v2/feed/recommend?adSlots=1 -> feed-rpc（不变）并行 ad-rpc.GetSponsoredSlots（短超时）
   /api/v2/ads/:adId/hide、/report（访客）-> ad-rpc
 ad-rpc
-  -> 广告主、资质、广告、快照；送审 outbox；投放选择与频控
+  -> 广告主、资质、广告、快照；送审、申诉与举报 outbox；投放选择与频控
 ad-mq
   -> 消费 review-decided（tag = ad_creative / advertiser_qualification），按 revision CAS 应用
-  -> 维护投放索引；过审素材发布；ticker：对账、资质过期、暂停传播
+  -> 维护投放索引；过审素材发布；ticker：对账、资质过期、回扫、暂停传播
 ad-rpc（私有资产）
   -> 广告素材与资质证件写入私有桶 xbh-ad-private；ad-mq 过审后复制到公开媒体桶的内容寻址路径
 behavior / pipeline
@@ -78,9 +78,9 @@ behavior / pipeline
 | --- | --- | --- |
 | `advertiser` | 主体名称、经营市场、状态、风险等级 | 每个用户最多一个广告主；revision 与 approved_revision |
 | `advertiser_qualification` | 市场、行业、证件媒体 ID、有效期、状态 | 证件只在私有存储；作为 `advertiser_qualification` 送审 |
-| `ad` | 最新 revision、approved_revision、审核状态、投放状态、市场、行业、投放期 | 写操作带 expectedRevision 与幂等键 |
+| `ad` | 最新 revision、approved_revision 与其结论时间、审核状态、投放状态与原因、市场、行业、投放期、已申诉 revision、已处理的回扫代次、未决举报批次 | 写操作带 expectedRevision 与幂等键 |
 | `ad_snapshot` | 每个 revision 的文案、CTA、落地页、素材 sha256 与公开键 | 主键（ad_id, revision），写入后只读 |
-| `ad_report` | 举报人身份、原因 | 同一身份对同一广告只计一次 |
+| `ad_report` | 举报人身份键、结构化原因、举报时的过审 revision、批次 | 同一身份对同一广告只计一次；不收自由文本 |
 | `event_outbox`、`idempotency` | 可靠投递与幂等 | 沿用 `pkg/outboxx/outbox.go`、`pkg/idempotencyx/idempotency.go` |
 
 Redis 键均带 `ads:v1:` 前缀：
@@ -97,8 +97,11 @@ identity 为 `u:<userId>`；匿名为 `s:<sessionId 哈希>`，只按会话计�
 ## 状态与投放资格
 
 审核状态针对最新 revision：`draft → pending_review → approved | rejected`，`rejected → appealing →
-approved | rejected`。投放状态独立：`none → serving`（首次过审），`serving ⇄ paused`（回扫或质检违规先暂停，
-人审否定后恢复），`paused | serving → offline`（人审确认违规或举报成立）。
+approved | rejected`。投放状态独立：`none → serving`（首次过审），`serving ⇄ paused`（回扫判定违规先暂停，
+回扫人审否定后恢复；暂停期间更新的 revision 过审也恢复），`paused | serving → offline`（回扫人审确认违规、
+质检判定违规或举报成立）。暂停与下线原因记在 `pause_reason`（`rescan`、`qa`、`report`），政策码记在
+`policy_codes`；资质失效只记录原因，不覆盖已暂停或已下线广告的原因。投后结论确认违规且最新 revision 就是
+被下线的 revision 时，审核状态同时改为 `rejected`。
 
 投放资格在读取时计算（`ADS-010`）：存在 approved_revision、投放状态为 serving、受监管行业资质有效、
 当前时间在投放期内。
@@ -107,6 +110,7 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
   `review-submitted`。approved_revision 不变，旧过审快照继续投放。
 - **应用结论**：通过时 `UPDATE ad SET approved_revision = r, review_status = 'approved' WHERE id = ? AND
   revision = r`，拒绝时只更新审核状态。影响 0 行说明已有更新的 revision，该结论只留审计（`RVW-003`）。
+  投后任务（质检、举报、回扫）与暂停结论按 `approved_revision = r` CAS，旧快照的投后结论不再改变状态。
 - **资质失效**（`ADS-002`）：ad-mq ticker 扫描到期资质，把依赖广告移出投放索引，并在广告上记录
   `pause_reason = INDUSTRY.QUALIFICATION` 供广告主查看；站内通知（复用既有 SendNotification RPC）尚未接入。
 
@@ -160,26 +164,45 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
   target_type, target_id）去重后计数。与 `deploy/sql/xbh_analytics.sql` 现有聚合一致读取 `FINAL` 原始事实，
   不用插入触发的物化视图，避免至少一次投递重复计数；随原始事件 90 天保留。
 - 隐藏与举报不走遥测事件，而是走权威 REST（`ADS-026`、`ADS-030`）：隐藏写入隐藏键；举报写 `ad_report`
-  并经 outbox 生成 `report` 审核任务，举报数提升优先级。
+  并经 outbox 生成 `report` 审核任务，举报数提升优先级，同时对举报人写入隐藏键。
 
 ## 投后
 
-- **回扫**（`ADS-031`）：政策版本或生效种子库变更后，ad-mq 枚举投放中的过审快照，送 `rescan` 任务。
-  机审判定违规时先暂停，再进入人审；人审确认后下线，否定后恢复。
-- **质检违规**：处置路径同回扫。
-- **申诉**（`ADS-014`）：每个被拒或被下线的 revision 可申诉一次，状态转为 `appealing`，复审由不同审核员
-  处理，结论为最终结论。
+- **举报**（`ADS-030`、`ADS-026`）：`POST /api/v2/ads/{adId}/report` 需要用户或会话身份与结构化原因
+  （misleading、scam、offensive、inappropriate、irrelevant、other）。身份键与隐藏、频控相同（`u:<userId>` 或
+  `s:<会话哈希>`），同一身份对同一广告只计一次；举报同时写入隐藏键，已认证用户 30 天、匿名用户只在当前会话。
+  举报针对正在投放的过审快照，从未过审的广告返回不存在，已下线的广告不再计数。未决举报归入一个批次
+  （`report_batch`，以批次首条举报 ID 命名，作为 `purpose_key`），每条新举报以批次举报数送审，优先级
+  `min(1000, 40 + 10 × 举报数)`，审核平台只提高同批次任务的优先级。举报成立即下线（`pause_reason = report`）；
+  结论到达时按批次 CAS 关闭批次，结论作出后、应用之前到达的举报若广告仍在投，移入新批次重新送审，不会静默
+  丢失。
+- **回扫**（`ADS-031`、`ADS-032`）：ad-mq 每分钟向 review-rpc 读取回扫代次（见
+  [DES-review-platform](DES-review-platform.md)「政策回扫」），代次未就绪时跳过。投放中（`serving`）且未处理
+  该代次的广告：过审结论时间（`approved_at_ms`，取结论的 decidedAt）不早于代次生效时间的，已按该代次审核，
+  只记录代次；更早的在同一事务内送 `rescan` 任务（快照为过审 revision，`purpose_key` 为代次）并记录代次。
+  每轮最多 5 批、每批 100 条。已暂停的广告正在等待人审，不重复回扫。机审判定违规时 ad-mq 收到暂停结论，
+  把 `serving` 改为 `paused`（`pause_reason = rescan`）并立即移出投放索引；回扫人审确认后下线，否定后恢复
+  `serving` 并清除原因；暂停期间更新的 revision 过审同样恢复投放。存量数据由补丁把 `approved_at_ms` 近似为
+  最近更新时间，避免补丁后首轮回扫重审全部广告。
+- **质检违规**：质检本身是人工复审，判定违规即下线（`pause_reason = qa`）。
+- **申诉**（`ADS-014`）：`POST /api/v2/ads/{adId}/appeal`（幂等键可选）。可申诉的 revision：最新 revision
+  被拒时是它；广告被下线且没有更新编辑时是被下线的过审 revision。每个 revision 一次（`appealed_revision`），
+  否则返回 7106；广告视图的 `appealable` 给出当前是否可申诉。申诉把审核状态改为 `appealing`，同事务送
+  `appeal` 任务，并受送审对账保护（`RVW-041`）。复审由不同于原拒绝决策人的审核员处理，结论为最终结论：通过则
+  该 revision 成为过审版本并恢复投放（含被下线的广告），拒绝则维持 `rejected` 与原投放状态。
+- **投后任务的作废**：质检、举报与回扫针对在投快照，编辑产生的新 revision 审核期间不作废，新 revision 过审后
+  才作废（实现调整，见 [DES-review-platform](DES-review-platform.md)「数据模型」）。
 
 ## 广告主接口
 
 需认证的 REST：申请广告主、查询本人广告主、上传与提交资质、创建与编辑广告（expectedRevision 与幂等键）、
-列表与详情（状态、政策码、过审快照）、申诉、上传素材到私有存储。广告主只能访问自己的资源，越权统一
+列表与详情（状态、政策码、暂停与下线原因、过审快照、是否可申诉）、申诉、上传素材到私有存储。广告主只能访问自己的资源，越权统一
 返回不存在（`ADS-040`）。错误码在 `pkg/errx` 新增广告号段。
 
 ## 观测
 
-指标前缀 `esx_ads_`：投放请求（结果）、下发槽位、频控拦截、降级（原因）、暂停与下线的传播延迟。点击率由
-ClickHouse 聚合计算（`ADS-050`）。
+指标前缀 `esx_ads_`：投放请求（结果）、下发槽位、频控拦截、降级（原因）、暂停与下线的传播延迟、举报
+（计入或重复）、申诉、回扫（送审、已按代次审核、跳过、失败）。点击率由 ClickHouse 聚合计算（`ADS-050`）。
 
 ## 失败模式
 
@@ -190,6 +213,8 @@ ClickHouse 聚合计算（`ADS-050`）。
 | review-decided 积压 | 新版本停留审核中，旧过审快照继续投放 |
 | 素材复制失败 | 结论已应用但不进入投放索引，ad-mq 重试并告警 |
 | 资质到期扫描延迟 | ticker 间隔 1 分钟，最长延迟受告警约束 |
+| review-rpc 不可用或政策版本尚未激活 | 本轮不回扫，下一轮重试；已投放广告不受影响 |
+| 暂停结论积压 | 违规广告在暂停结论应用前继续投放；积压由 outbox 与消费指标告警，结论到索引变化的延迟见 `esx_ads_serving_propagation_seconds` |
 
 ## 取舍
 
@@ -215,4 +240,4 @@ ClickHouse 聚合计算（`ADS-050`）。
 | W2 | 落地页与行业校验、资质流程、私有素材（已实现） |
 | W4 | 投放索引、`GetSponsoredSlots`、Gateway 合并与能力参数、频控、recommend-mq 过滤、ClickHouse 聚合（已实现） |
 | W5 | 前端卡片、控制台与工作台联调 |
-| W6 | 回扫、举报、申诉、证据 |
+| W6 | 回扫（代次、暂停与恢复）、举报批次、申诉、投后任务作废规则（已实现）；联调证据未取得 |

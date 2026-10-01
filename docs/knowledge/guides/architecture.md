@@ -26,8 +26,10 @@ count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为
 付费广告与审核平台（`DES-sponsored-ads`、`DES-review-platform`）各有独立权威库 `xbh_ad`（`DB_AD`）与
 `xbh_review`（`DB_REVIEW`）。ad-rpc 写广告与快照，同事务经 outbox 发 `review-submitted`（tag 为业务类型）；
 review-worker 消费后建任务并跑机审级联，自动结论或人审结论经 outbox 发 `review-decided`；ad-mq 按
-revision CAS 应用结论、发布过审素材并维护 Redis 投放索引。Gateway 在推荐流声明 `adSlots=1` 时以短超时
-并行查询广告槽位，失败只降级为不含广告。
+revision CAS 应用结论、发布过审素材并维护 Redis 投放索引。举报与申诉同样由 ad-rpc 经 outbox 送审；ad-mq
+按 review-rpc `GetRescanGeneration` 给出的回扫代次把在投广告送回扫，回扫判定违规时 review-worker 先发
+`interim` 暂停结论再转人审。Gateway 在推荐流声明 `adSlots=1` 时以短超时并行查询广告槽位，失败只降级为
+不含广告。
 
 ## 服务清单
 

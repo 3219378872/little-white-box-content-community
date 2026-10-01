@@ -42,8 +42,8 @@ tracks:
 # 审核平台设计
 
 本页承接 [审核平台规范](../spec/SPEC-review-platform.md)。广告业务语义、政策码与投放见
-[DES-sponsored-ads](DES-sponsored-ads.md)。W1～W3 范围已于 2026-10-01 落地，W6（政策回扫、申诉与举报任务）
-尚未实现；逐条状态见 [IMP-review-platform](../implementation/IMP-review-platform.md)，实现完成不等于验证完成。
+[DES-sponsored-ads](DES-sponsored-ads.md)。W1～W3 与 W6（政策回扫、申诉与举报任务）已于 2026-10-01 落地；
+逐条状态见 [IMP-review-platform](../implementation/IMP-review-platform.md)，实现完成不等于验证完成。
 
 机审的工程骨架参考 TikTok [Filter-And-Refine](https://arxiv.org/html/2507.17204v1) 的 Router → Ranker
 级联：低成本召回过滤大部分内容，高成本模型只对候选 issue 精排。论文面向先发后审，Router 放过等于不处置；
@@ -93,9 +93,19 @@ embedding 服务（既有）+ Milvus 种子集合
 | `audit_log` | 审核动作与配置激活审计 | 应用账号只授予 INSERT/SELECT |
 | `event_outbox` | 可靠投递 | 与业务写同事务 |
 
-`purpose` 取 `initial`、`qa`、`appeal`、`report`、`rescan`；`purpose_key` 对回扫是政策版本，其余为空。
-同一对象 revision 的首次送审只有一条 `initial` 任务（`RVW-001`），质检、申诉、举报与回扫各自成任务。
-对象出现新 revision 时，同对象旧 revision 的未决任务在同一事务内置为 `superseded`（`RVW-003`）。
+`purpose` 取 `initial`、`qa`、`appeal`、`report`、`rescan`；`purpose_key` 对回扫是回扫代次（政策版本 +
+生效种子变化计数），对举报是举报批次，其余为空。同一对象 revision 的首次送审只有一条 `initial` 任务
+（`RVW-001`），质检、申诉、举报与回扫各自成任务。
+
+作废分两类（`RVW-003`）：
+
+- **送审与申诉**（`initial`、`appeal`）审的是 revision 能否投放。对象出现新 revision 时，同对象旧
+  revision 的这类未决任务在同一事务内置为 `superseded`；乱序到达的旧 revision 送审直接以 `superseded` 落库。
+- **投后任务**（`qa`、`report`、`rescan`）审的是正在投放的过审快照。新 revision 审核期间旧快照继续投放
+  （`ADS-011`），因此它们不因更新的未决 revision 作废，而在更新的 revision 过审（送审或申诉通过）的同一
+  事务内作废；此后到达的旧快照投后任务直接以 `superseded` 落库。实现调整：`RVW-003` 字面要求旧 revision
+  的未决任务一律作废，按字面执行会让回扫暂停的广告卡在暂停、举报静默丢失，澄清见
+  [PROP-20261001-post-serving-supersede](../proposals/PROP-20261001-post-serving-supersede.md)，待人类决定。
 
 任务状态：`machine_pending → machine_running → decided | human_pending`；
 `human_pending → claimed → decided | human_pending`（持有过期或放弃）；任一未决状态 → `superseded`。
@@ -179,8 +189,31 @@ worker 先做规范化再算哈希：键排序、Unicode NFC、去除零宽字�
   `esx_review_claim_attempts_exceeded_total`，避免 agent_run 式的无限重领。
 - **证据展示**（`RVW-023`）：读取快照、各阶段输出与政策定义；资质证件经 Gateway 鉴权后从私有存储流式
   读取，只对具备资质审核权限的审核员开放。
-- **质检与申诉**（`RVW-014`、`RVW-024`）：自动通过按 ≥ 5% 抽样建 `qa` 任务；申诉建 `appeal` 任务；
-  两者都把原决策人写入排除名单。质检判定违规时发出暂停结论，由业务方先停投再按复审处理。
+- **质检与申诉**（`RVW-014`、`RVW-024`）：自动通过按 ≥ 5% 抽样建 `qa` 任务，质检判定违规时业务方
+  立即下线。申诉由业务方以 `appeal` 送审，直接进入人审，不跑机审；送审时取该 revision 最近一次拒绝结论
+  作为原结论（`source_task_id`），并把其决策人写入排除名单，机审作出的拒绝没有需要排除的人。工作台展示
+  原结论，申诉改判计入 `esx_review_appeal_overturns_total`。
+- **举报**（`ADS-030`）：业务方以 `report` 送审，直接进入人审，优先级由业务方按批次举报数给出；同一批次
+  （`purpose_key`）重复送审只提高未决任务的优先级，不新建任务。
+
+## 政策回扫
+
+回扫（`ADS-031`）由业务方触发：审核平台不了解业务对象全集，只经 `GetRescanGeneration` 给出当前代次
+`<政策版本>+seeds@<n>`，n 为生效种子集合的变化计数（每次确认、每次停用已生效种子各加一，单调递增），以及
+该代次的生效时间：政策版本首次以 active 模式激活的时间（来自 `policy.activate` 审计）与最近一次种子变化
+加 60 秒（覆盖向量集合每 30 秒的同步延迟）中较晚者。review-rpc 的政策版本尚未被 worker 激活时返回
+`ready=false`，避免按旧版本重审。业务方以代次作为 `purpose_key` 送 `rescan` 任务。
+
+回扫走机审，但判定的是「是否违规」而不是「能否放行」：
+
+- 硬规则命中，或任一候选 issue 的分数达到拒绝阈值（不论该 issue 是否允许自动拒绝）即判定违规；
+- 强制人审规则或灰区分数转人审核实，不暂停投放；精排失败照常转人审（`RVW-011`）；
+- 其余视为未发现违规，以机审通过结案。行业禁用自动通过、首次送审保护期与图片未确认是授予自动通过的
+  条件，不适用于已过审在投的快照；回扫不复用指纹，结论也不写入指纹复用表。
+
+判定违规时，worker 在同一事务内把任务转人审（原因 `rescan-violation`，优先级不低于 90）、写审计，并经
+outbox 下发 `interim=true` 的 `review-decided` 暂停结论。暂停结论不写 `review_decision`，只要求业务方先停投；
+该任务的人审结论是最终结论：拒绝即确认违规下线，通过则恢复投放。
 
 ## 种子库
 
@@ -190,8 +223,8 @@ active，同一人提名与确认会被拒绝（`RVW-030`）。worker 每 30 秒
 
 ## 结论下发与一致性
 
-- `review-decided` 载荷为 bizType、objectId、revision、taskId、purpose、verdict、policyCodes、
-  policyVersion、source 与 decidedAt；消息 tag 为 bizType，业务方按 tag 订阅。
+- `review-decided` 载荷为 bizType、objectId、revision、taskId、purpose、purposeKey、verdict、policyCodes、
+  policyVersion、source、decidedAt，以及只用于回扫暂停的 interim；消息 tag 为 bizType，业务方按 tag 订阅。
 - 业务方按（objectId, revision）CAS 应用、按 taskId 幂等；revision 单调递增，乱序到达的旧结论只留审计
   （`RVW-040`）。outbox 至少一次投递即可，不需要分布式事务。
 - 对账（`RVW-041`）：业务方 ticker 找出送审超过 5 分钟仍未登记任务的对象，调用 `EnsureSubmitted`
@@ -210,7 +243,7 @@ active，同一人提名与确认会被拒绝（`RVW-030`）。worker 每 30 秒
 ## 观测
 
 指标前缀 `esx_review_`：送审到结论耗时（label：machine / human）、结论计数（来源、结论）、人审积压与
-最老任务年龄、质检不一致与申诉改判计数、指纹命中、各阶段耗时与降级计数（阶段、原因）。机审自动化率由
+最老任务年龄、质检不一致与申诉改判计数、回扫暂停计数、指纹命中、各阶段耗时与降级计数（阶段、原因）。机审自动化率由
 结论计数推导（`RVW-060`）。送审到首次结论的 P95 对照 24 小时目标如实报告（`RVW-061`）。
 
 ## 失败模式
@@ -238,7 +271,8 @@ active，同一人提名与确认会被拒绝（`RVW-030`）。worker 每 30 秒
 - 单元：规范化与快照哈希、决策矩阵、URL 规则、状态机、Ranker 响应校验。
 - 集成（`//go:build integration`，testutil 容器）：唯一键幂等、supersede、租约竞争与 fencing、outbox 投递。
 - 故障注入：Router 与 Ranker 的超时、不可用、无效输出（`RVW-A02`）。
-- e2e（根仓 pytest）：送审 → 机审 → 领取 → 提交 → 业务状态生效；质检与申诉换人；角色撤销。
+- e2e（根仓 pytest）：送审 → 机审 → 领取 → 提交 → 业务状态生效；质检与申诉换人；举报复审；回扫暂停
+  后人审下线或恢复；角色撤销。
 
 ## 分期
 
@@ -247,7 +281,7 @@ active，同一人提名与确认会被拒绝（`RVW-030`）。worker 每 30 秒
 | W1 | xbh_review、任务与快照、人审领取 / fencing / 提交、结论事件、角色与审计、对账入口（已实现） |
 | W2 | 指纹复用、硬规则、政策配置与决策矩阵、降级标注、质检抽样、指标（已实现） |
 | W3 | Router（embedding + Milvus 种子集合）、Ranker proto 与占位 sidecar、影子运行、种子流程（已实现） |
-| W6 | 政策回扫、申诉与举报任务、证据整理（未开始） |
+| W6 | 政策回扫（代次、违规暂停与人审）、申诉与举报任务、投后任务作废规则（已实现） |
 
 ## 风险
 
