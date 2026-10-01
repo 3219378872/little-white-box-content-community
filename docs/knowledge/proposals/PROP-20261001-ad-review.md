@@ -2,9 +2,10 @@
 id: PROP-20261001-ad-review
 layer: proposal
 title: 付费广告先审后投：通用审核平台与推荐流广告投放（拟 RVW / ADS 规格）
-status: open
+status: closed
 owner: agent
 target_layer: intent
+decision: 2026-10-01 人类批准；政策参考 TikTok 广告政策，回扫判定违规后先暂停投放，其余默认值授权 agent 确定。已写入 INT-content-community-backend、SPEC-review-platform、SPEC-sponsored-ads，并修订 CORE-004、REL-020，新增 DISC-053、REL-009。
 upstream:
   - INT-content-community-backend
   - SPEC-community-core

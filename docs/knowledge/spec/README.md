@@ -12,6 +12,8 @@
 | [SPEC-community-core](SPEC-community-core.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 | [SPEC-content-discovery](SPEC-content-discovery.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 | [SPEC-feedback-reliability](SPEC-feedback-reliability.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
+| [SPEC-review-platform](SPEC-review-platform.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
+| [SPEC-sponsored-ads](SPEC-sponsored-ads.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 
 ### History
 

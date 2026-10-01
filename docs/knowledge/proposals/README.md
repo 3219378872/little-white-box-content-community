@@ -21,4 +21,5 @@
 - [PROP-20260827-agent-spec-closure](PROP-20260827-agent-spec-closure.md)：
   旧双模式 Agent 收口提案（superseded；由 2026-08-29 已批准长期 Agent 规范接替）。
 - [PROP-20261001-ad-review](PROP-20261001-ad-review.md)：
-  付费广告先审后投、通用审核平台与推荐流广告投放（open，拟 RVW / ADS 规格及意图非目标调整，待人类批准）。
+  付费广告先审后投、通用审核平台与推荐流广告投放（closed：2026-10-01 人类批准，已写入
+  `SPEC-review-platform`、`SPEC-sponsored-ads` 及意图修订）。

@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-05
+updated_at: 2026-10-01
 ---
 
 # 内容发现规范
@@ -68,6 +68,8 @@ updated_at: 2026-09-05
 - `DISC-050`：现有 `/api/v2/feed/*` 和 `/api/v2/search*` 契约在同一主版本内保持向后兼容。
 - `DISC-051`：分值、来源名称和模型版本可以演进，但字段含义及其与行为事件的关联不得静默改变。
 - `DISC-052`：客户端不得依赖具体算法或固定排序，可以依赖内容可见性、游标绑定和来源可追踪。
+- `DISC-053`：推荐响应可以携带 `SPEC-sponsored-ads` 定义的独立广告槽位；广告不是发现结果条目，不适用
+  `DISC-001`～`DISC-003`、`DISC-034` 与 `DISC-035` 的条目语义，也不改变帖子条目的位置与游标。
 
 ## 质量门禁
 
