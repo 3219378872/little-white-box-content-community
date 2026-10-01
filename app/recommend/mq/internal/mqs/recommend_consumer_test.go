@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"esx/pkg/event"
@@ -11,6 +12,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const canonicalBehaviorJSON = `{"event_id":1,"client_event_id":"client-1","schema_version":2,"event_time":1714300000000,"received_at":1714300000100,"user_id":1,"action":"like","target_id":99,"target_type":"post","producer":"behavior-rpc"}`
@@ -72,6 +74,19 @@ func TestRecommendConsumerRecordsCanonicalEvent(t *testing.T) {
 	assert.Len(t, rec.recorded, 1)
 	assert.Equal(t, int64(1), rec.recorded[0].UserID)
 	assert.Equal(t, "like", rec.recorded[0].Action)
+}
+
+// ADS-A05：广告曝光与点击不写入帖子特征，也不占用帖子曝光去重。
+func TestRecommendConsumerSkipsAdEvents(t *testing.T) {
+	rec := &recordingStore{}
+	adEvent := strings.Replace(canonicalBehaviorJSON, `"target_type":"post"`, `"target_type":"ad"`, 1)
+	require.NotEqual(t, canonicalBehaviorJSON, adEvent)
+	result := consumeBehaviorBatch(context.Background(), rec, &recordingDeadLetters{},
+		&primitive.MessageExt{Body: []byte(adEvent), MsgId: "msg-ad"},
+		&primitive.MessageExt{Body: []byte(canonicalBehaviorJSON), MsgId: "msg-post"})
+	assert.Equal(t, consumer.ConsumeSuccess, result)
+	require.Len(t, rec.recorded, 1)
+	assert.Equal(t, "post", rec.recorded[0].TargetType)
 }
 
 func TestRecommendConsumerStoreErrorReturnsRetry(t *testing.T) {

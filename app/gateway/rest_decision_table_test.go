@@ -529,6 +529,8 @@ func startConfiguredContractServer(t *testing.T, assistant assistantservice.Assi
 		MessageService:     contractMessageService{},
 		SearchService:      contractSearchService{},
 		AssistantService:   assistant,
+		AdService:          contractAdService{},
+		ReviewService:      contractReviewService{},
 		OptionalAuth:       optionalAuth.Hertz,
 		RequiredAuth:       requiredAuth.Hertz,
 		BehaviorAccepted:   behaviorAccepted.Hertz,
@@ -631,6 +633,28 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ASSISTANT-MEMORY-BATCH-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/batch", body: jsonBody(`{"ops":[{"op":"add","target":"memory","content":"x"}]}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-MEMORY-UNDO-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/changes/1/undo", routePath: "/api/v2/assistant/memory/changes/:id/undo", auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-WATCH-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch", auth: true, wantStatus: http.StatusOK, wantFields: []string{"tasks"}},
+		{id: "ADS-ADVERTISER-GET-VALID", method: http.MethodGet, path: "/api/v2/ads/advertiser", auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "advertiser"}},
+		{id: "ADS-ADVERTISER-APPLY-VALID", method: http.MethodPut, path: "/api/v2/ads/advertiser", body: jsonBody(`{"name":"Acme","markets":["US"],"expectedRevision":0}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "advertiser"}},
+		{id: "ADS-QUALIFICATION-ADD-VALID", method: http.MethodPost, path: "/api/v2/ads/advertiser/qualifications", body: jsonBody(`{"market":"DE","industry":"FINANCIAL","documentAssetId":9,"validUntilMs":4102444800000,"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"advertiser"}},
+		{id: "ADS-ASSET-UPLOAD-VALID", method: http.MethodPost, path: "/api/v2/ads/assets/creative", routePath: "/api/v2/ads/assets/:kind", body: imageBody, auth: true, wantStatus: http.StatusOK, wantFields: []string{"assetId", "kind", "sha256", "mimeType", "size"}},
+		{id: "ADS-ASSET-READ-VALID", method: http.MethodGet, path: "/api/v2/ads/assets/9", routePath: "/api/v2/ads/assets/:assetId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"mimeType", "contentBase64"}},
+		{id: "ADS-POLICIES-VALID", method: http.MethodGet, path: "/api/v2/ads/policies", auth: true, wantStatus: http.StatusOK, wantFields: []string{"policyVersion", "codes", "markets", "industries", "demo"}},
+		{id: "ADS-LIST-VALID", method: http.MethodGet, path: "/api/v2/ads?pageSize=20", auth: true, wantStatus: http.StatusOK, wantFields: []string{"ads", "nextCursor", "hasMore"}},
+		{id: "ADS-CREATE-VALID", method: http.MethodPost, path: "/api/v2/ads", body: jsonBody(`{"title":"Beans","body":"Roasted","cta":"Shop","landingUrl":"https://coffee.shop.com","market":"US","industry":"GENERAL","idempotencyKey":"ad-1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
+		{id: "ADS-GET-VALID", method: http.MethodGet, path: "/api/v2/ads/7", routePath: "/api/v2/ads/:adId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
+		{id: "ADS-UPDATE-VALID", method: http.MethodPut, path: "/api/v2/ads/7", routePath: "/api/v2/ads/:adId", body: jsonBody(`{"expectedRevision":1,"title":"Beans","body":"Roasted","cta":"Shop","landingUrl":"https://coffee.shop.com","market":"US","industry":"GENERAL"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"ad"}},
+		{id: "ADS-HIDE-ANON", method: http.MethodPost, path: "/api/v2/ads/7/hide", routePath: "/api/v2/ads/:adId/hide", body: jsonBody(`{"sessionId":"session-1"}`), wantStatus: http.StatusOK, wantFields: []string{"ok"}, wantHeaders: map[string]string{middleware.AuthStateHeader: middleware.AuthStateAnonymous}},
+		{id: "REVIEW-ME-VALID", method: http.MethodGet, path: "/api/v2/review/me", auth: true, wantStatus: http.StatusOK, wantFields: []string{"active", "roles", "markets", "languages"}},
+		{id: "REVIEW-QUEUE-VALID", method: http.MethodGet, path: "/api/v2/review/queue", auth: true, wantStatus: http.StatusOK, wantFields: []string{"buckets", "policyVersion"}},
+		{id: "REVIEW-CLAIM-VALID", method: http.MethodPost, path: "/api/v2/review/tasks/claim", body: jsonBody(`{}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "task"}},
+		{id: "REVIEW-TASK-GET-VALID", method: http.MethodGet, path: "/api/v2/review/tasks/3", routePath: "/api/v2/review/tasks/:taskId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "task"}},
+		{id: "REVIEW-RENEW-VALID", method: http.MethodPost, path: "/api/v2/review/tasks/3/renew", routePath: "/api/v2/review/tasks/:taskId/renew", body: jsonBody(`{"leaseGeneration":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"task"}},
+		{id: "REVIEW-RELEASE-VALID", method: http.MethodPost, path: "/api/v2/review/tasks/3/release", routePath: "/api/v2/review/tasks/:taskId/release", body: jsonBody(`{"leaseGeneration":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"ok"}},
+		{id: "REVIEW-DECISION-VALID", method: http.MethodPost, path: "/api/v2/review/tasks/3/decision", routePath: "/api/v2/review/tasks/:taskId/decision", body: jsonBody(`{"leaseGeneration":1,"verdict":"reject","policyCodes":["LANDING.URL"],"idempotencyKey":"d1"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"decisionId", "verdict", "policyCodes", "policyVersion"}},
+		{id: "REVIEW-EVIDENCE-VALID", method: http.MethodGet, path: "/api/v2/review/tasks/3/media/9", routePath: "/api/v2/review/tasks/:taskId/media/:mediaId", auth: true, wantStatus: http.StatusOK, wantFields: []string{"mimeType", "contentBase64"}},
+		{id: "REVIEW-SEEDS-VALID", method: http.MethodGet, path: "/api/v2/review/seeds?status=candidate", auth: true, wantStatus: http.StatusOK, wantFields: []string{"seeds"}},
+		{id: "REVIEW-SEED-CONFIRM-VALID", method: http.MethodPost, path: "/api/v2/review/seeds/4/confirm", routePath: "/api/v2/review/seeds/:seedId/confirm", auth: true, wantStatus: http.StatusOK, wantFields: []string{"seed"}},
+		{id: "REVIEW-SEED-RETIRE-VALID", method: http.MethodPost, path: "/api/v2/review/seeds/4/retire", routePath: "/api/v2/review/seeds/:seedId/retire", auth: true, wantStatus: http.StatusOK, wantFields: []string{"seed"}},
 		{id: "ASSISTANT-MEMORY-REPLACE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"content":"rpg","version":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-MEMORY-REMOVE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1?version=1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-WATCH-CREATE-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{"conditionType":"author_new_post","targetType":"author","targetId":2}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
@@ -696,6 +720,11 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "MEDIA-VIDEO-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/video", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-AUDIO-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/audio", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "MEDIA-IMAGE-RPC-FAIL", method: http.MethodPost, path: "/api/v1/media/image", body: imageBody, headerToken: failToken, wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
+		restDecision{id: "ADS-ADVERTISER-NO-AUTH", method: http.MethodGet, path: "/api/v2/ads/advertiser", wantStatus: http.StatusUnauthorized, wantCode: errx.LoginRequired},
+		restDecision{id: "REVIEW-RENEW-LEASE-LOST", method: http.MethodPost, path: "/api/v2/review/tasks/3/renew", routePath: "/api/v2/review/tasks/:taskId/renew", body: jsonBody(`{"leaseGeneration":2}`), auth: true, wantStatus: http.StatusConflict, wantCode: errx.ReviewLeaseLost},
+		restDecision{id: "REVIEW-DECISION-ROLE-REQUIRED", method: http.MethodPost, path: "/api/v2/review/tasks/3/decision", routePath: "/api/v2/review/tasks/:taskId/decision", body: jsonBody(`{"leaseGeneration":1,"verdict":"approve"}`), headerToken: failToken, wantStatus: http.StatusForbidden, wantCode: errx.ReviewRoleRequired},
+		restDecision{id: "REVIEW-EVIDENCE-UNAUTHORIZED", method: http.MethodGet, path: "/api/v2/review/tasks/3/media/8", routePath: "/api/v2/review/tasks/:taskId/media/:mediaId", auth: true, wantStatus: http.StatusNotFound, wantCode: errx.NotFound},
+		restDecision{id: "ADS-ASSET-BAD-KIND", method: http.MethodPost, path: "/api/v2/ads/assets/video", routePath: "/api/v2/ads/assets/:kind", body: imageBody, auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-LIST-RPC-FAIL", method: http.MethodGet, path: "/api/v1/posts?cursor=rpc-fail", wantStatus: http.StatusInternalServerError, wantCode: errx.SystemError},
 		restDecision{id: "POST-UPDATE-V2-MISSING-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated"}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "POST-UPDATE-V2-ZERO-REVISION", method: http.MethodPut, path: "/api/v2/post/11", routePath: "/api/v2/post/:postId", body: jsonBody(`{"title":"updated","expectedRevision":0}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
@@ -814,8 +843,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 63 {
-		t.Fatalf("route inventory drift: got %d success rules, want 63", len(successes))
+	if len(successes) != 85 {
+		t.Fatalf("route inventory drift: got %d success rules, want 85", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

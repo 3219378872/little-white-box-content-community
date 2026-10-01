@@ -89,6 +89,8 @@ func TestRuntimeServicesExposeFrameworkHealthAndMetrics(t *testing.T) {
 		"../app/content/rpc/etc/content.yaml":         {"Port: 9188", "EnableMetrics: true"},
 		"../app/interaction/rpc/etc/interaction.yaml": {"Port: 9103", "EnableMetrics: true"},
 		"../app/user/rpc/etc/user.yaml":               {"Port: 9190", "EnableMetrics: true"},
+		"../app/review/rpc/etc/review.yaml":           {"Port: 9127", "EnableMetrics: true"},
+		"../app/ad/rpc/etc/ad.yaml":                   {"Port: 9128", "EnableMetrics: true"},
 	}
 	for path, fragments := range services {
 		config := mustReadMonitoringFile(t, path)
@@ -115,6 +117,8 @@ func TestMQConsumersExposePrometheusMetrics(t *testing.T) {
 		"../app/embedding/mq/etc/embedding-consumer.yaml":   {"Name: embedding-index-consumer", "Port: 9134"},
 		"../app/assistant/mq/etc/watch-consumer.yaml":       {"Name: assistant-watch-matcher", "Port: 9135"},
 		"../app/assistant/worker/etc/agent.yaml":            {"Name: assistant-agent", "Port: 9136"},
+		"../app/review/worker/etc/review-worker.yaml":       {"Name: review-worker", "Port: 9137"},
+		"../app/ad/mq/etc/ad-consumer.yaml":                 {"Name: ad-decision-consumer", "Port: 9138"},
 	}
 	for path, fragments := range consumers {
 		config := mustReadMonitoringFile(t, path)

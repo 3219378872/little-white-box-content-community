@@ -23,7 +23,11 @@ type Config struct {
 	MessageRpc     rpcx.RpcClientConf
 	SearchRpc      rpcx.RpcClientConf
 	AssistantRpc   rpcx.RpcClientConf
-	InternalSecret string
+	AdRpc          rpcx.RpcClientConf
+	ReviewRpc      rpcx.RpcClientConf
+	// SponsoredTimeoutMs 是推荐流广告槽位的短超时；超时只降级为不含广告（ADS-022）。
+	SponsoredTimeoutMs int64 `json:",default=80"`
+	InternalSecret     string
 }
 
 // Validate 在启动前强制校验安全关键配置：空 JWT secret 会使 HS256

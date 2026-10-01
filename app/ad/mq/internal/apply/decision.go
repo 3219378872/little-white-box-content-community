@@ -38,7 +38,7 @@ func (a *Applier) Apply(ctx context.Context, d event.ReviewDecidedEvent) error {
 			return err
 		}
 		metrics.Applied(d.BizType, result(effect.Applied))
-		if !effect.Applied && !(d.Verdict == event.ReviewVerdictApprove || d.Purpose == event.ReviewPurposeQA) {
+		if !effect.Applied && d.Verdict != event.ReviewVerdictApprove && d.Purpose != event.ReviewPurposeQA {
 			return nil
 		}
 		// 重复投递时仍刷新索引，保证首轮发布失败后可经消息重试补齐。

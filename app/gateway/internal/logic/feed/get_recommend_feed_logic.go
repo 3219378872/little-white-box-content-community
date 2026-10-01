@@ -44,6 +44,14 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 	if scene == "" {
 		scene = "home"
 	}
+	// ADS-021：只在请求显式声明支持广告槽位时查询广告；未声明的客户端得到与当前一致的响应。
+	var sponsored <-chan sponsoredResult
+	if req.AdSlots == 1 {
+		sponsored = startSponsored(l.ctx, l.svcCtx, sponsoredRequest{
+			userID: userID, sessionID: strings.TrimSpace(req.SessionId), requestID: strings.TrimSpace(req.RequestId),
+			cursor: req.Cursor, scene: scene, market: strings.ToUpper(strings.TrimSpace(req.Market)), pageSize: req.PageSize,
+		})
+	}
 
 	result, err := l.svcCtx.FeedService.GetRecommendFeed(l.ctx, &feedservice.GetRecommendFeedReq{
 		UserId:       userID,
@@ -107,12 +115,16 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 		requestID = req.RequestId
 	}
 
-	return &types.GetRecommendFeedResp{
+	resp = &types.GetRecommendFeedResp{
 		Items:      items,
 		NextCursor: result.NextCursor,
 		HasMore:    result.HasMore,
 		RequestId:  requestID,
-	}, nil
+	}
+	if sponsored != nil {
+		resp.Sponsored = placeSponsored(items, (<-sponsored).slots)
+	}
+	return resp, nil
 }
 
 func defaultString(value, fallback string) string {

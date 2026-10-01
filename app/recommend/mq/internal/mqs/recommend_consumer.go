@@ -69,6 +69,11 @@ func consumeBehaviorBatch(
 			recommendConsumerMessages.Inc("behavior", "dead_letter")
 			continue
 		}
+		// ADS-027：广告事件不进入帖子推荐特征、训练数据与帖子曝光去重。
+		if behavior.TargetType == event.BehaviorTargetAd {
+			recommendConsumerMessages.Inc("behavior", "skipped_ad")
+			continue
+		}
 		if err := bs.Record(ctx, behavior); err != nil {
 			logx.WithContext(ctx).Errorw("recommend-consumer: record behavior failed",
 				logx.Field("msg_id", msg.MsgId), logx.Field("event_id", behavior.EventID),

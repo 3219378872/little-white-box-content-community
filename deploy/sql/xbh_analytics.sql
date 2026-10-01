@@ -56,6 +56,19 @@ SELECT *
 FROM xbh_analytics.behavior_events FINAL
 ORDER BY model_version, experiment_id, event_time, event_id;
 
+-- ADS-027 / ADS-050：广告曝光按（request_id, target_type, target_id）去重后计数，按日给出点击率。
+-- 与上方聚合一致使用普通视图读取 FINAL 原始事实（90 天保留），不用插入触发的物化视图重复计数。
+CREATE VIEW IF NOT EXISTS xbh_analytics.ad_daily_stats AS
+SELECT
+    toDate(event_time) AS date,
+    target_id AS ad_id,
+    uniqExactIf((request_id, target_type, target_id), action = 'exposure') AS exposures,
+    countIf(action = 'click') AS clicks,
+    if(exposures = 0, 0, clicks / exposures) AS ctr
+FROM xbh_analytics.behavior_events FINAL
+WHERE target_type = 'ad'
+GROUP BY date, ad_id;
+
 CREATE TABLE IF NOT EXISTS xbh_analytics.behavior_dead_letters (
     message_id  String,
     event_id    Int64 DEFAULT 0,

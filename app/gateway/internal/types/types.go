@@ -2,6 +2,79 @@
 
 package types
 
+type AdActionResp struct {
+	Ok bool `json:"ok,optional"`
+}
+
+type AdAssetContentResp struct {
+	MimeType      string `json:"mimeType,optional"`
+	ContentBase64 string `json:"contentBase64,optional"`
+}
+
+type AdAssetResp struct {
+	AssetId  int64  `json:"assetId,optional"`
+	Kind     string `json:"kind,optional"`
+	Sha256   string `json:"sha256,optional"`
+	MimeType string `json:"mimeType,optional"`
+	Size     int64  `json:"size,optional"`
+}
+
+type AdContentItem struct {
+	Title          string        `json:"title,optional"`
+	Body           string        `json:"body,optional"`
+	Cta            string        `json:"cta,optional"`
+	LandingUrl     string        `json:"landingUrl,optional"`
+	LandingDomain  string        `json:"landingDomain,optional"`
+	Media          []AdMediaItem `json:"media,optional"`
+	Market         string        `json:"market,optional"`
+	Language       string        `json:"language,optional"`
+	Industry       string        `json:"industry,optional"`
+	AdvertiserName string        `json:"advertiserName,optional"`
+	Revision       int64         `json:"revision,optional"`
+}
+
+type AdItem struct {
+	AdId             int64          `json:"adId,optional"`
+	Revision         int64          `json:"revision,optional"`
+	ApprovedRevision int64          `json:"approvedRevision,optional"`
+	ReviewStatus     string         `json:"reviewStatus,optional"`
+	ServingStatus    string         `json:"servingStatus,optional"`
+	PolicyCodes      []string       `json:"policyCodes,optional"`
+	Latest           AdContentItem  `json:"latest,optional"`
+	Approved         *AdContentItem `json:"approved,optional"`
+	StartMs          int64          `json:"startMs,optional"`
+	EndMs            int64          `json:"endMs,optional"`
+	Eligible         bool           `json:"eligible,optional"`
+	UpdatedAtMs      int64          `json:"updatedAtMs,optional"`
+	PauseReason      string         `json:"pauseReason,optional"`
+}
+
+type AdMediaItem struct {
+	MediaId   int64  `json:"mediaId,optional"`
+	Sha256    string `json:"sha256,optional"`
+	PublicUrl string `json:"publicUrl,optional"`
+}
+
+type AdPolicyCodeItem struct {
+	Code     string `json:"code,optional"`
+	Title    string `json:"title,optional"`
+	Category string `json:"category,optional"`
+}
+
+type AdQualificationItem struct {
+	QualificationId   int64  `json:"qualificationId,optional"`
+	Market            string `json:"market,optional"`
+	Industry          string `json:"industry,optional"`
+	DocumentAssetId   int64  `json:"documentAssetId,optional"`
+	ValidUntilMs      int64  `json:"validUntilMs,optional"`
+	Status            string `json:"status,optional"`
+	SubmittedRevision int64  `json:"submittedRevision,optional"`
+}
+
+type AdResp struct {
+	Ad AdItem `json:"ad,optional"`
+}
+
 type AddAssistantMemoryReq struct {
 	Target    string `json:"target"`
 	Content   string `json:"content"`
@@ -13,6 +86,32 @@ type AddAssistantMemoryResp struct {
 	ChangeId int64                `json:"changeId"`
 }
 
+type AddQualificationReq struct {
+	Market           string `json:"market"`
+	Industry         string `json:"industry"`
+	DocumentAssetId  int64  `json:"documentAssetId"`
+	ValidUntilMs     int64  `json:"validUntilMs"`
+	ExpectedRevision int64  `json:"expectedRevision"`
+	IdempotencyKey   string `json:"idempotencyKey,optional"`
+}
+
+type AdvertiserItem struct {
+	AdvertiserId     int64                 `json:"advertiserId,optional"`
+	Name             string                `json:"name,optional"`
+	Markets          []string              `json:"markets,optional"`
+	Revision         int64                 `json:"revision,optional"`
+	ApprovedRevision int64                 `json:"approvedRevision,optional"`
+	ReviewStatus     string                `json:"reviewStatus,optional"`
+	PolicyCodes      []string              `json:"policyCodes,optional"`
+	Qualifications   []AdQualificationItem `json:"qualifications,optional"`
+	UpdatedAtMs      int64                 `json:"updatedAtMs,optional"`
+}
+
+type AdvertiserResp struct {
+	Found      bool            `json:"found,optional"`
+	Advertiser *AdvertiserItem `json:"advertiser,optional"`
+}
+
 type AnswerAssistantQuestionsReq struct {
 	Id                int64                     `path:"id"`
 	QuestionRequestId string                    `json:"questionRequestId"`
@@ -22,6 +121,13 @@ type AnswerAssistantQuestionsReq struct {
 
 type AnswerAssistantQuestionsResp struct {
 	QuestionRequest AssistantQuestionRequest `json:"questionRequest"`
+}
+
+type ApplyAdvertiserReq struct {
+	Name             string   `json:"name"`
+	Markets          []string `json:"markets"`
+	ExpectedRevision int64    `json:"expectedRevision,optional"`
+	IdempotencyKey   string   `json:"idempotencyKey,optional"`
 }
 
 type AssistantAnswerBlock struct {
@@ -256,6 +362,10 @@ type CancelAssistantRunReq struct {
 type CancelAssistantRunResp struct {
 }
 
+type ClaimReviewTaskReq struct {
+	Purpose string `json:"purpose,optional"`
+}
+
 type CommentItem struct {
 	Id          int64         `json:"id"`
 	UserId      int64         `json:"userId"`
@@ -287,6 +397,19 @@ type ConversationItem struct {
 	LastMessage      string `json:"lastMessage"`
 	LastMessageTime  int64  `json:"lastMessageTime"`
 	UnreadCount      int32  `json:"unreadCount"`
+}
+
+type CreateAdReq struct {
+	Title          string  `json:"title"`
+	Body           string  `json:"body"`
+	Cta            string  `json:"cta"`
+	LandingUrl     string  `json:"landingUrl"`
+	MediaIds       []int64 `json:"mediaIds,optional"`
+	Market         string  `json:"market"`
+	Industry       string  `json:"industry"`
+	StartMs        int64   `json:"startMs,optional"`
+	EndMs          int64   `json:"endMs,optional"`
+	IdempotencyKey string  `json:"idempotencyKey,optional"`
 }
 
 type CreateAssistantWatchReq struct {
@@ -386,6 +509,14 @@ type FollowReq struct {
 type FollowResp struct {
 }
 
+type GetAdAssetReq struct {
+	AssetId int64 `path:"assetId"`
+}
+
+type GetAdReq struct {
+	AdId int64 `path:"adId"`
+}
+
 type GetAgentConsentResp struct {
 	Granted        bool  `json:"granted"`
 	GrantedAt      int64 `json:"grantedAt,optional"`
@@ -459,6 +590,9 @@ type GetMessagesResp struct {
 	HasMore  bool          `json:"hasMore"`
 }
 
+type GetMyAdvertiserReq struct {
+}
+
 type GetPersonalizationPreferenceResp struct {
 	Enabled    bool  `json:"enabled"`
 	OptedOutAt int64 `json:"optedOutAt"`
@@ -508,6 +642,8 @@ type GetRecommendFeedReq struct {
 	Cursor       string `form:"cursor,optional"`
 	PageSize     int32  `form:"pageSize,optional,default=20"`
 	ExperimentId string `form:"experimentId,optional"`
+	AdSlots      int32  `form:"adSlots,optional"`
+	Market       string `form:"market,optional"`
 }
 
 type GetRecommendFeedResp struct {
@@ -515,6 +651,22 @@ type GetRecommendFeedResp struct {
 	NextCursor string              `json:"nextCursor"`
 	HasMore    bool                `json:"hasMore"`
 	RequestId  string              `json:"requestId"`
+	Sponsored  []SponsoredSlotItem `json:"sponsored,optional,omitempty"`
+}
+
+type GetReviewEvidenceMediaReq struct {
+	TaskId  int64 `path:"taskId"`
+	MediaId int64 `path:"mediaId"`
+}
+
+type GetReviewQueueReq struct {
+}
+
+type GetReviewTaskReq struct {
+	TaskId int64 `path:"taskId"`
+}
+
+type GetReviewerProfileReq struct {
 }
 
 type GetUnreadSummaryResp struct {
@@ -566,12 +718,39 @@ type HealthResp struct {
 	Status string `json:"status"`
 }
 
+type HideAdReq struct {
+	AdId      int64  `path:"adId"`
+	SessionId string `json:"sessionId,optional"`
+}
+
 type LikeReq struct {
 	TargetId   int64 `json:"targetId"`
 	TargetType int32 `json:"targetType"`
 }
 
 type LikeResp struct {
+}
+
+type ListAdPoliciesReq struct {
+}
+
+type ListAdPoliciesResp struct {
+	PolicyVersion string             `json:"policyVersion,optional"`
+	Codes         []AdPolicyCodeItem `json:"codes,optional"`
+	Markets       []string           `json:"markets,optional"`
+	Industries    []string           `json:"industries,optional"`
+	Demo          bool               `json:"demo,optional"`
+}
+
+type ListAdsReq struct {
+	Cursor   string `form:"cursor,optional"`
+	PageSize int32  `form:"pageSize,optional,default=20"`
+}
+
+type ListAdsResp struct {
+	Ads        []AdItem `json:"ads,optional"`
+	NextCursor string   `json:"nextCursor,optional"`
+	HasMore    bool     `json:"hasMore,optional"`
 }
 
 type ListAssistantMemoryReq struct {
@@ -601,6 +780,15 @@ type ListAssistantWatchReq struct {
 
 type ListAssistantWatchResp struct {
 	Tasks []AssistantWatchTask `json:"tasks"`
+}
+
+type ListReviewSeedsReq struct {
+	Status string `form:"status,optional,default=candidate"`
+	Limit  int32  `form:"limit,optional,default=50"`
+}
+
+type ListReviewSeedsResp struct {
+	Seeds []ReviewSeedItem `json:"seeds,optional"`
 }
 
 type LoginReq struct {
@@ -757,6 +945,109 @@ type ReplaceAssistantMemoryResp struct {
 	ChangeId int64                `json:"changeId"`
 }
 
+type ReviewActionResp struct {
+	Ok bool `json:"ok,optional"`
+}
+
+type ReviewDecisionItem struct {
+	DecisionId    int64    `json:"decisionId,optional"`
+	Verdict       string   `json:"verdict,optional"`
+	PolicyCodes   []string `json:"policyCodes,optional"`
+	PolicyVersion string   `json:"policyVersion,optional"`
+	Source        string   `json:"source,optional"`
+	DecidedAtMs   int64    `json:"decidedAtMs,optional"`
+}
+
+type ReviewDecisionResp struct {
+	DecisionId    int64    `json:"decisionId,optional"`
+	Verdict       string   `json:"verdict,optional"`
+	PolicyCodes   []string `json:"policyCodes,optional"`
+	PolicyVersion string   `json:"policyVersion,optional"`
+}
+
+type ReviewLeaseReq struct {
+	TaskId          int64 `path:"taskId"`
+	LeaseGeneration int64 `json:"leaseGeneration"`
+}
+
+type ReviewQueueBucket struct {
+	Purpose     string `json:"purpose,optional"`
+	Pending     int64  `json:"pending,optional"`
+	OldestAgeMs int64  `json:"oldestAgeMs,optional"`
+}
+
+type ReviewQueueResp struct {
+	Buckets       []ReviewQueueBucket `json:"buckets,optional"`
+	PolicyVersion string              `json:"policyVersion,optional"`
+}
+
+type ReviewSeedActionReq struct {
+	SeedId int64 `path:"seedId"`
+}
+
+type ReviewSeedItem struct {
+	SeedId       int64  `json:"seedId,optional"`
+	IssueCode    string `json:"issueCode,optional"`
+	Market       string `json:"market,optional"`
+	Language     string `json:"language,optional"`
+	Text         string `json:"text,optional"`
+	Status       string `json:"status,optional"`
+	NominatedBy  int64  `json:"nominatedBy,optional"`
+	ConfirmedBy  int64  `json:"confirmedBy,optional"`
+	SourceTaskId int64  `json:"sourceTaskId,optional"`
+	UpdatedAtMs  int64  `json:"updatedAtMs,optional"`
+}
+
+type ReviewSeedResp struct {
+	Seed ReviewSeedItem `json:"seed,optional"`
+}
+
+type ReviewStageItem struct {
+	Stage            string `json:"stage,optional"`
+	ComponentVersion string `json:"componentVersion,optional"`
+	Shadow           bool   `json:"shadow,optional"`
+	Outcome          string `json:"outcome,optional"`
+	Reason           string `json:"reason,optional"`
+	OutputJson       string `json:"outputJson,optional"`
+	LatencyMs        int64  `json:"latencyMs,optional"`
+}
+
+type ReviewTaskItem struct {
+	TaskId           int64               `json:"taskId,optional"`
+	BizType          string              `json:"bizType,optional"`
+	ObjectId         int64               `json:"objectId,optional"`
+	ObjectRevision   int64               `json:"objectRevision,optional"`
+	Purpose          string              `json:"purpose,optional"`
+	Status           string              `json:"status,optional"`
+	Market           string              `json:"market,optional"`
+	Language         string              `json:"language,optional"`
+	Industry         string              `json:"industry,optional"`
+	Priority         int32               `json:"priority,optional"`
+	DeadlineMs       int64               `json:"deadlineMs,optional"`
+	LeaseGeneration  int64               `json:"leaseGeneration,optional"`
+	LeaseUntilMs     int64               `json:"leaseUntilMs,optional"`
+	SnapshotJson     string              `json:"snapshotJson,optional"`
+	Stages           []ReviewStageItem   `json:"stages,optional"`
+	OriginalDecision *ReviewDecisionItem `json:"originalDecision,optional"`
+	Decision         *ReviewDecisionItem `json:"decision,optional"`
+	SubmittedAtMs    int64               `json:"submittedAtMs,optional"`
+	EscalationReason string              `json:"escalationReason,optional"`
+	PolicyVersion    string              `json:"policyVersion,optional"`
+	Attempts         int32               `json:"attempts,optional"`
+}
+
+type ReviewTaskResp struct {
+	Found bool            `json:"found,optional"`
+	Task  *ReviewTaskItem `json:"task,optional"`
+}
+
+type ReviewerProfileResp struct {
+	Active    bool     `json:"active,optional"`
+	Roles     []string `json:"roles,optional"`
+	Markets   []string `json:"markets,optional"`
+	Languages []string `json:"languages,optional"`
+}
+
 type SearchPostItem struct {
 	Id               int64  `json:"id"`
 	Title            string `json:"title"`
@@ -851,6 +1142,42 @@ type SetPersonalizationPreferenceReq struct {
 type SetPersonalizationPreferenceResp struct {
 }
 
+type SponsoredAdItem struct {
+	AdId           int64            `json:"adId,optional"`
+	Revision       int64            `json:"revision,optional"`
+	AdvertiserName string           `json:"advertiserName,optional"`
+	Title          string           `json:"title,optional"`
+	Body           string           `json:"body,optional"`
+	Cta            string           `json:"cta,optional"`
+	LandingUrl     string           `json:"landingUrl,optional"`
+	LandingDomain  string           `json:"landingDomain,optional"`
+	Images         []string         `json:"images,optional"`
+	Disclosure     string           `json:"disclosure,optional"`
+	Why            SponsoredWhyItem `json:"why,optional"`
+}
+
+type SponsoredSlotItem struct {
+	SlotId        string          `json:"slotId,optional"`
+	AfterPosition int32           `json:"afterPosition,optional"`
+	Ad            SponsoredAdItem `json:"ad,optional"`
+}
+
+type SponsoredWhyItem struct {
+	Market       string `json:"market,optional"`
+	Scene        string `json:"scene,optional"`
+	Personalized bool   `json:"personalized,optional"`
+}
+
+type SubmitReviewDecisionReq struct {
+	TaskId          int64    `path:"taskId"`
+	LeaseGeneration int64    `json:"leaseGeneration"`
+	Verdict         string   `json:"verdict"`
+	PolicyCodes     []string `json:"policyCodes,optional"`
+	Note            string   `json:"note,optional"`
+	NominateSeed    bool     `json:"nominateSeed,optional"`
+	IdempotencyKey  string   `json:"idempotencyKey,optional"`
+}
+
 type UndoAssistantMemoryChangeReq struct {
 	Id int64 `path:"id"`
 }
@@ -879,6 +1206,21 @@ type UnlikeReq struct {
 }
 
 type UnlikeResp struct {
+}
+
+type UpdateAdReq struct {
+	AdId             int64   `path:"adId"`
+	ExpectedRevision int64   `json:"expectedRevision"`
+	Title            string  `json:"title"`
+	Body             string  `json:"body"`
+	Cta              string  `json:"cta"`
+	LandingUrl       string  `json:"landingUrl"`
+	MediaIds         []int64 `json:"mediaIds,optional"`
+	Market           string  `json:"market"`
+	Industry         string  `json:"industry"`
+	StartMs          int64   `json:"startMs,optional"`
+	EndMs            int64   `json:"endMs,optional"`
+	IdempotencyKey   string  `json:"idempotencyKey,optional"`
 }
 
 type UpdateAssistantWatchReq struct {
@@ -914,6 +1256,10 @@ type UpdateProfileReq struct {
 }
 
 type UpdateProfileResp struct {
+}
+
+type UploadAdAssetReq struct {
+	Kind string `path:"kind"`
 }
 
 type UploadImageReq struct {

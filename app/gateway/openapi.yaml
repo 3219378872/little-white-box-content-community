@@ -2739,6 +2739,16 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/GetRecommendFeedReq/properties/experimentId'
+      - name: adSlots
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/GetRecommendFeedReq/properties/adSlots'
+      - name: market
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/GetRecommendFeedReq/properties/market'
   /api/v2/search:
     get:
       operationId: Search
@@ -5438,6 +5448,1901 @@ paths:
                   $ref: '#/components/schemas/SetPersonalizationPreferenceReq/properties/enabled'
               required:
               - enabled
+  /api/v2/ads/advertiser:
+    get:
+      operationId: GetMyAdvertiser
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: GetMyAdvertiserReq
+      x-response-type: AdvertiserResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvertiserResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+    put:
+      operationId: ApplyAdvertiser
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: ApplyAdvertiserReq
+      x-response-type: AdvertiserResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvertiserResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  $ref: '#/components/schemas/ApplyAdvertiserReq/properties/name'
+                markets:
+                  $ref: '#/components/schemas/ApplyAdvertiserReq/properties/markets'
+                expectedRevision:
+                  $ref: '#/components/schemas/ApplyAdvertiserReq/properties/expectedRevision'
+                idempotencyKey:
+                  $ref: '#/components/schemas/ApplyAdvertiserReq/properties/idempotencyKey'
+              required:
+              - name
+              - markets
+  /api/v2/ads/advertiser/qualifications:
+    post:
+      operationId: AddAdQualification
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: AddQualificationReq
+      x-response-type: AdvertiserResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvertiserResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                market:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/market'
+                industry:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/industry'
+                documentAssetId:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/documentAssetId'
+                validUntilMs:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/validUntilMs'
+                expectedRevision:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/expectedRevision'
+                idempotencyKey:
+                  $ref: '#/components/schemas/AddQualificationReq/properties/idempotencyKey'
+              required:
+              - market
+              - industry
+              - documentAssetId
+              - validUntilMs
+              - expectedRevision
+  /api/v2/ads/assets/{kind}:
+    post:
+      operationId: UploadAdAsset
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: UploadAdAssetReq
+      x-response-type: AdAssetResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAssetResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 60000
+      x-max-body-bytes: 3145728
+      parameters:
+      - name: kind
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UploadAdAssetReq/properties/kind'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                idempotencyKey:
+                  type: string
+                  maxLength: 128
+  /api/v2/ads/assets/{assetId}:
+    get:
+      operationId: GetAdAsset
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: GetAdAssetReq
+      x-response-type: AdAssetContentResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAssetContentResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/GetAdAssetReq/properties/assetId'
+  /api/v2/ads/policies:
+    get:
+      operationId: ListAdPolicies
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: ListAdPoliciesReq
+      x-response-type: ListAdPoliciesResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdPoliciesResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+  /api/v2/ads:
+    get:
+      operationId: ListAds
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: ListAdsReq
+      x-response-type: ListAdsResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAdsResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ListAdsReq/properties/cursor'
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ListAdsReq/properties/pageSize'
+    post:
+      operationId: CreateAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: CreateAdReq
+      x-response-type: AdResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  $ref: '#/components/schemas/CreateAdReq/properties/title'
+                body:
+                  $ref: '#/components/schemas/CreateAdReq/properties/body'
+                cta:
+                  $ref: '#/components/schemas/CreateAdReq/properties/cta'
+                landingUrl:
+                  $ref: '#/components/schemas/CreateAdReq/properties/landingUrl'
+                mediaIds:
+                  $ref: '#/components/schemas/CreateAdReq/properties/mediaIds'
+                market:
+                  $ref: '#/components/schemas/CreateAdReq/properties/market'
+                industry:
+                  $ref: '#/components/schemas/CreateAdReq/properties/industry'
+                startMs:
+                  $ref: '#/components/schemas/CreateAdReq/properties/startMs'
+                endMs:
+                  $ref: '#/components/schemas/CreateAdReq/properties/endMs'
+                idempotencyKey:
+                  $ref: '#/components/schemas/CreateAdReq/properties/idempotencyKey'
+              required:
+              - title
+              - body
+              - cta
+              - landingUrl
+              - market
+              - industry
+  /api/v2/ads/{adId}:
+    get:
+      operationId: GetAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: GetAdReq
+      x-response-type: AdResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: adId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/GetAdReq/properties/adId'
+    put:
+      operationId: UpdateAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: UpdateAdReq
+      x-response-type: AdResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: adId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UpdateAdReq/properties/adId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expectedRevision:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/expectedRevision'
+                title:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/title'
+                body:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/body'
+                cta:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/cta'
+                landingUrl:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/landingUrl'
+                mediaIds:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/mediaIds'
+                market:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/market'
+                industry:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/industry'
+                startMs:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/startMs'
+                endMs:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/endMs'
+                idempotencyKey:
+                  $ref: '#/components/schemas/UpdateAdReq/properties/idempotencyKey'
+              required:
+              - expectedRevision
+              - title
+              - body
+              - cta
+              - landingUrl
+              - market
+              - industry
+  /api/v2/ads/{adId}/hide:
+    post:
+      operationId: HideAd
+      tags:
+      - ads
+      x-handler-group: ads
+      x-request-type: HideAdReq
+      x-response-type: AdActionResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdActionResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - {}
+      - BearerAuth: []
+      x-optional-auth: true
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: adId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/HideAdReq/properties/adId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  $ref: '#/components/schemas/HideAdReq/properties/sessionId'
+  /api/v2/review/me:
+    get:
+      operationId: GetReviewerProfile
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: GetReviewerProfileReq
+      x-response-type: ReviewerProfileResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerProfileResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+  /api/v2/review/queue:
+    get:
+      operationId: GetReviewQueue
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: GetReviewQueueReq
+      x-response-type: ReviewQueueResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewQueueResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+  /api/v2/review/tasks/claim:
+    post:
+      operationId: ClaimReviewTask
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ClaimReviewTaskReq
+      x-response-type: ReviewTaskResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewTaskResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purpose:
+                  $ref: '#/components/schemas/ClaimReviewTaskReq/properties/purpose'
+  /api/v2/review/tasks/{taskId}:
+    get:
+      operationId: GetReviewTask
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: GetReviewTaskReq
+      x-response-type: ReviewTaskResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewTaskResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/GetReviewTaskReq/properties/taskId'
+  /api/v2/review/tasks/{taskId}/renew:
+    post:
+      operationId: RenewReviewTask
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ReviewLeaseReq
+      x-response-type: ReviewTaskResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewTaskResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ReviewLeaseReq/properties/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leaseGeneration:
+                  $ref: '#/components/schemas/ReviewLeaseReq/properties/leaseGeneration'
+              required:
+              - leaseGeneration
+  /api/v2/review/tasks/{taskId}/release:
+    post:
+      operationId: ReleaseReviewTask
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ReviewLeaseReq
+      x-response-type: ReviewActionResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewActionResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ReviewLeaseReq/properties/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leaseGeneration:
+                  $ref: '#/components/schemas/ReviewLeaseReq/properties/leaseGeneration'
+              required:
+              - leaseGeneration
+  /api/v2/review/tasks/{taskId}/decision:
+    post:
+      operationId: SubmitReviewDecision
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: SubmitReviewDecisionReq
+      x-response-type: ReviewDecisionResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewDecisionResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leaseGeneration:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/leaseGeneration'
+                verdict:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/verdict'
+                policyCodes:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/policyCodes'
+                note:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/note'
+                nominateSeed:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/nominateSeed'
+                idempotencyKey:
+                  $ref: '#/components/schemas/SubmitReviewDecisionReq/properties/idempotencyKey'
+              required:
+              - leaseGeneration
+              - verdict
+  /api/v2/review/tasks/{taskId}/media/{mediaId}:
+    get:
+      operationId: GetReviewEvidenceMedia
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: GetReviewEvidenceMediaReq
+      x-response-type: AdAssetContentResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdAssetContentResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/GetReviewEvidenceMediaReq/properties/taskId'
+      - name: mediaId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/GetReviewEvidenceMediaReq/properties/mediaId'
+  /api/v2/review/seeds:
+    get:
+      operationId: ListReviewSeeds
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ListReviewSeedsReq
+      x-response-type: ListReviewSeedsResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListReviewSeedsResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ListReviewSeedsReq/properties/status'
+      - name: limit
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ListReviewSeedsReq/properties/limit'
+  /api/v2/review/seeds/{seedId}/confirm:
+    post:
+      operationId: ConfirmReviewSeed
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ReviewSeedActionReq
+      x-response-type: ReviewSeedResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSeedResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: seedId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ReviewSeedActionReq/properties/seedId'
+  /api/v2/review/seeds/{seedId}/retire:
+    post:
+      operationId: RetireReviewSeed
+      tags:
+      - review
+      x-handler-group: review
+      x-request-type: ReviewSeedActionReq
+      x-response-type: ReviewSeedResp
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSeedResp'
+        '400':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '401':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '403':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '404':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '409':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '413':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '429':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '500':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+        '503':
+          description: Public error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicError'
+      security:
+      - BearerAuth: []
+      x-timeout-ms: 3000
+      x-max-body-bytes: 10485760
+      parameters:
+      - name: seedId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ReviewSeedActionReq/properties/seedId'
 components:
   securitySchemes:
     BearerAuth:
@@ -7659,6 +9564,25 @@ components:
           x-dart-name: experimentId
           x-dart-type: String
           x-dart-required: true
+        adSlots:
+          type: integer
+          format: int32
+          x-go-name: AdSlots
+          x-go-type: int32
+          x-binding: query
+          description: 1 表示客户端支持广告槽位；缺省时响应不含 sponsored
+          x-dart-name: adSlots
+          x-dart-type: num
+          x-dart-required: true
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: query
+          description: 演示市场 US/DE/ID，缺省 US
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
       required:
       - requestId
     RecommendFeedItem:
@@ -7905,6 +9829,19 @@ components:
           x-dart-name: requestId
           x-dart-type: String
           x-dart-required: true
+        sponsored:
+          type: array
+          items:
+            $ref: '#/components/schemas/SponsoredSlotItem'
+          x-go-name: Sponsored
+          x-go-type: '[]SponsoredSlotItem'
+          x-binding: json
+          description: 只在请求声明 adSlots=1 时出现；广告不进入 items，位置与游标语义不变
+          x-go-omitempty: true
+          x-dart-name: sponsored
+          x-dart-type: List<SponsoredSlotItem>?
+          x-dart-required: false
+          x-dart-omit-null: true
       required:
       - items
       - nextCursor
@@ -10773,6 +12710,1864 @@ components:
       required:
       - status
       - dependencies
+    AdQualificationItem:
+      type: object
+      properties:
+        qualificationId:
+          type: integer
+          format: int64
+          x-go-name: QualificationId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: qualificationId
+          x-dart-type: Object
+          x-dart-required: true
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        industry:
+          type: string
+          x-go-name: Industry
+          x-go-type: string
+          x-binding: json
+          x-dart-name: industry
+          x-dart-type: String
+          x-dart-required: true
+        documentAssetId:
+          type: integer
+          format: int64
+          x-go-name: DocumentAssetId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: documentAssetId
+          x-dart-type: Object
+          x-dart-required: true
+        validUntilMs:
+          type: integer
+          format: int64
+          x-go-name: ValidUntilMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: validUntilMs
+          x-dart-type: num
+          x-dart-required: true
+        status:
+          type: string
+          x-go-name: Status
+          x-go-type: string
+          x-binding: json
+          description: pending/approved/rejected/expired
+          x-dart-name: status
+          x-dart-type: String
+          x-dart-required: true
+        submittedRevision:
+          type: integer
+          format: int64
+          x-go-name: SubmittedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: submittedRevision
+          x-dart-type: num
+          x-dart-required: true
+    AdvertiserItem:
+      type: object
+      properties:
+        advertiserId:
+          type: integer
+          format: int64
+          x-go-name: AdvertiserId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: advertiserId
+          x-dart-type: Object
+          x-dart-required: true
+        name:
+          type: string
+          x-go-name: Name
+          x-go-type: string
+          x-binding: json
+          x-dart-name: name
+          x-dart-type: String
+          x-dart-required: true
+        markets:
+          type: array
+          items:
+            type: string
+          x-go-name: Markets
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: markets
+          x-dart-type: List<String>
+          x-dart-required: true
+        revision:
+          type: integer
+          format: int64
+          x-go-name: Revision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: revision
+          x-dart-type: num
+          x-dart-required: true
+        approvedRevision:
+          type: integer
+          format: int64
+          x-go-name: ApprovedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: approvedRevision
+          x-dart-type: num
+          x-dart-required: true
+        reviewStatus:
+          type: string
+          x-go-name: ReviewStatus
+          x-go-type: string
+          x-binding: json
+          description: pending_review/approved/rejected
+          x-dart-name: reviewStatus
+          x-dart-type: String
+          x-dart-required: true
+        policyCodes:
+          type: array
+          items:
+            type: string
+          x-go-name: PolicyCodes
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: policyCodes
+          x-dart-type: List<String>
+          x-dart-required: true
+        qualifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdQualificationItem'
+          x-go-name: Qualifications
+          x-go-type: '[]AdQualificationItem'
+          x-binding: json
+          x-dart-name: qualifications
+          x-dart-type: List<AdQualificationItem>
+          x-dart-required: true
+        updatedAtMs:
+          type: integer
+          format: int64
+          x-go-name: UpdatedAtMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: updatedAtMs
+          x-dart-type: num
+          x-dart-required: true
+    GetMyAdvertiserReq:
+      type: object
+      properties: {}
+    AdvertiserResp:
+      type: object
+      properties:
+        found:
+          type: boolean
+          x-go-name: Found
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: found
+          x-dart-type: bool
+          x-dart-required: true
+        advertiser:
+          allOf:
+          - $ref: '#/components/schemas/AdvertiserItem'
+          nullable: true
+          x-go-name: Advertiser
+          x-go-type: '*AdvertiserItem'
+          x-binding: json
+          x-dart-name: advertiser
+          x-dart-type: AdvertiserItem?
+          x-dart-required: true
+    ApplyAdvertiserReq:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          x-go-name: Name
+          x-go-type: string
+          x-binding: json
+          x-dart-name: name
+          x-dart-type: String
+          x-dart-required: true
+        markets:
+          type: array
+          items:
+            type: string
+          x-go-name: Markets
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: markets
+          x-dart-type: List<String>
+          x-dart-required: true
+        expectedRevision:
+          type: integer
+          format: int64
+          x-go-name: ExpectedRevision
+          x-go-type: int64
+          x-binding: json
+          description: 首次申请为 0；修改时必须等于当前 revision
+          x-dart-name: expectedRevision
+          x-dart-type: num
+          x-dart-required: true
+        idempotencyKey:
+          type: string
+          maxLength: 128
+          x-go-name: IdempotencyKey
+          x-go-type: string
+          x-binding: json
+          x-dart-name: idempotencyKey
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - name
+      - markets
+    AddQualificationReq:
+      type: object
+      properties:
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        industry:
+          type: string
+          x-go-name: Industry
+          x-go-type: string
+          x-binding: json
+          x-dart-name: industry
+          x-dart-type: String
+          x-dart-required: true
+        documentAssetId:
+          type: integer
+          format: int64
+          x-go-name: DocumentAssetId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: documentAssetId
+          x-dart-type: Object
+          x-dart-required: true
+        validUntilMs:
+          type: integer
+          format: int64
+          x-go-name: ValidUntilMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: validUntilMs
+          x-dart-type: num
+          x-dart-required: true
+        expectedRevision:
+          type: integer
+          format: int64
+          x-go-name: ExpectedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: expectedRevision
+          x-dart-type: num
+          x-dart-required: true
+        idempotencyKey:
+          type: string
+          maxLength: 128
+          x-go-name: IdempotencyKey
+          x-go-type: string
+          x-binding: json
+          x-dart-name: idempotencyKey
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - market
+      - industry
+      - documentAssetId
+      - validUntilMs
+      - expectedRevision
+    UploadAdAssetReq:
+      type: object
+      properties:
+        kind:
+          type: string
+          x-go-name: Kind
+          x-go-type: string
+          x-binding: path
+          description: creative 或 document
+          x-dart-name: kind
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - kind
+    AdAssetResp:
+      type: object
+      properties:
+        assetId:
+          type: integer
+          format: int64
+          x-go-name: AssetId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: assetId
+          x-dart-type: Object
+          x-dart-required: true
+        kind:
+          type: string
+          x-go-name: Kind
+          x-go-type: string
+          x-binding: json
+          x-dart-name: kind
+          x-dart-type: String
+          x-dart-required: true
+        sha256:
+          type: string
+          x-go-name: Sha256
+          x-go-type: string
+          x-binding: json
+          x-dart-name: sha256
+          x-dart-type: String
+          x-dart-required: true
+        mimeType:
+          type: string
+          x-go-name: MimeType
+          x-go-type: string
+          x-binding: json
+          x-dart-name: mimeType
+          x-dart-type: String
+          x-dart-required: true
+        size:
+          type: integer
+          format: int64
+          x-go-name: Size
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: size
+          x-dart-type: num
+          x-dart-required: true
+    GetAdAssetReq:
+      type: object
+      properties:
+        assetId:
+          type: integer
+          format: int64
+          x-go-name: AssetId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: assetId
+          x-dart-type: Object
+          x-dart-required: true
+      required:
+      - assetId
+    AdAssetContentResp:
+      type: object
+      properties:
+        mimeType:
+          type: string
+          x-go-name: MimeType
+          x-go-type: string
+          x-binding: json
+          x-dart-name: mimeType
+          x-dart-type: String
+          x-dart-required: true
+        contentBase64:
+          type: string
+          x-go-name: ContentBase64
+          x-go-type: string
+          x-binding: json
+          x-dart-name: contentBase64
+          x-dart-type: String
+          x-dart-required: true
+    AdMediaItem:
+      type: object
+      properties:
+        mediaId:
+          type: integer
+          format: int64
+          x-go-name: MediaId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: mediaId
+          x-dart-type: Object
+          x-dart-required: true
+        sha256:
+          type: string
+          x-go-name: Sha256
+          x-go-type: string
+          x-binding: json
+          x-dart-name: sha256
+          x-dart-type: String
+          x-dart-required: true
+        publicUrl:
+          type: string
+          x-go-name: PublicUrl
+          x-go-type: string
+          x-binding: json
+          description: 过审并发布后的公开地址；未过审时为空
+          x-dart-name: publicUrl
+          x-dart-type: String
+          x-dart-required: true
+    AdContentItem:
+      type: object
+      properties:
+        title:
+          type: string
+          x-go-name: Title
+          x-go-type: string
+          x-binding: json
+          x-dart-name: title
+          x-dart-type: String
+          x-dart-required: true
+        body:
+          type: string
+          x-go-name: Body
+          x-go-type: string
+          x-binding: json
+          x-dart-name: body
+          x-dart-type: String
+          x-dart-required: true
+        cta:
+          type: string
+          x-go-name: Cta
+          x-go-type: string
+          x-binding: json
+          x-dart-name: cta
+          x-dart-type: String
+          x-dart-required: true
+        landingUrl:
+          type: string
+          x-go-name: LandingUrl
+          x-go-type: string
+          x-binding: json
+          x-dart-name: landingUrl
+          x-dart-type: String
+          x-dart-required: true
+        landingDomain:
+          type: string
+          x-go-name: LandingDomain
+          x-go-type: string
+          x-binding: json
+          x-dart-name: landingDomain
+          x-dart-type: String
+          x-dart-required: true
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdMediaItem'
+          x-go-name: Media
+          x-go-type: '[]AdMediaItem'
+          x-binding: json
+          x-dart-name: media
+          x-dart-type: List<AdMediaItem>
+          x-dart-required: true
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        language:
+          type: string
+          x-go-name: Language
+          x-go-type: string
+          x-binding: json
+          x-dart-name: language
+          x-dart-type: String
+          x-dart-required: true
+        industry:
+          type: string
+          x-go-name: Industry
+          x-go-type: string
+          x-binding: json
+          x-dart-name: industry
+          x-dart-type: String
+          x-dart-required: true
+        advertiserName:
+          type: string
+          x-go-name: AdvertiserName
+          x-go-type: string
+          x-binding: json
+          x-dart-name: advertiserName
+          x-dart-type: String
+          x-dart-required: true
+        revision:
+          type: integer
+          format: int64
+          x-go-name: Revision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: revision
+          x-dart-type: num
+          x-dart-required: true
+    AdItem:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        revision:
+          type: integer
+          format: int64
+          x-go-name: Revision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: revision
+          x-dart-type: num
+          x-dart-required: true
+        approvedRevision:
+          type: integer
+          format: int64
+          x-go-name: ApprovedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: approvedRevision
+          x-dart-type: num
+          x-dart-required: true
+        reviewStatus:
+          type: string
+          x-go-name: ReviewStatus
+          x-go-type: string
+          x-binding: json
+          description: draft/pending_review/approved/rejected/appealing
+          x-dart-name: reviewStatus
+          x-dart-type: String
+          x-dart-required: true
+        servingStatus:
+          type: string
+          x-go-name: ServingStatus
+          x-go-type: string
+          x-binding: json
+          description: none/serving/paused/offline
+          x-dart-name: servingStatus
+          x-dart-type: String
+          x-dart-required: true
+        policyCodes:
+          type: array
+          items:
+            type: string
+          x-go-name: PolicyCodes
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: policyCodes
+          x-dart-type: List<String>
+          x-dart-required: true
+        latest:
+          allOf:
+          - $ref: '#/components/schemas/AdContentItem'
+          x-go-name: Latest
+          x-go-type: AdContentItem
+          x-binding: json
+          x-dart-name: latest
+          x-dart-type: AdContentItem
+          x-dart-required: true
+        approved:
+          allOf:
+          - $ref: '#/components/schemas/AdContentItem'
+          nullable: true
+          x-go-name: Approved
+          x-go-type: '*AdContentItem'
+          x-binding: json
+          x-dart-name: approved
+          x-dart-type: AdContentItem?
+          x-dart-required: true
+        startMs:
+          type: integer
+          format: int64
+          x-go-name: StartMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: startMs
+          x-dart-type: num
+          x-dart-required: true
+        endMs:
+          type: integer
+          format: int64
+          x-go-name: EndMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: endMs
+          x-dart-type: num
+          x-dart-required: true
+        eligible:
+          type: boolean
+          x-go-name: Eligible
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: eligible
+          x-dart-type: bool
+          x-dart-required: true
+        updatedAtMs:
+          type: integer
+          format: int64
+          x-go-name: UpdatedAtMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: updatedAtMs
+          x-dart-type: num
+          x-dart-required: true
+        pauseReason:
+          type: string
+          x-go-name: PauseReason
+          x-go-type: string
+          x-binding: json
+          x-dart-name: pauseReason
+          x-dart-type: String
+          x-dart-required: true
+    AdResp:
+      type: object
+      properties:
+        ad:
+          allOf:
+          - $ref: '#/components/schemas/AdItem'
+          x-go-name: Ad
+          x-go-type: AdItem
+          x-binding: json
+          x-dart-name: ad
+          x-dart-type: AdItem
+          x-dart-required: true
+    ListAdsReq:
+      type: object
+      properties:
+        cursor:
+          type: string
+          x-go-name: Cursor
+          x-go-type: string
+          x-binding: query
+          x-dart-name: cursor
+          x-dart-type: String
+          x-dart-required: true
+        pageSize:
+          type: integer
+          format: int32
+          x-go-name: PageSize
+          x-go-type: int32
+          x-binding: query
+          default: 20
+          x-dart-name: pageSize
+          x-dart-type: num
+          x-dart-required: true
+    ListAdsResp:
+      type: object
+      properties:
+        ads:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdItem'
+          x-go-name: Ads
+          x-go-type: '[]AdItem'
+          x-binding: json
+          x-dart-name: ads
+          x-dart-type: List<AdItem>
+          x-dart-required: true
+        nextCursor:
+          type: string
+          x-go-name: NextCursor
+          x-go-type: string
+          x-binding: json
+          x-dart-name: nextCursor
+          x-dart-type: String
+          x-dart-required: true
+        hasMore:
+          type: boolean
+          x-go-name: HasMore
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: hasMore
+          x-dart-type: bool
+          x-dart-required: true
+    CreateAdReq:
+      type: object
+      properties:
+        title: &id001
+          type: string
+          maxLength: 100
+          x-go-name: Title
+          x-go-type: string
+          x-binding: json
+          x-dart-name: title
+          x-dart-type: String
+          x-dart-required: true
+        body: &id002
+          type: string
+          maxLength: 500
+          x-go-name: Body
+          x-go-type: string
+          x-binding: json
+          x-dart-name: body
+          x-dart-type: String
+          x-dart-required: true
+        cta: &id003
+          type: string
+          maxLength: 32
+          x-go-name: Cta
+          x-go-type: string
+          x-binding: json
+          x-dart-name: cta
+          x-dart-type: String
+          x-dart-required: true
+        landingUrl: &id004
+          type: string
+          maxLength: 2048
+          x-go-name: LandingUrl
+          x-go-type: string
+          x-binding: json
+          x-dart-name: landingUrl
+          x-dart-type: String
+          x-dart-required: true
+        mediaIds: &id005
+          type: array
+          items:
+            type: integer
+            format: int64
+          x-go-name: MediaIds
+          x-go-type: '[]int64'
+          x-binding: json
+          x-dart-name: mediaIds
+          x-dart-type: List<Object>
+          x-dart-required: true
+        market: &id006
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        industry: &id007
+          type: string
+          x-go-name: Industry
+          x-go-type: string
+          x-binding: json
+          x-dart-name: industry
+          x-dart-type: String
+          x-dart-required: true
+        startMs: &id008
+          type: integer
+          format: int64
+          x-go-name: StartMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: startMs
+          x-dart-type: num
+          x-dart-required: true
+        endMs: &id009
+          type: integer
+          format: int64
+          x-go-name: EndMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: endMs
+          x-dart-type: num
+          x-dart-required: true
+        idempotencyKey: &id010
+          type: string
+          maxLength: 128
+          x-go-name: IdempotencyKey
+          x-go-type: string
+          x-binding: json
+          x-dart-name: idempotencyKey
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - title
+      - body
+      - cta
+      - landingUrl
+      - market
+      - industry
+    UpdateAdReq:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        expectedRevision:
+          type: integer
+          format: int64
+          x-go-name: ExpectedRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: expectedRevision
+          x-dart-type: num
+          x-dart-required: true
+        title: *id001
+        body: *id002
+        cta: *id003
+        landingUrl: *id004
+        mediaIds: *id005
+        market: *id006
+        industry: *id007
+        startMs: *id008
+        endMs: *id009
+        idempotencyKey: *id010
+      required:
+      - adId
+      - expectedRevision
+      - title
+      - body
+      - cta
+      - landingUrl
+      - market
+      - industry
+    GetAdReq:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+      required:
+      - adId
+    HideAdReq:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        sessionId:
+          type: string
+          x-go-name: SessionId
+          x-go-type: string
+          x-binding: json
+          x-dart-name: sessionId
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - adId
+    AdActionResp:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          x-go-name: Ok
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: ok
+          x-dart-type: bool
+          x-dart-required: true
+    ListAdPoliciesReq:
+      type: object
+      properties: {}
+    AdPolicyCodeItem:
+      type: object
+      properties:
+        code:
+          type: string
+          x-go-name: Code
+          x-go-type: string
+          x-binding: json
+          x-dart-name: code
+          x-dart-type: String
+          x-dart-required: true
+        title:
+          type: string
+          x-go-name: Title
+          x-go-type: string
+          x-binding: json
+          x-dart-name: title
+          x-dart-type: String
+          x-dart-required: true
+        category:
+          type: string
+          x-go-name: Category
+          x-go-type: string
+          x-binding: json
+          x-dart-name: category
+          x-dart-type: String
+          x-dart-required: true
+    ListAdPoliciesResp:
+      type: object
+      properties:
+        policyVersion:
+          type: string
+          x-go-name: PolicyVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: policyVersion
+          x-dart-type: String
+          x-dart-required: true
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdPolicyCodeItem'
+          x-go-name: Codes
+          x-go-type: '[]AdPolicyCodeItem'
+          x-binding: json
+          x-dart-name: codes
+          x-dart-type: List<AdPolicyCodeItem>
+          x-dart-required: true
+        markets:
+          type: array
+          items:
+            type: string
+          x-go-name: Markets
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: markets
+          x-dart-type: List<String>
+          x-dart-required: true
+        industries:
+          type: array
+          items:
+            type: string
+          x-go-name: Industries
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: industries
+          x-dart-type: List<String>
+          x-dart-required: true
+        demo:
+          type: boolean
+          x-go-name: Demo
+          x-go-type: bool
+          x-binding: json
+          description: 政策码、市场与阈值为演示配置
+          x-dart-name: demo
+          x-dart-type: bool
+          x-dart-required: true
+    GetReviewerProfileReq:
+      type: object
+      properties: {}
+    ReviewerProfileResp:
+      type: object
+      properties:
+        active:
+          type: boolean
+          x-go-name: Active
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: active
+          x-dart-type: bool
+          x-dart-required: true
+        roles:
+          type: array
+          items:
+            type: string
+          x-go-name: Roles
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: roles
+          x-dart-type: List<String>
+          x-dart-required: true
+        markets:
+          type: array
+          items:
+            type: string
+          x-go-name: Markets
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: markets
+          x-dart-type: List<String>
+          x-dart-required: true
+        languages:
+          type: array
+          items:
+            type: string
+          x-go-name: Languages
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: languages
+          x-dart-type: List<String>
+          x-dart-required: true
+    GetReviewQueueReq:
+      type: object
+      properties: {}
+    ReviewQueueBucket:
+      type: object
+      properties:
+        purpose:
+          type: string
+          x-go-name: Purpose
+          x-go-type: string
+          x-binding: json
+          x-dart-name: purpose
+          x-dart-type: String
+          x-dart-required: true
+        pending:
+          type: integer
+          format: int64
+          x-go-name: Pending
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: pending
+          x-dart-type: num
+          x-dart-required: true
+        oldestAgeMs:
+          type: integer
+          format: int64
+          x-go-name: OldestAgeMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: oldestAgeMs
+          x-dart-type: num
+          x-dart-required: true
+    ReviewQueueResp:
+      type: object
+      properties:
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewQueueBucket'
+          x-go-name: Buckets
+          x-go-type: '[]ReviewQueueBucket'
+          x-binding: json
+          x-dart-name: buckets
+          x-dart-type: List<ReviewQueueBucket>
+          x-dart-required: true
+        policyVersion:
+          type: string
+          x-go-name: PolicyVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: policyVersion
+          x-dart-type: String
+          x-dart-required: true
+    ClaimReviewTaskReq:
+      type: object
+      properties:
+        purpose:
+          type: string
+          x-go-name: Purpose
+          x-go-type: string
+          x-binding: json
+          description: 可选：initial/qa/appeal/report/rescan
+          x-dart-name: purpose
+          x-dart-type: String
+          x-dart-required: true
+    ReviewStageItem:
+      type: object
+      properties:
+        stage:
+          type: string
+          x-go-name: Stage
+          x-go-type: string
+          x-binding: json
+          x-dart-name: stage
+          x-dart-type: String
+          x-dart-required: true
+        componentVersion:
+          type: string
+          x-go-name: ComponentVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: componentVersion
+          x-dart-type: String
+          x-dart-required: true
+        shadow:
+          type: boolean
+          x-go-name: Shadow
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: shadow
+          x-dart-type: bool
+          x-dart-required: true
+        outcome:
+          type: string
+          x-go-name: Outcome
+          x-go-type: string
+          x-binding: json
+          x-dart-name: outcome
+          x-dart-type: String
+          x-dart-required: true
+        reason:
+          type: string
+          x-go-name: Reason
+          x-go-type: string
+          x-binding: json
+          x-dart-name: reason
+          x-dart-type: String
+          x-dart-required: true
+        outputJson:
+          type: string
+          x-go-name: OutputJson
+          x-go-type: string
+          x-binding: json
+          x-dart-name: outputJson
+          x-dart-type: String
+          x-dart-required: true
+        latencyMs:
+          type: integer
+          format: int64
+          x-go-name: LatencyMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: latencyMs
+          x-dart-type: num
+          x-dart-required: true
+    ReviewDecisionItem:
+      type: object
+      properties:
+        decisionId:
+          type: integer
+          format: int64
+          x-go-name: DecisionId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: decisionId
+          x-dart-type: Object
+          x-dart-required: true
+        verdict:
+          type: string
+          x-go-name: Verdict
+          x-go-type: string
+          x-binding: json
+          x-dart-name: verdict
+          x-dart-type: String
+          x-dart-required: true
+        policyCodes:
+          type: array
+          items:
+            type: string
+          x-go-name: PolicyCodes
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: policyCodes
+          x-dart-type: List<String>
+          x-dart-required: true
+        policyVersion:
+          type: string
+          x-go-name: PolicyVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: policyVersion
+          x-dart-type: String
+          x-dart-required: true
+        source:
+          type: string
+          x-go-name: Source
+          x-go-type: string
+          x-binding: json
+          description: machine/human/qa
+          x-dart-name: source
+          x-dart-type: String
+          x-dart-required: true
+        decidedAtMs:
+          type: integer
+          format: int64
+          x-go-name: DecidedAtMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: decidedAtMs
+          x-dart-type: num
+          x-dart-required: true
+    ReviewTaskItem:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          format: int64
+          x-go-name: TaskId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: taskId
+          x-dart-type: Object
+          x-dart-required: true
+        bizType:
+          type: string
+          x-go-name: BizType
+          x-go-type: string
+          x-binding: json
+          x-dart-name: bizType
+          x-dart-type: String
+          x-dart-required: true
+        objectId:
+          type: integer
+          format: int64
+          x-go-name: ObjectId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: objectId
+          x-dart-type: Object
+          x-dart-required: true
+        objectRevision:
+          type: integer
+          format: int64
+          x-go-name: ObjectRevision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: objectRevision
+          x-dart-type: num
+          x-dart-required: true
+        purpose:
+          type: string
+          x-go-name: Purpose
+          x-go-type: string
+          x-binding: json
+          x-dart-name: purpose
+          x-dart-type: String
+          x-dart-required: true
+        status:
+          type: string
+          x-go-name: Status
+          x-go-type: string
+          x-binding: json
+          x-dart-name: status
+          x-dart-type: String
+          x-dart-required: true
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        language:
+          type: string
+          x-go-name: Language
+          x-go-type: string
+          x-binding: json
+          x-dart-name: language
+          x-dart-type: String
+          x-dart-required: true
+        industry:
+          type: string
+          x-go-name: Industry
+          x-go-type: string
+          x-binding: json
+          x-dart-name: industry
+          x-dart-type: String
+          x-dart-required: true
+        priority:
+          type: integer
+          format: int32
+          x-go-name: Priority
+          x-go-type: int32
+          x-binding: json
+          x-dart-name: priority
+          x-dart-type: num
+          x-dart-required: true
+        deadlineMs:
+          type: integer
+          format: int64
+          x-go-name: DeadlineMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: deadlineMs
+          x-dart-type: num
+          x-dart-required: true
+        leaseGeneration:
+          type: integer
+          format: int64
+          x-go-name: LeaseGeneration
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: leaseGeneration
+          x-dart-type: num
+          x-dart-required: true
+        leaseUntilMs:
+          type: integer
+          format: int64
+          x-go-name: LeaseUntilMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: leaseUntilMs
+          x-dart-type: num
+          x-dart-required: true
+        snapshotJson:
+          type: string
+          x-go-name: SnapshotJson
+          x-go-type: string
+          x-binding: json
+          x-dart-name: snapshotJson
+          x-dart-type: String
+          x-dart-required: true
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewStageItem'
+          x-go-name: Stages
+          x-go-type: '[]ReviewStageItem'
+          x-binding: json
+          x-dart-name: stages
+          x-dart-type: List<ReviewStageItem>
+          x-dart-required: true
+        originalDecision:
+          allOf:
+          - $ref: '#/components/schemas/ReviewDecisionItem'
+          nullable: true
+          x-go-name: OriginalDecision
+          x-go-type: '*ReviewDecisionItem'
+          x-binding: json
+          x-dart-name: originalDecision
+          x-dart-type: ReviewDecisionItem?
+          x-dart-required: true
+        decision:
+          allOf:
+          - $ref: '#/components/schemas/ReviewDecisionItem'
+          nullable: true
+          x-go-name: Decision
+          x-go-type: '*ReviewDecisionItem'
+          x-binding: json
+          x-dart-name: decision
+          x-dart-type: ReviewDecisionItem?
+          x-dart-required: true
+        submittedAtMs:
+          type: integer
+          format: int64
+          x-go-name: SubmittedAtMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: submittedAtMs
+          x-dart-type: num
+          x-dart-required: true
+        escalationReason:
+          type: string
+          x-go-name: EscalationReason
+          x-go-type: string
+          x-binding: json
+          x-dart-name: escalationReason
+          x-dart-type: String
+          x-dart-required: true
+        policyVersion:
+          type: string
+          x-go-name: PolicyVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: policyVersion
+          x-dart-type: String
+          x-dart-required: true
+        attempts:
+          type: integer
+          format: int32
+          x-go-name: Attempts
+          x-go-type: int32
+          x-binding: json
+          x-dart-name: attempts
+          x-dart-type: num
+          x-dart-required: true
+    ReviewTaskResp:
+      type: object
+      properties:
+        found:
+          type: boolean
+          x-go-name: Found
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: found
+          x-dart-type: bool
+          x-dart-required: true
+        task:
+          allOf:
+          - $ref: '#/components/schemas/ReviewTaskItem'
+          nullable: true
+          x-go-name: Task
+          x-go-type: '*ReviewTaskItem'
+          x-binding: json
+          x-dart-name: task
+          x-dart-type: ReviewTaskItem?
+          x-dart-required: true
+    GetReviewTaskReq:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          format: int64
+          x-go-name: TaskId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: taskId
+          x-dart-type: Object
+          x-dart-required: true
+      required:
+      - taskId
+    ReviewLeaseReq:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          format: int64
+          x-go-name: TaskId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: taskId
+          x-dart-type: Object
+          x-dart-required: true
+        leaseGeneration:
+          type: integer
+          format: int64
+          x-go-name: LeaseGeneration
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: leaseGeneration
+          x-dart-type: num
+          x-dart-required: true
+      required:
+      - taskId
+      - leaseGeneration
+    ReviewActionResp:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          x-go-name: Ok
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: ok
+          x-dart-type: bool
+          x-dart-required: true
+    SubmitReviewDecisionReq:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          format: int64
+          x-go-name: TaskId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: taskId
+          x-dart-type: Object
+          x-dart-required: true
+        leaseGeneration:
+          type: integer
+          format: int64
+          x-go-name: LeaseGeneration
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: leaseGeneration
+          x-dart-type: num
+          x-dart-required: true
+        verdict:
+          type: string
+          x-go-name: Verdict
+          x-go-type: string
+          x-binding: json
+          description: approve/reject
+          x-dart-name: verdict
+          x-dart-type: String
+          x-dart-required: true
+        policyCodes:
+          type: array
+          items:
+            type: string
+          x-go-name: PolicyCodes
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: policyCodes
+          x-dart-type: List<String>
+          x-dart-required: true
+        note:
+          type: string
+          maxLength: 500
+          x-go-name: Note
+          x-go-type: string
+          x-binding: json
+          x-dart-name: note
+          x-dart-type: String
+          x-dart-required: true
+        nominateSeed:
+          type: boolean
+          x-go-name: NominateSeed
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: nominateSeed
+          x-dart-type: bool
+          x-dart-required: true
+        idempotencyKey:
+          type: string
+          maxLength: 128
+          x-go-name: IdempotencyKey
+          x-go-type: string
+          x-binding: json
+          x-dart-name: idempotencyKey
+          x-dart-type: String
+          x-dart-required: true
+      required:
+      - taskId
+      - leaseGeneration
+      - verdict
+    ReviewDecisionResp:
+      type: object
+      properties:
+        decisionId:
+          type: integer
+          format: int64
+          x-go-name: DecisionId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: decisionId
+          x-dart-type: Object
+          x-dart-required: true
+        verdict:
+          type: string
+          x-go-name: Verdict
+          x-go-type: string
+          x-binding: json
+          x-dart-name: verdict
+          x-dart-type: String
+          x-dart-required: true
+        policyCodes:
+          type: array
+          items:
+            type: string
+          x-go-name: PolicyCodes
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: policyCodes
+          x-dart-type: List<String>
+          x-dart-required: true
+        policyVersion:
+          type: string
+          x-go-name: PolicyVersion
+          x-go-type: string
+          x-binding: json
+          x-dart-name: policyVersion
+          x-dart-type: String
+          x-dart-required: true
+    GetReviewEvidenceMediaReq:
+      type: object
+      properties:
+        taskId:
+          type: integer
+          format: int64
+          x-go-name: TaskId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: taskId
+          x-dart-type: Object
+          x-dart-required: true
+        mediaId:
+          type: integer
+          format: int64
+          x-go-name: MediaId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: mediaId
+          x-dart-type: Object
+          x-dart-required: true
+      required:
+      - taskId
+      - mediaId
+    ListReviewSeedsReq:
+      type: object
+      properties:
+        status:
+          type: string
+          x-go-name: Status
+          x-go-type: string
+          x-binding: query
+          default: candidate
+          x-dart-name: status
+          x-dart-type: String
+          x-dart-required: true
+        limit:
+          type: integer
+          format: int32
+          x-go-name: Limit
+          x-go-type: int32
+          x-binding: query
+          default: 50
+          x-dart-name: limit
+          x-dart-type: num
+          x-dart-required: true
+    ReviewSeedItem:
+      type: object
+      properties:
+        seedId:
+          type: integer
+          format: int64
+          x-go-name: SeedId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: seedId
+          x-dart-type: Object
+          x-dart-required: true
+        issueCode:
+          type: string
+          x-go-name: IssueCode
+          x-go-type: string
+          x-binding: json
+          x-dart-name: issueCode
+          x-dart-type: String
+          x-dart-required: true
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        language:
+          type: string
+          x-go-name: Language
+          x-go-type: string
+          x-binding: json
+          x-dart-name: language
+          x-dart-type: String
+          x-dart-required: true
+        text:
+          type: string
+          x-go-name: Text
+          x-go-type: string
+          x-binding: json
+          x-dart-name: text
+          x-dart-type: String
+          x-dart-required: true
+        status:
+          type: string
+          x-go-name: Status
+          x-go-type: string
+          x-binding: json
+          x-dart-name: status
+          x-dart-type: String
+          x-dart-required: true
+        nominatedBy:
+          type: integer
+          format: int64
+          x-go-name: NominatedBy
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: nominatedBy
+          x-dart-type: Object
+          x-dart-required: true
+        confirmedBy:
+          type: integer
+          format: int64
+          x-go-name: ConfirmedBy
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: confirmedBy
+          x-dart-type: Object
+          x-dart-required: true
+        sourceTaskId:
+          type: integer
+          format: int64
+          x-go-name: SourceTaskId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: sourceTaskId
+          x-dart-type: Object
+          x-dart-required: true
+        updatedAtMs:
+          type: integer
+          format: int64
+          x-go-name: UpdatedAtMs
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: updatedAtMs
+          x-dart-type: num
+          x-dart-required: true
+    ListReviewSeedsResp:
+      type: object
+      properties:
+        seeds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewSeedItem'
+          x-go-name: Seeds
+          x-go-type: '[]ReviewSeedItem'
+          x-binding: json
+          x-dart-name: seeds
+          x-dart-type: List<ReviewSeedItem>
+          x-dart-required: true
+    ReviewSeedActionReq:
+      type: object
+      properties:
+        seedId:
+          type: integer
+          format: int64
+          x-go-name: SeedId
+          x-go-type: int64
+          x-binding: path
+          x-dart-name: seedId
+          x-dart-type: Object
+          x-dart-required: true
+      required:
+      - seedId
+    ReviewSeedResp:
+      type: object
+      properties:
+        seed:
+          allOf:
+          - $ref: '#/components/schemas/ReviewSeedItem'
+          x-go-name: Seed
+          x-go-type: ReviewSeedItem
+          x-binding: json
+          x-dart-name: seed
+          x-dart-type: ReviewSeedItem
+          x-dart-required: true
+    SponsoredWhyItem:
+      type: object
+      properties:
+        market:
+          type: string
+          x-go-name: Market
+          x-go-type: string
+          x-binding: json
+          x-dart-name: market
+          x-dart-type: String
+          x-dart-required: true
+        scene:
+          type: string
+          x-go-name: Scene
+          x-go-type: string
+          x-binding: json
+          x-dart-name: scene
+          x-dart-type: String
+          x-dart-required: true
+        personalized:
+          type: boolean
+          x-go-name: Personalized
+          x-go-type: bool
+          x-binding: json
+          x-dart-name: personalized
+          x-dart-type: bool
+          x-dart-required: true
+    SponsoredAdItem:
+      type: object
+      properties:
+        adId:
+          type: integer
+          format: int64
+          x-go-name: AdId
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: adId
+          x-dart-type: Object
+          x-dart-required: true
+        revision:
+          type: integer
+          format: int64
+          x-go-name: Revision
+          x-go-type: int64
+          x-binding: json
+          x-dart-name: revision
+          x-dart-type: num
+          x-dart-required: true
+        advertiserName:
+          type: string
+          x-go-name: AdvertiserName
+          x-go-type: string
+          x-binding: json
+          x-dart-name: advertiserName
+          x-dart-type: String
+          x-dart-required: true
+        title:
+          type: string
+          x-go-name: Title
+          x-go-type: string
+          x-binding: json
+          x-dart-name: title
+          x-dart-type: String
+          x-dart-required: true
+        body:
+          type: string
+          x-go-name: Body
+          x-go-type: string
+          x-binding: json
+          x-dart-name: body
+          x-dart-type: String
+          x-dart-required: true
+        cta:
+          type: string
+          x-go-name: Cta
+          x-go-type: string
+          x-binding: json
+          x-dart-name: cta
+          x-dart-type: String
+          x-dart-required: true
+        landingUrl:
+          type: string
+          x-go-name: LandingUrl
+          x-go-type: string
+          x-binding: json
+          x-dart-name: landingUrl
+          x-dart-type: String
+          x-dart-required: true
+        landingDomain:
+          type: string
+          x-go-name: LandingDomain
+          x-go-type: string
+          x-binding: json
+          x-dart-name: landingDomain
+          x-dart-type: String
+          x-dart-required: true
+        images:
+          type: array
+          items:
+            type: string
+          x-go-name: Images
+          x-go-type: '[]string'
+          x-binding: json
+          x-dart-name: images
+          x-dart-type: List<String>
+          x-dart-required: true
+        disclosure:
+          type: string
+          x-go-name: Disclosure
+          x-go-type: string
+          x-binding: json
+          description: 广告标识，固定为 sponsored
+          x-dart-name: disclosure
+          x-dart-type: String
+          x-dart-required: true
+        why:
+          allOf:
+          - $ref: '#/components/schemas/SponsoredWhyItem'
+          x-go-name: Why
+          x-go-type: SponsoredWhyItem
+          x-binding: json
+          x-dart-name: why
+          x-dart-type: SponsoredWhyItem
+          x-dart-required: true
+    SponsoredSlotItem:
+      type: object
+      properties:
+        slotId:
+          type: string
+          x-go-name: SlotId
+          x-go-type: string
+          x-binding: json
+          x-dart-name: slotId
+          x-dart-type: String
+          x-dart-required: true
+        afterPosition:
+          type: integer
+          format: int32
+          x-go-name: AfterPosition
+          x-go-type: int32
+          x-binding: json
+          x-dart-name: afterPosition
+          x-dart-type: num
+          x-dart-required: true
+        ad:
+          allOf:
+          - $ref: '#/components/schemas/SponsoredAdItem'
+          x-go-name: Ad
+          x-go-type: SponsoredAdItem
+          x-binding: json
+          x-dart-name: ad
+          x-dart-type: SponsoredAdItem
+          x-dart-required: true
     PublicError:
       type: object
       required:

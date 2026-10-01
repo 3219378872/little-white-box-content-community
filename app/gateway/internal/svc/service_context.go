@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"esx/app/ad/rpc/adservice"
 	"esx/app/assistant/rpc/assistantservice"
 	"esx/app/behavior/rpc/behaviorservice"
 	"esx/app/content/rpc/contentservice"
@@ -10,6 +11,7 @@ import (
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/message/rpc/messageservice"
+	"esx/app/review/rpc/reviewservice"
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/jwtx"
@@ -41,6 +43,8 @@ type ServiceContext struct {
 	MessageService     messageservice.MessageService
 	SearchService      searchservice.SearchService
 	AssistantService   assistantservice.AssistantService
+	AdService          adservice.AdService
+	ReviewService      reviewservice.ReviewService
 	OptionalAuth       app.HandlerFunc
 	RequiredAuth       app.HandlerFunc
 	BehaviorAccepted   app.HandlerFunc
@@ -78,6 +82,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	searchService := searchservice.NewSearchService(searchClient)
 	assistantClient := newClient(c.AssistantRpc)
 	assistantService := assistantservice.NewAssistantService(assistantClient)
+	adClient := newClient(c.AdRpc)
+	adService := adservice.NewAdService(adClient)
+	reviewClient := newClient(c.ReviewRpc)
+	reviewService := reviewservice.NewReviewService(reviewClient)
 
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{
 		AccessSecret: c.Auth.AccessSecret,
@@ -101,6 +109,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			{Name: "message", Probe: messageClient.Probe},
 			{Name: "search", Probe: searchClient.Probe, Optional: true},
 			{Name: "assistant", Probe: assistantClient.Probe, Optional: true},
+			// 广告与审核是可选能力：故障只降级，推荐流照常返回不含广告（ADS-022）。
+			{Name: "ad", Probe: adClient.Probe, Optional: true},
+			{Name: "review", Probe: reviewClient.Probe, Optional: true},
 		},
 		UserService:        userService,
 		ContentService:     contentService,
@@ -111,6 +122,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MessageService:     messageService,
 		SearchService:      searchService,
 		AssistantService:   assistantService,
+		AdService:          adService,
+		ReviewService:      reviewService,
 		OptionalAuth:       optionalAuth.Hertz,
 		RequiredAuth:       requiredAuth.Hertz,
 		BehaviorAccepted:   behaviorAccepted.Hertz,

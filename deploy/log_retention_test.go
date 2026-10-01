@@ -56,8 +56,8 @@ func TestRPCConstructorsApplyContentLoggingPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if servers != 10 {
-		t.Fatalf("expected 10 RPC servers, checked %d", servers)
+	if servers != 12 {
+		t.Fatalf("expected 12 RPC servers, checked %d", servers)
 	}
 }
 

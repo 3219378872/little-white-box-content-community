@@ -3,6 +3,7 @@ package apply
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -71,8 +72,11 @@ func (s *Server) Refresh(ctx context.Context, adID int64) (bool, error) {
 	}
 	if servable && ad.PublishedRevision < ad.ApprovedRevision {
 		if err := s.publish(ctx, ad, snap); err != nil {
-			s.removeEverywhere(ctx, ad.ID, "")
 			metrics.Degraded("assets", "publish")
+			// 复制失败的广告不得留在索引中；移除失败与发布失败一并返回，由消息或定时重建重试。
+			if removeErr := s.removeEverywhere(ctx, ad.ID, ""); removeErr != nil {
+				return false, errors.Join(err, removeErr)
+			}
 			return false, err
 		}
 	}

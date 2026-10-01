@@ -57,6 +57,9 @@ var durationBehaviorActions = map[string]struct{}{
 	BehaviorActionView:  {},
 }
 
+// BehaviorTargetAd 是广告曝光与点击的独立目标类型（ADS-027、REL-009）。
+const BehaviorTargetAd = "ad"
+
 // BehaviorEvent is the canonical v2 payload stored and consumed unchanged.
 type BehaviorEvent struct {
 	EventID       int64  `json:"event_id"`

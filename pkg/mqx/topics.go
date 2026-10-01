@@ -14,9 +14,11 @@ const (
 	// 媒体相关 Topic
 	TopicMediaDelete = "media-deleted" // 媒体删除事件（触发 S3 清理）
 
-	// 审核平台 Topic（tag = 业务类型，见 pkg/event/review.go）
-	TopicReviewSubmitted = "review-submitted" // 业务方送审
-	TopicReviewDecided   = "review-decided"   // 审核结论下发
+	// 审核平台 Topic（tag = 业务类型，见 pkg/event/review.go）：业务方送审
+	TopicReviewSubmitted = "review-submitted"
+
+	// 审核结论下发
+	TopicReviewDecided = "review-decided"
 )
 
 // Tag 定义

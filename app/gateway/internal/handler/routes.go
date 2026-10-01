@@ -3,6 +3,7 @@
 package handler
 
 import (
+	ads "esx/app/gateway/internal/handler/ads"
 	assistant "esx/app/gateway/internal/handler/assistant"
 	behavior "esx/app/gateway/internal/handler/behavior"
 	comment "esx/app/gateway/internal/handler/comment"
@@ -13,6 +14,7 @@ import (
 	media "esx/app/gateway/internal/handler/media"
 	message "esx/app/gateway/internal/handler/message"
 	posts "esx/app/gateway/internal/handler/posts"
+	review "esx/app/gateway/internal/handler/review"
 	search "esx/app/gateway/internal/handler/search"
 	user "esx/app/gateway/internal/handler/user"
 	"esx/app/gateway/internal/svc"
@@ -84,4 +86,26 @@ func RegisterHandlers(server *server.Hertz, serverCtx *svc.ServiceContext) {
 	server.POST("/api/v2/assistant/recommend/feedback", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, assistant.SubmitAssistantRecommendFeedbackHandler(serverCtx))
 	server.GET("/api/v2/me/personalization", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, user.GetPersonalizationPreferenceHandler(serverCtx))
 	server.PUT("/api/v2/me/personalization", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, user.SetPersonalizationPreferenceHandler(serverCtx))
+	server.GET("/api/v2/ads/advertiser", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.GetMyAdvertiserHandler(serverCtx))
+	server.PUT("/api/v2/ads/advertiser", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.ApplyAdvertiserHandler(serverCtx))
+	server.POST("/api/v2/ads/advertiser/qualifications", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.AddAdQualificationHandler(serverCtx))
+	server.POST("/api/v2/ads/assets/:kind", httpx.RoutePolicy(60000, 3145728, false), serverCtx.RequiredAuth, ads.UploadAdAssetHandler(serverCtx))
+	server.GET("/api/v2/ads/assets/:assetId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.GetAdAssetHandler(serverCtx))
+	server.GET("/api/v2/ads/policies", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.ListAdPoliciesHandler(serverCtx))
+	server.GET("/api/v2/ads", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.ListAdsHandler(serverCtx))
+	server.POST("/api/v2/ads", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.CreateAdHandler(serverCtx))
+	server.GET("/api/v2/ads/:adId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.GetAdHandler(serverCtx))
+	server.PUT("/api/v2/ads/:adId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, ads.UpdateAdHandler(serverCtx))
+	server.POST("/api/v2/ads/:adId/hide", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.OptionalAuth, ads.HideAdHandler(serverCtx))
+	server.GET("/api/v2/review/me", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewerProfileHandler(serverCtx))
+	server.GET("/api/v2/review/queue", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewQueueHandler(serverCtx))
+	server.POST("/api/v2/review/tasks/claim", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.ClaimReviewTaskHandler(serverCtx))
+	server.GET("/api/v2/review/tasks/:taskId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewTaskHandler(serverCtx))
+	server.POST("/api/v2/review/tasks/:taskId/renew", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.RenewReviewTaskHandler(serverCtx))
+	server.POST("/api/v2/review/tasks/:taskId/release", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.ReleaseReviewTaskHandler(serverCtx))
+	server.POST("/api/v2/review/tasks/:taskId/decision", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.SubmitReviewDecisionHandler(serverCtx))
+	server.GET("/api/v2/review/tasks/:taskId/media/:mediaId", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.GetReviewEvidenceMediaHandler(serverCtx))
+	server.GET("/api/v2/review/seeds", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.ListReviewSeedsHandler(serverCtx))
+	server.POST("/api/v2/review/seeds/:seedId/confirm", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.ConfirmReviewSeedHandler(serverCtx))
+	server.POST("/api/v2/review/seeds/:seedId/retire", httpx.RoutePolicy(serverCtx.Config.RestConf.Timeout, serverCtx.Config.RestConf.MaxBytes, false), serverCtx.RequiredAuth, review.RetireReviewSeedHandler(serverCtx))
 }

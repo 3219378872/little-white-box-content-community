@@ -61,5 +61,20 @@ AssistantRpc:
       - 127.0.0.1:2379
     Key: assistant.rpc
 
+AdRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: ad.rpc
+
+ReviewRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: review.rpc
+
+# 推荐流广告槽位超时（毫秒）；超时或失败时推荐流照常返回、不含广告。
+SponsoredTimeoutMs: 80
+
 # 服务间内部鉴权共享密钥（HMAC），全服务一致
 InternalSecret: ${RPC_INTERNAL_SECRET}

@@ -215,10 +215,6 @@ func encodeCodes(codes []string) string {
 	return string(raw)
 }
 
-func placeholders(n int) string {
-	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
-}
-
 func notFound(err error) error {
 	if errors.Is(err, sqlx.ErrNotFound) {
 		return ErrNotFound

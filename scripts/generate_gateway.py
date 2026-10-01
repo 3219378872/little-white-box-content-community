@@ -47,6 +47,8 @@ def generate():
                 options.append('optional')
             if 'default' in prop:
                 options.append('default=' + str(prop['default']).lower())
+            if prop.get('x-go-omitempty'):
+                options.append('omitempty')
             lines.append(f'\t{goname} {typename} `{tag}:"{",".join(options)}"`\n')
         lines.append('}\n\n')
     output = ROOT / 'app/gateway/internal/types/types.go'
