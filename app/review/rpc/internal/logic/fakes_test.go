@@ -39,6 +39,18 @@ type fakeStore struct {
 	submitted    store.DecisionInput
 	seedStatus   string
 	transitionTo string
+
+	activatedAt, seedChanges, seedChangedAt int64
+	activated                               bool
+	activationErr, seedGenErr               error
+}
+
+func (f *fakeStore) SeedGeneration(context.Context) (int64, int64, error) {
+	return f.seedChanges, f.seedChangedAt, f.seedGenErr
+}
+
+func (f *fakeStore) PolicyActivatedAt(_ context.Context, version string) (int64, bool, error) {
+	return f.activatedAt, f.activated && version != "", f.activationErr
 }
 
 func (f *fakeStore) Reviewer(_ context.Context, userID int64) (*store.Reviewer, error) {

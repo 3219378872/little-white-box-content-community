@@ -22,7 +22,11 @@ type Store interface {
 	RecordStage(ctx context.Context, stage store.Stage, now time.Time) error
 	DecideMachine(ctx context.Context, task *store.Task, in store.DecisionInput, qaDeadlineMs int64, now time.Time) (*store.Decision, error)
 	Escalate(ctx context.Context, task *store.Task, reason string, priority int, now time.Time) error
+	FlagRescanViolation(ctx context.Context, task *store.Task, codes []string, policyVersion string, priority int, now time.Time) error
 }
+
+// rescanPausePriority 是回扫判定违规后人审的最低优先级：广告已暂停投放，应尽快给出最终结论。
+const rescanPausePriority = 90
 
 // Processor 处理已领取的机审任务。
 type Processor struct {
@@ -72,8 +76,15 @@ func (p *Processor) Process(ctx context.Context, task *store.Task) error {
 		p.runShadow(ctx, task.ID, input, result)
 	}
 	now := p.now()
-	switch result.Outcome {
-	case cascade.OutcomeApprove, cascade.OutcomeReject:
+	switch {
+	case result.Outcome == cascade.OutcomeReject && task.Purpose == event.ReviewPurposeRescan:
+		// 回扫判定违规先暂停投放再进入人审（ADS-031），不直接下终审结论。
+		if err := p.Store.FlagRescanViolation(ctx, task, result.PolicyCodes, p.Active.Version,
+			max(result.Priority, rescanPausePriority), now); err != nil {
+			return fenced(ctx, err)
+		}
+		metrics.RescanPaused()
+	case result.Outcome == cascade.OutcomeApprove || result.Outcome == cascade.OutcomeReject:
 		verdict := event.ReviewVerdictApprove
 		if result.Outcome == cascade.OutcomeReject {
 			verdict = event.ReviewVerdictReject

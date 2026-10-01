@@ -53,3 +53,6 @@ func (s *ReviewServiceServer) RetireSeed(ctx context.Context, req *pb.SeedAction
 func (s *ReviewServiceServer) AuthorizeEvidenceMedia(ctx context.Context, req *pb.AuthorizeEvidenceMediaReq) (*pb.AuthorizeEvidenceMediaResp, error) {
 	return logic.NewAuthorizeEvidenceMediaLogic(ctx, s.svcCtx).AuthorizeEvidenceMedia(req)
 }
+func (s *ReviewServiceServer) GetRescanGeneration(ctx context.Context, req *pb.GetRescanGenerationReq) (*pb.GetRescanGenerationResp, error) {
+	return logic.NewGetRescanGenerationLogic(ctx, s.svcCtx).GetRescanGeneration(req)
+}

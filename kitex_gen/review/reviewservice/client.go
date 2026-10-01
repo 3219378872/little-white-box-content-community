@@ -24,6 +24,7 @@ type Client interface {
 	ConfirmSeed(ctx context.Context, Req *review.SeedActionReq, callOptions ...callopt.Option) (r *review.SeedResp, err error)
 	RetireSeed(ctx context.Context, Req *review.SeedActionReq, callOptions ...callopt.Option) (r *review.SeedResp, err error)
 	AuthorizeEvidenceMedia(ctx context.Context, Req *review.AuthorizeEvidenceMediaReq, callOptions ...callopt.Option) (r *review.AuthorizeEvidenceMediaResp, err error)
+	GetRescanGeneration(ctx context.Context, Req *review.GetRescanGenerationReq, callOptions ...callopt.Option) (r *review.GetRescanGenerationResp, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -118,4 +119,9 @@ func (p *kReviewServiceClient) RetireSeed(ctx context.Context, Req *review.SeedA
 func (p *kReviewServiceClient) AuthorizeEvidenceMedia(ctx context.Context, Req *review.AuthorizeEvidenceMediaReq, callOptions ...callopt.Option) (r *review.AuthorizeEvidenceMediaResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.AuthorizeEvidenceMedia(ctx, Req)
+}
+
+func (p *kReviewServiceClient) GetRescanGeneration(ctx context.Context, Req *review.GetRescanGenerationReq, callOptions ...callopt.Option) (r *review.GetRescanGenerationResp, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.GetRescanGeneration(ctx, Req)
 }

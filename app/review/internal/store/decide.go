@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -101,6 +103,60 @@ func (s *Store) DecideMachine(ctx context.Context, task *Task, in DecisionInput,
 		return nil
 	})
 	return out, err
+}
+
+// RescanPauseReason 是回扫机审判定违规、已暂停投放并等待人审的转人审原因（ADS-031）。
+const RescanPauseReason = "rescan-violation"
+
+// FlagRescanViolation 处理回扫机审判定违规（ADS-031）：同一事务内把任务转人审，并经 outbox 下发
+// 暂停结论（Interim），业务方先停投；最终结论由该任务的人审给出，确认违规则下线，否定则恢复。
+// fencing 依赖机审租约代次，与 DecideMachine 一致。
+func (s *Store) FlagRescanViolation(ctx context.Context, task *Task, codes []string, policyVersion string, priority int, now time.Time) error {
+	return s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		locked, err := s.lockTask(ctx, session, task.ID)
+		if err != nil {
+			return err
+		}
+		if locked.Purpose != event.ReviewPurposeRescan {
+			return fmt.Errorf("review: task %d is not a rescan", task.ID)
+		}
+		if locked.Status != StatusMachineRunning || locked.LeaseGeneration != task.LeaseGeneration {
+			return fencingError(locked)
+		}
+		if _, err := session.ExecCtx(ctx, `UPDATE review_task SET status = ?, escalation_reason = ?, priority = ?,
+			lease_holder = 0, lease_until_ms = 0, updated_at_ms = ? WHERE id = ?`,
+			StatusHumanPending, RescanPauseReason, priority, now.UnixMilli(), locked.ID); err != nil {
+			return err
+		}
+		id, err := s.nextID()
+		if err != nil {
+			return err
+		}
+		interim := event.ReviewDecidedEvent{
+			EventID: id, EventTime: now.UnixMilli(), BizType: locked.BizType, ObjectID: locked.ObjectID,
+			Revision: locked.ObjectRevision, TaskID: locked.ID, Purpose: locked.Purpose, PurposeKey: locked.PurposeKey,
+			Verdict: event.ReviewVerdictReject, PolicyCodes: codes, PolicyVersion: policyVersion,
+			Source: event.ReviewSourceMachine, DecidedAt: now.UnixMilli(), Interim: true,
+		}
+		if err := interim.Validate(); err != nil {
+			return err
+		}
+		payload, err := interim.MarshalPayload()
+		if err != nil {
+			return err
+		}
+		if err := s.outbox.Enqueue(ctx, session, outboxx.Event{
+			ID: id, Topic: mqx.TopicReviewDecided, Tag: locked.BizType,
+			Key: "review-interim:" + strconv.FormatInt(locked.ID, 10), Payload: payload,
+		}); err != nil {
+			return err
+		}
+		return s.insertAudit(ctx, session, AuditEntry{
+			ActorID: 0, Action: "task.rescan_pause", ObjectType: "review_task", ObjectID: locked.ID,
+			Before: taskState(locked),
+			After:  map[string]any{"status": StatusHumanPending, "policyCodes": codes, "policyVersion": policyVersion},
+		}, now)
+	})
 }
 
 // SubmitHuman 提交人工结论（RVW-021）：校验持有者、代次与租约，同事务写结论、事件与审计。
@@ -203,11 +259,16 @@ func (s *Store) writeDecisionWithID(ctx context.Context, session sqlx.Session, i
 	if err := s.rememberVerdict(ctx, session, task, decision, now); err != nil {
 		return nil, err
 	}
+	if decision.Verdict == event.ReviewVerdictApprove && slices.Contains(approvalPurposes, task.Purpose) {
+		if err := supersedeReplacedServing(ctx, session, task.BizType, task.ObjectID, task.ObjectRevision, now); err != nil {
+			return nil, err
+		}
+	}
 	payload, err := event.ReviewDecidedEvent{
 		EventID: decision.ID, EventTime: now.UnixMilli(), BizType: task.BizType, ObjectID: task.ObjectID,
-		Revision: task.ObjectRevision, TaskID: task.ID, Purpose: task.Purpose, Verdict: decision.Verdict,
-		PolicyCodes: decision.PolicyCodes(), PolicyVersion: decision.PolicyVersion, Source: decision.Source,
-		DecidedAt: decision.DecidedAtMs,
+		Revision: task.ObjectRevision, TaskID: task.ID, Purpose: task.Purpose, PurposeKey: task.PurposeKey,
+		Verdict: decision.Verdict, PolicyCodes: decision.PolicyCodes(), PolicyVersion: decision.PolicyVersion,
+		Source: decision.Source, DecidedAt: decision.DecidedAtMs,
 	}.MarshalPayload()
 	if err != nil {
 		return nil, err

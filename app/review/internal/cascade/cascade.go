@@ -53,6 +53,8 @@ const (
 	ReasonForcedRule        = "forced-human-rule"
 	ReasonQualification     = "qualification-review"
 	ReasonPurpose           = "purpose-requires-human"
+	ReasonRescanViolation   = "rescan-violation"
+	ReasonRescanClear       = "rescan-clear"
 )
 
 // RankerTimeout 与 DES 一致：2 秒，worker 异步执行，不在用户请求路径上。
@@ -266,19 +268,25 @@ func (r *runner) execute(ctx context.Context) Result {
 
 	// S5 决策（RVW-012、RVW-013）。
 	maxYes := 0.0
-	var autoReject []string
+	var autoReject, violations []string
 	allBelowPass := true
 	for _, score := range scores {
 		threshold := r.p.ThresholdFor(score.Issue, snap.Market)
 		maxYes = math.Max(maxYes, score.PYes)
-		if threshold.AutoReject && score.PYes >= threshold.Reject {
-			autoReject = append(autoReject, score.Issue)
+		if score.PYes >= threshold.Reject {
+			violations = append(violations, score.Issue)
+			if threshold.AutoReject {
+				autoReject = append(autoReject, score.Issue)
+			}
 		}
 		if score.PYes >= threshold.Pass {
 			allBelowPass = false
 		}
 	}
 	priority := int(maxYes * 100)
+	if r.in.Purpose == event.ReviewPurposeRescan {
+		return r.rescanDecision(violations, forced, allBelowPass, ruleHits, priority)
+	}
 	if len(autoReject) > 0 {
 		sort.Strings(autoReject)
 		return r.finish(OutcomeReject, autoReject, "ranker-reject", priority)
@@ -300,6 +308,24 @@ func (r *runner) execute(ctx context.Context) Result {
 		reason = "auto-pass;" + routerReason
 	}
 	return r.finish(OutcomeApprove, nil, reason, 0)
+}
+
+// rescanDecision 是回扫的处置（ADS-031）。回扫对象已经过审在投，结论不是放行而是是否违规：
+//   - 任一候选 issue 的分数达到拒绝阈值即判定违规（不论该 issue 是否允许自动拒绝，因为结果是暂停
+//     并转人审而非终审拒绝），硬规则命中在 S2 已以拒绝返回；
+//   - 强制人审规则或灰区分数转人审核实，不暂停投放；
+//   - 其余视为未发现违规；行业、首次送审保护期与图片确认是授予自动通过的条件，不适用于回扫。
+func (r *runner) rescanDecision(violations []string, forced, allBelowPass bool, ruleHits []ruleHit, priority int) Result {
+	switch {
+	case len(violations) > 0:
+		sort.Strings(violations)
+		return r.finish(OutcomeReject, violations, ReasonRescanViolation, max(priority, 90))
+	case forced:
+		return r.finish(OutcomeHuman, ruleCodes(ruleHits, policy.ActionHuman), ReasonForcedRule, max(priority, 70))
+	case !allBelowPass:
+		return r.finish(OutcomeHuman, nil, ReasonGrayZone, priority)
+	}
+	return r.finish(OutcomeApprove, nil, ReasonRescanClear, 0)
 }
 
 func (r *runner) lookupVerdict(ctx context.Context) (string, []string, string, bool, error) {

@@ -38,6 +38,8 @@ type SeedActionReq = pb.SeedActionReq
 type SeedResp = pb.SeedResp
 type AuthorizeEvidenceMediaReq = pb.AuthorizeEvidenceMediaReq
 type AuthorizeEvidenceMediaResp = pb.AuthorizeEvidenceMediaResp
+type GetRescanGenerationReq = pb.GetRescanGenerationReq
+type GetRescanGenerationResp = pb.GetRescanGenerationResp
 type ReviewService = native.Client
 type client struct{ native.Client }
 
@@ -96,5 +98,9 @@ func (c *client) RetireSeed(ctx context.Context, req *pb.SeedActionReq, opts ...
 }
 func (c *client) AuthorizeEvidenceMedia(ctx context.Context, req *pb.AuthorizeEvidenceMediaReq, opts ...callopt.Option) (*pb.AuthorizeEvidenceMediaResp, error) {
 	v, e := c.Client.AuthorizeEvidenceMedia(ctx, req, opts...)
+	return v, rpcx.FromTransportError(e)
+}
+func (c *client) GetRescanGeneration(ctx context.Context, req *pb.GetRescanGenerationReq, opts ...callopt.Option) (*pb.GetRescanGenerationResp, error) {
+	v, e := c.Client.GetRescanGeneration(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }

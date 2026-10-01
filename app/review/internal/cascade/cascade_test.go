@@ -271,3 +271,60 @@ func TestValidateRank(t *testing.T) {
 	}
 	require.True(t, errors.Is(ErrUnavailable, ErrUnavailable))
 }
+
+// ADS-031：回扫判定违规不受自动拒绝开关限制，强制规则与灰区转人审核实，其余视为未发现违规。
+func TestRescanJudgesViolationNotApproval(t *testing.T) {
+	p := loadPolicy(t)
+	rescan := func(edit func(*Input)) Input {
+		in := baseInput()
+		in.Purpose = event.ReviewPurposeRescan
+		in.SubmissionSeq = 0
+		if edit != nil {
+			edit(&in)
+		}
+		return in
+	}
+
+	// MISLEADING.CLAIM 在 US 不允许自动拒绝；首次审核只会进人审，回扫则判定违规。
+	ranker := &fakeRanker{result: scoresFor([]string{"MISLEADING.CLAIM"}, 0.97)}
+	c := &Cascade{Router: coveredRouter(0.9, "MISLEADING.CLAIM"), Ranker: ranker}
+	initial := c.Run(context.Background(), p, baseInput())
+	require.Equal(t, OutcomeHuman, initial.Outcome)
+	violation := c.Run(context.Background(), p, rescan(nil))
+	require.Equal(t, OutcomeReject, violation.Outcome)
+	require.Equal(t, ReasonRescanViolation, violation.Reason)
+	require.Equal(t, []string{"MISLEADING.CLAIM"}, violation.PolicyCodes)
+	require.GreaterOrEqual(t, violation.Priority, 90)
+
+	ranker.result = scoresFor([]string{"MISLEADING.CLAIM"}, 0.5)
+	require.Equal(t, ReasonGrayZone, c.Run(context.Background(), p, rescan(nil)).Reason)
+
+	// 行业禁用自动通过、首次送审保护期与图片未确认不适用于回扫。
+	clear := &Cascade{Router: coveredRouter(0.1), Ranker: &fakeRanker{}, Lookup: &fakeLookup{}}
+	result := clear.Run(context.Background(), p, rescan(func(in *Input) {
+		in.Snapshot.Industry = "FINANCIAL"
+		in.Snapshot.Media = []event.ReviewMedia{{MediaID: 1, SHA256: "unseen"}}
+	}))
+	require.Equal(t, OutcomeApprove, result.Outcome)
+	require.Equal(t, ReasonRescanClear, result.Reason)
+	require.Empty(t, stage(result, StageFingerprint).Stage, "回扫不复用指纹")
+
+	forced := clear.Run(context.Background(), p, rescan(func(in *Input) { in.Snapshot.Texts["body"] = "Guaranteed results" }))
+	require.Equal(t, OutcomeHuman, forced.Outcome)
+	require.Equal(t, ReasonForcedRule, forced.Reason)
+
+	hard := clear.Run(context.Background(), p, rescan(func(in *Input) { in.Snapshot.LandingURL = "https://x.scam-giveaway.com" }))
+	require.Equal(t, OutcomeReject, hard.Outcome)
+	require.Equal(t, []string{"LANDING.DOMAIN"}, hard.PolicyCodes)
+}
+
+// RVW-011：回扫的精排失败同样转人审，不放宽为未发现违规。
+func TestRescanRankerFailureEscalates(t *testing.T) {
+	p := loadPolicy(t)
+	in := baseInput()
+	in.Purpose = event.ReviewPurposeRescan
+	c := &Cascade{Ranker: &fakeRanker{err: ErrUnavailable}}
+	result := c.Run(context.Background(), p, in)
+	require.Equal(t, OutcomeHuman, result.Outcome)
+	require.Equal(t, ReasonRankerUnavailable, result.Reason)
+}

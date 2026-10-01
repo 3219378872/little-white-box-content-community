@@ -100,6 +100,9 @@ func (e ReviewSubmittedEvent) MarshalPayload() ([]byte, error) {
 }
 
 // ReviewDecidedEvent 是结论下发事件（RVW-040）；业务方按（objectId, revision）CAS 应用。
+//
+// Interim 为 true 的是回扫机审判定违规时的暂停结论（ADS-031）：业务方先停投，最终结论由同一任务
+// 的人审给出。暂停结论不写 review_decision，只经事件下发。
 type ReviewDecidedEvent struct {
 	EventID       int64    `json:"eventId"`
 	EventTime     int64    `json:"eventTime"`
@@ -108,11 +111,13 @@ type ReviewDecidedEvent struct {
 	Revision      int64    `json:"revision"`
 	TaskID        int64    `json:"taskId"`
 	Purpose       string   `json:"purpose"`
+	PurposeKey    string   `json:"purposeKey,omitempty"`
 	Verdict       string   `json:"verdict"`
 	PolicyCodes   []string `json:"policyCodes"`
 	PolicyVersion string   `json:"policyVersion"`
 	Source        string   `json:"source"`
 	DecidedAt     int64    `json:"decidedAt"`
+	Interim       bool     `json:"interim,omitempty"`
 }
 
 func (e ReviewDecidedEvent) Validate() error {
@@ -136,6 +141,9 @@ func (e ReviewDecidedEvent) Validate() error {
 	}
 	if e.PolicyVersion == "" || e.Source == "" || e.DecidedAt <= 0 {
 		return fmt.Errorf("event: review decision metadata is required")
+	}
+	if e.Interim && (e.Purpose != ReviewPurposeRescan || e.Verdict != ReviewVerdictReject) {
+		return fmt.Errorf("event: interim decisions are rescan rejections only")
 	}
 	return nil
 }

@@ -56,6 +56,10 @@ var (
 		Namespace: "esx", Subsystem: "review", Name: "claim_attempts_exceeded_total",
 		Help: "Human tasks claimed more than the attempt limit", Labels: []string{},
 	})
+	rescanPauses = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "review", Name: "rescan_pauses_total",
+		Help: "Rescans judged as violations that paused serving pending human review", Labels: []string{},
+	})
 	shadowRuns = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: "esx", Subsystem: "review", Name: "shadow_runs_total",
 		Help: "Shadow policy runs by outcome and agreement", Labels: []string{"outcome", "agrees"},
@@ -95,6 +99,9 @@ func QADisagreement(originalSource string) { qaDisagreements.Inc(originalSource)
 func AppealOverturn() { appealOverturns.Inc() }
 
 func AttemptsExceeded() { attemptsExceeded.Inc() }
+
+// RescanPaused 记录回扫判定违规并暂停投放（ADS-031）。
+func RescanPaused() { rescanPauses.Inc() }
 
 func Shadow(outcome string, agrees bool) {
 	label := "false"

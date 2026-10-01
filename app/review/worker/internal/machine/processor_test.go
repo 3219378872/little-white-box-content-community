@@ -2,6 +2,7 @@ package machine
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -20,6 +21,14 @@ type fakeStore struct {
 	decisions []store.DecisionInput
 	escalated []string
 	decideErr error
+	flagged   []flagged
+	flagErr   error
+}
+
+type flagged struct {
+	codes    []string
+	version  string
+	priority int
 }
 
 func (f *fakeStore) Snapshot(context.Context, string) (string, error) { return f.content, nil }
@@ -39,6 +48,14 @@ func (f *fakeStore) DecideMachine(_ context.Context, task *store.Task, in store.
 
 func (f *fakeStore) Escalate(_ context.Context, _ *store.Task, reason string, _ int, _ time.Time) error {
 	f.escalated = append(f.escalated, reason)
+	return nil
+}
+
+func (f *fakeStore) FlagRescanViolation(_ context.Context, _ *store.Task, codes []string, version string, priority int, _ time.Time) error {
+	if f.flagErr != nil {
+		return f.flagErr
+	}
+	f.flagged = append(f.flagged, flagged{codes: codes, version: version, priority: priority})
 	return nil
 }
 
@@ -124,4 +141,36 @@ func TestCorruptSnapshotEscalates(t *testing.T) {
 	fs := &fakeStore{content: "{"}
 	require.NoError(t, newProcessor(t, fs, false).Process(context.Background(), task(4)))
 	require.Equal(t, []string{"snapshot-invalid"}, fs.escalated)
+}
+
+func rescanTask() *store.Task {
+	return &store.Task{ID: 10, BizType: event.ReviewBizAdCreative, Purpose: event.ReviewPurposeRescan, SnapshotHash: "h"}
+}
+
+// ADS-031：回扫判定违规时暂停并转人审，不写终审结论，也不建质检任务。
+func TestRescanViolationPausesInsteadOfDeciding(t *testing.T) {
+	fs := &fakeStore{content: frozenContent(t, "ALCOHOL")}
+	require.NoError(t, newProcessor(t, fs, true).Process(context.Background(), rescanTask()))
+	require.Empty(t, fs.decisions)
+	require.Empty(t, fs.escalated)
+	require.Len(t, fs.flagged, 1)
+	require.Equal(t, []string{"INDUSTRY.ALCOHOL"}, fs.flagged[0].codes)
+	require.Equal(t, "ads-2026-10-01", fs.flagged[0].version)
+	require.GreaterOrEqual(t, fs.flagged[0].priority, 90)
+}
+
+func TestRescanClearClosesWithoutQA(t *testing.T) {
+	fs := &fakeStore{content: frozenContent(t, "FINANCIAL")}
+	require.NoError(t, newProcessor(t, fs, true).Process(context.Background(), rescanTask()))
+	require.Empty(t, fs.flagged)
+	require.Len(t, fs.decisions, 1)
+	require.Equal(t, event.ReviewVerdictApprove, fs.decisions[0].Verdict)
+	require.False(t, fs.decisions[0].CreateQA)
+}
+
+func TestFencedRescanPauseIsDropped(t *testing.T) {
+	fs := &fakeStore{content: frozenContent(t, "ALCOHOL"), flagErr: store.ErrTaskSuperseded}
+	require.NoError(t, newProcessor(t, fs, false).Process(context.Background(), rescanTask()))
+	fs.flagErr = errors.New("db down")
+	require.Error(t, newProcessor(t, fs, false).Process(context.Background(), rescanTask()))
 }

@@ -106,6 +106,13 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
+	"GetRescanGeneration": kitex.NewMethodInfo(
+		getRescanGenerationHandler,
+		newGetRescanGenerationArgs,
+		newGetRescanGenerationResult,
+		false,
+		kitex.WithStreamingMode(kitex.StreamingUnary),
+	),
 }
 
 var (
@@ -1615,6 +1622,117 @@ func (p *AuthorizeEvidenceMediaResult) GetResult() interface{} {
 	return p.Success
 }
 
+func getRescanGenerationHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	switch s := arg.(type) {
+	case *streaming.Args:
+		st := s.Stream
+		req := new(review.GetRescanGenerationReq)
+		if err := st.RecvMsg(req); err != nil {
+			return err
+		}
+		resp, err := handler.(review.ReviewService).GetRescanGeneration(ctx, req)
+		if err != nil {
+			return err
+		}
+		return st.SendMsg(resp)
+	case *GetRescanGenerationArgs:
+		success, err := handler.(review.ReviewService).GetRescanGeneration(ctx, s.Req)
+		if err != nil {
+			return err
+		}
+		realResult := result.(*GetRescanGenerationResult)
+		realResult.Success = success
+		return nil
+	default:
+		return errInvalidMessageType
+	}
+}
+func newGetRescanGenerationArgs() interface{} {
+	return &GetRescanGenerationArgs{}
+}
+
+func newGetRescanGenerationResult() interface{} {
+	return &GetRescanGenerationResult{}
+}
+
+type GetRescanGenerationArgs struct {
+	Req *review.GetRescanGenerationReq
+}
+
+func (p *GetRescanGenerationArgs) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetReq() {
+		return out, nil
+	}
+	return proto.Marshal(p.Req)
+}
+
+func (p *GetRescanGenerationArgs) Unmarshal(in []byte) error {
+	msg := new(review.GetRescanGenerationReq)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Req = msg
+	return nil
+}
+
+var GetRescanGenerationArgs_Req_DEFAULT *review.GetRescanGenerationReq
+
+func (p *GetRescanGenerationArgs) GetReq() *review.GetRescanGenerationReq {
+	if !p.IsSetReq() {
+		return GetRescanGenerationArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+
+func (p *GetRescanGenerationArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *GetRescanGenerationArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+type GetRescanGenerationResult struct {
+	Success *review.GetRescanGenerationResp
+}
+
+var GetRescanGenerationResult_Success_DEFAULT *review.GetRescanGenerationResp
+
+func (p *GetRescanGenerationResult) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetSuccess() {
+		return out, nil
+	}
+	return proto.Marshal(p.Success)
+}
+
+func (p *GetRescanGenerationResult) Unmarshal(in []byte) error {
+	msg := new(review.GetRescanGenerationResp)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Success = msg
+	return nil
+}
+
+func (p *GetRescanGenerationResult) GetSuccess() *review.GetRescanGenerationResp {
+	if !p.IsSetSuccess() {
+		return GetRescanGenerationResult_Success_DEFAULT
+	}
+	return p.Success
+}
+
+func (p *GetRescanGenerationResult) SetSuccess(x interface{}) {
+	p.Success = x.(*review.GetRescanGenerationResp)
+}
+
+func (p *GetRescanGenerationResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *GetRescanGenerationResult) GetResult() interface{} {
+	return p.Success
+}
+
 type kClient struct {
 	c client.Client
 }
@@ -1750,6 +1868,16 @@ func (p *kClient) AuthorizeEvidenceMedia(ctx context.Context, Req *review.Author
 	_args.Req = Req
 	var _result AuthorizeEvidenceMediaResult
 	if err = p.c.Call(ctx, "AuthorizeEvidenceMedia", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) GetRescanGeneration(ctx context.Context, Req *review.GetRescanGenerationReq) (r *review.GetRescanGenerationResp, err error) {
+	var _args GetRescanGenerationArgs
+	_args.Req = Req
+	var _result GetRescanGenerationResult
+	if err = p.c.Call(ctx, "GetRescanGeneration", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

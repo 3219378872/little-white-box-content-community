@@ -30,6 +30,8 @@ service ReviewService {
   rpc RetireSeed(SeedActionReq) returns (SeedResp);
   // 资质证件访问授权：只对具备资质审核权限的审核员开放（RVW-023、ADS-040）
   rpc AuthorizeEvidenceMedia(AuthorizeEvidenceMediaReq) returns (AuthorizeEvidenceMediaResp);
+  // 回扫代次：政策版本或生效种子库变化后，业务方据此把在投对象送回扫（ADS-031）
+  rpc GetRescanGeneration(GetRescanGenerationReq) returns (GetRescanGenerationResp);
 }
 
 message EnsureSubmittedReq {
@@ -211,4 +213,15 @@ message AuthorizeEvidenceMediaReq {
 
 message AuthorizeEvidenceMediaResp {
   bool allowed = 1;
+}
+
+message GetRescanGenerationReq {}
+
+message GetRescanGenerationResp {
+  // 当前政策版本尚未被 worker 激活时为 false，业务方本轮不回扫
+  bool ready = 1;
+  // 政策版本 + 生效种子集合变化计数，作为回扫任务的 purpose_key
+  string generation = 2;
+  // 该代次生效的时间：在此之后作出的通过结论已按该代次审核，无需回扫
+  int64 effective_since_ms = 3;
 }

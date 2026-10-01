@@ -25,6 +25,8 @@ type Store interface {
 	QueueSummary(ctx context.Context, reviewer *store.Reviewer, now time.Time) ([]store.QueueBucket, error)
 	ListSeeds(ctx context.Context, status string, limit int) ([]store.Seed, error)
 	TransitionSeed(ctx context.Context, seedID, actor int64, to string, now time.Time) (*store.Seed, error)
+	SeedGeneration(ctx context.Context) (changes int64, changedAt int64, err error)
+	PolicyActivatedAt(ctx context.Context, version string) (activatedAt int64, found bool, err error)
 }
 
 // Ingester 是送审入口；生产使用 *intake.Ingester，与 review-worker 消费共用同一实现。
