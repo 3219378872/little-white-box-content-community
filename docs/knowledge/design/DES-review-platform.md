@@ -103,9 +103,8 @@ embedding 服务（既有）+ Milvus 种子集合
   revision 的这类未决任务在同一事务内置为 `superseded`；乱序到达的旧 revision 送审直接以 `superseded` 落库。
 - **投后任务**（`qa`、`report`、`rescan`）审的是正在投放的过审快照。新 revision 审核期间旧快照继续投放
   （`ADS-011`），因此它们不因更新的未决 revision 作废，而在更新的 revision 过审（送审或申诉通过）的同一
-  事务内作废；此后到达的旧快照投后任务直接以 `superseded` 落库。实现调整：`RVW-003` 字面要求旧 revision
-  的未决任务一律作废，按字面执行会让回扫暂停的广告卡在暂停、举报静默丢失，澄清见
-  [PROP-20261001-post-serving-supersede](../proposals/PROP-20261001-post-serving-supersede.md)，待人类决定。
+  事务内作废；此后到达的旧快照投后任务直接以 `superseded` 落库。若新 revision 审核期间就作废它们，回扫暂停
+  的广告会卡在暂停（新版本被拒时新旧版本都无法投放），举报也会静默丢失。
 
 任务状态：`machine_pending → machine_running → decided | human_pending`；
 `human_pending → claimed → decided | human_pending`（持有过期或放弃）；任一未决状态 → `superseded`。

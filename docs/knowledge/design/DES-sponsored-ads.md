@@ -191,7 +191,7 @@ approved | rejected`。投放状态独立：`none → serving`（首次过审）
   `appeal` 任务，并受送审对账保护（`RVW-041`）。复审由不同于原拒绝决策人的审核员处理，结论为最终结论：通过则
   该 revision 成为过审版本并恢复投放（含被下线的广告），拒绝则维持 `rejected` 与原投放状态。
 - **投后任务的作废**：质检、举报与回扫针对在投快照，编辑产生的新 revision 审核期间不作废，新 revision 过审后
-  才作废（实现调整，见 [DES-review-platform](DES-review-platform.md)「数据模型」）。
+  才作废（`RVW-003`，见 [DES-review-platform](DES-review-platform.md)「数据模型」）。
 
 ## 广告主接口
 

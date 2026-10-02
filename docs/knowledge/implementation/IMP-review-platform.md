@@ -29,7 +29,7 @@ updated_at: 2026-10-01
 | --- | --- | --- | --- |
 | RVW-001 | DES-review-platform | unknown | gap: 已实现：`store.Ingest` 唯一键幂等，并发同键回读胜出任务；集成测试 `TestIngestIsIdempotentUnderConcurrency` 通过。尚无 EVD 覆盖组。 |
 | RVW-002 | DES-review-platform | unknown | gap: 已实现：`snapshot.Freeze` 规范化（NFC、零宽字符、全半角、空白）后 sha256，快照只写一次；单测 `TestFreezeIgnoresInvisibleAndWidthVariants` 通过。尚无 EVD 覆盖组。 |
-| RVW-003 | DES-review-platform | unknown | gap: 已实现：新 revision 同事务作废旧 revision 的未决送审与申诉任务，乱序旧 revision 直接以 superseded 落库，作废任务的提交与续期返回 7002；投后任务（质检、举报、回扫）在更新的 revision 过审时才作废，与字面规则不同，澄清见 PROP-20261001-post-serving-supersede（待人类决定）；集成测试 `TestNewRevisionSupersedesPendingTasks`、`TestPostServingTasksFollowTheServingRevision` 通过。尚无 EVD 覆盖组。 |
+| RVW-003 | DES-review-platform | unknown | gap: 已实现：新 revision 同事务作废旧 revision 的未决送审与申诉任务，乱序旧 revision 直接以 superseded 落库，作废任务的提交与续期返回 7002；投后任务（质检、举报、回扫）在更新的 revision 过审时才作废；集成测试 `TestNewRevisionSupersedesPendingTasks`、`TestPostServingTasksFollowTheServingRevision` 通过。尚无 EVD 覆盖组。 |
 | RVW-004 | DES-review-platform | unknown | gap: 已实现：结论记录来源、政策版本与时间，拒绝必须带 `pkg/adpolicy` 政策码（`validateVerdict`、`ReviewDecidedEvent.Validate`）。尚无 EVD 覆盖组。 |
 | RVW-010 | DES-review-platform | unknown | gap: 已实现：`app/review/internal/cascade` 按指纹→硬规则→Router→Ranker→决策执行；单测 `TestAutoPassRequiresEveryCondition` 通过。尚无 EVD 覆盖组。 |
 | RVW-011 | DES-review-platform | unknown | gap: 已实现：召回不可用或无种子覆盖时全部 issue 精排，精排超时/不可用/无效转人审并记录原因；单测 `TestDegradationNeverLoosensDecisions` 通过。尚无 EVD 覆盖组。 |

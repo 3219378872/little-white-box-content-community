@@ -2,9 +2,10 @@
 id: PROP-20261001-post-serving-supersede
 layer: proposal
 title: 投后任务（质检、举报、回扫）的作废时机：澄清 RVW-003
-status: open
+status: closed
 owner: agent
 target_layer: spec
+decision: 2026-10-02 人类在当前对话中采纳；已按「建议变更」修订 SPEC-review-platform 的 RVW-003。
 upstream:
   - SPEC-review-platform
   - SPEC-sponsored-ads
@@ -45,3 +46,8 @@ W6 已按上述澄清实现，以免投后处置在编辑场景下失效，并�
 1. 是否接受上述澄清并修订 `SPEC-review-platform` 的 `RVW-003`。
 2. 若不接受，投后任务在编辑后应如何处理（例如编辑时把已暂停的广告直接下线，或禁止对暂停中的广告编辑），
    实现需要随之调整。
+
+# 决定
+
+2026-10-02 人类在当前对话中采纳上述澄清。`SPEC-review-platform` 的 `RVW-003` 已按「建议变更」修订，
+设计与实现映射中的「实现调整」与差异说明随之移除；实现无需改动。
