@@ -131,6 +131,20 @@ tracks:
 - `skip_tags`、`skip_total`、`BatchGetUserCards` 都是新增 proto 字段或方法，旧调用方行为不变；
   按仓库规则改 `.proto` 后运行 `make generate`。
 
+## 发布顺序
+
+`BatchGetUserCards` 是 user-rpc 新增方法；先于 user-rpc 升级的调用方调用它会得到未知方法错误。
+搜索与帖子作者展示会留空，私信会话列表则失败关闭。因此：
+
+- user-rpc 必须先于 search-rpc、gateway 与 message-rpc 升级并就绪。生产 compose 中三者已对 user-rpc
+  声明 `depends_on: service_healthy`，`deploy/production_compose_test.go` 锁定这条约束；
+  手工分批发布必须保持同一顺序。
+- `BatchGetUsers` 保持原语义，供尚未升级的调用方使用；只有所有调用方完成迁移的后续发布才能考虑
+  删除它，不得与本次变更同批移除。
+- `skip_tags`、`skip_total` 是新增 proto 字段，旧服务端会忽略它们并按原逻辑多查一次，
+  没有顺序要求。
+- 本地联调栈每次从同一检出整体启停，不存在混合版本。
+
 ## 验证策略
 
 - 单元：可见性回源请求带 `skip_tags`；综合搜索的用户请求带 `skip_total`；帖子分支失败时取消

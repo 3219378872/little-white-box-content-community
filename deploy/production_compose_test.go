@@ -179,6 +179,23 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 }
 
+// BatchGetUserCards is served only by an upgraded user-rpc. Its callers must
+// start after user-rpc is healthy so no caller reaches an older user-rpc
+// (DES-search-read-path-cost, rollout order).
+func TestProductionComposeStartsUserCardCallersAfterUserRPC(t *testing.T) {
+	project := loadProductionCompose(t)
+	for _, caller := range []string{"search-rpc", "message-rpc", "gateway-a", "gateway-b"} {
+		service, ok := project.Services[caller]
+		if !ok {
+			t.Errorf("production %s is missing", caller)
+			continue
+		}
+		if dependency, ok := service.DependsOn["user-rpc"]; !ok || dependency.Condition != "service_healthy" {
+			t.Errorf("production %s must wait for healthy user-rpc", caller)
+		}
+	}
+}
+
 func TestProductionComposeHostPortsAndNginxUpstreamsDoNotConflict(t *testing.T) {
 	project := loadProductionCompose(t)
 	published := make(map[string]string)
