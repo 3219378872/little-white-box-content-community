@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"esx/pkg/event"
 )
 
 func TestPromoteToAliasMigratesLegacyPhysicalIndex(t *testing.T) {
@@ -204,5 +206,26 @@ func TestDeleteReturnsConflictForMessageRetry(t *testing.T) {
 	}
 	if err := idx.Delete(t.Context(), "9", 2); err == nil {
 		t.Fatal("a conflict left after retry_on_conflict must be retried, not acknowledged")
+	}
+}
+
+func TestPostEventToIndexDocOnlyCountedEventsAdvanceStatsSeq(t *testing.T) {
+	updated := PostEventToIndexDoc(event.PostEvent{
+		Type: event.PostEventUpdated, PostID: 9, EventTime: 2000, LikeCount: 1, Revision: 2,
+	})
+	if _, ok := updated.Body["stats_seq"]; ok {
+		t.Fatalf("an update snapshot must not claim a stats_seq: %v", updated.Body)
+	}
+	created := PostEventToIndexDoc(event.PostEvent{
+		Type: event.PostEventCreated, PostID: 9, EventTime: 1000, StatsSeq: 1000, Revision: 1,
+	})
+	if created.Body["stats_seq"] != int64(1000) {
+		t.Fatalf("explicit stats_seq must be kept: %v", created.Body)
+	}
+	counted := PostEventToIndexDoc(event.PostEvent{
+		Type: event.PostEventCounted, PostID: 9, EventTime: 3000, LikeCount: 2,
+	})
+	if counted.Body["stats_seq"] != int64(3000) {
+		t.Fatalf("counted events fall back to event time: %v", counted.Body)
 	}
 }

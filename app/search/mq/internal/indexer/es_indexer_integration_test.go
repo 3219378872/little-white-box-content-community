@@ -232,6 +232,64 @@ func TestESIndexer_RevisionStoredWhenBodyOmitsIt(t *testing.T) {
 	assert.Equal(t, float64(3), source["revision"])
 }
 
+// 编辑事件携带事务外读到的计数快照；它晚于计数补丁到达时不得把计数改回旧值，
+// 也不得挡住之后到达、时间戳早于编辑事件的计数补丁。
+func TestESIndexer_UpdateSnapshot_KeepsNewerCounts(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	created := event.PostEvent{
+		EventID: 61, EventTime: now, Type: event.PostEventCreated,
+		PostID: 10061, AuthorID: 42, Title: "counted", Revision: 1, StatsSeq: now,
+	}
+	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(created)))
+	counted := event.PostEvent{
+		EventID: 62, EventTime: now + 10, Type: event.PostEventCounted,
+		PostID: 10061, LikeCount: 3, CommentCount: 1, StatsSeq: now + 10,
+	}
+	require.NoError(t, esIdx.PatchCounts(ctx, PostEventToIndexDoc(counted)))
+
+	updated := event.PostEvent{
+		EventID: 63, EventTime: now + 20, Type: event.PostEventUpdated,
+		PostID: 10061, AuthorID: 42, Title: "counted edited", Revision: 2,
+	}
+	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(updated)))
+	require.NoError(t, esIdx.Refresh(ctx))
+
+	source := getSource(t, "10061")
+	assert.Equal(t, "counted edited", source["title"])
+	assert.Equal(t, float64(3), source["like_count"])
+	assert.Equal(t, float64(1), source["comment_count"])
+	assert.Equal(t, float64(now+10), source["stats_seq"])
+
+	counted.EventID, counted.LikeCount, counted.StatsSeq = 64, 4, now+15
+	require.NoError(t, esIdx.PatchCounts(ctx, PostEventToIndexDoc(counted)))
+	require.NoError(t, esIdx.Refresh(ctx))
+	assert.Equal(t, float64(4), getSource(t, "10061")["like_count"])
+}
+
+func TestESIndexer_RepublishOverTombstone_UsesSnapshotCounts(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UnixMilli()
+	created := event.PostEvent{
+		EventID: 71, EventTime: now, Type: event.PostEventCreated,
+		PostID: 10071, AuthorID: 42, Title: "unpublished", Revision: 1, StatsSeq: now,
+	}
+	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(created)))
+	require.NoError(t, esIdx.Delete(ctx, "10071", 2))
+
+	republished := event.PostEvent{
+		EventID: 72, EventTime: now + 10, Type: event.PostEventUpdated,
+		PostID: 10071, AuthorID: 42, Title: "republished", Revision: 3, LikeCount: 5,
+	}
+	require.NoError(t, esIdx.Index(ctx, PostEventToIndexDoc(republished)))
+	require.NoError(t, esIdx.Refresh(ctx))
+
+	source := getSource(t, "10071")
+	assert.Equal(t, "republished", source["title"])
+	assert.Equal(t, float64(5), source["like_count"])
+	assert.Nil(t, source["deleted"])
+}
+
 func getSource(t *testing.T, docID string) map[string]any {
 	t.Helper()
 	res, err := esapi.GetRequest{Index: indexN, DocumentID: docID}.Do(context.Background(), esIdx.client)

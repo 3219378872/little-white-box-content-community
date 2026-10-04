@@ -60,6 +60,9 @@ const updateRetryOnConflict = 3
 // 不用 external version：计数补丁走 _update 会推高 _version，使其不再等于 revision，
 // 下一次编辑或删除会被误判为旧快照。改为脚本比较 _source.revision，
 // 重投或乱序到达的旧快照（incoming <= stored）为 noop；revision <= 0 无条件覆盖。
+// 计数只由 counted 补丁按 stats_seq 推进（帖子点赞与评论计数的变更都在同一事务发出
+// counted 事件）。帖子写入携带的计数是事务外读到的快照，存活文档已有不旧于它的
+// stats_seq 时保留已存计数；墓碑或新文档才采用快照。
 func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
 	source := make(map[string]any, len(doc.Body)+1)
 	for k, v := range doc.Body {
@@ -79,8 +82,19 @@ if (incoming > 0 && ctx._source.revision != null && incoming <= ((Number) ctx._s
   ctx.op = 'noop';
   return;
 }
+def kept = null;
+if (ctx._source.post_id != null && ctx._source.stats_seq != null) {
+  long stored = ((Number) ctx._source.stats_seq).longValue();
+  long next = params.doc.stats_seq == null ? 0L : ((Number) params.doc.stats_seq).longValue();
+  if (next <= stored) {
+    kept = ['like_count': ctx._source.like_count, 'comment_count': ctx._source.comment_count, 'stats_seq': ctx._source.stats_seq];
+  }
+}
 ctx._source.clear();
 ctx._source.putAll(params.doc);
+if (kept != null) {
+  ctx._source.putAll(kept);
+}
 `
 
 const patchCountsScript = `
@@ -343,11 +357,13 @@ func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 	if createdAt <= 0 {
 		createdAt = e.EventTime
 	}
+	// 只有 counted 事件的序号推进计数；created/updated 未带序号时不得用事件时间冒充，
+	// 否则较晚生成的旧快照会压过更新的计数补丁。
 	statsSeq := e.StatsSeq
-	if statsSeq <= 0 {
+	if statsSeq <= 0 && e.Type == event.PostEventCounted {
 		statsSeq = e.EventTime
 	}
-	return IndexDoc{
+	doc := IndexDoc{
 		DocID:    strconv.FormatInt(e.PostID, 10),
 		Type:     string(e.Type),
 		Revision: e.Revision,
@@ -362,7 +378,10 @@ func PostEventToIndexDoc(e event.PostEvent) IndexDoc {
 			"comment_count": e.CommentCount,
 			"created_at":    createdAt,
 			"revision":      e.Revision,
-			"stats_seq":     statsSeq,
 		},
 	}
+	if statsSeq > 0 {
+		doc.Body["stats_seq"] = statsSeq
+	}
+	return doc
 }
