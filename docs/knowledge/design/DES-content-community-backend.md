@@ -212,8 +212,10 @@ published 行。
 
 ### 搜索
 
-ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `post_id` 投递，载荷带
-`revision`；索引写入用 external version，旧快照 409 丢弃。查询再回源 Content：丢掉
+ES 只索引 published，取消发布与删除把文档换成只含 `revision` 的墓碑。`post-update` 按
+`post_id` 投递，载荷带 `revision`；写入与墓碑都是脚本 upsert，比较 `_source.revision`，
+不新于已存值的快照为 noop。不用 external version：计数补丁走 `_update` 会推高 `_version`，
+使其偏离 `revision`。查询再回源 Content：丢掉
 不可见 ID，标题与摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出
 `unavailableTypes`；帖子可见性或索引不可用不能降级成空成功。每页查询预算、标签聚合与缓存、
 摘要生成和作者卡片缓存见 [DES-search-read-path-cost](DES-search-read-path-cost.md)。帖子作者的昵称、

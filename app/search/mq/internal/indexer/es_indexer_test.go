@@ -96,14 +96,42 @@ func TestPromoteToAliasRejectsInvalidAlias(t *testing.T) {
 	}
 }
 
-func TestIndexTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
-	var gotVersion, gotVersionType string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+type capturedUpdate struct {
+	method, path, version, retryOnConflict string
+	body                                   map[string]any
+}
+
+func newUpdateServer(t *testing.T, status int, got *capturedUpdate) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		gotVersion = r.URL.Query().Get("version")
-		gotVersionType = r.URL.Query().Get("version_type")
-		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
+		got.method, got.path = r.Method, r.URL.Path
+		got.version = r.URL.Query().Get("version")
+		got.retryOnConflict = r.URL.Query().Get("retry_on_conflict")
+		if err := json.NewDecoder(r.Body).Decode(&got.body); err != nil {
+			t.Errorf("decode update body: %v", err)
+		}
+		if status != http.StatusOK {
+			http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, status)
+			return
+		}
+		_, _ = w.Write([]byte(`{"result":"updated"}`))
 	}))
+}
+
+func scriptParams(t *testing.T, body map[string]any) map[string]any {
+	t.Helper()
+	script, _ := body["script"].(map[string]any)
+	params, _ := script["params"].(map[string]any)
+	if params == nil {
+		t.Fatalf("missing script params: %v", body)
+	}
+	return params
+}
+
+func TestIndexGuardsByRevisionInsteadOfExternalVersion(t *testing.T) {
+	var got capturedUpdate
+	server := newUpdateServer(t, http.StatusOK, &got)
 	defer server.Close()
 
 	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
@@ -113,25 +141,68 @@ func TestIndexTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
 	if err := idx.Index(t.Context(), IndexDoc{
 		DocID: "9", Revision: 2, Body: map[string]any{"title": "B"},
 	}); err != nil {
-		t.Fatalf("stale index should be ignored: %v", err)
+		t.Fatal(err)
 	}
-	if gotVersion != "2" || gotVersionType != "external" {
-		t.Fatalf("version=%q type=%q", gotVersion, gotVersionType)
+	if got.method != http.MethodPost || got.path != "/xbh_posts/_update/9" {
+		t.Fatalf("request=%s %s", got.method, got.path)
+	}
+	if got.version != "" || got.retryOnConflict != "3" {
+		t.Fatalf("version=%q retry_on_conflict=%q", got.version, got.retryOnConflict)
+	}
+	if got.body["scripted_upsert"] != true {
+		t.Fatalf("index must be a scripted upsert: %v", got.body)
+	}
+	params := scriptParams(t, got.body)
+	doc, _ := params["doc"].(map[string]any)
+	if params["revision"] != float64(2) || doc["revision"] != float64(2) || doc["title"] != "B" {
+		t.Fatalf("params=%v", params)
 	}
 }
 
-func TestDeleteTreatsVersionConflictAsAlreadyApplied(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Elastic-Product", "Elasticsearch")
-		http.Error(w, `{"error":{"type":"version_conflict_engine_exception"}}`, http.StatusConflict)
-	}))
+func TestIndexReturnsConflictForMessageRetry(t *testing.T) {
+	var got capturedUpdate
+	server := newUpdateServer(t, http.StatusConflict, &got)
 	defer server.Close()
 
 	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.Delete(t.Context(), "9", 2); err != nil {
-		t.Fatalf("stale delete should be ignored: %v", err)
+	if err := idx.Index(t.Context(), IndexDoc{DocID: "9", Revision: 2, Body: map[string]any{}}); err == nil {
+		t.Fatal("a conflict left after retry_on_conflict must be retried, not acknowledged")
+	}
+}
+
+func TestDeleteWritesRevisionTombstone(t *testing.T) {
+	var got capturedUpdate
+	server := newUpdateServer(t, http.StatusOK, &got)
+	defer server.Close()
+
+	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.Delete(t.Context(), "9", 3); err != nil {
+		t.Fatal(err)
+	}
+	if got.method != http.MethodPost || got.path != "/xbh_posts/_update/9" || got.retryOnConflict != "3" {
+		t.Fatalf("request=%s %s retry_on_conflict=%q", got.method, got.path, got.retryOnConflict)
+	}
+	if got.body["scripted_upsert"] != true || scriptParams(t, got.body)["revision"] != float64(3) {
+		t.Fatalf("body=%v", got.body)
+	}
+}
+
+func TestDeleteReturnsConflictForMessageRetry(t *testing.T) {
+	var got capturedUpdate
+	server := newUpdateServer(t, http.StatusConflict, &got)
+	defer server.Close()
+
+	idx, err := NewESIndexer([]string{server.URL}, "xbh_posts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.Delete(t.Context(), "9", 2); err == nil {
+		t.Fatal("a conflict left after retry_on_conflict must be retried, not acknowledged")
 	}
 }

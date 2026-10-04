@@ -52,37 +52,36 @@ func WithCACert(pem []byte) ESOption {
 	}
 }
 
-// Index 把 PostEvent 序列化为 ES 文档 upsert。
-// 输入参数 doc 中的 Body 字段在 PostEvent → IndexDoc 适配中携带原始事件。
+// updateRetryOnConflict 让 ES 在并发 _update 的 seq_no 冲突时就地重读重试；
+// 用尽后的 409 是真实失败，交给消息重试。
+const updateRetryOnConflict = 3
+
+// Index 把 PostEvent 投影为 ES 文档，按 revision 单调覆盖。
+// 不用 external version：计数补丁走 _update 会推高 _version，使其不再等于 revision，
+// 下一次编辑或删除会被误判为旧快照。改为脚本比较 _source.revision，
+// 重投或乱序到达的旧快照（incoming <= stored）为 noop；revision <= 0 无条件覆盖。
 func (e *ESIndexer) Index(ctx context.Context, doc IndexDoc) error {
-	body, err := json.Marshal(doc.Body)
-	if err != nil {
-		return fmt.Errorf("marshal index body: %w", err)
+	source := make(map[string]any, len(doc.Body)+1)
+	for k, v := range doc.Body {
+		source[k] = v
 	}
-	req := esapi.IndexRequest{
-		Index:      e.index,
-		DocumentID: doc.DocID,
-		Body:       bytes.NewReader(body),
-		Refresh:    "false",
+	if doc.Revision > 0 {
+		source["revision"] = doc.Revision
 	}
-	if version, ok := externalVersion(doc.Revision); ok {
-		req.Version = version
-		req.VersionType = "external"
-	}
-	res, err := req.Do(ctx, e.client)
-	if err != nil {
-		return fmt.Errorf("ES index request: %w", err)
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode == http.StatusConflict {
-		return nil
-	}
-	if res.IsError() {
-		raw, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("ES index failed status=%s body=%s", res.Status(), string(raw))
-	}
-	return nil
+	return e.scriptedUpsert(ctx, doc.DocID, indexByRevisionScript, map[string]any{
+		"revision": doc.Revision, "doc": source,
+	})
 }
+
+const indexByRevisionScript = `
+long incoming = ((Number) params.revision).longValue();
+if (incoming > 0 && ctx._source.revision != null && incoming <= ((Number) ctx._source.revision).longValue()) {
+  ctx.op = 'noop';
+  return;
+}
+ctx._source.clear();
+ctx._source.putAll(params.doc);
+`
 
 const patchCountsScript = `
 if (ctx._source.post_id == null) {
@@ -101,6 +100,7 @@ ctx._source.stats_seq = params.stats_seq;
 
 // PatchCounts updates interaction counters without replacing the indexed body.
 // A missing document is ErrNotIndexed so the caller can retry after the create event lands.
+// 墓碑没有 post_id，删除后的计数补丁为 noop。
 func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
 	payload, err := json.Marshal(map[string]any{
 		"script": map[string]any{
@@ -116,12 +116,7 @@ func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
 	if err != nil {
 		return fmt.Errorf("marshal count patch: %w", err)
 	}
-	res, err := (esapi.UpdateRequest{
-		Index:      e.index,
-		DocumentID: doc.DocID,
-		Body:       bytes.NewReader(payload),
-		Refresh:    "false",
-	}).Do(ctx, e.client)
+	res, err := e.update(ctx, doc.DocID, payload)
 	if err != nil {
 		return fmt.Errorf("ES count patch: %w", err)
 	}
@@ -136,38 +131,60 @@ func (e *ESIndexer) PatchCounts(ctx context.Context, doc IndexDoc) error {
 	return nil
 }
 
+// Delete 把文档替换为只含 revision 的墓碑，而不是物理删除：
+// 物理删除后，重试晚到的旧 create/update 会把帖子重新写回索引。
+// 墓碑没有 title/body/tags，不会被查询或标签聚合命中；revision 不新于已存值时为 noop。
 func (e *ESIndexer) Delete(ctx context.Context, docID string, revision int64) error {
-	req := esapi.DeleteRequest{
-		Index:      e.index,
-		DocumentID: docID,
-		Refresh:    "false",
-	}
-	if version, ok := externalVersion(revision); ok {
-		req.Version = version
-		req.VersionType = "external"
-	}
-	res, err := req.Do(ctx, e.client)
+	return e.scriptedUpsert(ctx, docID, tombstoneByRevisionScript, map[string]any{
+		"revision": revision,
+	})
+}
+
+const tombstoneByRevisionScript = `
+long incoming = ((Number) params.revision).longValue();
+if (ctx.op == 'create' && incoming <= 0) {
+  ctx.op = 'noop';
+  return;
+}
+if (incoming > 0 && ctx._source.revision != null && incoming <= ((Number) ctx._source.revision).longValue()) {
+  ctx.op = 'noop';
+  return;
+}
+ctx._source.clear();
+ctx._source.revision = incoming;
+ctx._source.deleted = true;
+`
+
+func (e *ESIndexer) scriptedUpsert(ctx context.Context, docID, script string, params map[string]any) error {
+	payload, err := json.Marshal(map[string]any{
+		"scripted_upsert": true,
+		"upsert":          map[string]any{},
+		"script":          map[string]any{"lang": "painless", "source": script, "params": params},
+	})
 	if err != nil {
-		return fmt.Errorf("ES delete request: %w", err)
+		return fmt.Errorf("marshal ES upsert: %w", err)
+	}
+	res, err := e.update(ctx, docID, payload)
+	if err != nil {
+		return fmt.Errorf("ES upsert request: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
-	// 404 视为已删除（幂等）；409 表示更旧的删除，保留较新文档。
-	if res.StatusCode == http.StatusNotFound || res.StatusCode == http.StatusConflict {
-		return nil
-	}
 	if res.IsError() {
 		raw, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("ES delete failed status=%s body=%s", res.Status(), string(raw))
+		return fmt.Errorf("ES upsert failed status=%s body=%s", res.Status(), string(raw))
 	}
 	return nil
 }
 
-func externalVersion(revision int64) (*int, bool) {
-	if revision <= 0 {
-		return nil, false
-	}
-	version := int(revision)
-	return &version, true
+func (e *ESIndexer) update(ctx context.Context, docID string, payload []byte) (*esapi.Response, error) {
+	retries := updateRetryOnConflict
+	return esapi.UpdateRequest{
+		Index:           e.index,
+		DocumentID:      docID,
+		Body:            bytes.NewReader(payload),
+		Refresh:         "false",
+		RetryOnConflict: &retries,
+	}.Do(ctx, e.client)
 }
 
 // EnsureIndex 在启动时确保索引存在，使用与父 spec phase-3 §1.2 一致的 mapping。
@@ -313,7 +330,8 @@ const PostIndexMapping = `{
 	  "like_count":  {"type": "long"},
 	  "comment_count":{"type": "long"},
       "created_at":  {"type": "date", "format": "epoch_millis"},
-      "revision":    {"type": "long"}
+      "revision":    {"type": "long"},
+      "deleted":     {"type": "boolean"}
     }
   }
 }`
