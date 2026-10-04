@@ -148,3 +148,53 @@ func TestSearchFailureAndCancellation(t *testing.T) {
 		assert.True(t, strings.Contains(err.Error(), "context canceled"))
 	})
 }
+
+func TestSearchPostsBoundsCountAndUsesOneFragment(t *testing.T) {
+	searchStore, server := newTestStore(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, fmt.Sprint(MaxResultWindow), r.URL.Query().Get("track_total_hits"))
+		var query map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&query))
+		body := query["highlight"].(map[string]any)["fields"].(map[string]any)["body"].(map[string]any)
+		assert.Equal(t, float64(1), body["number_of_fragments"])
+		_, _ = w.Write([]byte(`{"hits":{"total":{"value":2},"hits":[
+			{"_source":{"post_id":7,"title":"Go","body":"the whole indexed body"},"highlight":{"body":["<em>Go</em> one","<em>Go</em> two"]}},
+			{"_source":{"post_id":8,"title":"Go title only","body":"the whole indexed body"}}
+		]}}`))
+	})
+	defer server.Close()
+
+	result, err := searchStore.SearchPosts(context.Background(), PostQuery{Keyword: "go", Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, result.Posts, 2)
+	assert.Equal(t, "<em>Go</em> one", result.Posts[0].ContentHighlight)
+	assert.Empty(t, result.Posts[1].ContentHighlight, "title-only hits never return the indexed body")
+}
+
+func TestSearchTagsFiltersInElasticsearch(t *testing.T) {
+	searchStore, server := newTestStore(t, func(w http.ResponseWriter, r *http.Request) {
+		var query map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&query))
+		terms := query["aggs"].(map[string]any)["tags"].(map[string]any)["terms"].(map[string]any)
+		assert.Equal(t, float64(5), terms["size"], "only matching tags are aggregated")
+		assert.Equal(t, ".*[gG][oO].*", terms["include"])
+		_, _ = w.Write([]byte(`{"aggregations":{"tags":{"buckets":[{"key":"Golang","doc_count":9},{"key":"rare-go","doc_count":1}]}}}`))
+	})
+	defer server.Close()
+
+	tags, err := searchStore.SearchTags(context.Background(), "Go", 5)
+	require.NoError(t, err)
+	assert.Equal(t, []Tag{{Name: "Golang", PostCount: 9}, {Name: "rare-go", PostCount: 1}}, tags)
+}
+
+func TestTagIncludePattern(t *testing.T) {
+	for keyword, want := range map[string]string{
+		"Go":    ".*[gG][oO].*",
+		"摄影":    ".*摄影.*",
+		"c++":   `.*[cC]\+\+.*`,
+		"a.b|c": `.*[aA]\.[bB]\|[cC].*`,
+		"v2 ai": `.*[vV]2\ [aA][iI].*`,
+		"@<~>&": `.*\@\<\~\>\&.*`,
+	} {
+		assert.Equal(t, want, tagIncludePattern(keyword), keyword)
+	}
+}

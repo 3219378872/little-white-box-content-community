@@ -51,12 +51,12 @@ type contractUserService struct{ userservice.UserService }
 func (contractUserService) GetUser(context.Context, *userservice.GetUserReq, ...callopt.Option) (*userservice.GetUserResp, error) {
 	return &userservice.GetUserResp{User: &userpb.UserInfo{Id: 2, Username: "user", FavoritesVisibility: 1}}, nil
 }
-func (contractUserService) BatchGetUsers(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-	users := make([]*userpb.UserInfo, 0, len(in.UserIds))
+func (contractUserService) BatchGetUserCards(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+	users := make([]*userpb.UserCard, 0, len(in.UserIds))
 	for _, userID := range in.UserIds {
-		users = append(users, &userpb.UserInfo{Id: userID, Username: "author", Nickname: "Author Name", AvatarUrl: "https://media/avatar.png"})
+		users = append(users, &userpb.UserCard{Id: userID, Username: "author", Nickname: "Author Name", AvatarUrl: "https://media/avatar.png"})
 	}
-	return &userservice.BatchGetUsersResp{Users: users}, nil
+	return &userservice.BatchGetUserCardsResp{Users: users}, nil
 }
 func (contractUserService) UpdateProfile(context.Context, *userservice.UpdateProfileReq, ...callopt.Option) (*userservice.UpdateProfileResp, error) {
 	return &userservice.UpdateProfileResp{}, nil

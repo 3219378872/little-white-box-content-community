@@ -40,7 +40,7 @@ type NotificationModel interface {
 }
 
 type UserService interface {
-	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
 type ServiceContext struct {

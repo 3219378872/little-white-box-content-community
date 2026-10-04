@@ -20,19 +20,19 @@ import (
 
 type fakeUserService struct {
 	userservice.UserService
-	getUserFn       func(ctx context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error)
-	batchGetUsersFn func(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	getUserFn           func(ctx context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error)
+	batchGetUserCardsFn func(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
 func (f *fakeUserService) GetUser(ctx context.Context, in *pb.GetUserReq, _ ...callopt.Option) (*pb.GetUserResp, error) {
 	return f.getUserFn(ctx, in)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-	if f.batchGetUsersFn == nil {
-		return &userservice.BatchGetUsersResp{}, nil
+func (f *fakeUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+	if f.batchGetUserCardsFn == nil {
+		return &userservice.BatchGetUserCardsResp{}, nil
 	}
-	return f.batchGetUsersFn(ctx, in, opts...)
+	return f.batchGetUserCardsFn(ctx, in, opts...)
 }
 
 func buildFavoritesLogic(requesterID int64, visibility int32) *GetUserFavoritesLogic {
@@ -156,11 +156,11 @@ func TestGetUserFavorites_WithData_ReturnsPosts(t *testing.T) {
 			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
 				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
 			},
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				if len(in.UserIds) != 2 || in.UserIds[0] != 1 || in.UserIds[1] != 2 {
 					t.Fatalf("expected deduped author ids [1 2], got %v", in.UserIds)
 				}
-				return &userservice.BatchGetUsersResp{Users: []*pb.UserInfo{
+				return &userservice.BatchGetUserCardsResp{Users: []*pb.UserCard{
 					{Id: 1, Nickname: "Alice", AvatarUrl: " https://media/alice.png "},
 					{Id: 2, Username: "bob", AvatarUrl: "https://media/bob.png"},
 				}}, nil
@@ -360,7 +360,7 @@ func TestGetUserFavorites_BatchGetUsersError_DegradesToEmptyAuthorFields(t *test
 			getUserFn: func(_ context.Context, in *pb.GetUserReq) (*pb.GetUserResp, error) {
 				return &pb.GetUserResp{User: &pb.UserInfo{Id: in.UserId, FavoritesVisibility: 1}}, nil
 			},
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},

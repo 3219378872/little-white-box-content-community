@@ -266,7 +266,8 @@ message GetPostsByTagResp {
 
 // 按ID批量获取帖子请求
 message GetPostsByIdsReq {
-  repeated int64 post_ids = 1;
+  repeated int64 post_ids  = 1;
+  bool           skip_tags = 2; // 调用方不需要标签时跳过 post_tag 查询，tags 为空
 }
 
 // 按ID批量获取帖子响应

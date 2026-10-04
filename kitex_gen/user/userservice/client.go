@@ -13,6 +13,7 @@ import (
 type Client interface {
 	GetUser(ctx context.Context, Req *user.GetUserReq, callOptions ...callopt.Option) (r *user.GetUserResp, err error)
 	BatchGetUsers(ctx context.Context, Req *user.BatchGetUsersReq, callOptions ...callopt.Option) (r *user.BatchGetUsersResp, err error)
+	BatchGetUserCards(ctx context.Context, Req *user.BatchGetUserCardsReq, callOptions ...callopt.Option) (r *user.BatchGetUserCardsResp, err error)
 	SearchUsers(ctx context.Context, Req *user.SearchUsersReq, callOptions ...callopt.Option) (r *user.SearchUsersResp, err error)
 	UpdateProfile(ctx context.Context, Req *user.UpdateProfileReq, callOptions ...callopt.Option) (r *user.UpdateProfileResp, err error)
 	Follow(ctx context.Context, Req *user.FollowReq, callOptions ...callopt.Option) (r *user.FollowResp, err error)
@@ -67,6 +68,11 @@ func (p *kUserServiceClient) GetUser(ctx context.Context, Req *user.GetUserReq, 
 func (p *kUserServiceClient) BatchGetUsers(ctx context.Context, Req *user.BatchGetUsersReq, callOptions ...callopt.Option) (r *user.BatchGetUsersResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.BatchGetUsers(ctx, Req)
+}
+
+func (p *kUserServiceClient) BatchGetUserCards(ctx context.Context, Req *user.BatchGetUserCardsReq, callOptions ...callopt.Option) (r *user.BatchGetUserCardsResp, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.BatchGetUserCards(ctx, Req)
 }
 
 func (p *kUserServiceClient) SearchUsers(ctx context.Context, Req *user.SearchUsersReq, callOptions ...callopt.Option) (r *user.SearchUsersResp, err error) {

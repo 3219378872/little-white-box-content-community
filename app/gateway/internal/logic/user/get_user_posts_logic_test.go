@@ -26,11 +26,11 @@ func (f *fakeContentServiceUserPosts) GetUserPosts(ctx context.Context, in *cont
 func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				if len(in.UserIds) != 2 || in.UserIds[0] != 7 || in.UserIds[1] != 9 {
 					t.Fatalf("expected deduped author ids [7 9], got %v", in.UserIds)
 				}
-				return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{
+				return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{
 					{Id: 7, Nickname: "Alice", AvatarUrl: " https://media/alice.png "},
 					{Id: 9, Username: "bob", AvatarUrl: "https://media/bob.png"},
 				}}, nil
@@ -75,7 +75,7 @@ func TestGetUserPosts_EnrichesAuthorInfo(t *testing.T) {
 func TestGetUserPosts_BatchGetUsersError_DegradesToEmptyAuthorFields(t *testing.T) {
 	svcCtx := &svc.ServiceContext{
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},

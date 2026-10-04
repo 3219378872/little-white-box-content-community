@@ -15,6 +15,17 @@ releases the marker only if it is still owned. Release/fill failures do not
 replace the SQL result. Each fill and invalidation uses one key, including when
 multiple invalidations are requested, so no cross-slot Lua or DEL is required.
 
+## Batch reads
+
+`QueryRowsByIDs` applies the same per-key fencing to a batch. It pipelines one
+single-key GET per ID, reserves every empty key with a pipelined single-key
+SET NX before reading SQL, loads all misses with one caller-supplied query, and
+fills or releases each reservation with the same single-key compare-and-fill
+script. IDs missing from the load result are cached as not found. A failed batch
+GET loads every ID from SQL without filling; failed reservations or fills only
+reduce cache effectiveness. No multi-key command is issued, so unrelated IDs work
+in Redis Cluster.
+
 ## Consistency boundary
 
 This is a disposable cache, not an authorization authority. An invalidation

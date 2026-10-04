@@ -35,11 +35,11 @@ func (f *fakeFeedService) GetRecommendFeed(ctx context.Context, in *feedservice.
 
 type fakeUserService struct {
 	userservice.UserService
-	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	batchGetUserCardsFn func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-	return f.batchGetUsersFn(ctx, in, opts...)
+func (f *fakeUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+	return f.batchGetUserCardsFn(ctx, in, opts...)
 }
 
 type fakeInteractionService struct {
@@ -75,12 +75,12 @@ func TestGetFollowFeed_MapsRPCResponse(t *testing.T) {
 			},
 		},
 		UserService: &fakeUserService{
-			batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(gotCtx context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				assertPreservedContext(t, gotCtx, ctxKey)
 				if !reflect.DeepEqual(in.UserIds, []int64{12}) {
 					t.Fatalf("unexpected user request: %+v", in)
 				}
-				return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{{
+				return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{{
 					Id: 12, Username: "fallback-name", Nickname: "  Display Name  ", AvatarUrl: "  https://avatar/12.png  ",
 				}}}, nil
 			},
@@ -178,12 +178,12 @@ func TestGetRecommendFeed_UsesFeedAndMapsMetadata(t *testing.T) {
 					},
 				},
 				UserService: &fakeUserService{
-					batchGetUsersFn: func(gotCtx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+					batchGetUserCardsFn: func(gotCtx context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 						assertPreservedContext(t, gotCtx, ctxKey)
 						if !reflect.DeepEqual(in.UserIds, []int64{42}) {
 							t.Fatalf("unexpected user request: %+v", in)
 						}
-						return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{{
+						return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{{
 							Id: 42, Username: "  fallback author  ", AvatarUrl: "https://avatar/42.png",
 						}}}, nil
 					},
@@ -266,20 +266,22 @@ func TestGetRecommendFeed_RejectsAnonymousWithoutIdentity(t *testing.T) {
 	}
 }
 
-func TestGetFollowFeed_UserEnrichmentFailure(t *testing.T) {
+// Author names are display fields: a User failure leaves them empty and keeps
+// the author ID instead of failing the page (design decision 2026-10-04).
+func TestGetFollowFeed_UserEnrichmentFailureLeavesAuthorEmpty(t *testing.T) {
 	tests := []struct {
 		name string
-		fn   func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+		fn   func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 	}{
 		{
 			name: "rpc error",
-			fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			fn: func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, context.DeadlineExceeded
 			},
 		},
 		{
 			name: "nil response",
-			fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			fn: func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, nil
 			},
 		},
@@ -293,13 +295,25 @@ func TestGetFollowFeed_UserEnrichmentFailure(t *testing.T) {
 						return &feedservice.GetFollowFeedResp{Items: []*feedpb.FeedItem{{PostId: 11, AuthorId: 12}}}, nil
 					},
 				},
-				UserService: &fakeUserService{batchGetUsersFn: tt.fn},
+				UserService: &fakeUserService{batchGetUserCardsFn: tt.fn},
+				InteractionService: &fakeInteractionService{
+					batchCheckLikedFn: func(context.Context, *interactionservice.BatchCheckLikedReq, ...callopt.Option) (*interactionservice.BatchCheckLikedResp, error) {
+						return &interactionservice.BatchCheckLikedResp{Results: map[int64]bool{11: true}}, nil
+					},
+				},
 			}
 
-			_, err := NewGetFollowFeedLogic(jwtx.WithUserIdContext(context.Background(), 42), svcCtx).
+			resp, err := NewGetFollowFeedLogic(jwtx.WithUserIdContext(context.Background(), 42), svcCtx).
 				GetFollowFeed(&types.GetFollowFeedReq{PageSize: 20})
-			if !errx.Is(err, errx.SystemError) {
-				t.Fatalf("expected SystemError, got %v", err)
+			if err != nil {
+				t.Fatalf("expected success, got %v", err)
+			}
+			if len(resp.Items) != 1 {
+				t.Fatalf("expected one item, got %#v", resp.Items)
+			}
+			item := resp.Items[0]
+			if item.AuthorId != 12 || item.AuthorName != "" || item.AuthorAvatar != "" || !item.IsLiked {
+				t.Fatalf("expected author 12 with empty display fields and liked state, got %#v", item)
 			}
 		})
 	}
@@ -333,8 +347,8 @@ func TestGetRecommendFeed_InteractionEnrichmentFailure(t *testing.T) {
 					},
 				},
 				UserService: &fakeUserService{
-					batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-						return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{{Id: 12, Username: "author"}}}, nil
+					batchGetUserCardsFn: func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+						return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{{Id: 12, Username: "author"}}}, nil
 					},
 				},
 				InteractionService: &fakeInteractionService{batchCheckLikedFn: tt.fn},

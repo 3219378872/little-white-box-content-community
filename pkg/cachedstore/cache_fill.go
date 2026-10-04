@@ -22,13 +22,21 @@ redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
 return 1
 `
 
-func (c CachedConn) reserveFill(ctx context.Context, key string) string {
+// newFillMarker returns a unique reservation marker, or "" when no randomness
+// is available. It is intentionally not JSON, so it never decodes as a row.
+func newFillMarker() string {
 	var token [16]byte
 	if _, err := rand.Read(token[:]); err != nil {
 		return ""
 	}
-	// Intentionally not JSON: a reservation can never decode as a cached row.
-	marker := fmt.Sprintf("fill:%x", token)
+	return fmt.Sprintf("fill:%x", token)
+}
+
+func (c CachedConn) reserveFill(ctx context.Context, key string) string {
+	marker := newFillMarker()
+	if marker == "" {
+		return ""
+	}
 	acquired, err := c.redis.SetnxExCtx(ctx, key, marker, fillReservationTTLSeconds)
 	if err != nil || !acquired {
 		return ""

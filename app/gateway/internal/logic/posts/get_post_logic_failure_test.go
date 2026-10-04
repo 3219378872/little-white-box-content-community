@@ -80,7 +80,7 @@ func TestGetPost_AuthorLookupFailedStillReturnsPost(t *testing.T) {
 			return publishedPost(), nil
 		}),
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, errors.New("user rpc down")
 			},
 		},
@@ -99,7 +99,7 @@ func TestGetPost_AuthorNilResponseStillReturnsPost(t *testing.T) {
 			return publishedPost(), nil
 		}),
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				return nil, nil
 			},
 		},
@@ -116,9 +116,9 @@ func TestGetPost_AuthorNicknameFallbackAndMismatchSkip(t *testing.T) {
 			return publishedPost(), nil
 		}),
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				// 含 nil 用户与不匹配 ID：应跳过；目标作者昵称为空则回退用户名。
-				return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{
+				return &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{
 					nil,
 					{Id: 8, Nickname: "someone-else", Username: "other"},
 					{Id: 7, Nickname: "", Username: "alice", AvatarUrl: " https://avatar/7.png "},
@@ -139,8 +139,8 @@ func TestGetPost_AuthorNotInBatchResult(t *testing.T) {
 			return publishedPost(), nil
 		}),
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, _ *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-				return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{
+			batchGetUserCardsFn: func(_ context.Context, _ *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+				return &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{
 					{Id: 9, Nickname: "unrelated"},
 				}}, nil
 			},

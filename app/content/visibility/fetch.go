@@ -18,11 +18,15 @@ type PostsByIDs interface {
 // Fetch adapts a Content GetPostsByIds client to visibilityx.Fetcher.
 // A nil client, RPC error, or nil response fails closed.
 func Fetch(client PostsByIDs) visibilityx.Fetcher[*contentservice.PostInfo] {
+	return fetch(client, false)
+}
+
+func fetch(client PostsByIDs, skipTags bool) visibilityx.Fetcher[*contentservice.PostInfo] {
 	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
 		if client == nil {
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
-		response, err := client.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids})
+		response, err := client.GetPostsByIds(ctx, &contentservice.GetPostsByIdsReq{PostIds: ids, SkipTags: skipTags})
 		if err != nil {
 			return nil, err
 		}
@@ -36,4 +40,10 @@ func Fetch(client PostsByIDs) visibilityx.Fetcher[*contentservice.PostInfo] {
 // PublishedByIDs returns currently published posts from the Content authority.
 func PublishedByIDs(ctx context.Context, client PostsByIDs, ids []int64) (map[int64]*contentservice.PostInfo, error) {
 	return visibilityx.PublishedByIDs(ctx, Fetch(client), ids)
+}
+
+// PublishedByIDsWithoutTags is PublishedByIDs for callers that never read
+// tags; Content skips the post_tag query and returns empty tags.
+func PublishedByIDsWithoutTags(ctx context.Context, client PostsByIDs, ids []int64) (map[int64]*contentservice.PostInfo, error) {
+	return visibilityx.PublishedByIDs(ctx, fetch(client, true), ids)
 }

@@ -35,19 +35,19 @@ func (l *GetConversationsLogic) GetConversations(in *pb.GetConversationsReq) (*p
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	targetIDs := uniqueConversationTargetIDs(rows)
-	profiles := make(map[int64]*userservice.UserInfo, len(targetIDs))
+	profiles := make(map[int64]*userservice.UserCard, len(targetIDs))
 	if len(targetIDs) > 0 {
 		if l.svcCtx.UserService == nil {
 			l.Error("UserService is not configured")
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
-		users, err := l.svcCtx.UserService.BatchGetUsers(l.ctx, &userservice.BatchGetUsersReq{UserIds: targetIDs})
+		users, err := l.svcCtx.UserService.BatchGetUserCards(l.ctx, &userservice.BatchGetUserCardsReq{UserIds: targetIDs})
 		if err != nil {
-			l.Errorw("UserService.BatchGetUsers failed", logx.Field("err", err.Error()))
+			l.Errorw("UserService.BatchGetUserCards failed", logx.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 		if users == nil {
-			l.Error("UserService.BatchGetUsers returned a nil response")
+			l.Error("UserService.BatchGetUserCards returned a nil response")
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		for _, profile := range users.Users {
@@ -87,7 +87,7 @@ func uniqueConversationTargetIDs(rows []*model2.Conversation) []int64 {
 	return ids
 }
 
-func conversationDisplayName(profile *userservice.UserInfo) string {
+func conversationDisplayName(profile *userservice.UserCard) string {
 	if profile == nil {
 		return ""
 	}

@@ -16,6 +16,9 @@ type GetUserReq = pb.GetUserReq
 type GetUserResp = pb.GetUserResp
 type BatchGetUsersReq = pb.BatchGetUsersReq
 type BatchGetUsersResp = pb.BatchGetUsersResp
+type BatchGetUserCardsReq = pb.BatchGetUserCardsReq
+type UserCard = pb.UserCard
+type BatchGetUserCardsResp = pb.BatchGetUserCardsResp
 type SearchUsersReq = pb.SearchUsersReq
 type SearchUsersResp = pb.SearchUsersResp
 type UpdateProfileReq = pb.UpdateProfileReq
@@ -60,6 +63,10 @@ func (c *client) GetUser(ctx context.Context, req *pb.GetUserReq, opts ...callop
 }
 func (c *client) BatchGetUsers(ctx context.Context, req *pb.BatchGetUsersReq, opts ...callopt.Option) (*pb.BatchGetUsersResp, error) {
 	v, e := c.Client.BatchGetUsers(ctx, req, opts...)
+	return v, rpcx.FromTransportError(e)
+}
+func (c *client) BatchGetUserCards(ctx context.Context, req *pb.BatchGetUserCardsReq, opts ...callopt.Option) (*pb.BatchGetUserCardsResp, error) {
+	v, e := c.Client.BatchGetUserCards(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }
 func (c *client) SearchUsers(ctx context.Context, req *pb.SearchUsersReq, opts ...callopt.Option) (*pb.SearchUsersResp, error) {

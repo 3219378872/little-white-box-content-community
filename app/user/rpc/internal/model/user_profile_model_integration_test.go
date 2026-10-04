@@ -4,7 +4,11 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"testing"
+
+	cache "esx/pkg/modelcache"
+	"esx/pkg/redisstore"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,4 +97,73 @@ func TestUserProfileModelSearchPublicMatchesProfileFields(t *testing.T) {
 	assert.Equal(t, int64(3), total)
 	require.Len(t, profiles, 1)
 	assert.Equal(t, int64(3), profiles[0].Id)
+}
+
+func TestUserProfileModelCardCacheInvalidatedByProfileUpdate(t *testing.T) {
+	testEnv.TruncateAll(t, "user_profile")
+	ctx := context.Background()
+	conn := newTestConn()
+	_, err := conn.ExecCtx(ctx,
+		"INSERT INTO user_profile (id, username, password, nickname, avatar_url, follower_count) VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, NULL, NULL, 0)",
+		1, "alice", "pw", "Alice", "https://a/1.png", 3,
+		2, "bob", "pw")
+	require.NoError(t, err)
+
+	model := NewCachedUserProfileModel(conn, cache.CacheConf{{RedisConf: redisstore.RedisConf{Host: testEnv.RedisAddr}}})
+	cardKey := func(id int64) string { return fmt.Sprintf("cache:v3:user:card:%d", id) }
+	for _, id := range []int64{1, 2, 404} {
+		_, _ = testEnv.Redis.DelCtx(ctx, cardKey(id))
+	}
+
+	cards, err := model.FindCardsByIDs(ctx, []int64{2, 404, 1})
+	require.NoError(t, err)
+	require.Len(t, cards, 2)
+	assert.Equal(t, UserCard{Id: 2, Username: "bob"}, *cards[0])
+	assert.Equal(t, UserCard{Id: 1, Username: "alice", Nickname: "Alice", AvatarUrl: "https://a/1.png"}, *cards[1])
+
+	cached, err := testEnv.Redis.GetCtx(ctx, cardKey(1))
+	require.NoError(t, err)
+	assert.Contains(t, cached, `"Nickname":"Alice"`)
+	assert.NotContains(t, cached, "pw", "the card never carries the password hash")
+	ttl, err := testEnv.Redis.TtlCtx(ctx, cardKey(1))
+	require.NoError(t, err)
+	assert.InDelta(t, userCardTTLSeconds, ttl, 5)
+	missing, err := testEnv.Redis.GetCtx(ctx, cardKey(404))
+	require.NoError(t, err)
+	assert.Contains(t, missing, `"Missing":true`)
+	missingTTL, err := testEnv.Redis.TtlCtx(ctx, cardKey(404))
+	require.NoError(t, err)
+	assert.InDelta(t, userCardNotFoundTTLSeconds, missingTTL, 5)
+
+	// Counters are not card fields: a follow-style update leaves the card cached.
+	_, err = conn.ExecCtx(ctx, "UPDATE user_profile SET follower_count = follower_count + 1 WHERE id = 1")
+	require.NoError(t, err)
+	cached, err = testEnv.Redis.GetCtx(ctx, cardKey(1))
+	require.NoError(t, err)
+	assert.NotEmpty(t, cached)
+
+	require.NoError(t, model.UpdateUserDes(ctx, 1, "Alice 2", "https://a/2.png", "bio"))
+	cached, err = testEnv.Redis.GetCtx(ctx, cardKey(1))
+	require.NoError(t, err)
+	assert.Empty(t, cached, "a profile write invalidates the card after commit")
+
+	cards, err = model.FindCardsByIDs(ctx, []int64{1})
+	require.NoError(t, err)
+	require.Len(t, cards, 1)
+	assert.Equal(t, "Alice 2", cards[0].Nickname)
+	assert.Equal(t, "https://a/2.png", cards[0].AvatarUrl)
+}
+
+func TestUserProfileModelSearchPublicPageSkipsCount(t *testing.T) {
+	testEnv.TruncateAll(t, "user_profile")
+	ctx := context.Background()
+	conn := newTestConn()
+	_, err := conn.ExecCtx(ctx,
+		"INSERT INTO user_profile (id, username, password, status, follower_count) VALUES (1, 'gopher', 'pw', 1, 5), (2, 'go-fan', 'pw', 1, 9), (3, 'go-banned', 'pw', 0, 99)")
+	require.NoError(t, err)
+
+	profiles, err := NewUserProfileModel(conn).SearchPublicPage(ctx, "go", 0, 10)
+	require.NoError(t, err)
+	require.Len(t, profiles, 2)
+	assert.Equal(t, []int64{2, 1}, []int64{profiles[0].Id, profiles[1].Id})
 }

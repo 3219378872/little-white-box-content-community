@@ -3,6 +3,8 @@ package logic
 import (
 	"context"
 
+	"golang.org/x/sync/errgroup"
+
 	"esx/app/search/rpc/internal/store"
 	"esx/app/search/rpc/internal/svc"
 	"esx/app/user/rpc/userservice"
@@ -26,7 +28,8 @@ func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogi
 	}
 }
 
-// 综合搜索
+// 综合搜索：帖子（含可见性回源）、用户、标签三路并行；帖子失败则取消其余分支并整体失败
+// （DISC-022/041），用户或标签失败降级（DISC-023）。
 func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 	if in == nil || !validPage(in.Page, in.PageSize) {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -35,53 +38,75 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	posts, err := l.svcCtx.Store.SearchPosts(l.ctx, store.PostQuery{
-		Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
-	})
-	if err != nil {
-		l.Errorw("combined search posts failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
-	}
-	visiblePosts, err := publishedSearchPosts(l.ctx, l.svcCtx.ContentService, posts.Posts)
-	if err != nil {
-		l.Errorw("combined search visibility check failed", logx.Field("err", err.Error()))
-		return nil, storeError(err)
-	}
-	posts.Posts = visiblePosts
-	degraded := false
-	unavailableTypes := make([]string, 0, 2)
-	users := &userservice.SearchUsersResp{Users: []*userservice.UserInfo{}}
-	if l.svcCtx.UserService == nil {
-		degraded = true
-		unavailableTypes = append(unavailableTypes, "user")
-	} else {
-		users, err = l.svcCtx.UserService.SearchUsers(l.ctx, &userservice.SearchUsersReq{
+
+	group, ctx := errgroup.WithContext(l.ctx)
+	var posts []store.Post
+	group.Go(func() error {
+		result, err := l.svcCtx.Store.SearchPosts(ctx, store.PostQuery{
 			Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
 		})
-		if err != nil || users == nil {
-			l.Errorw("combined search users RPC failed", logx.Field("err", err))
-			degraded = true
-			unavailableTypes = append(unavailableTypes, "user")
-			users = &userservice.SearchUsersResp{Users: []*userservice.UserInfo{}}
+		if err != nil {
+			l.Errorw("combined search posts failed", logx.Field("err", err.Error()))
+			return storeError(err)
 		}
+		posts, err = publishedSearchPosts(ctx, l.svcCtx.ContentService, result.Posts)
+		if err != nil {
+			l.Errorw("combined search visibility check failed", logx.Field("err", err.Error()))
+			return storeError(err)
+		}
+		return nil
+	})
+	users := []*userservice.UserInfo{}
+	userUnavailable := false
+	group.Go(func() error {
+		if l.svcCtx.UserService == nil {
+			userUnavailable = true
+			return nil
+		}
+		result, err := l.svcCtx.UserService.SearchUsers(ctx, &userservice.SearchUsersReq{
+			Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize, SkipTotal: true,
+		})
+		if err != nil || result == nil {
+			l.Errorw("combined search users RPC failed", logx.Field("err", err))
+			userUnavailable = true
+			return nil
+		}
+		users = result.Users
+		return nil
+	})
+	tags := []store.Tag{}
+	tagUnavailable := false
+	group.Go(func() error {
+		result, err := l.svcCtx.Store.SearchTags(ctx, searchKeyword, in.PageSize)
+		if err != nil {
+			l.Errorw("combined search tags failed", logx.Field("err", err.Error()))
+			tagUnavailable = true
+			return nil
+		}
+		tags = result
+		return nil
+	})
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
-	tags, err := l.svcCtx.Store.SearchTags(l.ctx, searchKeyword, in.PageSize)
-	if err != nil {
-		l.Errorw("combined search tags failed", logx.Field("err", err.Error()))
-		degraded = true
+
+	unavailableTypes := make([]string, 0, 2)
+	if userUnavailable {
+		unavailableTypes = append(unavailableTypes, "user")
+	}
+	if tagUnavailable {
 		unavailableTypes = append(unavailableTypes, "tag")
-		tags = []store.Tag{}
 	}
-	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, posts.Posts)
+	profiles, err := loadAuthorCards(l.ctx, l.svcCtx.UserService, posts)
 	if err != nil {
 		l.Errorw("hydrate combined search authors failed", logx.Field("err", err.Error()))
-		profiles = map[int64]*userservice.UserInfo{}
+		profiles = map[int64]*userservice.UserCard{}
 	}
 	return &pb.SearchResp{
-		Posts:            postResults(posts.Posts, profiles),
-		Users:            userResults(users.Users),
+		Posts:            postResults(posts, profiles),
+		Users:            userResults(users),
 		Tags:             tagResults(tags),
-		Degraded:         degraded,
+		Degraded:         len(unavailableTypes) > 0,
 		UnavailableTypes: unavailableTypes,
 	}, nil
 }

@@ -41,6 +41,18 @@ func (m *MockUserProfileModel) FindByIDs(ctx context.Context, ids []int64) ([]*m
 	return v, args.Error(1)
 }
 
+func (m *MockUserProfileModel) FindCardsByIDs(ctx context.Context, ids []int64) ([]*model.UserCard, error) {
+	args := m.Called(ctx, ids)
+	v, _ := args.Get(0).([]*model.UserCard)
+	return v, args.Error(1)
+}
+
+func (m *MockUserProfileModel) SearchPublicPage(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, error) {
+	args := m.Called(ctx, keyword, offset, limit)
+	v, _ := args.Get(0).([]*model.UserProfile)
+	return v, args.Error(1)
+}
+
 func (m *MockUserProfileModel) SearchPublic(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, int64, error) {
 	args := m.Called(ctx, keyword, offset, limit)
 	v, _ := args.Get(0).([]*model.UserProfile)

@@ -20,10 +20,9 @@ type feedEnrichment struct {
 
 func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items []*feedpb.FeedItem, userID int64) (*feedEnrichment, error) {
 	authorIDs, postIDs := uniqueFeedIDs(items)
-	authors, err := authorx.Load(ctx, svcCtx, authorIDs)
-	if err != nil {
-		return nil, err
-	}
+	// Author names are display fields: a User failure leaves them empty and
+	// keeps author IDs, like search and post lists. Visibility stays fail-closed.
+	authors := authorx.LoadSoft(ctx, svcCtx, authorIDs)
 	enrichment := &feedEnrichment{
 		authors: authors,
 		liked:   make(map[int64]bool),

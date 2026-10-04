@@ -58,10 +58,10 @@ func (l *SearchPostsLogic) SearchPosts(in *pb.SearchPostsReq) (*pb.SearchPostsRe
 	}
 	result.Posts = visiblePosts
 	result.Total = searchTotalAfterVisibility(result.Total, fetched, len(visiblePosts))
-	profiles, err := loadUserProfiles(l.ctx, l.svcCtx.UserService, result.Posts)
+	profiles, err := loadAuthorCards(l.ctx, l.svcCtx.UserService, result.Posts)
 	if err != nil {
 		l.Errorw("hydrate search post authors failed", logx.Field("err", err.Error()))
-		profiles = map[int64]*userservice.UserInfo{}
+		profiles = map[int64]*userservice.UserCard{}
 	}
 	return &pb.SearchPostsResp{Posts: postResults(result.Posts, profiles), Total: result.Total}, nil
 }

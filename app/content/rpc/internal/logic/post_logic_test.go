@@ -816,3 +816,21 @@ func TestGetPostsByIdsLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPostsByIdsSkipTagsAvoidsTagQuery(t *testing.T) {
+	pm := new(MockPostModel)
+	ptm := new(MockPostTagModel)
+	pm.On("FindByIds", mock.Anything, []int64{1, 2}).Return([]*model2.Post{
+		{Id: 1, AuthorId: 100, Title: "t1", Status: 1},
+		{Id: 2, AuthorId: 100, Title: "t2", Status: 0},
+	}, nil).Once()
+
+	resp, err := NewGetPostsByIdsLogic(context.Background(), &svc.ServiceContext{PostModel: pm, PostTagModel: ptm}).
+		GetPostsByIds(&pb.GetPostsByIdsReq{PostIds: []int64{1, 2}, SkipTags: true})
+
+	require.NoError(t, err)
+	require.Len(t, resp.Posts, 1)
+	assert.Empty(t, resp.Posts[0].Tags)
+	ptm.AssertNotCalled(t, "FindTagNamesByPostIds", mock.Anything, mock.Anything)
+	pm.AssertExpectations(t)
+}

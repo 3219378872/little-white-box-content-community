@@ -91,6 +91,75 @@ func (s *Redis) DelCtx(ctx context.Context, k ...string) (int, error) {
 func (s *Redis) EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error) {
 	return s.client.Eval(ctx, script, keys, args...).Result()
 }
+
+// GetManyCtx pipelines one single-key GET per key, so unrelated keys also work
+// in Redis Cluster. Missing keys are returned as "".
+func (s *Redis) GetManyCtx(ctx context.Context, keys []string) ([]string, error) {
+	cmds := make([]*r.StringCmd, len(keys))
+	_, err := s.client.Pipelined(ctx, func(p r.Pipeliner) error {
+		for i, k := range keys {
+			cmds[i] = p.Get(ctx, k)
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, r.Nil) {
+		return nil, err
+	}
+	values := make([]string, len(keys))
+	for i, cmd := range cmds {
+		v, e := cmd.Result()
+		if e != nil && !errors.Is(e, r.Nil) {
+			return nil, e
+		}
+		values[i] = v
+	}
+	return values, nil
+}
+
+// SetnxExManyCtx pipelines one single-key SET NX EX per key. acquired[i] is
+// false when the key exists or that command failed.
+func (s *Redis) SetnxExManyCtx(ctx context.Context, keys, values []string, seconds int) ([]bool, error) {
+	if len(keys) != len(values) {
+		return nil, fmt.Errorf("redis SETNX batch has %d keys and %d values", len(keys), len(values))
+	}
+	cmds := make([]*r.BoolCmd, len(keys))
+	_, err := s.client.Pipelined(ctx, func(p r.Pipeliner) error {
+		for i, k := range keys {
+			cmds[i] = p.SetNX(ctx, k, values[i], time.Duration(seconds)*time.Second)
+		}
+		return nil
+	})
+	acquired := make([]bool, len(keys))
+	for i, cmd := range cmds {
+		acquired[i] = cmd.Err() == nil && cmd.Val()
+	}
+	return acquired, err
+}
+
+// EvalEachCtx pipelines one single-key EVAL of script per key with its own
+// arguments, and joins the per-command errors.
+func (s *Redis) EvalEachCtx(ctx context.Context, script string, keys []string, args [][]any) error {
+	if len(keys) != len(args) {
+		return fmt.Errorf("redis EVAL batch has %d keys and %d argument sets", len(keys), len(args))
+	}
+	cmds := make([]*r.Cmd, len(keys))
+	_, err := s.client.Pipelined(ctx, func(p r.Pipeliner) error {
+		for i, k := range keys {
+			cmds[i] = p.Eval(ctx, script, []string{k}, args[i]...)
+		}
+		return nil
+	})
+	if err == nil {
+		return nil
+	}
+	var errs []error
+	for _, cmd := range cmds {
+		if e := cmd.Err(); e != nil && !errors.Is(e, r.Nil) {
+			errs = append(errs, e)
+		}
+	}
+	return errors.Join(errs...)
+}
 func (s *Redis) ExpireCtx(ctx context.Context, k string, seconds int) error {
 	return s.client.Expire(ctx, k, time.Duration(seconds)*time.Second).Err()
 }

@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: '2026-09-30'
+updated_at: '2026-10-04'
 tracks:
 - CORE-001
 - CORE-002
@@ -215,7 +215,9 @@ published 行。
 ES 只索引 published，取消发布时尽力删文档。`post-update` 按 `post_id` 投递，载荷带
 `revision`；索引写入用 external version，旧快照 409 丢弃。查询再回源 Content：丢掉
 不可见 ID，标题与摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出
-`unavailableTypes`；帖子可见性或索引不可用不能降级成空成功。
+`unavailableTypes`；帖子可见性或索引不可用不能降级成空成功。每页查询预算、标签聚合与缓存、
+摘要生成和作者卡片缓存见 [DES-search-read-path-cost](DES-search-read-path-cost.md)。帖子作者的昵称、
+头像是展示字段：搜索、帖子列表、详情与关注流/推荐流在 User 读取失败时统一留空并保留作者 ID。
 
 ### 推荐
 
@@ -403,7 +405,7 @@ Gateway 使用 Hertz v0.10.6。`app/gateway/openapi.yaml` 是唯一公开契约�
 readiness 主动检查标准 gRPC Health，并保持必需/可选依赖的 ready/degraded/unavailable 区分。
 
 数据库结构与业务幂等键不变。模型缓存改用 `cache:v2:` 前缀；二级索引保存主键引用，主键失效后
-通过索引访问会重新查库。正缓存 7 天、负缓存 60 秒；缓存不可用可回源，已提交写入不因失效失败
+通过索引访问会重新查库。正缓存 7 天（作者卡片为 1 小时）、负缓存 60 秒；缓存不可用可回源，已提交写入不因失效失败
 改报失败。入口退出先停止服务器/消费者、排空 outbox，再释放 RPC、SQL、Redis 与诊断资源。
 
 迁移过程证据绑定实际提交；历史 EVD 不证明迁移后的运行。生产容量、月度 SLO 与设备门禁仍独立。

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -60,8 +61,9 @@ func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (
 		"from":  from,
 		"size":  query.PageSize,
 		"query": postQuery(query.Keyword, query.Tags),
+		// One fragment: the summary is a single excerpt of the published body.
 		"highlight": map[string]any{
-			"fields":   map[string]any{"body": map[string]any{}},
+			"fields":   map[string]any{"body": map[string]any{"number_of_fragments": 1}},
 			"pre_tags": []string{"<em>"}, "post_tags": []string{"</em>"},
 		},
 	}
@@ -100,9 +102,11 @@ func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (
 	}
 	result := PostResult{Posts: make([]Post, 0, len(response.Hits.Hits)), Total: response.Hits.Total.Value}
 	for _, hit := range response.Hits.Hits {
-		highlight := hit.Source.Body
+		// No body highlight (for example a title-only match) leaves the summary
+		// to the published body; the indexed body is never returned whole.
+		highlight := ""
 		if fragments := hit.Highlight["body"]; len(fragments) > 0 {
-			highlight = strings.Join(fragments, " … ")
+			highlight = fragments[0]
 		}
 		result.Posts = append(result.Posts, Post{
 			ID: hit.Source.PostID, AuthorID: hit.Source.AuthorID, Title: hit.Source.Title,
@@ -114,13 +118,15 @@ func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (
 }
 
 func (s *ElasticsearchStore) SearchTags(ctx context.Context, keyword string, limit int32) ([]Tag, error) {
-	// xbh_posts has no independent tag index. Aggregate a bounded candidate set
-	// from its keyword tags field, then apply case-insensitive matching locally.
-	candidateSize := min(int(limit)*20, 1000)
+	// xbh_posts has no independent tag index. The keyword filters the tags
+	// aggregation in ES, so any matching tag can be recalled and doc_count is
+	// that tag's published post count. The local check below only guards the
+	// contract if the include pattern is ever widened.
 	body := map[string]any{
 		"size": 0,
 		"aggs": map[string]any{"tags": map[string]any{"terms": map[string]any{
-			"field": "tags", "size": candidateSize, "order": map[string]string{"_count": "desc"},
+			"field": "tags", "size": limit, "order": map[string]string{"_count": "desc"},
+			"include": tagIncludePattern(keyword),
 		}}},
 	}
 	buckets, err := s.tagBuckets(ctx, body)
@@ -160,6 +166,30 @@ func (s *ElasticsearchStore) HotSearches(ctx context.Context, limit int32) ([]st
 		}
 	}
 	return keywords, nil
+}
+
+// tagIncludePattern builds a Lucene regular expression matching tags that
+// contain keyword, ignoring case. Lucene has no (?i) flag, so each cased rune
+// becomes a character class; every other rune is escaped literally.
+func tagIncludePattern(keyword string) string {
+	var b strings.Builder
+	b.WriteString(".*")
+	for _, r := range keyword {
+		lower, upper := unicode.ToLower(r), unicode.ToUpper(r)
+		if lower != upper {
+			b.WriteByte('[')
+			b.WriteRune(lower)
+			b.WriteRune(upper)
+			b.WriteByte(']')
+			continue
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	b.WriteString(".*")
+	return b.String()
 }
 
 func postQuery(keyword string, tags []string) map[string]any {
@@ -206,7 +236,8 @@ func (s *ElasticsearchStore) search(ctx context.Context, body map[string]any, ta
 	if err != nil {
 		return fmt.Errorf("marshal query: %w", err)
 	}
-	req := esapi.SearchRequest{Index: []string{s.index}, Body: bytes.NewReader(raw), TrackTotalHits: true}
+	// Pages never go past MaxResultWindow, so counting further is wasted work.
+	req := esapi.SearchRequest{Index: []string{s.index}, Body: bytes.NewReader(raw), TrackTotalHits: MaxResultWindow}
 	res, err := req.Do(ctx, s.client)
 	if err != nil {
 		return fmt.Errorf("search request: %w", err)

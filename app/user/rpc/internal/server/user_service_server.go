@@ -20,6 +20,9 @@ func (s *UserServiceServer) GetUser(ctx context.Context, req *pb.GetUserReq) (*p
 func (s *UserServiceServer) BatchGetUsers(ctx context.Context, req *pb.BatchGetUsersReq) (*pb.BatchGetUsersResp, error) {
 	return logic.NewBatchGetUsersLogic(ctx, s.svcCtx).BatchGetUsers(req)
 }
+func (s *UserServiceServer) BatchGetUserCards(ctx context.Context, req *pb.BatchGetUserCardsReq) (*pb.BatchGetUserCardsResp, error) {
+	return logic.NewBatchGetUserCardsLogic(ctx, s.svcCtx).BatchGetUserCards(req)
+}
 func (s *UserServiceServer) SearchUsers(ctx context.Context, req *pb.SearchUsersReq) (*pb.SearchUsersResp, error) {
 	return logic.NewSearchUsersLogic(ctx, s.svcCtx).SearchUsers(req)
 }

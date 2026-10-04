@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"esx/pkg/modelcache"
@@ -85,4 +86,67 @@ func TestIndexInvalidationTransactionsAndCacheFailure(t *testing.T) {
 	value, err = load("lookup")
 	require.NoError(t, err)
 	require.Equal(t, "cache offline", value.Value)
+}
+
+func TestQueryRowsByIDsFencingOnRealRedis(t *testing.T) {
+	env := testutil.SetupTestEnv(t, "cache_batch", testutil.SchemaPath("xbh_content.sql"))
+	defer env.Close()
+	ctx := context.Background()
+	conn := sqlstore.NewSqlConnFromDB(env.DB)
+	_, err := conn.ExecCtx(ctx, "CREATE TABLE cache_batch_probe (id BIGINT PRIMARY KEY, value VARCHAR(64))")
+	require.NoError(t, err)
+	_, err = conn.ExecCtx(ctx, "INSERT INTO cache_batch_probe VALUES (1, 'one'), (2, 'two')")
+	require.NoError(t, err)
+	c := NewConn(conn, modelcache.CacheConf{{RedisConf: redisstore.RedisConf{Host: env.RedisAddr}}})
+	defer c.redis.Close()
+	type row struct {
+		ID    int64  `db:"id"`
+		Value string `db:"value"`
+	}
+	key := func(id int64) string { return fmt.Sprint("batch:probe:", id) }
+	queries := 0
+	load := func(beforeRead func()) func(context.Context, sqlstore.SqlConn, []int64) (map[int64]row, error) {
+		return func(ctx context.Context, conn sqlstore.SqlConn, ids []int64) (map[int64]row, error) {
+			queries++
+			var rows []row
+			args := make([]any, len(ids))
+			for i, id := range ids {
+				args[i] = id
+			}
+			placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+			if err := conn.QueryRowsCtx(ctx, &rows, "SELECT id,value FROM cache_batch_probe WHERE id IN ("+placeholders+")", args...); err != nil {
+				return nil, err
+			}
+			if beforeRead != nil {
+				beforeRead()
+			}
+			out := make(map[int64]row, len(rows))
+			for _, r := range rows {
+				out[r.ID] = r
+			}
+			return out, nil
+		}
+	}
+
+	// A write that commits and invalidates after this read's snapshot wins.
+	rows, err := QueryRowsByIDs(ctx, c, []int64{1, 2, 3}, key, load(func() {
+		_, err := c.ExecCtx(ctx, func(ctx context.Context, conn sqlstore.SqlConn) (sql.Result, error) {
+			return conn.ExecCtx(ctx, "UPDATE cache_batch_probe SET value='uno' WHERE id=1")
+		}, key(1))
+		require.NoError(t, err)
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "one", rows[1].Value, "the read returns the snapshot it observed")
+	stale, err := env.Redis.GetCtx(ctx, Prefix+key(1))
+	require.NoError(t, err)
+	require.Empty(t, stale, "the invalidated reservation rejects the older fill")
+	filled, err := env.Redis.GetCtx(ctx, Prefix+key(2))
+	require.NoError(t, err)
+	require.Contains(t, filled, `"Value":"two"`)
+
+	rows, err = QueryRowsByIDs(ctx, c, []int64{1, 2, 3}, key, load(nil))
+	require.NoError(t, err)
+	require.Equal(t, "uno", rows[1].Value)
+	require.Len(t, rows, 2)
+	require.Equal(t, 2, queries, "the second read loads only the fenced miss")
 }

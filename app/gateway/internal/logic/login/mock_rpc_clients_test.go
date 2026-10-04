@@ -21,6 +21,12 @@ func (m *MockUserService) GetUser(ctx context.Context, in *userservice.GetUserRe
 	return v, args.Error(1)
 }
 
+func (m *MockUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+	args := m.Called(ctx, in)
+	v, _ := args.Get(0).(*userservice.BatchGetUserCardsResp)
+	return v, args.Error(1)
+}
+
 func (m *MockUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
 	args := m.Called(ctx, in)
 	v, _ := args.Get(0).(*userservice.BatchGetUsersResp)

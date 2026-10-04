@@ -29,6 +29,13 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
+	"BatchGetUserCards": kitex.NewMethodInfo(
+		batchGetUserCardsHandler,
+		newBatchGetUserCardsArgs,
+		newBatchGetUserCardsResult,
+		false,
+		kitex.WithStreamingMode(kitex.StreamingUnary),
+	),
 	"SearchUsers": kitex.NewMethodInfo(
 		searchUsersHandler,
 		newSearchUsersArgs,
@@ -419,6 +426,117 @@ func (p *BatchGetUsersResult) IsSetSuccess() bool {
 }
 
 func (p *BatchGetUsersResult) GetResult() interface{} {
+	return p.Success
+}
+
+func batchGetUserCardsHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	switch s := arg.(type) {
+	case *streaming.Args:
+		st := s.Stream
+		req := new(user.BatchGetUserCardsReq)
+		if err := st.RecvMsg(req); err != nil {
+			return err
+		}
+		resp, err := handler.(user.UserService).BatchGetUserCards(ctx, req)
+		if err != nil {
+			return err
+		}
+		return st.SendMsg(resp)
+	case *BatchGetUserCardsArgs:
+		success, err := handler.(user.UserService).BatchGetUserCards(ctx, s.Req)
+		if err != nil {
+			return err
+		}
+		realResult := result.(*BatchGetUserCardsResult)
+		realResult.Success = success
+		return nil
+	default:
+		return errInvalidMessageType
+	}
+}
+func newBatchGetUserCardsArgs() interface{} {
+	return &BatchGetUserCardsArgs{}
+}
+
+func newBatchGetUserCardsResult() interface{} {
+	return &BatchGetUserCardsResult{}
+}
+
+type BatchGetUserCardsArgs struct {
+	Req *user.BatchGetUserCardsReq
+}
+
+func (p *BatchGetUserCardsArgs) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetReq() {
+		return out, nil
+	}
+	return proto.Marshal(p.Req)
+}
+
+func (p *BatchGetUserCardsArgs) Unmarshal(in []byte) error {
+	msg := new(user.BatchGetUserCardsReq)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Req = msg
+	return nil
+}
+
+var BatchGetUserCardsArgs_Req_DEFAULT *user.BatchGetUserCardsReq
+
+func (p *BatchGetUserCardsArgs) GetReq() *user.BatchGetUserCardsReq {
+	if !p.IsSetReq() {
+		return BatchGetUserCardsArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+
+func (p *BatchGetUserCardsArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *BatchGetUserCardsArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+type BatchGetUserCardsResult struct {
+	Success *user.BatchGetUserCardsResp
+}
+
+var BatchGetUserCardsResult_Success_DEFAULT *user.BatchGetUserCardsResp
+
+func (p *BatchGetUserCardsResult) Marshal(out []byte) ([]byte, error) {
+	if !p.IsSetSuccess() {
+		return out, nil
+	}
+	return proto.Marshal(p.Success)
+}
+
+func (p *BatchGetUserCardsResult) Unmarshal(in []byte) error {
+	msg := new(user.BatchGetUserCardsResp)
+	if err := proto.Unmarshal(in, msg); err != nil {
+		return err
+	}
+	p.Success = msg
+	return nil
+}
+
+func (p *BatchGetUserCardsResult) GetSuccess() *user.BatchGetUserCardsResp {
+	if !p.IsSetSuccess() {
+		return BatchGetUserCardsResult_Success_DEFAULT
+	}
+	return p.Success
+}
+
+func (p *BatchGetUserCardsResult) SetSuccess(x interface{}) {
+	p.Success = x.(*user.BatchGetUserCardsResp)
+}
+
+func (p *BatchGetUserCardsResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *BatchGetUserCardsResult) GetResult() interface{} {
 	return p.Success
 }
 
@@ -2112,6 +2230,16 @@ func (p *kClient) BatchGetUsers(ctx context.Context, Req *user.BatchGetUsersReq)
 	_args.Req = Req
 	var _result BatchGetUsersResult
 	if err = p.c.Call(ctx, "BatchGetUsers", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) BatchGetUserCards(ctx context.Context, Req *user.BatchGetUserCardsReq) (r *user.BatchGetUserCardsResp, err error) {
+	var _args BatchGetUserCardsArgs
+	_args.Req = Req
+	var _result BatchGetUserCardsResult
+	if err = p.c.Call(ctx, "BatchGetUserCards", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

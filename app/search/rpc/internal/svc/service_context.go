@@ -17,7 +17,7 @@ import (
 )
 
 type UserService interface {
-	BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 	SearchUsers(ctx context.Context, in *userservice.SearchUsersReq, opts ...callopt.Option) (*userservice.SearchUsersResp, error)
 }
 
@@ -50,7 +50,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	contentClient := rpcx.MustNewClient(c.ContentRpc, rpcx.WithInternalAuth(c.InternalSecret))
 	return &ServiceContext{
 		Config:         c,
-		Store:          esStore,
+		Store:          store.NewTagCache(esStore, store.TagCacheTTL, store.TagCacheCapacity),
 		UserService:    userservice.NewUserService(userClient),
 		ContentService: contentservice.NewContentService(contentClient),
 	}

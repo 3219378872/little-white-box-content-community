@@ -41,11 +41,13 @@ func storeError(err error) error {
 	return errx.Wrap(err, errx.ServiceUnavailable)
 }
 
-func loadUserProfiles(
+// loadAuthorCards reads author display cards. Callers leave author fields
+// empty on failure; author ID stays in the result.
+func loadAuthorCards(
 	ctx context.Context,
 	userService svc.UserService,
 	posts []store.Post,
-) (map[int64]*userservice.UserInfo, error) {
+) (map[int64]*userservice.UserCard, error) {
 	ids := make([]int64, 0, len(posts))
 	seen := make(map[int64]struct{}, cap(ids))
 	appendID := func(id int64) {
@@ -62,19 +64,19 @@ func loadUserProfiles(
 		appendID(post.AuthorID)
 	}
 	if len(ids) == 0 {
-		return map[int64]*userservice.UserInfo{}, nil
+		return map[int64]*userservice.UserCard{}, nil
 	}
 	if userService == nil {
 		return nil, fmt.Errorf("search user service is unavailable")
 	}
-	response, err := userService.BatchGetUsers(ctx, &userservice.BatchGetUsersReq{UserIds: ids})
+	response, err := userService.BatchGetUserCards(ctx, &userservice.BatchGetUserCardsReq{UserIds: ids})
 	if err != nil {
 		return nil, err
 	}
 	if response == nil {
 		return nil, fmt.Errorf("user service returned a nil response")
 	}
-	profiles := make(map[int64]*userservice.UserInfo, len(response.Users))
+	profiles := make(map[int64]*userservice.UserCard, len(response.Users))
 	for _, user := range response.Users {
 		if user != nil && user.Id > 0 {
 			profiles[user.Id] = user
@@ -83,7 +85,7 @@ func loadUserProfiles(
 	return profiles, nil
 }
 
-func postResults(posts []store.Post, profiles map[int64]*userservice.UserInfo) []*pb.PostSearchResult {
+func postResults(posts []store.Post, profiles map[int64]*userservice.UserCard) []*pb.PostSearchResult {
 	result := make([]*pb.PostSearchResult, 0, len(posts))
 	for _, post := range posts {
 		authorName := ""
@@ -136,7 +138,7 @@ func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts
 	for _, post := range posts {
 		ids = append(ids, post.ID)
 	}
-	published, err := visibility.PublishedByIDs(ctx, content, ids)
+	published, err := visibility.PublishedByIDsWithoutTags(ctx, content, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -171,16 +173,22 @@ func hydrateSearchPost(candidate store.Post, live *contentservice.PostInfo) stor
 	return hydrated
 }
 
+const searchSummaryRunes = 120
+
+// publishedSearchSummary always derives the summary from the published body
+// (DISC-021): the ES highlight fragment is kept only while it still appears in
+// that body, otherwise the body's first runes are used. It never returns more
+// than one fragment or the whole body.
 func publishedSearchSummary(body, highlight string) string {
 	body = strings.TrimSpace(body)
-	plain := stripSearchMarkup(highlight)
-	if body != "" && plain != "" && strings.Contains(body, plain) {
-		return highlight
-	}
 	if body == "" {
 		return ""
 	}
-	return truncateRunes(body, 120)
+	plain := stripSearchMarkup(highlight)
+	if plain != "" && strings.Contains(body, plain) && len([]rune(plain)) <= searchSummaryRunes {
+		return highlight
+	}
+	return truncateRunes(body, searchSummaryRunes)
 }
 
 func stripSearchMarkup(value string) string {

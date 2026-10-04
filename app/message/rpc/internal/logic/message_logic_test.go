@@ -149,13 +149,13 @@ type fakeConversationModel struct {
 
 type fakeUserService struct {
 	ctx   context.Context
-	req   *userservice.BatchGetUsersReq
-	resp  *userservice.BatchGetUsersResp
+	req   *userservice.BatchGetUserCardsReq
+	resp  *userservice.BatchGetUserCardsResp
 	err   error
 	calls int
 }
 
-func (s *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+func (s *fakeUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 	s.calls++
 	s.ctx = ctx
 	s.req = in
@@ -465,7 +465,7 @@ func TestGetConversationsReturnsPagedItems(t *testing.T) {
 	}}}
 	type contextKey string
 	requestCtx := context.WithValue(context.Background(), contextKey("request"), "message-1")
-	users := &fakeUserService{resp: &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+	users := &fakeUserService{resp: &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{{
 		Id: 8, Username: "target-user", Nickname: " Target ", AvatarUrl: "avatar.png",
 	}}}}
 	ctx := &svc.ServiceContext{ConversationModel: conversations, UserService: users}
@@ -489,7 +489,7 @@ func TestGetConversationsDeduplicatesTargetsAndFallsBackToUsername(t *testing.T)
 		{Id: 12, UserId: 7, TargetUserId: 8},
 		{Id: 13, UserId: 7, TargetUserId: 8},
 	}}
-	users := &fakeUserService{resp: &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+	users := &fakeUserService{resp: &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{{
 		Id: 8, Username: " target-user ", AvatarUrl: "avatar.png",
 	}}}}
 

@@ -70,3 +70,35 @@ func TestSearchUsersMapsStoreFailure(t *testing.T) {
 	assert.Nil(t, response)
 	profiles.AssertExpectations(t)
 }
+
+func TestSearchUsersSkipTotalAvoidsCount(t *testing.T) {
+	profiles := new(MockUserProfileModel)
+	profiles.On("SearchPublicPage", mock.Anything, "go", int64(0), int64(10)).Return(
+		[]*model.UserProfile{sampleUser(2, "gopher")}, nil,
+	).Once()
+
+	response, err := NewSearchUsersLogic(context.Background(), newUnitSvcCtx(profiles, nil)).SearchUsers(
+		&pb.SearchUsersReq{Keyword: "go", Page: 1, PageSize: 10, SkipTotal: true},
+	)
+
+	require.NoError(t, err)
+	assert.Zero(t, response.Total)
+	require.Len(t, response.Users, 1)
+	profiles.AssertNotCalled(t, "SearchPublic", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	profiles.AssertExpectations(t)
+}
+
+func TestSearchUsersSkipTotalMapsStoreFailure(t *testing.T) {
+	profiles := new(MockUserProfileModel)
+	profiles.On("SearchPublicPage", mock.Anything, "go", int64(0), int64(10)).Return(
+		([]*model.UserProfile)(nil), errors.New("database unavailable"),
+	).Once()
+
+	response, err := NewSearchUsersLogic(context.Background(), newUnitSvcCtx(profiles, nil)).SearchUsers(
+		&pb.SearchUsersReq{Keyword: "go", Page: 1, PageSize: 10, SkipTotal: true},
+	)
+
+	require.Error(t, err)
+	assert.Equal(t, errx.SystemError, errx.GetCode(err))
+	assert.Nil(t, response)
+}

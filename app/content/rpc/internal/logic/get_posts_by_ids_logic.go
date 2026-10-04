@@ -47,10 +47,13 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 		validIds = append(validIds, post.Id)
 	}
 
-	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
-	if err != nil {
-		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
-		tagsMap = map[int64][]string{}
+	tagsMap := map[int64][]string{}
+	if !in.SkipTags {
+		tagsMap, err = l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
+		if err != nil {
+			l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
+			tagsMap = map[int64][]string{}
+		}
 	}
 
 	result := make([]*pb.PostInfo, 0, len(published))

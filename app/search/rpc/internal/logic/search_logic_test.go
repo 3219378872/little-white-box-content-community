@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/cloudwego/kitex/client/callopt"
@@ -38,8 +39,8 @@ func (f *fakeStore) HotSearches(ctx context.Context, limit int32) ([]string, err
 }
 
 type fakeUserService struct {
-	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error)
-	searchUsersFn   func(context.Context, *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error)
+	batchGetUserCardsFn func(context.Context, *userservice.BatchGetUserCardsReq) (*userservice.BatchGetUserCardsResp, error)
+	searchUsersFn       func(context.Context, *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error)
 }
 
 func (f *fakeUserService) SearchUsers(
@@ -53,21 +54,21 @@ func (f *fakeUserService) SearchUsers(
 	return &userservice.SearchUsersResp{}, nil
 }
 
-func (f *fakeUserService) BatchGetUsers(
+func (f *fakeUserService) BatchGetUserCards(
 	ctx context.Context,
-	in *userservice.BatchGetUsersReq,
+	in *userservice.BatchGetUserCardsReq,
 	_ ...callopt.Option,
-) (*userservice.BatchGetUsersResp, error) {
-	if f.batchGetUsersFn != nil {
-		return f.batchGetUsersFn(ctx, in)
+) (*userservice.BatchGetUserCardsResp, error) {
+	if f.batchGetUserCardsFn != nil {
+		return f.batchGetUserCardsFn(ctx, in)
 	}
-	users := make([]*userservice.UserInfo, 0, len(in.UserIds))
+	users := make([]*userservice.UserCard, 0, len(in.UserIds))
 	for _, id := range in.UserIds {
-		users = append(users, &userservice.UserInfo{
+		users = append(users, &userservice.UserCard{
 			Id: id, Username: fmt.Sprintf("user-%d", id), Nickname: fmt.Sprintf("User %d", id),
 		})
 	}
-	return &userservice.BatchGetUsersResp{Users: users}, nil
+	return &userservice.BatchGetUserCardsResp{Users: users}, nil
 }
 
 type fakeContentService struct {
@@ -112,10 +113,10 @@ func TestSearchPostsSuccessPropagatesContextAndMapsResult(t *testing.T) {
 			ID: 7, AuthorID: 9, Title: "stale title", ContentHighlight: "<em>go</em>", CreatedAt: 123,
 		}}, Total: 1}, nil
 	}}
-	userService := &fakeUserService{batchGetUsersFn: func(got context.Context, in *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error) {
+	userService := &fakeUserService{batchGetUserCardsFn: func(got context.Context, in *userservice.BatchGetUserCardsReq) (*userservice.BatchGetUserCardsResp, error) {
 		assert.Equal(t, ctx, got)
 		assert.Equal(t, []int64{9}, in.UserIds)
-		return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+		return &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{{
 			Id: 9, Nickname: "Go Author", AvatarUrl: "https://avatar/9.png",
 		}}}, nil
 	}}
@@ -147,7 +148,7 @@ func TestSearchPostsKeepsAuthorIDWhenProfileHydrationFails(t *testing.T) {
 			ID: 7, AuthorID: 0, Title: "stale title",
 		}}, Total: 1}, nil
 	}}
-	userService := &fakeUserService{batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq) (*userservice.BatchGetUsersResp, error) {
+	userService := &fakeUserService{batchGetUserCardsFn: func(context.Context, *userservice.BatchGetUserCardsReq) (*userservice.BatchGetUserCardsResp, error) {
 		return nil, errors.New("user rpc unavailable")
 	}}
 	content := &fakeContentService{getPostsByIDs: func(_ context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
@@ -244,20 +245,22 @@ func TestDerivedUserTagAndHotSearchMappings(t *testing.T) {
 }
 
 func TestCombinedSearchSuccessAndTagFailure(t *testing.T) {
-	ctx := context.Background()
+	type contextKey string
+	ctx := context.WithValue(context.Background(), contextKey("request"), "r-1")
 	fake := &fakeStore{
 		postsFn: func(got context.Context, _ store.PostQuery) (store.PostResult, error) {
-			assert.Equal(t, ctx, got)
+			assert.Equal(t, "r-1", got.Value(contextKey("request")))
 			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
 		},
 		tagsFn: func(got context.Context, _ string, _ int32) ([]store.Tag, error) {
-			assert.Equal(t, ctx, got)
+			assert.Equal(t, "r-1", got.Value(contextKey("request")))
 			return []store.Tag{{Name: "go", PostCount: 3}}, nil
 		},
 	}
-	userService := &fakeUserService{searchUsersFn: func(got context.Context, _ *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error) {
-		assert.Equal(t, ctx, got)
-		return &userservice.SearchUsersResp{Users: []*userservice.UserInfo{{Id: 2, Username: "gopher"}}, Total: 1}, nil
+	userService := &fakeUserService{searchUsersFn: func(got context.Context, in *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error) {
+		assert.Equal(t, "r-1", got.Value(contextKey("request")))
+		assert.True(t, in.SkipTotal, "combined search discards the user total")
+		return &userservice.SearchUsersResp{Users: []*userservice.UserInfo{{Id: 2, Username: "gopher"}}}, nil
 	}}
 	resp, err := NewSearchLogic(ctx, serviceContextWithUser(fake, userService)).Search(&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10})
 	require.NoError(t, err)
@@ -410,4 +413,97 @@ func TestSearchPostsVisibilityUnavailableFailsClosed(t *testing.T) {
 	_, err := NewSearchPostsLogic(ctx, serviceContextWithDeps(fake, &fakeUserService{}, nil)).SearchPosts(&pb.SearchPostsReq{Keyword: "go", Page: 1, PageSize: 10})
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
+}
+
+func TestCombinedSearchPostFailureCancelsOtherBranches(t *testing.T) {
+	userCanceled := make(chan struct{})
+	tagCanceled := make(chan struct{})
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{}, errors.New("es unavailable")
+		},
+		tagsFn: func(ctx context.Context, _ string, _ int32) ([]store.Tag, error) {
+			<-ctx.Done()
+			close(tagCanceled)
+			return nil, ctx.Err()
+		},
+	}
+	userService := &fakeUserService{searchUsersFn: func(ctx context.Context, _ *userservice.SearchUsersReq) (*userservice.SearchUsersResp, error) {
+		<-ctx.Done()
+		close(userCanceled)
+		return nil, ctx.Err()
+	}}
+
+	resp, err := NewSearchLogic(context.Background(), serviceContextWithUser(fake, userService)).Search(
+		&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10},
+	)
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.True(t, errx.Is(err, errx.ServiceUnavailable))
+	<-userCanceled
+	<-tagCanceled
+}
+
+func TestSearchVisibilityRequestSkipsTags(t *testing.T) {
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) { return nil, nil },
+	}
+	requests := 0
+	content := &fakeContentService{getPostsByIDs: func(_ context.Context, in *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		requests++
+		assert.True(t, in.SkipTags, "search never reads tags from the visibility check")
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 1, Status: 1}}}, nil
+	}}
+	_, err := NewSearchLogic(context.Background(), serviceContextWithDeps(fake, &fakeUserService{}, content)).Search(
+		&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10},
+	)
+	require.NoError(t, err)
+	_, err = NewSearchPostsLogic(context.Background(), serviceContextWithDeps(fake, &fakeUserService{}, content)).SearchPosts(
+		&pb.SearchPostsReq{Keyword: "go", Page: 1, PageSize: 10},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 2, requests)
+}
+
+func TestCombinedSearchLeavesAuthorEmptyWhenCardsFail(t *testing.T) {
+	fake := &fakeStore{
+		postsFn: func(context.Context, store.PostQuery) (store.PostResult, error) {
+			return store.PostResult{Posts: []store.Post{{ID: 1}}}, nil
+		},
+		tagsFn: func(context.Context, string, int32) ([]store.Tag, error) { return nil, nil },
+	}
+	content := &fakeContentService{getPostsByIDs: func(context.Context, *contentservice.GetPostsByIdsReq) (*contentservice.GetPostsByIdsResp, error) {
+		return &contentservice.GetPostsByIdsResp{Posts: []*contentservice.PostInfo{{Id: 1, AuthorId: 9, Status: 1}}}, nil
+	}}
+	userService := &fakeUserService{batchGetUserCardsFn: func(context.Context, *userservice.BatchGetUserCardsReq) (*userservice.BatchGetUserCardsResp, error) {
+		return nil, errors.New("user rpc unavailable")
+	}}
+	resp, err := NewSearchLogic(context.Background(), serviceContextWithDeps(fake, userService, content)).Search(
+		&pb.SearchReq{Keyword: "go", Page: 1, PageSize: 10},
+	)
+	require.NoError(t, err)
+	require.Len(t, resp.Posts, 1)
+	assert.Equal(t, int64(9), resp.Posts[0].AuthorId)
+	assert.Empty(t, resp.Posts[0].AuthorName)
+	assert.False(t, resp.Degraded, "author display fields are not a DISC-023 result type")
+}
+
+func TestPublishedSearchSummary(t *testing.T) {
+	long := strings.Repeat("长", 150)
+	for _, tc := range []struct {
+		name, body, highlight, want string
+	}{
+		{"keeps a fragment found in the body", "learn go zero today", "learn <em>go</em> zero", "learn <em>go</em> zero"},
+		{"no highlight uses the body start", long, "", strings.Repeat("长", 120)},
+		{"stale fragment uses the body start", "current body", "<em>old</em> text", "current body"},
+		{"fragment longer than a summary is truncated", long, long, strings.Repeat("长", 120)},
+		{"empty body yields empty summary", "", "<em>go</em>", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, publishedSearchSummary(tc.body, tc.highlight))
+		})
+	}
 }

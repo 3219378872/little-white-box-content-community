@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"esx/app/user/rpc/internal/model"
 	"esx/app/user/rpc/internal/svc"
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
@@ -38,9 +39,14 @@ func (l *SearchUsersLogic) SearchUsers(in *pb.SearchUsersReq) (*pb.SearchUsersRe
 	if offset >= 10_000 || offset+int64(in.PageSize) > 10_000 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	profiles, total, err := l.svcCtx.UserProfileModel.SearchPublic(
-		l.ctx, keyword, offset, int64(in.PageSize),
-	)
+	var profiles []*model.UserProfile
+	var total int64
+	var err error
+	if in.SkipTotal {
+		profiles, err = l.svcCtx.UserProfileModel.SearchPublicPage(l.ctx, keyword, offset, int64(in.PageSize))
+	} else {
+		profiles, total, err = l.svcCtx.UserProfileModel.SearchPublic(l.ctx, keyword, offset, int64(in.PageSize))
+	}
 	if err != nil {
 		l.Errorw("UserProfileModel.SearchPublic failed", logx.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)

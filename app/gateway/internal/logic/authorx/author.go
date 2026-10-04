@@ -64,7 +64,7 @@ func Load(ctx context.Context, svcCtx *svc.ServiceContext, ids []int64) (map[int
 	if svcCtx == nil || svcCtx.UserService == nil {
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	response, err := svcCtx.UserService.BatchGetUsers(ctx, &userservice.BatchGetUsersReq{UserIds: unique})
+	response, err := svcCtx.UserService.BatchGetUserCards(ctx, &userservice.BatchGetUserCardsReq{UserIds: unique})
 	if err != nil {
 		return nil, errx.FromRPCError(err)
 	}
@@ -94,7 +94,7 @@ func LoadSoft(ctx context.Context, svcCtx *svc.ServiceContext, ids []int64) map[
 	}
 	authors, err := Load(ctx, svcCtx, unique)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("UserService.BatchGetUsers failed",
+		logx.WithContext(ctx).Errorw("UserService.BatchGetUserCards failed",
 			logx.Field("authorIds", unique),
 			logx.Field("err", err.Error()),
 		)

@@ -9,6 +9,8 @@ service UserService {
   rpc GetUser(GetUserReq) returns (GetUserResp);
   // 批量获取用户信息
   rpc BatchGetUsers(BatchGetUsersReq) returns (BatchGetUsersResp);
+  // 批量获取作者展示卡片（昵称、头像），走 user 服务的可失效缓存
+  rpc BatchGetUserCards(BatchGetUserCardsReq) returns (BatchGetUserCardsResp);
   // 按公开资料搜索用户
   rpc SearchUsers(SearchUsersReq) returns (SearchUsersResp);
   // 更新用户资料
@@ -79,11 +81,30 @@ message BatchGetUsersResp {
   repeated UserInfo users = 1;
 }
 
+// 批量获取作者展示卡片请求
+message BatchGetUserCardsReq {
+  repeated int64 user_ids = 1;
+}
+
+// 作者展示卡片：只含展示字段，不含计数
+message UserCard {
+  int64  id         = 1;
+  string username   = 2;
+  string nickname   = 3;
+  string avatar_url = 4;
+}
+
+// 批量获取作者展示卡片响应；不存在的 ID 被省略
+message BatchGetUserCardsResp {
+  repeated UserCard users = 1;
+}
+
 // 用户资料搜索请求
 message SearchUsersReq {
-  string keyword   = 1;
-  int32  page      = 2;
-  int32  page_size = 3;
+  string keyword    = 1;
+  int32  page       = 2;
+  int32  page_size  = 3;
+  bool   skip_total = 4; // 调用方不需要总数时跳过 COUNT 查询，响应 total 为 0
 }
 
 // 用户资料搜索响应

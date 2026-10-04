@@ -43,8 +43,8 @@ func recommendSvc(ads *fakeAdService) *svc.ServiceContext {
 		FeedService: &fakeFeedService{getRecommendFeedFn: func(context.Context, *feedservice.GetRecommendFeedReq, ...callopt.Option) (*feedservice.GetRecommendFeedResp, error) {
 			return &feedservice.GetRecommendFeedResp{Items: items, NextCursor: "c2", HasMore: true, RequestId: "r1"}, nil
 		}},
-		UserService: &fakeUserService{batchGetUsersFn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-			return &userservice.BatchGetUsersResp{}, nil
+		UserService: &fakeUserService{batchGetUserCardsFn: func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+			return &userservice.BatchGetUserCardsResp{}, nil
 		}},
 		AdService: ads,
 	}

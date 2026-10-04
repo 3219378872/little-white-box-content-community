@@ -48,11 +48,11 @@ func (f *fakeGetPostContentService) GetPost(ctx context.Context, in *contentserv
 
 type fakeGetPostUserService struct {
 	userservice.UserService
-	batchGetUsersFn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	batchGetUserCardsFn func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
-func (f *fakeGetPostUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
-	return f.batchGetUsersFn(ctx, in, opts...)
+func (f *fakeGetPostUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
+	return f.batchGetUserCardsFn(ctx, in, opts...)
 }
 
 func TestGetPost_ReturnsStatusAndRevision(t *testing.T) {
@@ -116,11 +116,11 @@ func TestGetPost_HydratesAuthorProfile(t *testing.T) {
 			},
 		},
 		UserService: &fakeGetPostUserService{
-			batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+			batchGetUserCardsFn: func(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 				if len(in.UserIds) != 1 || in.UserIds[0] != 7 {
 					t.Fatalf("unexpected author ids %+v", in.UserIds)
 				}
-				return &userservice.BatchGetUsersResp{Users: []*userservice.UserInfo{{
+				return &userservice.BatchGetUserCardsResp{Users: []*userservice.UserCard{{
 					Id: 7, Nickname: "Alice", Username: "alice", AvatarUrl: "https://avatar/7.png",
 				}}}, nil
 			},

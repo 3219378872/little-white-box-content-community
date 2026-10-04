@@ -17,10 +17,10 @@ import (
 
 type fakeUserService struct {
 	userservice.UserService
-	fn func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error)
+	fn func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
-func (f *fakeUserService) BatchGetUsers(ctx context.Context, in *userservice.BatchGetUsersReq, opts ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+func (f *fakeUserService) BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 	return f.fn(ctx, in, opts...)
 }
 
@@ -60,11 +60,11 @@ func TestPostAuthorIDs(t *testing.T) {
 
 func TestLoad_MapsDisplayFields(t *testing.T) {
 	svcCtx := &svc.ServiceContext{UserService: &fakeUserService{
-		fn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+		fn: func(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 			if !reflect.DeepEqual(in.UserIds, []int64{7, 9}) {
 				t.Fatalf("unexpected ids %v", in.UserIds)
 			}
-			return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{
+			return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{
 				nil,
 				{Id: 0, Nickname: "skip"},
 				{Id: 7, Nickname: " Alice ", Username: "alice", AvatarUrl: " https://a.png "},
@@ -93,7 +93,7 @@ func TestLoad_NilServiceIsSystemError(t *testing.T) {
 
 func TestLoadSoft_RPCErrorDegrades(t *testing.T) {
 	svcCtx := &svc.ServiceContext{UserService: &fakeUserService{
-		fn: func(context.Context, *userservice.BatchGetUsersReq, ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+		fn: func(context.Context, *userservice.BatchGetUserCardsReq, ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 			return nil, errors.New("timeout")
 		},
 	}}

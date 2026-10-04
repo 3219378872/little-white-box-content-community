@@ -6,6 +6,7 @@ import (
 	"errors"
 	"esx/app/user/rpc/internal/config"
 	"esx/app/user/rpc/internal/model"
+	cache "esx/pkg/modelcache"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	"esx/pkg/util"
@@ -18,11 +19,13 @@ import (
 type UserProfileStore interface {
 	FindOne(ctx context.Context, id int64) (*model.UserProfile, error)
 	FindByIDs(ctx context.Context, ids []int64) ([]*model.UserProfile, error)
+	FindCardsByIDs(ctx context.Context, ids []int64) ([]*model.UserCard, error)
 	FindOneByPhone(ctx context.Context, phone sql.NullString) (*model.UserProfile, error)
 	FindOneByUsername(ctx context.Context, username string) (*model.UserProfile, error)
 	Insert(ctx context.Context, data *model.UserProfile) (sql.Result, error)
 	UpdateUserDes(ctx context.Context, userId int64, nickname, avatarUrl, bio string) error
 	SearchPublic(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, int64, error)
+	SearchPublicPage(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, error)
 }
 
 type UserFollowStore interface {
@@ -117,10 +120,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	followModel := model.NewUserFollowModel(conn)
 
 	return &ServiceContext{
-		Config:             c,
-		DB:                 conn,
-		RawDB:              rawDB,
-		UserProfileModel:   model.NewUserProfileModel(conn),
+		Config: c,
+		DB:     conn,
+		RawDB:  rawDB,
+		UserProfileModel: model.NewCachedUserProfileModel(conn, cache.CacheConf{
+			cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},
+		}),
 		UserFollowModel:    followModel,
 		UserFollowCommands: model.NewUserFollowCommandModel(conn, outboxStore),
 		UserTagModel:       model.NewUserTagModel(conn),

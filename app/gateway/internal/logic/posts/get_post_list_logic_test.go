@@ -110,11 +110,11 @@ func TestGetPostList_AuthenticatedContext_ReturnsSamePublicData(t *testing.T) {
 func TestGetPostList_EnrichesAuthor(t *testing.T) {
 	l := newLogic(t, context.Background(), 0)
 	l.svcCtx.UserService = &fakeGetPostUserService{
-		batchGetUsersFn: func(_ context.Context, in *userservice.BatchGetUsersReq, _ ...callopt.Option) (*userservice.BatchGetUsersResp, error) {
+		batchGetUserCardsFn: func(_ context.Context, in *userservice.BatchGetUserCardsReq, _ ...callopt.Option) (*userservice.BatchGetUserCardsResp, error) {
 			if len(in.UserIds) != 1 || in.UserIds[0] != 200 {
 				t.Fatalf("unexpected author ids %v", in.UserIds)
 			}
-			return &userservice.BatchGetUsersResp{Users: []*userpb.UserInfo{
+			return &userservice.BatchGetUserCardsResp{Users: []*userpb.UserCard{
 				{Id: 200, Nickname: "Alice", AvatarUrl: " https://a.png "},
 			}}, nil
 		},
