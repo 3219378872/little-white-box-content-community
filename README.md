@@ -1,10 +1,12 @@
 # 小白盒内容社区后端
 
-小白盒的 Go / Kitex + Hertz 后端，为内容创作、社区互动、内容发现、一对一私信和社区 Agent 提供服务。
+小白盒的 Go / Kitex + Hertz 后端，为内容创作、社区互动、内容发现、一对一私信、社区 Agent，以及付费广告
+与审核平台提供服务。
 仓库名为 `little-white-box-content-community`，Go module 为 `esx`，业务服务共享一个根模块。
 
 内容社区是产品主体，关注流、普通搜索、推荐与社区操作独立于 Agent。小白盒 Agent 帮助用户澄清
 复杂需求、优先检索社区资料，在授权范围内补充互联网来源并形成有依据的回答，不以通用陪伴为目标。
+付费广告是商业化补充：广告先审后投，只以带标识的独立槽位出现在推荐流中，广告故障不影响自然内容。
 
 [技术架构](#技术架构) · [开发准备](#开发准备) · [常用检查](#常用检查) · [接口与生成](#接口与生成) · [文档导航](#文档导航)
 
@@ -16,7 +18,12 @@
 | 发现 | 关注流、帖子/用户/标签搜索、个性化与冷启动推荐、行为反馈 |
 | 消息 | 普通用户的一对一私信，与 Assistant 虚拟线程保持独立数据边界 |
 | Assistant | 授权后的持久任务、结构化澄清、社区优先研究、来源验证、自然语言记忆及 Watch 条件追踪 |
-| 异步处理 | 事务 outbox、索引与 embedding 更新、Feed 分发、计数同步、清理、Watch 匹配和行为日志管道 |
+| 广告 | 广告主与行业资质、广告 revision 与私有素材、推荐流广告槽位与频控、举报、申诉与投后回扫 |
+| 审核 | 按业务类型接入的送审快照、机审级联（指纹、硬规则、召回、精排）、领取制人审、质检、种子库与审计 |
+| 异步处理 | 事务 outbox、索引与 embedding 更新、Feed 分发、计数同步、清理、Watch 匹配、审核送审与结论下发和行为日志管道 |
+
+审核平台首批只接入广告主资质与广告素材，社区帖子、评论与私信不经过它。政策码与阈值是演示配置，
+机审精排目前是可辨识的占位实现；竞价、计费与结算不在范围内。
 
 以上是产品与模块范围，不是完成度清单。正式要求见知识库；当前实现、已知偏离及验证边界分别由
 实现映射、证据与开放门禁记录。
@@ -28,30 +35,37 @@ flowchart TD
     client["客户端"] -->|REST / SSE| gateway["Gateway"]
     gateway -->|RPC| services["社区 / 发现 / 消息 RPC"]
     gateway -->|RPC| assistant["Assistant RPC"]
+    gateway -->|RPC| ads["Ad / Review RPC"]
     services --> data["MySQL / Redis / 搜索与对象存储"]
     services -->|事务 outbox 投递| mq["RocketMQ"]
-    mq --> consumers["索引 / Feed / 计数 / Watch 等消费者"]
+    mq --> consumers["索引 / Feed / 计数 / Watch / 机审与结论应用等消费者"]
     assistant --> state["Assistant MySQL 权威状态"]
     consumers -->|Watch 命中与调度| state
     state -->|worker 通过 lease 领取任务| worker["Assistant Agent worker"]
     worker --> tools["社区工具 / 模型 / 外部检索"]
+    ads -->|送审与结论 outbox| mq
 ```
 
 Gateway 负责 HTTP 入口、鉴权与 RPC 编排，内部 RPC 使用 Kitex（gRPC HTTP/2） 与 etcd 服务发现。
 Assistant RPC 接收命令并读取状态；模型与工具循环由独立 worker 执行，任务状态持久化到 MySQL，
 不依赖浏览器持续在线。Watch matcher 处理事件命中与任务调度，不承担模型执行。
+广告与审核各有独立权威库：ad-rpc 写广告快照并经 outbox 送审，review-worker 建任务并跑机审级联，
+自动或人工结论再经 outbox 下发，由 ad-mq 按 revision 应用并维护投放索引。Gateway 只在推荐请求声明
+`adSlots` 时并行查询广告槽位，失败即降级为不含广告。
 
 主链路使用 MySQL、Redis、RocketMQ、Elasticsearch、SeaweedFS S3 等基础设施；行为日志进入
-ClickHouse。Milvus、embedding 服务与在线推理参与可选算法链路，未启动在线推理时推荐可规则降级。
+ClickHouse。对象存储统一使用 SeaweedFS：公开媒体、广告私有素材、Milvus 与模型仓库分桶存放，不再依赖
+MinIO。Milvus、embedding 服务、在线推理与审核精排占位参与可选算法链路；未启动在线推理时推荐可规则
+降级，精排不可用时机审只会转人审，不会放宽自动通过。
 服务清单、数据流与具体配置见 [架构指南](docs/knowledge/guides/architecture.md)，本图只表达主要协作。
 
 | 目录 | 内容 |
 | --- | --- |
-| `app/` | Gateway、各领域 RPC、MQ 消费者与 Assistant worker |
+| `app/` | Gateway、各领域 RPC（含广告与审核）、MQ 消费者、Assistant 与审核 worker |
 | `pkg/` | 跨服务共享的错误、鉴权、事件、MQ、可见性与测试工具 |
 | `proto/` | 内部 RPC 契约 |
 | `deploy/` | 中间件、生产部署资产与 SQL 基线/补丁 |
-| `algorithm/` | 可选在线推理、离线训练与算法验证 |
+| `algorithm/` | 可选在线推理、审核精排占位、离线训练与算法验证 |
 | `scripts/` / `eval/` | 工程命令实现、评测工具与数据，合成开发数据不等于正式评测 |
 | `docs/knowledge/` | 意图、规格、设计、实现、证据与按需操作指南 |
 
@@ -78,6 +92,8 @@ make knowledge-setup
 完整开发栈由 [根仓 README](https://github.com/3219378872/little-white-box#快速开始)统一编排。
 需要完整运行时，按根仓说明递归克隆前后端、准备本地环境文件，再从根仓执行 `just up`。
 本仓库没有独立的一键开发启动目标；仅启动 Gateway 不能代替 RPC、中间件与 worker。
+审核角色没有在线授予接口，只经 `app/review/rolectl` 运维脚本授予或撤销并写审计；本地栈通过根仓
+`just review-role` 调用它。
 
 本地配置通过环境变量与服务 YAML 注入，不硬编码密钥，也不提交运行时配置副本。
 `production-*` 命令属于单独的部署流程，不是本地快速开始，尤其不能用迁移或重建命令探测环境。
