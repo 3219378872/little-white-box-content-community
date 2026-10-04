@@ -193,8 +193,8 @@ func unitTestJPEG(t *testing.T, w, h int) []byte {
 	return buf.Bytes()
 }
 
-// unitCorruptPNG 生成头部合法但数据区损坏的 PNG：类型嗅探可通过，图片解码必然失败，
-// 用于触发 CompressImage 失败分支。
+// unitCorruptPNG 生成头部合法但数据区损坏的 PNG：类型嗅探与尺寸校验可通过，
+// 完整解码必然失败，用于验证损坏内容按不支持的类型拒绝。
 func unitCorruptPNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 32, 32))

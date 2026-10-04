@@ -85,6 +85,9 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		quality,
 	)
 	if err != nil {
+		if errors.Is(err, mediautil2.ErrImageUndecodable) {
+			return errx.NewWithCode(errx.FileTypeNotAllowed)
+		}
 		l.Errorw("compress image failed",
 			logx.Field("user_id", meta.GetUserId()),
 			logx.Field("file_name", meta.GetFileName()),
@@ -96,6 +99,9 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 
 	thumbPath, err := mediautil2.MakeThumbnail(l.ctx, sink.Path())
 	if err != nil {
+		if errors.Is(err, mediautil2.ErrImageUndecodable) {
+			return errx.NewWithCode(errx.FileTypeNotAllowed)
+		}
 		l.Errorw("make thumbnail failed",
 			logx.Field("user_id", meta.GetUserId()),
 			logx.Field("file_name", meta.GetFileName()),
@@ -198,6 +204,9 @@ func (l *UploadImageLogic) validateImage(path string, userID int64) error {
 	if _, _, err = mediautil2.ValidateImageDimensions(path); err != nil {
 		if errors.Is(err, mediautil2.ErrImageDimensionsExceeded) {
 			return errx.NewWithCode(errx.FileTooLarge)
+		}
+		if errors.Is(err, mediautil2.ErrImageUndecodable) {
+			return errx.NewWithCode(errx.FileTypeNotAllowed)
 		}
 		l.Errorw("decode image dimensions failed",
 			logx.Field("user_id", userID), logx.Field("err", err.Error()))

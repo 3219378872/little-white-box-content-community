@@ -21,7 +21,10 @@ const (
 
 var (
 	ErrImageDimensionsExceeded = errors.New("media: image dimensions exceed processing budget")
-	imageDecodeSlots           = make(chan struct{}, MaxConcurrentDecodes)
+	// ErrImageUndecodable marks content that sniffs as an image but does not
+	// decode: client input, unlike open/encode failures on local temp files.
+	ErrImageUndecodable = errors.New("media: image content is not decodable")
+	imageDecodeSlots    = make(chan struct{}, MaxConcurrentDecodes)
 )
 
 // ValidateImageDimensions parses only the image header. It must run before any
@@ -34,7 +37,7 @@ func ValidateImageDimensions(srcPath string) (int, int, error) {
 	defer func() { _ = file.Close() }()
 	config, _, err := image.DecodeConfig(file)
 	if err != nil {
-		return 0, 0, fmt.Errorf("media: decode image config: %w", err)
+		return 0, 0, fmt.Errorf("%w: decode image config: %w", ErrImageUndecodable, err)
 	}
 	width, height := config.Width, config.Height
 	if width <= 0 || height <= 0 || width > MaxImageSide || height > MaxImageSide ||
@@ -42,6 +45,21 @@ func ValidateImageDimensions(srcPath string) (int, int, error) {
 		return width, height, ErrImageDimensionsExceeded
 	}
 	return width, height, nil
+}
+
+// decodeImage keeps open failures (server side) apart from decode failures
+// (client content) so callers can map only the latter to a 4xx.
+func decodeImage(srcPath, purpose string) (image.Image, error) {
+	file, err := os.Open(srcPath)
+	if err != nil {
+		return nil, fmt.Errorf("media: open for %s: %w", purpose, err)
+	}
+	defer func() { _ = file.Close() }()
+	img, err := imaging.Decode(file, imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, fmt.Errorf("%w: decode for %s: %w", ErrImageUndecodable, purpose, err)
+	}
+	return img, nil
 }
 
 func withImageDecodePermit(ctx context.Context, decode func() error) error {
@@ -64,9 +82,9 @@ func CompressImage(ctx context.Context, srcPath string, maxW, maxH, quality int)
 	var outPath string
 	var targetW, targetH int
 	err := withImageDecodePermit(ctx, func() error {
-		img, err := imaging.Open(srcPath, imaging.AutoOrientation(true))
+		img, err := decodeImage(srcPath, "compress")
 		if err != nil {
-			return fmt.Errorf("media: open for compress: %w", err)
+			return err
 		}
 
 		origW, origH := img.Bounds().Dx(), img.Bounds().Dy()
@@ -112,9 +130,9 @@ const thumbLongSide = 256
 func MakeThumbnail(ctx context.Context, srcPath string) (string, error) {
 	var outPath string
 	err := withImageDecodePermit(ctx, func() error {
-		img, err := imaging.Open(srcPath, imaging.AutoOrientation(true))
+		img, err := decodeImage(srcPath, "thumb")
 		if err != nil {
-			return fmt.Errorf("media: open for thumb: %w", err)
+			return err
 		}
 
 		w, h := img.Bounds().Dx(), img.Bounds().Dy()

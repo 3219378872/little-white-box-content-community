@@ -27,6 +27,9 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 - HTTP 状态码映射由 errx 中间件统一处理；**禁止**裸 `errors.New` 字符串错误与
   Handler 手动设置 HTTP 错误状态。
 - 框架 gRPC 错误只保留业务码，不暴露原始消息（CORE-054）。
+- 客户端内容导致的失败返回 4xx，只有服务端故障才用 5xx：图片嗅探通过但头部或像素数据无法解码
+  （`mediautil.ErrImageUndecodable`）按 `FileTypeNotAllowed` 返回 400（CORE-023），打开/编码本地临时
+  文件或上传对象失败才是 `MediaProcessFailed` / `UploadFailed`。
 
 ## 配置管理
 

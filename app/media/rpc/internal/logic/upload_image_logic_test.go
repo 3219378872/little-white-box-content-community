@@ -203,13 +203,25 @@ func TestUploadImageLogic_TypeNotAllowed(t *testing.T) {
 	assert.Empty(t, store.putCalls)
 }
 
-func TestUploadImageLogic_CompressFailed(t *testing.T) {
+// A valid header with a corrupt body is client input, not a processing fault:
+// it must be a 400 like any other unsupported content (CORE-023).
+func TestUploadImageLogic_CorruptBodyRejectedAsUnsupported(t *testing.T) {
 	ctx := context.Background()
 	data := unitCorruptPNG(t)
 	store := &unitObjectStorage{}
 	stream := unitImageStreamFromBytes(ctx, 4007, "broken.png", "idem-png", data, 512)
 	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, &fakeMediaCommandModel{}, store))
-	unitAssertBiz(t, l.UploadImage(stream), errx.MediaProcessFailed)
+	unitAssertBiz(t, l.UploadImage(stream), errx.FileTypeNotAllowed)
+	assert.Empty(t, store.putCalls)
+}
+
+func TestUploadImageLogic_UndecodableHeaderRejectedAsUnsupported(t *testing.T) {
+	ctx := context.Background()
+	data := append([]byte{0xFF, 0xD8, 0xFF, 0xE0}, make([]byte, 256)...)
+	store := &unitObjectStorage{}
+	stream := unitImageStreamFromBytes(ctx, 4007, "broken.jpg", "idem-jpg", data, 512)
+	l := NewUploadImageLogic(ctx, unitSvcCtx(unitUploadConfig(), &fakeMediaModel{}, &fakeMediaCommandModel{}, store))
+	unitAssertBiz(t, l.UploadImage(stream), errx.FileTypeNotAllowed)
 	assert.Empty(t, store.putCalls)
 }
 

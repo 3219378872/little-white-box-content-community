@@ -197,3 +197,53 @@ func TestImageDecodePermitCapsConcurrency(t *testing.T) {
 		t.Fatalf("cancelled acquire = %v", err)
 	}
 }
+
+func writeCorruptPNG(t *testing.T) string {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 32, 32))
+	for y := range 32 {
+		for x := range 32 {
+			img.Set(x, y, color.RGBA{R: uint8(x), G: uint8(y), B: 64, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, img))
+	raw := buf.Bytes()
+	raw[len(raw)/2] ^= 0xFF
+	raw[len(raw)/2+1] ^= 0xFF
+	p := filepath.Join(t.TempDir(), "corrupt.png")
+	require.NoError(t, os.WriteFile(p, raw, 0o600))
+	return p
+}
+
+func TestValidateImageDimensionsMarksUndecodableContent(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "broken.jpg")
+	require.NoError(t, os.WriteFile(p, append([]byte{0xFF, 0xD8, 0xFF, 0xE0}, make([]byte, 256)...), 0o600))
+
+	_, _, err := ValidateImageDimensions(p)
+	require.ErrorIs(t, err, ErrImageUndecodable)
+
+	_, _, err = ValidateImageDimensions(filepath.Join(t.TempDir(), "missing.jpg"))
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrImageUndecodable, "a missing temp file is a server fault")
+}
+
+func TestFullDecodeMarksCorruptBodyButNotIOFailures(t *testing.T) {
+	ctx := context.Background()
+	corrupt := writeCorruptPNG(t)
+	_, _, err := ValidateImageDimensions(corrupt)
+	require.NoError(t, err, "the header alone is valid")
+
+	_, _, _, err = CompressImage(ctx, corrupt, 0, 0, 80)
+	require.ErrorIs(t, err, ErrImageUndecodable)
+	_, err = MakeThumbnail(ctx, corrupt)
+	require.ErrorIs(t, err, ErrImageUndecodable)
+
+	missing := filepath.Join(t.TempDir(), "missing.png")
+	_, _, _, err = CompressImage(ctx, missing, 0, 0, 80)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrImageUndecodable)
+	_, err = MakeThumbnail(ctx, missing)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrImageUndecodable)
+}
