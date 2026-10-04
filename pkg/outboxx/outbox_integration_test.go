@@ -171,3 +171,184 @@ func TestRelayDrainsOldBacklogAcrossMultipleBatches(t *testing.T) {
 	assert.Zero(t, backlog.Count)
 	assert.Zero(t, backlog.OldestCreatedAt)
 }
+
+func enqueueCommitted(t *testing.T, db *sql.DB, store *SQLStore, ids ...int64) {
+	t.Helper()
+	tx, err := db.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+	for _, id := range ids {
+		require.NoError(t, store.EnqueueTx(context.Background(), tx, outboxEvent(id)))
+	}
+	require.NoError(t, tx.Commit())
+}
+
+func recordIDs(records []Record) []int64 {
+	ids := make([]int64, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.ID)
+	}
+	return ids
+}
+
+func drainWakeups(store *SQLStore) {
+	select {
+	case <-store.Wakeups():
+	default:
+	}
+}
+
+func TestSQLStoreEnqueueWakesRelayOnlyAfterCommit(t *testing.T) {
+	_, store := setupOutboxMySQL(t)
+	ctx := context.Background()
+	drainWakeups(store)
+
+	err := store.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		if err := store.Enqueue(ctx, session, outboxEvent(1)); err != nil {
+			return err
+		}
+		select {
+		case <-store.Wakeups():
+			t.Error("relay woken before the enqueuing transaction committed")
+		default:
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	select {
+	case <-store.Wakeups():
+	default:
+		t.Fatal("committed enqueue must wake the relay")
+	}
+
+	rollback := fmt.Errorf("business failure")
+	err = store.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		if err := store.Enqueue(ctx, session, outboxEvent(2)); err != nil {
+			return err
+		}
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+	select {
+	case <-store.Wakeups():
+		t.Fatal("rolled back enqueue must not wake the relay")
+	default:
+	}
+}
+
+func TestSQLStoreClaimSkipsLockedRowsWithoutBlocking(t *testing.T) {
+	db, store := setupOutboxMySQL(t)
+	ctx := context.Background()
+	enqueueCommitted(t, db, store, 1, 2, 3)
+
+	// Another relay is mid-claim on row 1.
+	holder, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = holder.Rollback() })
+	var locked int64
+	require.NoError(t, holder.QueryRowContext(ctx, "SELECT id FROM event_outbox WHERE id = 1 FOR UPDATE").Scan(&locked))
+
+	// A business transaction has enqueued row 4 but not committed yet.
+	business, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = business.Rollback() })
+	require.NoError(t, store.EnqueueTx(ctx, business, outboxEvent(4)))
+
+	claimCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	claimed, err := store.Claim(claimCtx, "relay-b", 10, time.Now().Add(time.Second), time.Minute)
+	require.NoError(t, err, "claim must skip locked rows instead of waiting on them")
+	assert.Equal(t, []int64{2, 3}, recordIDs(claimed))
+
+	require.NoError(t, holder.Rollback())
+	require.NoError(t, business.Commit())
+	claimed, err = store.Claim(ctx, "relay-b", 10, time.Now().Add(time.Second), time.Minute)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{1, 4}, recordIDs(claimed))
+}
+
+func TestSQLStoreClaimDoesNotBlockConcurrentEnqueue(t *testing.T) {
+	db, store := setupOutboxMySQL(t)
+	ctx := context.Background()
+	enqueueCommitted(t, db, store, 1)
+
+	// Reproduce the claim's locking reads inside an open transaction, then
+	// require a business insert into the same index range to proceed.
+	claimer, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = claimer.Rollback() })
+	rows, err := selectClaimable(ctx, claimer, claimDueSQL, StatusPending, time.Now().Add(time.Hour).UnixMilli(), 10)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+
+	insertCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	tx, err := db.BeginTx(insertCtx, nil)
+	require.NoError(t, err)
+	require.NoError(t, store.EnqueueTx(insertCtx, tx, outboxEvent(2)), "claim locks must not block business inserts")
+	require.NoError(t, tx.Commit())
+}
+
+func TestSQLStoreClaimServesExpiredLeasesAndRetriesBeforeFreshEvents(t *testing.T) {
+	db, store := setupOutboxMySQL(t)
+	ctx := context.Background()
+	enqueueCommitted(t, db, store, 1, 2, 3, 4)
+	now := time.Now().Add(time.Second)
+	nowMillis := now.UnixMilli()
+	_, err := db.ExecContext(ctx, `UPDATE event_outbox SET status = ?, locked_by = 'dead', locked_until = ? WHERE id = 3`,
+		StatusProcessing, nowMillis-1)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `UPDATE event_outbox SET status = ?, next_attempt_at = ? WHERE id = 4`,
+		StatusRetry, nowMillis-1)
+	require.NoError(t, err)
+
+	claimed, err := store.Claim(ctx, "relay-a", 3, now, time.Minute)
+	require.NoError(t, err)
+
+	assert.Equal(t, []int64{3, 4, 1}, recordIDs(claimed))
+	for _, record := range claimed {
+		assert.Equal(t, "relay-a", record.LockedBy)
+	}
+	var leased int
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT count(*) FROM event_outbox WHERE status = ? AND locked_by = 'relay-a' AND locked_until = ?",
+		StatusProcessing, now.Add(time.Minute).UnixMilli()).Scan(&leased))
+	assert.Equal(t, 3, leased)
+}
+
+func TestSQLStorePurgeDeletesOnlyOldSentEvents(t *testing.T) {
+	db, store := setupOutboxMySQL(t)
+	ctx := context.Background()
+	enqueueCommitted(t, db, store, 1, 2, 3, 4, 5, 6)
+	cutoff := time.Now().Add(-24 * time.Hour)
+	old, recent := cutoff.Add(-time.Hour).UnixMilli(), cutoff.Add(time.Hour).UnixMilli()
+	for id, row := range map[int64]struct {
+		status    int8
+		createdAt int64
+	}{
+		1: {StatusSent, old}, 2: {StatusSent, old}, 3: {StatusSent, recent},
+		4: {StatusDead, old}, 5: {StatusRetry, old}, 6: {StatusPending, old},
+	} {
+		_, err := db.ExecContext(ctx, "UPDATE event_outbox SET status = ?, created_at = ? WHERE id = ?", row.status, row.createdAt, id)
+		require.NoError(t, err)
+	}
+
+	first, err := store.Purge(ctx, cutoff, 1)
+	require.NoError(t, err)
+	second, err := store.Purge(ctx, cutoff, 10)
+	require.NoError(t, err)
+	third, err := store.Purge(ctx, cutoff, 10)
+	require.NoError(t, err)
+
+	assert.Equal(t, []int64{1, 1, 0}, []int64{first, second, third})
+	rows, err := db.QueryContext(ctx, "SELECT id FROM event_outbox ORDER BY id")
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	var remaining []int64
+	for rows.Next() {
+		var id int64
+		require.NoError(t, rows.Scan(&id))
+		remaining = append(remaining, id)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []int64{3, 4, 5, 6}, remaining)
+}

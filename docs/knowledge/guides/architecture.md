@@ -84,7 +84,7 @@ internal/model/    → 数据访问层
   `app/gateway/internal/middleware/`；RPC 侧在 `pkg/interceptor/`。
 - `pkg/interceptor` — gRPC 业务错误拦截器、trace_id 透传与服务间 HMAC 内部鉴权。
 - `pkg/mqx` — RocketMQ 生产者/消费者封装与主题常量。
-- `pkg/outboxx` — 事务发件箱与可靠投递 relay（含延迟/积压指标）。
+- `pkg/outboxx` — 事务发件箱与可靠投递 relay（提交后唤醒、`SKIP LOCKED` 认领、已发送行按保留期清理，含延迟/积压/清理指标）。
 - `pkg/event` — 跨服务事件载荷（PostEvent / InteractionEvent / BehaviorEvent）。
 - `pkg/pageutil` / `pkg/cursorx` / `pkg/idempotencyx` / `pkg/cleanupx` /
   `pkg/validator` / `pkg/visibilityx` — 分页、游标、幂等、清理、输入边界、可见性。

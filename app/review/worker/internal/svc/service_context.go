@@ -85,7 +85,7 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 			return nil, fmt.Errorf("review worker producer: %w", err)
 		}
 		s.Producer = producer
-		relay, err := outboxx.NewRelay(outboxx.NewSQLStore(conn), outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
+		relay, err := outboxx.NewRelay(reviewStore.Outbox(), outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
 			_, sendErr := producer.Send(ctx, mqx.Message{Topic: record.Topic, Tag: record.Tag, Key: record.Key, Body: record.Payload})
 			return sendErr
 		}), c.Outbox.RelayConfig("review-worker"))

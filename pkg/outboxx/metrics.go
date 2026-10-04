@@ -22,6 +22,11 @@ var (
 		Help:   "Transactional outbox backlog collection attempts by outcome",
 		Labels: []string{"service", "outcome"},
 	})
+	outboxPurgedTotal = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "esx", Subsystem: "outbox", Name: "purged_total",
+		Help:   "Sent transactional outbox events deleted after the retention window",
+		Labels: []string{"service"},
+	})
 	outboxDeliveryLatencySeconds = metric.NewHistogramVec(&metric.HistogramVecOpts{
 		Namespace: "esx", Subsystem: "outbox", Name: "delivery_latency_seconds",
 		Help:    "Elapsed time from outbox event creation to broker publish acknowledgment",

@@ -31,17 +31,24 @@ type RelayConfig struct {
 	BaseBackoff  time.Duration
 	MaxBackoff   time.Duration
 	MaxAttempts  int
+	// Retention keeps sent events this long before purging; zero disables purge.
+	Retention     time.Duration
+	PurgeInterval time.Duration
+	PurgeBatch    int
 }
 
 // Config uses millisecond integers so project YAML/env loading stays
 // consistent across every business service.
 type Config struct {
-	BatchSize      int
-	PollIntervalMs int
-	LeaseMs        int
-	BaseBackoffMs  int
-	MaxBackoffMs   int
-	MaxAttempts    int
+	BatchSize       int
+	PollIntervalMs  int
+	LeaseMs         int
+	BaseBackoffMs   int
+	MaxBackoffMs    int
+	MaxAttempts     int
+	RetentionMs     int
+	PurgeIntervalMs int
+	PurgeBatchSize  int
 }
 
 func (c Config) RelayConfig(service string) RelayConfig {
@@ -63,19 +70,31 @@ func (c Config) RelayConfig(service string) RelayConfig {
 	if c.MaxAttempts <= 0 {
 		c.MaxAttempts = 20
 	}
+	if c.RetentionMs <= 0 {
+		c.RetentionMs = 7 * 24 * 3600 * 1000
+	}
+	if c.PurgeIntervalMs <= 0 {
+		c.PurgeIntervalMs = 60_000
+	}
+	if c.PurgeBatchSize <= 0 {
+		c.PurgeBatchSize = 500
+	}
 	hostname, err := os.Hostname()
 	if err != nil || hostname == "" {
 		hostname = "unknown-host"
 	}
 	return RelayConfig{
-		Service:      service,
-		Owner:        fmt.Sprintf("%s-%s-%d", service, hostname, os.Getpid()),
-		BatchSize:    c.BatchSize,
-		PollInterval: time.Duration(c.PollIntervalMs) * time.Millisecond,
-		Lease:        time.Duration(c.LeaseMs) * time.Millisecond,
-		BaseBackoff:  time.Duration(c.BaseBackoffMs) * time.Millisecond,
-		MaxBackoff:   time.Duration(c.MaxBackoffMs) * time.Millisecond,
-		MaxAttempts:  c.MaxAttempts,
+		Service:       service,
+		Owner:         fmt.Sprintf("%s-%s-%d", service, hostname, os.Getpid()),
+		BatchSize:     c.BatchSize,
+		PollInterval:  time.Duration(c.PollIntervalMs) * time.Millisecond,
+		Lease:         time.Duration(c.LeaseMs) * time.Millisecond,
+		BaseBackoff:   time.Duration(c.BaseBackoffMs) * time.Millisecond,
+		MaxBackoff:    time.Duration(c.MaxBackoffMs) * time.Millisecond,
+		MaxAttempts:   c.MaxAttempts,
+		Retention:     time.Duration(c.RetentionMs) * time.Millisecond,
+		PurgeInterval: time.Duration(c.PurgeIntervalMs) * time.Millisecond,
+		PurgeBatch:    c.PurgeBatchSize,
 	}
 }
 
@@ -95,6 +114,12 @@ func (c RelayConfig) validate() error {
 	if c.MaxAttempts <= 0 {
 		return fmt.Errorf("outboxx: max attempts must be positive")
 	}
+	if c.Retention < 0 {
+		return fmt.Errorf("outboxx: retention must not be negative")
+	}
+	if c.Retention > 0 && (c.PurgeInterval <= 0 || c.PurgeBatch <= 0) {
+		return fmt.Errorf("outboxx: purge interval and batch must be positive when retention is set")
+	}
 	return nil
 }
 
@@ -103,6 +128,8 @@ type Relay struct {
 	publisher Publisher
 	config    RelayConfig
 	now       func() time.Time
+	// wake fires when a same-process enqueue commits; nil means poll only.
+	wake <-chan struct{}
 }
 
 // RelayHandle owns one background relay run. Stop cancels the run and waits
@@ -124,7 +151,11 @@ func NewRelay(store Store, publisher Publisher, config RelayConfig) (*Relay, err
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
-	return &Relay{store: store, publisher: publisher, config: config, now: time.Now}, nil
+	relay := &Relay{store: store, publisher: publisher, config: config, now: time.Now}
+	if waker, ok := store.(Waker); ok {
+		relay.wake = waker.Wakeups()
+	}
+	return relay, nil
 }
 
 // StartRelay runs relay until Stop is called or parent is canceled. A nil
@@ -190,13 +221,15 @@ func (r *Relay) ProcessBatch(ctx context.Context) (int, error) {
 	return len(records), errors.Join(failures...)
 }
 
+// maxPurgeBatchesPerTick bounds one purge pass so a large first cleanup
+// cannot hold the relay loop away from delivery for long.
+const maxPurgeBatchesPerTick = 20
+
 func (r *Relay) Run(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if _, err := r.ProcessBatch(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
-	}
+	r.drain(ctx)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -208,26 +241,73 @@ func (r *Relay) Run(ctx context.Context) error {
 	defer ticker.Stop()
 	backlogTicker := time.NewTicker(15 * time.Second)
 	defer backlogTicker.Stop()
+	var purge <-chan time.Time
+	if r.config.Retention > 0 {
+		purgeTicker := time.NewTicker(r.config.PurgeInterval)
+		defer purgeTicker.Stop()
+		purge = purgeTicker.C
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-r.wake:
+			r.drain(ctx)
 		case <-ticker.C:
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			if _, err := r.ProcessBatch(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
-			}
-			if err := ctx.Err(); err != nil {
-				return err
-			}
+			r.drain(ctx)
 		case <-backlogTicker.C:
 			if err := ctx.Err(); err != nil {
 				return err
 			}
 			r.observeBacklog(ctx)
+		case <-purge:
+			r.purge(ctx)
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+}
+
+// drain keeps processing while batches come back full and fully delivered,
+// so a burst is not throttled to one batch per poll. Any failure stops the
+// pass; failed events already carry their own backoff.
+func (r *Relay) drain(ctx context.Context) {
+	for ctx.Err() == nil {
+		processed, err := r.ProcessBatch(ctx)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
+			}
+			return
+		}
+		if processed < r.config.BatchSize {
+			return
+		}
+	}
+}
+
+func (r *Relay) purge(ctx context.Context) {
+	service := r.config.Service
+	if service == "" {
+		service = "unknown"
+	}
+	cutoff := r.now().Add(-r.config.Retention)
+	for range maxPurgeBatchesPerTick {
+		if ctx.Err() != nil {
+			return
+		}
+		deleted, err := r.store.Purge(ctx, cutoff, r.config.PurgeBatch)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) && ctx.Err() == nil {
+				logx.WithContext(ctx).Errorw("outbox purge failed", logx.Field("err", err.Error()))
+			}
+			return
+		}
+		outboxPurgedTotal.Add(float64(deleted), service)
+		if deleted < int64(r.config.PurgeBatch) {
+			return
 		}
 	}
 }

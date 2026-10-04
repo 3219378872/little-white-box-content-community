@@ -198,6 +198,10 @@ func New(conn sqlx.SqlConn) *Store {
 	return &Store{conn: conn, outbox: outboxx.NewSQLStore(conn), nextID: util.NextID}
 }
 
+// Outbox is the store this Store enqueues into; the relay must use the same
+// instance so committed writes wake it immediately.
+func (s *Store) Outbox() *outboxx.SQLStore { return s.outbox }
+
 // Conn 暴露连接给需要只读查询的组件（投放索引重建）。
 func (s *Store) Conn() sqlx.SqlConn { return s.conn }
 

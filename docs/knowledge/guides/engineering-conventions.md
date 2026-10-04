@@ -57,6 +57,9 @@ AGENTS.md 与开发流程引用本页；实现入口以代码为准。
 - Kitex 统一配置连接数/QPS 上限、客户端熔断和普通 RPC 超时；写请求及流式请求不开透明重试。
 - 事务 outbox：权威写入与 outbox 同事务提交，relay 保证投递与幂等。
 - RocketMQ 消费者处理重试、幂等与不可恢复错误；outbox relay 有界指数退避。
+- 业务模型与 relay 必须共用同一个 `outboxx.SQLStore` 实例：`Enqueue` 经 `sqlstore.AfterCommit` 在事务提交后唤醒
+  同进程 relay，轮询只作兜底。relay 认领使用 READ COMMITTED + `FOR UPDATE SKIP LOCKED`，不对业务 INSERT 加间隙锁；
+  已发送事件超过 `Outbox.RetentionMs`（默认 7 天）后分批删除，待发送、重试与死信不清理。
 - 权威写入已提交后，缓存失效/索引/通知等异步效果失败不改变成功响应（CORE-053）。
 
 ## 质量门禁

@@ -36,6 +36,8 @@ type StmtSession interface {
 type conn struct {
 	db  *x.DB
 	ext x.ExtContext
+	// afterCommit collects hooks registered inside TransactCtx; nil outside a transaction.
+	afterCommit *[]func()
 }
 type statement struct{ s *x.Stmt }
 
@@ -86,10 +88,34 @@ func (c *conn) TransactCtx(ctx context.Context, fn func(context.Context, Session
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = fn(ctx, &conn{db: c.db, ext: tx}); err != nil {
+	var hooks []func()
+	if err = fn(ctx, &conn{db: c.db, ext: tx, afterCommit: &hooks}); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	for _, hook := range hooks {
+		hook()
+	}
+	return nil
+}
+
+// AfterCommit registers fn to run once the TransactCtx transaction owning
+// session commits; a rollback discards it. It reports false when session is
+// not such a transaction, in which case fn is not registered.
+func AfterCommit(session Session, fn func()) bool {
+	switch s := session.(type) {
+	case *conn:
+		if s.afterCommit == nil {
+			return false
+		}
+		*s.afterCommit = append(*s.afterCommit, fn)
+		return true
+	case *sessionConn:
+		return AfterCommit(s.Session, fn)
+	}
+	return false
 }
 
 type sessionConn struct{ Session }

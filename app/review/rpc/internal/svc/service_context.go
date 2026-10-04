@@ -53,7 +53,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		if err != nil {
 			panic(fmt.Errorf("review rpc RocketMQ producer initialization failed: %w", err))
 		}
-		relay, err = outboxx.NewRelay(outboxx.NewSQLStore(conn), outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
+		relay, err = outboxx.NewRelay(reviewStore.Outbox(), outboxx.PublisherFunc(func(ctx context.Context, record outboxx.Record) error {
 			_, sendErr := producer.Send(ctx, mqx.Message{Topic: record.Topic, Tag: record.Tag, Key: record.Key, Body: record.Payload})
 			return sendErr
 		}), c.Outbox.RelayConfig("review-rpc"))

@@ -169,6 +169,10 @@ func New(conn sqlx.SqlConn) *Store {
 	return &Store{conn: conn, outbox: outboxx.NewSQLStore(conn), nextID: util.NextID}
 }
 
+// Outbox is the store this Store enqueues into; the relay must use the same
+// instance so committed writes wake it immediately.
+func (s *Store) Outbox() *outboxx.SQLStore { return s.outbox }
+
 // AuditEntry 是一条只追加审计（RVW-025）。
 type AuditEntry struct {
 	ActorID    int64

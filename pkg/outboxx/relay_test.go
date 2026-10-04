@@ -12,8 +12,12 @@ import (
 )
 
 type fakeStore struct {
-	mu           sync.Mutex
-	records      []Record
+	mu      sync.Mutex
+	records []Record
+	// batches, when set, are returned one per Claim before falling back to records.
+	batches      [][]Record
+	purgeResults []int64
+	purgeCutoffs []time.Time
 	claimErr     error
 	markSentErr  error
 	claimCalls   int
@@ -26,8 +30,33 @@ func (s *fakeStore) Claim(context.Context, string, int, time.Time, time.Duration
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.claimCalls++
+	if len(s.batches) > 0 {
+		batch := s.batches[0]
+		s.batches = s.batches[1:]
+		return batch, s.claimErr
+	}
 	return append([]Record(nil), s.records...), s.claimErr
 }
+
+func (s *fakeStore) Purge(_ context.Context, createdBefore time.Time, _ int) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.purgeCutoffs = append(s.purgeCutoffs, createdBefore)
+	if len(s.purgeResults) == 0 {
+		return 0, nil
+	}
+	deleted := s.purgeResults[0]
+	s.purgeResults = s.purgeResults[1:]
+	return deleted, nil
+}
+
+// wakingStore lets tests drive the commit wakeup path without a database.
+type wakingStore struct {
+	*fakeStore
+	wake chan struct{}
+}
+
+func (s *wakingStore) Wakeups() <-chan struct{} { return s.wake }
 
 func (s *fakeStore) MarkSent(_ context.Context, id int64, _ string, _ time.Time) error {
 	s.mu.Lock()
@@ -209,6 +238,103 @@ func TestConfigRelayConfigAppliesOperationalDefaults(t *testing.T) {
 	assert.Equal(t, 200*time.Millisecond, config.PollInterval)
 	assert.Equal(t, 30*time.Second, config.Lease)
 	assert.Equal(t, 20, config.MaxAttempts)
+	assert.Equal(t, 7*24*time.Hour, config.Retention)
+	assert.Equal(t, time.Minute, config.PurgeInterval)
+	assert.Equal(t, 500, config.PurgeBatch)
+}
+
+func TestNewRelayRejectsInvalidPurgeConfiguration(t *testing.T) {
+	base := RelayConfig{
+		Owner: "relay-test", BatchSize: 10, PollInterval: time.Millisecond,
+		Lease: time.Second, BaseBackoff: time.Second, MaxBackoff: time.Minute, MaxAttempts: 8,
+	}
+	publisher := PublisherFunc(func(context.Context, Record) error { return nil })
+
+	negative := base
+	negative.Retention = -time.Second
+	_, err := NewRelay(&fakeStore{}, publisher, negative)
+	assert.ErrorContains(t, err, "retention")
+
+	missingBatch := base
+	missingBatch.Retention, missingBatch.PurgeInterval = time.Hour, time.Minute
+	_, err = NewRelay(&fakeStore{}, publisher, missingBatch)
+	assert.ErrorContains(t, err, "purge")
+}
+
+func TestRelayDrainContinuesWhileBatchesAreFullAndDelivered(t *testing.T) {
+	full := make([]Record, 10)
+	for index := range full {
+		full[index] = Record{ID: int64(index + 1)}
+	}
+	store := &fakeStore{batches: [][]Record{full, full, {{ID: 99}}, full}}
+	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))
+
+	relay.drain(context.Background())
+
+	assert.Equal(t, 3, store.claimCallCount(), "drain stops at the first partial batch")
+	assert.Len(t, store.sent, 21)
+}
+
+func TestRelayDrainStopsOnPublishFailure(t *testing.T) {
+	full := make([]Record, 10)
+	for index := range full {
+		full[index] = Record{ID: int64(index + 1)}
+	}
+	store := &fakeStore{batches: [][]Record{full, full}}
+	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error {
+		return errors.New("broker unavailable")
+	}))
+
+	relay.drain(context.Background())
+
+	assert.Equal(t, 1, store.claimCallCount(), "a failing broker must not spin through the backlog")
+	assert.Len(t, store.retries, 10)
+}
+
+func TestRelayRunProcessesImmediatelyOnCommitWakeup(t *testing.T) {
+	store := &wakingStore{fakeStore: &fakeStore{}, wake: make(chan struct{}, 1)}
+	relay, err := NewRelay(store, PublisherFunc(func(context.Context, Record) error { return nil }), RelayConfig{
+		Owner: "relay-test", BatchSize: 10, PollInterval: time.Hour,
+		Lease: time.Second, BaseBackoff: time.Second, MaxBackoff: time.Minute, MaxAttempts: 8,
+	})
+	require.NoError(t, err)
+	handle := StartRelay(context.Background(), relay)
+	t.Cleanup(func() { require.NoError(t, handle.Stop()) })
+	require.Eventually(t, func() bool { return store.claimCallCount() == 1 }, time.Second, time.Millisecond)
+
+	store.wake <- struct{}{}
+
+	require.Eventually(t, func() bool { return store.claimCallCount() == 2 }, time.Second, time.Millisecond,
+		"wakeup must trigger a claim without waiting for the hour-long poll")
+}
+
+func TestRelayPurgeRepeatsFullBatchesAndUsesRetentionCutoff(t *testing.T) {
+	store := &fakeStore{purgeResults: []int64{5, 5, 2, 5}}
+	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))
+	relay.config.Retention, relay.config.PurgeInterval, relay.config.PurgeBatch = time.Hour, time.Minute, 5
+	now := time.UnixMilli(10_000_000)
+	relay.now = func() time.Time { return now }
+
+	relay.purge(context.Background())
+
+	require.Len(t, store.purgeCutoffs, 3, "purge stops at the first partial batch")
+	for _, cutoff := range store.purgeCutoffs {
+		assert.Equal(t, now.Add(-time.Hour), cutoff)
+	}
+}
+
+func TestRelayPurgeIsBoundedPerTick(t *testing.T) {
+	results := make([]int64, maxPurgeBatchesPerTick+5)
+	for index := range results {
+		results[index] = 5
+	}
+	store := &fakeStore{purgeResults: results}
+	relay := testRelay(t, store, PublisherFunc(func(context.Context, Record) error { return nil }))
+	relay.config.Retention, relay.config.PurgeInterval, relay.config.PurgeBatch = time.Hour, time.Minute, 5
+
+	relay.purge(context.Background())
+
+	assert.Len(t, store.purgeCutoffs, maxPurgeBatchesPerTick)
 }
 
 func TestBacklogAgeSecondsHandlesEmptyAndFutureBacklogs(t *testing.T) {
