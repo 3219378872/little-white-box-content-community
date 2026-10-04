@@ -11,6 +11,7 @@
 | [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) | active | [SPEC-agent-memory](../spec/SPEC-agent-memory.md), [SPEC-agent-watch](../spec/SPEC-agent-watch.md), [SPEC-assistant-agent](../spec/SPEC-assistant-agent.md) |
 | [DES-content-community-backend](DES-content-community-backend.md) | active | [SPEC-community-core](../spec/SPEC-community-core.md), [SPEC-content-discovery](../spec/SPEC-content-discovery.md), [SPEC-feedback-reliability](../spec/SPEC-feedback-reliability.md) |
 | [DES-review-platform](DES-review-platform.md) | active | [SPEC-review-platform](../spec/SPEC-review-platform.md) |
+| [DES-search-read-path-cost](DES-search-read-path-cost.md) | draft | [SPEC-community-core](../spec/SPEC-community-core.md), [SPEC-content-discovery](../spec/SPEC-content-discovery.md), [SPEC-feedback-reliability](../spec/SPEC-feedback-reliability.md) |
 | [DES-sponsored-ads](DES-sponsored-ads.md) | active | [SPEC-content-discovery](../spec/SPEC-content-discovery.md), [SPEC-feedback-reliability](../spec/SPEC-feedback-reliability.md), [SPEC-sponsored-ads](../spec/SPEC-sponsored-ads.md) |
 
 <!-- knowledge-index:end -->
