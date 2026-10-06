@@ -19,6 +19,7 @@ code_paths:
 - app/search
 - app/recommend
 - app/embedding
+- pkg/milvusx
 - algorithm
 - app/content/visibility
 - pkg/visibilityx

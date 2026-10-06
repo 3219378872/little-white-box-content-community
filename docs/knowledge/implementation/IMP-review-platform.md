@@ -14,6 +14,7 @@ code_paths:
 - proto/moderation/moderation.proto
 - pkg/event/review.go
 - pkg/adpolicy
+- pkg/milvusx
 - app/gateway/internal/logic/review
 - deploy/sql/xbh_review.sql
 updated_at: 2026-10-01
