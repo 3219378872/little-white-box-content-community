@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	sqlx "esx/pkg/sqlstore"
 )
@@ -151,7 +150,7 @@ func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, b
 		nullString(row.ResultJSON), row.Status, row.CreatedAtMs, row.UpdatedAtMs)
 	if err != nil {
 		// A concurrent insert won the unique key; report its entry instead of executing twice.
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+		if sqlx.IsDuplicateKey(err) {
 			existing, err = s.GetJournal(ctx, row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest)
 			return existing, false, err
 		}

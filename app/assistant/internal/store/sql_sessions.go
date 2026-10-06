@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	sqlx "esx/pkg/sqlstore"
 )
@@ -20,7 +19,7 @@ func (s *SQLStore) LockThread(ctx context.Context, userID int64) (*Thread, error
 		(user_id, session_id, unread_count, last_message_id, last_message_preview, last_message_at_ms, active_run_id, updated_at_ms)
 		VALUES (?, 0, 0, 0, '', 0, 0, ?)`, userID, now); err != nil {
 		// A concurrent first request may have inserted the row; re-read it under the lock.
-		if !strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+		if !sqlx.IsDuplicateKey(err) {
 			return nil, err
 		}
 	}

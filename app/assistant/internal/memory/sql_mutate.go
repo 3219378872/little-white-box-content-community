@@ -359,7 +359,7 @@ func (s *SQLStore) insertChange(ctx context.Context, session sqlx.Session, userI
 		VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
 		userID, entryID, op, encodeEntry(before), encodeEntry(after), resultVersion, requestID, nowMs)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+		if sqlx.IsDuplicateKey(err) {
 			var idRow struct {
 				ID int64 `db:"id"`
 			}
