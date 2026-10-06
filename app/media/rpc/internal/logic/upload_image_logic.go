@@ -32,46 +32,25 @@ func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Uploa
 // UploadImage 接收 client streaming → 落盘 → 嗅探 → 压缩 → 缩略图 → 上传 → 入库 → SendAndClose。
 func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer) error {
 	upload := l.svcCtx.Config.Upload
-	sink, err := mediautil2.NewTempSink(upload.TempDir, upload.MaxImageSize)
-	if err != nil {
-		l.Errorw("create temp sink failed", logx.Field("err", err.Error()))
-		return errx.NewWithCode(errx.SystemError)
-	}
-	defer cleanupx.Close(l.Logger, "upload image temp sink", sink)
-
-	meta, err := receiveUploadStream(
-		stream.Recv,
+	received, err := receiveUpload(l.ctx, l.Logger, l.svcCtx, uploadSpec{
+		kind:    "image",
+		maxSize: upload.MaxImageSize,
+	}, stream.Recv,
 		func(r *pb2.UploadImageReq) *pb2.UploadMeta { return r.GetMeta() },
 		func(r *pb2.UploadImageReq) []byte { return r.GetChunk() },
-		sink,
 	)
 	if err != nil {
 		return err
 	}
-	if meta.GetUserId() <= 0 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	contentHash, err := sha256File(l.ctx, sink.Path())
-	if err != nil {
-		l.Errorw("hash uploaded image failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("file_name", meta.GetFileName()),
-			logx.Field("err", err.Error()),
-		)
-		return errx.NewWithCode(errx.SystemError)
-	}
-	idem := mediaIdempotencyRecord(meta, contentHash)
-	if !idem.Valid() {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	if l.svcCtx.MediaCommandModel == nil {
-		return errx.NewWithCode(errx.SystemError)
-	}
+	defer received.Close(l.Logger, "image")
+	sink, meta := received.sink, received.meta
 
+	// 先确认是可解码、尺寸在限内的图片，再做任何耗时处理。
 	if err := l.validateImage(sink.Path(), meta.GetUserId()); err != nil {
 		return err
 	}
 
+	// 原图压缩为 JPEG（质量缺省或越界时用配置值）并另出缩略图。
 	quality := int(meta.GetQuality())
 	if quality <= 0 || quality > 100 {
 		quality = upload.DefaultQuality
@@ -111,6 +90,7 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	}
 	defer cleanupx.Remove(l.Logger, thumbPath)
 
+	// 两个变体都写入对象存储；未最终保留时在返回前补偿删除已写入的对象。
 	objKey := buildObjectKey("original", "jpg")
 	thumbKey := buildObjectKey("thumb", "jpg")
 	uploadedKeys := make([]string, 0, 2)
@@ -131,7 +111,8 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 		return err
 	}
 
-	stored, keepObjects, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, idem)
+	// keepObjects=false 表示幂等重放命中已有记录：返回已有媒体，删除本次对象。
+	stored, keepObjects, err := persistUploadedMedia(l.ctx, l.Logger, l.svcCtx, row, received.idem)
 	keepUploadedObjects = keepObjects
 	if err != nil {
 		return err
@@ -163,6 +144,7 @@ func putFile(ctx context.Context, svcCtx *svc.ServiceContext, localPath, objectK
 	return svcCtx.Storage.Put(ctx, objectKey, f, info.Size(), contentType)
 }
 
+// imageRecord 构造压缩后原图与缩略图对应的媒体记录。
 func (l *UploadImageLogic) imageRecord(meta *pb2.UploadMeta, compressedPath, objKey, thumbKey string, width, height int) (*model.Media, error) {
 	info, err := os.Stat(compressedPath)
 	if err != nil {
@@ -196,6 +178,7 @@ func (l *UploadImageLogic) imageRecord(meta *pb2.UploadMeta, compressedPath, obj
 	return row, nil
 }
 
+// validateImage 嗅探图片类型并在解码前校验像素尺寸，防止超大图片耗尽内存。
 func (l *UploadImageLogic) validateImage(path string, userID int64) error {
 	var err error
 	if _, err = mediautil2.Detect(path, true, false); err != nil {
@@ -216,6 +199,7 @@ func (l *UploadImageLogic) validateImage(path string, userID int64) error {
 	return nil
 }
 
+// putImageVariants 依次上传原图与缩略图，返回已成功写入、需要时可补偿的对象键。
 func (l *UploadImageLogic) putImageVariants(userID int64, compressedPath, thumbPath, objKey, thumbKey string) ([]string, error) {
 	uploadedKeys := make([]string, 0, 2)
 	var err error
