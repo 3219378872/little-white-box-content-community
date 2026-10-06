@@ -69,7 +69,7 @@ var (
 // Ingested 按对象类型统计送审接入结果。
 func Ingested(bizType, result string) { ingested.Inc(bizType, result) }
 
-// Decision 统计审核结论，并按机审/人审路径记录送审到出结论的耗时。
+// Decision 统计审核结论，并按机审/人审路径记录送审到出结论的耗时；缺少送审时间时不记录耗时样本。
 func Decision(source, verdict, purpose string, submittedAtMs int64, now time.Time) {
 	decisions.Inc(source, verdict, purpose)
 	path := "human"
@@ -77,7 +77,7 @@ func Decision(source, verdict, purpose string, submittedAtMs int64, now time.Tim
 		path = "machine"
 	}
 	if submittedAtMs > 0 {
-		submitToDecision.ObserveFloat(max(0, now.Sub(time.UnixMilli(submittedAtMs)).Seconds()), path)
+		submitToDecision.ObserveFloat(metric.EventLagSeconds(submittedAtMs, now), path)
 	}
 }
 
@@ -94,8 +94,8 @@ func Fingerprint(outcome string) { fingerprint.Inc(outcome) }
 func Backlog(pending int64, oldestSubmitMs int64, now time.Time) {
 	humanBacklog.Set(float64(pending))
 	age := 0.0
-	if pending > 0 && oldestSubmitMs > 0 {
-		age = max(0, now.Sub(time.UnixMilli(oldestSubmitMs)).Seconds())
+	if pending > 0 {
+		age = metric.EventLagSeconds(oldestSubmitMs, now)
 	}
 	oldestAge.Set(age)
 }

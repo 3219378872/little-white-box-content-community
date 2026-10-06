@@ -79,9 +79,10 @@ func Appeal() { appeals.Inc() }
 // Rescan 统计复扫处理结果。
 func Rescan(outcome string) { rescans.Inc(outcome) }
 
-// Propagation 记录审核结论到投放索引生效的耗时，用于验证下线在时限内生效（ADS-032）。
+// Propagation 记录审核结论到投放索引生效的耗时，用于验证下线在时限内生效（ADS-032）；
+// 缺少结论时间时不记录样本（而非记 0），避免把未知耗时混进直方图。
 func Propagation(action string, decidedAtMs int64, now time.Time) {
 	if decidedAtMs > 0 {
-		propagation.ObserveFloat(max(0, now.Sub(time.UnixMilli(decidedAtMs)).Seconds()), action)
+		propagation.ObserveFloat(metric.EventLagSeconds(decidedAtMs, now), action)
 	}
 }

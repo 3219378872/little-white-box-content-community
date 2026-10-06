@@ -51,12 +51,8 @@ func observeDeliveryLatency(service string, createdAtMillis, nowMillis int64) {
 
 // backlogAgeSeconds is the age of the oldest undelivered event, 0 when the backlog is empty.
 func backlogAgeSeconds(backlog Backlog, now time.Time) float64 {
-	if backlog.Count <= 0 || backlog.OldestCreatedAt <= 0 {
+	if backlog.Count <= 0 {
 		return 0
 	}
-	age := now.Sub(time.UnixMilli(backlog.OldestCreatedAt)).Seconds()
-	if age < 0 {
-		return 0
-	}
-	return age
+	return metric.EventLagSeconds(backlog.OldestCreatedAt, now)
 }
