@@ -168,6 +168,7 @@ func (c *Cascade) Run(ctx context.Context, p *policy.Policy, in Input) Result {
 	return run.execute(ctx)
 }
 
+// runner 保存单次级联的上下文与已完成阶段记录；每次 Run 新建，互不共享。
 type runner struct {
 	c      *Cascade
 	p      *policy.Policy
@@ -175,6 +176,7 @@ type runner struct {
 	stages []StageRecord
 }
 
+// now 允许测试注入时钟，使阶段耗时可断言。
 func (r *runner) now() time.Time {
 	if r.c.Clock != nil {
 		return r.c.Clock()
@@ -182,6 +184,7 @@ func (r *runner) now() time.Time {
 	return time.Now()
 }
 
+// record 追加一条阶段记录（RVW-017）；输出无法序列化时写空对象，不让审计记录缺失。
 func (r *runner) record(stage, version, outcome, reason string, output any, started time.Time) {
 	raw, err := json.Marshal(output)
 	if err != nil {
@@ -193,12 +196,14 @@ func (r *runner) record(stage, version, outcome, reason string, output any, star
 	})
 }
 
+// finish 写入决策阶段记录并产出最终结论，所有返回路径都经过这里以保证阶段记录完整。
 func (r *runner) finish(outcome string, codes []string, reason string, priority int) Result {
 	r.record(StageDecision, "decision@"+r.p.Version, outcome, reason,
 		map[string]any{"policyCodes": codes, "priority": priority}, r.now())
 	return Result{Outcome: outcome, PolicyCodes: codes, Reason: reason, Priority: priority, Stages: r.stages}
 }
 
+// execute 按 S1→S5 顺序执行级联；任一阶段得出终局结论即提前返回，其余信号汇总到 S5 决策。
 func (r *runner) execute(ctx context.Context) Result {
 	snap := r.in.Snapshot
 	disposition := adpolicy.DispositionOf(snap.Market, snap.Industry)
@@ -208,27 +213,11 @@ func (r *runner) execute(ctx context.Context) Result {
 		return r.finish(OutcomeHuman, nil, ReasonPurpose, 50)
 	}
 
-	// S1 指纹复用（RVW-015）：只在哈希、市场与政策版本一致时命中；通过结论只来自人工或质检。
+	// S1 指纹复用（RVW-015）。首次送审保护期内即使命中通过指纹也不自动放行。
 	protected := r.in.SubmissionSeq > 0 && r.in.SubmissionSeq <= r.p.ProtectionSubmissions
 	if r.in.Purpose == event.ReviewPurposeInitial {
-		started := r.now()
-		verdict, codes, source, found, err := r.lookupVerdict(ctx)
-		switch {
-		case err != nil:
-			r.record(StageFingerprint, "verdict-cache@"+r.p.Version, "miss", "lookup-error", map[string]any{}, started)
-		case found && verdict == event.ReviewVerdictReject:
-			r.record(StageFingerprint, "verdict-cache@"+r.p.Version, "hit", "", map[string]any{"verdict": verdict, "source": source}, started)
-			return r.finish(OutcomeReject, codes, "fingerprint-reject", 0)
-		case found && verdict == event.ReviewVerdictApprove && !protected && r.in.BizType == event.ReviewBizAdCreative &&
-			(source == event.ReviewSourceHuman || source == event.ReviewSourceQA):
-			r.record(StageFingerprint, "verdict-cache@"+r.p.Version, "hit", "", map[string]any{"verdict": verdict, "source": source}, started)
-			return r.finish(OutcomeApprove, nil, "fingerprint-approve", 0)
-		default:
-			reason := ""
-			if found {
-				reason = ReasonProtection
-			}
-			r.record(StageFingerprint, "verdict-cache@"+r.p.Version, "miss", reason, map[string]any{"found": found}, started)
+		if result, done := r.fingerprintStage(ctx, protected); done {
+			return result
 		}
 	}
 
@@ -236,18 +225,10 @@ func (r *runner) execute(ctx context.Context) Result {
 		return r.finish(OutcomeHuman, nil, ReasonQualification, 40)
 	}
 
-	// S2 硬规则：行业处置、落地页结构与域名、素材黑样本、关键词。
-	started := r.now()
-	ruleHits, forced := r.applyRules(disposition)
-	rejectCodes := ruleCodes(ruleHits, policy.ActionReject)
-	if len(rejectCodes) > 0 {
-		r.record(StageRules, "rules@"+r.p.Version, "reject", "", ruleHits, started)
-		return r.finish(OutcomeReject, rejectCodes, "hard-rule", 0)
-	}
-	if forced {
-		r.record(StageRules, "rules@"+r.p.Version, "human", ReasonForcedRule, ruleHits, started)
-	} else {
-		r.record(StageRules, "rules@"+r.p.Version, "pass", "", ruleHits, started)
+	// S2 硬规则：命中拒绝规则直接拒绝；强制人审规则只记下，留到 S5 与分数一起决策。
+	ruleHits, forced, result, done := r.rulesStage(disposition)
+	if done {
+		return result
 	}
 
 	// S3 Router：召回不可用或无覆盖时全部 issue 进入精排（RVW-011）。
@@ -255,57 +236,150 @@ func (r *runner) execute(ctx context.Context) Result {
 	imageUnconfirmed := r.imageUnconfirmed(ctx)
 
 	// S4 Ranker：只对候选 issue 精排；失败转人审。
-	var scores []IssueScore
-	if len(candidates) > 0 {
-		var reason string
-		scores, reason = r.rank(ctx, candidates)
-		if reason != "" {
-			return r.finish(OutcomeHuman, nil, reason, 60)
-		}
-	} else {
-		r.record(StageRanker, "ranker:skipped", "pass", "no-candidates", map[string]any{}, r.now())
+	scores, result, done := r.rankStage(ctx, candidates)
+	if done {
+		return result
 	}
 
 	// S5 决策（RVW-012、RVW-013）。
+	return r.decide(decisionSignals{
+		disposition: disposition, protected: protected,
+		ruleHits: ruleHits, forced: forced,
+		routerReason: routerReason, imageUnconfirmed: imageUnconfirmed,
+		scores: summarizeScores(r.p, snap.Market, scores),
+	})
+}
+
+// fingerprintStage 只在哈希、市场与政策版本一致时复用历史结论；拒绝可直接复用，
+// 通过结论只接受人工或质检来源的广告创意，且不在首次送审保护期内。done=false 表示继续级联。
+func (r *runner) fingerprintStage(ctx context.Context, protected bool) (Result, bool) {
+	started := r.now()
+	version := "verdict-cache@" + r.p.Version
+	verdict, codes, source, found, err := r.lookupVerdict(ctx)
+	switch {
+	case err != nil:
+		// 查询失败只当作未命中，不阻断后续机审。
+		r.record(StageFingerprint, version, "miss", "lookup-error", map[string]any{}, started)
+	case found && verdict == event.ReviewVerdictReject:
+		r.record(StageFingerprint, version, "hit", "", map[string]any{"verdict": verdict, "source": source}, started)
+		return r.finish(OutcomeReject, codes, "fingerprint-reject", 0), true
+	case found && verdict == event.ReviewVerdictApprove && !protected && r.in.BizType == event.ReviewBizAdCreative &&
+		(source == event.ReviewSourceHuman || source == event.ReviewSourceQA):
+		r.record(StageFingerprint, version, "hit", "", map[string]any{"verdict": verdict, "source": source}, started)
+		return r.finish(OutcomeApprove, nil, "fingerprint-approve", 0), true
+	default:
+		// 命中但不满足复用条件时记下保护期原因，便于解释为何没有复用。
+		reason := ""
+		if found {
+			reason = ReasonProtection
+		}
+		r.record(StageFingerprint, version, "miss", reason, map[string]any{"found": found}, started)
+	}
+	return Result{}, false
+}
+
+// rulesStage 执行行业处置、落地页结构与域名、素材黑样本、关键词规则。
+// 返回全部命中与是否命中强制人审规则；命中拒绝规则时 done=true 并给出拒绝结论。
+func (r *runner) rulesStage(disposition adpolicy.Disposition) ([]ruleHit, bool, Result, bool) {
+	started := r.now()
+	version := "rules@" + r.p.Version
+	ruleHits, forced := r.applyRules(disposition)
+	if rejectCodes := ruleCodes(ruleHits, policy.ActionReject); len(rejectCodes) > 0 {
+		r.record(StageRules, version, "reject", "", ruleHits, started)
+		return ruleHits, forced, r.finish(OutcomeReject, rejectCodes, "hard-rule", 0), true
+	}
+	if forced {
+		r.record(StageRules, version, "human", ReasonForcedRule, ruleHits, started)
+	} else {
+		r.record(StageRules, version, "pass", "", ruleHits, started)
+	}
+	return ruleHits, forced, Result{}, false
+}
+
+// rankStage 对召回候选精排；没有候选时记录跳过。精排超时、不可用或输出无效时 done=true 转人审。
+func (r *runner) rankStage(ctx context.Context, candidates []string) ([]IssueScore, Result, bool) {
+	if len(candidates) == 0 {
+		r.record(StageRanker, "ranker:skipped", "pass", "no-candidates", map[string]any{}, r.now())
+		return nil, Result{}, false
+	}
+	scores, reason := r.rank(ctx, candidates)
+	if reason != "" {
+		return nil, r.finish(OutcomeHuman, nil, reason, 60), true
+	}
+	return scores, Result{}, false
+}
+
+// scoreSummary 是精排分数对照政策阈值后的汇总。
+type scoreSummary struct {
+	// priority 取最高违规概率的百分数，用于人审排序。
+	priority int
+	// violations 是达到拒绝阈值的 issue；autoReject 是其中政策允许自动拒绝的部分。
+	violations []string
+	autoReject []string
+	// allBelowPass 表示全部 issue 都低于放行阈值，即不处在灰区。
+	allBelowPass bool
+}
+
+// summarizeScores 按市场阈值把每个 issue 的违规概率归入拒绝、灰区或放行。
+func summarizeScores(p *policy.Policy, market string, scores []IssueScore) scoreSummary {
 	maxYes := 0.0
-	var autoReject, violations []string
-	allBelowPass := true
+	summary := scoreSummary{allBelowPass: true}
 	for _, score := range scores {
-		threshold := r.p.ThresholdFor(score.Issue, snap.Market)
+		threshold := p.ThresholdFor(score.Issue, market)
 		maxYes = math.Max(maxYes, score.PYes)
 		if score.PYes >= threshold.Reject {
-			violations = append(violations, score.Issue)
+			summary.violations = append(summary.violations, score.Issue)
 			if threshold.AutoReject {
-				autoReject = append(autoReject, score.Issue)
+				summary.autoReject = append(summary.autoReject, score.Issue)
 			}
 		}
 		if score.PYes >= threshold.Pass {
-			allBelowPass = false
+			summary.allBelowPass = false
 		}
 	}
-	priority := int(maxYes * 100)
+	summary.priority = int(maxYes * 100)
+	return summary
+}
+
+// decisionSignals 汇总 S1–S4 留给 S5 决策的信号。
+type decisionSignals struct {
+	disposition      adpolicy.Disposition
+	protected        bool
+	ruleHits         []ruleHit
+	forced           bool
+	routerReason     string
+	imageUnconfirmed bool
+	scores           scoreSummary
+}
+
+// decide 是 S5：可自动拒绝的违规直接拒绝；否则任何一个“不能自动通过”的信号都转人审，
+// 只有所有信号都放行时才自动通过（召回降级只写进原因，不放宽通过条件）。回扫走独立处置。
+func (r *runner) decide(in decisionSignals) Result {
+	priority := in.scores.priority
 	if r.in.Purpose == event.ReviewPurposeRescan {
-		return r.rescanDecision(violations, forced, allBelowPass, ruleHits, priority)
+		return r.rescanDecision(in.scores.violations, in.forced, in.scores.allBelowPass, in.ruleHits, priority)
 	}
-	if len(autoReject) > 0 {
+	if len(in.scores.autoReject) > 0 {
+		autoReject := in.scores.autoReject
 		sort.Strings(autoReject)
 		return r.finish(OutcomeReject, autoReject, "ranker-reject", priority)
 	}
+	// 转人审原因按优先顺序判断：强制规则 > 灰区分数 > 行业禁止自动通过 > 保护期 > 图片未确认。
 	switch {
-	case forced:
-		return r.finish(OutcomeHuman, ruleCodes(ruleHits, policy.ActionHuman), ReasonForcedRule, max(priority, 70))
-	case !allBelowPass:
+	case in.forced:
+		return r.finish(OutcomeHuman, ruleCodes(in.ruleHits, policy.ActionHuman), ReasonForcedRule, max(priority, 70))
+	case !in.scores.allBelowPass:
 		return r.finish(OutcomeHuman, nil, ReasonGrayZone, priority)
-	case !disposition.AutoPassAllowed:
+	case !in.disposition.AutoPassAllowed:
 		return r.finish(OutcomeHuman, nil, ReasonIndustry, priority)
-	case protected:
+	case in.protected:
 		return r.finish(OutcomeHuman, nil, ReasonProtection, priority)
-	case imageUnconfirmed:
+	case in.imageUnconfirmed:
 		return r.finish(OutcomeHuman, nil, ReasonImageUnconfirmed, priority)
 	}
 	reason := "auto-pass"
-	if routerReason != "" {
-		reason = "auto-pass;" + routerReason
+	if in.routerReason != "" {
+		reason = "auto-pass;" + in.routerReason
 	}
 	return r.finish(OutcomeApprove, nil, reason, 0)
 }
@@ -328,6 +402,7 @@ func (r *runner) rescanDecision(violations []string, forced, allBelowPass bool, 
 	return r.finish(OutcomeApprove, nil, ReasonRescanClear, 0)
 }
 
+// lookupVerdict 在未配置存储时视为未命中。
 func (r *runner) lookupVerdict(ctx context.Context) (string, []string, string, bool, error) {
 	if r.c.Lookup == nil {
 		return "", nil, "", false, nil
@@ -342,6 +417,7 @@ type ruleHit struct {
 	Term   string `json:"term,omitempty"`
 }
 
+// applyRules 逐类收集硬规则命中，不在首个命中处停止，以便阶段记录完整列出全部违规。
 func (r *runner) applyRules(disposition adpolicy.Disposition) ([]ruleHit, bool) {
 	snap := r.in.Snapshot
 	hits := []ruleHit{}
@@ -380,6 +456,8 @@ func (r *runner) applyRules(disposition adpolicy.Disposition) ([]ruleHit, bool) 
 	return hits, forced
 }
 
+// route 返回需要精排的候选 issue 与降级原因。召回不可用或市场无种子覆盖时退化为全部 issue，
+// 宁可多精排也不漏召（RVW-011）。
 func (r *runner) route(ctx context.Context) ([]string, string) {
 	started := r.now()
 	issues := slices.Clone(r.p.Issues)
@@ -401,6 +479,7 @@ func (r *runner) route(ctx context.Context) ([]string, string) {
 			map[string]any{"candidates": issues}, started)
 		return issues, ReasonRouterNoCoverage
 	}
+	// 只保留相似度达到市场召回阈值的 issue。
 	var candidates []string
 	for _, issue := range issues {
 		if result.Similarity[issue] >= r.p.ThresholdFor(issue, r.in.Snapshot.Market).Route {
@@ -437,6 +516,7 @@ func (r *runner) imageUnconfirmed(ctx context.Context) bool {
 	return false
 }
 
+// rank 在 RankerTimeout 内为候选 issue 打分，返回分数或降级原因（超时、不可用、输出无效）。
 func (r *runner) rank(ctx context.Context, candidates []string) ([]IssueScore, string) {
 	started := r.now()
 	if r.c.Ranker == nil {
@@ -461,6 +541,7 @@ func (r *runner) rank(ctx context.Context, candidates []string) ([]IssueScore, s
 		r.record(StageRanker, "ranker:error", "degraded", reason, map[string]any{"issues": candidates, "error": errorClass(err)}, started)
 		return nil, reason
 	}
+	// 模型输出必须逐个覆盖候选 issue 且概率合法，否则不能作为决策依据。
 	if err := ValidateRank(candidates, result); err != nil {
 		r.record(StageRanker, nonEmpty(result.ModelVersion, "ranker:invalid"), "degraded", ReasonRankerInvalid,
 			map[string]any{"issues": candidates, "error": err.Error()}, started)
