@@ -244,6 +244,8 @@ journal，已成功行直接回放结果，执行后在同一业务边界提交�
 
 delete_post 在执行前写数据库 confirmation，绑定 user/session/run/call/tool/digest/revision；confirm API
 使用 `pending -> approved|rejected` CAS。worker 只消费一次 approved，并在执行前复核 revision。
+用户拒绝或等待超时（expired）时绝不执行删除，也不终止 run：该调用以 `rejected` / `expired` outcome 写入
+调用行、journal（失败）和 tool_result 事件，中文说明作为工具结果交还模型继续收尾。
 
 搜索、推荐、web executor 对验证结果生成随机 handle，写 `agent_source_ledger(run_id, handle, kind,
 authority_id, revision, payload)`。需要来源的 executor 在 ledger 不可用或任一 handle 写失败时整体失败，

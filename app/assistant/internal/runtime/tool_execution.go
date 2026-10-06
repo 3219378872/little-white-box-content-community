@@ -51,7 +51,15 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	sess.Recovery = journal != nil && journal.Takeover
 	if registry.HighRisk(call.Name) {
 		if call, err = e.confirmHighRiskCall(workCtx, persistCtx, run, registry, sess, call, digest); err != nil {
-			return err
+			// 拒绝或过期不终止 run：不执行删除，把结果交给模型收尾；journal 记为失败，与其他工具失败一致。
+			var declined *confirmationDeclined
+			if !errors.As(err, &declined) {
+				return err
+			}
+			agentToolCalls.Inc(call.Name, declined.outcome)
+			return e.completeToolStep(persistCtx, run, registry, call, toolStepResult{
+				text: declined.text, err: declined, journal: journal, countCall: true, outcome: declined.outcome,
+			}, reviewLive)
 		}
 	}
 	if err := e.checkBeforeInvoke(persistCtx, run); err != nil {
@@ -315,7 +323,7 @@ type toolStepResult struct {
 	journal *store.Journal
 	// countCall 决定是否计入工具调用预算；重放已计过数，不再重复计。
 	countCall bool
-	// outcome 是工具调用行与事件中的状态：success、unavailable、invalid、replay。
+	// outcome 是工具调用行与事件中的状态：success、unavailable、invalid、replay，删除确认另有 rejected、expired。
 	outcome string
 }
 

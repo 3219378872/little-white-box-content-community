@@ -12,6 +12,21 @@ import (
 
 const confirmationWait = 2 * time.Minute
 
+// 用户拒绝或确认过期时的工具调用 outcome；与 success/invalid/unavailable 并列写入调用行与 tool_result 事件。
+const (
+	confirmOutcomeRejected = "rejected"
+	confirmOutcomeExpired  = "expired"
+)
+
+// confirmationDeclined 表示删除确认被拒绝或已过期：删除绝不执行，说明作为工具结果交还模型继续收尾。
+type confirmationDeclined struct {
+	outcome string
+	text    string
+}
+
+// Error 返回交给模型的中文说明。
+func (d *confirmationDeclined) Error() string { return d.text }
+
 // requireConfirm records a confirmation for a destructive call pinned to its argument digest and
 // target revision, then parks the run as waiting_confirm.
 func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
@@ -66,9 +81,9 @@ func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.
 	case store.ConfirmApproved:
 		return nil
 	case store.ConfirmRejected:
-		return errx.New(errx.PermissionDenied, "delete_post rejected")
+		return &confirmationDeclined{outcome: confirmOutcomeRejected, text: "用户已拒绝删除该帖子，未执行删除。"}
 	case store.ConfirmExpired:
-		return errx.New(errx.ParamError, "delete_post confirmation expired")
+		return &confirmationDeclined{outcome: confirmOutcomeExpired, text: "删除确认已过期，未执行删除。"}
 	}
 	err = e.step(persistCtx, *run, func(ctx context.Context, tx store.Store) error {
 		fresh, err := tx.GetRun(ctx, run.ID)
@@ -107,7 +122,7 @@ func ExpireConfirmationWaits(ctx context.Context, st store.Store, now int64) err
 }
 
 // expireConfirmationWait requeues a run waiting for confirmation once it is cancelled or the wait
-// times out; on resume an expired confirmation fails the destructive call.
+// times out; on resume the expired confirmation skips the delete and is reported to the model.
 func expireConfirmationWait(ctx context.Context, st store.Store, runID, now int64) error {
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		run, err := tx.LockRun(ctx, runID)
