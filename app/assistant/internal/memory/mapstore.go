@@ -10,6 +10,7 @@ import (
 	"esx/pkg/errx"
 )
 
+// MapStore is the in-memory memory Store used by unit tests; it mirrors the SQL store's rules.
 type MapStore struct {
 	mu      sync.Mutex
 	next    int64
@@ -18,10 +19,12 @@ type MapStore struct {
 	Scanner Scanner
 }
 
+// NewMapStore returns an empty store whose IDs start at 1.
 func NewMapStore() *MapStore {
 	return &MapStore{next: 1, entries: map[int64]Entry{}, changes: map[int64]Change{}}
 }
 
+// List returns active entries of a target together with per-target capacity usage.
 func (m *MapStore) List(_ context.Context, userID int64, target string) ([]Entry, []Capacity, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -29,12 +32,14 @@ func (m *MapStore) List(_ context.Context, userID int64, target string) ([]Entry
 	return all, m.capLocked(userID), nil
 }
 
+// Active returns all active entries of the user.
 func (m *MapStore) Active(_ context.Context, userID int64) ([]Entry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.activeLocked(userID, ""), nil
 }
 
+// Add is a single-op Batch.
 func (m *MapStore) Add(ctx context.Context, userID int64, target, content, requestID string, nowMs int64) (Entry, int64, error) {
 	entries, ids, err := m.Batch(ctx, userID, requestID, []Op{{Op: OpAdd, Target: target, Content: content}}, nowMs)
 	if err != nil {
@@ -50,6 +55,7 @@ func (m *MapStore) Add(ctx context.Context, userID int64, target, content, reque
 	return entries[0], changeID, nil
 }
 
+// Replace is a single-op Batch.
 func (m *MapStore) Replace(ctx context.Context, userID, id int64, content string, version int32, requestID string, nowMs int64) (Entry, int64, error) {
 	entries, ids, err := m.Batch(ctx, userID, requestID, []Op{{Op: OpReplace, ID: id, Content: content, Version: version}}, nowMs)
 	if err != nil {
@@ -65,6 +71,7 @@ func (m *MapStore) Replace(ctx context.Context, userID, id int64, content string
 	return entries[0], changeID, nil
 }
 
+// Remove is a single-op Batch.
 func (m *MapStore) Remove(ctx context.Context, userID, id int64, version int32, requestID string, nowMs int64) (int64, error) {
 	_, ids, err := m.Batch(ctx, userID, requestID, []Op{{Op: OpRemove, ID: id, Version: version}}, nowMs)
 	if err != nil {
@@ -76,6 +83,7 @@ func (m *MapStore) Remove(ctx context.Context, userID, id int64, version int32, 
 	return ids[0], nil
 }
 
+// Batch applies ops all-or-nothing; each op gets its own idempotency key derived from requestID.
 func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, ops []Op, nowMs int64) ([]Entry, []int64, error) {
 	if userID <= 0 {
 		return nil, nil, errx.NewWithCode(errx.LoginRequired)
@@ -108,6 +116,8 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 	return entries, ids, nil
 }
 
+// applyLocked applies one op: replays a recorded change for the same request, otherwise validates
+// target, threat scan, duplicates, capacity and version before writing and recording the change.
 func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID string, op Op, nowMs int64) (*Entry, int64, error) {
 	if requestID != "" && requestID != "anon" {
 		for _, change := range m.changes {
@@ -126,6 +136,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		if err := ScanContent(ctx, m.Scanner, content); err != nil {
 			return nil, 0, err
 		}
+		// Adding a duplicate returns the existing entry without a change record.
 		norm := Normalize(content)
 		for _, existing := range m.entries {
 			if existing.UserID == userID && existing.Target == op.Target && !existing.Deleted && Normalize(existing.Content) == norm {
@@ -193,6 +204,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 	}
 }
 
+// Undo reverts one change if the entry is still at the version that change produced.
 func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) (*Entry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -245,10 +257,12 @@ func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) 
 	return &current, nil
 }
 
+// RecordFeedback is a no-op in memory.
 func (m *MapStore) RecordFeedback(_ context.Context, _ int64, _ string, _ int64, _ string) error {
 	return nil
 }
 
+// activeLocked lists non-deleted entries, optionally of one target.
 func (m *MapStore) activeLocked(userID int64, target string) []Entry {
 	out := make([]Entry, 0)
 	for _, entry := range m.entries {
@@ -263,6 +277,7 @@ func (m *MapStore) activeLocked(userID int64, target string) []Entry {
 	return out
 }
 
+// capLocked reports used and limit runes for both targets.
 func (m *MapStore) capLocked(userID int64) []Capacity {
 	all := m.activeLocked(userID, "")
 	return []Capacity{
@@ -271,6 +286,7 @@ func (m *MapStore) capLocked(userID int64) []Capacity {
 	}
 }
 
+// recordLocked appends a change with copies of the before/after entries for undo.
 func (m *MapStore) recordLocked(userID, entryID int64, op string, before, after *Entry, version int32, requestID string, nowMs int64) int64 {
 	id := m.next
 	m.next++

@@ -19,9 +19,11 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
 
+// IndexName 是助手历史检索索引；文档以消息 ID 为键。
 const IndexName = "assistant-history-v1"
 const retentionDays = 365
 
+// Document 是索引中的一条历史消息。
 type Document struct {
 	UserID      int64  `json:"userId"`
 	SessionID   int64  `json:"sessionId"`
@@ -33,11 +35,13 @@ type Document struct {
 	Compacted   bool   `json:"compacted"`
 }
 
+// Client 维护历史索引并提供 search_history 检索；MySQL 仍是权威数据，索引只负责召回。
 type Client struct {
 	es    *elasticsearch.Client
 	store store.Store
 }
 
+// New 连接 Elasticsearch 并确保索引存在；未配置或只有未展开的占位地址时返回 nil，历史检索随之不可用。
 func New(addresses []string, username, password string, st store.Store) (*Client, error) {
 	cleaned := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
@@ -63,6 +67,7 @@ func New(addresses []string, username, password string, st store.Store) (*Client
 	return c, nil
 }
 
+// ensureIndex 按 CJK 分词创建索引；并发创建导致的 400 视为已存在。
 func (c *Client) ensureIndex(ctx context.Context) error {
 	if c == nil || c.es == nil {
 		return nil
@@ -88,6 +93,7 @@ func (c *Client) ensureIndex(ctx context.Context) error {
 	return nil
 }
 
+// Relay 把一批未发布的 outbox 写入索引；单条失败只记录日志并留待下次重试，其余照常标记已发布。
 func (c *Client) Relay(ctx context.Context) error {
 	if c == nil || c.store == nil {
 		return nil
@@ -113,6 +119,7 @@ func (c *Client) Relay(ctx context.Context) error {
 	return nil
 }
 
+// apply 执行一条 outbox：删除忽略 404，其余按消息 ID 覆盖写入。
 func (c *Client) apply(ctx context.Context, row store.Outbox) error {
 	docID := fmt.Sprintf("%d", row.MessageID)
 	if row.Op == store.IndexOpDelete {
@@ -144,6 +151,8 @@ func (c *Client) apply(ctx context.Context, row store.Outbox) error {
 	return nil
 }
 
+// Search 按 shape 检索当前上下文之外的历史：around 取锚点前后，session 取会话摘要，recent 取最近会话，
+// keywords 走全文检索后回 MySQL 复核可见性。
 func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.HistoryArgs) (string, error) {
 	if c == nil || c.es == nil || c.store == nil || sess == nil || sess.UserID <= 0 {
 		return "", errx.New(errx.ServiceUnavailable, "assistant history search unavailable")
@@ -195,6 +204,7 @@ func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.Histo
 	if err != nil {
 		return "", err
 	}
+	// 索引可能滞后，命中结果必须按 MySQL 当前状态重新过滤。
 	messages, err := c.store.GetMessagesByIDs(ctx, sess.UserID, ids)
 	if err != nil {
 		return "", err
@@ -224,6 +234,7 @@ func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.Histo
 	return c.formatKeywordResults(ctx, sess, ranked, cutoff)
 }
 
+// searchKeywordIDs 在索引中按关键词召回本人未删除的对话消息 ID，多取几倍以抵消复核过滤。
 func (c *Client) searchKeywordIDs(ctx context.Context, sess *tool.Session, text string, cutoff int64, limit int) ([]int64, error) {
 	size := limit * 5
 	if size < 10 {
@@ -285,6 +296,7 @@ func (c *Client) searchKeywordIDs(ctx context.Context, sess *tool.Session, text 
 	return ids, nil
 }
 
+// formatKeywordResults 渲染关键词命中，并为排名第一的结果附上下文与会话摘要。
 func (c *Client) formatKeywordResults(ctx context.Context, sess *tool.Session, ranked []store.Message, cutoff int64) (string, error) {
 	var b strings.Builder
 	for index, message := range ranked {
@@ -309,6 +321,7 @@ func (c *Client) formatKeywordResults(ctx context.Context, sess *tool.Session, r
 	return strings.TrimRight(b.String(), "\n"), nil
 }
 
+// formatHistoryAround 渲染锚点前后的消息并标出锚点。
 func formatHistoryAround(anchorID int64, messages []store.Message, summaries []store.HistorySessionSummary) string {
 	if len(messages) == 0 {
 		return noHistoryResult()
@@ -326,6 +339,7 @@ func formatHistoryAround(anchorID int64, messages []store.Message, summaries []s
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// formatHistorySummaries 渲染会话摘要列表。
 func formatHistorySummaries(summaries []store.HistorySessionSummary) string {
 	if len(summaries) == 0 {
 		return noHistoryResult()
@@ -335,6 +349,7 @@ func formatHistorySummaries(summaries []store.HistorySessionSummary) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// appendHistorySummary 追加每个会话的首尾消息摘要。
 func appendHistorySummary(b *strings.Builder, summaries []store.HistorySessionSummary) {
 	for index, summary := range summaries {
 		fmt.Fprintf(b, "  会话摘要 %d: session=%d first=[%d] %s: %s", index+1, summary.SessionID,
@@ -346,6 +361,7 @@ func appendHistorySummary(b *strings.Builder, summaries []store.HistorySessionSu
 	}
 }
 
+// historyMessageEligible 与 store 侧的检索条件一致：可见、未删除、在保留期内且不在当前上下文中的对话消息。
 func historyMessageEligible(message store.Message, cutoff int64, live map[int64]struct{}) bool {
 	if message.DeletedAtMs != 0 || !message.Visible || message.CreatedAtMs < cutoff {
 		return false
@@ -360,6 +376,7 @@ func historyMessageEligible(message store.Message, cutoff int64, live map[int64]
 	return !excluded
 }
 
+// historyLimit 默认返回 3 条，最多 10 条。
 func historyLimit(limit int) int {
 	if limit <= 0 {
 		return 3
@@ -370,6 +387,7 @@ func historyLimit(limit int) int {
 	return limit
 }
 
+// noHistoryResult 是没有可展示历史时给模型的结果。
 func noHistoryResult() string {
 	return "没有召回到可展示的历史消息。"
 }

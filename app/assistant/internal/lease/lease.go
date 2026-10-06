@@ -23,6 +23,7 @@ const (
 
 var ownerSequence atomic.Uint64
 
+// Manager 为 worker 领取 run 并续约租约。
 type Manager struct {
 	Store store.Store
 	Owner string
@@ -30,6 +31,7 @@ type Manager struct {
 	Renew time.Duration
 }
 
+// owner 返回租约持有者标识。
 func (m *Manager) owner() string {
 	if m.Owner == "" {
 		return DefaultOwner
@@ -37,6 +39,7 @@ func (m *Manager) owner() string {
 	return m.Owner
 }
 
+// leaseMs 返回租约时长（毫秒）。
 func (m *Manager) leaseMs() int64 {
 	if m.Lease <= 0 {
 		return DefaultLease.Milliseconds()
@@ -44,6 +47,7 @@ func (m *Manager) leaseMs() int64 {
 	return m.Lease.Milliseconds()
 }
 
+// Claim 领取下一个可执行的 run；之前已开始过的 run 视为接管了过期租约。
 func (m *Manager) Claim(ctx context.Context) (*store.Run, bool, error) {
 	now := store.NowMs()
 	run, err := m.Store.Claim(ctx, m.owner(), now, m.leaseMs())
@@ -61,6 +65,7 @@ func (m *Manager) Claim(ctx context.Context) (*store.Run, bool, error) {
 	return run, recovered, nil
 }
 
+// NewOwner 生成进程唯一的持有者标识（前缀-主机-进程号-随机数），总长不超过 64。
 func NewOwner(base string) string {
 	base = strings.TrimSpace(base)
 	if base == "" {
@@ -82,6 +87,7 @@ func NewOwner(base string) string {
 	return prefix + suffix
 }
 
+// RenewLoop 定期续约；续约被拒或在租约到期前一直续约失败时调用 onLost 让执行方停止。
 func (m *Manager) RenewLoop(ctx context.Context, run store.Run, onLost context.CancelFunc) {
 	interval := m.Renew
 	if interval <= 0 {

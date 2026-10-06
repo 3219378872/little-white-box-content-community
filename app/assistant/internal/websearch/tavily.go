@@ -32,6 +32,7 @@ type Config struct {
 	MaxResults int           // 缺省 5
 }
 
+// tavilyClient 通过 Tavily API 搜索公共互联网。
 type tavilyClient struct {
 	cfg    Config
 	client *http.Client
@@ -55,6 +56,7 @@ func New(cfg Config) Searcher {
 	return &tavilyClient{cfg: cfg, client: &http.Client{Timeout: cfg.Timeout}}
 }
 
+// tavilyRequest 是 Tavily /search 请求体；不请求生成式答案，只取原始结果。
 type tavilyRequest struct {
 	APIKey        string `json:"api_key"`
 	Query         string `json:"query"`
@@ -63,6 +65,7 @@ type tavilyRequest struct {
 	IncludeAnswer bool   `json:"include_answer"`
 }
 
+// tavilyResponse 是 Tavily /search 响应中用到的字段。
 type tavilyResponse struct {
 	Results []struct {
 		Title   string `json:"title"`
@@ -71,6 +74,7 @@ type tavilyResponse struct {
 	} `json:"results"`
 }
 
+// Search 执行一次基础深度搜索，结果数不超过配置上限。
 func (c *tavilyClient) Search(ctx context.Context, query string, maxResults int) ([]Result, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {

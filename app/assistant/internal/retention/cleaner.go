@@ -12,15 +12,18 @@ const (
 	DefaultMaxBatches         = 20
 )
 
+// Store 是清理所需的最小存储接口。
 type Store interface {
 	PurgeExpiredMessages(ctx context.Context, cutoffMs int64, batchSize int) (int, error)
 }
 
+// Result 是一次清理删除的行数。
 type Result struct {
 	SourceEvidence int
 	Messages       int
 }
 
+// Cleaner 定期删除超过保留期的助手消息与来源证据。
 type Cleaner struct {
 	store      Store
 	now        func() time.Time
@@ -28,6 +31,7 @@ type Cleaner struct {
 	maxBatches int
 }
 
+// New 使用默认批大小与每次运行的批数上限。
 func New(store Store) *Cleaner {
 	return &Cleaner{
 		store: store, now: time.Now,
@@ -35,6 +39,7 @@ func New(store Store) *Cleaner {
 	}
 }
 
+// RunOnce 执行一轮清理；来源证据清理仅在存储支持时进行，两类错误合并返回。
 func (c *Cleaner) RunOnce(ctx context.Context) (Result, error) {
 	if c == nil || c.store == nil {
 		return Result{}, nil
@@ -53,6 +58,7 @@ func (c *Cleaner) RunOnce(ctx context.Context) (Result, error) {
 	return result, errors.Join(errs...)
 }
 
+// runBatches 分批删除，直到某批不足批大小或达到批数上限，避免单次运行长时间占用数据库。
 func (c *Cleaner) runBatches(
 	ctx context.Context,
 	cutoffMs int64,

@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	// 记忆分为 memory（助手笔记）与 user（用户画像）两个目标，各有字符容量上限。
 	TargetMemory = "memory"
 	TargetUser   = "user"
 
@@ -23,6 +24,7 @@ const (
 	OpRemove  = "remove"
 )
 
+// Entry 是一条记忆；Version 用于乐观并发，删除为软删除。
 type Entry struct {
 	ID          int64
 	UserID      int64
@@ -34,6 +36,7 @@ type Entry struct {
 	Deleted     bool
 }
 
+// Change 记录一次变更的前后状态，供撤销与按 requestID 幂等重放。
 type Change struct {
 	ID            int64
 	UserID        int64
@@ -47,12 +50,14 @@ type Change struct {
 	CreatedAtMs   int64
 }
 
+// Capacity 是某个目标已用与上限字符数。
 type Capacity struct {
 	Target string
 	Used   int
 	Limit  int
 }
 
+// Op 是批量操作中的一条增删改。
 type Op struct {
 	Op      string
 	ID      int64
@@ -61,6 +66,7 @@ type Op struct {
 	Version int32
 }
 
+// Store 是记忆的读写接口；增删改操作按 requestID 幂等。
 type Store interface {
 	List(ctx context.Context, userID int64, target string) ([]Entry, []Capacity, error)
 	Add(ctx context.Context, userID int64, target, content, requestID string, nowMs int64) (Entry, int64, error)
@@ -72,10 +78,12 @@ type Store interface {
 	RecordFeedback(ctx context.Context, userID int64, requestID string, postID int64, reason string) error
 }
 
+// Scanner 是写入前的内容安全检查。
 type Scanner interface {
 	Check(ctx context.Context, text string) error
 }
 
+// Normalize 统一大小写与空白，用于判断两条记忆是否重复。
 func Normalize(content string) string {
 	var b strings.Builder
 	lastSpace := true
@@ -93,6 +101,7 @@ func Normalize(content string) string {
 	return strings.TrimSpace(b.String())
 }
 
+// LimitFor 返回目标的字符容量上限。
 func LimitFor(target string) int {
 	if target == TargetUser {
 		return CapacityUser
@@ -100,10 +109,12 @@ func LimitFor(target string) int {
 	return CapacityMemory
 }
 
+// ValidTarget 判断目标是否合法。
 func ValidTarget(target string) bool {
 	return target == TargetMemory || target == TargetUser
 }
 
+// ScanContent 拒绝空内容与常见提示词注入短语，再交给可选的安全过滤器，防止记忆成为注入通道。
 func ScanContent(ctx context.Context, scanner Scanner, content string) error {
 	if strings.TrimSpace(content) == "" {
 		return errx.New(errx.ParamError, "memory content is required")
@@ -128,6 +139,7 @@ func ScanContent(ctx context.Context, scanner Scanner, content string) error {
 	return nil
 }
 
+// UsedRunes 统计目标下有效条目的字符数。
 func UsedRunes(entries []Entry, target string) int {
 	n := 0
 	for _, item := range entries {

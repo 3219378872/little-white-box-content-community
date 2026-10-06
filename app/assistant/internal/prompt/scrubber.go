@@ -2,6 +2,7 @@ package prompt
 
 import "strings"
 
+// scrubFence is an open/close tag pair whose enclosed context must never reach the user.
 type scrubFence struct {
 	open  string
 	close string
@@ -36,6 +37,8 @@ type StreamingScrubber struct {
 	close   string
 }
 
+// Feed returns the safe part of a chunk. A suffix that could start a tag or notice is held back
+// until the next chunk decides it; text inside a context span is dropped.
 func (s *StreamingScrubber) Feed(text string) string {
 	if text == "" {
 		return ""
@@ -86,6 +89,7 @@ func (s *StreamingScrubber) Feed(text string) string {
 	return out.String()
 }
 
+// Flush releases held text at end of stream; an unterminated span is discarded.
 func (s *StreamingScrubber) Flush() string {
 	if s.inSpan {
 		s.pending = ""
@@ -98,6 +102,7 @@ func (s *StreamingScrubber) Flush() string {
 	return out
 }
 
+// stripFenceBlocks removes every fenced span; an unterminated span drops the rest of the text.
 func stripFenceBlocks(text string, fence scrubFence) string {
 	for {
 		start := indexFold(text, fence.open)
@@ -113,6 +118,7 @@ func stripFenceBlocks(text string, fence scrubFence) string {
 	}
 }
 
+// stripNeedles removes the untrusted-data notices.
 func stripNeedles(text string) string {
 	for _, needle := range scrubNeedles {
 		text = replaceFold(text, needle, "")
@@ -120,6 +126,7 @@ func stripNeedles(text string) string {
 	return text
 }
 
+// earliestFence finds the first opening tag of any fence.
 func earliestFence(text string) (int, scrubFence) {
 	best := -1
 	var found scrubFence
@@ -133,6 +140,7 @@ func earliestFence(text string) (int, scrubFence) {
 	return best, found
 }
 
+// longestPartialSuffix returns how many trailing bytes could be the start of a candidate, case-insensitively.
 func longestPartialSuffix(text string, candidates []string) int {
 	lower := strings.ToLower(text)
 	best := 0
@@ -149,10 +157,12 @@ func longestPartialSuffix(text string, candidates []string) int {
 	return best
 }
 
+// indexFold is a case-insensitive strings.Index for ASCII tags.
 func indexFold(text, needle string) int {
 	return strings.Index(strings.ToLower(text), strings.ToLower(needle))
 }
 
+// replaceFold replaces every case-insensitive occurrence.
 func replaceFold(text, old, replacement string) string {
 	for {
 		idx := indexFold(text, old)
@@ -163,6 +173,7 @@ func replaceFold(text, old, replacement string) string {
 	}
 }
 
+// minInt returns the smaller of two ints.
 func minInt(a, b int) int {
 	if a < b {
 		return a
