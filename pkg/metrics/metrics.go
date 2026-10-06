@@ -18,8 +18,14 @@ type HistogramVecOpts struct {
 
 // GaugeVecOpts names a labelled gauge; the wrapper types below take label values positionally.
 type GaugeVecOpts = CounterVecOpts
+
+// CounterVec wraps a registered Prometheus counter vector; label values are positional.
 type CounterVec struct{ v *prometheus.CounterVec }
+
+// GaugeVec wraps a registered Prometheus gauge vector.
 type GaugeVec struct{ v *prometheus.GaugeVec }
+
+// HistogramVec wraps a registered Prometheus histogram vector.
 type HistogramVec struct{ v *prometheus.HistogramVec }
 
 // NewCounterVec creates and registers a counter; duplicate registration panics at startup.

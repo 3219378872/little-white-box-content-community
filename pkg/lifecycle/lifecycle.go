@@ -25,12 +25,13 @@ func initContext() {
 	once.Do(func() { ctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM) })
 }
 
-// Done is closed when the process is asked to stop; Shutdown requests a stop programmatically;
-// AddShutdownListener runs fn once the stop is requested.
+// Done is closed when the process is asked to stop.
 func Done() <-chan struct{} { initContext(); return ctx.Done() }
 
 // Shutdown requests a stop programmatically.
-func Shutdown()                     { initContext(); stop() }
+func Shutdown() { initContext(); stop() }
+
+// AddShutdownListener runs fn once the stop is requested.
 func AddShutdownListener(fn func()) { go func() { <-Done(); fn() }() }
 
 // ServiceConf is the common service block: name, logging, mode and the diagnostics server.
