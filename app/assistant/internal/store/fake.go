@@ -24,7 +24,6 @@ type MemoryStore struct {
 	queue         map[int64][]QueueItem
 	alerts        map[string]Alert
 	outbox        []Outbox
-	claimFail     bool
 	consents      map[int64]int32
 	evidence      map[string]Evidence
 	questions     map[string]QuestionRequest

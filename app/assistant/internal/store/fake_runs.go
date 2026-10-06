@@ -159,9 +159,6 @@ func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int6
 	defer m.stepMu.Unlock()
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.claimFail {
-		return nil, nil
-	}
 	var best *Run
 	for _, run := range m.runs {
 		claimable := run.Status == StatusQueued ||
