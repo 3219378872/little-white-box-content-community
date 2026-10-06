@@ -14,8 +14,6 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	sqlx "esx/pkg/sqlstore"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 // MachineLease 是 worker 处理单个任务的租约；崩溃后到期即可被其他 worker 重领。
@@ -367,9 +365,4 @@ func truncate(value string, limit int) string {
 		return value
 	}
 	return string(runes[:limit])
-}
-
-func isDuplicateKey(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

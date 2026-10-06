@@ -14,8 +14,6 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
 	sqlx "esx/pkg/sqlstore"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 // AdInput 是创建或编辑广告的内容；校验由调用方完成。
@@ -315,9 +313,4 @@ func commandParts(expectedRevision int64, in AdInput, extra ...string) []string 
 	parts := []string{strconv.FormatInt(expectedRevision, 10), in.Title, in.Body, in.CTA, in.LandingURL,
 		strings.Join(media, ","), in.Market, in.Industry, strconv.FormatInt(in.StartMs, 10), strconv.FormatInt(in.EndMs, 10)}
 	return append(parts, extra...)
-}
-
-func isDuplicateKey(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

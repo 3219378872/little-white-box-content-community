@@ -5,15 +5,26 @@ package sqlstore
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"esx/pkg/lifecycle"
 	"fmt"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	x "github.com/jmoiron/sqlx"
 )
 
 var ErrNotFound = sql.ErrNoRows
+
+// mysqlDuplicateEntry is MySQL error 1062 (ER_DUP_ENTRY).
+const mysqlDuplicateEntry = 1062
+
+// IsDuplicateKey reports whether err is a MySQL unique-key violation, the
+// signal stores use to turn a racing insert into "already exists".
+func IsDuplicateKey(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == mysqlDuplicateEntry
+}
 
 type SqlConf struct{ DriverName, DataSource string }
 type Session interface {

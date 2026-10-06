@@ -112,7 +112,7 @@ func (s *Store) Ingest(
 	})
 	if err != nil {
 		// 并发同键：唯一键失败后回读胜出事务的任务（RVW-001）。
-		if isDuplicateKey(err) {
+		if sqlx.IsDuplicateKey(err) {
 			task, findErr := findTaskByKey(ctx, s.conn, sub, false)
 			if findErr == nil && task != nil {
 				return IngestResult{Task: task}, nil

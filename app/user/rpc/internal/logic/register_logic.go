@@ -6,20 +6,19 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"esx/app/user/rpc/internal/model"
-	"esx/app/user/rpc/internal/password"
-	"esx/pkg/errx"
-	"esx/pkg/jwtx"
-	"esx/pkg/util"
-	"esx/pkg/validator"
 	"fmt"
 
+	"esx/app/user/rpc/internal/model"
+	"esx/app/user/rpc/internal/password"
 	"esx/app/user/rpc/internal/svc"
 	pb "esx/kitex_gen/user"
+	"esx/pkg/errx"
+	"esx/pkg/jwtx"
+	"esx/pkg/sqlstore"
+	"esx/pkg/util"
+	"esx/pkg/validator"
 
 	logx "esx/pkg/logging"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 type RegisterLogic struct {
@@ -193,13 +192,8 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 }
 
 func mapUserInsertError(err error) error {
-	if isDuplicateKeyError(err) {
+	if sqlstore.IsDuplicateKey(err) {
 		return errx.NewWithCode(errx.UserAlreadyExist)
 	}
 	return errx.Wrap(err, errx.SystemError)
-}
-
-func isDuplicateKeyError(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

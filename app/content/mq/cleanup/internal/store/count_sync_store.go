@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,8 +13,6 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 // countSyncDedupTTLSeconds 与 REL-008 去重语义一致（90 天）。
@@ -195,11 +192,3 @@ func (s *countSyncStore) invalidateCaches(ctx context.Context, targetType string
 		return
 	}
 }
-
-// IsDuplicateKeyError 供测试与日志判断唯一键冲突。
-func IsDuplicateKeyError(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
-}
-
-var _ = sql.ErrNoRows

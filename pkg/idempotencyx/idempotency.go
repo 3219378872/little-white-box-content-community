@@ -9,8 +9,6 @@ import (
 	"time"
 
 	sqlx "esx/pkg/sqlstore"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 // maxIdempotencyKeySize 与 CORE-042/050 一致：客户端幂等键最长 128 字符。
@@ -80,7 +78,7 @@ func ResolveIdempotencySession(
 	if err == nil {
 		return newResourceID, true, nil
 	}
-	if !isDuplicateKeyError(err) {
+	if !sqlx.IsDuplicateKey(err) {
 		return 0, false, err
 	}
 	// The first lookup is a consistent read and establishes a repeatable-read
@@ -130,9 +128,4 @@ func findIdempotencySession(
 		return storedIdempotency{}, false, err
 	}
 	return stored, true, nil
-}
-
-func isDuplicateKeyError(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

@@ -97,7 +97,7 @@ func (s *Store) ApplyAdvertiser(ctx context.Context, in AdvertiserInput, now tim
 				VALUES (?, ?, ?, ?, ?, 0, ?, '[]', '', 0, ?, ?, ?)`,
 				adv.ID, adv.UserID, adv.Name, adv.MarketsCSV, adv.Revision, adv.ReviewStatus,
 				adv.SubmittedAtMs, adv.CreatedAtMs, adv.UpdatedAtMs); err != nil {
-				if isDuplicateKey(err) {
+				if sqlx.IsDuplicateKey(err) {
 					return ErrAdvertiserExists
 				}
 				return err
