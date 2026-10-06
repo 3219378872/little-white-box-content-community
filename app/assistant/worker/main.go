@@ -19,6 +19,8 @@ import (
 
 var configFile = flag.String("f", "etc/agent.yaml", "config file")
 
+// main 运行助手 worker：主循环每 500ms 领取一个 run 并在续约保护下同步执行，
+// 每 2 秒中继一次历史索引 outbox；追问/确认超时与保留期清理在后台 goroutine 中运行。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()
@@ -60,6 +62,7 @@ func main() {
 			if run == nil {
 				continue
 			}
+			// 续约失败会取消 runCtx，使执行中的 run 尽快停下。
 			runCtx, runCancel := context.WithCancel(ctx)
 			go svcCtx.Lease.RenewLoop(runCtx, *run, runCancel)
 			svcCtx.Engine.Execute(runCtx, *run, recovered)
@@ -68,6 +71,7 @@ func main() {
 	}
 }
 
+// runWaitingExpiry 每秒结算超时的追问等待与工具确认等待。
 func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -93,6 +97,7 @@ func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
 	}
 }
 
+// runRetention 启动时立即清理一次，之后每小时清理过期消息与来源证据。
 func runRetention(ctx context.Context, svcCtx *svc.ServiceContext) {
 	run := func() {
 		result, err := svcCtx.Retention.RunOnce(ctx)

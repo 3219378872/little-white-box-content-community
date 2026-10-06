@@ -11,16 +11,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// RevokeConsentLogic 承载 RevokeConsent 接口的业务逻辑；每个请求新建一个实例。
 type RevokeConsentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewRevokeConsentLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewRevokeConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RevokeConsentLogic {
 	return &RevokeConsentLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// RevokeConsent 取消用户全部未结束的 run，并立即结算正在等待追问的 run。
 func (l *RevokeConsentLogic) RevokeConsent(in *pb.RevokeConsentReq) (*pb.RevokeConsentResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

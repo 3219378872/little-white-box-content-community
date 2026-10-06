@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// AnswerQuestionsLogic 承载 AnswerQuestions 接口的业务逻辑；每个请求新建一个实例。
 type AnswerQuestionsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewAnswerQuestionsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewAnswerQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AnswerQuestionsLogic {
 	return &AnswerQuestionsLogic{
 		ctx:    ctx,
@@ -27,6 +29,7 @@ func NewAnswerQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *A
 	}
 }
 
+// AnswerQuestions 解码回答 JSON 后提交，返回更新后的追问。
 func (l *AnswerQuestionsLogic) AnswerQuestions(in *pb.AnswerQuestionsReq) (*pb.AnswerQuestionsResp, error) {
 	if in == nil {
 		return nil, errx.NewWithCode(errx.ParamError)

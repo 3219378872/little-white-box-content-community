@@ -13,16 +13,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// ListMessagesLogic 承载 ListMessages 接口的业务逻辑；每个请求新建一个实例。
 type ListMessagesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewListMessagesLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewListMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListMessagesLogic {
 	return &ListMessagesLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// ListMessages 分页读取可见消息；多取一条判断是否还有更多。
 func (l *ListMessagesLogic) ListMessages(in *pb.ListMessagesReq) (*pb.ListMessagesResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

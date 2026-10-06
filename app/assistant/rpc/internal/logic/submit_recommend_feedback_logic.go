@@ -11,16 +11,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// SubmitRecommendFeedbackLogic 承载 SubmitRecommendFeedback 接口的业务逻辑；每个请求新建一个实例。
 type SubmitRecommendFeedbackLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSubmitRecommendFeedbackLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSubmitRecommendFeedbackLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SubmitRecommendFeedbackLogic {
 	return &SubmitRecommendFeedbackLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// SubmitRecommendFeedback 记录用户对助手推荐帖子的反馈原因。
 func (l *SubmitRecommendFeedbackLogic) SubmitRecommendFeedback(in *pb.SubmitRecommendFeedbackReq) (*pb.SubmitRecommendFeedbackResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

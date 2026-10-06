@@ -17,6 +17,7 @@ import (
 
 var configFile = flag.String("f", "etc/assistant.yaml", "the config file")
 
+// main 启动助手 RPC 服务；它只接收输入与查询，run 的执行在 worker 中进行。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

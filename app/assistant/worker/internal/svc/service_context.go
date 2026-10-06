@@ -29,6 +29,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// ServiceContext 聚合 worker 的存储、租约、执行引擎、历史索引与清理器。
 type ServiceContext struct {
 	Config    config.Config
 	Store     store.Store
@@ -40,6 +41,8 @@ type ServiceContext struct {
 	Retention *retention.Cleaner
 }
 
+// NewServiceContext 依次装配下游 RPC、MySQL 存储与记忆、Redis 通知、模型路由（含就绪探测）、
+// 历史索引与工具注册表；任何必需依赖不可用都直接返回错误，让 worker 启动失败。
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if strings.TrimSpace(c.DataSource) == "" {
 		return nil, fmt.Errorf("assistant-agent: DataSource is required")
@@ -56,7 +59,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	interactionService := interactionservice.NewInteractionService(newClient(c.InteractionRpc))
 	userService := userservice.NewUserService(newClient(c.UserRpc))
 
-	// SQL arguments contain prompts and tool payloads; suppress SQL logs (REL-022).
+	// pkg/sqlstore never logs statements or arguments, so prompts and tool payloads stay out of logs (REL-022).
 	conn := sqlx.NewMysql(c.DataSource)
 	st := store.NewSQLStore(conn)
 	var safetyFilter safety.Filter
@@ -121,6 +124,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	}, nil
 }
 
+// buildLLMClient 以主路由和已启用的备用路由构造带重试的客户端，并返回全部路由 ID 供就绪探测。
 func buildLLMClient(c config.LLMConfig) (llm.Client, []string, error) {
 	primary, err := llm.New(primaryLLMConfig(c, c.Model, c.RouteID))
 	if err != nil || primary == nil {
@@ -156,6 +160,7 @@ func buildLLMClient(c config.LLMConfig) (llm.Client, []string, error) {
 	return resilient, routeIDs, err
 }
 
+// buildAuxiliaryClient 为辅助任务（如压缩、记忆回顾）构造单路由客户端；未配置模型时返回 nil。
 func buildAuxiliaryClient(c config.LLMConfig, model, suffix string) (llm.Client, error) {
 	model = strings.TrimSpace(model)
 	if !c.Enabled || model == "" {
@@ -175,6 +180,7 @@ func buildAuxiliaryClient(c config.LLMConfig, model, suffix string) (llm.Client,
 	})
 }
 
+// primaryLLMConfig 用主路由的连接与计费参数生成指定模型的客户端配置。
 func primaryLLMConfig(c config.LLMConfig, model, routeID string) llm.Config {
 	return llm.Config{
 		Enabled: c.Enabled, RouteID: routeID, Boundary: c.Boundary, WireAPI: c.WireAPI,
@@ -188,6 +194,7 @@ func primaryLLMConfig(c config.LLMConfig, model, routeID string) llm.Config {
 	}
 }
 
+// minDuration 返回较小的正时长；a 非正时返回 b。
 func minDuration(a, b time.Duration) time.Duration {
 	if a > 0 && a < b {
 		return a
@@ -195,12 +202,14 @@ func minDuration(a, b time.Duration) time.Duration {
 	return b
 }
 
+// runLLMCanary 在超时内对一个路由执行工具调用探测。
 func runLLMCanary(timeout time.Duration, client llm.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return llm.Canary(ctx, client)
 }
 
+// checkConfiguredRoutes 逐个探测主、备用与辅助路由，任一路由不支持工具调用即拒绝启动。
 func checkConfiguredRoutes(c config.LLMConfig, client llm.Client, routeIDs []string, auxClient, reviewClient llm.Client) error {
 	if c.Enabled && c.CanaryEnabled {
 		canaryTimeout := minDuration(time.Duration(c.TimeoutMs)*time.Millisecond, 30*time.Second)
@@ -228,6 +237,7 @@ func checkConfiguredRoutes(c config.LLMConfig, client llm.Client, routeIDs []str
 	return nil
 }
 
+// authenticatedRPCClient 返回带内部鉴权的 RPC 客户端构造函数。
 func authenticatedRPCClient(secret string) func(rpcx.RpcClientConf) rpcx.Client {
 
 	internalAuthOption := rpcx.WithInternalAuth(secret)

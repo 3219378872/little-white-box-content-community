@@ -4,12 +4,14 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// SafetyConfig 是记忆写入的屏蔽词过滤配置。
 type SafetyConfig struct {
 	Enabled      bool `json:",default=true"`
 	BlockedTerms []string
 	MaxScanRunes int `json:",default=10000,range=[100:50000]"`
 }
 
+// Config 是助手 RPC 服务的配置。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret     string

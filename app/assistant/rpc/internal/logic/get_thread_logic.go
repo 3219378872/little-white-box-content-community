@@ -11,16 +11,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetThreadLogic 承载 GetThread 接口的业务逻辑；每个请求新建一个实例。
 type GetThreadLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetThreadLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetThreadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetThreadLogic {
 	return &GetThreadLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// GetThread 返回会话摘要；只有未结束的活跃 run 才附带状态与阶段。
 func (l *GetThreadLogic) GetThread(in *pb.GetThreadReq) (*pb.GetThreadResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

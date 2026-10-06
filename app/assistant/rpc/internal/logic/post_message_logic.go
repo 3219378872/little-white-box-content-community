@@ -13,16 +13,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// PostMessageLogic 承载 PostMessage 接口的业务逻辑；每个请求新建一个实例。
 type PostMessageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewPostMessageLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewPostMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PostMessageLogic {
 	return &PostMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// PostMessage 读取用户当前授权后把消息交给 Acceptor；授权在接收事务中会再次复核。
 func (l *PostMessageLogic) PostMessage(in *pb.PostMessageReq) (*pb.PostMessageResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

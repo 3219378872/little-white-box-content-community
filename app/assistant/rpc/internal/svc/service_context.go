@@ -16,6 +16,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// ServiceContext 聚合 RPC 侧的存储、记忆、通知与输入接收器。
 type ServiceContext struct {
 	Config         config.Config
 	Store          store.Store
@@ -27,6 +28,7 @@ type ServiceContext struct {
 	UserService    userservice.UserService
 }
 
+// NewServiceContext 装配 RPC 依赖；未配置 DataSource 时存储为空，相关接口返回 ServiceUnavailable。
 func NewServiceContext(c config.Config) *ServiceContext {
 
 	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
@@ -42,7 +44,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	var st store.Store
 	var mem memory.Store
 	if strings.TrimSpace(c.DataSource) != "" {
-		// Assistant SQL parameters contain prompts and tool payloads (REL-022).
+		// pkg/sqlstore never logs statements or arguments, so prompts and tool payloads stay out of logs (REL-022).
 		conn := sqlx.NewMysql(c.DataSource)
 		st = store.NewSQLStore(conn)
 		var filter safety.Filter

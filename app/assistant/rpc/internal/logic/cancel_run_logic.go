@@ -11,16 +11,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// CancelRunLogic 承载 CancelRun 接口的业务逻辑；每个请求新建一个实例。
 type CancelRunLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewCancelRunLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewCancelRunLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CancelRunLogic {
 	return &CancelRunLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// CancelRun 标记取消；等待追问的 run 没有 worker 在跑，需要在这里直接结算。
 func (l *CancelRunLogic) CancelRun(in *pb.CancelRunReq) (*pb.CancelRunResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

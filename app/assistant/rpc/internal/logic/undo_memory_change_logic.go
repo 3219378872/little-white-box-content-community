@@ -10,16 +10,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// UndoMemoryChangeLogic 承载 UndoMemoryChange 接口的业务逻辑；每个请求新建一个实例。
 type UndoMemoryChangeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUndoMemoryChangeLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUndoMemoryChangeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UndoMemoryChangeLogic {
 	return &UndoMemoryChangeLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// UndoMemoryChange 撤销一次记忆变更。
 func (l *UndoMemoryChangeLogic) UndoMemoryChange(in *pb.UndoMemoryChangeReq) (*pb.UndoMemoryChangeResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

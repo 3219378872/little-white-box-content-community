@@ -11,16 +11,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// BatchMemoryLogic 承载 BatchMemory 接口的业务逻辑；每个请求新建一个实例。
 type BatchMemoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewBatchMemoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewBatchMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchMemoryLogic {
 	return &BatchMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// BatchMemory 原子执行一组记忆增删改。
 func (l *BatchMemoryLogic) BatchMemory(in *pb.BatchMemoryReq) (*pb.BatchMemoryResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

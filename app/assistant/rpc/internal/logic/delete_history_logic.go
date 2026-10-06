@@ -9,16 +9,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeleteHistoryLogic 承载 DeleteHistory 接口的业务逻辑；每个请求新建一个实例。
 type DeleteHistoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewDeleteHistoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewDeleteHistoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteHistoryLogic {
 	return &DeleteHistoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// DeleteHistory 删除用户全部助手历史。
 func (l *DeleteHistoryLogic) DeleteHistory(in *pb.DeleteHistoryReq) (*pb.DeleteHistoryResp, error) {
 	if in == nil {
 		return nil, requireAgentUser(0)

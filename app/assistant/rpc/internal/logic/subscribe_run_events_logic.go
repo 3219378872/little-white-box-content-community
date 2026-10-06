@@ -14,16 +14,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// SubscribeRunEventsLogic 承载 SubscribeRunEvents 接口的业务逻辑；每个请求新建一个实例。
 type SubscribeRunEventsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSubscribeRunEventsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSubscribeRunEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SubscribeRunEventsLogic {
 	return &SubscribeRunEventsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// SubscribeRunEvents 推送 run 事件流；回答展示在发送前按当前可见性重新校验来源。
 func (l *SubscribeRunEventsLogic) SubscribeRunEvents(in *pb.SubscribeRunEventsReq, stream pb.AssistantService_SubscribeRunEventsServer) error {
 	if in == nil {
 		return requireAgentUser(0)
