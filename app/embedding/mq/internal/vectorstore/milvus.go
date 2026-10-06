@@ -2,6 +2,7 @@ package vectorstore
 
 import (
 	"context"
+	"esx/pkg/milvusx"
 	"esx/pkg/vectorprojection"
 	"fmt"
 	"math"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -68,32 +68,13 @@ func NewMilvusVectorStore(ctx context.Context, addr, collection string, dim int,
 	}
 	defer cancel()
 
-	config := client.Config{
+	cli, err := milvusx.Dial(connectCtx, client.Config{
 		Address: addr, Username: o.username, Password: o.password, DBName: o.dbName,
-		DialOptions: []grpc.DialOption{grpc.WithNoProxy()},
-	}
-	var cli client.Client
-	for {
-		var err error
-		cli, err = client.NewClient(connectCtx, config)
-		if err == nil {
-			break
-		}
-		if !isMilvusStartupError(err) {
-			return nil, fmt.Errorf("milvus connect: %w", err)
-		}
-		select {
-		case <-connectCtx.Done():
-			return nil, fmt.Errorf("milvus connect: %w", err)
-		case <-time.After(milvusConnectRetryInterval):
-		}
+	}, milvusConnectRetryInterval)
+	if err != nil {
+		return nil, fmt.Errorf("milvus connect: %w", err)
 	}
 	return &MilvusVectorStore{cli: cli, collection: collection, dim: dim}, nil
-}
-
-func isMilvusStartupError(err error) bool {
-	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "not ready") || strings.Contains(message, "service unavailable")
 }
 
 func (m *MilvusVectorStore) waitReady(ctx context.Context) error {
@@ -106,7 +87,7 @@ func (m *MilvusVectorStore) waitReady(ctx context.Context) error {
 		if err == nil {
 			return nil
 		}
-		if !strings.Contains(err.Error(), "not ready") && !strings.Contains(err.Error(), "service unavailable") {
+		if !milvusx.IsStartupError(err) {
 			return fmt.Errorf("milvus readiness probe: %w", err)
 		}
 		if time.Now().After(deadline) {

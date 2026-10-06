@@ -2,7 +2,6 @@ package vectorstore
 
 import (
 	"context"
-	"errors"
 	"math"
 	"testing"
 	"time"
@@ -21,18 +20,6 @@ func TestMilvusStoreFailsWhenRequiredServiceIsUnavailable(t *testing.T) {
 		err = store.OpenCollection(ctx)
 	}
 	require.Error(t, err)
-}
-
-func TestMilvusStartupErrorsAreTheOnlyRetryableConnectionFailures(t *testing.T) {
-	t.Parallel()
-	retryable := []error{
-		errors.New("service unavailable: Milvus Proxy is not ready yet"),
-		errors.New("SERVICE UNAVAILABLE"),
-	}
-	for _, err := range retryable {
-		require.True(t, isMilvusStartupError(err), err.Error())
-	}
-	require.False(t, isMilvusStartupError(errors.New("authentication failed")))
 }
 
 func TestValidateRecordRequiresTraceableFiniteVector(t *testing.T) {

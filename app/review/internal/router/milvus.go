@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"esx/pkg/milvusx"
+
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
-	"google.golang.org/grpc"
 )
 
 // MilvusIndex 是种子向量集合。权威状态在 xbh_review；集合只做检索加速，可由同步任务重建。
@@ -33,45 +34,21 @@ func DialMilvus(ctx context.Context, cfg MilvusConfig) (*MilvusIndex, error) {
 	if strings.TrimSpace(cfg.Address) == "" || strings.TrimSpace(cfg.Collection) == "" || cfg.Dim <= 0 {
 		return nil, fmt.Errorf("router: milvus address, collection and dim are required")
 	}
+	// 连接与建集合共享一个 90 秒启动窗口，期间只重试 Milvus 启动期错误。
 	connectCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	var cli client.Client
-	err := retryStartup(connectCtx, func() error {
-		var dialErr error
-		cli, dialErr = client.NewClient(connectCtx, client.Config{
-			Address: cfg.Address, Username: cfg.Username, Password: cfg.Password,
-			DialOptions: []grpc.DialOption{grpc.WithNoProxy()},
-		})
-		return dialErr
-	})
+	cli, err := milvusx.Dial(connectCtx, client.Config{
+		Address: cfg.Address, Username: cfg.Username, Password: cfg.Password,
+	}, time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("router: milvus connect: %w", err)
 	}
 	index := &MilvusIndex{cli: cli, collection: cfg.Collection, dim: cfg.Dim}
-	if err := retryStartup(connectCtx, func() error { return index.ensure(connectCtx) }); err != nil {
+	if err := milvusx.RetryStartup(connectCtx, time.Second, func() error { return index.ensure(connectCtx) }); err != nil {
 		_ = cli.Close()
 		return nil, err
 	}
 	return index, nil
-}
-
-// retryStartup 只重试 Milvus 启动期错误，其余错误立即返回。
-func retryStartup(ctx context.Context, fn func() error) error {
-	for {
-		err := fn()
-		if err == nil {
-			return nil
-		}
-		message := strings.ToLower(err.Error())
-		if !strings.Contains(message, "not ready") && !strings.Contains(message, "service unavailable") {
-			return err
-		}
-		select {
-		case <-ctx.Done():
-			return err
-		case <-time.After(time.Second):
-		}
-	}
 }
 
 func (m *MilvusIndex) Close() error {
