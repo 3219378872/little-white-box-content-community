@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"esx/app/recommend/featurekey"
+	"esx/app/recommend/personalization"
 	"esx/pkg/event"
 	"esx/pkg/visibilityx"
 )
@@ -34,7 +35,7 @@ func NewRedisCandidateStore(
 	featureVersion string,
 	recallKeyPrefix string,
 	ttlSeconds int,
-	readers ...PersonalizationPreferenceReader,
+	readers ...personalization.PreferenceReader,
 ) *RedisCandidateStore {
 	return &RedisCandidateStore{
 		privacy: NewRedisBehaviorStore(redis, featureVersion, recallKeyPrefix, ttlSeconds, readers...),

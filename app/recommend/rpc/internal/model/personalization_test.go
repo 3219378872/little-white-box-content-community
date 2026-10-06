@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"errors"
+	"esx/app/recommend/personalization"
 	"esx/app/user/rpc/userservice"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestRecommendationRequiresDurableConsentWithoutMarker(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := &preferenceReader{enabled: tc.enabled, err: tc.authorityErr, nilResponse: tc.nilResponse}
-			var dep PersonalizationPreferenceReader = reader
+			var dep personalization.PreferenceReader = reader
 			if tc.noReader {
 				dep = nil
 			}

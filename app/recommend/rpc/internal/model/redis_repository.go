@@ -10,9 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudwego/kitex/client/callopt"
-
 	"esx/app/recommend/featurekey"
+	"esx/app/recommend/personalization"
 	"esx/app/user/rpc/userservice"
 
 	redis "esx/pkg/redisstore"
@@ -132,15 +131,9 @@ func recallRanked(ctx context.Context, client redisClient, key string, limit int
 	return result, nil
 }
 
-// PersonalizationPreferenceReader 是读取用户个性化开关的最小依赖（user 服务客户端满足它）；
-// 按 Go 惯例在使用方声明，recommend-mq 的同名接口独立维护。
-type PersonalizationPreferenceReader interface {
-	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
-}
-
 // RedisFeatureRepository 读取 recommend-mq 写入的在线特征，并复核个性化开关。
 type RedisFeatureRepository struct {
-	preferences PersonalizationPreferenceReader
+	preferences personalization.PreferenceReader
 	redis       redisClient
 	features    featurekey.Space
 	now         func() time.Time
@@ -149,7 +142,7 @@ type RedisFeatureRepository struct {
 const featureLoadWorkers = 16
 
 // NewRedisFeatureRepository 绑定特征版本；readers 为空且无关闭标记时，个性化检查报错并按已关闭处理（失败即保守）。
-func NewRedisFeatureRepository(redisClient redisClient, featureVersion string, readers ...PersonalizationPreferenceReader) *RedisFeatureRepository {
+func NewRedisFeatureRepository(redisClient redisClient, featureVersion string, readers ...personalization.PreferenceReader) *RedisFeatureRepository {
 	r := &RedisFeatureRepository{redis: redisClient, features: featurekey.New(featureVersion)}
 	if len(readers) > 0 {
 		r.preferences = readers[0]

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"esx/app/recommend/personalization"
 	"esx/app/user/rpc/userservice"
 	"path"
 	"testing"
@@ -50,7 +51,7 @@ func TestBehaviorRequiresDurableConsentWithoutMarker(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			redis := &fakeGetterEvaler{fakeEvaler: &fakeEvaler{}, getErrs: map[string]error{"personalization:optout:42": tc.cacheErr}}
 			reader := &preferenceReader{enabled: tc.enabled, err: tc.preferenceErr, nilResponse: tc.nilResponse}
-			var dep PersonalizationPreferenceReader = reader
+			var dep personalization.PreferenceReader = reader
 			if tc.noReader {
 				dep = nil
 			}

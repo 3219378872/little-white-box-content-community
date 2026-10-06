@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudwego/kitex/client/callopt"
-
 	"esx/app/recommend/featurekey"
+	"esx/app/recommend/personalization"
 	"esx/pkg/event"
 
 	"esx/app/user/rpc/userservice"
@@ -29,14 +28,9 @@ type RedisEvaler interface {
 	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 }
 
-// PersonalizationPreferenceReader 是读取用户个性化开关的最小依赖，在使用方声明（recommend-rpc 有同名接口）。
-type PersonalizationPreferenceReader interface {
-	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
-}
-
 // RedisBehaviorStore 把登录用户的行为写入 Redis 特征与召回键。
 type RedisBehaviorStore struct {
-	preferences  PersonalizationPreferenceReader
+	preferences  personalization.PreferenceReader
 	redis        RedisEvaler
 	features     featurekey.Space
 	recallPrefix string
@@ -49,7 +43,7 @@ type RedisGetter interface {
 }
 
 // NewRedisBehaviorStore 创建特征存储；readers 可选注入个性化偏好查询，缺失时按已退出处理。
-func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
+func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...personalization.PreferenceReader) *RedisBehaviorStore {
 	s := &RedisBehaviorStore{
 		redis: redis, features: featurekey.New(featureVersion),
 		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
