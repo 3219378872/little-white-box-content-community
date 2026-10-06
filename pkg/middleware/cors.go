@@ -1,13 +1,8 @@
 package middleware
 
-import (
-	"net/http"
-	"slices"
-	"strconv"
-	"strings"
-)
+import "net/http"
 
-// CORS 中间件配置
+// CORSConfig 是 HertzCORS 的配置：来源白名单、允许的方法与头、是否携带凭证及预检缓存时长。
 type CORSConfig struct {
 	AllowOrigins     []string
 	AllowMethods     []string
@@ -37,70 +32,4 @@ var DefaultCORSConfig = CORSConfig{
 	ExposeHeaders:    []string{},
 	AllowCredentials: true,
 	MaxAge:           86400,
-}
-
-// CORSMiddleware CORS 中间件
-func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
-			if origin == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			allowedOrigin := ""
-			if slices.Contains(config.AllowOrigins, origin) {
-				allowedOrigin = origin
-			}
-
-			// 若 AllowCredentials=true，绝不允许回写 *（浏览器会拒绝）
-			if allowedOrigin != "" {
-				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-			} else if !config.AllowCredentials && len(config.AllowOrigins) == 1 && config.AllowOrigins[0] == "*" {
-				// 仅当不携带凭证时才允许通配
-				w.Header().Set("Access-Control-Allow-Origin", "*")
-			}
-
-			if len(config.AllowMethods) > 0 {
-				w.Header().Set("Access-Control-Allow-Methods", joinStrings(config.AllowMethods, ", "))
-			}
-
-			if len(config.AllowHeaders) > 0 {
-				w.Header().Set("Access-Control-Allow-Headers", joinStrings(config.AllowHeaders, ", "))
-			}
-
-			if len(config.ExposeHeaders) > 0 {
-				w.Header().Set("Access-Control-Expose-Headers", joinStrings(config.ExposeHeaders, ", "))
-			}
-
-			if config.AllowCredentials {
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			}
-
-			if config.MaxAge > 0 {
-				w.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
-			}
-
-			// 处理预检请求
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-// joinStrings 拼接 CORS 头的值列表。
-func joinStrings(strs []string, sep string) string {
-	var result strings.Builder
-	for i, s := range strs {
-		if i > 0 {
-			result.WriteString(sep)
-		}
-		result.WriteString(s)
-	}
-	return result.String()
 }

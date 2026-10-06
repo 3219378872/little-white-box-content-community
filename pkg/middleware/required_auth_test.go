@@ -1,10 +1,13 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/common/ut"
 
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
@@ -13,17 +16,18 @@ import (
 func TestRequiredAuthRejectsMissingToken(t *testing.T) {
 	middleware := NewRequiredAuthMiddleware(jwtx.JwtConfig{AccessSecret: "test-secret"})
 	called := false
-	handler := middleware.Handle(func(http.ResponseWriter, *http.Request) { called = true })
-	req := httptest.NewRequest(http.MethodPost, "/protected", nil)
-	rec := httptest.NewRecorder()
 
-	handler(rec, req)
+	resp := performHertz(middleware.Hertz, func(context.Context, *app.RequestContext) { called = true },
+		http.MethodPost, "/protected").Result()
 
-	if called || rec.Code != http.StatusUnauthorized {
-		t.Fatalf("called=%v status=%d", called, rec.Code)
+	if called || resp.StatusCode() != http.StatusUnauthorized {
+		t.Fatalf("called=%v status=%d", called, resp.StatusCode())
+	}
+	if got := string(resp.Header.Peek(AuthStateHeader)); got != AuthStateInvalid {
+		t.Fatalf("auth state=%q, want %q", got, AuthStateInvalid)
 	}
 	var body map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+	if err := json.Unmarshal(resp.Body(), &body); err != nil {
 		t.Fatal(err)
 	}
 	if int(body["code"].(float64)) != errx.LoginRequired {
@@ -31,7 +35,7 @@ func TestRequiredAuthRejectsMissingToken(t *testing.T) {
 	}
 }
 
-func TestRequiredAuthInjectsClaimsAndRejectsRefreshToken(t *testing.T) {
+func TestRequiredAuthInjectsClaimsAndRejectsRefreshAndExpiredTokens(t *testing.T) {
 	config := jwtx.JwtConfig{
 		AccessSecret:  "access-secret",
 		AccessExpire:  60,
@@ -46,29 +50,38 @@ func TestRequiredAuthInjectsClaimsAndRejectsRefreshToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expiredConfig := config
+	expiredConfig.AccessExpire = -1
+	expired, err := jwtx.GenerateToken(42, "alice", expiredConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
 	middleware := NewRequiredAuthMiddleware(config)
-	handler := middleware.Handle(func(w http.ResponseWriter, r *http.Request) {
-		userID, getErr := jwtx.GetUserIdFromContext(r.Context())
+	handler := func(ctx context.Context, c *app.RequestContext) {
+		userID, getErr := jwtx.GetUserIdFromContext(ctx)
 		if getErr != nil || userID != 42 {
 			t.Fatalf("userID=%d err=%v", userID, getErr)
 		}
-		w.WriteHeader(http.StatusNoContent)
-	})
+		c.Status(http.StatusNoContent)
+	}
 
 	for name, tc := range map[string]struct {
-		token  string
-		status int
+		token     string
+		status    int
+		authState string
 	}{
-		"access":  {access, http.StatusNoContent},
-		"refresh": {refresh, http.StatusUnauthorized},
+		"access":  {access, http.StatusNoContent, AuthStateAuthenticated},
+		"refresh": {refresh, http.StatusUnauthorized, AuthStateInvalid},
+		"expired": {expired, http.StatusUnauthorized, AuthStateExpired},
 	} {
 		t.Run(name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-			req.Header.Set("Authorization", "Bearer "+tc.token)
-			rec := httptest.NewRecorder()
-			handler(rec, req)
-			if rec.Code != tc.status {
-				t.Fatalf("status=%d", rec.Code)
+			resp := performHertz(middleware.Hertz, handler, http.MethodGet, "/protected",
+				ut.Header{Key: "Authorization", Value: "Bearer " + tc.token}).Result()
+			if resp.StatusCode() != tc.status {
+				t.Fatalf("status=%d", resp.StatusCode())
+			}
+			if got := string(resp.Header.Peek(AuthStateHeader)); got != tc.authState {
+				t.Fatalf("auth state=%q, want %q", got, tc.authState)
 			}
 		})
 	}

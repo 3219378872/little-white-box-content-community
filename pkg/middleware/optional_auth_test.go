@@ -1,16 +1,18 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/common/ut"
 
 	"esx/pkg/jwtx"
 )
 
+// runOptionalAuthRequest 经 OptionalAuth 的 Hertz 中间件发一次请求，返回状态码、认证状态头与处理器看到的身份。
 func runOptionalAuthRequest(t *testing.T, authHeader string, expire int64) (int, string, string) {
 	t.Helper()
 
@@ -20,24 +22,21 @@ func runOptionalAuthRequest(t *testing.T, authHeader string, expire int64) (int,
 	})
 
 	var seenUser string
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if userID, ok := jwtx.GetOptionalUserIdFromContext(r.Context()); ok {
+	next := func(ctx context.Context, c *app.RequestContext) {
+		if userID, ok := jwtx.GetOptionalUserIdFromContext(ctx); ok {
 			seenUser = fmt.Sprintf("%d", userID)
 		} else {
 			seenUser = "anonymous"
 		}
-		_, _ = w.Write([]byte("ok"))
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/posts", nil)
-	if authHeader != "" {
-		req.Header.Set("Authorization", authHeader)
+		c.String(http.StatusOK, "ok")
 	}
-	rec := httptest.NewRecorder()
-	mw.Handle(next)(rec, req)
 
-	body, _ := io.ReadAll(rec.Result().Body)
-	return rec.Result().StatusCode, rec.Header().Get(AuthStateHeader), seenUser + ":" + string(body)
+	var headers []ut.Header
+	if authHeader != "" {
+		headers = append(headers, ut.Header{Key: "Authorization", Value: authHeader})
+	}
+	resp := performHertz(mw.Hertz, next, http.MethodGet, "/api/v1/posts", headers...).Result()
+	return resp.StatusCode(), string(resp.Header.Peek(AuthStateHeader)), seenUser + ":" + string(resp.Body())
 }
 
 func TestOptionalAuthMiddleware_NoToken_SetsAnonymous(t *testing.T) {
@@ -109,7 +108,7 @@ func TestOptionalAuthMiddleware_InvalidToken_SetsInvalid(t *testing.T) {
 }
 
 func TestOptionalAuthMiddleware_BadBearerFormat_SetsInvalid(t *testing.T) {
-	status, authState, seen := runOptionalAuthRequest(t, strings.TrimSpace("Token abc"), 3600)
+	status, authState, seen := runOptionalAuthRequest(t, "Token abc", 3600)
 	if status != http.StatusOK {
 		t.Fatalf("expected 200, got %d", status)
 	}
