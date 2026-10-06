@@ -58,6 +58,7 @@ type (
 	}
 )
 
+// newMediaModel 创建带缓存连接的基础模型。
 func newMediaModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultMediaModel {
 	return &defaultMediaModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -65,6 +66,7 @@ func newMediaModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *
 	}
 }
 
+// Delete 按主键硬删除并清理缓存；业务删除走 MediaCommandModel.SoftDelete。
 func (m *defaultMediaModel) Delete(ctx context.Context, id int64) error {
 	mediaIdKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -74,6 +76,7 @@ func (m *defaultMediaModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne 按主键直查数据库，未找到返回 ErrNotFound。
 func (m *defaultMediaModel) FindOne(ctx context.Context, id int64) (*Media, error) {
 	var resp Media
 	// Status and ownership authorize media use. Even a fenced cache cannot
@@ -90,6 +93,7 @@ func (m *defaultMediaModel) FindOne(ctx context.Context, id int64) (*Media, erro
 	}
 }
 
+// Insert 是旧的基础写入，不含 thumbnail_object_key；customMediaModel 覆盖了它。
 func (m *defaultMediaModel) Insert(ctx context.Context, data *Media) (sql.Result, error) {
 	mediaIdKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -99,6 +103,7 @@ func (m *defaultMediaModel) Insert(ctx context.Context, data *Media) (sql.Result
 	return ret, err
 }
 
+// Update 是旧的基础更新，不含 thumbnail_object_key；customMediaModel 覆盖了它。
 func (m *defaultMediaModel) Update(ctx context.Context, data *Media) error {
 	mediaIdKey := fmt.Sprintf("%s%v", cacheMediaIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {

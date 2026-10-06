@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetMediaLogic 承载 GetMedia 接口的业务逻辑；每个请求新建一个实例。
 type GetMediaLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetMediaLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMediaLogic {
 	return &GetMediaLogic{
 		ctx:    ctx,

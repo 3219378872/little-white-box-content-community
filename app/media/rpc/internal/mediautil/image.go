@@ -62,6 +62,7 @@ func decodeImage(srcPath, purpose string) (image.Image, error) {
 	return img, nil
 }
 
+// withImageDecodePermit 限制同时解码的图片数量，防止并发上传大图耗尽内存；等待期间请求取消则直接返回。
 func withImageDecodePermit(ctx context.Context, decode func() error) error {
 	if err := ctx.Err(); err != nil {
 		return err

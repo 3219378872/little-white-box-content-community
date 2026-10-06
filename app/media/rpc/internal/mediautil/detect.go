@@ -43,6 +43,7 @@ var (
 	}
 )
 
+// mimeToKind 按调用方允许的媒体种类把嗅探出的 MIME 映射为 MediaKind，不在白名单内返回 KindUnknown。
 func mimeToKind(mime string, allowImage, allowVideo bool) MediaKind {
 	if allowImage {
 		if _, ok := allowedImageMIMEs[mime]; ok {

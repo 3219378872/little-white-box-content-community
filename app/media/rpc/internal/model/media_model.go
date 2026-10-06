@@ -74,6 +74,7 @@ func (m *customMediaModel) DelCache(ctx context.Context, id int64) error {
 // argument lists. Keep schema-aware writes in the handwritten model extension.
 const mediaWriteColumns = "`user_id`,`file_name`,`original_name`,`file_type`,`mime_type`,`url`,`thumbnail_url`,`storage_type`,`bucket`,`object_key`,`thumbnail_object_key`,`file_size`,`width`,`height`,`duration`,`format`,`bit_rate`,`status`"
 
+// mediaWriteValues 按 mediaWriteColumns 的列顺序返回写入参数。
 func mediaWriteValues(data *Media) []any {
 	return []any{data.UserId, data.FileName, data.OriginalName, data.FileType, data.MimeType,
 		data.Url, data.ThumbnailUrl, data.StorageType, data.Bucket, data.ObjectKey,
@@ -81,6 +82,7 @@ func mediaWriteValues(data *Media) []any {
 		data.Format, data.BitRate, data.Status}
 }
 
+// Insert 写入完整列（含 thumbnail_object_key），并清理该 ID 的缓存。
 func (m *customMediaModel) Insert(ctx context.Context, data *Media) (sql.Result, error) {
 	values := mediaWriteValues(data)
 	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
@@ -89,6 +91,7 @@ func (m *customMediaModel) Insert(ctx context.Context, data *Media) (sql.Result,
 	}, fmt.Sprintf("%s%v", cacheMediaIdPrefix, data.Id))
 }
 
+// Update 按主键更新完整列（含 thumbnail_object_key），并清理该 ID 的缓存。
 func (m *customMediaModel) Update(ctx context.Context, data *Media) error {
 	values := append(mediaWriteValues(data), data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {

@@ -170,6 +170,7 @@ func compensateUploadedObjects(ctx context.Context, logger logging.Logger, svcCt
 	}
 }
 
+// buildUploadCompensationEvent 为上传失败后残留的对象构造清理事件；此时没有媒体行，MediaID 留空。
 func buildUploadCompensationEvent(objectKey, bucket string) (outboxx.Event, error) {
 	eventID, err := util.NextID()
 	if err != nil {

@@ -9,12 +9,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UploadAudioLogic 承载 UploadAudio 接口的业务逻辑；每个请求新建一个实例。
 type UploadAudioLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUploadAudioLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUploadAudioLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadAudioLogic {
 	return &UploadAudioLogic{
 		ctx:    ctx,

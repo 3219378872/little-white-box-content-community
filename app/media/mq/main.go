@@ -18,6 +18,7 @@ import (
 
 var configFile = flag.String("f", "etc/media-consumer.yaml", "config file")
 
+// main 启动媒体对象清理消费者，删除已软删媒体与上传补偿留下的 S3 对象。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()

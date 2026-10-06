@@ -18,12 +18,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeleteMediaLogic 承载 DeleteMedia 接口的业务逻辑；每个请求新建一个实例。
 type DeleteMediaLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewDeleteMediaLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewDeleteMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteMediaLogic {
 	return &DeleteMediaLogic{
 		ctx:    ctx,
@@ -126,6 +128,7 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 	return &pb.DeleteMediaResp{}, nil
 }
 
+// mediaObjectKeys 返回媒体占用的全部对象键（原文件与缩略图）并去重；旧数据缺缩略图键时从公开 URL 推导。
 func mediaObjectKeys(m *model.Media) []string {
 	if m == nil {
 		return nil
@@ -154,6 +157,7 @@ func mediaObjectKeys(m *model.Media) []string {
 	return keys
 }
 
+// objectKeyFromPublicURL 从公开 URL 中截取 marker 起的路径作为对象键，找不到 marker 时返回空。
 func objectKeyFromPublicURL(publicURL, marker string) string {
 	idx := strings.Index(publicURL, marker)
 	if idx < 0 {

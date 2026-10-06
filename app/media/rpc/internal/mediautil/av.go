@@ -71,6 +71,8 @@ func DetectAV(path string, audio bool) (DetectedType, error) {
 	return DetectedType{}, ErrUnsupportedType
 }
 
+// isoTracks 遍历 MP4/MOV 的 moov/trak/mdia 盒子，按 hdlr 的 handler 类型（soun/vide）判断是否含音轨或视频轨。
+// 深度和盒子大小都做边界检查，畸形文件返回 ErrUnsupportedType 而不是越界读取。
 func isoTracks(r io.ReaderAt, start, end int64, depth int) (audio, video bool, err error) {
 	if depth > 3 {
 		return false, false, ErrUnsupportedType
@@ -122,6 +124,8 @@ func isoTracks(r io.ReaderAt, start, end int64, depth int) (audio, video bool, e
 	return
 }
 
+// ebmlNumber 读取一个 EBML 变长整数：id=true 时保留长度标记位作为元素 ID，否则去掉标记位作为大小；
+// unknown 表示大小字段为全 1（未知长度）。
 func ebmlNumber(r io.ReaderAt, pos int64, id bool) (value uint64, length int64, unknown bool, err error) {
 	var b [8]byte
 	if _, err = r.ReadAt(b[:1], pos); err != nil {
@@ -151,6 +155,8 @@ func ebmlNumber(r io.ReaderAt, pos int64, id bool) (value uint64, length int64, 
 	return
 }
 
+// ebmlTracks 遍历 WebM/Matroska 的 Segment/Tracks/TrackEntry 元素，按 TrackType（1=视频，2=音频）判断轨道；
+// 只允许 Segment 使用未知长度，越界的元素视为不支持的格式。
 func ebmlTracks(r io.ReaderAt, start, end int64, depth int) (audio, video bool, err error) {
 	if depth > 3 {
 		return false, false, ErrUnsupportedType

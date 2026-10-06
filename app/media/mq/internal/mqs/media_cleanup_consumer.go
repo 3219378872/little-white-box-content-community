@@ -21,6 +21,7 @@ type ObjectDeleter interface {
 	Delete(ctx context.Context, objectKey string) error
 }
 
+// NewMediaCleanupConsumer 订阅 media-deleted 主题。
 func NewMediaCleanupConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	c, err := mqx.NewConsumer(svcCtx.Config.MQ)
 	if err != nil {
@@ -35,10 +36,13 @@ func NewMediaCleanupConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) 
 	return c, nil
 }
 
+// consumeMediaDeleteBatch 逐条删除事件指向的 S3 对象。删除失败时整批稍后重试；
+// S3 删除不存在的对象也会成功，重放已处理的消息是安全的。
 func consumeMediaDeleteBatch(ctx context.Context, deleter ObjectDeleter, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {
+		// 无法解析或缺少对象键的消息重试也不会成功：计数后跳过，不阻塞同批其他消息。
 		var m event.MediaDeletedEvent
 		if err := json.Unmarshal(msg.Body, &m); err != nil {
 			logging.WithContext(ctx).Errorw("media-consumer: unmarshal failed",

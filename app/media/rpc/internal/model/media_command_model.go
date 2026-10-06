@@ -46,6 +46,7 @@ type MediaCommandModel interface {
 	EnqueueObjectCleanup(ctx context.Context, event outboxx.Event) error
 }
 
+// EnqueueObjectCleanup 在独立事务中写入一条清理事件，交给 relay 可靠投递。
 func (m *mediaCommandModel) EnqueueObjectCleanup(ctx context.Context, event outboxx.Event) error {
 	if m.conn == nil || m.outbox == nil {
 		return fmt.Errorf("media command model is not configured")
@@ -58,11 +59,13 @@ func (m *mediaCommandModel) EnqueueObjectCleanup(ctx context.Context, event outb
 	})
 }
 
+// mediaCommandModel 是基于 MySQL 事务的 MediaCommandModel 实现。
 type mediaCommandModel struct {
 	conn   sqlx.SqlConn
 	outbox OutboxEnqueuer
 }
 
+// NewMediaCommandModel 创建媒体写命令模型，outbox 与业务写入共用同一连接。
 func NewMediaCommandModel(conn sqlx.SqlConn, outbox OutboxEnqueuer) MediaCommandModel {
 	return &mediaCommandModel{conn: conn, outbox: outbox}
 }

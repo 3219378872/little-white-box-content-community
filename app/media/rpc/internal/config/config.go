@@ -8,6 +8,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是媒体 RPC 配置：数据库、对象存储、上传阈值、MQ 与 outbox relay。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret string

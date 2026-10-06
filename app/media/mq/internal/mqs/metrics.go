@@ -31,10 +31,12 @@ func mediaEventMillis(e event.MediaDeletedEvent) int64 {
 	return 0
 }
 
+// observeMediaLag 记录媒体删除到对象清理完成的延迟。
 func observeMediaLag(e event.MediaDeletedEvent, now time.Time) {
 	mediaConsumerEventLag.ObserveFloat(mediaLagSeconds(e, now))
 }
 
+// mediaLagSeconds 计算事件延迟秒数；缺少时间或时钟回拨时记为 0，避免污染直方图。
 func mediaLagSeconds(e event.MediaDeletedEvent, now time.Time) float64 {
 	eventTime := mediaEventMillis(e)
 	if eventTime <= 0 {

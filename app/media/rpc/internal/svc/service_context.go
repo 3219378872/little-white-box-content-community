@@ -17,6 +17,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// ServiceContext 持有媒体 RPC 的存储、对象存储与 outbox 投递依赖。
 type ServiceContext struct {
 	Config            config.Config
 	Conn              sqlx.SqlConn
@@ -29,6 +30,7 @@ type ServiceContext struct {
 	OutboxRelay       *outboxx.Relay
 }
 
+// NewServiceContext 初始化 ID 生成器、数据库、对象存储与 MQ；未配置 MQ 时不创建 relay。
 func NewServiceContext(c config.Config) *ServiceContext {
 	if err := util.InitSnowflakeFromEnv(4, 1); err != nil {
 		panic(fmt.Sprintf("media snowflake initialization failed: %v", err))
@@ -60,6 +62,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		mqProducer = p
 	}
 
+	// outbox 与业务写入共用连接，relay 把已提交的事件发送到 MQ。
 	outboxStore := outboxx.NewSQLStore(conn)
 	var outboxRelay *outboxx.Relay
 	if mqProducer != nil {
@@ -87,6 +90,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close 关闭 MQ 生产者与数据库连接，汇总所有关闭错误。
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

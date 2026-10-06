@@ -21,6 +21,7 @@ import (
 
 var configFile = flag.String("f", "etc/media.yaml", "the config file")
 
+// main 启动媒体 RPC 服务，并在后台运行 outbox relay 投递清理事件。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()
@@ -40,6 +41,7 @@ func main() {
 			logging.Errorw("close media service dependencies", logging.Field("err", err.Error()))
 		}
 	}()
+	// 未配置 MQ 时 relay 为空操作，事件留在 outbox 表中待配置后投递。
 	relay := outboxx.StartRelay(context.Background(), ctx.OutboxRelay)
 	defer func() {
 		if err := relay.Stop(); err != nil {

@@ -15,12 +15,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UploadImageLogic 承载 UploadImage 接口的业务逻辑；每个请求新建一个实例。
 type UploadImageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUploadImageLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadImageLogic {
 	return &UploadImageLogic{
 		ctx:    ctx,

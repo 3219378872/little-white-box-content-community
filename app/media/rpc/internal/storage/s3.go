@@ -68,6 +68,7 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 	return client, nil
 }
 
+// ensureBucket 在桶不存在时创建。
 func (s *S3Client) ensureBucket(ctx context.Context, region string) error {
 	exists, err := s.cli.BucketExists(ctx, s.bucket)
 	if err != nil {
@@ -82,6 +83,7 @@ func (s *S3Client) ensureBucket(ctx context.Context, region string) error {
 	return nil
 }
 
+// setPublicReadPolicy 允许匿名读取桶内对象，使公开直链可直接访问。
 func (s *S3Client) setPublicReadPolicy(ctx context.Context) error {
 	policy := fmt.Sprintf(`{
   "Version": "2012-10-17",

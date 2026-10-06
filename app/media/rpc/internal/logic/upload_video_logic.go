@@ -9,12 +9,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UploadVideoLogic 承载 UploadVideo 接口的业务逻辑；每个请求新建一个实例。
 type UploadVideoLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUploadVideoLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUploadVideoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadVideoLogic {
 	return &UploadVideoLogic{
 		ctx:    ctx,

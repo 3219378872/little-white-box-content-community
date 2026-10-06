@@ -6,11 +6,13 @@ import (
 	"fmt"
 )
 
+// ServiceContext 持有清理消费者的配置与对象存储。
 type ServiceContext struct {
 	Config  config.Config
 	Storage storage.ObjectStorage
 }
 
+// NewServiceContext 创建对象存储客户端，失败时终止启动。
 func NewServiceContext(c config.Config) *ServiceContext {
 	s3Client, err := storage.NewS3Client(c.S3Storage)
 	if err != nil {
