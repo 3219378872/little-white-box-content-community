@@ -69,17 +69,12 @@ type Alarm struct {
 	Message   string
 }
 
-// EvaluateAlarms 按空闲时长、轮次与输出 token 计算告警；总时长目前只计算不告警。
+// EvaluateAlarms 按空闲时长、轮次与输出 token 计算告警；总时长只由 HardLimitExceeded 作硬上限判定。
 func EvaluateAlarms(run store.Run, nowMs int64) []Alarm {
 	idle := time.Duration(0)
 	if run.LastActivityAtMs > 0 && nowMs > run.LastActivityAtMs {
 		idle = time.Duration(nowMs-run.LastActivityAtMs) * time.Millisecond
 	}
-	elapsed := time.Duration(0)
-	if run.StartedAtMs > 0 && nowMs > run.StartedAtMs {
-		elapsed = time.Duration(nowMs-run.StartedAtMs) * time.Millisecond
-	}
-	_ = elapsed
 	out := make([]Alarm, 0, 6)
 	out = append(out, levelAlarms("time", idle, WarnIdle, CritIdle)...)
 	out = append(out, countAlarms("rounds", run.Rounds, WarnRounds, CritRounds)...)
