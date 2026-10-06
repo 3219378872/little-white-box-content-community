@@ -11,7 +11,6 @@ import (
 	"github.com/cloudwego/kitex/client/callopt"
 
 	cache "esx/pkg/modelcache"
-	redis "esx/pkg/redisstore"
 	"esx/pkg/rpcx"
 	sqlx "esx/pkg/sqlstore"
 )
@@ -51,7 +50,6 @@ type UserService interface {
 type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
-	Redis               *redis.Redis
 	ConversationModel   ConversationModel
 	MessageModel        MessageModel
 	MessageCommandModel MessageCommandModel
@@ -60,7 +58,7 @@ type ServiceContext struct {
 	MediaService        mediaservice.MediaService
 }
 
-// NewServiceContext wires MySQL, Redis and downstream clients. The media client
+// NewServiceContext wires MySQL, the Redis-backed model cache and downstream clients. The media client
 // is optional: without it media messages cannot be sent.
 func NewServiceContext(c config.Config) *ServiceContext {
 	// pkg/sqlstore never logs SQL statements, so private message text stays out of logs.
@@ -68,7 +66,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	cacheConf := cache.CacheConf{
 		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},
 	}
-	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 	userClient := rpcx.MustNewClient(c.UserRpc, rpcx.WithInternalAuth(c.InternalSecret))
 	var mediaService mediaservice.MediaService
 	if len(c.MediaRpc.Etcd.Hosts) > 0 || len(c.MediaRpc.Endpoints) > 0 || c.MediaRpc.Target != "" {
@@ -81,7 +78,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:              c,
 		Conn:                conn,
-		Redis:               redisClient,
 		ConversationModel:   model2.NewConversationModel(conn, cacheConf),
 		MessageModel:        model2.NewMessageModel(conn, cacheConf),
 		MessageCommandModel: model2.NewMessageCommandModel(conn),
