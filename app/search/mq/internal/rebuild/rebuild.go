@@ -12,17 +12,22 @@ import (
 	"esx/pkg/visibilityx"
 )
 
+// MaxPageSize 是单次从内容服务拉取的帖子上限，与 GetPostList 的分页上限一致。
 const MaxPageSize int32 = 50
 
+// PostSource 是重建所需的内容服务子集，便于测试替换。
 type PostSource interface {
 	GetPostList(context.Context, *contentservice.GetPostListReq, ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
+// Target 是被重建的新索引；全部写入后 Refresh 一次，使结果在切换别名前可查。
 type Target interface {
 	Index(context.Context, indexer.IndexDoc) error
 	Refresh(context.Context) error
 }
 
+// Run 按游标分页遍历内容服务的帖子，只把已发布帖子写入目标索引，返回写入数量；
+// 任一页或任一文档失败即中止，由调用方丢弃半成品索引。
 func Run(ctx context.Context, source PostSource, target Target, pageSize int32) (int64, error) {
 	if source == nil || target == nil {
 		return 0, fmt.Errorf("search rebuild requires source and target")
@@ -48,6 +53,7 @@ func Run(ctx context.Context, source PostSource, target Target, pageSize int32) 
 		}
 
 		for _, post := range resp.Posts {
+			// 草稿/取消发布的帖子不进入新索引（CORE-015）。
 			if post == nil || post.Id <= 0 || !visibilityx.IsPublished(post.Status) {
 				continue
 			}

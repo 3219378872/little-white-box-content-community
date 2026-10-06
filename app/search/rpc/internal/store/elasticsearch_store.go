@@ -14,13 +14,16 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
 
+// ElasticsearchStore implements Store on top of the posts index.
 type ElasticsearchStore struct {
 	client *elasticsearch.Client
 	index  string
 }
 
+// Option customizes the underlying ES client config.
 type Option func(*elasticsearch.Config)
 
+// WithBasicAuth sets the ES username and password.
 func WithBasicAuth(username, password string) Option {
 	return func(c *elasticsearch.Config) {
 		c.Username = username
@@ -28,6 +31,8 @@ func WithBasicAuth(username, password string) Option {
 	}
 }
 
+// NewElasticsearchStore builds a client that ignores proxy environment variables,
+// so a host-wide HTTP proxy cannot intercept traffic to the local cluster.
 func NewElasticsearchStore(addresses []string, index string, opts ...Option) (*ElasticsearchStore, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
@@ -42,6 +47,7 @@ func NewElasticsearchStore(addresses []string, index string, opts ...Option) (*E
 	return &ElasticsearchStore{client: client, index: index}, nil
 }
 
+// Health reports whether the configured index exists; startup fails fast otherwise.
 func (s *ElasticsearchStore) Health(ctx context.Context) error {
 	res, err := s.client.Indices.Exists([]string{s.index}, s.client.Indices.Exists.WithContext(ctx))
 	if err != nil {
@@ -55,6 +61,8 @@ func (s *ElasticsearchStore) Health(ctx context.Context) error {
 	return fmt.Errorf("index %q unavailable: status=%s body=%s", s.index, res.Status(), string(raw))
 }
 
+// SearchPosts runs a paged full-text query with the requested sort order and
+// returns at most one body highlight fragment per hit.
 func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (PostResult, error) {
 	from := int((query.Page - 1) * query.PageSize)
 	body := map[string]any{
@@ -67,6 +75,7 @@ func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (
 			"pre_tags": []string{"<em>"}, "post_tags": []string{"</em>"},
 		},
 	}
+	// SortBy 2 = newest, 3 = most liked/commented, otherwise relevance with recency as tiebreak.
 	switch query.SortBy {
 	case 2:
 		body["sort"] = []any{map[string]any{"created_at": map[string]any{"order": "desc"}}}
@@ -117,6 +126,8 @@ func (s *ElasticsearchStore) SearchPosts(ctx context.Context, query PostQuery) (
 	return result, nil
 }
 
+// SearchTags returns up to limit tags containing keyword (case-insensitive),
+// ordered by published post count.
 func (s *ElasticsearchStore) SearchTags(ctx context.Context, keyword string, limit int32) ([]Tag, error) {
 	// xbh_posts has no independent tag index. The keyword filters the tags
 	// aggregation in ES, so any matching tag can be recalled and doc_count is
@@ -147,6 +158,7 @@ func (s *ElasticsearchStore) SearchTags(ctx context.Context, keyword string, lim
 	return result, nil
 }
 
+// HotSearches returns the most used tags as hot search keywords.
 func (s *ElasticsearchStore) HotSearches(ctx context.Context, limit int32) ([]string, error) {
 	body := map[string]any{
 		"size": 0,
@@ -192,6 +204,8 @@ func tagIncludePattern(keyword string) string {
 	return b.String()
 }
 
+// postQuery builds the bool query: full-text match on title and body, plus an
+// optional exact tag filter that does not affect scoring.
 func postQuery(keyword string, tags []string) map[string]any {
 	// cjk 分词器下“and”要求所有二元组同现，长中文查询几乎无法命中（DISC-021）；
 	// 改为 OR 语义，靠 bm25 分数排序。
@@ -210,6 +224,7 @@ func postQuery(keyword string, tags []string) map[string]any {
 	}}
 }
 
+// tagBuckets runs a tags terms aggregation and returns its buckets in order.
 func (s *ElasticsearchStore) tagBuckets(ctx context.Context, body map[string]any) ([]Tag, error) {
 	var response struct {
 		Aggregations struct {
@@ -231,6 +246,7 @@ func (s *ElasticsearchStore) tagBuckets(ctx context.Context, body map[string]any
 	return result, nil
 }
 
+// search sends a query to the index and decodes the response into target.
 func (s *ElasticsearchStore) search(ctx context.Context, body map[string]any, target any) error {
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -253,10 +269,12 @@ func (s *ElasticsearchStore) search(ctx context.Context, body map[string]any, ta
 	return nil
 }
 
+// totalHits accepts both forms of hits.total returned by ES: an object or a bare number.
 type totalHits struct {
 	Value int64
 }
 
+// UnmarshalJSON decodes either {"value": n} or n.
 func (t *totalHits) UnmarshalJSON(data []byte) error {
 	var object struct {
 		Value int64 `json:"value"`

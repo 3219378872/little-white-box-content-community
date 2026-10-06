@@ -23,6 +23,7 @@ type ESIndexer struct {
 	index  string
 }
 
+// NewESIndexer 创建指向指定索引的写入器；不检查连通性，索引初始化由 EnsureIndex 负责。
 func NewESIndexer(addresses []string, index string, opts ...ESOption) (*ESIndexer, error) {
 	cfg := elasticsearch.Config{Addresses: addresses}
 	for _, opt := range opts {
@@ -38,6 +39,7 @@ func NewESIndexer(addresses []string, index string, opts ...ESOption) (*ESIndexe
 // ESOption 配置底层 client，用于注入 username/password 等。
 type ESOption func(*elasticsearch.Config)
 
+// WithBasicAuth 为 ES 启用用户名/密码认证。
 func WithBasicAuth(user, password string) ESOption {
 	return func(c *elasticsearch.Config) {
 		c.Username = user
@@ -169,6 +171,7 @@ ctx._source.revision = incoming;
 ctx._source.deleted = true;
 `
 
+// scriptedUpsert 用 painless 脚本做“不存在即创建”的更新，revision 比较在 ES 端原子完成。
 func (e *ESIndexer) scriptedUpsert(ctx context.Context, docID, script string, params map[string]any) error {
 	payload, err := json.Marshal(map[string]any{
 		"scripted_upsert": true,
@@ -190,6 +193,7 @@ func (e *ESIndexer) scriptedUpsert(ctx context.Context, docID, script string, pa
 	return nil
 }
 
+// update 发送 _update 请求；不强制刷新以保持写入吞吐，并发冲突交给 ES 就地重试。
 func (e *ESIndexer) update(ctx context.Context, docID string, payload []byte) (*esapi.Response, error) {
 	retries := updateRetryOnConflict
 	return esapi.UpdateRequest{

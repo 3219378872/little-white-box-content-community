@@ -19,6 +19,7 @@ import (
 
 var configFile = flag.String("f", "etc/search.yaml", "the config file")
 
+// main 启动搜索 RPC 服务；ES 健康检查在装配依赖时完成。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

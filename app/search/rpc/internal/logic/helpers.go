@@ -16,8 +16,10 @@ import (
 	"esx/pkg/visibilityx"
 )
 
+// maxPageSize caps one search page.
 const maxPageSize = 100
 
+// keyword trims the query and rejects an empty one with SearchEmpty.
 func keyword(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -26,6 +28,8 @@ func keyword(value string) (string, error) {
 	return value, nil
 }
 
+// validPage checks the page size and that the whole page fits inside ES's
+// result window, so deep paging is rejected instead of failing in ES.
 func validPage(page, pageSize int32) bool {
 	if page <= 0 || pageSize <= 0 || pageSize > maxPageSize {
 		return false
@@ -34,6 +38,8 @@ func validPage(page, pageSize int32) bool {
 	return offset < store.MaxResultWindow && offset+int64(pageSize) <= store.MaxResultWindow
 }
 
+// storeError maps store failures: timeouts and cancellation become SearchTimeout,
+// anything else ServiceUnavailable.
 func storeError(err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return errx.Wrap(err, errx.SearchTimeout)
@@ -85,6 +91,8 @@ func loadAuthorCards(
 	return profiles, nil
 }
 
+// postResults converts hits to responses; the author's nickname falls back to
+// the username, and a missing profile leaves author fields empty.
 func postResults(posts []store.Post, profiles map[int64]*userservice.UserCard) []*pb.PostSearchResult {
 	result := make([]*pb.PostSearchResult, 0, len(posts))
 	for _, post := range posts {
@@ -106,6 +114,7 @@ func postResults(posts []store.Post, profiles map[int64]*userservice.UserCard) [
 	return result
 }
 
+// userResults converts user search hits, dropping nil or invalid entries.
 func userResults(users []*userservice.UserInfo) []*pb.UserSearchResult {
 	result := make([]*pb.UserSearchResult, 0, len(users))
 	for _, user := range users {
@@ -120,6 +129,7 @@ func userResults(users []*userservice.UserInfo) []*pb.UserSearchResult {
 	return result
 }
 
+// tagResults converts tag hits to responses.
 func tagResults(tags []store.Tag) []*pb.TagSearchResult {
 	result := make([]*pb.TagSearchResult, 0, len(tags))
 	for _, tag := range tags {
@@ -158,6 +168,8 @@ func publishedSearchPosts(ctx context.Context, content svc.ContentService, posts
 	return filtered, nil
 }
 
+// hydrateSearchPost overwrites indexed fields with the live post so a stale
+// index never shows an outdated title, counts or body excerpt.
 func hydrateSearchPost(candidate store.Post, live *contentservice.PostInfo) store.Post {
 	hydrated := candidate
 	hydrated.Title = strings.TrimSpace(live.Title)
@@ -191,12 +203,14 @@ func publishedSearchSummary(body, highlight string) string {
 	return truncateRunes(body, searchSummaryRunes)
 }
 
+// stripSearchMarkup removes highlight tags to compare a fragment with the body.
 func stripSearchMarkup(value string) string {
 	value = strings.ReplaceAll(value, "<em>", "")
 	value = strings.ReplaceAll(value, "</em>", "")
 	return strings.TrimSpace(value)
 }
 
+// truncateRunes cuts to limit runes so multi-byte text is never split.
 func truncateRunes(value string, limit int) string {
 	runes := []rune(value)
 	if len(runes) <= limit {
@@ -205,6 +219,8 @@ func truncateRunes(value string, limit int) string {
 	return string(runes[:limit])
 }
 
+// searchTotalAfterVisibility lowers the ES total by the hits this page dropped
+// for visibility.
 func searchTotalAfterVisibility(total int64, fetched, visible int) int64 {
 	return visibilityx.AdjustPageTotal(total, fetched, visible)
 }

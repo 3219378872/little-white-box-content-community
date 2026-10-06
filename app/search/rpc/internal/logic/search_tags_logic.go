@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// SearchTagsLogic 承载 SearchTags 接口的业务逻辑；每个请求新建一个实例。
 type SearchTagsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSearchTagsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSearchTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchTagsLogic {
 	return &SearchTagsLogic{
 		ctx:    ctx,

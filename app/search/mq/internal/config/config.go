@@ -6,6 +6,7 @@ import (
 	service "esx/pkg/lifecycle"
 )
 
+// Config 是搜索索引消费者的配置：服务基础项、MQ 订阅与 ES 连接。
 type Config struct {
 	service.ServiceConf
 	MQ mqx.ConsumerConfig

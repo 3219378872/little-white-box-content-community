@@ -35,11 +35,13 @@ type TagCache struct {
 	group   singleflight.Group
 }
 
+// tagCacheEntry stores a private copy of the tags and when they were cached.
 type tagCacheEntry struct {
 	tags     []Tag
 	storedAt time.Time
 }
 
+// NewTagCache wraps next; a non-positive ttl or capacity disables caching.
 func NewTagCache(next Store, ttl time.Duration, capacity int) *TagCache {
 	return &TagCache{
 		Store: next, ttl: ttl, capacity: capacity, now: time.Now,
@@ -47,6 +49,8 @@ func NewTagCache(next Store, ttl time.Duration, capacity int) *TagCache {
 	}
 }
 
+// SearchTags serves a fresh cached copy when present, otherwise loads through
+// singleflight so concurrent misses issue one aggregation.
 func (c *TagCache) SearchTags(ctx context.Context, keyword string, limit int32) ([]Tag, error) {
 	key := strings.ToLower(keyword) + "\x00" + strconv.Itoa(int(limit))
 	if tags, ok := c.lookup(key); ok {
@@ -71,6 +75,7 @@ func (c *TagCache) SearchTags(ctx context.Context, keyword string, limit int32) 
 	return append([]Tag(nil), value.([]Tag)...), nil
 }
 
+// lookup returns a copy of a live entry and drops an expired one.
 func (c *TagCache) lookup(key string) ([]Tag, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -85,6 +90,8 @@ func (c *TagCache) lookup(key string) ([]Tag, bool) {
 	return append([]Tag(nil), entry.tags...), true
 }
 
+// store caches a copy of tags; when full it evicts an expired entry if one is
+// found, otherwise the oldest entry.
 func (c *TagCache) store(key string, tags []Tag) {
 	if c.ttl <= 0 || c.capacity <= 0 {
 		return

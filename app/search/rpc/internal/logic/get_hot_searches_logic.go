@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetHotSearchesLogic 承载 GetHotSearches 接口的业务逻辑；每个请求新建一个实例。
 type GetHotSearchesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetHotSearchesLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetHotSearchesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetHotSearchesLogic {
 	return &GetHotSearchesLogic{
 		ctx:    ctx,

@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// SearchUsersLogic 承载 SearchUsers 接口的业务逻辑；每个请求新建一个实例。
 type SearchUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSearchUsersLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSearchUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchUsersLogic {
 	return &SearchUsersLogic{
 		ctx:    ctx,

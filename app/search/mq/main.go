@@ -18,6 +18,7 @@ import (
 
 var configFile = flag.String("f", "etc/search-consumer.yaml", "config file")
 
+// main 启动帖子生命周期事件的搜索索引消费者，进程退出前优雅停止消费。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()
@@ -26,6 +27,7 @@ func main() {
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	c.MustSetUp()
 
+	// 索引不可用时直接终止启动，避免确认消息却没有写入索引。
 	svcCtx, err := svc.NewServiceContext(c)
 	if err != nil {
 		logging.Must(err)

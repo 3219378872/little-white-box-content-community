@@ -37,10 +37,14 @@ func NewSearchConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeSearchBatch 把一批 PostEvent 投影到 ES。写入失败时整批稍后重试；Index/Delete 按 revision
+// 单调覆盖，重放已处理的消息不会回退文档。
 func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	// 单批处理设上限，避免 ES 卡住时消费线程无限阻塞。
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {
+		// 无法解析或校验失败的消息重试也不会成功：计数后跳过，不阻塞同批其他消息。
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logging.WithContext(ctx).Errorw("search-consumer: unmarshal failed",
@@ -54,6 +58,7 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 			searchConsumerMessages.Inc("invalid")
 			continue
 		}
+		// 计数事件只局部更新互动计数，不覆盖已索引的正文。
 		if e.Type == event.PostEventCounted {
 			if err := idx.PatchCounts(ctx, indexer.PostEventToIndexDoc(e)); err != nil {
 				logging.WithContext(ctx).Errorw("search-consumer: count patch failed",

@@ -10,11 +10,13 @@ import (
 	"esx/app/search/mq/internal/indexer"
 )
 
+// ServiceContext 持有搜索消费者的配置与索引写入器。
 type ServiceContext struct {
 	Config  config.Config
 	Indexer indexer.Indexer
 }
 
+// NewServiceContext 装配索引写入器；ES 不可用时返回错误，由入口终止启动。
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	searchIndexer, err := buildIndexer(c.ES)
 	if err != nil {
@@ -23,6 +25,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	return &ServiceContext{Config: c, Indexer: searchIndexer}, nil
 }
 
+// buildIndexer 校验 ES 配置、创建写入器，并在启动时确保索引与 mapping 存在。
 func buildIndexer(cfg config.ESConfig) (indexer.Indexer, error) {
 	if len(cfg.Addresses) == 0 || strings.TrimSpace(cfg.Addresses[0]) == "" {
 		return nil, fmt.Errorf("search-mq: ES address is required")

@@ -18,10 +18,12 @@ var (
 	})
 )
 
+// observeSearchIndexLag 记录事件发生到索引更新的延迟，用于观察搜索结果的新鲜度。
 func observeSearchIndexLag(eventTime int64, now time.Time) {
 	searchIndexEventLag.ObserveFloat(searchEventLagSeconds(eventTime, now))
 }
 
+// searchEventLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
 func searchEventLagSeconds(eventTime int64, now time.Time) float64 {
 	if eventTime <= 0 {
 		return 0
