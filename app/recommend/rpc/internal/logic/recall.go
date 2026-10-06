@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// recallPosts 并行执行所有召回来源；部分来源失败时返回其余结果并标记降级，全部失败才返回错误。
 func recallPosts(ctx context.Context, sources []model.PostRecallSource, req model.RecallRequest) ([][]model.PostCandidate, bool, error) {
 	if len(sources) == 0 {
 		return nil, false, fmt.Errorf("no post recall sources configured")
@@ -61,6 +62,7 @@ func recallPosts(ctx context.Context, sources []model.PostRecallSource, req mode
 	return batches, len(failures) > 0, nil
 }
 
+// recallUsers 并行执行所有用户召回来源；部分失败时降级，全部失败才返回错误。
 func recallUsers(ctx context.Context, sources []model.UserRecallSource, req model.RecallRequest) ([][]model.UserCandidate, bool, error) {
 	if len(sources) == 0 {
 		return nil, false, fmt.Errorf("no user recall sources configured")
@@ -113,6 +115,7 @@ func recallUsers(ctx context.Context, sources []model.UserRecallSource, req mode
 	return batches, len(failures) > 0, nil
 }
 
+// mergePostCandidates 用 RRF 融合多路召回：按各路排名累加贡献分，同一帖子合并来源，取前 limit 个。
 func mergePostCandidates(batches [][]model.PostCandidate, limit int) []model.PostCandidate {
 	merged := make(map[int64]model.PostCandidate)
 	for _, batch := range batches {
@@ -153,6 +156,7 @@ func mergePostCandidates(batches [][]model.PostCandidate, limit int) []model.Pos
 	return result
 }
 
+// mergeUserCandidates 用 RRF 融合多路用户召回，同一用户合并来源，取前 limit 个。
 func mergeUserCandidates(batches [][]model.UserCandidate, limit int) []model.UserCandidate {
 	merged := make(map[int64]model.UserCandidate)
 	for _, batch := range batches {

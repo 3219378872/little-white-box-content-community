@@ -21,6 +21,7 @@ import (
 
 var configFile = flag.String("f", "etc/recommend-consumer.yaml", "config file")
 
+// main 启动推荐特征消费者，并在后台定期清理已关闭个性化用户的在线特征（REL-023）。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()

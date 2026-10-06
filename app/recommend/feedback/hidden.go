@@ -9,15 +9,19 @@ import (
 	"esx/app/recommend/featurekey"
 )
 
+// hashReader is the Redis subset needed to read a viewer's negative feedback hash.
 type hashReader interface {
 	HgetallCtx(context.Context, string) (map[string]string, error)
 }
 
+// HiddenPostReader reads the posts a user marked "not interested" from the
+// recommendation feature space, so non-recommend feeds can exclude them too.
 type HiddenPostReader struct {
 	redis    hashReader
 	features featurekey.Space
 }
 
+// NewHiddenPostReader binds the reader to a feature version (v2 by default).
 func NewHiddenPostReader(client hashReader, version string) *HiddenPostReader {
 	if version == "" {
 		version = "v2"

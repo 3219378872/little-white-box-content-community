@@ -24,6 +24,7 @@ var (
 	ErrMismatch = errors.New("recommendation cursor binding mismatch")
 )
 
+// Binding 是游标必须匹配的请求上下文，防止游标被换到其他身份或请求上续读。
 type Binding struct {
 	IdentityHash string
 	RequestID    string
@@ -33,6 +34,7 @@ type Binding struct {
 	PageSize     int
 }
 
+// Payload 是签名游标的载荷：快照 ID、偏移量、过期时间与请求绑定。
 type Payload struct {
 	Version      int    `json:"v"`
 	SnapshotID   string `json:"sid"`
@@ -46,11 +48,13 @@ type Payload struct {
 	PageSize     int    `json:"page_size"`
 }
 
+// Codec 用 HMAC 签名与校验推荐游标。
 type Codec struct {
 	secret []byte
 	now    func() time.Time
 }
 
+// New 创建游标编解码器；密钥至少 32 字节。
 func New(secret string, now func() time.Time) (*Codec, error) {
 	if len(secret) < 32 {
 		return nil, fmt.Errorf("recommend cursor secret must be at least 32 bytes")
@@ -61,6 +65,7 @@ func New(secret string, now func() time.Time) (*Codec, error) {
 	return &Codec{secret: []byte(secret), now: now}, nil
 }
 
+// Encode 生成指向快照某个偏移量的签名游标。
 func (c *Codec) Encode(snapshotID string, offset int, expiresAt int64, binding Binding) (string, error) {
 	if snapshotID == "" || offset <= 0 || expiresAt <= c.now().Unix() || binding.IdentityHash == "" ||
 		binding.RequestID == "" || binding.Scene == "" || binding.PageSize <= 0 {
@@ -87,6 +92,7 @@ func (c *Codec) Encode(snapshotID string, offset int, expiresAt int64, binding B
 	return payloadPart + "." + signaturePart, nil
 }
 
+// Decode 校验签名、版本、过期时间与请求绑定后返回载荷；任何不符都返回 ErrInvalid。
 func (c *Codec) Decode(token string, binding Binding) (Payload, error) {
 	if token == "" || len(token) > maxTokenSize {
 		return Payload{}, ErrInvalid
@@ -126,11 +132,13 @@ func (c *Codec) Decode(token string, binding Binding) (Payload, error) {
 	return payload, nil
 }
 
+// IdentityHash 把身份哈希后再写入游标，游标中不出现原始用户 ID 或设备 ID。
 func IdentityHash(identity string) string {
 	digest := sha256.Sum256([]byte(identity))
 	return base64.RawURLEncoding.EncodeToString(digest[:16])
 }
 
+// sign 计算载荷的 HMAC-SHA256。
 func (c *Codec) sign(payload []byte) []byte {
 	mac := hmac.New(sha256.New, c.secret)
 	_, _ = mac.Write(payload)

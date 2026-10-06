@@ -17,6 +17,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 )
 
+// NewRecommendConsumer 同时订阅行为主题（更新用户特征）与帖子主题（维护召回候选）。
 func NewRecommendConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	c, err := mqx.NewConsumer(svcCtx.Config.MQ)
 	if err != nil {
@@ -39,6 +40,8 @@ func NewRecommendConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeBehaviorBatch 把行为事件写入在线特征；无法解析或校验失败的消息写死信后确认，
+// 广告行为不进入推荐特征，写入失败则整批重试。
 func consumeBehaviorBatch(
 	ctx context.Context,
 	bs store.BehaviorStore,
@@ -89,6 +92,7 @@ func consumeBehaviorBatch(
 	return consumer.ConsumeSuccess
 }
 
+// consumePostBatch 用帖子生命周期事件维护召回候选；无效消息写死信后确认，写入失败整批重试。
 func consumePostBatch(
 	ctx context.Context,
 	candidates store.CandidateStore,
@@ -128,6 +132,7 @@ func consumePostBatch(
 	return consumer.ConsumeSuccess
 }
 
+// recordDeadLetter 保存无法处理的消息；未配置或写入失败时返回错误，让消息重试而不是被丢弃。
 func recordDeadLetter(
 	ctx context.Context,
 	recorder store.DeadLetterRecorder,

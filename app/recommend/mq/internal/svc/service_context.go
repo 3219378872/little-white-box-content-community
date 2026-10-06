@@ -11,6 +11,7 @@ import (
 	redis "esx/pkg/redisstore"
 )
 
+// ServiceContext 持有推荐特征消费者的特征、候选与死信存储。
 type ServiceContext struct {
 	Config         config.Config
 	BehaviorStore  store.BehaviorStore
@@ -18,6 +19,7 @@ type ServiceContext struct {
 	DeadLetters    store.DeadLetterRecorder
 }
 
+// NewServiceContext 装配用户服务（个性化偏好）与 Redis 存储；配置无效时终止启动。
 func NewServiceContext(c config.Config) *ServiceContext {
 	logging.Must(c.Validate())
 	userClient := rpcx.MustNewClient(c.UserRpc,

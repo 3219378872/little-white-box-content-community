@@ -19,6 +19,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// ServiceContext 持有推荐 RPC 的下游、召回来源、特征仓库、快照存储与可选的精排服务。
 type ServiceContext struct {
 	Config             config.Config
 	ContentService     contentservice.ContentService

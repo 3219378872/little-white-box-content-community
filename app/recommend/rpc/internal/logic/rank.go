@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// coarseRankPosts 用召回分、质量与点击率等特征做规则粗排。
 func coarseRankPosts(candidates []model.PostCandidate, modelVersion string) []model.PostCandidate {
 	if modelVersion == "" {
 		modelVersion = "rules-v2"
@@ -36,6 +37,8 @@ func coarseRankPosts(candidates []model.PostCandidate, modelVersion string) []mo
 	return candidates
 }
 
+// applyInference 先规则粗排，再在超时预算内调用在线精排；精排未启用、超时、不可用或返回非法分数时
+// 保留粗排结果并返回降级原因。请求本身已取消时返回错误。
 func applyInference(
 	ctx context.Context,
 	c config.Config,
@@ -98,6 +101,7 @@ func applyInference(
 	return candidates, "", nil
 }
 
+// rankUsers 用召回分、质量、共同关注与兴趣亲和度做规则排序。
 func rankUsers(candidates []model.UserCandidate, modelVersion string) []model.UserCandidate {
 	if modelVersion == "" {
 		modelVersion = "rules-v2"
@@ -125,6 +129,7 @@ func rankUsers(candidates []model.UserCandidate, modelVersion string) []model.Us
 	return candidates
 }
 
+// rerankPosts 重排：按 ratio（上限 0.5）混入探索候选，同时限制同一作者的出现次数。
 func rerankPosts(candidates []model.PostCandidate, ratio float64, maxPerAuthor int, seed string) []model.PostCandidate {
 	if len(candidates) < 2 {
 		return candidates
@@ -218,6 +223,7 @@ func enforceAuthorQuota(posts []model.PostCandidate, maxPerAuthor int) []model.P
 	return result
 }
 
+// rerankUsers 重排：按 ratio（上限 0.5）混入探索候选，并尽量避免相邻结果同类。
 func rerankUsers(candidates []model.UserCandidate, ratio float64, seed string) []model.UserCandidate {
 	if len(candidates) < 2 {
 		return candidates

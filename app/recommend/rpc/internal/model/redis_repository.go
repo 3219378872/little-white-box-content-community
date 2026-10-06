@@ -18,6 +18,7 @@ import (
 	redis "esx/pkg/redisstore"
 )
 
+// redisClient 是推荐读路径用到的 Redis 子集，便于测试替换。
 type redisClient interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 	HgetallCtx(ctx context.Context, key string) (map[string]string, error)
@@ -35,10 +36,12 @@ type RedisPostRecallSource struct {
 	keyBuilder func(RecallRequest) string
 }
 
+// NewRedisPostRecallSource 创建从 Redis 有序集合召回帖子的来源；keyBuilder 决定读哪个集合。
 func NewRedisPostRecallSource(name, reason string, redisClient redisClient, keyBuilder func(RecallRequest) string) *RedisPostRecallSource {
 	return &RedisPostRecallSource{name: name, reason: reason, redis: redisClient, keyBuilder: keyBuilder}
 }
 
+// Name 返回召回来源标识。
 func (s *RedisPostRecallSource) Name() string {
 	return s.name
 }
@@ -69,10 +72,12 @@ type RedisUserRecallSource struct {
 	keyBuilder func(RecallRequest) string
 }
 
+// NewRedisUserRecallSource 创建从 Redis 有序集合召回用户的来源。
 func NewRedisUserRecallSource(name, reason string, redisClient redisClient, keyBuilder func(RecallRequest) string) *RedisUserRecallSource {
 	return &RedisUserRecallSource{name: name, reason: reason, redis: redisClient, keyBuilder: keyBuilder}
 }
 
+// Name 返回召回来源标识。
 func (s *RedisUserRecallSource) Name() string {
 	return s.name
 }
@@ -325,15 +330,18 @@ func (r *RedisFeatureRepository) IsPersonalizationOptedOut(ctx context.Context, 
 	return !preference.Enabled, nil
 }
 
+// RedisSnapshotStore 把一次推荐的排序结果存为快照，翻页时从快照续读，保证页间不重复不遗漏。
 type RedisSnapshotStore struct {
 	redis  redisClient
 	prefix string
 }
 
+// NewRedisSnapshotStore 创建快照存储。
 func NewRedisSnapshotStore(redisClient redisClient, prefix string) *RedisSnapshotStore {
 	return &RedisSnapshotStore{redis: redisClient, prefix: prefix}
 }
 
+// Save 保存快照并设置 TTL。
 func (s *RedisSnapshotStore) Save(ctx context.Context, snapshotID string, snapshot PostSnapshot, ttlSeconds int) error {
 	encoded, err := json.Marshal(snapshot)
 	if err != nil {
@@ -345,6 +353,7 @@ func (s *RedisSnapshotStore) Save(ctx context.Context, snapshotID string, snapsh
 	return nil
 }
 
+// Load 读取快照；过期或不存在时返回 ErrSnapshotMissing。
 func (s *RedisSnapshotStore) Load(ctx context.Context, snapshotID string) (PostSnapshot, error) {
 	encoded, err := s.redis.GetCtx(ctx, s.key(snapshotID))
 	if err != nil {
@@ -363,10 +372,12 @@ func (s *RedisSnapshotStore) Load(ctx context.Context, snapshotID string) (PostS
 	return snapshot, nil
 }
 
+// key 是快照的 Redis 键。
 func (s *RedisSnapshotStore) key(snapshotID string) string {
 	return s.prefix + ":snapshot:" + snapshotID
 }
 
+// addTargetPostIDs 从行为哈希中提取 post:{id} 字段对应的帖子 ID。
 func addTargetPostIDs(target map[int64]struct{}, values map[string]string) error {
 	for field := range values {
 		if !strings.HasPrefix(field, "post:") {
@@ -381,6 +392,7 @@ func addTargetPostIDs(target map[int64]struct{}, values map[string]string) error
 	return nil
 }
 
+// parsePostFeatures 解析帖子特征哈希；状态非发布即视为不可用，缺省可见性为公开。
 func parsePostFeatures(values map[string]string) (PostFeatures, error) {
 	features := PostFeatures{Known: len(values) > 0, Available: true, Visibility: "public"}
 	status := strings.ToLower(values["status"])
@@ -410,6 +422,7 @@ func parsePostFeatures(values map[string]string) (PostFeatures, error) {
 	return features, nil
 }
 
+// parseUserFeatures 解析用户特征哈希；状态非 active 即视为不可用，缺省可见性为公开。
 func parseUserFeatures(values map[string]string) (UserFeatures, error) {
 	features := UserFeatures{Known: len(values) > 0, Available: true, Visibility: "public"}
 	status := strings.ToLower(values["status"])
@@ -433,6 +446,7 @@ func parseUserFeatures(values map[string]string) (UserFeatures, error) {
 	return features, nil
 }
 
+// parseFloatFeature 解析浮点特征；缺失为 0，格式错误返回错误。
 func parseFloatFeature(values map[string]string, field string) (float64, error) {
 	raw := values[field]
 	if raw == "" {
@@ -445,6 +459,7 @@ func parseFloatFeature(values map[string]string, field string) (float64, error) 
 	return value, nil
 }
 
+// parseIntFeature 解析整数特征；缺失为 0，格式错误返回错误。
 func parseIntFeature(values map[string]string, field string) (int64, error) {
 	raw := values[field]
 	if raw == "" {

@@ -16,12 +16,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetRecommendPostsLogic 承载 GetRecommendPosts 接口的业务逻辑；每个请求新建一个实例。
 type GetRecommendPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetRecommendPostsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetRecommendPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendPostsLogic {
 	return &GetRecommendPostsLogic{
 		ctx:    ctx,

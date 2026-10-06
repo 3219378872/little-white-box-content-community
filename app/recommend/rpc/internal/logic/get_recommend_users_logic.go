@@ -14,16 +14,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetRecommendUsersLogic 承载 GetRecommendUsers 接口的业务逻辑；每个请求新建一个实例。
 type GetRecommendUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetRecommendUsersLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetRecommendUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendUsersLogic {
 	return &GetRecommendUsersLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// GetRecommendUsers 推荐可关注的用户：召回、补全过滤、规则排序与重排后返回一页。
 func (l *GetRecommendUsersLogic) GetRecommendUsers(in *pb.GetRecommendUsersReq) (*pb.GetRecommendUsersResp, error) {
 	if in == nil || l.svcCtx == nil || !validIdentity(in.GetUserId(), in.GetAnonymousId()) ||
 		!validRequestMetadata(in.GetRequestId(), in.GetScene(), "", in.GetExperimentId()) {

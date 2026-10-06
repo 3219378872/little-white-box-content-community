@@ -25,6 +25,7 @@ var (
 	})
 )
 
+// recordPipelineStage 按操作与阶段统计成功/降级次数。
 func recordPipelineStage(operation, stage string, degraded bool) {
 	outcome := "success"
 	if degraded {
@@ -33,6 +34,7 @@ func recordPipelineStage(operation, stage string, degraded bool) {
 	recommendPipelineTotal.Inc(operation, stage, outcome)
 }
 
+// recordRecommendationResult 统计空结果与非空结果。
 func recordRecommendationResult(operation string, count int) {
 	outcome := "non_empty"
 	if count == 0 {

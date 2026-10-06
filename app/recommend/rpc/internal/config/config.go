@@ -7,6 +7,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// OnlineInferConfig 是可选的在线精排服务配置；超时或不可用时回退到规则排序。
 type OnlineInferConfig struct {
 	Enabled      bool
 	Rpc          rpcx.RpcClientConf
@@ -14,6 +15,7 @@ type OnlineInferConfig struct {
 	TimeoutMs    int64  `json:",default=80,range=[1:1000]"`
 }
 
+// ElasticsearchRecallConfig 是可选的 ES 相似内容召回配置。
 type ElasticsearchRecallConfig struct {
 	Enabled   bool
 	Addresses []string
@@ -23,6 +25,7 @@ type ElasticsearchRecallConfig struct {
 	TimeoutMs int64  `json:",default=120,range=[1:5000]"`
 }
 
+// MilvusRecallConfig 是可选的 Milvus 向量召回配置。
 type MilvusRecallConfig struct {
 	Enabled    bool
 	Address    string
@@ -34,6 +37,7 @@ type MilvusRecallConfig struct {
 	TimeoutMs  int64  `json:",default=120,range=[1:5000]"`
 }
 
+// Config 是推荐 RPC 配置：特征与召回键、分页与候选规模、游标签名、精排与外部召回。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret      string
@@ -54,6 +58,7 @@ type Config struct {
 	MilvusRecall        MilvusRecallConfig
 }
 
+// Validate 校验密钥长度与分页参数的一致性。
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return fmt.Errorf("recommend InternalSecret is required; set RPC_INTERNAL_SECRET")

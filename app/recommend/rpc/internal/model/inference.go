@@ -7,14 +7,17 @@ import (
 	inferencepb "esx/app/recommend/rpc/xiaobaihe/inference/pb"
 )
 
+// GRPCInferenceRanker 通过 gRPC 调用在线精排服务。
 type GRPCInferenceRanker struct {
 	client inferencepb.OnlineInferServiceClient
 }
 
+// NewGRPCInferenceRanker 包装精排服务客户端。
 func NewGRPCInferenceRanker(client inferencepb.OnlineInferServiceClient) *GRPCInferenceRanker {
 	return &GRPCInferenceRanker{client: client}
 }
 
+// Rank 把候选及其特征发送给精排服务，返回各帖子的分数与实际使用的模型版本。
 func (r *GRPCInferenceRanker) Rank(ctx context.Context, requestID, modelVersion string, candidates []PostCandidate) (InferenceResult, error) {
 	requestCandidates := make([]*inferencepb.RankCandidate, 0, len(candidates))
 	for _, candidate := range candidates {

@@ -13,10 +13,12 @@ import (
 	"esx/pkg/visibilityx"
 )
 
+// CandidateStore maintains recall candidates from post lifecycle events.
 type CandidateStore interface {
 	RecordPost(ctx context.Context, post event.PostEvent) error
 }
 
+// RedisCandidateStore writes post candidates and author fan-out keys to Redis.
 type RedisCandidateStore struct {
 	privacy      *RedisBehaviorStore
 	redis        RedisEvaler
@@ -25,6 +27,8 @@ type RedisCandidateStore struct {
 	ttlSeconds   int
 }
 
+// NewRedisCandidateStore creates the candidate store; it shares the privacy
+// checks of the behavior store.
 func NewRedisCandidateStore(
 	redis RedisEvaler,
 	featureVersion string,
@@ -39,6 +43,8 @@ func NewRedisCandidateStore(
 	}
 }
 
+// RecordPost upserts or retires a candidate from a post event, guarded by revision
+// so an older event cannot overwrite a newer one.
 func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEvent) error {
 	if err := post.Validate(); err != nil {
 		return fmt.Errorf("validate recommendation post event: %w", err)
@@ -173,6 +179,7 @@ redis.call('EXPIRE', KEYS[5], ttl)
 return 1
 `
 
+// DeadLetter is a message the consumer could not process.
 type DeadLetter struct {
 	MessageID  string `json:"message_id"`
 	Payload    []byte `json:"payload"`
@@ -180,10 +187,12 @@ type DeadLetter struct {
 	RecordedAt int64  `json:"recorded_at"`
 }
 
+// DeadLetterRecorder keeps unprocessable messages for later inspection.
 type DeadLetterRecorder interface {
 	RecordDeadLetter(ctx context.Context, messageID string, payload []byte, cause error) error
 }
 
+// RedisDeadLetterRecorder keeps dead letters in a capped, expiring Redis list.
 type RedisDeadLetterRecorder struct {
 	redis      RedisEvaler
 	key        string
@@ -192,6 +201,7 @@ type RedisDeadLetterRecorder struct {
 	now        func() time.Time
 }
 
+// NewRedisDeadLetterRecorder creates a recorder under the versioned recall prefix.
 func NewRedisDeadLetterRecorder(
 	redis RedisEvaler,
 	recallKeyPrefix string,
@@ -205,6 +215,8 @@ func NewRedisDeadLetterRecorder(
 	}
 }
 
+// RecordDeadLetter appends a dead letter, trimming the list to maxLength and
+// refreshing its TTL.
 func (r *RedisDeadLetterRecorder) RecordDeadLetter(
 	ctx context.Context,
 	messageID string,

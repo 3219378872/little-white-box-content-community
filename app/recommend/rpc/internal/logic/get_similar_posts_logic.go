@@ -13,16 +13,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetSimilarPostsLogic 承载 GetSimilarPosts 接口的业务逻辑；每个请求新建一个实例。
 type GetSimilarPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetSimilarPostsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetSimilarPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetSimilarPostsLogic {
 	return &GetSimilarPostsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// GetSimilarPosts 以指定帖子为种子召回相似帖子，排除种子本身，只返回已发布的帖子。
 func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.GetSimilarPostsResp, error) {
 	if in == nil || l.svcCtx == nil || in.GetPostId() <= 0 ||
 		!validRequestMetadata(in.GetRequestId(), in.GetScene(), "", in.GetExperimentId()) {

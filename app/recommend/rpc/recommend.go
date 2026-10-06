@@ -18,6 +18,7 @@ import (
 
 var configFile = flag.String("f", "etc/recommend.yaml", "the config file")
 
+// main 启动推荐 RPC 服务，退出时关闭外部召回连接。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

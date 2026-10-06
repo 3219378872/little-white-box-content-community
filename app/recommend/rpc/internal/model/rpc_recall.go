@@ -9,6 +9,7 @@ import (
 	"esx/pkg/visibilityx"
 )
 
+// ContentPostRecallSource 用内容服务的全局列表（最新/热门）召回帖子，作为冷启动与兜底来源。
 type ContentPostRecallSource struct {
 	name    string
 	reason  string
@@ -16,14 +17,17 @@ type ContentPostRecallSource struct {
 	content contentservice.ContentService
 }
 
+// NewContentPostRecallSource 创建按指定排序读取内容列表的召回来源。
 func NewContentPostRecallSource(name, reason string, sortBy int32, content contentservice.ContentService) *ContentPostRecallSource {
 	return &ContentPostRecallSource{name: name, reason: reason, sortBy: sortBy, content: content}
 }
 
+// Name 返回召回来源标识。
 func (s *ContentPostRecallSource) Name() string {
 	return s.name
 }
 
+// Recall 读取一页内容列表（最多 50 条），按排名给出递减的召回分。
 func (s *ContentPostRecallSource) Recall(ctx context.Context, req RecallRequest) ([]PostCandidate, error) {
 	if s.content == nil {
 		return nil, ErrNotApplicable
@@ -71,18 +75,22 @@ func (s *ContentPostRecallSource) Recall(ctx context.Context, req RecallRequest)
 	return result, nil
 }
 
+// SocialUserRecallSource 从关注关系召回用户（关注了我的人）。
 type SocialUserRecallSource struct {
 	users userservice.UserService
 }
 
+// NewSocialUserRecallSource 创建社交关系用户召回来源。
 func NewSocialUserRecallSource(users userservice.UserService) *SocialUserRecallSource {
 	return &SocialUserRecallSource{users: users}
 }
 
+// Name 返回召回来源标识。
 func (s *SocialUserRecallSource) Name() string {
 	return "social"
 }
 
+// Recall 召回请求用户的粉丝；匿名请求不适用。
 func (s *SocialUserRecallSource) Recall(ctx context.Context, req RecallRequest) ([]UserCandidate, error) {
 	if s.users == nil || req.UserID <= 0 {
 		return nil, ErrNotApplicable

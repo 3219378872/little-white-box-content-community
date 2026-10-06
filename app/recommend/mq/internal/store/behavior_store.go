@@ -16,6 +16,7 @@ import (
 	"esx/app/user/rpc/userservice"
 )
 
+// BehaviorStore 维护推荐在线特征，并支持按个性化开关清理。
 type BehaviorStore interface {
 	Record(ctx context.Context, behavior event.BehaviorEvent) error
 	// PurgeOptedOutFeatures 主动删除已关闭个性化用户的在线特征（REL-023），
@@ -23,6 +24,7 @@ type BehaviorStore interface {
 	PurgeOptedOutFeatures(ctx context.Context) (int, error)
 }
 
+// RedisEvaler 是执行 Lua 脚本的 Redis 子集；特征更新在脚本内原子完成。
 type RedisEvaler interface {
 	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 }
@@ -32,6 +34,7 @@ type PersonalizationPreferenceReader interface {
 	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
 }
 
+// RedisBehaviorStore 把登录用户的行为写入 Redis 特征与召回键。
 type RedisBehaviorStore struct {
 	preferences  PersonalizationPreferenceReader
 	redis        RedisEvaler
@@ -40,10 +43,12 @@ type RedisBehaviorStore struct {
 	ttlSeconds   int
 }
 
+// RedisGetter 是读取退出个性化标记的可选能力。
 type RedisGetter interface {
 	GetCtx(ctx context.Context, key string) (string, error)
 }
 
+// NewRedisBehaviorStore 创建特征存储；readers 可选注入个性化偏好查询，缺失时按已退出处理。
 func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
 	s := &RedisBehaviorStore{
 		redis: redis, features: featurekey.New(featureVersion),
@@ -55,6 +60,7 @@ func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix st
 	return s
 }
 
+// Record 把一条行为写入在线特征；匿名行为与已关闭个性化的用户不写入。
 func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.BehaviorEvent) error {
 	if err := behavior.Validate(); err != nil {
 		return fmt.Errorf("validate behavior feature event: %w", err)
@@ -123,6 +129,8 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	return nil
 }
 
+// personalizationOptedOut 判断用户是否关闭了个性化：先查本地退出标记，再查用户服务；
+// 无法确认时按已退出处理（fail closed），宁可少推荐也不违背用户选择。
 func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
 	if getter, ok := s.redis.(RedisGetter); ok {
 		value, err := getter.GetCtx(ctx, featurekey.OptOutKey(userID))
@@ -342,11 +350,15 @@ type RedisKeyLister interface {
 	KeysCtx(ctx context.Context, pattern string) ([]string, error)
 }
 
+// redisKeyScanner 是用 SCAN 增量遍历键的能力。
 type redisKeyScanner interface {
 	ScanCtx(context.Context, uint64, string, int64) ([]string, uint64, error)
 }
+
+// scanningKeyLister 用 SCAN 实现 RedisKeyLister，避免 KEYS 阻塞 Redis。
 type scanningKeyLister struct{ scanner redisKeyScanner }
 
+// KeysCtx 遍历所有匹配的键；SCAN 可能重复返回同一键，这里去重。
 func (l scanningKeyLister) KeysCtx(ctx context.Context, pattern string) ([]string, error) {
 	var cursor uint64
 	var keys []string
@@ -368,6 +380,8 @@ func (l scanningKeyLister) KeysCtx(ctx context.Context, pattern string) ([]strin
 		cursor = next
 	}
 }
+
+// privacyKeyLister 返回可用于隐私清理的键枚举方式，优先使用 SCAN。
 func privacyKeyLister(client RedisEvaler) (RedisKeyLister, bool) {
 	if scanner, ok := client.(redisKeyScanner); ok {
 		return scanningKeyLister{scanner}, true

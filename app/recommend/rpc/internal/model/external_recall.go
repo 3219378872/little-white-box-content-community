@@ -25,6 +25,7 @@ import (
 
 const maxExternalRecallSeeds = 5
 
+// ElasticsearchPostRecallSource 以观看者最近浏览或指定种子帖为参照，用 ES more_like_this 召回相似帖子。
 type ElasticsearchPostRecallSource struct {
 	endpoint string
 	index    string
@@ -69,8 +70,10 @@ func NewElasticsearchPostRecallSource(opts ElasticsearchRecallOptions) (*Elastic
 	}, nil
 }
 
+// Name 返回召回来源标识。
 func (s *ElasticsearchPostRecallSource) Name() string { return "es" }
 
+// Recall 用种子帖召回相似帖子；没有种子时返回空结果。
 func (s *ElasticsearchPostRecallSource) Recall(ctx context.Context, req RecallRequest) ([]PostCandidate, error) {
 	if req.Limit <= 0 {
 		return nil, fmt.Errorf("elasticsearch recall limit must be positive")
@@ -160,14 +163,17 @@ func (s *ElasticsearchPostRecallSource) Recall(ctx context.Context, req RecallRe
 	return result, nil
 }
 
+// milvusRecallClient 是向量召回用到的 Milvus 客户端子集，便于测试替换。
 type milvusRecallClient interface {
 	Query(context.Context, string, []string, string, []string, ...milvusclient.SearchQueryOptionFunc) (milvusclient.ResultSet, error)
 	Search(context.Context, string, []string, string, []string, []entity.Vector, string, entity.MetricType, int, entity.SearchParam, ...milvusclient.SearchQueryOptionFunc) ([]milvusclient.SearchResult, error)
 	Close() error
 }
 
+// milvusClientFactory 创建 Milvus 客户端，测试可注入假实现。
 type milvusClientFactory func(context.Context, milvusclient.Config) (milvusRecallClient, error)
 
+// MilvusPostRecallSource 以种子帖的向量在 Milvus 中检索相近帖子；连接按需建立。
 type MilvusPostRecallSource struct {
 	address    string
 	collection string
@@ -210,8 +216,10 @@ func NewMilvusPostRecallSource(opts MilvusRecallOptions) *MilvusPostRecallSource
 	}
 }
 
+// Name 返回召回来源标识。
 func (s *MilvusPostRecallSource) Name() string { return "milvus" }
 
+// Recall 取种子帖向量做近邻检索，排除种子本身；没有种子时返回空结果。
 func (s *MilvusPostRecallSource) Recall(ctx context.Context, req RecallRequest) ([]PostCandidate, error) {
 	if req.Limit <= 0 {
 		return nil, fmt.Errorf("milvus recall limit must be positive")
@@ -316,6 +324,7 @@ func (s *MilvusPostRecallSource) Recall(ctx context.Context, req RecallRequest) 
 	return result, nil
 }
 
+// getClient 懒加载 Milvus 连接，启动时 Milvus 不可用不阻塞服务；关闭后拒绝再建立连接。
 func (s *MilvusPostRecallSource) getClient(ctx context.Context) (milvusRecallClient, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -336,6 +345,7 @@ func (s *MilvusPostRecallSource) getClient(ctx context.Context) (milvusRecallCli
 	return client, nil
 }
 
+// Close 关闭 Milvus 连接，并阻止之后再建立连接。
 func (s *MilvusPostRecallSource) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -346,6 +356,7 @@ func (s *MilvusPostRecallSource) Close() error {
 	return s.client.Close()
 }
 
+// externalRecallSeedIDs 返回外部召回的种子帖：显式指定的帖子，或观看者最近浏览的帖子（最多 50 个）。
 func externalRecallSeedIDs(ctx context.Context, redis redisClient, features featurekey.Space, req RecallRequest) ([]int64, error) {
 	if req.SeedPostID > 0 {
 		return []int64{req.SeedPostID}, nil
@@ -389,6 +400,7 @@ func externalRecallSeedIDs(ctx context.Context, redis redisClient, features feat
 	return result, nil
 }
 
+// joinInt64 把 ID 列表拼成逗号分隔的字符串。
 func joinInt64(values []int64) string {
 	result := make([]string, 0, len(values))
 	for _, value := range values {
@@ -397,6 +409,7 @@ func joinInt64(values []int64) string {
 	return strings.Join(result, ",")
 }
 
+// containsInt64 判断列表是否包含 ID。
 func containsInt64(values []int64, wanted int64) bool {
 	return slices.Contains(values, wanted)
 }

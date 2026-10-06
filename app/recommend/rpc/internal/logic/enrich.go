@@ -6,6 +6,8 @@ import (
 	"fmt"
 )
 
+// enrichAndFilterPosts 补全帖子特征并过滤：负反馈、不可见、已拉黑作者与种子帖本身；
+// 已曝光内容先排除，候选不足时再允许重新进入（DISC-035）。特征仓库不可用时降级。
 func enrichAndFilterPosts(
 	ctx context.Context,
 	repository model.FeatureRepository,
@@ -86,6 +88,7 @@ func enrichAndFilterPosts(
 	return result, degraded, nil
 }
 
+// enrichAndFilterUsers 补全用户特征并过滤自己与不可推荐的用户；特征仓库不可用时降级。
 func enrichAndFilterUsers(
 	ctx context.Context,
 	repository model.FeatureRepository,

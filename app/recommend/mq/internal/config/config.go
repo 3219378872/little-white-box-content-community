@@ -10,6 +10,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是推荐特征消费者配置：特征键版本与 TTL、召回键前缀、死信保留策略与退出清理周期。
 type Config struct {
 	service.ServiceConf
 	InternalSecret      string
@@ -27,6 +28,7 @@ type Config struct {
 	OptOutCleanupInterval int `json:",default=3600"`
 }
 
+// Validate 确认内部调用密钥已配置（读取个性化偏好需要）。
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.InternalSecret) == "" {
 		return fmt.Errorf("recommend consumer InternalSecret is required; set RPC_INTERNAL_SECRET")

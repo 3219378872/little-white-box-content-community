@@ -7,6 +7,7 @@ import (
 	"esx/app/recommend/rpc/internal/model"
 )
 
+// publishedPostIDs 返回仍已发布的帖子 ID 集合，以内容服务为准。
 func publishedPostIDs(ctx context.Context, content contentservice.ContentService, ids []int64) (map[int64]struct{}, error) {
 	live, err := visibility.PublishedByIDs(ctx, content, ids)
 	if err != nil {
@@ -19,6 +20,7 @@ func publishedPostIDs(ctx context.Context, content contentservice.ContentService
 	return published, nil
 }
 
+// filterPublishedPostCandidates 只保留仍已发布的候选，保持原顺序。
 func filterPublishedPostCandidates(ctx context.Context, content contentservice.ContentService, candidates []model.PostCandidate) ([]model.PostCandidate, error) {
 	ids := make([]int64, 0, len(candidates))
 	for _, candidate := range candidates {
@@ -37,6 +39,7 @@ func filterPublishedPostCandidates(ctx context.Context, content contentservice.C
 	return filtered, nil
 }
 
+// filterPublishedRankedPosts 只保留仍已发布的快照结果，保持原顺序；翻页时过滤快照生成后下线的帖子。
 func filterPublishedRankedPosts(ctx context.Context, content contentservice.ContentService, posts []model.RankedPost) ([]model.RankedPost, error) {
 	ids := make([]int64, 0, len(posts))
 	for _, post := range posts {
