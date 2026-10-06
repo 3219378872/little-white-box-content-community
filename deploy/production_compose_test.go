@@ -189,17 +189,22 @@ func TestProductionComposeStartsUserCardCallersAfterUserRPC(t *testing.T) {
 	}
 }
 
-// Assistant services poll MySQL for run events and never open Redis, and assistant-rpc only
-// dials content-rpc and user-rpc; unused backends must not be injected or gate startup.
+// Assistant services poll MySQL for run events and never open Redis. assistant-rpc reads
+// xbh_assistant and dials content-rpc and user-rpc; the worker also indexes history in
+// Elasticsearch and calls search, content, media, recommend, interaction and user RPCs, but never
+// assistant-rpc. Startup waits on exactly those backends.
 func TestProductionComposeAssistantDependsOnlyOnUsedBackends(t *testing.T) {
 	project := loadProductionCompose(t)
 	required := map[string][]string{
-		"assistant-rpc":   {"etcd", "content-rpc", "user-rpc"},
-		"assistant-agent": {"mysql", "etcd", "search-rpc", "content-rpc", "user-rpc"},
+		"assistant-rpc": {"mysql", "etcd", "content-rpc", "user-rpc"},
+		"assistant-agent": {
+			"mysql", "etcd", "elasticsearch", "search-rpc", "content-rpc", "media-rpc",
+			"recommend-rpc", "interaction-rpc", "user-rpc",
+		},
 	}
 	forbidden := map[string][]string{
 		"assistant-rpc":   {"redis", "search-rpc", "recommend-rpc"},
-		"assistant-agent": {"redis"},
+		"assistant-agent": {"redis", "assistant-rpc"},
 	}
 	for name, dependencies := range required {
 		service, ok := project.Services[name]

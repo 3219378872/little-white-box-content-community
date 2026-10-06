@@ -461,6 +461,8 @@ services:
       retries: 5
       start_period: 20s
     depends_on:
+      mysql:
+        condition: service_healthy
       etcd:
         condition: service_healthy
       content-rpc:
@@ -653,16 +655,24 @@ services:
       ASSISTANT_LLM_FALLBACK_REASONING_COST_PER_MILLION_TOKENS: ${ASSISTANT_LLM_FALLBACK_REASONING_COST_PER_MILLION_TOKENS:-0}
     expose: ["9136"]
     healthcheck: *process-healthcheck
+    # The worker never calls assistant-rpc. They share only the xbh_assistant schema, which MySQL
+    # init and scripts/apply_production_sql_patches.sh create, so no startup ordering is needed.
     depends_on:
       mysql:
         condition: service_healthy
       etcd:
         condition: service_healthy
-      assistant-rpc:
+      elasticsearch:
         condition: service_healthy
       search-rpc:
         condition: service_healthy
       content-rpc:
+        condition: service_healthy
+      media-rpc:
+        condition: service_healthy
+      recommend-rpc:
+        condition: service_healthy
+      interaction-rpc:
         condition: service_healthy
       user-rpc:
         condition: service_healthy
