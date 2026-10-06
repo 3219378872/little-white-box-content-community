@@ -45,6 +45,7 @@ func issueTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId int6
 	return access, refresh, nil
 }
 
+// generateTokenPair 签发访问令牌与刷新令牌；失败时记录日志并返回系统错误。
 func generateTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId int64, username string) (access, refresh string, err error) {
 	cfg := svcCtx.Config.JwtConfig
 	access, err = jwtx.GenerateToken(userId, username, cfg)
@@ -130,6 +131,7 @@ func rotateRefreshToken(ctx context.Context, svcCtx *svc.ServiceContext, oldRefr
 	return access, refresh, nil
 }
 
+// redisInteger 把 Lua 脚本返回值统一转换为 int64，兼容不同客户端返回的类型。
 func redisInteger(value any) (int64, error) {
 	switch typed := value.(type) {
 	case int64:
@@ -145,6 +147,7 @@ func redisInteger(value any) (int64, error) {
 	}
 }
 
+// refreshJTIKey 是刷新令牌 JTI 的 Redis 键，用于令牌轮换与吊销。
 func refreshJTIKey(jti string) string {
 	return fmt.Sprintf("%s%s", refreshKeyPrefix, jti)
 }

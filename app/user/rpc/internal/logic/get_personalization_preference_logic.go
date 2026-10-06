@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetPersonalizationPreferenceLogic 承载 GetPersonalizationPreference 接口的业务逻辑；每个请求新建一个实例。
 type GetPersonalizationPreferenceLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetPersonalizationPreferenceLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPersonalizationPreferenceLogic {
 	return &GetPersonalizationPreferenceLogic{
 		ctx:    ctx,

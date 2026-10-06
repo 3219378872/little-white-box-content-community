@@ -29,6 +29,7 @@ type UserCard struct {
 	AvatarUrl string `db:"avatar_url"`
 }
 
+// userCardKey is the cache key of a user's display card.
 func userCardKey(id int64) string { return fmt.Sprintf("%s%d", cacheUserCardPrefix, id) }
 
 var _ UserProfileModel = (*customUserProfileModel)(nil)
@@ -70,6 +71,7 @@ func NewCachedUserProfileModel(conn sqlx.SqlConn, c cache.CacheConf) UserProfile
 	}
 }
 
+// withSession returns a model bound to the given transaction.
 func (m *customUserProfileModel) withSession(session sqlx.Session) UserProfileModel {
 	return NewUserProfileModel(sqlx.NewSqlConnFromSession(session))
 }
@@ -122,6 +124,7 @@ func (m *customUserProfileModel) FindCardsByIDs(ctx context.Context, ids []int64
 	return result, nil
 }
 
+// FindOneByIdForUpdate locks the profile row inside the caller's transaction.
 func (m *customUserProfileModel) FindOneByIdForUpdate(ctx context.Context, session sqlx.Session, id int64) (*UserProfile, error) {
 	query := fmt.Sprintf("select %s from %s where id = ? for update", userProfileRows, m.table)
 	var userProfile UserProfile
@@ -132,6 +135,7 @@ func (m *customUserProfileModel) FindOneByIdForUpdate(ctx context.Context, sessi
 	return &userProfile, nil
 }
 
+// FindByIDs loads profiles for the given ids; missing ids are simply absent.
 func (m *customUserProfileModel) FindByIDs(ctx context.Context, ids []int64) ([]*UserProfile, error) {
 	if len(ids) == 0 {
 		return []*UserProfile{}, nil
@@ -150,6 +154,8 @@ func (m *customUserProfileModel) FindByIDs(ctx context.Context, ids []int64) ([]
 	return profiles, nil
 }
 
+// SearchPublic returns one page of public profiles matching keyword plus the
+// total match count.
 func (m *customUserProfileModel) SearchPublic(
 	ctx context.Context,
 	keyword string,

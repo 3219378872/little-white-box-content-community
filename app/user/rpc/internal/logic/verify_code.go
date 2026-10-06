@@ -29,6 +29,9 @@ redis.call('DEL', KEYS[1], KEYS[2])
 return 1
 `
 
+// consumeVerifyCode atomically checks and consumes a phone verification code,
+// counting failed attempts so a code cannot be brute-forced; it maps the
+// script result to expired, wrong-code or success.
 func consumeVerifyCode(ctx context.Context, rds svc.RedisStore, phone, code string) error {
 	if rds == nil {
 		return errx.NewWithCode(errx.SystemError)
@@ -56,4 +59,5 @@ func consumeVerifyCode(ctx context.Context, rds svc.RedisStore, phone, code stri
 	}
 }
 
+// verifyCodeRedisKey is the Redis key holding a phone's current code.
 func verifyCodeRedisKey(phone string) string { return "verify:code:" + phone }

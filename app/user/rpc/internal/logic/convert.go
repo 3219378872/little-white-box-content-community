@@ -7,6 +7,8 @@ import (
 	pb "esx/kitex_gen/user"
 )
 
+// UserProfileToUserInfo converts a stored profile to the public user info;
+// NULL optional fields become empty strings.
 func UserProfileToUserInfo(profile *model.UserProfile) *pb.UserInfo {
 	return &pb.UserInfo{
 		Id:                  profile.Id,

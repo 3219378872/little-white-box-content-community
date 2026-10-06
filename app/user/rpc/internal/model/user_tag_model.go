@@ -30,6 +30,7 @@ func NewUserTagModel(conn sqlx.SqlConn) UserTagModel {
 	}
 }
 
+// withSession returns a model bound to the given transaction.
 func (m *customUserTagModel) withSession(session sqlx.Session) UserTagModel {
 	return NewUserTagModel(sqlx.NewSqlConnFromSession(session))
 }

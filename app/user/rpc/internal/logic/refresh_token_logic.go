@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// RefreshTokenLogic 承载 RefreshToken 接口的业务逻辑；每个请求新建一个实例。
 type RefreshTokenLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewRefreshTokenLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewRefreshTokenLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RefreshTokenLogic {
 	return &RefreshTokenLogic{
 		ctx:    ctx,

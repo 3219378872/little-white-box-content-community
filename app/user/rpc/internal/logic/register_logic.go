@@ -21,12 +21,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// RegisterLogic 承载 Register 接口的业务逻辑；每个请求新建一个实例。
 type RegisterLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewRegisterLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RegisterLogic {
 	return &RegisterLogic{
 		ctx:    ctx,
@@ -47,6 +49,7 @@ func (l *RegisterLogic) Register(in *pb.RegisterReq) (*pb.RegisterResp, error) {
 	return l.registerByUserName(in)
 }
 
+// registerByUserName 校验密码强度后创建账号并签发令牌；用户名重复映射为用户已存在。
 func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterResp, error) {
 	_, err := validator.CheckPasswordStrength(req.Password)
 	if err != nil {
@@ -84,6 +87,7 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 	}, nil
 }
 
+// registerByPhone 校验手机号未注册并消费验证码后创建账号；未提供密码时账号使用默认密码，只能用手机登录。
 func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, error) {
 	// 手机注册允许空密码（注册后由 newUser 生成随机密码），
 	// 但显式提供的密码必须与用户名注册一样满足强度要求。
@@ -191,6 +195,7 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 	}, nil
 }
 
+// mapUserInsertError 把唯一键冲突映射为用户已存在，其余错误按系统错误返回。
 func mapUserInsertError(err error) error {
 	if sqlstore.IsDuplicateKey(err) {
 		return errx.NewWithCode(errx.UserAlreadyExist)

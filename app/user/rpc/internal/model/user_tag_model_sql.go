@@ -40,6 +40,7 @@ type (
 	}
 )
 
+// newUserTagModel creates the base CRUD model.
 func newUserTagModel(conn sqlx.SqlConn) *defaultUserTagModel {
 	return &defaultUserTagModel{
 		conn:  conn,
@@ -47,12 +48,14 @@ func newUserTagModel(conn sqlx.SqlConn) *defaultUserTagModel {
 	}
 }
 
+// Delete removes a user tag by id.
 func (m *defaultUserTagModel) Delete(ctx context.Context, id int64) error {
 	query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
+// FindOne loads a user tag by id; ErrNotFound when missing.
 func (m *defaultUserTagModel) FindOne(ctx context.Context, id int64) (*UserTag, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", userTagRows, m.table)
 	var resp UserTag
@@ -67,6 +70,7 @@ func (m *defaultUserTagModel) FindOne(ctx context.Context, id int64) (*UserTag, 
 	}
 }
 
+// FindOneByUserIdTagName loads a user tag by its unique key; ErrNotFound when missing.
 func (m *defaultUserTagModel) FindOneByUserIdTagName(ctx context.Context, userId int64, tagName string) (*UserTag, error) {
 	var resp UserTag
 	query := fmt.Sprintf("select %s from %s where `user_id` = ? and `tag_name` = ? limit 1", userTagRows, m.table)
@@ -81,12 +85,14 @@ func (m *defaultUserTagModel) FindOneByUserIdTagName(ctx context.Context, userId
 	}
 }
 
+// Insert creates a user tag.
 func (m *defaultUserTagModel) Insert(ctx context.Context, data *UserTag) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?)", m.table, userTagRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.TagName, data.Weight)
 	return ret, err
 }
 
+// Update rewrites a user tag by id.
 func (m *defaultUserTagModel) Update(ctx context.Context, newData *UserTag) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, userTagRowsWithPlaceHolder)
 	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.TagName, newData.Weight, newData.Id)

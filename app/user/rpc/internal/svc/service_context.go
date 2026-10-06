@@ -16,6 +16,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// UserProfileStore 是用户资料的读写接口。
 type UserProfileStore interface {
 	FindOne(ctx context.Context, id int64) (*model.UserProfile, error)
 	FindByIDs(ctx context.Context, ids []int64) ([]*model.UserProfile, error)
@@ -28,6 +29,7 @@ type UserProfileStore interface {
 	SearchPublicPage(ctx context.Context, keyword string, offset, limit int64) ([]*model.UserProfile, error)
 }
 
+// UserFollowStore 是关注关系的查询接口。
 type UserFollowStore interface {
 	FindOneByUserIdTargetUserId(ctx context.Context, userID, targetUserID int64) (*model.UserFollow, error)
 	Follow(ctx context.Context, userID, targetUserID int64) error
@@ -38,6 +40,7 @@ type UserFollowStore interface {
 	CountFollowing(ctx context.Context, userID int64) (int64, error)
 }
 
+// UserFollowCommandStore 是关注/取关的事务写入，关系、计数与行为事件一起提交。
 type UserFollowCommandStore interface {
 	Follow(ctx context.Context, userID, targetUserID int64, event outboxx.Event) error
 	Unfollow(ctx context.Context, userID, targetUserID int64, event outboxx.Event) error
@@ -59,6 +62,7 @@ type RedisStore interface {
 	ExpireCtx(ctx context.Context, key string, seconds int) error
 }
 
+// ServiceContext 持有用户 RPC 的存储、Redis 与 outbox 投递依赖。
 type ServiceContext struct {
 	Config             config.Config
 	DB                 sqlx.SqlConn
@@ -75,8 +79,9 @@ type ServiceContext struct {
 	MQProducer         *mqx.Producer
 }
 
+// NewServiceContext 装配数据库、Redis、ID 生成器与各模型；未配置 MQ 时不创建 relay。
 func NewServiceContext(c config.Config) *ServiceContext {
-	// SQL arguments contain phone numbers and private profile fields (REL-022).
+	// SQL 参数含手机号与私密资料；pkg/sqlstore 不记录 SQL 语句与参数（REL-022）。
 	// 注入MySQL
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,
@@ -138,6 +143,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close 关闭 MQ 生产者与数据库连接，汇总所有关闭错误。
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

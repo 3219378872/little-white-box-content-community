@@ -16,6 +16,7 @@ var ErrAgentCapabilityConsentNotFound = errors.New("agent capability consent not
 // CurrentAgentConsentVersion 是服务端当前披露版本（AGNT-007）。
 const CurrentAgentConsentVersion int32 = 3
 
+// AgentCapabilityConsent 是用户对 Assistant 能力的授权状态及最近一次授权/撤销时间。
 type AgentCapabilityConsent struct {
 	UserID         int64
 	Granted        bool
@@ -30,14 +31,17 @@ type AgentCapabilityConsentStore interface {
 	Upsert(ctx context.Context, consent *AgentCapabilityConsent) error
 }
 
+// agentCapabilityConsentModel 是基于 MySQL 的授权存储。
 type agentCapabilityConsentModel struct {
 	conn sqlx.SqlConn
 }
 
+// NewAgentCapabilityConsentModel 创建授权存储。
 func NewAgentCapabilityConsentModel(conn sqlx.SqlConn) AgentCapabilityConsentStore {
 	return &agentCapabilityConsentModel{conn: conn}
 }
 
+// Get 读取用户的授权记录；从未授权过时返回 ErrAgentCapabilityConsentNotFound。
 func (m *agentCapabilityConsentModel) Get(ctx context.Context, userID int64) (*AgentCapabilityConsent, error) {
 	if userID <= 0 {
 		return nil, ErrAgentCapabilityConsentNotFound
@@ -66,6 +70,7 @@ func (m *agentCapabilityConsentModel) Get(ctx context.Context, userID int64) (*A
 	}, nil
 }
 
+// Upsert 写入授权状态；调用方未给出时间时，按本次授权或撤销补上当前时间。
 func (m *agentCapabilityConsentModel) Upsert(ctx context.Context, consent *AgentCapabilityConsent) error {
 	if consent == nil || consent.UserID <= 0 {
 		return errors.New("agent capability consent: invalid record")
@@ -88,6 +93,7 @@ func (m *agentCapabilityConsentModel) Upsert(ctx context.Context, consent *Agent
 	return err
 }
 
+// timeNowMillis 返回当前毫秒时间戳。
 func timeNowMillis() int64 {
 	return time.Now().UnixMilli()
 }

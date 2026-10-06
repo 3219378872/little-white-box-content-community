@@ -36,6 +36,9 @@ func NewUserFollowModel(conn sqlx.SqlConn) UserFollowModel {
 	}
 }
 
+// Follow inserts the relation and bumps both counters in one transaction;
+// an existing relation changes nothing. Emits no event; the RPC path uses
+// UserFollowCommandModel.
 func (m *customUserFollowModel) Follow(ctx context.Context, userID, targetUserID int64) error {
 	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
 		result, err := session.ExecCtx(ctx,
@@ -61,6 +64,8 @@ func (m *customUserFollowModel) Follow(ctx context.Context, userID, targetUserID
 	})
 }
 
+// Unfollow deletes the relation and lowers both counters (never below zero) in
+// one transaction; a missing relation changes nothing.
 func (m *customUserFollowModel) Unfollow(ctx context.Context, userID, targetUserID int64) error {
 	return m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
 		result, err := session.ExecCtx(ctx,
@@ -85,10 +90,12 @@ func (m *customUserFollowModel) Unfollow(ctx context.Context, userID, targetUser
 	})
 }
 
+// withSession returns a model bound to the given transaction.
 func (m *customUserFollowModel) withSession(session sqlx.Session) UserFollowModel {
 	return NewUserFollowModel(sqlx.NewSqlConnFromSession(session))
 }
 
+// FindFollowers pages the profiles following userID, most recent first.
 func (m *customUserFollowModel) FindFollowers(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error) {
 	query := fmt.Sprintf(`SELECT %s
 	FROM user_follow f
@@ -101,6 +108,7 @@ func (m *customUserFollowModel) FindFollowers(ctx context.Context, userID int64,
 	return rows, err
 }
 
+// FindFollowing pages the profiles userID follows, most recent first.
 func (m *customUserFollowModel) FindFollowing(ctx context.Context, userID int64, offset, limit int64) ([]*UserProfile, error) {
 	query := fmt.Sprintf(`SELECT %s
 	FROM user_follow f
@@ -122,12 +130,14 @@ func prefixedProfileColumns(prefix string) string {
 	return strings.Join(cols, ",")
 }
 
+// CountFollowers counts relations targeting userID.
 func (m *customUserFollowModel) CountFollowers(ctx context.Context, userID int64) (int64, error) {
 	var total int64
 	err := m.conn.QueryRowCtx(ctx, &total, "SELECT COUNT(*) FROM user_follow WHERE target_user_id = ?", userID)
 	return total, err
 }
 
+// CountFollowing counts relations created by userID.
 func (m *customUserFollowModel) CountFollowing(ctx context.Context, userID int64) (int64, error) {
 	var total int64
 	err := m.conn.QueryRowCtx(ctx, &total, "SELECT COUNT(*) FROM user_follow WHERE user_id = ?", userID)

@@ -24,14 +24,17 @@ type PersonalizationPreferenceStore interface {
 	Upsert(ctx context.Context, preference *PersonalizationPreference) error
 }
 
+// personalizationPreferenceModel 是基于 MySQL 的个性化偏好存储。
 type personalizationPreferenceModel struct {
 	conn sqlx.SqlConn
 }
 
+// NewPersonalizationPreferenceModel 创建个性化偏好存储。
 func NewPersonalizationPreferenceModel(conn sqlx.SqlConn) PersonalizationPreferenceStore {
 	return &personalizationPreferenceModel{conn: conn}
 }
 
+// Get 读取用户的个性化偏好；没有记录时返回 ErrPersonalizationPreferenceNotFound，由调用方按默认开启处理。
 func (m *personalizationPreferenceModel) Get(ctx context.Context, userID int64) (*PersonalizationPreference, error) {
 	if userID <= 0 {
 		return nil, ErrPersonalizationPreferenceNotFound
@@ -52,6 +55,7 @@ func (m *personalizationPreferenceModel) Get(ctx context.Context, userID int64) 
 	return &PersonalizationPreference{UserID: userID, Enabled: row.Enabled == 1, OptedOutAt: row.OptedOutAt}, nil
 }
 
+// Upsert 写入用户的个性化开关与退出时间。
 func (m *personalizationPreferenceModel) Upsert(ctx context.Context, preference *PersonalizationPreference) error {
 	if preference == nil || preference.UserID <= 0 {
 		return errors.New("personalization preference: invalid record")
@@ -64,6 +68,7 @@ func (m *personalizationPreferenceModel) Upsert(ctx context.Context, preference 
 	return err
 }
 
+// boolToInt 把布尔值转为 TINYINT 列取值。
 func boolToInt(value bool) int64 {
 	if value {
 		return 1

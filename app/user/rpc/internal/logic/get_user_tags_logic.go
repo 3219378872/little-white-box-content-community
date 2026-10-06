@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUserTagsLogic 承载 GetUserTags 接口的业务逻辑；每个请求新建一个实例。
 type GetUserTagsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetUserTagsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetUserTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserTagsLogic {
 	return &GetUserTagsLogic{
 		ctx:    ctx,

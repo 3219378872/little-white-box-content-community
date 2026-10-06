@@ -15,12 +15,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// SendVerifyCodeLogic 承载 SendVerifyCode 接口的业务逻辑；每个请求新建一个实例。
 type SendVerifyCodeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSendVerifyCodeLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendVerifyCodeLogic {
 	return &SendVerifyCodeLogic{
 		ctx:    ctx,

@@ -10,6 +10,7 @@ import (
 	"esx/pkg/util"
 )
 
+// followOutboxEvent 把关注/取关转换为行为事件并封装为 outbox 事件，与关系写入同事务提交。
 func followOutboxEvent(userID, targetUserID int64, action string) (outboxx.Event, error) {
 	eventID, err := util.NextID()
 	if err != nil {

@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetAgentCapabilityConsentLogic 承载 GetAgentCapabilityConsent 接口的业务逻辑；每个请求新建一个实例。
 type GetAgentCapabilityConsentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetAgentCapabilityConsentLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetAgentCapabilityConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAgentCapabilityConsentLogic {
 	return &GetAgentCapabilityConsentLogic{
 		ctx:    ctx,

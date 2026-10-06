@@ -55,6 +55,7 @@ type (
 	}
 )
 
+// newUserProfileModel creates the base CRUD model.
 func newUserProfileModel(conn sqlx.SqlConn) *defaultUserProfileModel {
 	return &defaultUserProfileModel{
 		conn:  conn,
@@ -62,12 +63,14 @@ func newUserProfileModel(conn sqlx.SqlConn) *defaultUserProfileModel {
 	}
 }
 
+// Delete removes a profile by id.
 func (m *defaultUserProfileModel) Delete(ctx context.Context, id int64) error {
 	query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
+// FindOne loads a profile by id; ErrNotFound when missing.
 func (m *defaultUserProfileModel) FindOne(ctx context.Context, id int64) (*UserProfile, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", userProfileRows, m.table)
 	var resp UserProfile
@@ -82,6 +85,7 @@ func (m *defaultUserProfileModel) FindOne(ctx context.Context, id int64) (*UserP
 	}
 }
 
+// FindOneByPhone loads a profile by phone; ErrNotFound when missing.
 func (m *defaultUserProfileModel) FindOneByPhone(ctx context.Context, phone sql.NullString) (*UserProfile, error) {
 	var resp UserProfile
 	query := fmt.Sprintf("select %s from %s where `phone` = ? limit 1", userProfileRows, m.table)
@@ -96,6 +100,7 @@ func (m *defaultUserProfileModel) FindOneByPhone(ctx context.Context, phone sql.
 	}
 }
 
+// FindOneByUsername loads a profile by username; ErrNotFound when missing.
 func (m *defaultUserProfileModel) FindOneByUsername(ctx context.Context, username string) (*UserProfile, error) {
 	var resp UserProfile
 	query := fmt.Sprintf("select %s from %s where `username` = ? limit 1", userProfileRows, m.table)
@@ -110,12 +115,14 @@ func (m *defaultUserProfileModel) FindOneByUsername(ctx context.Context, usernam
 	}
 }
 
+// Insert creates a profile; unique username/phone conflicts surface as duplicate-key errors.
 func (m *defaultUserProfileModel) Insert(ctx context.Context, data *UserProfile) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", m.table, userProfileRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.Username, data.Password, data.Phone, data.Email, data.Nickname, data.AvatarUrl, data.Bio, data.Gender, data.Birthday, data.Level, data.Exp, data.FollowerCount, data.FollowingCount, data.PostCount, data.LikeCount, data.Status, data.FavoritesVisibility)
 	return ret, err
 }
 
+// Update rewrites a profile by id.
 func (m *defaultUserProfileModel) Update(ctx context.Context, newData *UserProfile) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, userProfileRowsWithPlaceHolder)
 	_, err := m.conn.ExecCtx(ctx, query, newData.Username, newData.Password, newData.Phone, newData.Email, newData.Nickname, newData.AvatarUrl, newData.Bio, newData.Gender, newData.Birthday, newData.Level, newData.Exp, newData.FollowerCount, newData.FollowingCount, newData.PostCount, newData.LikeCount, newData.Status, newData.FavoritesVisibility, newData.Id)

@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetFollowersLogic 承载 GetFollowers 接口的业务逻辑；每个请求新建一个实例。
 type GetFollowersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetFollowersLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetFollowersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFollowersLogic {
 	return &GetFollowersLogic{
 		ctx:    ctx,

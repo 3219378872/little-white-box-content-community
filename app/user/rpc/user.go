@@ -21,6 +21,7 @@ import (
 
 var configFile = flag.String("f", "etc/user.yaml", "the config file")
 
+// main 启动用户 RPC 服务，并在后台运行 outbox relay 投递关注行为事件。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

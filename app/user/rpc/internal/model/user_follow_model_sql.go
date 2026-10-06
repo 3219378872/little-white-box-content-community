@@ -38,6 +38,7 @@ type (
 	}
 )
 
+// newUserFollowModel creates the base CRUD model.
 func newUserFollowModel(conn sqlx.SqlConn) *defaultUserFollowModel {
 	return &defaultUserFollowModel{
 		conn:  conn,
@@ -45,12 +46,14 @@ func newUserFollowModel(conn sqlx.SqlConn) *defaultUserFollowModel {
 	}
 }
 
+// Delete removes a relation by id.
 func (m *defaultUserFollowModel) Delete(ctx context.Context, id int64) error {
 	query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
+// FindOne loads a relation by id; ErrNotFound when missing.
 func (m *defaultUserFollowModel) FindOne(ctx context.Context, id int64) (*UserFollow, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", userFollowRows, m.table)
 	var resp UserFollow
@@ -65,6 +68,7 @@ func (m *defaultUserFollowModel) FindOne(ctx context.Context, id int64) (*UserFo
 	}
 }
 
+// FindOneByUserIdTargetUserId loads a relation by its unique key; ErrNotFound when missing.
 func (m *defaultUserFollowModel) FindOneByUserIdTargetUserId(ctx context.Context, userId int64, targetUserId int64) (*UserFollow, error) {
 	var resp UserFollow
 	query := fmt.Sprintf("select %s from %s where `user_id` = ? and `target_user_id` = ? limit 1", userFollowRows, m.table)
@@ -79,12 +83,14 @@ func (m *defaultUserFollowModel) FindOneByUserIdTargetUserId(ctx context.Context
 	}
 }
 
+// Insert creates a relation without touching counters.
 func (m *defaultUserFollowModel) Insert(ctx context.Context, data *UserFollow) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (?, ?)", m.table, userFollowRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.TargetUserId)
 	return ret, err
 }
 
+// Update rewrites a relation by id.
 func (m *defaultUserFollowModel) Update(ctx context.Context, newData *UserFollow) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, userFollowRowsWithPlaceHolder)
 	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.TargetUserId, newData.Id)

@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnfollowLogic 承载 Unfollow 接口的业务逻辑；每个请求新建一个实例。
 type UnfollowLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUnfollowLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUnfollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnfollowLogic {
 	return &UnfollowLogic{
 		ctx:    ctx,

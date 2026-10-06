@@ -12,12 +12,14 @@ import (
 
 const maxBatchGetUsers = 100
 
+// BatchGetUsersLogic 承载 BatchGetUsers 接口的业务逻辑；每个请求新建一个实例。
 type BatchGetUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewBatchGetUsersLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewBatchGetUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchGetUsersLogic {
 	return &BatchGetUsersLogic{
 		ctx:    ctx,

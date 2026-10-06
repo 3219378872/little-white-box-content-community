@@ -14,12 +14,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// LoginLogic 承载 Login 接口的业务逻辑；每个请求新建一个实例。
 type LoginLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewLoginLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic {
 	return &LoginLogic{
 		ctx:    ctx,
@@ -135,6 +137,7 @@ func (l *LoginLogic) loginLocked(userID int64) (bool, error) {
 	return attempts >= loginLockMaxAttempts, err
 }
 
+// recordLoginFailure 在锁定窗口内累加失败次数；首次失败时设置窗口过期时间。
 func (l *LoginLogic) recordLoginFailure(userID int64) error {
 	if l.svcCtx == nil || l.svcCtx.RedisClient == nil || userID <= 0 {
 		return nil

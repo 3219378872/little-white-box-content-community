@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UpdateProfileLogic 承载 UpdateProfile 接口的业务逻辑；每个请求新建一个实例。
 type UpdateProfileLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUpdateProfileLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateProfileLogic {
 	return &UpdateProfileLogic{
 		ctx:    ctx,

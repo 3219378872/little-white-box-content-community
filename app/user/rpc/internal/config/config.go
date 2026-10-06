@@ -11,6 +11,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是用户 RPC 配置：JWT、数据库与 MQ/outbox。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret string

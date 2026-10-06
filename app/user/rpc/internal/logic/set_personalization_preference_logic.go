@@ -21,12 +21,14 @@ func personalizationOptOutRedisKey(userID int64) string {
 	return fmt.Sprintf("personalization:optout:%d", userID)
 }
 
+// SetPersonalizationPreferenceLogic 承载 SetPersonalizationPreference 接口的业务逻辑；每个请求新建一个实例。
 type SetPersonalizationPreferenceLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSetPersonalizationPreferenceLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetPersonalizationPreferenceLogic {
 	return &SetPersonalizationPreferenceLogic{
 		ctx:    ctx,

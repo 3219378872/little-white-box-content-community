@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// BatchGetUserCardsLogic 承载 BatchGetUserCards 接口的业务逻辑；每个请求新建一个实例。
 type BatchGetUserCardsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewBatchGetUserCardsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewBatchGetUserCardsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchGetUserCardsLogic {
 	return &BatchGetUserCardsLogic{
 		ctx:    ctx,
