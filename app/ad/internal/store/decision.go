@@ -92,6 +92,7 @@ func (s *Store) ApplyAdDecision(ctx context.Context, d event.ReviewDecidedEvent,
 	return effect, nil
 }
 
+// isPostServing 判断送审目的是否属于投放后复审（抽检、举报、复扫），这类结论只影响投放状态，不改过审版本。
 func isPostServing(purpose string) bool {
 	return purpose == event.ReviewPurposeQA || purpose == event.ReviewPurposeReport || purpose == event.ReviewPurposeRescan
 }
@@ -127,6 +128,7 @@ func (s *Store) ApplyAdvertiserDecision(ctx context.Context, d event.ReviewDecid
 	return effect, err
 }
 
+// exec 执行语句并返回影响行数，调用方据此判断结论是否已过期。
 func (s *Store) exec(ctx context.Context, query string, args ...any) (int64, error) {
 	result, err := s.conn.ExecCtx(ctx, query, args...)
 	if err != nil {

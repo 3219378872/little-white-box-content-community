@@ -247,6 +247,7 @@ func (s *Store) SubmitRescan(ctx context.Context, adID, approvedRevision int64, 
 	return submitted, err
 }
 
+// snapshotIn 在事务内读取指定 revision 的快照。
 func snapshotIn(ctx context.Context, session sqlx.Session, adID, revision int64) (*Snapshot, error) {
 	var snap Snapshot
 	if err := session.QueryRowCtx(ctx, &snap, `SELECT `+snapshotColumns+` FROM ad_snapshot WHERE ad_id = ? AND revision = ?`,

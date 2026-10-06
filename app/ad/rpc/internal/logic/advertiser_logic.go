@@ -14,8 +14,10 @@ import (
 	"esx/pkg/errx"
 )
 
+// ApplyAdvertiserLogic 承载 ApplyAdvertiser 接口的业务逻辑；每个请求新建一个实例。
 type ApplyAdvertiserLogic struct{ base }
 
+// NewApplyAdvertiserLogic 绑定请求上下文与服务依赖。
 func NewApplyAdvertiserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ApplyAdvertiserLogic {
 	return &ApplyAdvertiserLogic{newBase(ctx, svcCtx)}
 }
@@ -41,12 +43,15 @@ func (l *ApplyAdvertiserLogic) ApplyAdvertiser(in *pb.ApplyAdvertiserReq) (*pb.A
 	return &pb.AdvertiserResp{Found: true, Advertiser: advertiserView(full)}, nil
 }
 
+// GetMyAdvertiserLogic 承载 GetMyAdvertiser 接口的业务逻辑；每个请求新建一个实例。
 type GetMyAdvertiserLogic struct{ base }
 
+// NewGetMyAdvertiserLogic 绑定请求上下文与服务依赖。
 func NewGetMyAdvertiserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMyAdvertiserLogic {
 	return &GetMyAdvertiserLogic{newBase(ctx, svcCtx)}
 }
 
+// GetMyAdvertiser 返回本人的广告主；尚未申请时 Found=false 而不是报错。
 func (l *GetMyAdvertiserLogic) GetMyAdvertiser(in *pb.GetMyAdvertiserReq) (*pb.AdvertiserResp, error) {
 	if err := requireUser(in.GetUserId()); err != nil {
 		return nil, err
@@ -61,8 +66,10 @@ func (l *GetMyAdvertiserLogic) GetMyAdvertiser(in *pb.GetMyAdvertiserReq) (*pb.A
 	return &pb.AdvertiserResp{Found: true, Advertiser: advertiserView(full)}, nil
 }
 
+// AddQualificationLogic 承载 AddQualification 接口的业务逻辑；每个请求新建一个实例。
 type AddQualificationLogic struct{ base }
 
+// NewAddQualificationLogic 绑定请求上下文与服务依赖。
 func NewAddQualificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddQualificationLogic {
 	return &AddQualificationLogic{newBase(ctx, svcCtx)}
 }
@@ -87,6 +94,7 @@ func (l *AddQualificationLogic) AddQualification(in *pb.AddQualificationReq) (*p
 	return &pb.AdvertiserResp{Found: true, Advertiser: advertiserView(full)}, nil
 }
 
+// validMarkets 规范化并去重市场代码，至少需要一个有效市场。
 func validMarkets(raw []string) ([]string, error) {
 	var markets []string
 	for _, m := range raw {

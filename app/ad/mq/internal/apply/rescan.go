@@ -43,6 +43,7 @@ type Rescanner struct {
 	Clock  func() time.Time
 }
 
+// now 返回当前时间，测试可通过 Clock 固定时钟。
 func (r *Rescanner) now() time.Time {
 	if r.Clock != nil {
 		return r.Clock()
@@ -78,6 +79,7 @@ func (r *Rescanner) Run(ctx context.Context) {
 	}
 }
 
+// handle 处理一条过审广告：在当前规则代际生效后才过审的只记为已复扫，否则提交复扫审核；返回是否处理成功。
 func (r *Rescanner) handle(ctx context.Context, ad store.Ad, gen Generation) bool {
 	if ad.ApprovedAtMs >= gen.EffectiveSinceMs {
 		if err := r.Store.MarkRescanned(ctx, ad.ID, ad.ApprovedRevision, gen.Value); err != nil {

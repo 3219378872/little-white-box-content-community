@@ -19,6 +19,7 @@ import (
 
 var configFile = flag.String("f", "etc/ad-consumer.yaml", "config file")
 
+// main 启动广告异步处理：消费审核结论更新投放状态，并在后台定期对账送审、重建投放索引与复扫。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()

@@ -61,14 +61,18 @@ func Identity(userID int64, sessionID string) (string, error) {
 	return "s:" + hex.EncodeToString(sum[:12]), nil
 }
 
+// IndexKey 是某市场投放索引的 Redis 键。
 func IndexKey(market string) string { return prefix + "serving:" + market }
 
+// FreqKey 是某身份当天（UTC）的频控计数键，按天自然切换。
 func FreqKey(identity string, now time.Time) string {
 	return prefix + "freq:" + identity + ":" + now.UTC().Format("20060102")
 }
 
+// HiddenKey 是某身份已隐藏广告集合的键。
 func HiddenKey(identity string) string { return prefix + "hidden:" + identity }
 
+// RequestKey 是一次槽位请求的结果缓存键；cursor 部分取哈希，避免长游标撑大键。
 func RequestKey(requestID, cursor string) string {
 	sum := sha256.Sum256([]byte(cursor))
 	return prefix + "req:" + requestID + ":" + hex.EncodeToString(sum[:8])

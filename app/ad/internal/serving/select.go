@@ -66,6 +66,7 @@ func Choose(requestID string, pageItems int, candidates []Candidate) []Choice {
 	return out
 }
 
+// tieBreak 为同分候选生成按请求稳定、跨请求打散的排序键，同一请求重试得到相同顺序。
 func tieBreak(requestID string, adID int64) uint64 {
 	sum := sha256.Sum256([]byte(requestID + ":" + strconv.FormatInt(adID, 10)))
 	return binary.BigEndian.Uint64(sum[:8])

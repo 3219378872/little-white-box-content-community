@@ -37,6 +37,7 @@ type Reconciler struct {
 	Clock  func() time.Time
 }
 
+// now 返回当前时间，测试可通过 Clock 固定时钟。
 func (r *Reconciler) now() time.Time {
 	if r.Clock != nil {
 		return r.Clock()
@@ -80,6 +81,7 @@ func (r *Reconciler) ReconcileSubmissions(ctx context.Context) {
 	}
 }
 
+// ensure 确认审核侧已有对应任务（缺失则补建），并回写任务 ID；失败只记录，由下一轮对账重试。
 func (r *Reconciler) ensure(ctx context.Context, bizType string, sub event.ReviewSubmittedEvent, record func(int64) error) {
 	taskID, created, err := r.Review.EnsureSubmitted(ctx, sub)
 	if err != nil {

@@ -16,8 +16,10 @@ import (
 // MaxAdMedia 是单条广告的素材上限。
 const MaxAdMedia = 3
 
+// CreateAdLogic 承载 CreateAd 接口的业务逻辑；每个请求新建一个实例。
 type CreateAdLogic struct{ base }
 
+// NewCreateAdLogic 绑定请求上下文与服务依赖。
 func NewCreateAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateAdLogic {
 	return &CreateAdLogic{newBase(ctx, svcCtx)}
 }
@@ -38,8 +40,10 @@ func (l *CreateAdLogic) CreateAd(in *pb.CreateAdReq) (*pb.AdResp, error) {
 	return l.response(full)
 }
 
+// UpdateAdLogic 承载 UpdateAd 接口的业务逻辑；每个请求新建一个实例。
 type UpdateAdLogic struct{ base }
 
+// NewUpdateAdLogic 绑定请求上下文与服务依赖。
 func NewUpdateAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateAdLogic {
 	return &UpdateAdLogic{newBase(ctx, svcCtx)}
 }
@@ -64,12 +68,15 @@ func (l *UpdateAdLogic) UpdateAd(in *pb.UpdateAdReq) (*pb.AdResp, error) {
 	return l.response(full)
 }
 
+// GetAdLogic 承载 GetAd 接口的业务逻辑；每个请求新建一个实例。
 type GetAdLogic struct{ base }
 
+// NewGetAdLogic 绑定请求上下文与服务依赖。
 func NewGetAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAdLogic {
 	return &GetAdLogic{newBase(ctx, svcCtx)}
 }
 
+// GetAd 返回本人的一条广告；不存在与越权统一返回不存在。
 func (l *GetAdLogic) GetAd(in *pb.GetAdReq) (*pb.AdResp, error) {
 	if err := requireUser(in.GetUserId()); err != nil {
 		return nil, err
@@ -81,12 +88,15 @@ func (l *GetAdLogic) GetAd(in *pb.GetAdReq) (*pb.AdResp, error) {
 	return l.response(full)
 }
 
+// ListAdsLogic 承载 ListAds 接口的业务逻辑；每个请求新建一个实例。
 type ListAdsLogic struct{ base }
 
+// NewListAdsLogic 绑定请求上下文与服务依赖。
 func NewListAdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListAdsLogic {
 	return &ListAdsLogic{newBase(ctx, svcCtx)}
 }
 
+// ListAds 分页列出本人的广告，并按广告主缓存资质，避免同页重复查询。
 func (l *ListAdsLogic) ListAds(in *pb.ListAdsReq) (*pb.ListAdsResp, error) {
 	if err := requireUser(in.GetUserId()); err != nil {
 		return nil, err
@@ -111,6 +121,7 @@ func (l *ListAdsLogic) ListAds(in *pb.ListAdsReq) (*pb.ListAdsResp, error) {
 	return resp, nil
 }
 
+// response 载入广告主资质后组装广告响应，资质用于计算投放资格。
 func (b base) response(full *store.AdWithSnapshots) (*pb.AdResp, error) {
 	quals, err := b.svcCtx.Store.QualificationsOf(b.ctx, full.Ad.AdvertiserID)
 	if err != nil {
@@ -119,6 +130,7 @@ func (b base) response(full *store.AdWithSnapshots) (*pb.AdResp, error) {
 	return &pb.AdResp{Ad: b.adView(full, quals)}, nil
 }
 
+// validateAdInput 规范化并校验广告输入：文案长度、市场与行业、落地页结构、投放期与素材数量；素材 ID 去重。
 func validateAdInput(in *pb.AdInput, idempotencyKey string) (store.AdInput, error) {
 	invalid := errx.NewWithCode(errx.ParamError)
 	if in == nil || len(idempotencyKey) > 128 {
@@ -157,6 +169,7 @@ func validateAdInput(in *pb.AdInput, idempotencyKey string) (store.AdInput, erro
 	}, nil
 }
 
+// runeLen 按字符数（而非字节数）检查长度范围。
 func runeLen(value string, minLen, maxLen int) bool {
 	n := utf8.RuneCountInString(value)
 	return n >= minLen && n <= maxLen

@@ -19,6 +19,7 @@ import (
 
 var configFile = flag.String("f", "etc/ad.yaml", "the config file")
 
+// main 启动广告 RPC 服务；配置了 MQ 时在后台运行 outbox relay 投递送审事件。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

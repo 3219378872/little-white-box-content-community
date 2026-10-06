@@ -40,6 +40,7 @@ type decisionApplier interface {
 
 var _ decisionApplier = (*apply.Applier)(nil)
 
+// consume 逐条应用审核结论；无效消息跳过，应用失败整批重试。结论按 revision 条件更新，重放不会回退状态。
 func consume(ctx context.Context, applier decisionApplier, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

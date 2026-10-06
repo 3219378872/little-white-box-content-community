@@ -52,15 +52,34 @@ var (
 	})
 )
 
-func Request(result string)             { requests.Inc(result) }
-func Slots(market string, n int)        { slots.Add(float64(n), market) }
-func Capped(n int)                      { capped.Add(float64(n)) }
+// Request 按结果统计广告槽位请求（served/empty/cached/no-identity）。
+func Request(result string) { requests.Inc(result) }
+
+// Slots 按市场统计下发的广告槽位数。
+func Slots(market string, n int) { slots.Add(float64(n), market) }
+
+// Capped 统计因频控未下发的广告数。
+func Capped(n int) { capped.Add(float64(n)) }
+
+// Degraded 按组件与原因统计降级次数。
 func Degraded(component, reason string) { degraded.Inc(component, reason) }
-func Applied(bizType, result string)    { applied.Inc(bizType, result) }
+
+// Applied 按对象类型统计审核结论的应用结果（applied/stale）。
+func Applied(bizType, result string) { applied.Inc(bizType, result) }
+
+// Reconcile 统计送审对账的结果（confirmed/repaired/error）。
 func Reconcile(bizType, outcome string) { repairs.Inc(bizType, outcome) }
-func Report(outcome string)             { reports.Inc(outcome) }
-func Appeal()                           { appeals.Inc() }
-func Rescan(outcome string)             { rescans.Inc(outcome) }
+
+// Report 统计举报（counted/duplicate）。
+func Report(outcome string) { reports.Inc(outcome) }
+
+// Appeal 统计申诉次数。
+func Appeal() { appeals.Inc() }
+
+// Rescan 统计复扫处理结果。
+func Rescan(outcome string) { rescans.Inc(outcome) }
+
+// Propagation 记录审核结论到投放索引生效的耗时，用于验证下线在时限内生效（ADS-032）。
 func Propagation(action string, decidedAtMs int64, now time.Time) {
 	if decidedAtMs > 0 {
 		propagation.ObserveFloat(max(0, now.Sub(time.UnixMilli(decidedAtMs)).Seconds()), action)

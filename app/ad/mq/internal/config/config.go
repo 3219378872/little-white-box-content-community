@@ -20,6 +20,7 @@ type AssetStorage struct {
 	PublicBaseURL string
 }
 
+// Config 是广告异步处理配置；对账与索引重建按各自周期运行。
 type Config struct {
 	service.ServiceConf
 	MQ                  mqx.ConsumerConfig

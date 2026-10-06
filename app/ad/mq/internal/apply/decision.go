@@ -71,6 +71,7 @@ func (a *Applier) Apply(ctx context.Context, d event.ReviewDecidedEvent) error {
 	return nil
 }
 
+// result 把结论是否生效映射为指标标签；未生效说明结论针对的版本已过期。
 func result(applied bool) string {
 	if applied {
 		return "applied"

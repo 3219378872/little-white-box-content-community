@@ -18,6 +18,7 @@ type AssetStorage struct {
 	PublicBaseURL string
 }
 
+// Config 是广告 RPC 配置：数据库、MQ/outbox、素材存储与投放缓存时长。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret string

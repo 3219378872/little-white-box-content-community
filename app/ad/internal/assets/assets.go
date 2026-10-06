@@ -95,6 +95,7 @@ type Storage struct {
 	publicBaseURL string
 }
 
+// New 连接对象存储并确保私有桶与公开桶都存在；两个桶必须不同，未过审素材才不会被公开访问（ADS-015）。
 func New(ctx context.Context, cfg Config) (*Storage, error) {
 	if cfg.PrivateBucket == "" || cfg.PublicBucket == "" || cfg.PrivateBucket == cfg.PublicBucket {
 		return nil, fmt.Errorf("assets: distinct private and public buckets are required")

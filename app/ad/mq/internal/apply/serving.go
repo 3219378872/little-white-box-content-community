@@ -41,6 +41,7 @@ type Server struct {
 	Clock     func() time.Time
 }
 
+// now 返回当前时间，测试可通过 Clock 固定时钟。
 func (s *Server) now() time.Time {
 	if s.Clock != nil {
 		return s.Clock()
@@ -96,6 +97,7 @@ func (s *Server) Refresh(ctx context.Context, adID int64) (bool, error) {
 	return servable, nil
 }
 
+// publish 把过审快照的素材复制到公开桶，全部成功后才标记该版本已发布。
 func (s *Server) publish(ctx context.Context, ad *store.Ad, snap *store.Snapshot) error {
 	for _, media := range snap.Media() {
 		asset, err := s.Store.GetAsset(ctx, media.MediaID)
@@ -109,6 +111,7 @@ func (s *Server) publish(ctx context.Context, ad *store.Ad, snap *store.Snapshot
 	return s.Store.MarkPublished(ctx, ad.ID, ad.ApprovedRevision)
 }
 
+// removeEverywhere 从除 keep 外所有市场的投放索引移除广告，用于下线或市场变更。
 func (s *Server) removeEverywhere(ctx context.Context, adID int64, keep string) error {
 	for _, market := range adpolicy.Markets {
 		if market.Code == keep {

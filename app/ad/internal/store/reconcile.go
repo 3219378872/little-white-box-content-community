@@ -32,6 +32,7 @@ func (s *Store) RecordAdTask(ctx context.Context, adID, revision, taskID int64) 
 	return err
 }
 
+// RecordAdvertiserTask 记录广告主送审对应的审核任务；只写一次且要求 revision 未变，避免旧任务覆盖新送审。
 func (s *Store) RecordAdvertiserTask(ctx context.Context, advertiserID, revision, taskID int64) error {
 	_, err := s.exec(ctx, `UPDATE advertiser SET review_task_id = ? WHERE id = ? AND revision = ? AND review_task_id = 0`,
 		taskID, advertiserID, revision)

@@ -15,16 +15,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// base 是各广告 Logic 共用的请求上下文、依赖与日志。
 type base struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// newBase 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
 	return base{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
+// requireUser 要求调用方已登录。
 func requireUser(userID int64) error {
 	if userID <= 0 {
 		return errx.NewWithCode(errx.LoginRequired)
@@ -32,6 +35,7 @@ func requireUser(userID int64) error {
 	return nil
 }
 
+// mapError 把存储与素材错误映射为业务错误码，未识别的错误记日志后返回系统错误。
 func (b base) mapError(err error, action string) error {
 	switch {
 	case err == nil:
@@ -67,6 +71,7 @@ func (b base) mapError(err error, action string) error {
 	}
 }
 
+// advertiserView 组装广告主及其资质的响应视图。
 func advertiserView(full *store.AdvertiserWithQualifications) *pb.AdvertiserView {
 	adv := full.Advertiser
 	view := &pb.AdvertiserView{
@@ -101,6 +106,7 @@ func (b base) adView(full *store.AdWithSnapshots, quals []store.Qualification) *
 	return view
 }
 
+// content 组装快照内容；只有已发布到公开桶的版本才附带素材公开地址。
 func (b base) content(snap *store.Snapshot, published bool) *pb.AdContent {
 	if snap == nil {
 		return nil

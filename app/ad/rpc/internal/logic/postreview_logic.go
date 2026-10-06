@@ -12,8 +12,10 @@ import (
 	"esx/pkg/errx"
 )
 
+// ReportAdLogic 承载 ReportAd 接口的业务逻辑；每个请求新建一个实例。
 type ReportAdLogic struct{ base }
 
+// NewReportAdLogic 绑定请求上下文与服务依赖。
 func NewReportAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReportAdLogic {
 	return &ReportAdLogic{newBase(ctx, svcCtx)}
 }
@@ -43,8 +45,10 @@ func (l *ReportAdLogic) ReportAd(in *pb.ReportAdReq) (*pb.ReportAdResp, error) {
 	return &pb.ReportAdResp{Counted: result.Counted}, nil
 }
 
+// AppealAdLogic 承载 AppealAd 接口的业务逻辑；每个请求新建一个实例。
 type AppealAdLogic struct{ base }
 
+// NewAppealAdLogic 绑定请求上下文与服务依赖。
 func NewAppealAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AppealAdLogic {
 	return &AppealAdLogic{newBase(ctx, svcCtx)}
 }

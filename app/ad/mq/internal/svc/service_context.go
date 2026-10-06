@@ -20,6 +20,7 @@ import (
 	"esx/pkg/util"
 )
 
+// ServiceContext 持有广告异步处理的结论应用、送审对账与复扫组件。
 type ServiceContext struct {
 	Config     config.Config
 	DB         *sql.DB
@@ -28,6 +29,7 @@ type ServiceContext struct {
 	Rescanner  *apply.Rescanner
 }
 
+// NewServiceContext 装配数据库、对象存储、Redis 投放索引与审核服务客户端。
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	conn, err := sqlx.NewConn(sqlx.SqlConf{DataSource: c.DataSource, DriverName: "mysql"})
 	if err != nil {
@@ -63,6 +65,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	}, nil
 }
 
+// Close 关闭数据库连接。
 func (s *ServiceContext) Close() error {
 	if s.DB != nil {
 		return errors.Join(s.DB.Close())
@@ -70,8 +73,10 @@ func (s *ServiceContext) Close() error {
 	return nil
 }
 
+// ensurer 通过审核 RPC 确认送审任务存在。
 type ensurer struct{ client reviewservice.ReviewService }
 
+// EnsureSubmitted 提交送审事件，返回任务 ID 以及本次是否补建。
 func (e ensurer) EnsureSubmitted(ctx context.Context, sub event.ReviewSubmittedEvent) (int64, bool, error) {
 	raw, err := json.Marshal(sub)
 	if err != nil {
@@ -84,8 +89,10 @@ func (e ensurer) EnsureSubmitted(ctx context.Context, sub event.ReviewSubmittedE
 	return resp.GetTaskId(), resp.GetCreated(), nil
 }
 
+// generations 通过审核 RPC 读取当前复扫规则代际。
 type generations struct{ client reviewservice.ReviewService }
 
+// RescanGeneration 返回当前规则代际及其生效时间。
 func (g generations) RescanGeneration(ctx context.Context) (apply.Generation, error) {
 	resp, err := g.client.GetRescanGeneration(ctx, &reviewservice.GetRescanGenerationReq{})
 	if err != nil {

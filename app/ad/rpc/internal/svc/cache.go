@@ -13,11 +13,13 @@ type Cache struct {
 	data map[string]cacheEntry
 }
 
+// cacheEntry 是缓存值及其过期时间。
 type cacheEntry struct {
 	value   any
 	expires time.Time
 }
 
+// NewCache 创建指定 TTL 的缓存。
 func NewCache(ttl time.Duration) *Cache {
 	return &Cache{ttl: ttl, data: map[string]cacheEntry{}}
 }

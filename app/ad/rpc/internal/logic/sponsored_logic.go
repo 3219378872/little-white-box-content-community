@@ -22,18 +22,22 @@ import (
 // DefaultMarket 是未声明市场时使用的演示市场。
 const DefaultMarket = "US"
 
+// GetSponsoredSlotsLogic 承载 GetSponsoredSlots 接口的业务逻辑；每个请求新建一个实例。
 type GetSponsoredSlotsLogic struct{ base }
 
+// NewGetSponsoredSlotsLogic 绑定请求上下文与服务依赖。
 func NewGetSponsoredSlotsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetSponsoredSlotsLogic {
 	return &GetSponsoredSlotsLogic{newBase(ctx, svcCtx)}
 }
 
+// cachedSlot 是缓存在 Redis 中的一个已选槽位，重试时原样返回。
 type cachedSlot struct {
 	SlotID     string
 	AfterIndex int32
 	Ad         cachedAd
 }
 
+// cachedAd 是槽位中展示的广告内容。
 type cachedAd struct {
 	AdID, Revision                                int64
 	AdvertiserName, Title, Body, CTA, URL, Domain string
@@ -63,6 +67,7 @@ func (l *GetSponsoredSlotsLogic) GetSponsoredSlots(in *pb.GetSponsoredSlotsReq) 
 	}
 	now := l.svcCtx.Now()
 	kv := l.svcCtx.Redis
+	// 同一（请求，游标，身份，市场）已选过槽位时直接返回缓存，重试不会再次计频。
 	reqKey := serving.RequestKey(requestID, in.GetCursor()+"|"+identity+"|"+market)
 	if raw, err := kv.GetCtx(l.ctx, reqKey); err == nil && raw != "" {
 		var cached []cachedSlot
@@ -80,6 +85,7 @@ func (l *GetSponsoredSlotsLogic) GetSponsoredSlots(in *pb.GetSponsoredSlotsReq) 
 		metrics.Degraded("redis", "candidates")
 		return nil, l.mapError(err, "load candidates")
 	}
+	// 先选出候选，再原子预留频次；未获得频次的广告不下发。
 	choices := serving.Choose(requestID, int(in.GetPageItems()), candidates)
 	ids := make([]int64, 0, len(choices))
 	for _, c := range choices {
@@ -107,6 +113,7 @@ func (l *GetSponsoredSlotsLogic) GetSponsoredSlots(in *pb.GetSponsoredSlotsReq) 
 		}
 		slots = append(slots, cachedSlot{SlotID: choice.SlotID, AfterIndex: int32(choice.AfterIndex), Ad: ad})
 	}
+	// 缓存写入失败只降级为重试时可能重新选择，不影响本次响应。
 	if raw, err := json.Marshal(slots); err == nil {
 		if err := kv.SetexCtx(l.ctx, reqKey, string(raw), int(serving.RequestTTL.Seconds())); err != nil {
 			metrics.Degraded("redis", "request-cache-write")
@@ -148,6 +155,7 @@ func (l *GetSponsoredSlotsLogic) candidates(market, identity string, now time.Ti
 	return out, nil
 }
 
+// index 读取某市场的投放索引，经进程内短期缓存。
 func (l *GetSponsoredSlotsLogic) index(market string, now time.Time) ([]serving.Entry, error) {
 	key := "index:" + market
 	if cached, ok := l.svcCtx.Cache.Get(key, now); ok {
@@ -161,6 +169,7 @@ func (l *GetSponsoredSlotsLogic) index(market string, now time.Time) ([]serving.
 	return entries, nil
 }
 
+// qualified 判断广告主在该市场与行业是否有有效资质，资质列表经进程内短期缓存。
 func (l *GetSponsoredSlotsLogic) qualified(entry serving.Entry, market string, now time.Time) bool {
 	key := "quals:" + strconv.FormatInt(entry.AdvertiserID, 10)
 	quals, ok := l.svcCtx.Cache.Get(key, now)
@@ -198,6 +207,7 @@ func (l *GetSponsoredSlotsLogic) content(entry serving.Entry, market, scene stri
 	return ad, nil
 }
 
+// toResponse 把缓存槽位转换为响应；why 固定为非个性化（ADS-025）。
 func toResponse(slots []cachedSlot) *pb.GetSponsoredSlotsResp {
 	resp := &pb.GetSponsoredSlotsResp{}
 	for _, s := range slots {
@@ -213,8 +223,10 @@ func toResponse(slots []cachedSlot) *pb.GetSponsoredSlotsResp {
 	return resp
 }
 
+// HideAdLogic 承载 HideAd 接口的业务逻辑；每个请求新建一个实例。
 type HideAdLogic struct{ base }
 
+// NewHideAdLogic 绑定请求上下文与服务依赖。
 func NewHideAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HideAdLogic {
 	return &HideAdLogic{newBase(ctx, svcCtx)}
 }

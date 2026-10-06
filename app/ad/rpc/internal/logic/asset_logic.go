@@ -15,8 +15,10 @@ import (
 	"esx/pkg/logging"
 )
 
+// UploadAssetLogic 承载 UploadAsset 接口的业务逻辑；每个请求新建一个实例。
 type UploadAssetLogic struct{ base }
 
+// NewUploadAssetLogic 绑定请求上下文与服务依赖。
 func NewUploadAssetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadAssetLogic {
 	return &UploadAssetLogic{newBase(ctx, svcCtx)}
 }
@@ -76,6 +78,7 @@ func (l *UploadAssetLogic) discardUnrecorded(id int64, key string) {
 	l.deletePrivate(key)
 }
 
+// deletePrivate 删除无人引用的私有对象；不随请求取消，失败只记录。
 func (l *UploadAssetLogic) deletePrivate(key string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(l.ctx), assetCleanupTimeout)
 	defer cancel()
@@ -84,8 +87,10 @@ func (l *UploadAssetLogic) deletePrivate(key string) {
 	}
 }
 
+// ReadAssetLogic 承载 ReadAsset 接口的业务逻辑；每个请求新建一个实例。
 type ReadAssetLogic struct{ base }
 
+// NewReadAssetLogic 绑定请求上下文与服务依赖。
 func NewReadAssetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReadAssetLogic {
 	return &ReadAssetLogic{newBase(ctx, svcCtx)}
 }

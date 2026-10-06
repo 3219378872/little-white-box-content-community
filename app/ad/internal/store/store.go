@@ -86,7 +86,10 @@ type Advertiser struct {
 const advertiserColumns = `id, user_id, name, markets, revision, approved_revision, review_status, policy_codes,
 	approved_name, review_task_id, submitted_at_ms, created_at_ms, updated_at_ms`
 
-func (a Advertiser) Markets() []string     { return splitCSV(a.MarketsCSV) }
+// Markets 返回广告主声明的投放市场。
+func (a Advertiser) Markets() []string { return splitCSV(a.MarketsCSV) }
+
+// PolicyCodes 返回审核给出的违规代码。
 func (a Advertiser) PolicyCodes() []string { return decodeCodes(a.PolicyCodesJSON) }
 
 // Qualification 是 advertiser_qualification 一行。
@@ -136,6 +139,7 @@ const adColumns = `id, advertiser_id, user_id, revision, approved_revision, revi
 	industry, start_ms, end_ms, policy_codes, pause_reason, appealed_revision, review_task_id, submitted_at_ms,
 	published_revision, approved_at_ms, rescan_generation, report_batch, created_at_ms, updated_at_ms`
 
+// PolicyCodes 返回审核给出的违规代码。
 func (a Ad) PolicyCodes() []string { return decodeCodes(a.PolicyCodesJSON) }
 
 // SnapshotMedia 是快照中的一个素材。
@@ -194,6 +198,7 @@ type Store struct {
 	nextID func() (int64, error)
 }
 
+// New 创建广告存储；outbox 与业务写入共用同一连接以便同事务提交。
 func New(conn sqlx.SqlConn) *Store {
 	return &Store{conn: conn, outbox: outboxx.NewSQLStore(conn), nextID: util.NextID}
 }
@@ -205,6 +210,7 @@ func (s *Store) Outbox() *outboxx.SQLStore { return s.outbox }
 // Conn 暴露连接给需要只读查询的组件（投放索引重建）。
 func (s *Store) Conn() sqlx.SqlConn { return s.conn }
 
+// splitCSV 拆分逗号分隔的列值并去掉空项。
 func splitCSV(raw string) []string {
 	var out []string
 	for _, part := range strings.Split(raw, ",") {
@@ -215,6 +221,7 @@ func splitCSV(raw string) []string {
 	return out
 }
 
+// decodeCodes 解析 JSON 数组列；格式异常时视为没有代码。
 func decodeCodes(raw string) []string {
 	var codes []string
 	if err := json.Unmarshal([]byte(raw), &codes); err != nil {
@@ -223,6 +230,7 @@ func decodeCodes(raw string) []string {
 	return codes
 }
 
+// encodeCodes 把代码编码为 JSON 数组，空值写成 [] 而不是 null。
 func encodeCodes(codes []string) string {
 	if codes == nil {
 		codes = []string{}
@@ -231,6 +239,7 @@ func encodeCodes(codes []string) string {
 	return string(raw)
 }
 
+// notFound 把驱动的未找到错误映射为 ErrNotFound。
 func notFound(err error) error {
 	if errors.Is(err, sqlx.ErrNotFound) {
 		return ErrNotFound
@@ -238,6 +247,7 @@ func notFound(err error) error {
 	return err
 }
 
+// rowQuerier 同时适配连接与事务会话，让读取函数可在事务内外复用。
 type rowQuerier interface {
 	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
 	QueryRowsCtx(ctx context.Context, v any, query string, args ...any) error

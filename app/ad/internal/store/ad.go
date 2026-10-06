@@ -194,6 +194,7 @@ func AdSubmission(ad *Ad, snap *Snapshot, purpose string, now time.Time) event.R
 	}
 }
 
+// enqueueSubmission 在当前事务内写入送审事件；事件 ID 同时是 outbox 幂等键，消息 Key 只用于追踪。
 func (s *Store) enqueueSubmission(ctx context.Context, session sqlx.Session, sub event.ReviewSubmittedEvent) error {
 	id, err := s.nextID()
 	if err != nil {
@@ -259,6 +260,7 @@ func (s *Store) ListAds(ctx context.Context, userID, cursor int64, limit int) ([
 	return out, next, hasMore, nil
 }
 
+// withSnapshots 载入广告的最新快照与已过审快照（若有）。
 func (s *Store) withSnapshots(ctx context.Context, ad *Ad) (*AdWithSnapshots, error) {
 	out := &AdWithSnapshots{Ad: ad}
 	latest, err := s.SnapshotAt(ctx, ad.ID, ad.Revision)
@@ -286,6 +288,7 @@ func (s *Store) SnapshotAt(ctx context.Context, adID, revision int64) (*Snapshot
 	return &snap, nil
 }
 
+// requireAsset 确认素材属于该用户且种类匹配；不存在与越权统一返回 ErrAssetInvalid。
 func requireAsset(ctx context.Context, session sqlx.Session, userID, assetID int64, kind string) error {
 	var owner struct {
 		UserID int64  `db:"user_id"`
@@ -301,10 +304,12 @@ func requireAsset(ctx context.Context, session sqlx.Session, userID, assetID int
 	return nil
 }
 
+// resolveIdempotency 在当前事务内解析幂等键，返回资源 ID 以及本次是否新建。
 func resolveIdempotency(ctx context.Context, session sqlx.Session, scope string, userID int64, key string, recordID, resourceID int64, parts ...string) (int64, bool, error) {
 	return resolve(ctx, session, scope, userID, key, recordID, resourceID, parts...)
 }
 
+// commandParts 列出参与幂等指纹的命令字段，同一幂等键携带不同内容时会被识别为冲突。
 func commandParts(expectedRevision int64, in AdInput, extra ...string) []string {
 	media := make([]string, len(in.MediaIDs))
 	for i, id := range in.MediaIDs {

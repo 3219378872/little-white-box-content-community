@@ -45,6 +45,7 @@ func (s *Store) GetAdvertiserByUser(ctx context.Context, userID int64) (*Adverti
 	return loadAdvertiser(ctx, s.conn, userID, false)
 }
 
+// loadAdvertiser 按用户载入广告主及其资质；lock=true 时加行锁，供同事务内的修改使用。
 func loadAdvertiser(ctx context.Context, q rowQuerier, userID int64, lock bool) (*AdvertiserWithQualifications, error) {
 	query := `SELECT ` + advertiserColumns + ` FROM advertiser WHERE user_id = ?`
 	if lock {
@@ -168,6 +169,7 @@ func (s *Store) AddQualification(ctx context.Context, in QualificationInput, now
 	return out, err
 }
 
+// bumpAdvertiser 产生新 revision 并重置审核状态，修改后的广告主需要重新送审。
 func bumpAdvertiser(ctx context.Context, session sqlx.Session, adv *Advertiser, now time.Time) error {
 	adv.Revision++
 	adv.ReviewStatus = ReviewPending
@@ -228,6 +230,7 @@ func ValidQualification(quals []Qualification, market, industry string, nowMs in
 	})
 }
 
+// idempotent 为本次命令分配记录 ID 并解析幂等键，返回本次是否首次执行。
 func (s *Store) idempotent(ctx context.Context, session sqlx.Session, scope string, userID int64, key string, resourceID int64, parts ...string) (bool, error) {
 	recordID, err := s.nextID()
 	if err != nil {
