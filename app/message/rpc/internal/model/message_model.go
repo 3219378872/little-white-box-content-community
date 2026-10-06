@@ -15,7 +15,6 @@ type (
 	MessageModel interface {
 		FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*Message, bool, error)
 		CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
-		MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 	}
 
 	customMessageModel struct {
@@ -64,17 +63,6 @@ func (m *customMessageModel) CountUnreadByUser(ctx context.Context, userID int64
 		return 0, err
 	}
 	return count, nil
-}
-
-// MarkConversationReadForUser 只把对方发来的私信标为已读，不更新会话未读数；
-// 标记已读的接口走 MessageCommandModel.MarkConversationRead。
-func (m *customMessageModel) MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
-	query := fmt.Sprintf("update %s set `status` = 1 where `receiver_id` = ? and `sender_id` = ? and `status` = 0", m.table)
-	result, err := m.ExecNoCacheCtx(ctx, query, userID, targetUserID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }
 
 var _ sql.Result

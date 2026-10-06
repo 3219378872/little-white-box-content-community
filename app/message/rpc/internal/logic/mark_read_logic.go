@@ -48,10 +48,5 @@ func (l *MarkReadLogic) MarkRead(in *pb.MarkReadReq) (*pb.MarkReadResp, error) {
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	}
-	if l.svcCtx.UnreadStore != nil {
-		if err := l.svcCtx.UnreadStore.DeleteUserUnread(l.ctx, in.UserId); err != nil {
-			l.Errorw("UnreadStore.DeleteUserUnread failed", logging.Field("err", err.Error()))
-		}
-	}
 	return &pb.MarkReadResp{}, nil
 }

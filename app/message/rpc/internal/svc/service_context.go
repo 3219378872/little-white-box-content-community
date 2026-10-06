@@ -26,7 +26,6 @@ type ConversationModel interface {
 type MessageModel interface {
 	FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model2.Message, bool, error)
 	CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
-	MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
 // MessageCommandModel performs transactional message writes.
@@ -57,7 +56,6 @@ type ServiceContext struct {
 	MessageModel        MessageModel
 	MessageCommandModel MessageCommandModel
 	NotificationModel   NotificationModel
-	UnreadStore         UnreadStore
 	UserService         UserService
 	MediaService        mediaservice.MediaService
 }
@@ -88,7 +86,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MessageModel:        model2.NewMessageModel(conn, cacheConf),
 		MessageCommandModel: model2.NewMessageCommandModel(conn),
 		NotificationModel:   model2.NewNotificationModel(conn, cacheConf),
-		UnreadStore:         NewRedisUnreadStore(redisClient),
 		UserService:         userservice.NewUserService(userClient),
 		MediaService:        mediaService,
 	}

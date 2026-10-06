@@ -59,13 +59,10 @@ type fakeMessageModel struct {
 	list         []*model2.Message
 	hasMore      bool
 	unread       int64
-	marked       int64
 	findUserID   int64
 	findTargetID int64
 	findLastID   int64
 	findLimit    int64
-	markUserID   int64
-	markTargetID int64
 }
 
 func (m *fakeMessageModel) Insert(ctx context.Context, data *model2.Message) (sql.Result, error) {
@@ -85,13 +82,6 @@ func (m *fakeMessageModel) FindByUserConversation(ctx context.Context, userID in
 
 func (m *fakeMessageModel) CountUnreadByUser(ctx context.Context, userID int64) (int64, error) {
 	return m.unread, nil
-}
-
-func (m *fakeMessageModel) MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
-	m.marked++
-	m.markUserID = userID
-	m.markTargetID = targetUserID
-	return 3, nil
 }
 
 type fakeMessageCommandModel struct {
@@ -178,43 +168,9 @@ func (m *fakeConversationModel) FindOneForUser(ctx context.Context, userID int64
 	return &model2.Conversation{Id: conversationID, UserId: userID, TargetUserId: 8}, nil
 }
 
-type fakeUnreadStore struct {
-	messageValue      int64
-	notificationValue int64
-	hitMessage        bool
-	hitNotification   bool
-	setMessage        int64
-	setNotification   int64
-	deleted           []int64
-}
-
-func (s *fakeUnreadStore) GetMessageUnread(ctx context.Context, userID int64) (int64, bool, error) {
-	return s.messageValue, s.hitMessage, nil
-}
-
-func (s *fakeUnreadStore) SetMessageUnread(ctx context.Context, userID int64, count int64) error {
-	s.setMessage = count
-	return nil
-}
-
-func (s *fakeUnreadStore) GetNotificationUnread(ctx context.Context, userID int64) (int64, bool, error) {
-	return s.notificationValue, s.hitNotification, nil
-}
-
-func (s *fakeUnreadStore) SetNotificationUnread(ctx context.Context, userID int64, count int64) error {
-	s.setNotification = count
-	return nil
-}
-
-func (s *fakeUnreadStore) DeleteUserUnread(ctx context.Context, userID int64) error {
-	s.deleted = append(s.deleted, userID)
-	return nil
-}
-
 func TestSendNotificationCreatesUnreadNotification(t *testing.T) {
 	notifications := &fakeNotificationModel{}
-	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{NotificationModel: notifications}
 
 	resp, err := NewSendNotificationLogic(context.Background(), ctx).SendNotification(&pb.SendNotificationReq{
 		UserId: 7, Type: 4, Title: "公告", Content: "系统维护", TargetId: 9,
@@ -226,7 +182,6 @@ func TestSendNotificationCreatesUnreadNotification(t *testing.T) {
 	require.Equal(t, int64(7), notifications.inserted[0].UserId)
 	require.Equal(t, int64(4), notifications.inserted[0].Type)
 	require.Equal(t, int64(0), notifications.inserted[0].Status)
-	require.Equal(t, []int64{7}, store.deleted)
 }
 
 func TestSendNotificationRejectsInvalidRequest(t *testing.T) {
@@ -281,24 +236,20 @@ func TestGetNotificationsReturnsPagedItems(t *testing.T) {
 func TestGetUnreadCountReadsDatabase(t *testing.T) {
 	messages := &fakeMessageModel{unread: 4}
 	notifications := &fakeNotificationModel{unread: 6}
-	store := &fakeUnreadStore{hitMessage: true, messageValue: 3, hitNotification: true, notificationValue: 5}
-	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications}
 
 	resp, err := NewGetUnreadCountLogic(context.Background(), ctx).GetUnreadCount(&pb.GetUnreadCountReq{UserId: 7})
 
 	require.NoError(t, err)
 	require.Equal(t, int32(4), resp.MessageUnread)
 	require.Equal(t, int32(6), resp.NotificationUnread)
-	require.Equal(t, int64(0), store.setMessage)
-	require.Equal(t, int64(0), store.setNotification)
 }
 
 func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
 	conversations := &fakeConversationModel{conversation: &model2.Conversation{Id: 11, UserId: 7, TargetUserId: 8}}
 	commands := &fakeMessageCommandModel{}
 	notifications := &fakeNotificationModel{}
-	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageCommandModel: commands, NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{ConversationModel: conversations, MessageCommandModel: commands, NotificationModel: notifications}
 
 	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7, ConversationId: 11})
 
@@ -307,27 +258,22 @@ func TestMarkReadWithConversationMarksOnlyConversationMessages(t *testing.T) {
 	require.Equal(t, int64(7), commands.markUserID)
 	require.Equal(t, int64(8), commands.markTargetID)
 	require.Equal(t, int64(0), notifications.marked)
-	require.Equal(t, []int64{7}, store.deleted)
 }
 
 func TestMarkReadWithoutConversationMarksAllNotifications(t *testing.T) {
 	messages := &fakeMessageModel{}
 	notifications := &fakeNotificationModel{}
-	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications, UnreadStore: store}
+	ctx := &svc.ServiceContext{MessageModel: messages, NotificationModel: notifications}
 
 	_, err := NewMarkReadLogic(context.Background(), ctx).MarkRead(&pb.MarkReadReq{UserId: 7})
 
 	require.NoError(t, err)
-	require.Equal(t, int64(0), messages.marked)
 	require.Equal(t, int64(1), notifications.marked)
-	require.Equal(t, []int64{7}, store.deleted)
 }
 
 func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
 	commands := &fakeMessageCommandModel{createdMessageID: 301}
-	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{MessageCommandModel: commands, UnreadStore: store}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands}
 
 	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
 		SenderId: 1, ReceiverId: 2, Content: " hello ", MsgType: 1, IdempotencyKey: " message-301 ",
@@ -341,13 +287,11 @@ func TestSendMessageCreatesMessageThroughCommandModel(t *testing.T) {
 	require.Equal(t, "hello", commands.createdContent)
 	require.Equal(t, int64(1), commands.createdMsgType)
 	require.Equal(t, "message-301", commands.createdKey)
-	require.Equal(t, []int64{2}, store.deleted)
 }
 
-func TestSendMessageReplayReturnsExistingMessageWithoutCacheInvalidation(t *testing.T) {
+func TestSendMessageReplayReturnsExistingMessage(t *testing.T) {
 	commands := &fakeMessageCommandModel{createdMessageID: 301, replayed: true}
-	store := &fakeUnreadStore{}
-	ctx := &svc.ServiceContext{MessageCommandModel: commands, UnreadStore: store}
+	ctx := &svc.ServiceContext{MessageCommandModel: commands}
 
 	resp, err := NewSendMessageLogic(context.Background(), ctx).SendMessage(&pb.SendMessageReq{
 		SenderId: 1, ReceiverId: 2, Content: "hello", MsgType: 1, IdempotencyKey: "message-301",
@@ -355,7 +299,6 @@ func TestSendMessageReplayReturnsExistingMessageWithoutCacheInvalidation(t *test
 
 	require.NoError(t, err)
 	require.Equal(t, int64(301), resp.MessageId)
-	require.Empty(t, store.deleted)
 }
 
 func TestSendMessageRejectsIdempotencyConflict(t *testing.T) {

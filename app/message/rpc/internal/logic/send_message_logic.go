@@ -56,10 +56,5 @@ func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageRe
 		l.Errorw("MessageCommandModel.CreateMessageWithConversations failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
-	if result.Created && l.svcCtx.UnreadStore != nil {
-		if err := l.svcCtx.UnreadStore.DeleteUserUnread(l.ctx, in.ReceiverId); err != nil {
-			l.Errorw("UnreadStore.DeleteUserUnread failed", logging.Field("err", err.Error()))
-		}
-	}
 	return &pb.SendMessageResp{MessageId: result.MessageID}, nil
 }
