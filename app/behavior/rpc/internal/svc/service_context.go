@@ -10,6 +10,7 @@ import (
 	"esx/pkg/mqx"
 )
 
+// ServiceContext 持有行为上报的配置与投递器；Now 可在测试中替换以固定时钟窗口。
 type ServiceContext struct {
 	Config    config.Config
 	Publisher publisher.Publisher
@@ -17,6 +18,7 @@ type ServiceContext struct {
 	producer  *mqx.Producer
 }
 
+// NewServiceContext 校验配置并创建 MQ 生产者，失败时终止启动。
 func NewServiceContext(c config.Config) *ServiceContext {
 	if err := validateConfig(c); err != nil {
 		panic(err)
@@ -33,6 +35,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close 关闭 MQ 生产者。
 func (s *ServiceContext) Close() error {
 	if s.producer == nil {
 		return nil
@@ -40,6 +43,7 @@ func (s *ServiceContext) Close() error {
 	return s.producer.Shutdown()
 }
 
+// validateConfig 一次列出所有缺失或越界的配置项，便于部署时一次修正。
 func validateConfig(c config.Config) error {
 	missing := make([]string, 0, 4)
 	if c.MQ.NameServer == "" {

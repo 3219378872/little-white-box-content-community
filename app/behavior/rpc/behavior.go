@@ -21,6 +21,7 @@ import (
 
 var configFile = flag.String("f", "etc/behavior.yaml", "the config file")
 
+// main 启动行为上报 RPC 服务，退出时关闭 MQ 生产者以刷出未发送的消息。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

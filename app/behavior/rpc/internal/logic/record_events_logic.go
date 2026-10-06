@@ -15,28 +15,34 @@ import (
 	metric "esx/pkg/metrics"
 )
 
+// behaviorRecordTotal 按接受/拒绝统计单条事件。
 var behaviorRecordTotal = metric.NewCounterVec(&metric.CounterVecOpts{
 	Namespace: "esx", Subsystem: "behavior_rpc", Name: "record_events_total",
 	Help: "Behavior events handled by outcome", Labels: []string{"outcome"},
 })
 
+// behaviorMQPublishTotal 统计投递到 MQ 的成功与失败次数。
 var behaviorMQPublishTotal = metric.NewCounterVec(&metric.CounterVecOpts{
 	Namespace: "esx", Subsystem: "behavior_rpc", Name: "mq_publish_total",
 	Help: "Behavior event MQ publish attempts by outcome", Labels: []string{"outcome"},
 })
 
+// RecordEventsLogic 承载 RecordEvents 接口的业务逻辑；每个请求新建一个实例。
 type RecordEventsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewRecordEventsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewRecordEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RecordEventsLogic {
 	return &RecordEventsLogic{
 		ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx),
 	}
 }
 
+// RecordEvents 逐条校验并投递一批客户端行为事件；单条失败不影响同批其他事件，
+// 结果按输入顺序逐条返回，整批只在请求本身非法时失败。
 func (l *RecordEventsLogic) RecordEvents(in *pb.RecordEventsReq) (*pb.RecordEventsResp, error) {
 	if in == nil || len(in.Events) == 0 || len(in.Events) > l.svcCtx.Config.MaxBatchSize {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -65,6 +71,8 @@ func (l *RecordEventsLogic) RecordEvents(in *pb.RecordEventsReq) (*pb.RecordEven
 	return response, nil
 }
 
+// recordOne 把客户端事件补全为服务端行为事件并投递到 MQ。EventID 由 client_event_id 确定性派生，
+// 客户端重试同一事件会得到同一 ID，下游据此去重。
 func (l *RecordEventsLogic) recordOne(
 	request *pb.RecordEventsReq,
 	input *pb.ClientBehaviorEvent,
@@ -100,6 +108,7 @@ func (l *RecordEventsLogic) recordOne(
 	if err := behavior.ValidateClientSubmitted(); err != nil {
 		return rejected(input.ClientEventId, behavior.EventID, errx.ParamError, err.Error())
 	}
+	// 拒绝明显过旧或来自未来的事件，避免客户端时钟错误污染统计窗口。
 	eventTime := time.UnixMilli(behavior.EventTime)
 	oldest := now.Add(-time.Duration(l.svcCtx.Config.MaxPastAgeHours) * time.Hour)
 	latest := now.Add(time.Duration(l.svcCtx.Config.MaxFutureSkewSeconds) * time.Second)
@@ -126,6 +135,7 @@ func (l *RecordEventsLogic) recordOne(
 	}
 }
 
+// rejected 构造一条被拒绝的事件结果。
 func rejected(clientEventID string, eventID int64, code int, reason string) *pb.RecordEventResult {
 	return &pb.RecordEventResult{
 		ClientEventId: clientEventID, EventId: eventID, Accepted: false,
@@ -133,6 +143,7 @@ func rejected(clientEventID string, eventID int64, code int, reason string) *pb.
 	}
 }
 
+// cloneInt32 复制可选字段，避免事件与请求共享指针。
 func cloneInt32(value *int32) *int32 {
 	if value == nil {
 		return nil
@@ -141,6 +152,7 @@ func cloneInt32(value *int32) *int32 {
 	return &copy
 }
 
+// cloneInt64 复制可选字段，避免事件与请求共享指针。
 func cloneInt64(value *int64) *int64 {
 	if value == nil {
 		return nil
