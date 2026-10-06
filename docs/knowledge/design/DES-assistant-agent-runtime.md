@@ -270,7 +270,7 @@ Memory Review 已成功的变更即使随后取消，仍写入 `memory_changed` 
 ## 预算与观测
 
 run counter 在每个 step 事务累计 rounds、tool calls、input/output/cache tokens、cost、elapsed/idle。warning /
-critical 按时间、round、output 三个维度以唯一 `(run, level, dimension)` 记录指标和日志，并向下一模型 step
+critical 按空闲时间、round、output 三个维度以唯一 `(run, level, dimension)` 记录指标和日志，并向下一模型 step
 加入不可见 convergence instruction。硬上限检查在 claim、provider 前后和工具前；触顶写
 `AGENT_RESOURCE_LIMIT` error，payload 包含 partial text 与完成 journal 摘要。
 主模型与 compact 请求的 MaxTokens 还受 run 剩余总输出额度约束；辅助模型调用也累计 rounds/usage/cost，

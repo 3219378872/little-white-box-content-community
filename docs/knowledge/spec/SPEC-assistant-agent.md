@@ -190,9 +190,9 @@ updated_at: 2026-10-06
 
 - `AGENT-080`：每 run 硬上限为 500 模型轮、1,000 工具调用、30 分钟无活动、6 小时绝对时长、
   1,000,000 总生成 token；单次输出上限为 `min(provider_limit, 65,536)`。
-- `AGENT-081`：warning 阈值为 5 分钟、30 轮或 100k 输出 token；critical 为 20 分钟、100 轮或
-  500k 输出 token。每 run 每级每维只告警一次，仅进入 metrics、日志、Prometheus 和发给模型的
-  不可见收敛提示，不向用户消息写预算文案。
+- `AGENT-081`：warning 阈值为空闲 5 分钟、30 轮或 100k 输出 token；critical 为空闲 20 分钟、100 轮或
+  500k 输出 token；时间维度按距 run 最近一次活动的空闲时长计算，不按总时长。每 run 每级每维只
+  告警一次，仅进入 metrics、日志、Prometheus 和发给模型的不可见收敛提示，不向用户消息写预算文案。
 - `AGENT-082`：真正触顶以 `AGENT_RESOURCE_LIMIT` 终止，并保留部分文本与已完成副作用摘要。
 - `AGENT-083`：观测 run elapsed/idle、queue age、rounds、tool calls、input/output/cache tokens、cost、
   lease recovery、compact、BM25、memory-review 与 Redis 通知降级，且不得记录消息正文、
