@@ -10,11 +10,12 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/httpx"
 	"esx/pkg/logging"
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/sse"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/sse"
 )
 
 const assistantSSEHeartbeatInterval = 25 * time.Second
@@ -33,7 +34,9 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 		completed := make(chan error, 1)
 		logic := assistant.NewAssistantRunEventsLogic(ctx, svcCtx)
 		go func() {
-			var result error = errx.NewWithCode(errx.SystemError)
+			// A panic in the logic still ends the stream with a SystemError.
+			var result error
+			result = errx.NewWithCode(errx.SystemError)
 			defer func() {
 				if recover() != nil {
 					result = errx.NewWithCode(errx.SystemError)

@@ -5,6 +5,7 @@ import (
 	"esx/app/gateway/internal/logic/user"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/pkg/httpx"

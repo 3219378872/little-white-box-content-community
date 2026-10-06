@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"esx/app/gateway/internal/logic/search"

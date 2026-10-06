@@ -26,9 +26,9 @@ linters:
       - ".*_gen\\.go$"
       # Contract-generated files (cwd-agnostic so per-module lint also matches).
       # Editing these is prohibited; they are regenerated from OpenAPI / .proto.
+      # The *_handler.go files next to routes.go are hand-written and linted.
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
-      - "(.*/)?internal/handler/.*_handler\\.go$"
       - "vendor/"
     rules:
       - path: "_test\\.go$"
@@ -59,9 +59,9 @@ formatters:
       - ".*_gen\\.go$"
       # Contract-generated files (cwd-agnostic so per-module lint also matches).
       # Editing these is prohibited; they are regenerated from OpenAPI / .proto.
+      # The *_handler.go files next to routes.go are hand-written and linted.
       - "(.*/)?internal/types/.*\\.go$"
       - "(.*/)?internal/handler/routes\\.go$"
-      - "(.*/)?internal/handler/.*_handler\\.go$"
       - "vendor/"
 
 issues:

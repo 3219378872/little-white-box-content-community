@@ -5,7 +5,10 @@ import (
 	"esx/app/gateway/internal/handler/mediaupload"
 	"esx/app/gateway/internal/logic/media"
 	"esx/app/gateway/internal/svc"
+	"esx/pkg/cleanupx"
 	"esx/pkg/httpx"
+	logx "esx/pkg/logging"
+
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
@@ -17,7 +20,7 @@ func UploadAudioHandler(s *svc.ServiceContext) app.HandlerFunc {
 			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
-		defer file.Close()
+		defer cleanupx.Close(logx.WithContext(ctx), "uploaded multipart file", file)
 		resp, err := media.NewUploadAudioLogic(ctx, s).UploadMultipart(file, header.Filename, key)
 		if err != nil {
 			httpx.ErrorCtx(ctx, c, err)
