@@ -195,7 +195,7 @@ updated_at: 2026-10-06
   告警一次，仅进入 metrics、日志、Prometheus 和发给模型的不可见收敛提示，不向用户消息写预算文案。
 - `AGENT-082`：真正触顶以 `AGENT_RESOURCE_LIMIT` 终止，并保留部分文本与已完成副作用摘要。
 - `AGENT-083`：观测 run elapsed/idle、queue age、rounds、tool calls、input/output/cache tokens、cost、
-  lease recovery、compact、BM25、memory-review 与 Redis 通知降级，且不得记录消息正文、
+  lease recovery、compact、BM25 与 memory-review，且不得记录消息正文、
   prompt、secret 或普通私信。
 
 ## SLO 与验收
