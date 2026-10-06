@@ -30,7 +30,7 @@ func (m *TraceMiddleware) Hertz(ctx context.Context, c *app.RequestContext) {
 	c.Next(ctx)
 }
 
-// hertzClientIP 与 clientIP 规则相同：X-Forwarded-For 首跳 → X-Real-IP → 连接对端。
+// hertzClientIP 依次取 X-Forwarded-For 首跳、X-Real-IP 与连接对端地址（生产由 nginx 覆写可信头）。
 func hertzClientIP(c *app.RequestContext) string {
 	if f := string(c.GetHeader("X-Forwarded-For")); f != "" {
 		if ip := strings.TrimSpace(strings.Split(f, ",")[0]); ip != "" {

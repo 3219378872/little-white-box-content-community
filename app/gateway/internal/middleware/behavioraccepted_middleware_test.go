@@ -1,9 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/common/ut"
 )
 
 func TestBehaviorAcceptedMiddleware_StatusMapping(t *testing.T) {
@@ -19,43 +22,48 @@ func TestBehaviorAcceptedMiddleware_StatusMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/api/v2/behavior/events", nil)
-			handler := NewBehaviorAcceptedMiddleware().Handle(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(tt.nextStatus)
-			})
+			rec := performHertz(NewBehaviorAcceptedMiddleware().Hertz, func(_ context.Context, c *app.RequestContext) {
+				c.Status(tt.nextStatus)
+			}, http.MethodPost, "/api/v2/behavior/events")
 
-			handler(recorder, req)
-			if recorder.Code != tt.wantStatus {
-				t.Fatalf("status=%d, want %d", recorder.Code, tt.wantStatus)
+			if got := rec.Result().StatusCode(); got != tt.wantStatus {
+				t.Fatalf("status=%d, want %d", got, tt.wantStatus)
 			}
 		})
 	}
 }
 
 func TestBehaviorAcceptedMiddleware_InjectsRequestMetadata(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v2/behavior/events", nil)
-	req.RemoteAddr = "10.0.0.9:12345"
-	req.Header.Set("X-Forwarded-For", "203.0.113.8, 10.0.0.1")
-	req.Header.Set("User-Agent", "little-white-box/2")
-	req.Header.Set("X-Client-Version", "2.1.0")
-	req.Header.Set("X-Request-ID", "request-1")
-	req.Header.Set("X-Trace-ID", "trace-1")
+	var metadata BehaviorRequestMetadata
+	rec := performHertz(NewBehaviorAcceptedMiddleware().Hertz, func(ctx context.Context, c *app.RequestContext) {
+		metadata = BehaviorRequestMetadataFromContext(ctx)
+		c.String(http.StatusOK, "ok")
+	}, http.MethodPost, "/api/v2/behavior/events",
+		ut.Header{Key: "X-Forwarded-For", Value: "203.0.113.8, 10.0.0.1"},
+		ut.Header{Key: "User-Agent", Value: "little-white-box/2"},
+		ut.Header{Key: "X-Client-Version", Value: "2.1.0"},
+		ut.Header{Key: "X-Request-ID", Value: "request-1"},
+		ut.Header{Key: "X-Trace-ID", Value: "trace-1"})
 
-	handler := NewBehaviorAcceptedMiddleware().Handle(func(w http.ResponseWriter, r *http.Request) {
-		metadata := BehaviorRequestMetadataFromContext(r.Context())
-		if metadata.ClientIP != "203.0.113.8" || metadata.UserAgent != "little-white-box/2" || metadata.ClientVersion != "2.1.0" || metadata.TraceID != "trace-1" {
-			t.Fatalf("unexpected request metadata: %+v", metadata)
-		}
-		_, _ = w.Write([]byte("ok"))
-	})
-
-	handler(recorder, req)
-	if recorder.Code != http.StatusAccepted {
-		t.Fatalf("status=%d, want %d", recorder.Code, http.StatusAccepted)
+	if metadata.ClientIP != "203.0.113.8" || metadata.UserAgent != "little-white-box/2" || metadata.ClientVersion != "2.1.0" || metadata.TraceID != "trace-1" {
+		t.Fatalf("unexpected request metadata: %+v", metadata)
 	}
-	if recorder.Header().Get("X-Request-ID") != "request-1" {
-		t.Fatalf("unexpected response request id: %q", recorder.Header().Get("X-Request-ID"))
+	resp := rec.Result()
+	if resp.StatusCode() != http.StatusAccepted {
+		t.Fatalf("status=%d, want %d", resp.StatusCode(), http.StatusAccepted)
+	}
+	if got := string(resp.Header.Peek("X-Request-ID")); got != "request-1" {
+		t.Fatalf("unexpected response request id: %q", got)
+	}
+}
+
+func TestBehaviorAcceptedMiddleware_TraceIDDefaultsToRequestID(t *testing.T) {
+	var metadata BehaviorRequestMetadata
+	performHertz(NewBehaviorAcceptedMiddleware().Hertz, func(ctx context.Context, _ *app.RequestContext) {
+		metadata = BehaviorRequestMetadataFromContext(ctx)
+	}, http.MethodPost, "/api/v2/behavior/events", ut.Header{Key: "X-Request-ID", Value: "request-2"})
+
+	if metadata.TraceID != "request-2" {
+		t.Fatalf("trace id = %q, want request-2", metadata.TraceID)
 	}
 }

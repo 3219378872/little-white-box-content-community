@@ -4,10 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"net/http"
-	"strings"
-
-	"esx/pkg/interceptor"
 )
 
 // TraceMiddleware 为每个请求生成/透传追踪标识并写入 ctx（REL-052），
@@ -21,23 +17,6 @@ func NewTraceMiddleware() *TraceMiddleware {
 
 // clientIPKey 是客户端 IP 在 ctx 中的私有键。
 type clientIPKey struct{}
-
-// Handle 是 net/http 版本，目前只被单测使用；线上路由走 hertz.go 中的 Hertz 方法。
-func (m *TraceMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		traceID := strings.TrimSpace(r.Header.Get("X-Trace-ID"))
-		if traceID == "" {
-			traceID = strings.TrimSpace(r.Header.Get("X-Request-ID"))
-		}
-		if traceID == "" {
-			traceID = newTraceID()
-		}
-		ctx := interceptor.WithTraceID(r.Context(), traceID)
-		ctx = context.WithValue(ctx, clientIPKey{}, clientIP(r))
-		w.Header().Set("X-Trace-ID", traceID)
-		next(w, r.WithContext(ctx))
-	}
-}
 
 // ClientIPFromContext 返回中间件提取的客户端 IP；未经过 TraceMiddleware
 // 的上下文返回空串。来源优先级与行为链路一致：X-Forwarded-For 首跳 →

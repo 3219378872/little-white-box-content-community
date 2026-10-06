@@ -1,19 +1,20 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/cloudwego/hertz/pkg/app"
 )
 
 func TestSafeAccessLogPreservesStatusAndBody(t *testing.T) {
-	handler := NewSafeAccessLogMiddleware().Handle(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusTeapot)
-		_, _ = w.Write([]byte("response"))
-	})
-	recorder := httptest.NewRecorder()
-	handler(recorder, httptest.NewRequest(http.MethodPost, "/private?token=hidden", nil))
-	if recorder.Code != http.StatusTeapot || recorder.Body.String() != "response" {
-		t.Fatalf("status=%d body=%q", recorder.Code, recorder.Body.String())
+	rec := performHertz(NewSafeAccessLogMiddleware().Hertz, func(_ context.Context, c *app.RequestContext) {
+		c.String(http.StatusTeapot, "response")
+	}, http.MethodPost, "/private?token=hidden")
+
+	resp := rec.Result()
+	if resp.StatusCode() != http.StatusTeapot || string(resp.Body()) != "response" {
+		t.Fatalf("status=%d body=%q", resp.StatusCode(), string(resp.Body()))
 	}
 }
