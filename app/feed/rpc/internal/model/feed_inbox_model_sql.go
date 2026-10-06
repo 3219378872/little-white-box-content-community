@@ -11,8 +11,8 @@ import (
 
 var (
 	feedInboxRows                = "`id`,`user_id`,`author_id`,`post_id`,`created_at`"
-	feedInboxRowsExpectAutoSet   = "`user_id`,`author_id`,`post_id`"
-	feedInboxRowsWithPlaceHolder = "`user_id`=?,`author_id`=?,`post_id`=?"
+	feedInboxRowsExpectAutoSet   = "`user_id`,`author_id`,`post_id`,`created_at`"
+	feedInboxRowsWithPlaceHolder = "`user_id`=?,`author_id`=?,`post_id`=?,`created_at`=?"
 )
 
 type (
@@ -83,16 +83,16 @@ func (m *defaultFeedInboxModel) FindOneByUserIdPostId(ctx context.Context, userI
 	}
 }
 
-// Insert 是基础 CRUD 写入，不含 created_at 列；关注流写入走 InsertIgnore/BatchInsertIgnore。
+// Insert 是基础 CRUD 写入，created_at 是无库默认值的业务毫秒时间，必须显式写入；关注流写入走 BatchInsertIgnore。
 func (m *defaultFeedInboxModel) Insert(ctx context.Context, data *FeedInbox) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?)", m.table, feedInboxRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.AuthorId, data.PostId)
+	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?)", m.table, feedInboxRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.AuthorId, data.PostId, data.CreatedAt)
 	return ret, err
 }
 
-// Update 按主键更新。
+// Update 按主键更新全部业务列（含 created_at）。
 func (m *defaultFeedInboxModel) Update(ctx context.Context, newData *FeedInbox) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, feedInboxRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.AuthorId, newData.PostId, newData.Id)
+	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.AuthorId, newData.PostId, newData.CreatedAt, newData.Id)
 	return err
 }

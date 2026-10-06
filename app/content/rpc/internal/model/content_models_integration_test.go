@@ -4,6 +4,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"testing"
 	"time"
@@ -146,6 +147,30 @@ func TestPostModelRoundtripAndQueries(t *testing.T) {
 	require.NoError(t, newTestConn().QueryRowCtx(ctx, &rawCommentCount,
 		"SELECT comment_count FROM `post` WHERE `id` = ?", second.Id))
 	assert.Equal(t, int64(1), rawCommentCount)
+}
+
+func TestPostModelInsertAndUpdateWriteMediaIDs(t *testing.T) {
+	testEnv.TruncateAll(t, "post_tag", "post")
+	ctx := context.Background()
+	postModel := NewPostModel(newTestConn(), testCacheConf())
+
+	// 基础 CRUD 与 FindOne 读同一组列，media_ids 不能在写入时丢失。
+	post := &Post{
+		Id: nextID(t), AuthorId: 7, Title: "media", Content: "m-body", Status: 1, Revision: 1,
+		MediaIds: sql.NullString{String: "[11,12]", Valid: true},
+	}
+	_, err := postModel.Insert(ctx, post)
+	require.NoError(t, err)
+	got, err := postModel.FindOne(ctx, post.Id)
+	require.NoError(t, err)
+	assert.JSONEq(t, "[11,12]", got.MediaIds.String)
+
+	got.MediaIds = sql.NullString{String: "[13]", Valid: true}
+	require.NoError(t, postModel.Update(ctx, got))
+	var rawMediaIDs string
+	require.NoError(t, newTestConn().QueryRowCtx(ctx, &rawMediaIDs,
+		"SELECT media_ids FROM `post` WHERE `id` = ?", post.Id))
+	assert.JSONEq(t, "[13]", rawMediaIDs)
 }
 
 func TestPostCommandModelCreatePostIsIdempotentAndWritesOutbox(t *testing.T) {
