@@ -16,22 +16,26 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// ConversationModel lists and loads a user's conversations.
 type ConversationModel interface {
 	FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*model2.Conversation, int64, error)
 	FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*model2.Conversation, error)
 }
 
+// MessageModel reads messages and unread counts.
 type MessageModel interface {
 	FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model2.Message, bool, error)
 	CountUnreadByUser(ctx context.Context, userID int64) (int64, error)
 	MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
+// MessageCommandModel performs transactional message writes.
 type MessageCommandModel interface {
 	CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (model2.MessageCommandResult, error)
 	MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error)
 }
 
+// NotificationModel writes and reads notifications.
 type NotificationModel interface {
 	Insert(ctx context.Context, data *model2.Notification) (sql.Result, error)
 	FindByUser(ctx context.Context, userID int64, typ int64, page int64, pageSize int64) ([]*model2.Notification, int64, error)
@@ -39,10 +43,12 @@ type NotificationModel interface {
 	MarkAllRead(ctx context.Context, userID int64) (int64, error)
 }
 
+// UserService is the user RPC subset used to render conversation peers.
 type UserService interface {
 	BatchGetUserCards(ctx context.Context, in *userservice.BatchGetUserCardsReq, opts ...callopt.Option) (*userservice.BatchGetUserCardsResp, error)
 }
 
+// ServiceContext holds message storage and downstream services.
 type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
@@ -56,8 +62,10 @@ type ServiceContext struct {
 	MediaService        mediaservice.MediaService
 }
 
+// NewServiceContext wires MySQL, Redis and downstream clients. The media client
+// is optional: without it media messages cannot be sent.
 func NewServiceContext(c config.Config) *ServiceContext {
-	// Suppress normal, slow and failed SQL logs containing private messages.
+	// pkg/sqlstore never logs SQL statements, so private message text stays out of logs.
 	conn := sqlx.NewMysql(c.DataSource)
 	cacheConf := cache.CacheConf{
 		cache.NodeConf{RedisConf: c.Redis.RedisConf, Weight: 100},

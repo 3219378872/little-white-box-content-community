@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetNotificationsLogic 承载 GetNotifications 接口的业务逻辑；每个请求新建一个实例。
 type GetNotificationsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetNotificationsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetNotificationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetNotificationsLogic {
 	return &GetNotificationsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }

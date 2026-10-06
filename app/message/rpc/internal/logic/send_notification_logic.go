@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// SendNotificationLogic 承载 SendNotification 接口的业务逻辑；每个请求新建一个实例。
 type SendNotificationLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSendNotificationLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSendNotificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendNotificationLogic {
 	return &SendNotificationLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }

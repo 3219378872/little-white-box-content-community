@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetMessagesLogic 承载 GetMessages 接口的业务逻辑；每个请求新建一个实例。
 type GetMessagesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetMessagesLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMessagesLogic {
 	return &GetMessagesLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }

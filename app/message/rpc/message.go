@@ -17,6 +17,7 @@ import (
 
 var configFile = flag.String("f", "etc/message.yaml", "the config file")
 
+// main 启动私信与通知 RPC 服务。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

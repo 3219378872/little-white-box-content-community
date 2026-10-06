@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetConversationsLogic 承载 GetConversations 接口的业务逻辑；每个请求新建一个实例。
 type GetConversationsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetConversationsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetConversationsLogic {
 	return &GetConversationsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
@@ -71,6 +73,7 @@ func (l *GetConversationsLogic) GetConversations(in *pb.GetConversationsReq) (*p
 	return &pb.GetConversationsResp{Conversations: items, Total: total}, nil
 }
 
+// uniqueConversationTargetIDs 收集会话对方的用户 ID 并去重，用于批量查询资料卡。
 func uniqueConversationTargetIDs(rows []*model2.Conversation) []int64 {
 	ids := make([]int64, 0, len(rows))
 	seen := make(map[int64]struct{}, len(rows))
@@ -87,6 +90,7 @@ func uniqueConversationTargetIDs(rows []*model2.Conversation) []int64 {
 	return ids
 }
 
+// conversationDisplayName 优先使用昵称，没有昵称时回退到用户名。
 func conversationDisplayName(profile *userservice.UserCard) string {
 	if profile == nil {
 		return ""

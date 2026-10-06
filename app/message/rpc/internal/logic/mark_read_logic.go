@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// MarkReadLogic 承载 MarkRead 接口的业务逻辑；每个请求新建一个实例。
 type MarkReadLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewMarkReadLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewMarkReadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MarkReadLogic {
 	return &MarkReadLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }

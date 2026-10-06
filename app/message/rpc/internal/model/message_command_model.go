@@ -28,19 +28,25 @@ type (
 	}
 )
 
+// Error describes an idempotency key reused with a different message.
 func (*IdempotencyConflictError) Error() string {
 	return "idempotency key is already bound to another message command"
 }
 
+// IsIdempotencyConflict reports whether err is an idempotency conflict.
 func IsIdempotencyConflict(err error) bool {
 	var conflict *IdempotencyConflictError
 	return errors.As(err, &conflict)
 }
 
+// NewMessageCommandModel creates the transactional message write model.
 func NewMessageCommandModel(conn sqlx.SqlConn) MessageCommandModel {
 	return &customMessageCommandModel{conn: conn}
 }
 
+// CreateMessageWithConversations inserts a message and updates both sides'
+// conversations in one transaction. A repeated idempotency key returns the
+// original message when the payload matches and a conflict otherwise.
 func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.Context, senderID int64, receiverID int64, content string, msgType int64, mediaID int64, idempotencyKey string) (MessageCommandResult, error) {
 	var commandResult MessageCommandResult
 	err := m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
@@ -56,6 +62,7 @@ func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.C
 			return err
 		}
 
+		// The sender's conversation gains no unread count; the receiver's gains one.
 		if err := upsertConversationForMessage(ctx, session, senderID, receiverID, content, 0); err != nil {
 			return err
 		}
@@ -97,10 +104,12 @@ func (m *customMessageCommandModel) CreateMessageWithConversations(ctx context.C
 	return MessageCommandResult{}, err
 }
 
+// messageCommandQuerier is satisfied by both a connection and a transaction.
 type messageCommandQuerier interface {
 	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
 }
 
+// storedMessageCommand is the stored payload compared on idempotent replay.
 type storedMessageCommand struct {
 	ID         int64  `db:"id"`
 	ReceiverID int64  `db:"receiver_id"`
@@ -109,6 +118,7 @@ type storedMessageCommand struct {
 	MediaID    int64  `db:"media_id"`
 }
 
+// findMessageCommand looks up the message a sender created with an idempotency key.
 func findMessageCommand(ctx context.Context, querier messageCommandQuerier, senderID int64, idempotencyKey string) (*storedMessageCommand, error) {
 	var command storedMessageCommand
 	err := querier.QueryRowCtx(ctx, &command,
@@ -120,10 +130,13 @@ func findMessageCommand(ctx context.Context, querier messageCommandQuerier, send
 	return &command, nil
 }
 
+// matches reports whether a replayed command carries the same payload.
 func (c *storedMessageCommand) matches(receiverID int64, content string, msgType int64, mediaID int64) bool {
 	return c.ReceiverID == receiverID && c.Content == content && c.MsgType == msgType && c.MediaID == mediaID
 }
 
+// upsertConversationForMessage creates or refreshes one side's conversation with
+// the latest message and adds unreadIncrement to its unread count.
 func upsertConversationForMessage(ctx context.Context, session sqlx.Session, userID int64, targetUserID int64, content string, unreadIncrement int64) error {
 	_, err := session.ExecCtx(ctx, `insert into conversation (user_id, target_user_id, last_message, last_message_time, unread_count)
 values (?, ?, ?, now(), ?)
@@ -132,6 +145,8 @@ on duplicate key update last_message = values(last_message), last_message_time =
 	return err
 }
 
+// MarkConversationRead marks the peer's messages read and lowers the
+// conversation's unread count by the same amount (never below zero), atomically.
 func (m *customMessageCommandModel) MarkConversationRead(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
 	var affected int64
 	err := m.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {

@@ -24,10 +24,12 @@ type (
 	}
 )
 
+// NewNotificationModel 创建带缓存的通知模型。
 func NewNotificationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) NotificationModel {
 	return &customNotificationModel{defaultNotificationModel: newNotificationModel(conn, c, opts...)}
 }
 
+// FindByUser 分页列出用户的通知，可按类型过滤，并返回总数；直查数据库，不经缓存。
 func (m *customNotificationModel) FindByUser(ctx context.Context, userID int64, typ int64, page int64, pageSize int64) ([]*Notification, int64, error) {
 	if page < 1 {
 		page = 1
@@ -61,6 +63,7 @@ func (m *customNotificationModel) FindByUser(ctx context.Context, userID int64, 
 	return rows, total, nil
 }
 
+// CountUnread 统计用户的未读通知数。
 func (m *customNotificationModel) CountUnread(ctx context.Context, userID int64) (int64, error) {
 	var count int64
 	query := fmt.Sprintf("select count(*) from %s where `user_id` = ? and `status` = 0", m.table)
@@ -70,6 +73,7 @@ func (m *customNotificationModel) CountUnread(ctx context.Context, userID int64)
 	return count, nil
 }
 
+// MarkAllRead 把用户的全部未读通知标为已读，返回更新条数。
 func (m *customNotificationModel) MarkAllRead(ctx context.Context, userID int64) (int64, error) {
 	query := fmt.Sprintf("update %s set `status` = 1 where `user_id` = ? and `status` = 0", m.table)
 	result, err := m.ExecNoCacheCtx(ctx, query, userID)

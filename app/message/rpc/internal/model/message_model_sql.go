@@ -39,6 +39,7 @@ type (
 	}
 )
 
+// newMessageModel creates the cached base model.
 func newMessageModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultMessageModel {
 	return &defaultMessageModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -46,6 +47,7 @@ func newMessageModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	}
 }
 
+// Delete removes a message by id and evicts its cache key.
 func (m *defaultMessageModel) Delete(ctx context.Context, id int64) error {
 	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -55,6 +57,7 @@ func (m *defaultMessageModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a message by id through the cache.
 func (m *defaultMessageModel) FindOne(ctx context.Context, id int64) (*Message, error) {
 	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, id)
 	var resp Message
@@ -72,6 +75,8 @@ func (m *defaultMessageModel) FindOne(ctx context.Context, id int64) (*Message, 
 	}
 }
 
+// Insert is the base insert without media or idempotency columns; sends go
+// through MessageCommandModel instead.
 func (m *defaultMessageModel) Insert(ctx context.Context, data *Message) (sql.Result, error) {
 	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -81,6 +86,7 @@ func (m *defaultMessageModel) Insert(ctx context.Context, data *Message) (sql.Re
 	return ret, err
 }
 
+// Update rewrites a message by id and evicts its cache key.
 func (m *defaultMessageModel) Update(ctx context.Context, data *Message) error {
 	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {

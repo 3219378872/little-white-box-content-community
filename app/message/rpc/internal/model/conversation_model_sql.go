@@ -47,6 +47,7 @@ type (
 	}
 )
 
+// newConversationModel creates the cached base model.
 func newConversationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultConversationModel {
 	return &defaultConversationModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -54,6 +55,7 @@ func newConversationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Op
 	}
 }
 
+// Delete removes a conversation and evicts both its id and (user, target) cache keys.
 func (m *defaultConversationModel) Delete(ctx context.Context, id int64) error {
 	data, err := m.FindOne(ctx, id)
 	if err != nil {
@@ -69,6 +71,7 @@ func (m *defaultConversationModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a conversation by id through the cache.
 func (m *defaultConversationModel) FindOne(ctx context.Context, id int64) (*Conversation, error) {
 	conversationIdKey := fmt.Sprintf("%s%v", cacheConversationIdPrefix, id)
 	var resp Conversation
@@ -86,6 +89,8 @@ func (m *defaultConversationModel) FindOne(ctx context.Context, id int64) (*Conv
 	}
 }
 
+// FindOneByUserIdTargetUserId loads a conversation by its unique (user, target)
+// key; the cache maps that key to the id, then to the row.
 func (m *defaultConversationModel) FindOneByUserIdTargetUserId(ctx context.Context, userId int64, targetUserId int64) (*Conversation, error) {
 	conversationUserIdTargetUserIdKey := fmt.Sprintf("%s%v:%v", cacheConversationUserIdTargetUserIdPrefix, userId, targetUserId)
 	var resp Conversation
@@ -106,6 +111,7 @@ func (m *defaultConversationModel) FindOneByUserIdTargetUserId(ctx context.Conte
 	}
 }
 
+// Insert creates a conversation and evicts its cache keys.
 func (m *defaultConversationModel) Insert(ctx context.Context, data *Conversation) (sql.Result, error) {
 	conversationIdKey := fmt.Sprintf("%s%v", cacheConversationIdPrefix, data.Id)
 	conversationUserIdTargetUserIdKey := fmt.Sprintf("%s%v:%v", cacheConversationUserIdTargetUserIdPrefix, data.UserId, data.TargetUserId)
@@ -116,6 +122,7 @@ func (m *defaultConversationModel) Insert(ctx context.Context, data *Conversatio
 	return ret, err
 }
 
+// Update rewrites a conversation and evicts its cache keys.
 func (m *defaultConversationModel) Update(ctx context.Context, newData *Conversation) error {
 	data, err := m.FindOne(ctx, newData.Id)
 	if err != nil {
@@ -131,10 +138,12 @@ func (m *defaultConversationModel) Update(ctx context.Context, newData *Conversa
 	return err
 }
 
+// formatPrimary builds the id cache key used by the unique-key index cache.
 func (m *defaultConversationModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cacheConversationIdPrefix, primary)
 }
 
+// queryPrimary loads the row for an id resolved from the unique-key cache.
 func (m *defaultConversationModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", conversationRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)

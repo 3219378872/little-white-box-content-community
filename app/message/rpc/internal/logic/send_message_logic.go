@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// SendMessageLogic 承载 SendMessage 接口的业务逻辑；每个请求新建一个实例。
 type SendMessageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewSendMessageLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendMessageLogic {
 	return &SendMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }

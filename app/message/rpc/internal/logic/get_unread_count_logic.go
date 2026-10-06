@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUnreadCountLogic 承载 GetUnreadCount 接口的业务逻辑；每个请求新建一个实例。
 type GetUnreadCountLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetUnreadCountLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetUnreadCountLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUnreadCountLogic {
 	return &GetUnreadCountLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
@@ -36,6 +38,7 @@ func (l *GetUnreadCountLogic) GetUnreadCount(in *pb.GetUnreadCountReq) (*pb.GetU
 	return &pb.GetUnreadCountResp{MessageUnread: int32(messageUnread), NotificationUnread: int32(notificationUnread)}, nil
 }
 
+// getMessageUnread 从数据库统计未读私信数。
 func (l *GetUnreadCountLogic) getMessageUnread(userID int64) (int64, error) {
 	count, err := l.svcCtx.MessageModel.CountUnreadByUser(l.ctx, userID)
 	if err != nil {
@@ -44,6 +47,7 @@ func (l *GetUnreadCountLogic) getMessageUnread(userID int64) (int64, error) {
 	return count, nil
 }
 
+// getNotificationUnread 从数据库统计未读通知数。
 func (l *GetUnreadCountLogic) getNotificationUnread(userID int64) (int64, error) {
 	count, err := l.svcCtx.NotificationModel.CountUnread(l.ctx, userID)
 	if err != nil {

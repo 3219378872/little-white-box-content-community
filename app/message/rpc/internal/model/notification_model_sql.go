@@ -47,6 +47,7 @@ type (
 	}
 )
 
+// newNotificationModel creates the cached base model.
 func newNotificationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultNotificationModel {
 	return &defaultNotificationModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -54,6 +55,7 @@ func newNotificationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Op
 	}
 }
 
+// Delete removes a notification by id and evicts its cache key.
 func (m *defaultNotificationModel) Delete(ctx context.Context, id int64) error {
 	notificationIdKey := fmt.Sprintf("%s%v", cacheNotificationIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -63,6 +65,7 @@ func (m *defaultNotificationModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a notification by id through the cache.
 func (m *defaultNotificationModel) FindOne(ctx context.Context, id int64) (*Notification, error) {
 	notificationIdKey := fmt.Sprintf("%s%v", cacheNotificationIdPrefix, id)
 	var resp Notification
@@ -80,6 +83,7 @@ func (m *defaultNotificationModel) FindOne(ctx context.Context, id int64) (*Noti
 	}
 }
 
+// Insert creates a notification and evicts its cache key.
 func (m *defaultNotificationModel) Insert(ctx context.Context, data *Notification) (sql.Result, error) {
 	notificationIdKey := fmt.Sprintf("%s%v", cacheNotificationIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -89,6 +93,7 @@ func (m *defaultNotificationModel) Insert(ctx context.Context, data *Notificatio
 	return ret, err
 }
 
+// Update rewrites a notification by id and evicts its cache key.
 func (m *defaultNotificationModel) Update(ctx context.Context, data *Notification) error {
 	notificationIdKey := fmt.Sprintf("%s%v", cacheNotificationIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {

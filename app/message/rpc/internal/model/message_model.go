@@ -23,10 +23,12 @@ type (
 	}
 )
 
+// NewMessageModel 创建带缓存的私信模型。
 func NewMessageModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) MessageModel {
 	return &customMessageModel{defaultMessageModel: newMessageModel(conn, c, opts...)}
 }
 
+// FindByUserConversation 按 ID 倒序读取两人之间早于 lastID 的私信，多取一条判断是否还有更多。
 func (m *customMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*Message, bool, error) {
 	if limit <= 0 {
 		limit = 20
@@ -54,6 +56,7 @@ func (m *customMessageModel) FindByUserConversation(ctx context.Context, userID 
 	return rows, hasMore, nil
 }
 
+// CountUnreadByUser 统计用户收到的未读私信数。
 func (m *customMessageModel) CountUnreadByUser(ctx context.Context, userID int64) (int64, error) {
 	var count int64
 	query := fmt.Sprintf("select count(*) from %s where `receiver_id` = ? and `status` = 0", m.table)
@@ -63,6 +66,8 @@ func (m *customMessageModel) CountUnreadByUser(ctx context.Context, userID int64
 	return count, nil
 }
 
+// MarkConversationReadForUser 只把对方发来的私信标为已读，不更新会话未读数；
+// 标记已读的接口走 MessageCommandModel.MarkConversationRead。
 func (m *customMessageModel) MarkConversationReadForUser(ctx context.Context, userID int64, targetUserID int64) (int64, error) {
 	query := fmt.Sprintf("update %s set `status` = 1 where `receiver_id` = ? and `sender_id` = ? and `status` = 0", m.table)
 	result, err := m.ExecNoCacheCtx(ctx, query, userID, targetUserID)

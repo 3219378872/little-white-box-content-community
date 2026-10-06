@@ -23,10 +23,12 @@ type (
 	}
 )
 
+// NewConversationModel 创建带缓存的会话模型。
 func NewConversationModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) ConversationModel {
 	return &customConversationModel{defaultConversationModel: newConversationModel(conn, c, opts...)}
 }
 
+// FindByUser 分页列出用户的会话，按最后消息时间倒序，并返回总数；直查数据库，不经缓存。
 func (m *customConversationModel) FindByUser(ctx context.Context, userID int64, page int64, pageSize int64) ([]*Conversation, int64, error) {
 	if page < 1 {
 		page = 1
@@ -51,6 +53,7 @@ func (m *customConversationModel) FindByUser(ctx context.Context, userID int64, 
 	return rows, total, nil
 }
 
+// FindOneForUser 读取属于该用户的会话；不属于该用户时返回未找到。
 func (m *customConversationModel) FindOneForUser(ctx context.Context, userID int64, conversationID int64) (*Conversation, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? and `user_id` = ? limit 1", conversationRows, m.table)
 	var row Conversation
