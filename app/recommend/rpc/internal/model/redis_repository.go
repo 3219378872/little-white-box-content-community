@@ -12,7 +12,6 @@ import (
 
 	"esx/app/recommend/featurekey"
 	"esx/app/recommend/personalization"
-	"esx/app/user/rpc/userservice"
 
 	redis "esx/pkg/redisstore"
 )
@@ -298,29 +297,10 @@ func loadFeatures[T any](ids []int64, load func(int64) (T, error)) (map[int64]T,
 	return result, nil
 }
 
-// IsPersonalizationOptedOut 检查用户是否关闭了个性化（REL-023）。
+// IsPersonalizationOptedOut 检查用户是否关闭了个性化（REL-023），规则见 personalization.OptedOut。
 // 标记由 user 服务在关闭时写入 `personalization:optout:<userID>`。
 func (r *RedisFeatureRepository) IsPersonalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
-	if userID <= 0 {
-		return false, nil
-	}
-	// A missing/expired marker is never proof of consent. A cache outage also
-	// falls back to the user service, which owns the durable preference.
-	value, err := r.redis.GetCtx(ctx, featurekey.OptOutKey(userID))
-	if err == nil && value != "" {
-		return true, nil
-	}
-	if r.preferences == nil {
-		return true, fmt.Errorf("personalization preference service unavailable")
-	}
-	preference, err := r.preferences.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
-	if err != nil {
-		return true, fmt.Errorf("load personalization preference: %w", err)
-	}
-	if preference == nil {
-		return true, fmt.Errorf("personalization preference response is nil")
-	}
-	return !preference.Enabled, nil
+	return personalization.OptedOut(ctx, r.redis, r.preferences, userID)
 }
 
 // RedisSnapshotStore 把一次推荐的排序结果存为快照，翻页时从快照续读，保证页间不重复不遗漏。

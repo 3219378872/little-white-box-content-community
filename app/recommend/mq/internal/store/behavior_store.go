@@ -11,8 +11,6 @@ import (
 	"esx/app/recommend/featurekey"
 	"esx/app/recommend/personalization"
 	"esx/pkg/event"
-
-	"esx/app/user/rpc/userservice"
 )
 
 // BehaviorStore 维护推荐在线特征，并支持按个性化开关清理。
@@ -35,11 +33,6 @@ type RedisBehaviorStore struct {
 	features     featurekey.Space
 	recallPrefix string
 	ttlSeconds   int
-}
-
-// RedisGetter 是读取退出个性化标记的可选能力。
-type RedisGetter interface {
-	GetCtx(ctx context.Context, key string) (string, error)
 }
 
 // NewRedisBehaviorStore 创建特征存储；readers 可选注入个性化偏好查询，缺失时按已退出处理。
@@ -123,26 +116,11 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	return nil
 }
 
-// personalizationOptedOut 判断用户是否关闭了个性化：先查本地退出标记，再查用户服务；
+// personalizationOptedOut 用共享规则判断用户是否关闭了个性化；存储支持读取时先查退出标记，
 // 无法确认时按已退出处理（fail closed），宁可少推荐也不违背用户选择。
 func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
-	if getter, ok := s.redis.(RedisGetter); ok {
-		value, err := getter.GetCtx(ctx, featurekey.OptOutKey(userID))
-		if err == nil && value != "" {
-			return true, nil
-		}
-	}
-	if s.preferences == nil {
-		return true, fmt.Errorf("personalization preference service unavailable")
-	}
-	preference, err := s.preferences.GetPersonalizationPreference(ctx, &userservice.GetPersonalizationPreferenceReq{UserId: userID})
-	if err != nil {
-		return true, err
-	}
-	if preference == nil {
-		return true, fmt.Errorf("personalization preference response is nil")
-	}
-	return !preference.Enabled, nil
+	marker, _ := s.redis.(personalization.MarkerGetter)
+	return personalization.OptedOut(ctx, marker, s.preferences, userID)
 }
 
 // purgeIdentityFeatures 删除该身份的全部在线个性化特征与个性化召回键。
