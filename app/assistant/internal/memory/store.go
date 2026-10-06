@@ -24,6 +24,20 @@ const (
 	OpRemove  = "remove"
 )
 
+// 记忆错误的用户文案：经 REST 直接展示给用户，同样的错误也作为工具结果回给模型；
+// 两个实现共用同一组文案，错误码不变。
+const (
+	msgInvalidTarget    = "记忆类型只能是 memory 或 user"
+	msgUnknownOp        = "不支持的记忆操作"
+	msgCapacityExceeded = "记忆容量已满，请先删除或精简部分记忆"
+	msgVersionConflict  = "记忆已被修改，请刷新后重试"
+	msgDuplicateContent = "已有相同内容的记忆"
+	msgAlreadyUndone    = "这次修改已经撤销"
+	msgRestoreConflict  = "相同内容的记忆已存在，无法撤销"
+	msgContentRequired  = "记忆内容不能为空"
+	msgThreatScan       = "记忆内容未通过安全检查"
+)
+
 // Entry 是一条记忆；Version 用于乐观并发，删除为软删除。
 type Entry struct {
 	ID          int64
@@ -117,7 +131,7 @@ func ValidTarget(target string) bool {
 // ScanContent 拒绝空内容与常见提示词注入短语，再交给可选的安全过滤器，防止记忆成为注入通道。
 func ScanContent(ctx context.Context, scanner Scanner, content string) error {
 	if strings.TrimSpace(content) == "" {
-		return errx.New(errx.ParamError, "memory content is required")
+		return errx.New(errx.ParamError, msgContentRequired)
 	}
 	lower := strings.ToLower(content)
 	for _, needle := range []string{
@@ -125,13 +139,13 @@ func ScanContent(ctx context.Context, scanner Scanner, content string) error {
 		"you are now", "disregard the above", "忽略以上", "忽略之前",
 	} {
 		if strings.Contains(lower, needle) {
-			return errx.New(errx.ParamError, "memory content failed threat scan")
+			return errx.New(errx.ParamError, msgThreatScan)
 		}
 	}
 	if scanner != nil {
 		if err := scanner.Check(ctx, content); err != nil {
 			if err == safety.ErrBlocked {
-				return errx.New(errx.ParamError, "memory content failed threat scan")
+				return errx.New(errx.ParamError, msgThreatScan)
 			}
 			return err
 		}

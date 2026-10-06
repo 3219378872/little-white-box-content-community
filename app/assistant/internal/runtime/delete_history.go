@@ -74,6 +74,6 @@ func cancelHistoryRun(ctx context.Context, tx store.Store, run store.Run, now in
 	if err := tx.DeleteQueue(ctx, run.ID); err != nil {
 		return err
 	}
-	_, err = finishRunTx(ctx, tx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"}, now)
+	_, err = finishRunTx(ctx, tx, run, store.StatusCancelled, store.EventError, cancelledPayload(), now)
 	return err
 }

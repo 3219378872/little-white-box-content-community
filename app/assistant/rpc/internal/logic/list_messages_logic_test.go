@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"esx/app/assistant/internal/store"
@@ -43,7 +44,8 @@ func TestListMessagesReturnsLatestPageAndOlderCursor(t *testing.T) {
 func TestListMessagesRejectsBeforeAndAfterTogether(t *testing.T) {
 	logic := NewListMessagesLogic(context.Background(), &svc.ServiceContext{Store: store.NewMemoryStore()})
 	_, err := logic.ListMessages(&pb.ListMessagesReq{UserId: 7, BeforeId: 10, AfterId: 1})
-	if !errx.Is(err, errx.ParamError) {
+	var biz *errx.BizError
+	if !errors.As(err, &biz) || biz.Code != errx.ParamError || biz.Message != "不能同时按 before_id 和 after_id 翻页" {
 		t.Fatalf("err=%v", err)
 	}
 }

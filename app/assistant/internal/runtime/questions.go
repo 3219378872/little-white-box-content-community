@@ -15,6 +15,7 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/errx"
+	"esx/pkg/logging"
 )
 
 var errRunWaiting = errors.New("run yielded for user input")
@@ -104,12 +105,12 @@ func (e *Engine) waitForQuestions(ctx context.Context, run *store.Run, call llm.
 // ValidateAnswers 要求每个问题恰好一个处置，并按问题顺序返回规范化后的回答；正文合计不超过 2000 字。
 func ValidateAnswers(questions []store.Question, answers []store.QuestionAnswer) ([]store.QuestionAnswer, error) {
 	if len(answers) != len(questions) {
-		return nil, errx.New(errx.ParamError, "each question requires an explicit disposition")
+		return nil, errx.New(errx.ParamError, "每个问题都需要作答或明确跳过")
 	}
 	byID := map[string]store.QuestionAnswer{}
 	for _, answer := range answers {
 		if _, exists := byID[answer.QuestionID]; exists {
-			return nil, errx.New(errx.ParamError, "duplicate question answer")
+			return nil, errx.New(errx.ParamError, "同一问题不能重复作答")
 		}
 		byID[answer.QuestionID] = answer
 	}
@@ -118,27 +119,27 @@ func ValidateAnswers(questions []store.Question, answers []store.QuestionAnswer)
 	for _, question := range questions {
 		answer, ok := byID[question.ID]
 		if !ok {
-			return nil, errx.New(errx.ParamError, "answer belongs to another question")
+			return nil, errx.New(errx.ParamError, "回答与问题不匹配")
 		}
 		answer.Text = strings.TrimSpace(answer.Text)
 		total += utf8.RuneCountInString(answer.Text)
 		if total > 2000 {
-			return nil, errx.New(errx.ParamError, "answer text exceeds 2000 characters")
+			return nil, errx.New(errx.ParamError, "回答总字数不能超过 2000 字")
 		}
 		switch answer.Disposition {
 		case "answered":
 			if len(answer.SelectedOptionIDs) == 0 && answer.Text == "" {
-				return nil, errx.New(errx.ParamError, "empty answer")
+				return nil, errx.New(errx.ParamError, "回答内容不能为空")
 			}
 		case "unknown", "no_preference", "skipped":
 			if len(answer.SelectedOptionIDs) > 0 {
-				return nil, errx.New(errx.ParamError, "unknown or skipped answers cannot select options")
+				return nil, errx.New(errx.ParamError, "选择不知道、无偏好或跳过时不能再选选项")
 			}
 		default:
-			return nil, errx.New(errx.ParamError, "invalid answer disposition")
+			return nil, errx.New(errx.ParamError, "回答方式无效")
 		}
 		if question.Selection == "single" && len(answer.SelectedOptionIDs) > 1 {
-			return nil, errx.New(errx.ParamError, "single choice accepts one option")
+			return nil, errx.New(errx.ParamError, "单选题只能选择一个选项")
 		}
 		allowed := map[string]bool{}
 		for _, option := range question.Options {
@@ -147,7 +148,7 @@ func ValidateAnswers(questions []store.Question, answers []store.QuestionAnswer)
 		seen := map[string]bool{}
 		for _, id := range answer.SelectedOptionIDs {
 			if !allowed[id] || seen[id] {
-				return nil, errx.New(errx.ParamError, "invalid or duplicate option")
+				return nil, errx.New(errx.ParamError, "选项无效或重复")
 			}
 			seen[id] = true
 		}
@@ -220,7 +221,7 @@ func AnswerQuestions(ctx context.Context, st store.Store, userID, runID int64, q
 				return nil
 			}
 			if question.Status != "pending" || run.Status != store.StatusWaitingInput || run.CancelRequested || store.NowMs() >= question.DeadlineMs {
-				return errx.New(errx.ContentVersionConflict, "question is resolved, expired or cancelled")
+				return errx.New(errx.ContentVersionConflict, "这个问题已回答、已过期或已取消")
 			}
 			question.Answers = values
 			question.AnswerRequestID = requestID
@@ -289,7 +290,9 @@ func ResolveWaiting(ctx context.Context, st store.Store, runID, now int64) error
 			}
 		}
 		if pending == nil {
-			return errx.New(errx.SystemError, "waiting question missing")
+			// 内部不一致只进日志，用户只看到通用系统错误。
+			logging.WithContext(ctx).Errorw("assistant waiting run has no pending question", logging.Field("runId", runID))
+			return errx.NewWithCode(errx.SystemError)
 		}
 		if !cancelled && now < pending.DeadlineMs {
 			return nil
@@ -336,7 +339,7 @@ func (a *Acceptor) questionContext(ctx context.Context, userID int64, context *Q
 		return "", errx.NewWithCode(errx.NotFound)
 	}
 	if !store.IsTerminalStatus(run.Status) {
-		return "", errx.New(errx.ContentVersionConflict, "original run is still active")
+		return "", errx.New(errx.ContentVersionConflict, "原来的回答仍在进行中，请稍后再试")
 	}
 	questions, err := a.Store.ListQuestions(ctx, run.ID)
 	if err != nil {

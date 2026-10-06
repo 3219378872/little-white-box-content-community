@@ -35,7 +35,7 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 			return err
 		}
 		if row.Undone == 1 {
-			return errx.New(errx.ContentVersionConflict, "memory change already undone")
+			return errx.New(errx.ContentVersionConflict, msgAlreadyUndone)
 		}
 		// 条目版本必须仍等于该变更写入的版本。
 		current, err := s.getOwnedAnyForUpdate(ctx, session, userID, row.EntryID)
@@ -43,7 +43,7 @@ func (s *SQLStore) Undo(ctx context.Context, userID, changeID int64, nowMs int64
 			return err
 		}
 		if int64(current.Version) != row.ResultVersion {
-			return errx.New(errx.ContentVersionConflict, "memory version conflict")
+			return errx.New(errx.ContentVersionConflict, msgVersionConflict)
 		}
 		// 按原操作类型执行反向操作。
 		switch row.Op {
@@ -150,7 +150,7 @@ func (s *SQLStore) validateUndoRestore(ctx context.Context, session sqlx.Session
 		return err
 	}
 	if duplicate != nil && duplicate.ID != current.ID {
-		return errx.New(errx.ContentVersionConflict, "memory content already exists")
+		return errx.New(errx.ContentVersionConflict, msgRestoreConflict)
 	}
 	all, err := s.listActiveForUpdate(ctx, session, userID, current.Target)
 	if err != nil {
@@ -162,7 +162,7 @@ func (s *SQLStore) validateUndoRestore(ctx context.Context, session sqlx.Session
 	}
 	used += utf8.RuneCountInString(before.Content)
 	if used > LimitFor(current.Target) {
-		return errx.New(errx.ParamError, "memory capacity exceeded")
+		return errx.New(errx.ParamError, msgCapacityExceeded)
 	}
 	return nil
 }

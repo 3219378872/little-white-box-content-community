@@ -97,7 +97,7 @@ func (s *SQLStore) lockMutationTargets(ctx context.Context, session sqlx.Session
 		switch strings.ToLower(strings.TrimSpace(op.Op)) {
 		case OpAdd, "":
 			if !ValidTarget(op.Target) {
-				return errx.New(errx.ParamError, "memory target must be memory or user")
+				return errx.New(errx.ParamError, msgInvalidTarget)
 			}
 			targets[op.Target] = struct{}{}
 		case OpReplace, OpRemove:
@@ -107,7 +107,7 @@ func (s *SQLStore) lockMutationTargets(ctx context.Context, session sqlx.Session
 			}
 			targets[entry.Target] = struct{}{}
 		default:
-			return errx.New(errx.ParamError, "unknown memory op")
+			return errx.New(errx.ParamError, msgUnknownOp)
 		}
 	}
 	ordered := make([]string, 0, len(targets))
@@ -204,7 +204,7 @@ func (s *SQLStore) applyOne(ctx context.Context, session sqlx.Session, userID in
 		_, changeID, err := s.removeOne(ctx, session, userID, op.ID, op.Version, requestID, nowMs)
 		return nil, changeID, err
 	default:
-		return nil, 0, errx.New(errx.ParamError, "unknown memory op")
+		return nil, 0, errx.New(errx.ParamError, msgUnknownOp)
 	}
 }
 
@@ -238,7 +238,7 @@ func (s *SQLStore) findChangeByRequest(ctx context.Context, q rowQuerier, userID
 // addOne 新增条目：校验目标与内容安全，规范化去重，再检查容量后写入并记录变更。
 func (s *SQLStore) addOne(ctx context.Context, session sqlx.Session, userID int64, target, content, requestID string, nowMs int64) (*Entry, int64, error) {
 	if !ValidTarget(target) {
-		return nil, 0, errx.New(errx.ParamError, "memory target must be memory or user")
+		return nil, 0, errx.New(errx.ParamError, msgInvalidTarget)
 	}
 	content = strings.TrimSpace(content)
 	if err := ScanContent(ctx, s.Scanner, content); err != nil {
@@ -257,7 +257,7 @@ func (s *SQLStore) addOne(ctx context.Context, session sqlx.Session, userID int6
 		return nil, 0, err
 	}
 	if UsedRunes(all, target)+utf8.RuneCountInString(content) > LimitFor(target) {
-		return nil, 0, errx.New(errx.ParamError, "memory capacity exceeded")
+		return nil, 0, errx.New(errx.ParamError, msgCapacityExceeded)
 	}
 	res, err := session.ExecCtx(ctx, `INSERT INTO core_memory_entry (user_id, target, content, content_norm, version, deleted_at_ms, created_at_ms, updated_at_ms)
 		VALUES (?, ?, ?, ?, 1, NULL, ?, ?)`, userID, target, content, clipNorm(norm), nowMs, nowMs)
@@ -284,14 +284,14 @@ func (s *SQLStore) replaceOne(ctx context.Context, session sqlx.Session, userID,
 		return nil, 0, err
 	}
 	if current.Version != version {
-		return current, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return current, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	duplicate, err := s.findByNorm(ctx, session, userID, current.Target, Normalize(content))
 	if err != nil {
 		return nil, 0, err
 	}
 	if duplicate != nil && duplicate.ID != current.ID {
-		return nil, 0, errx.New(errx.ParamError, "memory content duplicates another entry")
+		return nil, 0, errx.New(errx.ParamError, msgDuplicateContent)
 	}
 	all, err := s.listActiveForUpdate(ctx, session, userID, current.Target)
 	if err != nil {
@@ -299,7 +299,7 @@ func (s *SQLStore) replaceOne(ctx context.Context, session sqlx.Session, userID,
 	}
 	used := UsedRunes(all, current.Target) - utf8.RuneCountInString(current.Content) + utf8.RuneCountInString(content)
 	if used > LimitFor(current.Target) {
-		return nil, 0, errx.New(errx.ParamError, "memory capacity exceeded")
+		return nil, 0, errx.New(errx.ParamError, msgCapacityExceeded)
 	}
 	next := current.Version + 1
 	res, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET content=?, content_norm=?, version=?, updated_at_ms=? WHERE id=? AND user_id=? AND version=? AND deleted_at_ms IS NULL`,
@@ -310,7 +310,7 @@ func (s *SQLStore) replaceOne(ctx context.Context, session sqlx.Session, userID,
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		fresh, _ := s.getOwned(ctx, session, userID, id)
-		return fresh, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return fresh, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	before := *current
 	current.Content = content
@@ -330,7 +330,7 @@ func (s *SQLStore) removeOne(ctx context.Context, session sqlx.Session, userID, 
 		return nil, 0, err
 	}
 	if current.Version != version {
-		return current, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return current, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	next := current.Version + 1
 	res, err := session.ExecCtx(ctx, `UPDATE core_memory_entry SET deleted_at_ms=?, version=?, updated_at_ms=? WHERE id=? AND user_id=? AND version=? AND deleted_at_ms IS NULL`,
@@ -340,7 +340,7 @@ func (s *SQLStore) removeOne(ctx context.Context, session sqlx.Session, userID, 
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return nil, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return nil, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	before := *current
 	current.Deleted = true
@@ -381,7 +381,7 @@ func requireMemoryCAS(result sql.Result) error {
 		return err
 	}
 	if affected != 1 {
-		return errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	return nil
 }

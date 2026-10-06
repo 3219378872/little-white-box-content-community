@@ -64,7 +64,12 @@ func (e *Engine) fail(ctx context.Context, run store.Run, code, text string) err
 // cancel 把 run 收尾为 cancelled。
 func (e *Engine) cancel(ctx context.Context, run store.Run) error {
 	run.CancelRequested = true
-	return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"})
+	return e.finish(ctx, run, store.StatusCancelled, store.EventError, cancelledPayload())
+}
+
+// cancelledPayload 是取消终态的错误事件；错误码供客户端判断，Text 直接展示给用户。
+func cancelledPayload() store.EventPayload {
+	return store.EventPayload{ErrorCode: "CANCELLED", Text: "运行已取消"}
 }
 
 // finish 结束 run 且不发布助手消息（失败、取消等）。
@@ -100,7 +105,7 @@ func (o terminalOutcome) withAssistantText(text string, result llm.Result) termi
 func cancelledOutcome() terminalOutcome {
 	return terminalOutcome{
 		status: store.StatusCancelled, eventType: store.EventError,
-		payload: store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"},
+		payload: cancelledPayload(),
 	}
 }
 

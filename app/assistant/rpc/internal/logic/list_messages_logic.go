@@ -37,7 +37,7 @@ func (l *ListMessagesLogic) ListMessages(in *pb.ListMessagesReq) (*pb.ListMessag
 		return nil, unavailableUntilStore()
 	}
 	if in.BeforeId > 0 && in.AfterId > 0 {
-		return nil, errx.New(errx.ParamError, "before_id and after_id are mutually exclusive")
+		return nil, errx.New(errx.ParamError, "不能同时按 before_id 和 after_id 翻页")
 	}
 	limit := int(in.Limit)
 	if limit <= 0 || limit > 100 {

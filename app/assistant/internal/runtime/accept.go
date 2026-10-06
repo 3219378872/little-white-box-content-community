@@ -378,7 +378,7 @@ func activeInputDisposition(ctx context.Context, tx store.Store, userID, activeR
 	disposition := DecideDisposition(active)
 	if active != nil && active.Status == store.StatusWaitingInput {
 		if protocolVersion < 2 {
-			return nil, "", errx.New(errx.ParamError, "client update required for this interaction")
+			return nil, "", errx.New(errx.ParamError, "当前客户端版本过低，请更新后继续")
 		}
 		if err := supersedeQuestionsTx(ctx, tx, active); err != nil {
 			return nil, "", err

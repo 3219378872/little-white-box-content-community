@@ -130,7 +130,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 	switch strings.ToLower(strings.TrimSpace(op.Op)) {
 	case OpAdd, "":
 		if !ValidTarget(op.Target) {
-			return nil, 0, errx.New(errx.ParamError, "memory target must be memory or user")
+			return nil, 0, errx.New(errx.ParamError, msgInvalidTarget)
 		}
 		content := strings.TrimSpace(op.Content)
 		if err := ScanContent(ctx, m.Scanner, content); err != nil {
@@ -146,7 +146,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		}
 		all := m.activeLocked(userID, op.Target)
 		if UsedRunes(all, op.Target)+utf8.RuneCountInString(content) > LimitFor(op.Target) {
-			return nil, 0, errx.New(errx.ParamError, "memory capacity exceeded")
+			return nil, 0, errx.New(errx.ParamError, msgCapacityExceeded)
 		}
 		id := m.next
 		m.next++
@@ -161,7 +161,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		}
 		if current.Version != op.Version {
 			cp := current
-			return &cp, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+			return &cp, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 		}
 		content := strings.TrimSpace(op.Content)
 		if err := ScanContent(ctx, m.Scanner, content); err != nil {
@@ -169,13 +169,13 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		}
 		for _, existing := range m.entries {
 			if existing.UserID == userID && existing.Target == current.Target && !existing.Deleted && existing.ID != current.ID && Normalize(existing.Content) == Normalize(content) {
-				return nil, 0, errx.New(errx.ParamError, "memory content duplicates another entry")
+				return nil, 0, errx.New(errx.ParamError, msgDuplicateContent)
 			}
 		}
 		all := m.activeLocked(userID, current.Target)
 		used := UsedRunes(all, current.Target) - utf8.RuneCountInString(current.Content) + utf8.RuneCountInString(content)
 		if used > LimitFor(current.Target) {
-			return nil, 0, errx.New(errx.ParamError, "memory capacity exceeded")
+			return nil, 0, errx.New(errx.ParamError, msgCapacityExceeded)
 		}
 		before := current
 		current.Content = content
@@ -190,7 +190,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 			return nil, 0, errx.NewWithCode(errx.NotFound)
 		}
 		if current.Version != op.Version {
-			return nil, 0, errx.New(errx.ContentVersionConflict, "memory version conflict")
+			return nil, 0, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 		}
 		before := current
 		current.Deleted = true
@@ -200,7 +200,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 		changeID := m.recordLocked(userID, op.ID, OpRemove, &before, &current, current.Version, requestID, nowMs)
 		return nil, changeID, nil
 	default:
-		return nil, 0, errx.New(errx.ParamError, "unknown memory op")
+		return nil, 0, errx.New(errx.ParamError, msgUnknownOp)
 	}
 }
 
@@ -213,14 +213,14 @@ func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) 
 		return nil, errx.NewWithCode(errx.NotFound)
 	}
 	if change.Undone {
-		return nil, errx.New(errx.ContentVersionConflict, "memory change already undone")
+		return nil, errx.New(errx.ContentVersionConflict, msgAlreadyUndone)
 	}
 	current, ok := m.entries[change.EntryID]
 	if !ok || current.UserID != userID {
 		return nil, errx.NewWithCode(errx.NotFound)
 	}
 	if current.Version != change.ResultVersion {
-		return nil, errx.New(errx.ContentVersionConflict, "memory version conflict")
+		return nil, errx.New(errx.ContentVersionConflict, msgVersionConflict)
 	}
 	switch change.Op {
 	case OpAdd:
@@ -235,7 +235,7 @@ func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) 
 		all := m.activeLocked(userID, current.Target)
 		for _, existing := range all {
 			if existing.ID != current.ID && Normalize(existing.Content) == Normalize(change.Before.Content) {
-				return nil, errx.New(errx.ContentVersionConflict, "memory content already exists")
+				return nil, errx.New(errx.ContentVersionConflict, msgRestoreConflict)
 			}
 		}
 		used := UsedRunes(all, current.Target) + utf8.RuneCountInString(change.Before.Content)
@@ -243,7 +243,7 @@ func (m *MapStore) Undo(_ context.Context, userID, changeID int64, nowMs int64) 
 			used -= utf8.RuneCountInString(current.Content)
 		}
 		if used > LimitFor(current.Target) {
-			return nil, errx.New(errx.ParamError, "memory capacity exceeded")
+			return nil, errx.New(errx.ParamError, msgCapacityExceeded)
 		}
 		restored := *change.Before
 		restored.Deleted = false
