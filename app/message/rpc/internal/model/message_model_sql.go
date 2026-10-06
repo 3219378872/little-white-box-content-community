@@ -3,20 +3,15 @@
 package model
 
 import (
-	"context"
 	"database/sql"
 	sqlc "esx/pkg/cachedstore"
 	cache "esx/pkg/modelcache"
 	sqlx "esx/pkg/sqlstore"
-	"fmt"
 	"time"
 )
 
-var (
-	messageRows = "`id`,`conversation_id`,`sender_id`,`receiver_id`,`content`,`msg_type`,`status`,`media_id`,`created_at`"
-
-	cacheMessageIdPrefix = "cache:message:id:"
-)
+// messageRows 是读取私信时的完整列清单，与 Message 字段一一对应。
+var messageRows = "`id`,`conversation_id`,`sender_id`,`receiver_id`,`content`,`msg_type`,`status`,`media_id`,`created_at`"
 
 type (
 	defaultMessageModel struct {
@@ -42,33 +37,5 @@ func newMessageModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	return &defaultMessageModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
 		table:      "`message`",
-	}
-}
-
-// Delete removes a message by id and evicts its cache key.
-func (m *defaultMessageModel) Delete(ctx context.Context, id int64) error {
-	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, id)
-	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
-		return conn.ExecCtx(ctx, query, id)
-	}, messageIdKey)
-	return err
-}
-
-// FindOne loads a message by id through the cache.
-func (m *defaultMessageModel) FindOne(ctx context.Context, id int64) (*Message, error) {
-	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, id)
-	var resp Message
-	err := m.QueryRowCtx(ctx, &resp, messageIdKey, func(ctx context.Context, conn sqlx.SqlConn, v any) error {
-		query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", messageRows, m.table)
-		return conn.QueryRowCtx(ctx, v, query, id)
-	})
-	switch err {
-	case nil:
-		return &resp, nil
-	case sqlc.ErrNotFound:
-		return nil, ErrNotFound
-	default:
-		return nil, err
 	}
 }
