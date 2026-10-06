@@ -40,6 +40,8 @@ func NewCountSyncConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeCountSyncBatch 把点赞/收藏行为同步为帖子与评论的计数；应用失败整批重试，
+// 按事件 ID 去重保证重放不会重复累计。
 func consumeCountSyncBatch(ctx context.Context, cs store.CountSyncStore, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

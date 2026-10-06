@@ -10,6 +10,7 @@ import (
 	"esx/pkg/util"
 )
 
+// buildBusinessBehaviorOutbox 把内容侧互动（如评论）转换为行为事件并封装为 outbox 事件，缺省的 ID 与时间就地补齐。
 func buildBusinessBehaviorOutbox(interaction event.InteractionEvent) (outboxx.Event, error) {
 	if interaction.EventID == 0 {
 		id, err := util.NextID()

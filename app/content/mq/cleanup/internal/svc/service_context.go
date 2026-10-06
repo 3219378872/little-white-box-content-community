@@ -10,6 +10,7 @@ import (
 	redis "esx/pkg/redisstore"
 )
 
+// ServiceContext 持有清理与计数同步存储；未配置数据库时不启用计数同步。
 type ServiceContext struct {
 	Config         config.Config
 	CleanupStore   store.CleanupStore
@@ -17,6 +18,7 @@ type ServiceContext struct {
 	RawDB          *sql.DB
 }
 
+// NewServiceContext 连接 Redis，配置了数据库时再创建计数同步存储。
 func NewServiceContext(c config.Config) *ServiceContext {
 	rds := redis.MustNewRedis(c.Redis)
 	var rawDB *sql.DB
@@ -37,6 +39,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close 关闭数据库连接。
 func (s *ServiceContext) Close() error {
 	if s == nil || s.RawDB == nil {
 		return nil

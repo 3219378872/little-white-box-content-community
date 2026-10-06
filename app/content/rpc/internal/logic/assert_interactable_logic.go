@@ -18,12 +18,14 @@ const (
 	interactableComment int32 = 2
 )
 
+// AssertInteractableLogic 承载 AssertInteractable 接口的业务逻辑；每个请求新建一个实例。
 type AssertInteractableLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewAssertInteractableLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewAssertInteractableLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssertInteractableLogic {
 	return &AssertInteractableLogic{
 		ctx:    ctx,
@@ -51,6 +53,7 @@ func (l *AssertInteractableLogic) AssertInteractable(in *pb.AssertInteractableRe
 	}
 }
 
+// assertComment 要求评论有效，且其所属帖子已发布。
 func (l *AssertInteractableLogic) assertComment(commentID int64) (*pb.AssertInteractableResp, error) {
 	if l.svcCtx == nil || l.svcCtx.CommentModel == nil {
 		return nil, errx.NewWithCode(errx.ServiceUnavailable)
@@ -75,6 +78,7 @@ func (l *AssertInteractableLogic) assertComment(commentID int64) (*pb.AssertInte
 	return &pb.AssertInteractableResp{}, nil
 }
 
+// requirePublishedPost 要求帖子存在且已发布；不可见与不存在统一返回内容不存在。
 func (l *AssertInteractableLogic) requirePublishedPost(postID int64) error {
 	if l.svcCtx == nil || l.svcCtx.PostModel == nil {
 		return errx.NewWithCode(errx.ServiceUnavailable)

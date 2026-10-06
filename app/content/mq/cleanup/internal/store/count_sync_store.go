@@ -29,24 +29,29 @@ type CountSyncStore interface {
 	ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error
 }
 
+// RedisCmdable 是计数同步用到的 Redis 子集：去重占位与缓存失效。
 type RedisCmdable interface {
 	SetnxExCtx(ctx context.Context, key, value string, seconds int) (bool, error)
 	DelCtx(ctx context.Context, keys ...string) (int, error)
 }
 
+// DBExecutor 是计数同步用到的数据库执行接口。
 type DBExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
+// countSyncStore 用 MySQL 保存计数，用 Redis 做事件去重与缓存失效。
 type countSyncStore struct {
 	db    DBExecutor
 	redis RedisCmdable
 }
 
+// NewCountSyncStore 创建计数同步存储。
 func NewCountSyncStore(db DBExecutor, redisClient RedisCmdable) CountSyncStore {
 	return &countSyncStore{db: db, redis: redisClient}
 }
 
+// ApplyBehaviorCount 应用一条行为事件对计数的影响；非计数类行为直接忽略。
 func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error {
 	if err := behavior.Validate(); err != nil {
 		return fmt.Errorf("count-sync: invalid behavior event: %w", err)
@@ -82,6 +87,7 @@ func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.
 	return nil
 }
 
+// behaviorCountUpdate 把行为映射为要调整的计数列与增量。
 func behaviorCountUpdate(action string) (column string, delta int64, ok bool) {
 	switch action {
 	case event.BehaviorActionLike:
@@ -97,6 +103,7 @@ func behaviorCountUpdate(action string) (column string, delta int64, ok bool) {
 	}
 }
 
+// applyDelta 调整帖子或评论的计数列，减少时不低于 0；帖子点赞数走带事件的事务路径。
 func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targetID int64, column string, delta, eventID int64) error {
 	if column != "like_count" && column != "favorite_count" {
 		return fmt.Errorf("count-sync: unsupported column %q", column)
@@ -134,6 +141,8 @@ func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targ
 	}
 }
 
+// applyPostLikeCount 在一个事务内调整帖子点赞数，并写入带最新计数的 counted 事件到 outbox，
+// 搜索等下游据此局部更新计数；帖子不存在时返回错误。
 func applyPostLikeCount(ctx context.Context, db *sql.DB, postID, delta, eventID int64) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -182,6 +191,7 @@ func applyPostLikeCount(ctx context.Context, db *sql.DB, postID, delta, eventID 
 	return tx.Commit()
 }
 
+// invalidateCaches 删除被调整对象的详情缓存，下次读取回源数据库。
 func (s *countSyncStore) invalidateCaches(ctx context.Context, targetType string, targetID int64) {
 	key := postCacheKeyPrefix + strconv.FormatInt(targetID, 10)
 	if targetType == "comment" {

@@ -48,6 +48,7 @@ type (
 	}
 )
 
+// newTagModel creates the cached base model.
 func newTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultTagModel {
 	return &defaultTagModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -55,6 +56,7 @@ func newTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *de
 	}
 }
 
+// Delete removes a tag and evicts its id and name cache keys.
 func (m *defaultTagModel) Delete(ctx context.Context, id int64) error {
 	data, err := m.FindOne(ctx, id)
 	if err != nil {
@@ -70,6 +72,7 @@ func (m *defaultTagModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a tag by id through the cache.
 func (m *defaultTagModel) FindOne(ctx context.Context, id int64) (*Tag, error) {
 	tagIdKey := fmt.Sprintf("%s%v", cacheTagIdPrefix, id)
 	var resp Tag
@@ -87,6 +90,8 @@ func (m *defaultTagModel) FindOne(ctx context.Context, id int64) (*Tag, error) {
 	}
 }
 
+// FindOneByName loads a tag by its unique name; the cache maps the name to the
+// id, then to the row.
 func (m *defaultTagModel) FindOneByName(ctx context.Context, name string) (*Tag, error) {
 	tagNameKey := fmt.Sprintf("%s%v", cacheTagNamePrefix, name)
 	var resp Tag
@@ -107,6 +112,7 @@ func (m *defaultTagModel) FindOneByName(ctx context.Context, name string) (*Tag,
 	}
 }
 
+// Insert creates a tag and evicts its cache keys.
 func (m *defaultTagModel) Insert(ctx context.Context, data *Tag) (sql.Result, error) {
 	tagIdKey := fmt.Sprintf("%s%v", cacheTagIdPrefix, data.Id)
 	tagNameKey := fmt.Sprintf("%s%v", cacheTagNamePrefix, data.Name)
@@ -117,6 +123,7 @@ func (m *defaultTagModel) Insert(ctx context.Context, data *Tag) (sql.Result, er
 	return ret, err
 }
 
+// Update rewrites a tag and evicts its cache keys.
 func (m *defaultTagModel) Update(ctx context.Context, newData *Tag) error {
 	data, err := m.FindOne(ctx, newData.Id)
 	if err != nil {
@@ -132,10 +139,12 @@ func (m *defaultTagModel) Update(ctx context.Context, newData *Tag) error {
 	return err
 }
 
+// formatPrimary builds the id cache key used by the unique-key index cache.
 func (m *defaultTagModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cacheTagIdPrefix, primary)
 }
 
+// queryPrimary loads the row for an id resolved from the unique-key cache.
 func (m *defaultTagModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", tagRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)

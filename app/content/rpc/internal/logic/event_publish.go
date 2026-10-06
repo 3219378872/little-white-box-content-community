@@ -13,6 +13,7 @@ import (
 
 const postEventExcerptRunes = 256
 
+// runePrefix 按字符截取前 n 个字符，避免切断多字节字符。
 func runePrefix(s string, n int) string {
 	if n <= 0 || s == "" {
 		return ""
@@ -24,6 +25,7 @@ func runePrefix(s string, n int) string {
 	return string(runes[:n])
 }
 
+// buildPostOutboxEvent 补齐事件 ID 与时间并校验后封装为 outbox 事件；以帖子 ID 作为消息 Key，同一帖子的事件按序投递。
 func buildPostOutboxEvent(topic string, e event.PostEvent) (outboxx.Event, error) {
 	if e.EventID == 0 {
 		id, err := util.NextID()

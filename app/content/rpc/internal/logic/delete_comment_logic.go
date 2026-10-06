@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeleteCommentLogic 承载 DeleteComment 接口的业务逻辑；每个请求新建一个实例。
 type DeleteCommentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewDeleteCommentLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewDeleteCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteCommentLogic {
 	return &DeleteCommentLogic{
 		ctx:    ctx,

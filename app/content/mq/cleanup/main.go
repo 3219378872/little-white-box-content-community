@@ -18,6 +18,7 @@ import (
 
 var configFile = flag.String("f", "etc/content-cleanup.yaml", "config file")
 
+// main 启动帖子删除清理消费者，配置了计数同步时一并启动计数同步消费者。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()
@@ -55,6 +56,7 @@ func main() {
 	<-proc.Done()
 }
 
+// shutdownContentCleanup 先停两个消费者，最后关闭数据库，避免在途消息写入已关闭的连接。
 func shutdownContentCleanup(logger logging.Logger, countSync, cleanup, database func() error) {
 	cleanupx.Shutdown(logger, "count-sync consumer", countSync)
 	cleanupx.Shutdown(logger, "content-cleanup consumer", cleanup)

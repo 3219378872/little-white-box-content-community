@@ -38,6 +38,7 @@ func NewPostTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	}
 }
 
+// FindTagNamesByPostId 返回帖子的全部标签名。
 func (m *customPostTagModel) FindTagNamesByPostId(ctx context.Context, postId int64) ([]string, error) {
 	var rows []struct {
 		TagName string `db:"tag_name"`
@@ -109,6 +110,7 @@ func (m *customPostTagModel) FindPostIdsByTagName(ctx context.Context, tagName s
 	return postIds, total, nil
 }
 
+// DeleteByPostId 删除帖子的全部标签关联。
 func (m *customPostTagModel) DeleteByPostId(ctx context.Context, postId int64) error {
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
 		query := fmt.Sprintf("delete from %s where `post_id` = ?", m.table)
@@ -135,6 +137,7 @@ func (m *customPostTagModel) BatchInsertTagsByPostId(ctx context.Context, conn s
 	})
 }
 
+// BatchInsertTagsByPostIdTx 在调用方事务内批量插入标签关联，ids 与 tags 一一对应。
 func (m *customPostTagModel) BatchInsertTagsByPostIdTx(ctx context.Context, tx *sql.Tx, postId int64, tags []string, ids []int64) error {
 	if len(tags) == 0 {
 		return nil

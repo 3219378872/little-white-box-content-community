@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUserPostsLogic 承载 GetUserPosts 接口的业务逻辑；每个请求新建一个实例。
 type GetUserPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetUserPostsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserPostsLogic {
 	return &GetUserPostsLogic{
 		ctx:    ctx,

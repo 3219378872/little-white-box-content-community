@@ -33,6 +33,8 @@ func NewCleanupConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeCleanupBatch 为已删除帖子清理 Redis 中的统计、热榜与标签榜；清理失败整批重试，
+// 重复删除不存在的成员是安全的。
 func consumeCleanupBatch(ctx context.Context, cs store.CleanupStore, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

@@ -19,6 +19,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// CreateCommentLogic 承载 CreateComment 接口的业务逻辑；每个请求新建一个实例。
 type CreateCommentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -42,6 +43,7 @@ func commentIdempotencyRecord(in *pb.CreateCommentReq) idempotencyx.IdempotencyR
 	}
 }
 
+// NewCreateCommentLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateCommentLogic {
 	return &CreateCommentLogic{
 		ctx:    ctx,
@@ -130,6 +132,7 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 	}, nil
 }
 
+// validateCommentTarget 确认帖子已发布；回复时还要求父评论属于同一帖子、被回复者是父评论作者且父评论仍有效。
 func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) error {
 	// 验证帖子是否存在
 	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)

@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetCommentRepliesLogic 承载 GetCommentReplies 接口的业务逻辑；每个请求新建一个实例。
 type GetCommentRepliesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetCommentRepliesLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetCommentRepliesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentRepliesLogic {
 	return &GetCommentRepliesLogic{
 		ctx:    ctx,

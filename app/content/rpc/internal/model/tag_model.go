@@ -30,6 +30,7 @@ func NewTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) Tag
 	}
 }
 
+// FindList returns active tags ordered by post count, defaulting to 20.
 func (m *customTagModel) FindList(ctx context.Context, limit int) ([]*Tag, error) {
 	if limit <= 0 {
 		limit = 20

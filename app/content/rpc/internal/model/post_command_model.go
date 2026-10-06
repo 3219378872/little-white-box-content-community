@@ -14,10 +14,12 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// OutboxEnqueuer 在业务事务内写入 outbox 事件。
 type OutboxEnqueuer interface {
 	Enqueue(ctx context.Context, session sqlx.Session, event outboxx.Event) error
 }
 
+// PostCommandModel 是帖子的事务写入：帖子、标签、幂等记录与 outbox 事件一起提交。
 type PostCommandModel interface {
 	CreatePost(ctx context.Context, post *Post, tags []string, tagIDs []int64, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (postID int64, created bool, err error)
 	// replaceTags=false 时保留现有 post_tag 关联（局部更新未显式提供 tags），
@@ -26,6 +28,7 @@ type PostCommandModel interface {
 	DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error
 }
 
+// IdempotentPostCommandModel 是带幂等键的更新与删除；重放时返回首次执行的结果而不再次修改。
 type IdempotentPostCommandModel interface {
 	ReplayPostCommand(ctx context.Context, idem idempotencyx.IdempotencyRecord) (result int64, found bool, err error)
 	UpdatePostIdempotent(ctx context.Context, postID int64, fields map[string]any, tags []string, tagIDs []int64,
@@ -34,15 +37,19 @@ type IdempotentPostCommandModel interface {
 		idem idempotencyx.IdempotencyRecord) (applied bool, err error)
 }
 
+// postCommandModel 是基于 MySQL 事务的实现。
 type postCommandModel struct {
 	conn   sqlx.SqlConn
 	outbox OutboxEnqueuer
 }
 
+// NewPostCommandModel 创建帖子写模型；outbox 必须与业务写入共用同一连接。
 func NewPostCommandModel(conn sqlx.SqlConn, outbox OutboxEnqueuer) PostCommandModel {
 	return &postCommandModel{conn: conn, outbox: outbox}
 }
 
+// CreatePost 在一个事务内解析幂等键、插入帖子与标签并写入事件；
+// 幂等重放返回首次创建的帖子 ID，created=false。
 func (m *postCommandModel) CreatePost(
 	ctx context.Context,
 	post *Post,
@@ -79,6 +86,7 @@ func (m *postCommandModel) CreatePost(
 	return postID, created, err
 }
 
+// UpdatePost 按期望 revision 条件更新帖子字段，可选整体替换标签，并在同一事务内写入事件；revision 不符视为冲突。
 func (m *postCommandModel) UpdatePost(
 	ctx context.Context,
 	postID int64,
@@ -111,6 +119,7 @@ func (m *postCommandModel) UpdatePost(
 	})
 }
 
+// ReplayPostCommand 查询幂等键是否已执行；找到时返回首次结果，命令内容不同则返回冲突。
 func (m *postCommandModel) ReplayPostCommand(ctx context.Context, idem idempotencyx.IdempotencyRecord) (int64, bool, error) {
 	if idem.Key == "" {
 		return 0, false, nil
@@ -136,6 +145,7 @@ func (m *postCommandModel) ReplayPostCommand(ctx context.Context, idem idempoten
 	return row.ResourceID, true, nil
 }
 
+// UpdatePostIdempotent 与 UpdatePost 相同，但先在事务内登记幂等键；键已存在时 applied=false，不再修改。
 func (m *postCommandModel) UpdatePostIdempotent(
 	ctx context.Context,
 	postID int64,
@@ -183,6 +193,7 @@ func (m *postCommandModel) UpdatePostIdempotent(
 	return applied, err
 }
 
+// DeletePost 按期望 revision 软删帖子（status=2）并推进 revision，同事务写入删除事件。
 func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event outboxx.Event, expectedRevision int64) error {
 	if postID <= 0 || m.conn == nil || m.outbox == nil {
 		return fmt.Errorf("content command model is not configured")
@@ -208,6 +219,7 @@ func (m *postCommandModel) DeletePost(ctx context.Context, postID int64, event o
 	})
 }
 
+// DeletePostIdempotent 与 DeletePost 相同，但先在事务内登记幂等键；键已存在时 applied=false。
 func (m *postCommandModel) DeletePostIdempotent(
 	ctx context.Context,
 	postID int64,
@@ -252,6 +264,7 @@ func (m *postCommandModel) DeletePostIdempotent(
 	return applied, err
 }
 
+// insertPostSession 在事务内插入帖子行。
 func insertPostSession(ctx context.Context, session sqlx.Session, post *Post) error {
 	_, err := session.ExecCtx(ctx,
 		"INSERT INTO `post` (`id`, `author_id`, `title`, `content`, `images`, `media_ids`, `status`, `revision`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -260,6 +273,7 @@ func insertPostSession(ctx context.Context, session sqlx.Session, post *Post) er
 	return err
 }
 
+// insertPostTagsSession 在事务内插入帖子的标签关联，tagIDs 与 tags 一一对应。
 func insertPostTagsSession(
 	ctx context.Context,
 	session sqlx.Session,
@@ -278,6 +292,7 @@ func insertPostTagsSession(
 	return nil
 }
 
+// updatePostFieldsSession 只允许白名单列，按期望 revision 条件更新并推进 revision。
 func updatePostFieldsSession(
 	ctx context.Context,
 	session sqlx.Session,

@@ -21,6 +21,8 @@ func Fetch(client PostsByIDs) visibilityx.Fetcher[*contentservice.PostInfo] {
 	return fetch(client, false)
 }
 
+// fetch adapts the content client to visibilityx.Fetcher; a missing client or
+// nil response is reported as service unavailable rather than "no posts".
 func fetch(client PostsByIDs, skipTags bool) visibilityx.Fetcher[*contentservice.PostInfo] {
 	return func(ctx context.Context, ids []int64) ([]*contentservice.PostInfo, error) {
 		if client == nil {

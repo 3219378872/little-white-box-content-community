@@ -49,6 +49,7 @@ type (
 	}
 )
 
+// newCommentModel creates the cached base model.
 func newCommentModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultCommentModel {
 	return &defaultCommentModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -56,6 +57,7 @@ func newCommentModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	}
 }
 
+// Delete hard-deletes a comment and evicts its cache key; business deletes are soft.
 func (m *defaultCommentModel) Delete(ctx context.Context, id int64) error {
 	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -65,6 +67,7 @@ func (m *defaultCommentModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a comment by id through the cache.
 func (m *defaultCommentModel) FindOne(ctx context.Context, id int64) (*Comment, error) {
 	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, id)
 	var resp Comment
@@ -82,6 +85,7 @@ func (m *defaultCommentModel) FindOne(ctx context.Context, id int64) (*Comment, 
 	}
 }
 
+// Insert creates a comment and evicts its cache key.
 func (m *defaultCommentModel) Insert(ctx context.Context, data *Comment) (sql.Result, error) {
 	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -91,6 +95,7 @@ func (m *defaultCommentModel) Insert(ctx context.Context, data *Comment) (sql.Re
 	return ret, err
 }
 
+// Update rewrites a comment and evicts its cache key.
 func (m *defaultCommentModel) Update(ctx context.Context, data *Comment) error {
 	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {

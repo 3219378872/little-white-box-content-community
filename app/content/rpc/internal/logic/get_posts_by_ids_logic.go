@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetPostsByIdsLogic 承载 GetPostsByIds 接口的业务逻辑；每个请求新建一个实例。
 type GetPostsByIdsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetPostsByIdsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetPostsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostsByIdsLogic {
 	return &GetPostsByIdsLogic{
 		ctx:    ctx,

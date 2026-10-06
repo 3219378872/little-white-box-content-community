@@ -59,6 +59,7 @@ type (
 	}
 )
 
+// newPostModel creates the cached base model.
 func newPostModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultPostModel {
 	return &defaultPostModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -66,6 +67,7 @@ func newPostModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *d
 	}
 }
 
+// Delete hard-deletes a post and evicts its cache key; business deletes are soft.
 func (m *defaultPostModel) Delete(ctx context.Context, id int64) error {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -75,6 +77,7 @@ func (m *defaultPostModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a post by id through the cache.
 func (m *defaultPostModel) FindOne(ctx context.Context, id int64) (*Post, error) {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, id)
 	var resp Post
@@ -92,6 +95,7 @@ func (m *defaultPostModel) FindOne(ctx context.Context, id int64) (*Post, error)
 	}
 }
 
+// Insert creates a post and evicts its cache key.
 func (m *defaultPostModel) Insert(ctx context.Context, data *Post) (sql.Result, error) {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, data.Id)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
@@ -101,6 +105,7 @@ func (m *defaultPostModel) Insert(ctx context.Context, data *Post) (sql.Result, 
 	return ret, err
 }
 
+// Update rewrites a post and evicts its cache key.
 func (m *defaultPostModel) Update(ctx context.Context, data *Post) error {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, data.Id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {

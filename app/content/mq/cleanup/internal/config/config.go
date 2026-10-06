@@ -9,6 +9,8 @@ import (
 	redis "esx/pkg/redisstore"
 )
 
+// Config holds the cleanup consumer settings; CountSync and DataSource are
+// optional and enable the interaction count-sync consumer.
 type Config struct {
 	MQ         mqx.ConsumerConfig
 	CountSync  mqx.ConsumerConfig `json:",optional"`

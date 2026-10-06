@@ -16,6 +16,7 @@ import (
 
 const recordViewMetadata = "x-xbh-record-view"
 
+// recordViewRequested 判断调用方是否通过 RPC 元数据要求记一次浏览。
 func recordViewRequested(ctx context.Context) bool {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -25,12 +26,14 @@ func recordViewRequested(ctx context.Context) bool {
 	return len(values) > 0 && values[0] == "1"
 }
 
+// GetPostLogic 承载 GetPost 接口的业务逻辑；每个请求新建一个实例。
 type GetPostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetPostLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLogic {
 	return &GetPostLogic{
 		ctx:    ctx,

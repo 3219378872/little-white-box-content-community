@@ -16,20 +16,25 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// CommentCommandModel 是评论的事务写入：评论、帖子计数、幂等记录与 outbox 事件一起提交。
 type CommentCommandModel interface {
 	CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (commentID int64, created bool, err error)
 	DeleteComment(ctx context.Context, comment *Comment) error
 }
 
+// commentCommandModel 是基于 MySQL 事务的实现。
 type commentCommandModel struct {
 	conn   sqlx.SqlConn
 	outbox OutboxEnqueuer
 }
 
+// NewCommentCommandModel 创建评论写模型；outbox 必须与业务写入共用同一连接。
 func NewCommentCommandModel(conn sqlx.SqlConn, outbox OutboxEnqueuer) CommentCommandModel {
 	return &commentCommandModel{conn: conn, outbox: outbox}
 }
 
+// CreateComment 在一个事务内解析幂等键、插入评论、增加帖子评论数并写入事件；
+// 幂等重放返回首次创建的评论 ID，created=false。
 func (m *commentCommandModel) CreateComment(ctx context.Context, comment *Comment, event outboxx.Event, idem idempotencyx.IdempotencyRecord) (commentID int64, created bool, err error) {
 	if comment == nil || m.conn == nil || m.outbox == nil {
 		return 0, false, fmt.Errorf("comment command model is not configured")
@@ -150,6 +155,7 @@ func (m *commentCommandModel) DeleteComment(ctx context.Context, comment *Commen
 	})
 }
 
+// enqueuePostCounts 读取帖子当前计数，写入 counted 事件，供搜索等下游局部更新计数。
 func enqueuePostCounts(ctx context.Context, session sqlx.Session, outbox OutboxEnqueuer, postID int64) error {
 	var counts struct {
 		LikeCount    int64 `db:"like_count"`

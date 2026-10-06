@@ -203,6 +203,7 @@ func (m *customPostModel) InsertPost(ctx context.Context, post *Post) error {
 	return err
 }
 
+// InsertPostTx 在调用方事务内插入帖子；没有图片时不写 images 列，保持 NULL。
 func (m *customPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, post *Post) error {
 	if tx == nil {
 		return fmt.Errorf("nil sql transaction")
@@ -246,6 +247,7 @@ func curSortBy(cur *PostListCursor) int {
 	return cur.SortBy
 }
 
+// UpdateStatus 修改帖子状态并清除其缓存。
 func (m *customPostModel) UpdateStatus(ctx context.Context, id int64, status int64) error {
 	postIdKey := fmt.Sprintf("%s%v", cachePostIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
@@ -279,6 +281,7 @@ func (m *customPostModel) UpdateFields(ctx context.Context, id int64, fields map
 	return err
 }
 
+// InvalidatePostCache 删除帖子的 ID 缓存。
 func (m *customPostModel) InvalidatePostCache(ctx context.Context, id int64) error {
 	return m.DelCacheCtx(ctx, fmt.Sprintf("%s%v", cachePostIdPrefix, id))
 }

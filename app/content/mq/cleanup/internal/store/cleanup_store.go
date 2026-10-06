@@ -20,6 +20,7 @@ type RedisCleanupStore struct {
 	rds *redis.Redis
 }
 
+// NewRedisCleanupStore 创建基于 Redis 的清理存储。
 func NewRedisCleanupStore(rds *redis.Redis) *RedisCleanupStore {
 	return &RedisCleanupStore{rds: rds}
 }

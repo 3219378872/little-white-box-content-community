@@ -12,6 +12,7 @@ import (
 // 编码总是携带全部字段，解码按目标列表的 keyset 列序取前缀，
 // 与 model.listKeysetColumns / userPostsKeysetColumns 严格对应。
 
+// postListKind 区分全局列表与用户帖子列表，两者的游标 keyset 列不同。
 type postListKind int
 
 const (

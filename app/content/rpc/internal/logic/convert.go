@@ -36,6 +36,7 @@ func PostToPostInfo(post *model2.Post, tags []string) *pb.PostInfo {
 	}
 }
 
+// decodeStringSlice 解析字符串数组列；兼容旧数据中以逗号分隔的格式。
 func decodeStringSlice(raw string, valid bool) []string {
 	if !valid || raw == "" {
 		return []string{}

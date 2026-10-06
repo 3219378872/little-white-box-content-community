@@ -5,6 +5,7 @@ import (
 	"esx/pkg/visibilityx"
 )
 
+// indexPublishedPosts 按 ID 索引已发布的帖子，过滤不可见的行。
 func indexPublishedPosts(posts []*model.Post) map[int64]*model.Post {
 	out := make(map[int64]*model.Post, len(posts))
 	for _, post := range posts {
@@ -16,6 +17,7 @@ func indexPublishedPosts(posts []*model.Post) map[int64]*model.Post {
 	return out
 }
 
+// keepPublishedPosts 保留已发布的帖子并保持原顺序。
 func keepPublishedPosts(posts []*model.Post) []*model.Post {
 	out := make([]*model.Post, 0, len(posts))
 	for _, post := range posts {
@@ -29,6 +31,7 @@ func keepPublishedPosts(posts []*model.Post) []*model.Post {
 
 const commentActiveStatus int64 = 1
 
+// keepActiveComments 保留有效评论并保持原顺序。
 func keepActiveComments(comments []*model.Comment) []*model.Comment {
 	out := make([]*model.Comment, 0, len(comments))
 	for _, comment := range comments {

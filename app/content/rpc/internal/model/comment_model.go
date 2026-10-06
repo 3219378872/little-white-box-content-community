@@ -55,6 +55,7 @@ func (m *customCommentModel) FindCommentById(ctx context.Context, id int64) (*Co
 	}
 }
 
+// FindActiveByIds 返回某帖子下指定 ID 中仍有效的评论，按 ID 升序。
 func (m *customCommentModel) FindActiveByIds(ctx context.Context, postID int64, ids []int64) ([]*Comment, error) {
 	out := []*Comment{}
 	if len(ids) == 0 {
@@ -80,6 +81,7 @@ func (m *customCommentModel) InsertComment(ctx context.Context, comment *Comment
 	return err
 }
 
+// FindByPostId 分页返回帖子的有效顶层评论（不含回复）及总数；sortBy=2 按点赞数，否则按时间倒序。
 func (m *customCommentModel) FindByPostId(ctx context.Context, postId int64, page, pageSize int, sortBy int) ([]*Comment, int64, error) {
 	offset := (page - 1) * pageSize
 
@@ -155,6 +157,7 @@ func (m *customCommentModel) FindByParentIds(ctx context.Context, postId int64, 
 	return comments, nil
 }
 
+// UpdateStatus 修改评论状态并清除其缓存。
 func (m *customCommentModel) UpdateStatus(ctx context.Context, id int64, status int64) error {
 	commentIdKey := fmt.Sprintf("%s%v", cacheCommentIdPrefix, id)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
@@ -164,6 +167,7 @@ func (m *customCommentModel) UpdateStatus(ctx context.Context, id int64, status 
 	return err
 }
 
+// InvalidateCommentCache 删除评论的 ID 缓存。
 func (m *customCommentModel) InvalidateCommentCache(ctx context.Context, id int64) error {
 	return m.DelCacheCtx(ctx, fmt.Sprintf("%s%v", cacheCommentIdPrefix, id))
 }

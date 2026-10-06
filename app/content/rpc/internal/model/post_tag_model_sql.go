@@ -43,6 +43,7 @@ type (
 	}
 )
 
+// newPostTagModel creates the cached base model.
 func newPostTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultPostTagModel {
 	return &defaultPostTagModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -50,6 +51,7 @@ func newPostTagModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option)
 	}
 }
 
+// Delete removes a post-tag relation and evicts its cache keys.
 func (m *defaultPostTagModel) Delete(ctx context.Context, id int64) error {
 	data, err := m.FindOne(ctx, id)
 	if err != nil {
@@ -65,6 +67,7 @@ func (m *defaultPostTagModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a post-tag relation by id through the cache.
 func (m *defaultPostTagModel) FindOne(ctx context.Context, id int64) (*PostTag, error) {
 	postTagIdKey := fmt.Sprintf("%s%v", cachePostTagIdPrefix, id)
 	var resp PostTag
@@ -82,6 +85,8 @@ func (m *defaultPostTagModel) FindOne(ctx context.Context, id int64) (*PostTag, 
 	}
 }
 
+// FindOneByPostIdTagName loads a relation by its unique (post, tag) key; the
+// cache maps that key to the id, then to the row.
 func (m *defaultPostTagModel) FindOneByPostIdTagName(ctx context.Context, postId int64, tagName string) (*PostTag, error) {
 	postTagPostIdTagNameKey := fmt.Sprintf("%s%v:%v", cachePostTagPostIdTagNamePrefix, postId, tagName)
 	var resp PostTag
@@ -102,6 +107,7 @@ func (m *defaultPostTagModel) FindOneByPostIdTagName(ctx context.Context, postId
 	}
 }
 
+// Insert creates a post-tag relation and evicts its cache keys.
 func (m *defaultPostTagModel) Insert(ctx context.Context, data *PostTag) (sql.Result, error) {
 	postTagIdKey := fmt.Sprintf("%s%v", cachePostTagIdPrefix, data.Id)
 	postTagPostIdTagNameKey := fmt.Sprintf("%s%v:%v", cachePostTagPostIdTagNamePrefix, data.PostId, data.TagName)
@@ -112,6 +118,7 @@ func (m *defaultPostTagModel) Insert(ctx context.Context, data *PostTag) (sql.Re
 	return ret, err
 }
 
+// Update rewrites a post-tag relation and evicts its cache keys.
 func (m *defaultPostTagModel) Update(ctx context.Context, newData *PostTag) error {
 	data, err := m.FindOne(ctx, newData.Id)
 	if err != nil {
@@ -127,10 +134,12 @@ func (m *defaultPostTagModel) Update(ctx context.Context, newData *PostTag) erro
 	return err
 }
 
+// formatPrimary builds the id cache key used by the unique-key index cache.
 func (m *defaultPostTagModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cachePostTagIdPrefix, primary)
 }
 
+// queryPrimary loads the row for an id resolved from the unique-key cache.
 func (m *defaultPostTagModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", postTagRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)

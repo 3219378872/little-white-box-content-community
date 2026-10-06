@@ -19,6 +19,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// ServiceContext holds content storage, command models, the media client and
+// the outbox relay.
 type ServiceContext struct {
 	Config              config.Config
 	DB                  *sql.DB
@@ -35,8 +37,11 @@ type ServiceContext struct {
 	MQProducer          *mqx.Producer
 }
 
+// NewServiceContext wires MySQL, the ID generator, cached models, the optional media
+// client and the outbox relay (only when MQ is configured).
 func NewServiceContext(c config.Config) *ServiceContext {
-	// SQL arguments contain community text and outbox payloads (REL-022).
+	// SQL arguments carry community text and outbox payloads; pkg/sqlstore never
+	// logs statements or arguments (REL-022).
 	db, err := sql.Open("mysql", c.DataSource)
 	if err != nil {
 		panic(fmt.Sprintf("数据库连接失败: %v", err))
@@ -100,6 +105,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close shuts down the MQ producer and the database pool, joining their errors.
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

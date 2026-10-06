@@ -56,6 +56,7 @@ func validatePostMedia(ctx context.Context, logger logging.Logger, media mediase
 	return urls, nil
 }
 
+// createPostImages 返回帖子要保存的图片地址；客户端提供的地址必须与媒体服务校验结果完全一致。
 func createPostImages(images, verifiedURLs []string) ([]string, error) {
 	if len(images) > 0 && !slices.Equal(images, verifiedURLs) {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -135,6 +136,7 @@ func (l *UpdatePostLogic) mergePostMedia(in *pb.UpdatePostReq, post *model.Post,
 	return nil
 }
 
+// encodeInt64sJSON 把媒体 ID 编码为 JSON 数组；空列表存为 NULL。
 func encodeInt64sJSON(ids []int64) (sql.NullString, error) {
 	if len(ids) == 0 {
 		return sql.NullString{}, nil
@@ -146,6 +148,7 @@ func encodeInt64sJSON(ids []int64) (sql.NullString, error) {
 	return sql.NullString{String: raw, Valid: true}, nil
 }
 
+// decodeInt64sJSON 解析媒体 ID 列；格式异常时视为没有媒体。
 func decodeInt64sJSON(raw sql.NullString) []int64 {
 	if !raw.Valid || raw.String == "" {
 		return []int64{}

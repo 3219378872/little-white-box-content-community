@@ -10,12 +10,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetPostsByTagLogic 承载 GetPostsByTag 接口的业务逻辑；每个请求新建一个实例。
 type GetPostsByTagLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetPostsByTagLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetPostsByTagLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostsByTagLogic {
 	return &GetPostsByTagLogic{
 		ctx:    ctx,

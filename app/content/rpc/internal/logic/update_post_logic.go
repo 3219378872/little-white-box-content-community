@@ -16,12 +16,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UpdatePostLogic 承载 UpdatePost 接口的业务逻辑；每个请求新建一个实例。
 type UpdatePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUpdatePostLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUpdatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdatePostLogic {
 	return &UpdatePostLogic{
 		ctx:    ctx,
@@ -231,6 +233,7 @@ type postTagUpdate struct {
 	ids           []int64
 }
 
+// tagsForUpdate 决定本次更新的标签：显式提供时分配新标签 ID 并整体替换，否则沿用现有标签。
 func (l *UpdatePostLogic) tagsForUpdate(in *pb.UpdatePostReq, post *model.Post) (*postTagUpdate, error) {
 	var err error
 	// 标签仅在显式提供时替换；缺省时保留现有标签并让事件沿用旧值，

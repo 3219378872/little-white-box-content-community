@@ -14,12 +14,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeletePostLogic 承载 DeletePost 接口的业务逻辑；每个请求新建一个实例。
 type DeletePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewDeletePostLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewDeletePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeletePostLogic {
 	return &DeletePostLogic{
 		ctx:    ctx,

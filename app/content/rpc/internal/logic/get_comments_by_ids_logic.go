@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetCommentsByIdsLogic 承载 GetCommentsByIds 接口的业务逻辑；每个请求新建一个实例。
 type GetCommentsByIdsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetCommentsByIdsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetCommentsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentsByIdsLogic {
 	return &GetCommentsByIdsLogic{
 		ctx:    ctx,
@@ -27,6 +29,7 @@ func NewGetCommentsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// GetCommentsByIds 按 ID 批量返回某帖子下仍有效的评论；帖子不可见时整体返回内容不存在。
 func (l *GetCommentsByIdsLogic) GetCommentsByIds(in *pb.GetCommentsByIdsReq) (*pb.GetCommentsByIdsResp, error) {
 	if in == nil || in.PostId <= 0 || len(in.Ids) == 0 || len(in.Ids) > 80 {
 		return nil, errx.NewWithCode(errx.ParamError)

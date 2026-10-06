@@ -19,12 +19,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// CreatePostLogic 承载 CreatePost 接口的业务逻辑；每个请求新建一个实例。
 type CreatePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewCreatePostLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewCreatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreatePostLogic {
 	return &CreatePostLogic{
 		ctx:    ctx,
