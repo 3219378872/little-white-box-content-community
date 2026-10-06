@@ -78,7 +78,7 @@ func (s *SQLStore) ListHistorySessionSummaries(ctx context.Context, userID, sess
 	excluded := int64Set(excludeIDs)
 	byID := make(map[int64]Message, len(messages))
 	for _, message := range messages {
-		if !historyMessageEligible(message, userID, cutoffMs, excluded) {
+		if !HistoryMessageEligible(message, userID, cutoffMs, excluded) {
 			continue
 		}
 		byID[message.ID] = message
@@ -118,8 +118,9 @@ func boundedHistoryEdge(value int) int {
 	return value
 }
 
-// historyMessageEligible mirrors historyWhere for rows loaded by ID.
-func historyMessageEligible(message Message, userID, cutoffMs int64, excluded map[int64]struct{}) bool {
+// HistoryMessageEligible mirrors historyWhere for rows loaded by ID, so index hits can be re-checked
+// against current MySQL state.
+func HistoryMessageEligible(message Message, userID, cutoffMs int64, excluded map[int64]struct{}) bool {
 	if message.UserID != userID || message.DeletedAtMs != 0 || !message.Visible || message.CreatedAtMs < cutoffMs {
 		return false
 	}

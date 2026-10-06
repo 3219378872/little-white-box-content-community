@@ -215,7 +215,7 @@ func (c *Client) Search(ctx context.Context, sess *tool.Session, args tool.Histo
 	}
 	byID := make(map[int64]store.Message, len(messages))
 	for _, message := range messages {
-		if historyMessageEligible(message, cutoff, live) {
+		if store.HistoryMessageEligible(message, sess.UserID, cutoff, live) {
 			byID[message.ID] = message
 		}
 	}
@@ -359,21 +359,6 @@ func appendHistorySummary(b *strings.Builder, summaries []store.HistorySessionSu
 		}
 		b.WriteByte('\n')
 	}
-}
-
-// historyMessageEligible 与 store 侧的检索条件一致：可见、未删除、在保留期内且不在当前上下文中的对话消息。
-func historyMessageEligible(message store.Message, cutoff int64, live map[int64]struct{}) bool {
-	if message.DeletedAtMs != 0 || !message.Visible || message.CreatedAtMs < cutoff {
-		return false
-	}
-	if message.Role != store.RoleUser && message.Role != store.RoleAssistant {
-		return false
-	}
-	if message.Kind != store.KindMessage {
-		return false
-	}
-	_, excluded := live[message.ID]
-	return !excluded
 }
 
 // historyLimit 默认返回 3 条，最多 10 条。

@@ -99,12 +99,12 @@ func (m *MemoryStore) ListHistoryAround(_ context.Context, userID, messageID int
 	defer m.mu.Unlock()
 	excluded := int64Set(excludeIDs)
 	anchorMessage, ok := m.messages[messageID]
-	if !ok || !historyMessageEligible(anchorMessage, userID, cutoffMs, excluded) {
+	if !ok || !HistoryMessageEligible(anchorMessage, userID, cutoffMs, excluded) {
 		return nil, nil
 	}
 	eligible := make([]Message, 0)
 	for _, message := range m.messages {
-		if message.SessionID == anchorMessage.SessionID && historyMessageEligible(message, userID, cutoffMs, excluded) {
+		if message.SessionID == anchorMessage.SessionID && HistoryMessageEligible(message, userID, cutoffMs, excluded) {
 			eligible = append(eligible, message)
 		}
 	}
@@ -142,7 +142,7 @@ func (m *MemoryStore) ListHistorySessionSummaries(_ context.Context, userID, ses
 		if sessionID > 0 && message.SessionID != sessionID {
 			continue
 		}
-		if historyMessageEligible(message, userID, cutoffMs, excluded) {
+		if HistoryMessageEligible(message, userID, cutoffMs, excluded) {
 			grouped[message.SessionID] = append(grouped[message.SessionID], message)
 		}
 	}
