@@ -3,51 +3,40 @@ package fanout
 import (
 	"context"
 
+	sharedfanout "esx/app/feed/internal/fanout"
 	"esx/app/feed/rpc/internal/model"
 	"esx/app/feed/rpc/internal/svc"
-	"esx/app/user/rpc/userservice"
 )
 
 // PostPublished 是手动触发 fanout 的帖子。
-type PostPublished struct {
-	PostId    int64
-	AuthorId  int64
-	CreatedAt int64
+type PostPublished = sharedfanout.PostPublished
+
+// HandlePostPublished 供 FanoutPost RPC 使用，复用 feed-consumer 的共享 fanout 流程：
+// 写 outbox，非大 V 作者再推送到粉丝 inbox；作者资料缺失时写完 outbox 后返回错误。
+func HandlePostPublished(ctx context.Context, svcCtx *svc.ServiceContext, event PostPublished) (int64, error) {
+	return sharedfanout.HandlePostPublished(ctx, modelStore{svcCtx: svcCtx},
+		svcCtx.UserService, svcCtx.BigVThreshold, svcCtx.FanoutBatchSize, event)
 }
 
-// HandlePostPublished 供 FanoutPost RPC 使用，流程与 mq/internal/logic.HandlePostPublished 相同：
-// 写 outbox，非大 V 作者再推送到粉丝 inbox；作者不存在时只写 outbox。
-func HandlePostPublished(ctx context.Context, svcCtx *svc.ServiceContext, event PostPublished) (int64, error) {
-	userResp, err := svcCtx.UserService.GetUser(ctx, &userservice.GetUserReq{UserId: event.AuthorId})
-	if err != nil {
-		return 0, err
+// modelStore 把共享流程的写入映射到 RPC 服务的 outbox / inbox 模型。
+type modelStore struct {
+	svcCtx *svc.ServiceContext
+}
+
+// InsertOutbox 写入作者 outbox 行。
+func (s modelStore) InsertOutbox(ctx context.Context, event PostPublished) error {
+	return s.svcCtx.OutboxModel.InsertIgnore(ctx, &model.FeedOutbox{
+		AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt,
+	})
+}
+
+// InsertInbox 为每个粉丝生成一行 inbox 并批量写入。
+func (s modelStore) InsertInbox(ctx context.Context, event PostPublished, followerIDs []int64) (int64, error) {
+	rows := make([]*model.FeedInbox, 0, len(followerIDs))
+	for _, id := range followerIDs {
+		rows = append(rows, &model.FeedInbox{
+			UserId: id, AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt,
+		})
 	}
-	if err := svcCtx.OutboxModel.InsertIgnore(ctx, &model.FeedOutbox{AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt}); err != nil {
-		return 0, err
-	}
-	if userResp.User == nil || userResp.User.FollowerCount >= svcCtx.BigVThreshold {
-		return 0, nil
-	}
-	pageSize := int32(svcCtx.FanoutBatchSize)
-	if pageSize <= 0 {
-		pageSize = 500
-	}
-	rows := make([]*model.FeedInbox, 0)
-	var fetched int64
-	for page := int32(1); ; page++ {
-		followersResp, err := svcCtx.UserService.GetFollowers(ctx, &userservice.GetFollowersReq{UserId: event.AuthorId, Page: page, PageSize: pageSize})
-		if err != nil {
-			return 0, err
-		}
-		for _, user := range followersResp.Users {
-			if user.Id > 0 {
-				rows = append(rows, &model.FeedInbox{UserId: user.Id, AuthorId: event.AuthorId, PostId: event.PostId, CreatedAt: event.CreatedAt})
-			}
-		}
-		fetched += int64(len(followersResp.Users))
-		if len(followersResp.Users) == 0 || int32(len(followersResp.Users)) < pageSize || fetched >= followersResp.Total {
-			break
-		}
-	}
-	return svcCtx.InboxModel.BatchInsertIgnore(ctx, rows)
+	return s.svcCtx.InboxModel.BatchInsertIgnore(ctx, rows)
 }

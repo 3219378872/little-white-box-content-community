@@ -128,3 +128,21 @@ func TestHandlePostPublished_PaginatesFollowersUntilComplete(t *testing.T) {
 	outbox.AssertExpectations(t)
 	userSvc.AssertExpectations(t)
 }
+
+func TestHandlePostPublished_NilUserReturnsErrorAfterOutbox(t *testing.T) {
+	inbox := new(mockInboxModel)
+	outbox := new(mockOutboxModel)
+	userSvc := new(mockUserService)
+	event := PostPublished{PostId: 1001, AuthorId: 9, CreatedAt: 1710000000000}
+	userSvc.On("GetUser", mock.Anything, &userservice.GetUserReq{UserId: 9}).Return(&userservice.GetUserResp{}, nil).Once()
+	outbox.On("InsertIgnore", mock.Anything, &model.FeedOutbox{AuthorId: 9, PostId: 1001, CreatedAt: 1710000000000}).Return(nil).Once()
+
+	pushed, err := HandlePostPublished(context.Background(), &svc.ServiceContext{InboxModel: inbox, OutboxModel: outbox, UserService: userSvc, BigVThreshold: 10000, FanoutBatchSize: 500}, event)
+
+	// 作者资料缺失与 MQ 路径一致：outbox 已写，但不静默成功，交由调用方感知。
+	require.Error(t, err)
+	require.Zero(t, pushed)
+	inbox.AssertNotCalled(t, "BatchInsertIgnore", mock.Anything, mock.Anything)
+	outbox.AssertExpectations(t)
+	userSvc.AssertExpectations(t)
+}
