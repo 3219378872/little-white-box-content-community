@@ -29,7 +29,6 @@ func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.
 		return errRunCancelled
 	}
 	var conf *store.Confirmation
-	created := false
 	err = e.step(persistCtx, *run, func(ctx context.Context, tx store.Store) error {
 		existing, err := tx.GetConfirmation(ctx, run.ID, call.ID)
 		if err != nil {
@@ -51,18 +50,14 @@ func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.
 		if err != nil {
 			return err
 		}
-		created = true
 		conf = &inserted
-		_, err = AppendEvent(ctx, tx, nil, *run, store.EventConfirmRequired, store.EventPayload{
+		_, err = AppendEvent(ctx, tx, *run, store.EventConfirmRequired, store.EventPayload{
 			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "确认删除帖子", PayloadJSON: call.Arguments},
 		})
 		return err
 	})
 	if err != nil {
 		return err
-	}
-	if created && e.Notify != nil {
-		_ = e.Notify.Wake(persistCtx, run.ID)
 	}
 	if conf == nil {
 		return errx.New(errx.SystemError, "delete_post confirmation missing")

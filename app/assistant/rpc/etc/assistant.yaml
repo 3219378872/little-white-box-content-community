@@ -42,11 +42,6 @@ UserRpc:
     - 127.0.0.1:2379
     Key: user.rpc
 DataSource: "${DB_ASSISTANT}"
-Redis:
-  Host: "${REDIS_HOST}"
-  Type: node
-  Pass: "${REDIS_PASSWORD}"
-  Key: assistant
 MaxMessageRunes: 2000
 QuotaWindowSeconds: 60
 QuotaRequests: 20

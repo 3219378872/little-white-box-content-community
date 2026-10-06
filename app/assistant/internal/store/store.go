@@ -102,10 +102,3 @@ type Store interface {
 	ListUnpublishedOutbox(ctx context.Context, limit int) ([]Outbox, error)
 	MarkOutboxPublished(ctx context.Context, ids []int64) error
 }
-
-// Notifier publishes per-run wake signals. Subscribe currently polls the event table
-// and ignores them, so WakeToken has no production reader yet.
-type Notifier interface {
-	Wake(ctx context.Context, runID int64) error
-	WakeToken(ctx context.Context, runID int64) (string, error)
-}

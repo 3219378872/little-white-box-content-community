@@ -41,7 +41,7 @@ func (l *SubscribeRunEventsLogic) SubscribeRunEvents(in *pb.SubscribeRunEventsRe
 	if stream != nil {
 		ctx = stream.Context()
 	}
-	return runtime.Subscribe(ctx, l.svcCtx.Store, l.svcCtx.Notify, in.UserId, in.RunId, in.AfterSeq, func(ev *pb.RunEvent) error {
+	return runtime.Subscribe(ctx, l.svcCtx.Store, in.UserId, in.RunId, in.AfterSeq, func(ev *pb.RunEvent) error {
 		if ev.AnswerPresentationJson != "" {
 			var answer store.AnswerPresentation
 			if err := json.Unmarshal([]byte(ev.AnswerPresentationJson), &answer); err != nil {

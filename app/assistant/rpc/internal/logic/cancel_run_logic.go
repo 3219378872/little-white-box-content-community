@@ -37,11 +37,8 @@ func (l *CancelRunLogic) CancelRun(in *pb.CancelRunReq) (*pb.CancelRunResp, erro
 	if err := l.svcCtx.Store.RequestCancel(l.ctx, in.UserId, in.RunId); err != nil {
 		return nil, err
 	}
-	if err := runtime.ResolveWaiting(l.ctx, l.svcCtx.Store, l.svcCtx.Notify, in.RunId, store.NowMs()); err != nil {
+	if err := runtime.ResolveWaiting(l.ctx, l.svcCtx.Store, in.RunId, store.NowMs()); err != nil {
 		return nil, err
-	}
-	if l.svcCtx.Notify != nil {
-		_ = l.svcCtx.Notify.Wake(l.ctx, in.RunId)
 	}
 	return &pb.CancelRunResp{}, nil
 }

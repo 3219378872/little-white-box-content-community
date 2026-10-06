@@ -88,7 +88,6 @@ SQL 与测试仍是事实权威。
 Gateway REST/SSE
   -> assistant-rpc (command acceptance + read model + event replay)
        -> MySQL xbh_assistant (authority)
-       -> Redis publish (best-effort wake-up only)
 
 assistant-agent worker
   -> MySQL lease queue -> provider -> tools -> journal/events/messages
@@ -183,8 +182,8 @@ active run，重置该轮已公开的 stream 并读取新输入重启。工具�
 
 ## 事件与 SSE
 
-每个事件先锁 run 分配 `seq=max+1` 并写 MySQL，然后 best-effort `PUBLISH assistant:run:<id>`。SSE 始终按
-固定间隔查询 MySQL 的 `seq > cursor`；Redis wake 只缩短下一次查询等待，读取不得阻塞等待 wake token。
+每个事件先锁 run 分配 `seq=max+1` 并写 MySQL。SSE 始终按固定间隔查询 MySQL 的 `seq > cursor`，
+不依赖 Redis 唤醒。
 客户端断线只结束读循环，不写 cancel。`token` 与 `response_reset` 携带 streamId；前者追加，后者清空
 指定 run 的临时回答。
 运行中超过 30 秒没有业务事件时 worker 写内部 heartbeat event；API 可用它维持
@@ -277,7 +276,7 @@ critical 按时间、round、output 三个维度以唯一 `(run, level, dimensio
 结构化回答或等待问答不能绕开触顶终止。memory-review 发起请求前同时检查累计输入和本次估算预算。
 
 Prometheus 覆盖 queue age、lease claim/recovery/renew failure、run phase/elapsed/idle、token/cost、journal hit、
-confirmation、compact、BM25/outbox、review、Redis notify failure 和 SSE poll fallback。
+confirmation、compact、BM25/outbox 和 review。
 
 ## 验证
 

@@ -44,7 +44,7 @@ func TestRedirectCancelsAndDiscardsOldModelResponse(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	mem := store.NewMemoryStore()
-	acceptor := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
+	acceptor := &Acceptor{Store: mem}
 	first, err := acceptor.Accept(ctx, AcceptInput{
 		UserID: 1, Message: "first", RequestID: "request-1", ConsentOK: true, ConsentVersion: 3,
 	})

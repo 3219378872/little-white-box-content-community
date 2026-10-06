@@ -86,7 +86,7 @@ func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
 				continue
 			}
 			for _, run := range runs {
-				if err := runtime.ResolveWaiting(ctx, svcCtx.Store, nil, run.ID, store.NowMs()); err != nil {
+				if err := runtime.ResolveWaiting(ctx, svcCtx.Store, run.ID, store.NowMs()); err != nil {
 					logging.WithContext(ctx).Errorw("assistant waiting resolution failed", logging.Field("runId", run.ID), logging.Field("err", err.Error()))
 				}
 			}

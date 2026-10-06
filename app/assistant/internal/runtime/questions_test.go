@@ -51,16 +51,16 @@ func TestQuestionsYieldResumeAndIdempotency(t *testing.T) {
 	questions, _ := mem.ListQuestions(ctx, run.ID)
 	q := questions[0]
 	answers := []store.QuestionAnswer{{QuestionID: "budget", Disposition: "unknown"}}
-	if _, err := AnswerQuestions(ctx, mem, nil, 2, run.ID, q.ID, "answer1", answers); err == nil {
+	if _, err := AnswerQuestions(ctx, mem, 2, run.ID, q.ID, "answer1", answers); err == nil {
 		t.Fatal("other user accepted")
 	}
 	for range 2 {
-		result, err := AnswerQuestions(ctx, mem, nil, 1, run.ID, q.ID, "answer1", answers)
+		result, err := AnswerQuestions(ctx, mem, 1, run.ID, q.ID, "answer1", answers)
 		if err != nil || result.Status != "answered" {
 			t.Fatalf("result=%+v err=%v", result, err)
 		}
 	}
-	if _, err := AnswerQuestions(ctx, mem, nil, 1, run.ID, q.ID, "answer2", answers); err == nil {
+	if _, err := AnswerQuestions(ctx, mem, 1, run.ID, q.ID, "answer2", answers); err == nil {
 		t.Fatal("different submission accepted")
 	}
 	resumed, err := mem.Claim(ctx, "worker2", store.NowMs(), 60000)
@@ -96,14 +96,14 @@ func TestQuestionExpiryAndCancelNeverSelectAnswers(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := ResolveWaiting(ctx, mem, nil, run.ID, now); err != nil {
+			if err := ResolveWaiting(ctx, mem, run.ID, now); err != nil {
 				t.Fatal(err)
 			}
 			questions, _ = mem.ListQuestions(ctx, run.ID)
 			if len(questions[0].Answers) != 0 || questions[0].Status == "pending" {
 				t.Fatalf("question=%+v", questions[0])
 			}
-			if _, err := AnswerQuestions(ctx, mem, nil, 1, run.ID, q.ID, "late", []store.QuestionAnswer{{QuestionID: "budget", Disposition: "unknown"}}); err == nil {
+			if _, err := AnswerQuestions(ctx, mem, 1, run.ID, q.ID, "late", []store.QuestionAnswer{{QuestionID: "budget", Disposition: "unknown"}}); err == nil {
 				t.Fatal("late answer reopened old run")
 			}
 			thread, _ := mem.GetThread(ctx, 1)
@@ -124,7 +124,7 @@ func TestConcurrentQuestionAnswersAcceptOnce(t *testing.T) {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			if _, err := AnswerQuestions(ctx, mem, nil, 1, run.ID, questions[0].ID, id, []store.QuestionAnswer{{QuestionID: "budget", Disposition: "skipped"}}); err == nil {
+			if _, err := AnswerQuestions(ctx, mem, 1, run.ID, questions[0].ID, id, []store.QuestionAnswer{{QuestionID: "budget", Disposition: "skipped"}}); err == nil {
 				success.Add(1)
 			}
 		}(id)
@@ -162,7 +162,7 @@ func TestClearHistoryRemovesQuestionAndBlocksReplay(t *testing.T) {
 		t.Fatalf("questions=%v err=%v", questions, err)
 	}
 	count := 0
-	err = Subscribe(ctx, mem, nil, 1, run.ID, 0, func(*pb.RunEvent) error { count++; return nil })
+	err = Subscribe(ctx, mem, 1, run.ID, 0, func(*pb.RunEvent) error { count++; return nil })
 	if !errx.Is(err, errx.NotFound) || count != 0 {
 		t.Fatalf("deleted replay count=%d err=%v", count, err)
 	}

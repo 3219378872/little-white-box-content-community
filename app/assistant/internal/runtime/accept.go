@@ -54,7 +54,6 @@ type AcceptResult struct {
 type Acceptor struct {
 	Store    store.Store
 	Memory   memory.Store
-	Notify   store.Notifier
 	MaxRunes int
 }
 
@@ -96,7 +95,7 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 	}
 	// 先结算已超时的追问等待，使后续处置基于最新的 run 状态。
 	if thread, err := a.Store.GetThread(ctx, in.UserID); err == nil && thread.ActiveRunID > 0 {
-		if err := ResolveWaiting(ctx, a.Store, a.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
+		if err := ResolveWaiting(ctx, a.Store, thread.ActiveRunID, store.NowMs()); err != nil {
 			return AcceptResult{}, err
 		}
 	}
@@ -106,9 +105,6 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 		out = result
 		return err
 	})
-	if err == nil && a.Notify != nil && out.RunID > 0 {
-		_ = a.Notify.Wake(ctx, out.RunID)
-	}
 	return out, err
 }
 

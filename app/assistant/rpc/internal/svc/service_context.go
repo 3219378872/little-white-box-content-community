@@ -11,7 +11,6 @@ import (
 	"esx/app/content/rpc/contentservice"
 	"esx/app/user/rpc/userservice"
 
-	redis "esx/pkg/redisstore"
 	"esx/pkg/rpcx"
 	sqlx "esx/pkg/sqlstore"
 )
@@ -20,7 +19,6 @@ import (
 type ServiceContext struct {
 	Config         config.Config
 	Store          store.Store
-	Notify         store.Notifier
 	Memory         memory.Store
 	Safety         safety.Filter
 	Acceptor       *runtime.Acceptor
@@ -63,15 +61,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			safetyFilter = f
 		}
 	}
-	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
-	notify := store.NewRedisNotifier(redisClient)
 	return &ServiceContext{
 		Config:         c,
 		Store:          st,
-		Notify:         notify,
 		Memory:         mem,
 		Safety:         safetyFilter,
-		Acceptor:       &runtime.Acceptor{Store: st, Memory: mem, Notify: notify, MaxRunes: c.MaxMessageRunes},
+		Acceptor:       &runtime.Acceptor{Store: st, Memory: mem, MaxRunes: c.MaxMessageRunes},
 		ContentService: contentService,
 		UserService:    userService,
 	}

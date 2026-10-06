@@ -8,8 +8,6 @@ import (
 
 func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
-	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
-	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("DB_ASSISTANT", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {
@@ -25,8 +23,6 @@ func TestAssistantConfigEnablesFrameworkHealthAndMetrics(t *testing.T) {
 
 func TestAssistantConfigLoadsNativeTransportPolicy(t *testing.T) {
 	t.Setenv("RPC_INTERNAL_SECRET", "test-internal-secret")
-	t.Setenv("REDIS_HOST", "127.0.0.1:6379")
-	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("DB_ASSISTANT", "")
 	var c Config
 	if err := conf.Load("../../etc/assistant.yaml", &c, conf.UseEnv()); err != nil {

@@ -91,7 +91,7 @@ func TestResearchSQLTransactions(t *testing.T) {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			if _, err := AnswerQuestions(ctx, st, nil, 1, run.ID, questions[0].ID, id, []store.QuestionAnswer{{QuestionID: "budget", Disposition: "unknown"}}); err == nil {
+			if _, err := AnswerQuestions(ctx, st, 1, run.ID, questions[0].ID, id, []store.QuestionAnswer{{QuestionID: "budget", Disposition: "unknown"}}); err == nil {
 				success.Add(1)
 			}
 		}(id)

@@ -108,7 +108,7 @@ func (e *Engine) publishAnswer(ctx context.Context, run *store.Run, call llm.Too
 			if _, err := tx.InsertMessage(ctx, store.Message{UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleTool, Kind: store.KindTool, Content: result, APIContent: prompt.EncodeTurn(turn), Visible: false, CreatedAtMs: store.NowMs()}); err != nil {
 				return err
 			}
-			_, err := AppendEvent(ctx, tx, nil, *run, store.EventToolResult, store.EventPayload{ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "success"}})
+			_, err := AppendEvent(ctx, tx, *run, store.EventToolResult, store.EventPayload{ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "success"}})
 			return err
 		},
 	})

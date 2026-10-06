@@ -13,7 +13,7 @@ import (
 
 func TestAcceptDispositionAndFIFO(t *testing.T) {
 	mem := store.NewMemoryStore()
-	a := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier(), MaxRunes: 2000}
+	a := &Acceptor{Store: mem, MaxRunes: 2000}
 	ctx := context.Background()
 	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil || first.Disposition != store.DispositionStarted {

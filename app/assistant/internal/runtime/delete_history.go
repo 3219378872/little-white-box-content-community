@@ -13,12 +13,10 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 	if userID <= 0 {
 		return errx.NewWithCode(errx.LoginRequired)
 	}
-	var cancelled []store.Run
-	err := a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
+	return a.Store.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		// Match worker and accept lock ordering: runs before thread. Terminalizing
 		// under these locks fences old RunStep writers before the prompt is cleared.
-		var err error
-		cancelled, err = tx.CancelOpenBackground(ctx, userID, []string{store.SourceUser, store.SourceMemoryReview})
+		cancelled, err := tx.CancelOpenBackground(ctx, userID, []string{store.SourceUser, store.SourceMemoryReview})
 		if err != nil {
 			return err
 		}
@@ -55,12 +53,6 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 		thread.UpdatedAtMs = now
 		return tx.SaveThread(ctx, *thread)
 	})
-	if err == nil && a.Notify != nil {
-		for _, run := range cancelled {
-			_ = a.Notify.Wake(ctx, run.ID)
-		}
-	}
-	return err
 }
 
 // cancelHistoryRun closes a run's open calls, expires its confirmation and queue, and marks it cancelled.

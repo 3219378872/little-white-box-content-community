@@ -270,7 +270,6 @@ func (e *Engine) startToolStep(
 	var (
 		journal  *store.Journal
 		reserved bool
-		newCall  bool
 	)
 	now := store.NowMs()
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
@@ -285,8 +284,7 @@ func (e *Engine) startToolStep(
 			}); err != nil {
 				return err
 			}
-			newCall = true
-			if _, err := AppendEvent(ctx, tx, nil, run, store.EventToolCall, store.EventPayload{
+			if _, err := AppendEvent(ctx, tx, run, store.EventToolCall, store.EventPayload{
 				ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: call.Name, PayloadJSON: call.Arguments},
 			}); err != nil {
 				return err
@@ -304,9 +302,6 @@ func (e *Engine) startToolStep(
 		})
 		return err
 	})
-	if err == nil && newCall && e.Notify != nil {
-		_ = e.Notify.Wake(ctx, run.ID)
-	}
 	return journal, reserved, err
 }
 
@@ -360,13 +355,13 @@ func (e *Engine) finishToolStep(ctx context.Context, run *store.Run, call llm.To
 				return err
 			}
 		}
-		if _, err := AppendEvent(ctx, tx, nil, *run, store.EventToolResult, store.EventPayload{
+		if _, err := AppendEvent(ctx, tx, *run, store.EventToolResult, store.EventPayload{
 			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: result.outcome, PayloadJSON: result.text}, Text: result.text,
 		}); err != nil {
 			return err
 		}
 		for i := range result.cards {
-			if _, err := AppendEvent(ctx, tx, nil, *run, store.EventSourceCard, store.EventPayload{SourceCard: &result.cards[i]}); err != nil {
+			if _, err := AppendEvent(ctx, tx, *run, store.EventSourceCard, store.EventPayload{SourceCard: &result.cards[i]}); err != nil {
 				return err
 			}
 		}
@@ -377,9 +372,6 @@ func (e *Engine) finishToolStep(ctx context.Context, run *store.Run, call llm.To
 	}
 	if run.Source == store.SourceMemoryReview && reviewLive != nil {
 		*reviewLive = append(*reviewLive, turn)
-	}
-	if e.Notify != nil {
-		_ = e.Notify.Wake(ctx, run.ID)
 	}
 	return nil
 }

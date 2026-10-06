@@ -14,7 +14,7 @@ func TestAcceptColdConversationSplicesPersistentLayersOnSameSession(t *testing.T
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
-	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
+	a := &Acceptor{Store: mem, Memory: memories}
 	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestAcceptWarmConversationDoesNotSplice(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
-	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
+	a := &Acceptor{Store: mem, Memory: memories}
 	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestAcceptWarmConversationDoesNotSplice(t *testing.T) {
 func TestAcceptEmptyThreadIsNotCold(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
-	a := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
+	a := &Acceptor{Store: mem}
 	got, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +113,7 @@ func TestAcceptRedirectDoesNotSpliceColdSnapshot(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
-	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
+	a := &Acceptor{Store: mem, Memory: memories}
 	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +155,7 @@ func TestEnsureForegroundSessionReopensClosedLegacyRow(t *testing.T) {
 	if err := mem.SaveThread(ctx, store.Thread{UserID: 4, SessionID: session.ID, UpdatedAtMs: now}); err != nil {
 		t.Fatal(err)
 	}
-	a := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
+	a := &Acceptor{Store: mem}
 	got, err := a.Accept(ctx, AcceptInput{UserID: 4, Message: "resume", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)

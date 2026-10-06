@@ -5,12 +5,6 @@ Prometheus:
   Path: /metrics
 
 DataSource: "${DB_ASSISTANT}"
-Redis:
-  Host: "${REDIS_HOST}"
-  Type: node
-  Pass: "${REDIS_PASSWORD}"
-  Key: assistant-agent
-
 Elasticsearch:
   Addresses:
   - "${ES_ADDRESS}"

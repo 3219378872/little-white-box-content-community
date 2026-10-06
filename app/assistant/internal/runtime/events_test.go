@@ -12,15 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type blockingWakeNotifier struct{}
-
-func (blockingWakeNotifier) Wake(context.Context, int64) error { return nil }
-func (blockingWakeNotifier) WakeToken(ctx context.Context, _ int64) (string, error) {
-	<-ctx.Done()
-	return "", ctx.Err()
-}
-
-func TestSubscribePollsMySQLWithoutWaitingForRedis(t *testing.T) {
+func TestSubscribePollsPersistedEvents(t *testing.T) {
 	original := subscribePollInterval
 	subscribePollInterval = 10 * time.Millisecond
 	t.Cleanup(func() { subscribePollInterval = original })
@@ -35,7 +27,7 @@ func TestSubscribePollsMySQLWithoutWaitingForRedis(t *testing.T) {
 	emitted := make(chan *pb.RunEvent, 1)
 	done := make(chan error, 1)
 	go func() {
-		done <- Subscribe(ctx, mem, blockingWakeNotifier{}, 7, run.ID, 0, func(event *pb.RunEvent) error {
+		done <- Subscribe(ctx, mem, 7, run.ID, 0, func(event *pb.RunEvent) error {
 			emitted <- event
 			return nil
 		})
@@ -50,7 +42,7 @@ func TestSubscribePollsMySQLWithoutWaitingForRedis(t *testing.T) {
 			t.Fatalf("event=%+v", event)
 		}
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("event persisted without a Redis wake was not polled")
+		t.Fatal("persisted event was not polled")
 	}
 	cancel()
 	select {
@@ -110,7 +102,7 @@ func TestSubscribeDrainsTerminalCommittedBetweenReads(t *testing.T) {
 			require.NoError(t, err)
 			wrapped := &finishBetweenEventReads{Store: st, run: run, eventType: eventType}
 			var got []*pb.RunEvent
-			require.NoError(t, Subscribe(ctx, wrapped, nil, 7, run.ID, 0, func(ev *pb.RunEvent) error { got = append(got, ev); return nil }))
+			require.NoError(t, Subscribe(ctx, wrapped, 7, run.ID, 0, func(ev *pb.RunEvent) error { got = append(got, ev); return nil }))
 			require.Len(t, got, 1)
 			require.Equal(t, eventType, got[0].Type)
 			require.Equal(t, "final result", got[0].Text)
@@ -129,5 +121,5 @@ func TestSubscribePropagatesFinalDrainFailure(t *testing.T) {
 	require.NoError(t, err)
 	want := errors.New("final read unavailable")
 	wrapped := &finishBetweenEventReads{Store: st, run: run, eventType: store.EventDone, drainErr: want}
-	require.ErrorIs(t, Subscribe(ctx, wrapped, nil, 7, run.ID, 0, func(*pb.RunEvent) error { return nil }), want)
+	require.ErrorIs(t, Subscribe(ctx, wrapped, 7, run.ID, 0, func(*pb.RunEvent) error { return nil }), want)
 }

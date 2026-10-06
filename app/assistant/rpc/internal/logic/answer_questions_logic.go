@@ -44,7 +44,7 @@ func (l *AnswerQuestionsLogic) AnswerQuestions(in *pb.AnswerQuestionsReq) (*pb.A
 	if err := json.Unmarshal([]byte(in.AnswersJson), &answers); err != nil {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
-	question, err := runtime.AnswerQuestions(l.ctx, l.svcCtx.Store, l.svcCtx.Notify, in.UserId, in.RunId, in.QuestionRequestId, in.RequestId, answers)
+	question, err := runtime.AnswerQuestions(l.ctx, l.svcCtx.Store, in.UserId, in.RunId, in.QuestionRequestId, in.RequestId, answers)
 	if err != nil {
 		return nil, err
 	}

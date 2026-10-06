@@ -24,7 +24,6 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
 
-	redis "esx/pkg/redisstore"
 	"esx/pkg/rpcx"
 	sqlx "esx/pkg/sqlstore"
 )
@@ -41,7 +40,7 @@ type ServiceContext struct {
 	Retention *retention.Cleaner
 }
 
-// NewServiceContext 依次装配下游 RPC、MySQL 存储与记忆、Redis 通知、模型路由（含就绪探测）、
+// NewServiceContext 依次装配下游 RPC、MySQL 存储与记忆、模型路由（含就绪探测）、
 // 历史索引与工具注册表；任何必需依赖不可用都直接返回错误，让 worker 启动失败。
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	if strings.TrimSpace(c.DataSource) == "" {
@@ -71,8 +70,6 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		safetyFilter = filter
 	}
 	mem := memory.NewSQLStore(conn, safetyFilter)
-	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
-	notify := store.NewRedisNotifier(redisClient)
 
 	client, routeIDs, err := buildLLMClient(c.LLM)
 	if err != nil {
@@ -113,7 +110,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 	engine := &runtime.Engine{
-		Store: st, Memory: mem, Tools: registry, LLM: client, AuxLLM: auxClient, ReviewLLM: reviewClient, Notify: notify,
+		Store: st, Memory: mem, Tools: registry, LLM: client, AuxLLM: auxClient, ReviewLLM: reviewClient,
 		Window: c.LLM.ContextWindowTokens, Provider: c.LLM.MaxOutputTokens,
 	}
 	return &ServiceContext{

@@ -386,7 +386,7 @@ func newCancelTestEngine(t *testing.T, mem *store.MemoryStore, model llm.Client)
 		t.Fatal(err)
 	}
 	return &Engine{
-		Store: mem, Tools: reg, LLM: model, Notify: store.NewMemoryNotifier(), Window: 128000,
+		Store: mem, Tools: reg, LLM: model, Window: 128000,
 	}, run
 }
 

@@ -151,10 +151,3 @@ func appendEventTx(ctx context.Context, tx store.Store, run store.Run, eventType
 	raw, _ := json.Marshal(payload)
 	return tx.InsertEvent(ctx, run.ID, eventType, raw, now)
 }
-
-// wake 在提交后通知订阅方，通知失败不影响主流程。
-func (e *Engine) wake(ctx context.Context, runID int64) {
-	if e.Notify != nil {
-		_ = e.Notify.Wake(ctx, runID)
-	}
-}

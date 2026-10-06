@@ -9,7 +9,6 @@ import (
 func TestAgentConfigLoadsProviderReliabilitySettings(t *testing.T) {
 	env := map[string]string{
 		"RPC_INTERNAL_SECRET": "test-secret", "DB_ASSISTANT": "",
-		"REDIS_HOST": "127.0.0.1:6379", "REDIS_PASSWORD": "",
 		"ES_ADDRESS": "http://127.0.0.1:9200", "ES_USERNAME": "", "ES_PASSWORD": "",
 		"ASSISTANT_LLM_ENABLED": "false", "ASSISTANT_LLM_WIRE_API": "responses",
 		"ASSISTANT_LLM_ENDPOINT": "http://provider.test/v1", "ASSISTANT_LLM_API_KEY": "",

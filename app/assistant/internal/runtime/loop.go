@@ -51,7 +51,6 @@ type Engine struct {
 	LLM       llm.Client
 	AuxLLM    llm.Client
 	ReviewLLM llm.Client
-	Notify    store.Notifier
 	Window    int
 	Provider  int
 }
@@ -116,17 +115,14 @@ func (e *Engine) updateRun(ctx context.Context, run store.Run) error {
 	})
 }
 
-// appendEvent 在租约栅栏内追加公开事件，提交后再唤醒订阅方。
+// appendEvent 在租约栅栏内追加公开事件，订阅方按 seq 轮询读取。
 func (e *Engine) appendEvent(ctx context.Context, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
 	var event store.Event
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
 		var err error
-		event, err = AppendEvent(ctx, tx, nil, run, eventType, payload)
+		event, err = AppendEvent(ctx, tx, run, eventType, payload)
 		return err
 	})
-	if err == nil && e.Notify != nil {
-		_ = e.Notify.Wake(ctx, run.ID)
-	}
 	return event, err
 }
 

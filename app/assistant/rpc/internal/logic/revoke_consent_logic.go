@@ -40,7 +40,7 @@ func (l *RevokeConsentLogic) RevokeConsent(in *pb.RevokeConsentReq) (*pb.RevokeC
 	if thread, err := l.svcCtx.Store.GetThread(l.ctx, in.UserId); err != nil {
 		return nil, err
 	} else if thread.ActiveRunID > 0 {
-		if err := runtime.ResolveWaiting(l.ctx, l.svcCtx.Store, l.svcCtx.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
+		if err := runtime.ResolveWaiting(l.ctx, l.svcCtx.Store, thread.ActiveRunID, store.NowMs()); err != nil {
 			return nil, err
 		}
 	}

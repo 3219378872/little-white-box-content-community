@@ -19,21 +19,14 @@ var publicEventTypes = map[string]struct{}{
 
 var subscribePollInterval = time.Second
 
-// AppendEvent stores a public event and wakes subscribers; internal event types are dropped here.
-func AppendEvent(ctx context.Context, st store.Store, notify store.Notifier, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
+// AppendEvent stores a public event for subscribers to poll; internal event types are dropped here.
+func AppendEvent(ctx context.Context, st store.Store, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
 	if _, ok := publicEventTypes[eventType]; !ok {
 		return store.Event{}, nil
 	}
 	payload.SessionID = run.SessionID
 	raw, _ := json.Marshal(payload)
-	ev, err := st.InsertEvent(ctx, run.ID, eventType, raw, store.NowMs())
-	if err != nil {
-		return store.Event{}, err
-	}
-	if notify != nil {
-		_ = notify.Wake(ctx, run.ID)
-	}
-	return ev, nil
+	return st.InsertEvent(ctx, run.ID, eventType, raw, store.NowMs())
 }
 
 // ToPB converts a stored event to the RPC shape; question and answer payloads travel as JSON strings.
@@ -69,7 +62,7 @@ func ToPB(ev store.Event) *pb.RunEvent {
 
 // Subscribe replays events after afterSeq and then polls for new ones until the run ends or
 // the caller disconnects. Internal events advance the cursor without being emitted.
-func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, runID, afterSeq int64, emit func(*pb.RunEvent) error) error {
+func Subscribe(ctx context.Context, st store.Store, userID, runID, afterSeq int64, emit func(*pb.RunEvent) error) error {
 	run, err := st.GetRun(ctx, runID)
 	if err != nil {
 		return errx.NewWithCode(errx.NotFound)

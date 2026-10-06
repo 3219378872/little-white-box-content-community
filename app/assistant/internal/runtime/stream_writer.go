@@ -169,12 +169,9 @@ func (w *modelStreamWriter) appendPublicLocked(eventType string, payload store.E
 		if err := validateStreamIdentity(ctx, tx, w.run, w.modelRound); err != nil {
 			return err
 		}
-		_, err := AppendEvent(ctx, tx, nil, w.run, eventType, payload)
+		_, err := AppendEvent(ctx, tx, w.run, eventType, payload)
 		return err
 	})
-	if err == nil && w.engine.Notify != nil {
-		_ = w.engine.Notify.Wake(w.ctx, w.run.ID)
-	}
 	return err
 }
 

@@ -2,7 +2,6 @@ package config
 
 import (
 	service "esx/pkg/lifecycle"
-	redis "esx/pkg/redisstore"
 	"esx/pkg/rpcx"
 )
 
@@ -84,7 +83,6 @@ type Config struct {
 	service.ServiceConf
 	InternalSecret   string
 	DataSource       string
-	Redis            redis.RedisKeyConf
 	Elasticsearch    ElasticsearchConfig
 	SearchRpc        rpcx.RpcClientConf
 	ContentRpc       rpcx.RpcClientConf

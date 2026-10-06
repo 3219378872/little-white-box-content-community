@@ -179,16 +179,10 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, out terminalO
 				return err
 			}
 		}
-		_, err = AppendEvent(ctx, tx, nil, run, out.eventType, out.payload)
+		_, err = AppendEvent(ctx, tx, run, out.eventType, out.payload)
 		return err
 	})
-	if err != nil {
-		return err
-	}
-	if e.Notify != nil {
-		_ = e.Notify.Wake(ctx, run.ID)
-	}
-	return nil
+	return err
 }
 
 // countSuccessfulTurn 累计会话的成功用户轮次；每满 10 轮排队一次后台记忆整理 run。
@@ -224,7 +218,7 @@ type terminalPublication struct {
 func (p *terminalPublication) write(ctx context.Context, tx store.Store, thread *store.Thread) error {
 	if p.out.message != "" && p.run.Source != store.SourceMemoryReview {
 		if p.out.emitToken {
-			if _, err := AppendEvent(ctx, tx, nil, p.run, store.EventToken, store.EventPayload{Text: p.out.message, StreamID: p.out.streamID}); err != nil {
+			if _, err := AppendEvent(ctx, tx, p.run, store.EventToken, store.EventPayload{Text: p.out.message, StreamID: p.out.streamID}); err != nil {
 				return err
 			}
 		}
@@ -246,7 +240,7 @@ func (p *terminalPublication) write(ctx context.Context, tx store.Store, thread 
 			if err := tx.SavePresentation(ctx, *p.out.payload.Answer); err != nil {
 				return err
 			}
-			if _, err := AppendEvent(ctx, tx, nil, p.run, store.EventAnswerCommitted, store.EventPayload{Answer: p.out.payload.Answer, Text: p.out.message}); err != nil {
+			if _, err := AppendEvent(ctx, tx, p.run, store.EventAnswerCommitted, store.EventPayload{Answer: p.out.payload.Answer, Text: p.out.message}); err != nil {
 				return err
 			}
 		}

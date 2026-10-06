@@ -92,13 +92,12 @@ func (e *Engine) waitForQuestions(ctx context.Context, run *store.Run, call llm.
 		if err := tx.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		_, err = AppendEvent(ctx, tx, nil, *run, store.EventQuestionsRequired, store.EventPayload{Question: &question})
+		_, err = AppendEvent(ctx, tx, *run, store.EventQuestionsRequired, store.EventPayload{Question: &question})
 		return err
 	})
 	if err != nil {
 		return err
 	}
-	e.wake(ctx, run.ID)
 	return errRunWaiting
 }
 
@@ -173,16 +172,16 @@ func closeQuestionTx(ctx context.Context, tx store.Store, run store.Run, q *stor
 	if err := tx.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: q.CallID, Status: status, ResultJSON: encodeToolResultJSONWithChanges(result, nil, nil)}); err != nil {
 		return err
 	}
-	if _, err := AppendEvent(ctx, tx, nil, run, store.EventToolResult, store.EventPayload{ToolCall: &store.ToolInfo{CallID: q.CallID, Tool: tool.AskQuestions, Summary: status}}); err != nil {
+	if _, err := AppendEvent(ctx, tx, run, store.EventToolResult, store.EventPayload{ToolCall: &store.ToolInfo{CallID: q.CallID, Tool: tool.AskQuestions, Summary: status}}); err != nil {
 		return err
 	}
-	_, err := AppendEvent(ctx, tx, nil, run, store.EventQuestionsResolved, store.EventPayload{Question: q})
+	_, err := AppendEvent(ctx, tx, run, store.EventQuestionsResolved, store.EventPayload{Question: q})
 	return err
 }
 
 // AnswerQuestions 在锁住 run 后复核授权并提交回答，随后把 run 放回队列；
 // 同一 requestID 携带相同回答的重试直接返回首次结果。
-func AnswerQuestions(ctx context.Context, st store.Store, notify store.Notifier, userID, runID int64, questionID, requestID string, answers []store.QuestionAnswer) (*store.QuestionRequest, error) {
+func AnswerQuestions(ctx context.Context, st store.Store, userID, runID int64, questionID, requestID string, answers []store.QuestionAnswer) (*store.QuestionRequest, error) {
 	if userID <= 0 || runID <= 0 || questionID == "" || strings.TrimSpace(requestID) == "" || len(requestID) > 64 {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
@@ -241,9 +240,6 @@ func AnswerQuestions(ctx context.Context, st store.Store, notify store.Notifier,
 		}
 		return errx.NewWithCode(errx.NotFound)
 	})
-	if err == nil && notify != nil {
-		_ = notify.Wake(ctx, runID)
-	}
 	return out, err
 }
 
@@ -267,7 +263,7 @@ func supersedeQuestionsTx(ctx context.Context, tx store.Store, run *store.Run) e
 }
 
 // ResolveWaiting 结算等待追问的 run：超过期限按资源上限失败，已取消或撤销授权按取消处理，否则保持等待。
-func ResolveWaiting(ctx context.Context, st store.Store, notify store.Notifier, runID, now int64) error {
+func ResolveWaiting(ctx context.Context, st store.Store, runID, now int64) error {
 	err := st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		run, err := tx.LockRun(ctx, runID)
 		if err != nil {
@@ -324,12 +320,9 @@ func ResolveWaiting(ctx context.Context, st store.Store, notify store.Notifier, 
 		if err := tx.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		_, err = AppendEvent(ctx, tx, nil, *run, store.EventError, store.EventPayload{ErrorCode: code, Text: text})
+		_, err = AppendEvent(ctx, tx, *run, store.EventError, store.EventPayload{ErrorCode: code, Text: text})
 		return err
 	})
-	if err == nil && notify != nil {
-		_ = notify.Wake(ctx, runID)
-	}
 	return err
 }
 
