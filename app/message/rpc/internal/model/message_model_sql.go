@@ -13,9 +13,7 @@ import (
 )
 
 var (
-	messageRows                = "`id`,`conversation_id`,`sender_id`,`receiver_id`,`content`,`msg_type`,`status`,`media_id`,`created_at`"
-	messageRowsExpectAutoSet   = "`conversation_id`,`sender_id`,`receiver_id`,`content`,`msg_type`,`status`"
-	messageRowsWithPlaceHolder = "`conversation_id`=?,`sender_id`=?,`receiver_id`=?,`content`=?,`msg_type`=?,`status`=?"
+	messageRows = "`id`,`conversation_id`,`sender_id`,`receiver_id`,`content`,`msg_type`,`status`,`media_id`,`created_at`"
 
 	cacheMessageIdPrefix = "cache:message:id:"
 )
@@ -73,25 +71,4 @@ func (m *defaultMessageModel) FindOne(ctx context.Context, id int64) (*Message, 
 	default:
 		return nil, err
 	}
-}
-
-// Insert is the base insert without media or idempotency columns; sends go
-// through MessageCommandModel instead.
-func (m *defaultMessageModel) Insert(ctx context.Context, data *Message) (sql.Result, error) {
-	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, data.Id)
-	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?, ?, ?, ?)", m.table, messageRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.ConversationId, data.SenderId, data.ReceiverId, data.Content, data.MsgType, data.Status)
-	}, messageIdKey)
-	return ret, err
-}
-
-// Update rewrites a message by id and evicts its cache key.
-func (m *defaultMessageModel) Update(ctx context.Context, data *Message) error {
-	messageIdKey := fmt.Sprintf("%s%v", cacheMessageIdPrefix, data.Id)
-	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, messageRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.ConversationId, data.SenderId, data.ReceiverId, data.Content, data.MsgType, data.Status, data.Id)
-	}, messageIdKey)
-	return err
 }

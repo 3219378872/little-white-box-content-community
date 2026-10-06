@@ -55,7 +55,6 @@ func (m *fakeNotificationModel) MarkAllRead(ctx context.Context, userID int64) (
 }
 
 type fakeMessageModel struct {
-	inserted     []*model2.Message
 	list         []*model2.Message
 	hasMore      bool
 	unread       int64
@@ -63,13 +62,6 @@ type fakeMessageModel struct {
 	findTargetID int64
 	findLastID   int64
 	findLimit    int64
-}
-
-func (m *fakeMessageModel) Insert(ctx context.Context, data *model2.Message) (sql.Result, error) {
-	data.Id = int64(len(m.inserted) + 200)
-	data.CreatedAt = time.Unix(20, 0)
-	m.inserted = append(m.inserted, data)
-	return fakeResult{id: data.Id}, nil
 }
 
 func (m *fakeMessageModel) FindByUserConversation(ctx context.Context, userID int64, targetUserID int64, lastID int64, limit int64) ([]*model2.Message, bool, error) {
