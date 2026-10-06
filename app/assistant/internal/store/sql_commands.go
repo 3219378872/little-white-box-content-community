@@ -298,19 +298,12 @@ func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64,
 	if approved {
 		status = ConfirmApproved
 	}
-	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_confirmation SET status=?, resolved_at_ms=?
+	if _, err := s.exec.ExecCtx(ctx, `UPDATE agent_confirmation SET status=?, resolved_at_ms=?
 		WHERE user_id=? AND run_id=? AND call_id=? AND canonical_args_digest=? AND status=?`,
-		status, nowMs, userID, runID, callID, digest, ConfirmPending)
-	if err != nil {
+		status, nowMs, userID, runID, callID, digest, ConfirmPending); err != nil {
 		return nil, err
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return s.GetConfirmation(ctx, runID, callID)
-	}
+	// Whether or not this call matched the pending row, the stored row is the outcome to report.
 	return s.GetConfirmation(ctx, runID, callID)
 }
 
