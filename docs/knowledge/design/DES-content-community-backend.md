@@ -233,7 +233,7 @@ Milvus 向量投影以 `(post_id, revision)` 不可变键保存历史，删除�
 要求独立集合重建与协调切换，见 [迁移说明](../guides/vector-projection-migration.md)。
 
 推荐可直连 ES/Milvus 作召回源，但仍必须回源 Content。候选特征按 `revision` 单调覆盖，
-旧快照不回写。
+旧快照不回写；非 published 快照与删除一样移出召回，`post.counted` 不带作者与版本，不写候选。
 
 推荐快照翻页以原始候选序列的实际消费位置推进，不能用过滤后条目数替代原始偏移。Recommend 的合法
 空结果原样返回；参数错误、上下文不匹配和已有普通游标的失败不得重启为降级首页。仅首屏明确的依赖

@@ -26,7 +26,7 @@ func TestDurableOptOutSurvivesExpiredMarkerAndStopsPostFanout(t *testing.T) {
 	marker, err := env.Redis.GetCtx(ctx, "personalization:optout:42")
 	require.NoError(t, err)
 	require.Empty(t, marker)
-	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{EventID: 3, EventTime: 1000, Type: event.PostEventCreated, PostID: 92, AuthorID: 7}))
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{EventID: 3, EventTime: 1000, Type: event.PostEventCreated, Status: 1, PostID: 92, AuthorID: 7}))
 	posts, err := env.Redis.ZrevrangeWithScoresByFloatCtx(ctx, "recommend:v2-privacy:recall:post:follow:u:42:home", 0, -1)
 	require.NoError(t, err)
 	require.Empty(t, posts, "new posts must not recreate a disabled profile when marker expires")
@@ -46,7 +46,7 @@ func TestScheduledCleanupFindsOptOutAfterMarkerWriteWasLost(t *testing.T) {
 	preference := enabledPreferences()
 	behavior := NewRedisBehaviorStore(env.Redis, "v2-cleanup", "recommend", 3600, preference)
 	candidates := NewRedisCandidateStore(env.Redis, "v2-cleanup", "recommend", 3600, preference)
-	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{EventID: 1, EventTime: 1000, Type: event.PostEventCreated, PostID: 91, AuthorID: 7}))
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{EventID: 1, EventTime: 1000, Type: event.PostEventCreated, Status: 1, PostID: 91, AuthorID: 7}))
 	require.NoError(t, behavior.Record(ctx, behaviorEvent(2, 42, "follow", 7, "user")))
 	preference.enabled = false // DB committed, but no opt-out marker made it into Redis.
 	count, err := behavior.PurgeOptedOutFeatures(ctx)

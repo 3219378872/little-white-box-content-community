@@ -27,7 +27,7 @@ func TestRedisCandidatePipelineProducesOnlineRecallKeys(t *testing.T) {
 
 	for _, postID := range []int64{101, 102} {
 		require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
-			EventID: postID, EventTime: 1_000 + postID, Type: event.PostEventCreated,
+			EventID: postID, EventTime: 1_000 + postID, Type: event.PostEventCreated, Status: 1,
 			PostID: postID, AuthorID: 7, Title: "post", Tags: []string{"go"},
 		}))
 	}
@@ -39,7 +39,7 @@ func TestRedisCandidatePipelineProducesOnlineRecallKeys(t *testing.T) {
 	assert.ElementsMatch(t, []string{"101", "102"}, pairKeys(followPosts))
 
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
-		EventID: 103, EventTime: 1_103, Type: event.PostEventCreated,
+		EventID: 103, EventTime: 1_103, Type: event.PostEventCreated, Status: 1,
 		PostID: 103, AuthorID: 7, Title: "new post", Tags: []string{"go"},
 	}))
 	followPosts, err = env.Redis.ZrevrangeWithScoresByFloatCtx(ctx, followKey, 0, -1)
@@ -80,17 +80,120 @@ func TestRedisCandidateStoreIgnoresStaleRevision(t *testing.T) {
 	candidates := NewRedisCandidateStore(env.Redis, "v2-rev", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
-		EventID: 302, EventTime: 2_000, Type: event.PostEventUpdated,
+		EventID: 302, EventTime: 2_000, Type: event.PostEventUpdated, Status: 1,
 		PostID: 300, AuthorID: 7, Title: "C", Tags: []string{"c-tag"}, Revision: 3,
 	}))
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
-		EventID: 301, EventTime: 1_000, Type: event.PostEventUpdated,
+		EventID: 301, EventTime: 1_000, Type: event.PostEventUpdated, Status: 1,
 		PostID: 300, AuthorID: 7, Title: "B", Tags: []string{"b-tag"}, Revision: 2,
 	}))
 
 	features, err := env.Redis.HgetallCtx(ctx, "feature:v2-rev:post:300")
 	require.NoError(t, err)
 	assert.Equal(t, "c-tag", features["category"])
+	assert.Equal(t, "3", features["revision"])
+}
+
+func TestRedisCandidateStoreCountPatchesKeepCandidateState(t *testing.T) {
+	env := testutil.SetupRedisEnv(t)
+	t.Cleanup(env.Close)
+	ctx := context.Background()
+	candidates := NewRedisCandidateStore(env.Redis, "v2-count", "recommend", 3600, enabledPreferences())
+	hotKey := "recommend:v2-count:recall:post:hot:home"
+
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 401, EventTime: 1_000, Type: event.PostEventUpdated, Status: 1,
+		PostID: 400, AuthorID: 7, Tags: []string{"go"}, Revision: 3,
+	}))
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 402, EventTime: 9_000, Type: event.PostEventCounted,
+		PostID: 400, LikeCount: 5, CommentCount: 1, StatsSeq: 9_000,
+	}))
+	features, err := env.Redis.HgetallCtx(ctx, "feature:v2-count:post:400")
+	require.NoError(t, err)
+	assert.Equal(t, "7", features["author_id"])
+	assert.Equal(t, "go", features["category"])
+	assert.Equal(t, "3", features["revision"])
+	score, err := env.Redis.ZscoreCtx(ctx, hotKey, "400")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1_000), score, "count patches must not refresh recall time")
+	orphan, err := env.Redis.ExistsCtx(ctx, "recommend:v2-count:author:0:posts")
+	require.NoError(t, err)
+	assert.False(t, orphan)
+
+	// The revision guard survives the count patch, so a late snapshot is dropped.
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 403, EventTime: 500, Type: event.PostEventUpdated, Status: 1,
+		PostID: 400, AuthorID: 7, Tags: []string{"stale"}, Revision: 2,
+	}))
+	features, err = env.Redis.HgetallCtx(ctx, "feature:v2-count:post:400")
+	require.NoError(t, err)
+	assert.Equal(t, "go", features["category"])
+
+	// A count patch after deletion must not revive the candidate.
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 404, EventTime: 2_000, Type: event.PostEventDeleted, PostID: 400, AuthorID: 7, Revision: 4,
+	}))
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 405, EventTime: 3_000, Type: event.PostEventCounted, PostID: 400, LikeCount: 6,
+	}))
+	features, err = env.Redis.HgetallCtx(ctx, "feature:v2-count:post:400")
+	require.NoError(t, err)
+	assert.Equal(t, "deleted", features["status"])
+	hot, err := env.Redis.ZrevrangeWithScoresByFloatCtx(ctx, hotKey, 0, -1)
+	require.NoError(t, err)
+	assert.NotContains(t, pairKeys(hot), "400")
+}
+
+func TestRedisCandidateStoreUnpublishRemovesRecallAndRepublishRestores(t *testing.T) {
+	env := testutil.SetupRedisEnv(t)
+	t.Cleanup(env.Close)
+	ctx := context.Background()
+	candidates := NewRedisCandidateStore(env.Redis, "v2-draft", "recommend", 3600, enabledPreferences())
+	behaviors := NewRedisBehaviorStore(env.Redis, "v2-draft", "recommend", 3600, enabledPreferences())
+	keys := []string{
+		"recommend:v2-draft:recall:post:hot:home",
+		"recommend:v2-draft:recall:post:explore:home",
+		"recommend:v2-draft:author:7:posts",
+		"recommend:v2-draft:recall:post:follow:u:42:home",
+	}
+	recalled := func() []bool {
+		present := make([]bool, len(keys))
+		for index, key := range keys {
+			members, err := env.Redis.ZrevrangeWithScoresByFloatCtx(ctx, key, 0, -1)
+			require.NoError(t, err)
+			for _, member := range pairKeys(members) {
+				present[index] = present[index] || member == "500"
+			}
+		}
+		return present
+	}
+
+	// A draft never enters recall.
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 501, EventTime: 1_000, Type: event.PostEventCreated, Status: 0,
+		PostID: 500, AuthorID: 7, Revision: 1,
+	}))
+	require.NoError(t, behaviors.Record(ctx, behaviorEvent(510, 42, "follow", 7, "user")))
+	assert.Equal(t, []bool{false, false, false, false}, recalled())
+	features, err := env.Redis.HgetallCtx(ctx, "feature:v2-draft:post:500")
+	require.NoError(t, err)
+	assert.Equal(t, "unpublished", features["status"])
+
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 502, EventTime: 2_000, Type: event.PostEventUpdated, Status: 1,
+		PostID: 500, AuthorID: 7, Revision: 2,
+	}))
+	assert.Equal(t, []bool{true, true, true, true}, recalled())
+
+	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
+		EventID: 503, EventTime: 3_000, Type: event.PostEventUpdated, Status: 0,
+		PostID: 500, AuthorID: 7, Revision: 3,
+	}))
+	assert.Equal(t, []bool{false, false, false, false}, recalled())
+	features, err = env.Redis.HgetallCtx(ctx, "feature:v2-draft:post:500")
+	require.NoError(t, err)
+	assert.Equal(t, "unpublished", features["status"])
 	assert.Equal(t, "3", features["revision"])
 }
 
@@ -116,7 +219,7 @@ func TestRedisBehaviorStoreKeepsEventTimeOrderAndLatestFollowState(t *testing.T)
 	candidates := NewRedisCandidateStore(env.Redis, "v2-ordering", "recommend", 3600, enabledPreferences())
 
 	require.NoError(t, candidates.RecordPost(ctx, event.PostEvent{
-		EventID: 201, EventTime: 1_000, Type: event.PostEventCreated,
+		EventID: 201, EventTime: 1_000, Type: event.PostEventCreated, Status: 1,
 		PostID: 201, AuthorID: 7, Title: "post",
 	}))
 	newerUnfollow := behaviorEvent(10, 42, event.BehaviorActionUnfollow, 7, "user")

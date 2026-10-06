@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"esx/pkg/event"
+	"esx/pkg/visibilityx"
 )
 
 type CandidateStore interface {
@@ -41,6 +42,13 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 	if err := post.Validate(); err != nil {
 		return fmt.Errorf("validate recommendation post event: %w", err)
 	}
+	// Count patches carry no author, tags or revision; treating them as a
+	// snapshot would erase the author, reset the revision guard and revive
+	// deleted candidates. Popularity comes from behavior events instead.
+	if post.Type == event.PostEventCounted {
+		return nil
+	}
+	status := candidateStatus(post)
 	category := ""
 	if len(post.Tags) > 0 {
 		category = post.Tags[0]
@@ -52,7 +60,7 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 	allowed := map[string]bool{}
 	if members, ok := s.redis.(interface {
 		SmembersCtx(context.Context, string) ([]string, error)
-	}); ok && post.Type != event.PostEventDeleted {
+	}); ok && status == candidateActive {
 		followers, err := members.SmembersCtx(ctx, s.recallPrefix+":follow:author:"+authorID+":followers")
 		if err != nil {
 			return fmt.Errorf("load candidate followers: %w", err)
@@ -84,7 +92,7 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 		s.recallPrefix + ":recall:post:explore:home",
 		s.recallPrefix + ":author:" + authorID + ":posts",
 		s.recallPrefix + ":follow:author:" + authorID + ":followers",
-	}, string(post.Type), postID, authorID, category, post.EventTime,
+	}, status, postID, authorID, category, post.EventTime,
 		s.ttlSeconds, s.recallPrefix, post.Revision, string(allowedJSON))
 	if err != nil {
 		return fmt.Errorf("record recommendation post candidates: %w", err)
@@ -92,8 +100,27 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 	return nil
 }
 
+const (
+	candidateActive      = "active"
+	candidateDeleted     = "deleted"
+	candidateUnpublished = "unpublished"
+)
+
+// candidateStatus maps a post snapshot to its candidate lifecycle. Drafts and
+// unpublished posts leave recall like deletions (CORE-015); a later publish
+// carries a newer revision and restores them.
+func candidateStatus(post event.PostEvent) string {
+	if post.Type == event.PostEventDeleted {
+		return candidateDeleted
+	}
+	if !visibilityx.IsPublished(post.Status) {
+		return candidateUnpublished
+	}
+	return candidateActive
+}
+
 const recordPostCandidateScript = `
-local event_type = ARGV[1]
+local status = ARGV[1]
 local post_id = ARGV[2]
 local author_id = ARGV[3]
 local category = ARGV[4]
@@ -106,8 +133,8 @@ if incoming_rev > 0 and incoming_rev <= stored_rev then
   return 0
 end
 
-if event_type == 'post.deleted' then
-  redis.call('HSET', KEYS[1], 'status', 'deleted', 'revision', incoming_rev)
+if status ~= 'active' then
+  redis.call('HSET', KEYS[1], 'status', status, 'revision', incoming_rev)
   redis.call('ZREM', KEYS[2], post_id)
   redis.call('ZREM', KEYS[3], post_id)
   redis.call('ZREM', KEYS[4], post_id)
@@ -127,7 +154,7 @@ local allowed_followers = cjson.decode(ARGV[9])
 local followers = redis.call('SMEMBERS', KEYS[5])
 for _, identity in ipairs(followers) do
   local follow_key = recall_prefix .. ':recall:post:follow:' .. identity .. ':home'
-  if event_type == 'post.deleted' then
+  if status ~= 'active' then
     redis.call('ZREM', follow_key, post_id)
   elseif allowed_followers[identity] then
     redis.call('ZADD', follow_key, event_time, post_id)

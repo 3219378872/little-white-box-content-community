@@ -15,7 +15,7 @@ import (
 func TestRedisCandidateStoreWritesVersionedPostKeys(t *testing.T) {
 	redis := &fakeEvaler{}
 	post := event.PostEvent{
-		EventID: 1, EventTime: 100, Type: event.PostEventCreated,
+		EventID: 1, EventTime: 100, Type: event.PostEventCreated, Status: 1,
 		PostID: 9, AuthorID: 4, Tags: []string{"go"},
 	}
 
@@ -30,9 +30,40 @@ func TestRedisCandidateStoreWritesVersionedPostKeys(t *testing.T) {
 		"recommend:v2:author:4:posts",
 		"recommend:v2:follow:author:4:followers",
 	}, redis.keys)
-	assert.Equal(t, "post.created", redis.args[0])
+	assert.Equal(t, "active", redis.args[0])
 	assert.Equal(t, "go", redis.args[3])
 	assert.Equal(t, int64(0), redis.args[7])
+}
+
+func TestRedisCandidateStoreSkipsCountPatches(t *testing.T) {
+	redis := &fakeEvaler{}
+	post := event.PostEvent{
+		EventID: 1, EventTime: 100, Type: event.PostEventCounted,
+		PostID: 9, LikeCount: 5, CommentCount: 1, StatsSeq: 100,
+	}
+
+	err := NewRedisCandidateStore(redis, "v2", "recommend", 3600).
+		RecordPost(context.Background(), post)
+
+	require.NoError(t, err)
+	assert.Nil(t, redis.keys, "count patches must not touch candidate state")
+}
+
+func TestRedisCandidateStoreMapsLifecycleStatus(t *testing.T) {
+	for _, tc := range []struct {
+		post event.PostEvent
+		want string
+	}{
+		{event.PostEvent{EventID: 1, Type: event.PostEventUpdated, PostID: 9, AuthorID: 4, Status: 1}, "active"},
+		{event.PostEvent{EventID: 2, Type: event.PostEventUpdated, PostID: 9, AuthorID: 4, Status: 0}, "unpublished"},
+		{event.PostEvent{EventID: 3, Type: event.PostEventCreated, PostID: 9, AuthorID: 4, Status: 0}, "unpublished"},
+		{event.PostEvent{EventID: 4, Type: event.PostEventDeleted, PostID: 9, AuthorID: 4}, "deleted"},
+	} {
+		redis := &fakeEvaler{}
+		require.NoError(t, NewRedisCandidateStore(redis, "v2", "recommend", 3600).
+			RecordPost(context.Background(), tc.post))
+		assert.Equal(t, tc.want, redis.args[0], "event %d", tc.post.EventID)
+	}
 }
 
 func TestRedisCandidateStorePropagatesFailure(t *testing.T) {
