@@ -10,6 +10,7 @@ import (
 	"esx/app/assistant/internal/tool"
 )
 
+// completeModelText 处理不再调用工具的最终回答：记忆回顾直接结束，用户 run 发布回答消息。
 func (e *Engine) completeModelText(ctx context.Context, run store.Run, result llm.Result) error {
 	text := result.Text
 	switch run.Source {
@@ -23,6 +24,7 @@ func (e *Engine) completeModelText(ctx context.Context, run store.Run, result ll
 	}
 }
 
+// completeMemoryReview 结束后台记忆回顾；已结束时幂等返回。
 func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error {
 	fresh, err := e.Store.GetRun(ctx, run.ID)
 	if err != nil {
@@ -34,6 +36,7 @@ func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error 
 	return e.finish(ctx, run, store.StatusDone, store.EventDone, store.EventPayload{})
 }
 
+// publishMemoryChanges 为本 run 产生的每次记忆变更插入一条可撤销提示消息，已插入的跳过。
 func publishMemoryChanges(ctx context.Context, tx store.Store, run store.Run, thread *store.Thread, now int64) error {
 	changeIDs, err := memoryChangeIDs(ctx, tx, run.ID)
 	if err != nil {
@@ -75,6 +78,7 @@ func publishMemoryChanges(ctx context.Context, tx store.Store, run store.Run, th
 	return nil
 }
 
+// memoryChangeIDs 从成功（含重放）的记忆工具结果中收集变更 ID。
 func memoryChangeIDs(ctx context.Context, st store.Store, runID int64) ([]int64, error) {
 	calls, err := st.ListToolCalls(ctx, runID)
 	if err != nil {
@@ -110,6 +114,7 @@ func memoryChangeIDs(ctx context.Context, st store.Store, runID int64) ([]int64,
 	return out, nil
 }
 
+// insertMessageOutbox 登记消息的搜索索引更新，与消息写入同事务提交。
 func insertMessageOutbox(ctx context.Context, tx store.Store, msg store.Message) error {
 	payload, _ := json.Marshal(map[string]any{
 		"userId": msg.UserID, "sessionId": msg.SessionID, "messageId": msg.ID,
@@ -122,6 +127,7 @@ func insertMessageOutbox(ctx context.Context, tx store.Store, msg store.Message)
 	})
 }
 
+// finishRunTx 在调用方事务内把 run 置为终态并追加终止事件。
 func finishRunTx(ctx context.Context, tx store.Store, run store.Run, status, eventType string, payload store.EventPayload, now int64) (store.Event, error) {
 	run.Status = status
 	run.Phase = store.PhaseDone
@@ -139,12 +145,14 @@ func finishRunTx(ctx context.Context, tx store.Store, run store.Run, status, eve
 	return appendEventTx(ctx, tx, run, eventType, payload, now)
 }
 
+// appendEventTx 在调用方事务内追加事件，不检查事件是否公开。
 func appendEventTx(ctx context.Context, tx store.Store, run store.Run, eventType string, payload store.EventPayload, now int64) (store.Event, error) {
 	payload.SessionID = run.SessionID
 	raw, _ := json.Marshal(payload)
 	return tx.InsertEvent(ctx, run.ID, eventType, raw, now)
 }
 
+// wake 在提交后通知订阅方，通知失败不影响主流程。
 func (e *Engine) wake(ctx context.Context, runID int64) {
 	if e.Notify != nil {
 		_ = e.Notify.Wake(ctx, runID)

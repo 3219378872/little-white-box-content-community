@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// incomplete ends a run whose model response was cut off; user runs keep the partial text as the answer.
 func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Result) error {
 	partial := strings.TrimSpace(result.Text)
 	reason := "UNKNOWN"
@@ -32,6 +33,8 @@ func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Resul
 	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
 
+// keepsStreamedAnswer reports whether a tool round only presents sources, so the text streamed
+// alongside it is the answer and stays visible.
 func keepsStreamedAnswer(names []string) bool {
 	if len(names) == 0 {
 		return false
@@ -44,6 +47,7 @@ func keepsStreamedAnswer(names []string) bool {
 	return true
 }
 
+// toolCallNames lists the tools a model round called.
 func toolCallNames(calls []llm.ToolCall) []string {
 	names := make([]string, 0, len(calls))
 	for _, call := range calls {
@@ -52,6 +56,7 @@ func toolCallNames(calls []llm.ToolCall) []string {
 	return names
 }
 
+// turnToolNames lists the tools called in a stored assistant turn.
 func turnToolNames(turn prompt.Turn) []string {
 	names := make([]string, 0, len(turn.ToolCalls))
 	for _, call := range turn.ToolCalls {
@@ -60,6 +65,7 @@ func turnToolNames(turn prompt.Turn) []string {
 	return names
 }
 
+// visibleForPrompt drops messages already folded into the session summary.
 func visibleForPrompt(msgs []store.Message) []store.Message {
 	out := make([]store.Message, 0, len(msgs))
 	for _, msg := range msgs {
@@ -71,6 +77,8 @@ func visibleForPrompt(msgs []store.Message) []store.Message {
 	return out
 }
 
+// completeModel calls the model while streaming tokens as events. It first re-checks the lease,
+// cancellation and input version, and aborts the call if the user steers or cancels meanwhile.
 func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Run, client llm.Client, req llm.Request) (llm.Result, error) {
 	if err := e.step(persistCtx, run, func(context.Context, store.Store) error { return nil }); err != nil {
 		return llm.Result{}, err
@@ -150,6 +158,8 @@ func (e *Engine) completeModel(workCtx, persistCtx context.Context, run store.Ru
 	return result, err
 }
 
+// watchInputChange polls the run and cancels the model call once input changes or a cancel is requested.
+// The returned stop function waits for the watcher to exit.
 func watchInputChange(ctx context.Context, st store.Store, runID, inputVersion int64, cancel context.CancelFunc) func() {
 	watchCtx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})
@@ -196,6 +206,8 @@ func (e *Engine) modelResultStep(ctx context.Context, run store.Run, fn func(con
 	})
 }
 
+// recordModelToolStep stores the assistant turn that issued tool calls. Memory reviews keep their
+// turns in memory only, so they never appear in the user's transcript.
 func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn prompt.Turn, reviewLive *[]prompt.Turn) error {
 	err := e.modelResultStep(ctx, run, func(ctx context.Context, tx store.Store) error {
 		if run.Source == store.SourceMemoryReview {
@@ -218,6 +230,8 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 	return err
 }
 
+// pendingUserTurns collects user input not yet in the transcript: the steered payload and queued
+// messages. It also returns the highest queue ID consumed so the queue can be trimmed.
 func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, int64, error) {
 	out := make([]prompt.Turn, 0)
 	if len(run.QueuedPayload) > 0 {

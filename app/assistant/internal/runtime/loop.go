@@ -43,6 +43,7 @@ var (
 	cancelWatchInterval = 50 * time.Millisecond
 )
 
+// Engine 执行已被 worker 领取的 run：组装提示词、调用模型、执行工具并把结果写回 store。
 type Engine struct {
 	Store     store.Store
 	Memory    memory.Store
@@ -55,6 +56,8 @@ type Engine struct {
 	Provider  int
 }
 
+// Execute 在租约内跑完一个 run。persistCtx 用于写库，workCtx 在取消、失去租约或撤销授权时被提前取消，
+// 使模型与工具调用尽快停止而收尾写入仍能完成。
 func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	if recovered {
 		agentLeaseRecover.Inc(run.Source)
@@ -69,6 +72,7 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	defer stopWatch()
 
 	logger := logging.WithContext(persistCtx)
+	// 接管过期租约时，先为上一个 worker 未结束的流补发 reset，避免客户端拼接两段回答。
 	if recovered {
 		if err := e.resetRecoveredStreams(persistCtx, run); err != nil {
 			if !errors.Is(err, store.ErrLeaseLost) {
@@ -77,6 +81,7 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 			return
 		}
 	}
+	// 失去租约或 run 已终结时不再写入；其余未预期错误把仍在运行的 run 标记为失败。
 	if err := e.run(workCtx, persistCtx, run); err != nil {
 		if errors.Is(err, store.ErrLeaseLost) || persistCtx.Err() != nil {
 			return
@@ -99,16 +104,19 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	}
 }
 
+// step 在租约栅栏内提交一次写入；租约丢失时返回 ErrLeaseLost。
 func (e *Engine) step(ctx context.Context, run store.Run, fn func(context.Context, store.Store) error) error {
 	return e.Store.RunStep(ctx, run.Fence(), fn)
 }
 
+// updateRun 在租约栅栏内保存 run 的进度与计量。
 func (e *Engine) updateRun(ctx context.Context, run store.Run) error {
 	return e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
 		return tx.UpdateRun(ctx, run)
 	})
 }
 
+// appendEvent 在租约栅栏内追加公开事件，提交后再唤醒订阅方。
 func (e *Engine) appendEvent(ctx context.Context, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
 	var event store.Event
 	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
@@ -122,6 +130,7 @@ func (e *Engine) appendEvent(ctx context.Context, run store.Run, eventType strin
 	return event, err
 }
 
+// run 准备执行状态后循环迭代，直到某一轮报告结束或出错。
 func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	execution, err := e.prepareExecution(persistCtx, run)
 	if execution == nil || err != nil {
@@ -135,4 +144,5 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 	}
 }
 
+// ObserveQueueAge 记录 run 从入队到被领取的等待秒数。
 func ObserveQueueAge(seconds float64) { agentQueueAge.ObserveFloat(seconds) }

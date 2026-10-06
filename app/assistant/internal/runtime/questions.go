@@ -19,12 +19,15 @@ import (
 
 var errRunWaiting = errors.New("run yielded for user input")
 
+// QuestionContext 让用户在原 run 结束后，仍可带着对其追问的回答发起新消息。
 type QuestionContext struct {
 	RunID             int64                  `json:"runId"`
 	QuestionRequestID string                 `json:"questionRequestId"`
 	Answers           []store.QuestionAnswer `json:"answers"`
 }
 
+// waitForQuestions 发布追问并把 run 挂起为 waiting_input；同一调用重复进入时直接返回等待。
+// 等待期限取空闲上限与 run 绝对时限中较早者。
 func (e *Engine) waitForQuestions(ctx context.Context, run *store.Run, call llm.ToolCall, question store.QuestionRequest) error {
 	now := store.NowMs()
 	if run.ToolCalls+1 >= HardTools || HardLimitExceeded(*run, now) {
@@ -99,6 +102,7 @@ func (e *Engine) waitForQuestions(ctx context.Context, run *store.Run, call llm.
 	return errRunWaiting
 }
 
+// ValidateAnswers 要求每个问题恰好一个处置，并按问题顺序返回规范化后的回答；正文合计不超过 2000 字。
 func ValidateAnswers(questions []store.Question, answers []store.QuestionAnswer) ([]store.QuestionAnswer, error) {
 	if len(answers) != len(questions) {
 		return nil, errx.New(errx.ParamError, "each question requires an explicit disposition")
@@ -155,6 +159,7 @@ func ValidateAnswers(questions []store.Question, answers []store.QuestionAnswer)
 	return result, nil
 }
 
+// closeQuestionTx 结束一组追问：写入工具结果消息与调用状态，再发布 tool_result 与 questions_resolved 事件。
 func closeQuestionTx(ctx context.Context, tx store.Store, run store.Run, q *store.QuestionRequest, status string) error {
 	q.Status = status
 	if err := tx.SaveQuestion(ctx, *q); err != nil {
@@ -175,6 +180,8 @@ func closeQuestionTx(ctx context.Context, tx store.Store, run store.Run, q *stor
 	return err
 }
 
+// AnswerQuestions 在锁住 run 后复核授权并提交回答，随后把 run 放回队列；
+// 同一 requestID 携带相同回答的重试直接返回首次结果。
 func AnswerQuestions(ctx context.Context, st store.Store, notify store.Notifier, userID, runID int64, questionID, requestID string, answers []store.QuestionAnswer) (*store.QuestionRequest, error) {
 	if userID <= 0 || runID <= 0 || questionID == "" || strings.TrimSpace(requestID) == "" || len(requestID) > 64 {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -240,6 +247,7 @@ func AnswerQuestions(ctx context.Context, st store.Store, notify store.Notifier,
 	return out, err
 }
 
+// supersedeQuestionsTx 在用户直接发新消息时作废待答追问，并把 run 放回队列以继续处理新输入。
 func supersedeQuestionsTx(ctx context.Context, tx store.Store, run *store.Run) error {
 	questions, err := tx.ListQuestions(ctx, run.ID)
 	if err != nil {
@@ -258,6 +266,7 @@ func supersedeQuestionsTx(ctx context.Context, tx store.Store, run *store.Run) e
 	return tx.UpdateRun(ctx, *run)
 }
 
+// ResolveWaiting 结算等待追问的 run：超过期限按资源上限失败，已取消或撤销授权按取消处理，否则保持等待。
 func ResolveWaiting(ctx context.Context, st store.Store, notify store.Notifier, runID, now int64) error {
 	err := st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		run, err := tx.LockRun(ctx, runID)
@@ -324,6 +333,7 @@ func ResolveWaiting(ctx context.Context, st store.Store, notify store.Notifier, 
 	return err
 }
 
+// questionContext 校验续答所引用的追问：原 run 必须已结束且消息未删除，返回附加到新消息的 JSON。
 func (a *Acceptor) questionContext(ctx context.Context, userID int64, context *QuestionContext) (string, error) {
 	if context == nil {
 		return "", nil

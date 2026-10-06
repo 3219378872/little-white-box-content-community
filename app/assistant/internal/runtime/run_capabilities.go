@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// loadCapabilities 读取会话冻结的工具与模型路由；缺失时按当前配置补建并写回，保证同一会话前后一致。
 func (e *Engine) loadCapabilities(ctx context.Context, run store.Run, session *store.Session) (*tool.Registry, llm.Client, error) {
 	if session == nil {
 		return nil, nil, errors.New("assistant session is nil")
@@ -51,6 +52,7 @@ func (e *Engine) loadCapabilities(ctx context.Context, run store.Run, session *s
 	return registry, client, nil
 }
 
+// buildCapabilitySnapshot 按当前工具注册与模型能力生成新的能力快照。
 func (e *Engine) buildCapabilitySnapshot(run store.Run) (prompt.CapabilitySnapshot, error) {
 	base := tool.ForSource(e.Tools, store.SourceUser, run.ConsentVersion)
 	if base == nil {

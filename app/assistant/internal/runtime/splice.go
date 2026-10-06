@@ -13,6 +13,7 @@ import (
 // rebuild Safety/SOUL/tool rules/MEMORY. It is not the per-run HardIdle budget.
 const ColdConversationIdle = 30 * time.Minute
 
+// isColdConversation reports whether the thread has been idle long enough to rebuild the prompt.
 func isColdConversation(thread *store.Thread, now int64) bool {
 	if thread == nil || thread.LastMessageAtMs <= 0 {
 		return false
@@ -20,6 +21,7 @@ func isColdConversation(thread *store.Thread, now int64) bool {
 	return now-thread.LastMessageAtMs >= ColdConversationIdle.Milliseconds()
 }
 
+// loadActiveMemory reads active memory; a failure yields an empty snapshot rather than blocking input.
 func loadActiveMemory(ctx context.Context, memories memory.Store, userID int64) []memory.Entry {
 	if memories == nil {
 		return nil
@@ -31,10 +33,12 @@ func loadActiveMemory(ctx context.Context, memories memory.Store, userID int64) 
 	return listed
 }
 
+// encodePersistentSnapshot builds the session prompt snapshot from memory and the compact summary.
 func encodePersistentSnapshot(entries []memory.Entry, compactSummary string) []byte {
 	return prompt.EncodeSnapshot(prompt.BuildSnapshot(entries, nil, compactSummary))
 }
 
+// ensureForegroundSession returns the thread's session, reopening a closed one or creating the first.
 func ensureForegroundSession(ctx context.Context, tx store.Store, memories memory.Store, thread *store.Thread, now int64) (*store.Session, error) {
 	if thread.SessionID > 0 {
 		session, err := tx.GetSession(ctx, thread.SessionID)
@@ -68,6 +72,8 @@ func ensureForegroundSession(ctx context.Context, tx store.Store, memories memor
 	return &created, nil
 }
 
+// spliceColdSession starts a new prompt epoch on the same session so a cold conversation picks up
+// current memory while keeping the compact summary.
 func spliceColdSession(ctx context.Context, tx store.Store, memories memory.Store, session *store.Session) (*store.Session, error) {
 	if session == nil {
 		return nil, nil

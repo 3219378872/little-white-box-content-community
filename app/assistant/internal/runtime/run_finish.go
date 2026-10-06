@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// ensureStarted 在 run 还没有任何事件时补发 run_started。
 func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
 	seq, err := e.Store.MaxEventSeq(ctx, run.ID)
 	if err != nil {
@@ -20,10 +21,12 @@ func (e *Engine) ensureStarted(ctx context.Context, run store.Run) error {
 	return err
 }
 
+// resourceLimit 以资源上限结束 run，没有可保留的部分回答。
 func (e *Engine) resourceLimit(ctx context.Context, run store.Run) error {
 	return e.resourceLimitResult(ctx, run, llm.Result{})
 }
 
+// stopAtResourceLimit 以资源上限结束 run，并返回 errRunTerminated 让调用方停止迭代。
 func (e *Engine) stopAtResourceLimit(ctx context.Context, run store.Run) error {
 	if err := e.resourceLimit(ctx, run); err != nil {
 		return err
@@ -31,6 +34,7 @@ func (e *Engine) stopAtResourceLimit(ctx context.Context, run store.Run) error {
 	return errRunTerminated
 }
 
+// resourceLimitResult 以资源上限结束 run，并列出已完成的副作用；用户 run 保留已生成的部分回答。
 func (e *Engine) resourceLimitResult(ctx context.Context, run store.Run, result llm.Result) error {
 	journals, err := e.Store.ListSuccessfulJournal(ctx, run.UserID, run.RequestID)
 	if err != nil {
@@ -52,10 +56,12 @@ func (e *Engine) resourceLimitResult(ctx context.Context, run store.Run, result 
 	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }
 
+// fail 以给定错误码结束 run。
 func (e *Engine) fail(ctx context.Context, run store.Run, code, text string) error {
 	return e.finish(ctx, run, store.StatusError, store.EventError, store.EventPayload{ErrorCode: code, Text: text})
 }
 
+// cancel 把 run 收尾为 cancelled。
 func (e *Engine) cancel(ctx context.Context, run store.Run) error {
 	run.CancelRequested = true
 	return e.finish(ctx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"})

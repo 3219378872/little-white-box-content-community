@@ -12,6 +12,8 @@ import (
 
 const confirmationWait = 2 * time.Minute
 
+// requireConfirm records a confirmation for a destructive call pinned to its argument digest and
+// target revision, then parks the run as waiting_confirm.
 func (e *Engine) requireConfirm(workCtx, persistCtx context.Context, run *store.Run, call llm.ToolCall, digest string) error {
 	targetRevision, err := expectedRevision(call.Arguments)
 	if err != nil || targetRevision <= 0 {
@@ -109,6 +111,8 @@ func ExpireConfirmationWaits(ctx context.Context, st store.Store, now int64) err
 	return nil
 }
 
+// expireConfirmationWait requeues a run waiting for confirmation once it is cancelled or the wait
+// times out; on resume an expired confirmation fails the destructive call.
 func expireConfirmationWait(ctx context.Context, st store.Store, runID, now int64) error {
 	return st.Transact(ctx, func(ctx context.Context, tx store.Store) error {
 		run, err := tx.LockRun(ctx, runID)
@@ -136,6 +140,7 @@ func expireConfirmationWait(ctx context.Context, st store.Store, runID, now int6
 	})
 }
 
+// expectedRevision reads the revision the destructive call targets, so confirmation is tied to it.
 func expectedRevision(argsJSON string) (int64, error) {
 	var args struct {
 		ExpectedRevision int64 `json:"expected_revision"`

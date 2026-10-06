@@ -16,6 +16,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// callModel 发起本轮模型请求，并把重定向、取消与失败分别转成迭代动作。
 func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 	var err error
@@ -61,6 +62,7 @@ func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterati
 	return iterationNext, nil
 }
 
+// consumeResult 记账本轮用量，再按结果走向结束、继续执行工具或发布回答。
 func (s *executionState) consumeResult(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 
@@ -96,6 +98,7 @@ func (s *executionState) consumeResult(workCtx, persistCtx context.Context) (ite
 	return iterationNext, nil
 }
 
+// executeCalls 规范化并预处理模型请求的工具调用，记录发起调用的助手轮次后逐个执行。
 func (s *executionState) executeCalls(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 
@@ -103,6 +106,7 @@ func (s *executionState) executeCalls(workCtx, persistCtx context.Context) (iter
 	assistantTurn := prompt.Turn{Role: store.RoleAssistant, Content: strings.TrimSpace(s.result.Text)}
 	for i, call := range s.result.ToolCalls {
 		id := strings.TrimSpace(call.ID)
+		// 部分模型不返回调用 ID，生成一个以便结果能与调用配对。
 		if id == "" {
 			id = "call_" + strconv.FormatInt(store.NowMs(), 10) + "_" + strconv.FormatInt(int64(i+1), 10)
 		}

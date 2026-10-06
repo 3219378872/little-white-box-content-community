@@ -7,6 +7,8 @@ import (
 	"esx/pkg/errx"
 )
 
+// DeleteHistory cancels open runs, soft-deletes messages and clears derived prompts and research
+// data in one transaction, queueing index deletes for every removed message.
 func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 	if userID <= 0 {
 		return errx.NewWithCode(errx.LoginRequired)
@@ -61,6 +63,7 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 	return err
 }
 
+// cancelHistoryRun closes a run's open calls, expires its confirmation and queue, and marks it cancelled.
 func cancelHistoryRun(ctx context.Context, tx store.Store, run store.Run, now int64) error {
 	if err := closePendingCalls(ctx, tx, run, store.StatusCancelled); err != nil {
 		return err

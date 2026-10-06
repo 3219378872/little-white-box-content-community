@@ -7,6 +7,7 @@ import (
 	"esx/app/assistant/internal/store"
 )
 
+// EstimateTokens is a cheap token estimate: about four ASCII characters or one non-ASCII rune per token.
 func EstimateTokens(text string) int {
 	ascii := 0
 	nonASCII := 0
@@ -27,6 +28,7 @@ func EstimateTokens(text string) int {
 	return est
 }
 
+// SummaryInput picks the newest live visible messages that fit the summary budget, in original order.
 func SummaryInput(messages []store.Message, budgetTokens int) string {
 	if budgetTokens <= 0 {
 		return ""
@@ -49,10 +51,13 @@ func SummaryInput(messages []store.Message, budgetTokens int) string {
 	return strings.Join(selected, "")
 }
 
+// ShouldCompact is ShouldCompactWithAnchor without a provider-reported prompt size.
 func ShouldCompact(messages []store.Message, windowTokens int) bool {
 	return ShouldCompactWithAnchor(messages, windowTokens, 0)
 }
 
+// ShouldCompactWithAnchor compacts once the prompt reaches half the window. The provider's last
+// reported prompt size overrides the local estimate when it is larger.
 func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, lastPromptTokens int64) bool {
 	if windowTokens <= 0 {
 		windowTokens = 128000
@@ -72,6 +77,7 @@ func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, lastPro
 	return len(selected) < len(live)
 }
 
+// EstimateMessageTokens sums the estimate of messages that still enter the prompt.
 func EstimateMessageTokens(messages []store.Message) int {
 	total := 0
 	for _, msg := range messages {
@@ -83,6 +89,7 @@ func EstimateMessageTokens(messages []store.Message) int {
 	return total
 }
 
+// EstimatePromptTokens estimates already assembled prompt turns in their encoded form.
 func EstimatePromptTokens(turns []prompt.Turn) int {
 	total := 0
 	for _, turn := range turns {
@@ -91,6 +98,7 @@ func EstimatePromptTokens(turns []prompt.Turn) int {
 	return total
 }
 
+// estimateStoredTokens prefers the provider-format payload, which is what is actually sent.
 func estimateStoredTokens(msg store.Message) int {
 	if len(msg.APIContent) > 0 {
 		return EstimateTokens(string(msg.APIContent))
@@ -98,6 +106,8 @@ func estimateStoredTokens(msg store.Message) int {
 	return EstimateTokens(msg.Content)
 }
 
+// SelectKeep keeps the newest messages within keepTokens, always keeping the newest one and any
+// message that belongs to an unfinished tool call so the transcript stays valid.
 func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]struct{}) []store.Message {
 	if keepTokens <= 0 {
 		keepTokens = 1
@@ -120,6 +130,7 @@ func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]
 	return kept
 }
 
+// unfinishedCallIDs lists tool calls that have no result yet.
 func unfinishedCallIDs(messages []store.Message) map[string]struct{} {
 	calls := unmatchedToolCalls(HistoryTurns(messages))
 	out := make(map[string]struct{}, len(calls))
@@ -131,6 +142,7 @@ func unfinishedCallIDs(messages []store.Message) map[string]struct{} {
 	return out
 }
 
+// messageHasUnfinishedCall reports whether a message issues or answers one of the unfinished calls.
 func messageHasUnfinishedCall(msg store.Message, unfinished map[string]struct{}) bool {
 	if len(unfinished) == 0 {
 		return false
@@ -150,6 +162,7 @@ func messageHasUnfinishedCall(msg store.Message, unfinished map[string]struct{})
 	return false
 }
 
+// HistoryTurns converts stored messages to prompt turns, skipping deleted, compacted and question rows.
 func HistoryTurns(messages []store.Message) []prompt.Turn {
 	out := make([]prompt.Turn, 0, len(messages))
 	for _, msg := range messages {
@@ -163,10 +176,12 @@ func HistoryTurns(messages []store.Message) []prompt.Turn {
 	return out
 }
 
+// promptHistory is the history sent to the model for the current session.
 func promptHistory(messages []store.Message) []prompt.Turn {
 	return HistoryTurns(visibleForPrompt(messages))
 }
 
+// liveMessages drops deleted and already compacted messages.
 func liveMessages(messages []store.Message) []store.Message {
 	out := make([]store.Message, 0, len(messages))
 	for _, msg := range messages {
@@ -177,6 +192,7 @@ func liveMessages(messages []store.Message) []store.Message {
 	return out
 }
 
+// maxInt returns the larger of two ints.
 func maxInt(a, b int) int {
 	if a > b {
 		return a
@@ -184,6 +200,7 @@ func maxInt(a, b int) int {
 	return b
 }
 
+// turnFromMessage decodes the stored provider turn, falling back to visible plain-text rows.
 func turnFromMessage(msg store.Message) (prompt.Turn, bool) {
 	if turn, ok := prompt.DecodeTurn(msg.APIContent); ok {
 		if turn.Role == "" {

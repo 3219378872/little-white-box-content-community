@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// iterationAction tells the run loop whether to continue, restart the round, or stop.
 type iterationAction int
 
 const (
@@ -39,6 +40,8 @@ type executionState struct {
 	result       llm.Result
 }
 
+// prepareExecution loads the session, rebuilds a missing prompt snapshot, and resolves the frozen
+// tools and model client for this run.
 func (e *Engine) prepareExecution(persistCtx context.Context, run store.Run) (*executionState, error) {
 	if err := e.requireFrozenConsent(persistCtx, &run); err != nil {
 		return nil, err
@@ -81,6 +84,7 @@ func (e *Engine) prepareExecution(persistCtx context.Context, run store.Run) (*e
 	return &executionState{engine: e, run: run, session: session, snapshot: snap, registry: registry, client: modelClient, started: started}, nil
 }
 
+// iterate runs one model round: load, compact, assemble, call the model, then act on the result.
 func (s *executionState) iterate(workCtx, persistCtx context.Context) (action iterationAction, err error) {
 	defer func() {
 		if !errors.Is(err, errRunRedirected) {

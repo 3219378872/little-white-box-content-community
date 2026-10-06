@@ -11,10 +11,12 @@ import (
 	"esx/app/assistant/internal/tool"
 )
 
+// clientProtocol 返回 run 的客户端协议版本，旧数据视为 v1。
 func clientProtocol(run store.Run) int {
 	return max(1, run.ClientProtocolVersion)
 }
 
+// closePendingCalls 为 run 终止时仍未完成的工具调用补写结果，使会话记录保持调用与结果成对。
 func closePendingCalls(ctx context.Context, tx store.Store, run store.Run, status string) error {
 	pending := map[string]prompt.ToolCall{}
 	if run.Source != store.SourceMemoryReview {
@@ -79,6 +81,7 @@ func closePendingCalls(ctx context.Context, tx store.Store, run store.Run, statu
 	return nil
 }
 
+// requiresExclusiveRound 报告本轮是否包含必须单独执行的工具（追问或发布回答）。
 func requiresExclusiveRound(calls []llm.ToolCall) bool {
 	for _, call := range calls {
 		if call.Name == tool.AskQuestions || call.Name == tool.PublishAnswer {

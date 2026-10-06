@@ -17,6 +17,7 @@ const (
 	streamFlushBytes    = 2 << 10
 )
 
+// modelStreamWriter 把模型增量合并成 token 事件写库：首个片段立即发出，其后按字节数或时间间隔批量刷新。
 type modelStreamWriter struct {
 	engine     *Engine
 	ctx        context.Context
@@ -33,6 +34,7 @@ type modelStreamWriter struct {
 	emitted   bool
 }
 
+// newModelStreamWriter 以 run、租约代、输入版本与轮次组成流 ID 前缀，保证每次尝试的流 ID 唯一。
 func newModelStreamWriter(engine *Engine, ctx context.Context, run store.Run) *modelStreamWriter {
 	round := run.Rounds + 1
 	return &modelStreamWriter{
@@ -41,6 +43,7 @@ func newModelStreamWriter(engine *Engine, ctx context.Context, run store.Run) *m
 	}
 }
 
+// Observe 记录模型尝试事件；尝试被重置时先撤回已发出的文本。
 func (w *modelStreamWriter) Observe(event llm.AttemptEvent) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -68,6 +71,7 @@ func (w *modelStreamWriter) Observe(event llm.AttemptEvent) error {
 	return w.appendInternalLocked(event)
 }
 
+// Delta 追加一段输出文本；没有显式开始事件时补记一次主路由尝试。
 func (w *modelStreamWriter) Delta(delta llm.Delta) error {
 	if delta.Text == "" {
 		return nil
@@ -91,12 +95,14 @@ func (w *modelStreamWriter) Delta(delta llm.Delta) error {
 	return nil
 }
 
+// Finish 刷出剩余文本。
 func (w *modelStreamWriter) Finish() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.flushLocked(true)
 }
 
+// ResetWithRun 撤回本流已发出的文本并切换到新的 run 快照，用于输入被重定向后重来。
 func (w *modelStreamWriter) ResetWithRun(run store.Run) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -117,24 +123,28 @@ func (w *modelStreamWriter) ResetWithRun(run store.Run) error {
 	return nil
 }
 
+// StreamID 返回当前尝试的流 ID。
 func (w *modelStreamWriter) StreamID() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.streamID
 }
 
+// Text 返回已发出与待发出的全部文本。
 func (w *modelStreamWriter) Text() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.visible.String() + w.pending.String()
 }
 
+// Emitted 报告客户端是否已经或即将看到文本。
 func (w *modelStreamWriter) Emitted() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.emitted || w.pending.Len() > 0
 }
 
+// flushLocked 把缓冲文本写成 token 事件；force 时忽略批量阈值。调用方持有 w.mu。
 func (w *modelStreamWriter) flushLocked(force bool) error {
 	if w.pending.Len() == 0 {
 		return nil
@@ -153,6 +163,7 @@ func (w *modelStreamWriter) flushLocked(force bool) error {
 	return nil
 }
 
+// appendPublicLocked 在确认流身份后追加公开事件。
 func (w *modelStreamWriter) appendPublicLocked(eventType string, payload store.EventPayload) error {
 	err := w.engine.step(w.ctx, w.run, func(ctx context.Context, tx store.Store) error {
 		if err := validateStreamIdentity(ctx, tx, w.run, w.modelRound); err != nil {
@@ -167,6 +178,7 @@ func (w *modelStreamWriter) appendPublicLocked(eventType string, payload store.E
 	return err
 }
 
+// appendInternalLocked 记录 provider_attempt 内部事件，供排障与恢复，不推送给客户端。
 func (w *modelStreamWriter) appendInternalLocked(event llm.AttemptEvent) error {
 	payload := store.EventPayload{
 		StreamID: event.StreamID, RouteID: event.RouteID, Attempt: event.Attempt,
@@ -183,6 +195,7 @@ func (w *modelStreamWriter) appendInternalLocked(event llm.AttemptEvent) error {
 	})
 }
 
+// validateStreamIdentity 确认写入仍属于本轮：输入版本变了说明被重定向，轮次变了说明已被其他 worker 推进。
 func validateStreamIdentity(ctx context.Context, tx store.Store, run store.Run, modelRound int) error {
 	fresh, err := tx.GetRun(ctx, run.ID)
 	if err != nil {
@@ -197,6 +210,7 @@ func validateStreamIdentity(ctx context.Context, tx store.Store, run store.Run, 
 	return nil
 }
 
+// resetRecoveredStreams 为发过 token 但没有 reset 的流补发 reset，用于接管崩溃 worker 的 run。
 func (e *Engine) resetRecoveredStreams(ctx context.Context, run store.Run) error {
 	events, err := e.Store.ListEventsAfter(ctx, run.ID, 0)
 	if err != nil {

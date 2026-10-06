@@ -30,10 +30,12 @@ const (
 	ReviewMaxInput  = int64(600_000)
 )
 
+// BudgetConfig 预留 provider 侧的输出上限配置。
 type BudgetConfig struct {
 	ProviderMaxOutput int
 }
 
+// SingleOutputLimit 取 provider 单次输出上限，未配置或超出系统上限时用系统上限。
 func SingleOutputLimit(provider int) int {
 	if provider <= 0 || provider > MaxSingleOutput {
 		return MaxSingleOutput
@@ -41,10 +43,12 @@ func SingleOutputLimit(provider int) int {
 	return provider
 }
 
+// remainingOutputLimit 是本次请求可用的输出 token：单次上限与 run 剩余总额取小。
 func remainingOutputLimit(run store.Run, provider int) int {
 	return int(min(int64(SingleOutputLimit(provider)), max(int64(0), HardOutputTokens-run.OutputTokens)))
 }
 
+// reviewInputFits 预估记忆回顾本次请求后输入是否仍在回顾预算内；用户 run 不受此限。
 func reviewInputFits(run store.Run, req llm.Request) bool {
 	if run.Source != store.SourceMemoryReview {
 		return true
@@ -53,6 +57,7 @@ func reviewInputFits(run store.Run, req llm.Request) bool {
 	return run.InputTokens+int64(estimate) <= ReviewMaxInput
 }
 
+// recordModelUsage 把一次模型调用的用量与费用累加到 run。
 func recordModelUsage(run *store.Run, usage llm.Usage) {
 	run.InputTokens += usage.PromptTokens
 	run.OutputTokens += usage.CompletionTokens
@@ -63,12 +68,14 @@ func recordModelUsage(run *store.Run, usage llm.Usage) {
 	run.CostUSD += usage.CostUSD
 }
 
+// Alarm 是某一预算维度达到告警阈值时注入给模型的收敛提示。
 type Alarm struct {
 	Level     string
 	Dimension string
 	Message   string
 }
 
+// EvaluateAlarms 按空闲时长、轮次与输出 token 计算告警；总时长目前只计算不告警。
 func EvaluateAlarms(run store.Run, nowMs int64) []Alarm {
 	idle := time.Duration(0)
 	if run.LastActivityAtMs > 0 && nowMs > run.LastActivityAtMs {
@@ -86,6 +93,7 @@ func EvaluateAlarms(run store.Run, nowMs int64) []Alarm {
 	return out
 }
 
+// levelAlarms 按时长阈值返回最高一级告警。
 func levelAlarms(dim string, value, warn, crit time.Duration) []Alarm {
 	if value >= crit {
 		return []Alarm{{Level: "critical", Dimension: dim, Message: convergence(dim, "critical")}}
@@ -96,6 +104,7 @@ func levelAlarms(dim string, value, warn, crit time.Duration) []Alarm {
 	return nil
 }
 
+// countAlarms 按计数阈值返回最高一级告警。
 func countAlarms(dim string, value, warn, crit int) []Alarm {
 	if value >= crit {
 		return []Alarm{{Level: "critical", Dimension: dim, Message: convergence(dim, "critical")}}
@@ -106,6 +115,7 @@ func countAlarms(dim string, value, warn, crit int) []Alarm {
 	return nil
 }
 
+// tokenAlarms 按 token 阈值返回最高一级告警。
 func tokenAlarms(dim string, value, warn, crit int64) []Alarm {
 	if value >= crit {
 		return []Alarm{{Level: "critical", Dimension: dim, Message: convergence(dim, "critical")}}
@@ -116,10 +126,12 @@ func tokenAlarms(dim string, value, warn, crit int64) []Alarm {
 	return nil
 }
 
+// convergence 生成内部收敛提示，要求模型停止探索并尽快作答。
 func convergence(dim, level string) string {
 	return fmt.Sprintf("内部收敛提示：%s 已达 %s 阈值，停止探索性调用并尽快给出最终回答。该提示不得写入用户可见消息。", dim, level)
 }
 
+// HardLimitExceeded 判断 run 是否触及任一硬上限，触及后必须终止；记忆回顾另有更紧的上限。
 func HardLimitExceeded(run store.Run, nowMs int64) bool {
 	if run.Rounds >= HardRounds || run.ToolCalls >= HardTools || run.OutputTokens >= HardOutputTokens {
 		return true
@@ -138,10 +150,12 @@ func HardLimitExceeded(run store.Run, nowMs int64) bool {
 	return false
 }
 
+// ResourceLimitError 是资源上限对外的错误码。
 func ResourceLimitError() error {
 	return errx.NewWithCode(errx.AgentResourceLimit)
 }
 
+// RecordAlarms 记录本轮新触发的告警（每个维度与级别只记一次），返回需注入的第一条提示。
 func RecordAlarms(ctx context.Context, st store.Store, run store.Run, nowMs int64) (string, error) {
 	if st == nil {
 		return "", nil

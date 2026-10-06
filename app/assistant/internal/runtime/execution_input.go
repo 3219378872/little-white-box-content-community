@@ -8,6 +8,7 @@ import (
 	"esx/app/assistant/internal/tool"
 )
 
+// loadRound 开始一轮：复核租约、授权与取消，检查硬上限，记录预算告警并加载最新消息。
 func (s *executionState) loadRound(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 
@@ -42,6 +43,7 @@ func (s *executionState) loadRound(workCtx, persistCtx context.Context) (iterati
 	return iterationNext, nil
 }
 
+// compactRound 在上下文接近窗口时压缩会话；压缩无收益直接失败，避免反复压缩。
 func (s *executionState) compactRound(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 	var err error
@@ -86,6 +88,7 @@ func (s *executionState) compactRound(workCtx, persistCtx context.Context) (iter
 	return iterationNext, nil
 }
 
+// prepareTurns 组装本轮提示词；历史中尚未有结果的工具调用（如崩溃前未完成）先补执行。
 func (s *executionState) prepareTurns(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 	var err error
@@ -135,6 +138,7 @@ func (s *executionState) prepareTurns(workCtx, persistCtx context.Context) (iter
 	return iterationNext, nil
 }
 
+// prepareRequest 标记进入模型请求阶段；已登记来源时要求以结构化回答发布，抑制自由文本。
 func (s *executionState) prepareRequest(workCtx, persistCtx context.Context) (iterationAction, error) {
 	e := s.engine
 

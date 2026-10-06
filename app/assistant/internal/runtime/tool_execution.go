@@ -164,6 +164,7 @@ func (e *Engine) completeToolStep(ctx context.Context, run *store.Run, registry 
 	return e.guardToolProgress(ctx, run, registry, call, reviewLive)
 }
 
+// populateToolLiveMessageIDs 告诉工具哪些消息仍在上下文中，供历史检索排除。
 func (e *Engine) populateToolLiveMessageIDs(ctx context.Context, run store.Run, sess *tool.Session) error {
 	if e == nil || e.Store == nil || sess == nil {
 		return nil
@@ -180,6 +181,8 @@ func (e *Engine) populateToolLiveMessageIDs(ctx context.Context, run store.Run, 
 	return nil
 }
 
+// guardToolProgress 检测同一工具以相同参数反复得到相同结果：第二次重复时注入提示让模型换方法，
+// 再重复则以 TOOL_NO_PROGRESS 结束 run。轮询类工具不受限。
 func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry *tool.Registry, current llm.ToolCall, reviewLive *[]prompt.Turn) error {
 	if run == nil || registry == nil || registry.Poller(current.Name) {
 		return nil
@@ -240,6 +243,7 @@ func (e *Engine) guardToolProgress(ctx context.Context, run *store.Run, registry
 	return errRunTerminated
 }
 
+// toolSession 构造工具执行所需的会话上下文，包括租约栅栏与用户附件。
 func (e *Engine) toolSession(run store.Run) *tool.Session {
 	sess := &tool.Session{
 		ClientProtocolVersion: clientProtocol(run),
@@ -255,6 +259,7 @@ func (e *Engine) toolSession(run store.Run) *tool.Session {
 	return sess
 }
 
+// startToolStep 登记工具调用；有副作用的调用同时预留命令日志，返回的 reserved 表示本次是否应真正执行。
 func (e *Engine) startToolStep(
 	ctx context.Context,
 	run store.Run,
@@ -379,6 +384,7 @@ func (e *Engine) finishToolStep(ctx context.Context, run *store.Run, call llm.To
 	return nil
 }
 
+// decodeToolResultChangeIDs 从工具结果中取出记忆变更 ID。
 func decodeToolResultChangeIDs(raw string) []int64 {
 	var payload struct {
 		ChangeIDs []int64 `json:"change_ids"`
@@ -389,6 +395,7 @@ func decodeToolResultChangeIDs(raw string) []int64 {
 	return payload.ChangeIDs
 }
 
+// unmatchedToolCalls 找出历史中已发起但还没有结果的工具调用，按首次出现顺序去重。
 func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
 	done := make(map[string]struct{})
 	for _, turn := range history {
@@ -417,6 +424,7 @@ func unmatchedToolCalls(history []prompt.Turn) []llm.ToolCall {
 	return out
 }
 
+// encodeToolResultJSONWithChanges 编码工具结果；出错且无正文时用错误信息作为给模型的正文。
 func encodeToolResultJSONWithChanges(text string, callErr error, changeIDs []int64) string {
 	payload := map[string]any{"ok": callErr == nil, "text": text}
 	if len(changeIDs) > 0 {
@@ -432,6 +440,7 @@ func encodeToolResultJSONWithChanges(text string, callErr error, changeIDs []int
 	return string(raw)
 }
 
+// decodeToolResultText 从工具结果中取出给模型的正文，兼容对象、JSON 字符串与纯文本三种旧格式。
 func decodeToolResultText(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -450,6 +459,7 @@ func decodeToolResultText(raw string) string {
 	return raw
 }
 
+// prepareCall 预处理工具参数并计算规范化摘要；参数无法解析时用调用 ID 生成唯一摘要，避免误命中幂等记录。
 func prepareCall(ctx context.Context, registry *tool.Registry, sess *tool.Session, call llm.ToolCall) (llm.ToolCall, string, error) {
 	prepErr := call.PrepareError
 	if !call.Prepared && prepErr == nil {

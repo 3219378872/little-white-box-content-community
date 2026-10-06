@@ -19,6 +19,7 @@ var publicEventTypes = map[string]struct{}{
 
 var subscribePollInterval = time.Second
 
+// AppendEvent stores a public event and wakes subscribers; internal event types are dropped here.
 func AppendEvent(ctx context.Context, st store.Store, notify store.Notifier, run store.Run, eventType string, payload store.EventPayload) (store.Event, error) {
 	if _, ok := publicEventTypes[eventType]; !ok {
 		return store.Event{}, nil
@@ -35,6 +36,7 @@ func AppendEvent(ctx context.Context, st store.Store, notify store.Notifier, run
 	return ev, nil
 }
 
+// ToPB converts a stored event to the RPC shape; question and answer payloads travel as JSON strings.
 func ToPB(ev store.Event) *pb.RunEvent {
 	var payload store.EventPayload
 	_ = json.Unmarshal(ev.PayloadJSON, &payload)
@@ -65,6 +67,8 @@ func ToPB(ev store.Event) *pb.RunEvent {
 	return out
 }
 
+// Subscribe replays events after afterSeq and then polls for new ones until the run ends or
+// the caller disconnects. Internal events advance the cursor without being emitted.
 func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, runID, afterSeq int64, emit func(*pb.RunEvent) error) error {
 	run, err := st.GetRun(ctx, runID)
 	if err != nil {
@@ -122,6 +126,7 @@ func Subscribe(ctx context.Context, st store.Store, _ store.Notifier, userID, ru
 	}
 }
 
+// Confirm records the user's decision on a pending tool confirmation and requeues the waiting run.
 func Confirm(ctx context.Context, st store.Store, userID, runID int64, callID string, approved bool) error {
 	if userID <= 0 || runID <= 0 || callID == "" {
 		return errx.NewWithCode(errx.ParamError)

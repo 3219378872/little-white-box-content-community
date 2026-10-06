@@ -14,11 +14,13 @@ import (
 	"esx/pkg/errx"
 )
 
+// Attachment 是用户随消息附带的媒体引用。
 type Attachment struct {
 	MediaID int64  `json:"media_id"`
 	URL     string `json:"url"`
 }
 
+// inputPayload 是写入 run.queued_payload 的用户输入，worker 据此构造提示词。
 type inputPayload struct {
 	Text          string       `json:"text"`
 	MessageID     int64        `json:"message_id"`
@@ -26,6 +28,7 @@ type inputPayload struct {
 	ContextPostID int64        `json:"context_post_id,omitempty"`
 }
 
+// AcceptInput 是一次用户发言的入参；ConsentOK/ConsentVersion 来自调用方读取的授权状态。
 type AcceptInput struct {
 	ClientProtocolVersion int
 	QuestionContext       *QuestionContext
@@ -39,6 +42,7 @@ type AcceptInput struct {
 	ConsentVersion        int32
 }
 
+// AcceptResult 说明消息落在哪个 run 以及处置方式。
 type AcceptResult struct {
 	MessageID   int64
 	SessionID   int64
@@ -46,6 +50,7 @@ type AcceptResult struct {
 	Disposition string
 }
 
+// Acceptor 处理用户输入与历史删除，与 worker 共用 store 的加锁顺序。
 type Acceptor struct {
 	Store    store.Store
 	Memory   memory.Store
@@ -53,6 +58,7 @@ type Acceptor struct {
 	MaxRunes int
 }
 
+// Accept 校验并接收一条用户消息，交给新 run 或正在运行的 run。
 func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, error) {
 	if in.UserID <= 0 {
 		return AcceptResult{}, errx.NewWithCode(errx.LoginRequired)
@@ -68,6 +74,7 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 	if text == "" || utf8.RuneCountInString(text) > maxRunes {
 		return AcceptResult{}, errx.NewWithCode(errx.ParamError)
 	}
+	// 旧客户端可能不带请求 ID，用时间戳兜底以便仍能落库。
 	if strings.TrimSpace(in.RequestID) == "" {
 		in.RequestID = "msg-" + strconv.FormatInt(store.NowMs(), 10)
 	}
@@ -87,6 +94,7 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 			return AcceptResult{}, err
 		}
 	}
+	// 先结算已超时的追问等待，使后续处置基于最新的 run 状态。
 	if thread, err := a.Store.GetThread(ctx, in.UserID); err == nil && thread.ActiveRunID > 0 {
 		if err := ResolveWaiting(ctx, a.Store, a.Notify, thread.ActiveRunID, store.NowMs()); err != nil {
 			return AcceptResult{}, err
@@ -256,11 +264,13 @@ func (a *Acceptor) MarkRead(ctx context.Context, userID int64) (int32, error) {
 	return unread, err
 }
 
+// mustJSON 编码内部结构；这些结构总能序列化，故忽略错误。
 func mustJSON(v any) []byte {
 	raw, _ := json.Marshal(v)
 	return raw
 }
 
+// acceptedUserContent 是写入提示词的用户内容；追问续答以不可信 JSON 附在正文之后。
 func acceptedUserContent(text string, in AcceptInput) string {
 	value := providerUserContent(text, in.Attachments, in.ContextPostID)
 	if in.questionContextJSON != "" {
@@ -269,6 +279,7 @@ func acceptedUserContent(text string, in AcceptInput) string {
 	return value
 }
 
+// verifyInputReplay 确认同一请求 ID 的重试内容与首次一致（协议 v2 起），不一致即幂等冲突。
 func verifyInputReplay(ctx context.Context, st store.Store, in AcceptInput, text string, existing store.InputCommand) error {
 	if in.ClientProtocolVersion < 2 {
 		return nil
@@ -287,6 +298,7 @@ func verifyInputReplay(ctx context.Context, st store.Store, in AcceptInput, text
 	return nil
 }
 
+// providerUserContent 把附件与上下文帖子以标注为不可信的 JSON 附在用户正文后，防止被当作指令。
 func providerUserContent(text string, attachments []Attachment, contextPostID int64) string {
 	if len(attachments) == 0 && contextPostID <= 0 {
 		return text
@@ -298,12 +310,14 @@ func providerUserContent(text string, attachments []Attachment, contextPostID in
 	return text + "\n\nUNTRUSTED_USER_INPUT_CONTEXT_JSON:\n" + string(contextJSON)
 }
 
+// decodeInputPayload 解码 queued_payload；损坏时返回零值。
 func decodeInputPayload(raw []byte) inputPayload {
 	var payload inputPayload
 	_ = json.Unmarshal(raw, &payload)
 	return payload
 }
 
+// replayAcceptedInput 查找同一请求 ID 的既有结果；found=true 时调用方直接返回该结果。
 func replayAcceptedInput(ctx context.Context, tx store.Store, in AcceptInput, text string) (AcceptResult, bool, error) {
 	if existing, err := tx.GetInputCommand(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, true, err
@@ -313,6 +327,7 @@ func replayAcceptedInput(ctx context.Context, tx store.Store, in AcceptInput, te
 		}
 		return AcceptResult{MessageID: existing.MessageID, SessionID: existing.SessionID, RunID: existing.RunID, Disposition: existing.Disposition}, true, nil
 	}
+	// 没有输入命令记录但已有同请求 ID 的 run：v1 客户端按已启动返回，v2 视为幂等冲突。
 	if existing, err := tx.GetRunByRequestID(ctx, in.UserID, in.RequestID); err != nil {
 		return AcceptResult{}, true, err
 	} else if existing != nil {
@@ -324,6 +339,7 @@ func replayAcceptedInput(ctx context.Context, tx store.Store, in AcceptInput, te
 	return AcceptResult{}, false, nil
 }
 
+// insertAcceptedMessage 写入用户消息，并在同一事务登记搜索索引 outbox。
 func insertAcceptedMessage(ctx context.Context, tx store.Store, in AcceptInput, text string, sessionID, now int64) (store.Message, error) {
 	apiText := acceptedUserContent(text, in)
 	api := prompt.EncodeTurn(prompt.Turn{Role: store.RoleUser, Content: apiText})
@@ -344,6 +360,8 @@ func insertAcceptedMessage(ctx context.Context, tx store.Store, in AcceptInput, 
 	return msg, nil
 }
 
+// activeInputDisposition 读取当前活跃 run 的最新状态并决定本次输入的处置方式；
+// 处于等待追问的 run 会先结束旧追问并回到排队。
 func activeInputDisposition(ctx context.Context, tx store.Store, userID, activeRunID int64, protocolVersion int) (*store.Run, string, error) {
 	var active *store.Run
 	if activeRunID > 0 {
