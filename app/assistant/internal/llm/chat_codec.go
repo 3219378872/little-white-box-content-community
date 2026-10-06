@@ -15,6 +15,7 @@ type chatCodec struct {
 	cfg *Config
 }
 
+// endpointSuffix 是 Chat Completions 接口路径。
 func (chatCodec) endpointSuffix() string { return "/chat/completions" }
 
 // Chat Completions 没有协议特有的请求头。

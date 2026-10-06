@@ -18,6 +18,7 @@ const (
 	AttemptSuccess = "success"
 )
 
+// AttemptEvent 描述一次模型调用尝试的开始、出错、重置或成功，供运行时记录与撤回已流出的文本。
 type AttemptEvent struct {
 	Kind       string
 	Attempt    int
@@ -28,22 +29,27 @@ type AttemptEvent struct {
 	Retryable  bool
 }
 
+// AttemptObserver 接收尝试事件；返回错误会中止整个调用。
 type AttemptObserver func(AttemptEvent) error
 
+// Delta 是流式输出的一段文本。
 type Delta struct {
 	Text string
 }
 
+// StreamingClient 是支持流式输出的客户端。
 type StreamingClient interface {
 	CompleteStream(ctx context.Context, req Request, emit func(Delta) error) (Result, error)
 }
 
+// Route 是一条带标识与数据边界的模型路由。
 type Route struct {
 	ID       string
 	Boundary string
 	Client   Client
 }
 
+// RetryOptions 控制重试次数与指数退避；Sleep 与 Rand 可在测试中替换。
 type RetryOptions struct {
 	MaxAttempts   int
 	BaseDelay     time.Duration
@@ -53,14 +59,17 @@ type RetryOptions struct {
 	Rand          *rand.Rand
 }
 
+// ResilientClient 在主路由上重试，最后一次尝试切到首个兼容的备用路由。
 type ResilientClient struct {
 	routes   []Route
 	options  RetryOptions
 	randomMu *sync.Mutex
 }
 
+// defaultRandomMu 保护零值 ResilientClient 共享的随机源。
 var defaultRandomMu sync.Mutex
 
+// NewResilient 去掉无效路由、拒绝重复 ID，并补齐重试参数默认值。
 func NewResilient(routes []Route, options RetryOptions) (*ResilientClient, error) {
 	clean := make([]Route, 0, len(routes))
 	seen := make(map[string]struct{}, len(routes))
@@ -99,14 +108,18 @@ func NewResilient(routes []Route, options RetryOptions) (*ResilientClient, error
 	return &ResilientClient{routes: clean, options: options, randomMu: &sync.Mutex{}}, nil
 }
 
+// Complete 以非流式方式调用。
 func (c *ResilientClient) Complete(ctx context.Context, req Request) (Result, error) {
 	return c.complete(ctx, req, nil)
 }
 
+// CompleteStream 以流式方式调用；路由不支持流式时整段结果作为一次增量发出。
 func (c *ResilientClient) CompleteStream(ctx context.Context, req Request, emit func(Delta) error) (Result, error) {
 	return c.complete(ctx, req, emit)
 }
 
+// complete 依次尝试，直到成功、遇到不可重试错误或用尽次数。已流出文本后才失败的尝试
+// 会发出 reset 事件，让调用方撤回这段文本再重试。
 func (c *ResilientClient) complete(ctx context.Context, req Request, emit func(Delta) error) (Result, error) {
 	routes := []Route{c.routes[0]}
 	for _, route := range c.routes[1:] {
@@ -117,6 +130,7 @@ func (c *ResilientClient) complete(ctx context.Context, req Request, emit func(D
 	var last error
 	for attempt := 1; attempt <= c.options.MaxAttempts; attempt++ {
 		route := routes[0]
+		// 只有最后一次尝试切到备用路由，前面的重试都留在主路由。
 		if len(routes) > 1 && attempt == c.options.MaxAttempts {
 			route = routes[1]
 		}
@@ -186,6 +200,7 @@ func (c *ResilientClient) complete(ctx context.Context, req Request, emit func(D
 	return Result{}, last
 }
 
+// retryDelay 计算指数退避加随机抖动，服从 Retry-After 但不超过 MaxRetryAfter。
 func (c *ResilientClient) retryDelay(attempt int, retryAfter time.Duration) time.Duration {
 	delay := c.options.BaseDelay
 	for i := 1; i < attempt && delay < c.options.MaxDelay; i++ {
@@ -211,17 +226,34 @@ func (c *ResilientClient) retryDelay(attempt int, retryAfter time.Duration) time
 	return delay
 }
 
-func (c *ResilientClient) SupportsTools() bool      { return c != nil && c.routes[0].Client.SupportsTools() }
-func (c *ResilientClient) WireAPI() string          { return c.routes[0].Client.WireAPI() }
-func (c *ResilientClient) MaxOutputTokens() int     { return c.routes[0].Client.MaxOutputTokens() }
+// SupportsTools 报告主路由是否支持工具调用。
+func (c *ResilientClient) SupportsTools() bool { return c != nil && c.routes[0].Client.SupportsTools() }
+
+// WireAPI 报告主路由的协议。
+func (c *ResilientClient) WireAPI() string { return c.routes[0].Client.WireAPI() }
+
+// MaxOutputTokens 报告主路由的单次输出上限。
+func (c *ResilientClient) MaxOutputTokens() int { return c.routes[0].Client.MaxOutputTokens() }
+
+// ContextWindowTokens 报告主路由的上下文窗口。
 func (c *ResilientClient) ContextWindowTokens() int { return c.routes[0].Client.ContextWindowTokens() }
-func (c *ResilientClient) RouteID() string          { return c.routes[0].ID }
-func (c *ResilientClient) Boundary() string         { return c.routes[0].Boundary }
+
+// RouteID 报告主路由标识。
+func (c *ResilientClient) RouteID() string { return c.routes[0].ID }
+
+// Boundary 报告主路由的数据边界。
+func (c *ResilientClient) Boundary() string { return c.routes[0].Boundary }
+
+// SupportsStreaming 报告主路由是否支持流式。
 func (c *ResilientClient) SupportsStreaming() bool {
 	_, ok := c.routes[0].Client.(StreamingClient)
 	return ok
 }
+
+// ModelName 报告主路由的模型。
 func (c *ResilientClient) ModelName() string { return Capability(c.routes[0].Client).Model }
+
+// FallbackRouteIDs 列出可作为流式备用的路由，写入会话能力快照。
 func (c *ResilientClient) FallbackRouteIDs() []string {
 	out := make([]string, 0, len(c.routes)-1)
 	for _, route := range c.routes[1:] {
@@ -232,6 +264,7 @@ func (c *ResilientClient) FallbackRouteIDs() []string {
 	return out
 }
 
+// ForRoute 以指定路由为主路由，并带上其后兼容的备用路由。
 func (c *ResilientClient) ForRoute(routeID string) (Client, bool) {
 	for i, route := range c.routes {
 		if route.ID != routeID {
@@ -248,6 +281,7 @@ func (c *ResilientClient) ForRoute(routeID string) (Client, bool) {
 	return nil, false
 }
 
+// ExactRoute 只使用指定路由，不做备用切换。
 func (c *ResilientClient) ExactRoute(routeID string) (Client, bool) {
 	for _, route := range c.routes {
 		if route.ID != routeID {
@@ -258,6 +292,7 @@ func (c *ResilientClient) ExactRoute(routeID string) (Client, bool) {
 	return nil, false
 }
 
+// ForCapability 按会话冻结的主路由与备用列表重建客户端，跳过已不兼容的备用路由。
 func (c *ResilientClient) ForCapability(capability prompt.ProviderCapability) (Client, bool) {
 	var primary Route
 	found := false
@@ -289,6 +324,7 @@ func (c *ResilientClient) ForCapability(capability prompt.ProviderCapability) (C
 	return &ResilientClient{routes: routes, options: c.options, randomMu: c.randomMu}, true
 }
 
+// compatibleRoute 判断备用路由能否无损替代主路由：支持工具（及流式），窗口与输出上限不小于主路由，数据边界相同。
 func compatibleRoute(primary, fallback Route, requireStreaming bool) bool {
 	if primary.Client == nil || fallback.Client == nil || !fallback.Client.SupportsTools() {
 		return false
@@ -305,6 +341,7 @@ func compatibleRoute(primary, fallback Route, requireStreaming bool) bool {
 	return strings.TrimSpace(primary.Boundary) == strings.TrimSpace(fallback.Boundary)
 }
 
+// streamIDFor 生成一次尝试的流 ID。
 func streamIDFor(prefix, route string, attempt int) string {
 	if prefix == "" {
 		prefix = "stream"
@@ -312,6 +349,7 @@ func streamIDFor(prefix, route string, attempt int) string {
 	return fmt.Sprintf("%s-%s-%d", prefix, route, attempt)
 }
 
+// observe 在设置了观察者时投递事件。
 func observe(observer AttemptObserver, event AttemptEvent) error {
 	if observer != nil {
 		return observer(event)
@@ -319,6 +357,7 @@ func observe(observer AttemptObserver, event AttemptEvent) error {
 	return nil
 }
 
+// sleepContext 等待指定时长，ctx 取消时提前返回。
 func sleepContext(ctx context.Context, delay time.Duration) error {
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
@@ -330,6 +369,7 @@ func sleepContext(ctx context.Context, delay time.Duration) error {
 	}
 }
 
+// maxDuration 返回较大的时长。
 func maxDuration(a, b time.Duration) time.Duration {
 	if a > b {
 		return a

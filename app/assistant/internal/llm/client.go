@@ -159,6 +159,7 @@ func New(cfg Config) (*HTTPClient, error) {
 // 以下访问器允许 nil 接收者，未配置的路由报告零能力。
 func (c *HTTPClient) SupportsTools() bool { return c != nil }
 
+// WireAPI 返回配置的协议。
 func (c *HTTPClient) WireAPI() string {
 	if c == nil {
 		return ""
@@ -166,6 +167,7 @@ func (c *HTTPClient) WireAPI() string {
 	return c.cfg.WireAPI
 }
 
+// MaxOutputTokens 返回配置的单次输出上限。
 func (c *HTTPClient) MaxOutputTokens() int {
 	if c == nil {
 		return 0
@@ -173,6 +175,7 @@ func (c *HTTPClient) MaxOutputTokens() int {
 	return c.cfg.MaxOutputTokens
 }
 
+// ContextWindowTokens 返回配置的上下文窗口。
 func (c *HTTPClient) ContextWindowTokens() int {
 	if c == nil {
 		return 0
@@ -191,6 +194,7 @@ func (c *HTTPClient) RouteID() string {
 	return strings.TrimSpace(c.cfg.RouteID)
 }
 
+// ModelName 返回配置的模型名。
 func (c *HTTPClient) ModelName() string {
 	if c == nil {
 		return ""
@@ -198,6 +202,7 @@ func (c *HTTPClient) ModelName() string {
 	return c.cfg.Model
 }
 
+// Boundary 返回配置的数据边界，备用路由必须与主路由一致。
 func (c *HTTPClient) Boundary() string {
 	if c == nil {
 		return ""
@@ -353,16 +358,22 @@ func normalizeEndpoint(endpoint, wireAPI string) (string, error) {
 // unsupportedClient 是未配置模型时的占位客户端，所有调用都失败。
 type unsupportedClient struct{}
 
+// Complete 总是失败。
 func (unsupportedClient) Complete(context.Context, Request) (Result, error) {
 	return Result{}, fmt.Errorf("tools unsupported")
 }
 
+// SupportsTools 为 false。
 func (unsupportedClient) SupportsTools() bool { return false }
 
+// WireAPI 报告 none。
 func (unsupportedClient) WireAPI() string { return "none" }
 
+// MaxOutputTokens 为 0。
 func (unsupportedClient) MaxOutputTokens() int { return 0 }
 
+// ContextWindowTokens 为 0。
 func (unsupportedClient) ContextWindowTokens() int { return 0 }
 
+// Unsupported 返回未配置模型时使用的占位客户端。
 func Unsupported() Client { return unsupportedClient{} }

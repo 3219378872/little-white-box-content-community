@@ -14,6 +14,7 @@ type responsesCodec struct {
 	cfg *Config
 }
 
+// endpointSuffix 是 Responses 接口路径。
 func (responsesCodec) endpointSuffix() string { return "/responses" }
 
 // setHeaders 声明 Responses beta 版本，部分兼容上游据此启用该协议。

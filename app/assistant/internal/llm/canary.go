@@ -15,6 +15,8 @@ const canaryTool = "assistant_capability_canary"
 // this bounded while leaving room for both reasoning and the protocol payload.
 const canaryMaxTokens = 256
 
+// Canary verifies at startup that the route really supports a forced tool call followed by a tool
+// result turn, so a misconfigured WireAPI fails fast instead of on the first user run.
 func Canary(ctx context.Context, client Client) error {
 	if client == nil || !client.SupportsTools() {
 		return fmt.Errorf("selected WireAPI must support tool schema/call/result")

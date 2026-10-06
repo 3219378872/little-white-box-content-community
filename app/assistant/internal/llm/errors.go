@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// ErrorKind 是 provider 错误的归类，决定是否重试以及向用户展示的错误。
 type ErrorKind string
 
 const (
@@ -24,6 +25,7 @@ const (
 	ErrorUnknown         ErrorKind = "unknown"
 )
 
+// ProviderError 是归类后的 provider 错误；HTTP 错误的 Message 只含类别与状态码，不含响应正文。
 type ProviderError struct {
 	Kind       ErrorKind
 	StatusCode int
@@ -33,6 +35,7 @@ type ProviderError struct {
 	Err        error
 }
 
+// Error 返回 Message，缺省时只给出错误类别。
 func (e *ProviderError) Error() string {
 	if e == nil {
 		return "provider error"
@@ -43,6 +46,7 @@ func (e *ProviderError) Error() string {
 	return "provider error: " + string(e.Kind)
 }
 
+// Unwrap 暴露底层错误以便 errors.Is 判断超时等情况。
 func (e *ProviderError) Unwrap() error {
 	if e == nil {
 		return nil
@@ -50,6 +54,7 @@ func (e *ProviderError) Unwrap() error {
 	return e.Err
 }
 
+// ClassifyError 把任意调用错误归类：已归类的原样返回，取消不重试，超时与未知网络错误可重试。
 func ClassifyError(err error) *ProviderError {
 	if err == nil {
 		return nil
@@ -71,6 +76,7 @@ func ClassifyError(err error) *ProviderError {
 	return &ProviderError{Kind: ErrorUnknown, Retryable: true, Message: err.Error(), Err: err}
 }
 
+// classifyHTTPError 按状态码与响应关键字归类 HTTP 错误；限流、超时、过载与 5xx 可重试。
 func classifyHTTPError(status int, headers http.Header, raw []byte) *ProviderError {
 	text := strings.ToLower(string(raw))
 	kind := ErrorUnknown
@@ -104,6 +110,7 @@ func classifyHTTPError(status int, headers http.Header, raw []byte) *ProviderErr
 	}
 }
 
+// parseRetryAfter 解析 Retry-After 的秒数或 HTTP 日期，无效或已过期时返回 0。
 func parseRetryAfter(value string, now time.Time) time.Duration {
 	value = strings.TrimSpace(value)
 	if value == "" {
