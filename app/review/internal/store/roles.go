@@ -23,6 +23,7 @@ type Grant struct {
 	Languages []string
 }
 
+// validate 校验授权的用户、角色、市场与语言都是已知取值。
 func (g Grant) validate() error {
 	if g.UserID <= 0 || len(g.Roles) == 0 {
 		return fmt.Errorf("review: user and roles are required")
@@ -87,6 +88,7 @@ func (s *Store) RevokeRoles(ctx context.Context, actor, userID int64, now time.T
 	})
 }
 
+// lockReviewer 锁定审核员行并返回变更前状态供审计；不存在时返回 nil。
 func lockReviewer(ctx context.Context, session sqlx.Session, userID int64) (map[string]any, error) {
 	var r Reviewer
 	err := session.QueryRowCtx(ctx, &r, `SELECT user_id, roles, markets, languages, active, updated_at_ms

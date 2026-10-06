@@ -6,6 +6,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是审核 RPC 配置：数据库、MQ/outbox 与当前政策版本。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret string

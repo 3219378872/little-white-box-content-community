@@ -35,6 +35,7 @@ type Threshold struct {
 	AutoReject bool    `yaml:"autoReject"`
 }
 
+// thresholdOverride 为指定问题类型与市场覆盖默认阈值。
 type thresholdOverride struct {
 	Issues    []string  `yaml:"issues"`
 	Markets   []string  `yaml:"markets"`
@@ -54,6 +55,7 @@ type MediaRule struct {
 	Code   string `yaml:"code"`
 }
 
+// document 是政策 YAML 的原始结构，解析校验后转换为 Policy。
 type document struct {
 	Version               string   `yaml:"version"`
 	IndustryMatrix        string   `yaml:"industryMatrix"`
@@ -101,6 +103,7 @@ func Load(version string) (*Policy, error) {
 	return parse(raw)
 }
 
+// parse 严格解析政策文件（拒绝未知字段），校验版本、行业矩阵、抽样比例、阈值与规则后构建 Policy。
 func parse(raw []byte) (*Policy, error) {
 	var doc document
 	decoder := yaml.NewDecoder(strings.NewReader(string(raw)))
@@ -190,6 +193,7 @@ func parse(raw []byte) (*Policy, error) {
 	return p, nil
 }
 
+// validThreshold 要求阈值满足 0 < pass < reject <= 1 且 0 < route <= 1。
 func validThreshold(t Threshold) error {
 	if t.Route <= 0 || t.Route > 1 || t.Pass <= 0 || t.Reject > 1 || t.Pass >= t.Reject {
 		return fmt.Errorf("thresholds must satisfy 0 < pass < reject <= 1 and 0 < route <= 1")

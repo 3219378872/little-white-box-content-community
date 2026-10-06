@@ -13,8 +13,10 @@ import (
 // 结论可能尚未看到新种子，仍按旧代次处理，由回扫兜底。
 const SeedIndexLag = time.Minute
 
+// GetRescanGenerationLogic 承载 GetRescanGeneration 接口的业务逻辑；每个请求新建一个实例。
 type GetRescanGenerationLogic struct{ base }
 
+// NewGetRescanGenerationLogic 绑定请求上下文与服务依赖。
 func NewGetRescanGenerationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRescanGenerationLogic {
 	return &GetRescanGenerationLogic{newBase(ctx, svcCtx)}
 }

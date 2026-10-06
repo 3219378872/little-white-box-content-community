@@ -9,6 +9,7 @@ import (
 	"esx/pkg/event"
 )
 
+// decodeSnapshot 从冻结的快照记录中取出送审快照。
 func decodeSnapshot(content string) (event.ReviewSnapshot, error) {
 	var frozen struct {
 		Snapshot event.ReviewSnapshot `json:"snapshot"`
@@ -22,6 +23,7 @@ func decodeSnapshot(content string) (event.ReviewSnapshot, error) {
 // LookupAdapter 把 store 适配为 cascade.Lookup。
 type LookupAdapter struct{ Store *store.Store }
 
+// LookupVerdict 查询同一内容指纹在该市场与政策版本下的已有结论；未命中时 found=false。
 func (a LookupAdapter) LookupVerdict(ctx context.Context, hash, market, policyVersion string) (string, []string, string, bool, error) {
 	v, err := a.Store.LookupVerdict(ctx, hash, market, policyVersion)
 	if err != nil || v == nil {
@@ -30,6 +32,7 @@ func (a LookupAdapter) LookupVerdict(ctx context.Context, hash, market, policyVe
 	return v.Verdict, v.PolicyCodes(), v.Source, true, nil
 }
 
+// ApprovedMedia 返回哪些素材哈希已在过往结论中过审。
 func (a LookupAdapter) ApprovedMedia(ctx context.Context, hashes []string) (map[string]bool, error) {
 	return a.Store.ApprovedMedia(ctx, hashes)
 }

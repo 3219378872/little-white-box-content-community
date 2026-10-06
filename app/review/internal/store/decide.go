@@ -226,6 +226,7 @@ func (s *Store) SubmitHuman(
 	return out, err
 }
 
+// writeDecision 分配新 ID 并在事务内写入结论。
 func (s *Store) writeDecision(ctx context.Context, session sqlx.Session, task *Task, in DecisionInput, now time.Time) (*Decision, error) {
 	id, err := s.nextID()
 	if err != nil {
@@ -304,6 +305,7 @@ func (s *Store) rememberVerdict(ctx context.Context, session sqlx.Session, task 
 	return err
 }
 
+// rememberApprovedMedia 记录过审快照中的素材哈希，后续送审中相同素材可据此识别为已过审。
 func (s *Store) rememberApprovedMedia(ctx context.Context, session sqlx.Session, snapshotHash string, decisionID int64, now time.Time) error {
 	var content string
 	if err := session.QueryRowCtx(ctx, &content, `SELECT content FROM review_snapshot WHERE hash = ?`, snapshotHash); err != nil {
@@ -327,6 +329,7 @@ func (s *Store) rememberApprovedMedia(ctx context.Context, session sqlx.Session,
 	return nil
 }
 
+// holdsLease 判断审核员是否仍持有该任务当前代际且未过期的租约。
 func holdsLease(task *Task, reviewerID, generation int64, now time.Time) bool {
 	return task.Status == StatusClaimed && task.LeaseHolder == reviewerID &&
 		task.LeaseGeneration == generation && task.LeaseUntilMs > now.UnixMilli()
@@ -344,6 +347,7 @@ func fencingError(task *Task) error {
 	}
 }
 
+// expectFenced 要求条件更新恰好命中一行；未命中时读取任务当前状态，返回对应的围栏错误。
 func (s *Store) expectFenced(ctx context.Context, result interface{ RowsAffected() (int64, error) }, taskID int64) error {
 	affected, err := result.RowsAffected()
 	if err != nil {
@@ -359,6 +363,7 @@ func (s *Store) expectFenced(ctx context.Context, result interface{ RowsAffected
 	return fencingError(task)
 }
 
+// truncate 按字符数截断，避免切断多字节字符。
 func truncate(value string, limit int) string {
 	runes := []rune(value)
 	if len(runes) <= limit {

@@ -9,8 +9,10 @@ import (
 	"esx/pkg/event"
 )
 
+// AuthorizeEvidenceMediaLogic 承载 AuthorizeEvidenceMedia 接口的业务逻辑；每个请求新建一个实例。
 type AuthorizeEvidenceMediaLogic struct{ base }
 
+// NewAuthorizeEvidenceMediaLogic 绑定请求上下文与服务依赖。
 func NewAuthorizeEvidenceMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AuthorizeEvidenceMediaLogic {
 	return &AuthorizeEvidenceMediaLogic{newBase(ctx, svcCtx)}
 }
@@ -36,6 +38,7 @@ func (l *AuthorizeEvidenceMediaLogic) AuthorizeEvidenceMedia(in *pb.AuthorizeEvi
 	return &pb.AuthorizeEvidenceMediaResp{Allowed: mediaInSnapshot(snap, in.GetMediaId(), r)}, nil
 }
 
+// mediaInSnapshot 判断素材是否属于该任务快照；资质证件只对资质审核员开放。
 func mediaInSnapshot(snap event.ReviewSnapshot, mediaID int64, r *store.Reviewer) bool {
 	if mediaID <= 0 {
 		return false

@@ -19,8 +19,10 @@ import (
 
 var claimRoles = []string{store.RoleReviewer, store.RoleQA, store.RoleQualificationReviewer}
 
+// ClaimTaskLogic 承载 ClaimTask 接口的业务逻辑；每个请求新建一个实例。
 type ClaimTaskLogic struct{ base }
 
+// NewClaimTaskLogic 绑定请求上下文与服务依赖。
 func NewClaimTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ClaimTaskLogic {
 	return &ClaimTaskLogic{newBase(ctx, svcCtx)}
 }
@@ -54,12 +56,15 @@ func (l *ClaimTaskLogic) ClaimTask(in *pb.ClaimTaskReq) (*pb.TaskResp, error) {
 	return &pb.TaskResp{Found: true, Task: view}, nil
 }
 
+// RenewTaskLogic 承载 RenewTask 接口的业务逻辑；每个请求新建一个实例。
 type RenewTaskLogic struct{ base }
 
+// NewRenewTaskLogic 绑定请求上下文与服务依赖。
 func NewRenewTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RenewTaskLogic {
 	return &RenewTaskLogic{newBase(ctx, svcCtx)}
 }
 
+// RenewTask 续期当前租约；租约代际不符或已过期时返回租约丢失。
 func (l *RenewTaskLogic) RenewTask(in *pb.LeaseReq) (*pb.TaskResp, error) {
 	if _, err := l.reviewer(in.GetUserId(), claimRoles...); err != nil {
 		return nil, err
@@ -75,12 +80,15 @@ func (l *RenewTaskLogic) RenewTask(in *pb.LeaseReq) (*pb.TaskResp, error) {
 	return &pb.TaskResp{Found: true, Task: view}, nil
 }
 
+// ReleaseTaskLogic 承载 ReleaseTask 接口的业务逻辑；每个请求新建一个实例。
 type ReleaseTaskLogic struct{ base }
 
+// NewReleaseTaskLogic 绑定请求上下文与服务依赖。
 func NewReleaseTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReleaseTaskLogic {
 	return &ReleaseTaskLogic{newBase(ctx, svcCtx)}
 }
 
+// ReleaseTask 主动释放租约，任务回到待领取队列。
 func (l *ReleaseTaskLogic) ReleaseTask(in *pb.LeaseReq) (*pb.ReleaseTaskResp, error) {
 	if _, err := l.reviewer(in.GetUserId(), claimRoles...); err != nil {
 		return nil, err
@@ -91,8 +99,10 @@ func (l *ReleaseTaskLogic) ReleaseTask(in *pb.LeaseReq) (*pb.ReleaseTaskResp, er
 	return &pb.ReleaseTaskResp{}, nil
 }
 
+// GetTaskLogic 承载 GetTask 接口的业务逻辑；每个请求新建一个实例。
 type GetTaskLogic struct{ base }
 
+// NewGetTaskLogic 绑定请求上下文与服务依赖。
 func NewGetTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetTaskLogic {
 	return &GetTaskLogic{newBase(ctx, svcCtx)}
 }
@@ -117,8 +127,10 @@ func (l *GetTaskLogic) GetTask(in *pb.GetTaskReq) (*pb.TaskResp, error) {
 	return &pb.TaskResp{Found: true, Task: view}, nil
 }
 
+// SubmitDecisionLogic 承载 SubmitDecision 接口的业务逻辑；每个请求新建一个实例。
 type SubmitDecisionLogic struct{ base }
 
+// NewSubmitDecisionLogic 绑定请求上下文与服务依赖。
 func NewSubmitDecisionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SubmitDecisionLogic {
 	return &SubmitDecisionLogic{newBase(ctx, svcCtx)}
 }
@@ -193,6 +205,7 @@ func (l *SubmitDecisionLogic) observeReview(task *store.Task, decision *store.De
 	}
 }
 
+// validateVerdict 校验结论与违规代码：通过不得带代码，拒绝至少一个代码；代码去重。
 func validateVerdict(verdict string, rawCodes []string) ([]string, error) {
 	var codes []string
 	for _, code := range rawCodes {

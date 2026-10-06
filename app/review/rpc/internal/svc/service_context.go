@@ -17,6 +17,7 @@ import (
 	"esx/pkg/util"
 )
 
+// ServiceContext 持有审核 RPC 的存储、生效政策与送审接入；Clock 可在测试中替换。
 type ServiceContext struct {
 	Config      config.Config
 	DB          *sql.DB
@@ -28,6 +29,7 @@ type ServiceContext struct {
 	Clock       func() time.Time
 }
 
+// NewServiceContext 装配数据库、ID 生成器与政策；未配置 MQ 时不创建 relay。
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn, err := sqlx.NewConn(sqlx.SqlConf{DataSource: c.DataSource, DriverName: "mysql"})
 	if err != nil {
@@ -68,6 +70,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Now 返回当前时间，优先使用注入的时钟。
 func (s *ServiceContext) Now() time.Time {
 	if s.Clock != nil {
 		return s.Clock()
@@ -75,6 +78,7 @@ func (s *ServiceContext) Now() time.Time {
 	return time.Now()
 }
 
+// Close 关闭 MQ 生产者与数据库连接，汇总所有关闭错误。
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

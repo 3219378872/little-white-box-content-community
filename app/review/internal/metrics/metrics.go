@@ -66,8 +66,10 @@ var (
 	})
 )
 
+// Ingested 按对象类型统计送审接入结果。
 func Ingested(bizType, result string) { ingested.Inc(bizType, result) }
 
+// Decision 统计审核结论，并按机审/人审路径记录送审到出结论的耗时。
 func Decision(source, verdict, purpose string, submittedAtMs int64, now time.Time) {
 	decisions.Inc(source, verdict, purpose)
 	path := "human"
@@ -79,12 +81,16 @@ func Decision(source, verdict, purpose string, submittedAtMs int64, now time.Tim
 	}
 }
 
+// Stage 记录机审各阶段的耗时（毫秒转秒）。
 func Stage(stage string, latencyMs int64) { stageLatency.ObserveFloat(float64(latencyMs)/1000, stage) }
 
+// Degraded 按阶段与原因统计机审降级。
 func Degraded(stage, reason string) { degraded.Inc(stage, reason) }
 
+// Fingerprint 统计指纹阶段的命中结果。
 func Fingerprint(outcome string) { fingerprint.Inc(outcome) }
 
+// Backlog 更新人审积压量与最老任务的等待时长；没有积压时等待时长记为 0。
 func Backlog(pending int64, oldestSubmitMs int64, now time.Time) {
 	humanBacklog.Set(float64(pending))
 	age := 0.0
@@ -94,15 +100,19 @@ func Backlog(pending int64, oldestSubmitMs int64, now time.Time) {
 	oldestAge.Set(age)
 }
 
+// QADisagreement 统计抽检与原结论不一致的次数，按原结论来源区分。
 func QADisagreement(originalSource string) { qaDisagreements.Inc(originalSource) }
 
+// AppealOverturn 统计申诉改判次数。
 func AppealOverturn() { appealOverturns.Inc() }
 
+// AttemptsExceeded 统计机审重试次数耗尽、转人审的任务。
 func AttemptsExceeded() { attemptsExceeded.Inc() }
 
 // RescanPaused 记录回扫判定违规并暂停投放（ADS-031）。
 func RescanPaused() { rescanPauses.Inc() }
 
+// Shadow 统计影子政策的运行结果，以及与生效政策结论是否一致。
 func Shadow(outcome string, agrees bool) {
 	label := "false"
 	if agrees {

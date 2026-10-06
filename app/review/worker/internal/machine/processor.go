@@ -39,6 +39,7 @@ type Processor struct {
 	Sample func(rate float64) bool
 }
 
+// now 返回当前时间，测试可通过 Clock 固定时钟。
 func (p *Processor) now() time.Time {
 	if p.Clock != nil {
 		return p.Clock()
@@ -46,6 +47,7 @@ func (p *Processor) now() time.Time {
 	return time.Now()
 }
 
+// sample 按比例抽样，测试可通过 Sample 固定结果。
 func (p *Processor) sample(rate float64) bool {
 	if p.Sample != nil {
 		return p.Sample(rate)
@@ -116,6 +118,7 @@ func (p *Processor) runShadow(ctx context.Context, taskID int64, input cascade.I
 	metrics.Shadow(shadow.Outcome, shadow.Outcome == active.Outcome)
 }
 
+// recordStages 写入各阶段记录；影子运行只落记录，不计入线上指标。
 func (p *Processor) recordStages(ctx context.Context, taskID int64, stages []cascade.StageRecord, shadow bool) error {
 	now := p.now()
 	for _, stage := range stages {
@@ -139,6 +142,7 @@ func (p *Processor) recordStages(ctx context.Context, taskID int64, stages []cas
 	return nil
 }
 
+// fenced 把围栏错误视为结果已失效而丢弃（任务被取代、租约丢失或已有结论），其他错误原样返回。
 func fenced(ctx context.Context, err error) error {
 	if errors.Is(err, store.ErrTaskSuperseded) || errors.Is(err, store.ErrLeaseLost) || errors.Is(err, store.ErrTaskDecided) {
 		logging.WithContext(ctx).Infow("machine review result dropped by fencing", logging.Field("err", err.Error()))

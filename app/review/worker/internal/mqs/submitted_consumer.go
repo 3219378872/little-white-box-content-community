@@ -40,6 +40,7 @@ type submissionIngester interface {
 
 var _ submissionIngester = (*intake.Ingester)(nil)
 
+// consume 逐条接入送审消息；无效载荷跳过，其他失败整批重试。接入按送审唯一键幂等，重放不会重复建任务。
 func consume(ctx context.Context, in submissionIngester, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

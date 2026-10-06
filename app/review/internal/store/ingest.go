@@ -155,6 +155,7 @@ func (s *Store) insertFollowUp(
 	return task, nil
 }
 
+// requiredRole 决定领取任务所需角色：抽检需 QA，资质审核需资质审核员，其余为普通审核员。
 func requiredRole(bizType, purpose string) string {
 	if purpose == event.ReviewPurposeQA {
 		return RoleQA
@@ -186,6 +187,7 @@ func supersedeReplacedServing(ctx context.Context, session sqlx.Session, bizType
 	return supersedeByPurpose(ctx, session, bizType, objectID, revision, postServingPurposes, now)
 }
 
+// supersedeByPurpose 把同一对象旧 revision 上未完成的同类任务标记为已取代并释放租约。
 func supersedeByPurpose(ctx context.Context, session sqlx.Session, bizType string, objectID, revision int64, purposes []string, now time.Time) error {
 	args := []any{StatusSuperseded, 0, 0, now.UnixMilli(), bizType, objectID, revision}
 	args = append(args, anyArgs(purposes)...)
@@ -237,10 +239,12 @@ func raiseReportPriority(ctx context.Context, session sqlx.Session, task *Task, 
 	return err
 }
 
+// rowQuerier 同时适配连接与事务会话。
 type rowQuerier interface {
 	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
 }
 
+// findTaskByKey 按送审唯一键查找任务；lock=true 时加行锁；不存在时返回 nil 而不是错误。
 func findTaskByKey(ctx context.Context, q rowQuerier, sub event.ReviewSubmittedEvent, lock bool) (*Task, error) {
 	query := `SELECT ` + taskColumns + ` FROM review_task
 		WHERE biz_type = ? AND object_id = ? AND object_revision = ? AND purpose = ? AND purpose_key = ?`
@@ -258,6 +262,7 @@ func findTaskByKey(ctx context.Context, q rowQuerier, sub event.ReviewSubmittedE
 	return &task, nil
 }
 
+// insertTask 在事务内插入任务。
 func insertTask(ctx context.Context, session sqlx.Session, task *Task) error {
 	_, err := session.ExecCtx(ctx, `INSERT INTO review_task (`+taskColumns+`)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -265,6 +270,7 @@ func insertTask(ctx context.Context, session sqlx.Session, task *Task) error {
 	return err
 }
 
+// taskArgs 按 taskColumns 的列顺序返回写入参数。
 func taskArgs(t *Task) []any {
 	return []any{
 		t.ID, t.BizType, t.ObjectID, t.ObjectRevision, t.Purpose, t.PurposeKey, t.SnapshotHash,

@@ -40,6 +40,7 @@ const (
 	SeedRemoved = "removed"
 )
 
+// nominateSeed 把人审结论中的文本提名为候选种子并写审计，需另一位管理员确认后才生效。
 func (s *Store) nominateSeed(ctx context.Context, session sqlx.Session, task *Task, issue, text string, actor int64, now time.Time) error {
 	id, err := s.nextID()
 	if err != nil {

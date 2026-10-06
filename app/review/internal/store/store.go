@@ -149,8 +149,13 @@ type Reviewer struct {
 	UpdatedAtMs int64  `db:"updated_at_ms"`
 }
 
-func (r Reviewer) Roles() []string     { return splitCSV(r.RolesCSV) }
-func (r Reviewer) Markets() []string   { return splitCSV(r.MarketsCSV) }
+// Roles 返回审核员的角色。
+func (r Reviewer) Roles() []string { return splitCSV(r.RolesCSV) }
+
+// Markets 返回审核员负责的市场。
+func (r Reviewer) Markets() []string { return splitCSV(r.MarketsCSV) }
+
+// Languages 返回审核员掌握的语言。
 func (r Reviewer) Languages() []string { return splitCSV(r.LanguageCSV) }
 
 // HasRole 报告有效审核员是否具备角色。
@@ -165,6 +170,7 @@ type Store struct {
 	nextID func() (int64, error)
 }
 
+// New 创建审核存储；outbox 与业务写入共用同一连接以便同事务提交。
 func New(conn sqlx.SqlConn) *Store {
 	return &Store{conn: conn, outbox: outboxx.NewSQLStore(conn), nextID: util.NextID}
 }
@@ -183,6 +189,7 @@ type AuditEntry struct {
 	After      any
 }
 
+// insertAudit 在事务内写入审计日志，与被审计的变更一起提交。
 func (s *Store) insertAudit(ctx context.Context, session sqlx.Session, entry AuditEntry, now time.Time) error {
 	id, err := s.nextID()
 	if err != nil {
@@ -201,6 +208,7 @@ func (s *Store) Audit(ctx context.Context, entry AuditEntry, now time.Time) erro
 	return s.insertAudit(ctx, s.conn, entry, now)
 }
 
+// auditJSON 把审计前后状态编码为 JSON，并截断到列宽以内。
 func auditJSON(value any) string {
 	if value == nil {
 		return ""
@@ -215,6 +223,7 @@ func auditJSON(value any) string {
 	return string(raw)
 }
 
+// taskState 提取任务中与租约相关的状态，用于审计记录。
 func taskState(t *Task) map[string]any {
 	if t == nil {
 		return nil
@@ -225,6 +234,7 @@ func taskState(t *Task) map[string]any {
 	}
 }
 
+// lockTask 在事务内加锁读取任务。
 func (s *Store) lockTask(ctx context.Context, session sqlx.Session, id int64) (*Task, error) {
 	var task Task
 	err := session.QueryRowCtx(ctx, &task, `SELECT `+taskColumns+` FROM review_task WHERE id = ? FOR UPDATE`, id)
@@ -306,6 +316,7 @@ func (s *Store) RecordStage(ctx context.Context, stage Stage, now time.Time) err
 	return err
 }
 
+// splitCSV 拆分逗号分隔的列值并去掉空项。
 func splitCSV(raw string) []string {
 	var out []string
 	for _, part := range strings.Split(raw, ",") {
@@ -316,6 +327,7 @@ func splitCSV(raw string) []string {
 	return out
 }
 
+// encodeCodes 把代码编码为 JSON 数组，空值写成 [] 而不是 null。
 func encodeCodes(codes []string) string {
 	if codes == nil {
 		codes = []string{}
@@ -324,10 +336,12 @@ func encodeCodes(codes []string) string {
 	return string(raw)
 }
 
+// placeholders 生成 n 个以逗号分隔的 SQL 占位符。
 func placeholders(n int) string {
 	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
 
+// anyArgs 把切片转换为 SQL 参数列表。
 func anyArgs[T any](values []T) []any {
 	out := make([]any, len(values))
 	for i, v := range values {

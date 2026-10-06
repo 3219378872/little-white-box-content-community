@@ -39,6 +39,7 @@ func (s *Store) PolicyActivatedAt(ctx context.Context, version string) (activate
 	return row.First, row.Count > 0, err
 }
 
+// escapeLike 转义 LIKE 通配符，让值按字面匹配。
 func escapeLike(value string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
 }

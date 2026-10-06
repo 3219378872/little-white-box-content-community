@@ -24,7 +24,10 @@ type Ingester struct {
 // ErrInvalidSubmission 表示载荷无法解析或不满足契约，属于永久错误。
 type ErrInvalidSubmission struct{ cause error }
 
+// Error 返回带原因的错误描述。
 func (e ErrInvalidSubmission) Error() string { return "intake: invalid submission: " + e.cause.Error() }
+
+// Unwrap 暴露底层原因，便于 errors.Is/As 判断。
 func (e ErrInvalidSubmission) Unwrap() error { return e.cause }
 
 // Decode 解析并校验送审载荷。

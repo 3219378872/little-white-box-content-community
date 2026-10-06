@@ -17,6 +17,7 @@ import (
 	"esx/pkg/util"
 )
 
+// main runs the reviewer role admin CLI and exits non-zero on failure.
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "rolectl:", err)
@@ -24,6 +25,8 @@ func main() {
 	}
 }
 
+// run parses grant/revoke flags, connects using the DSN from the named
+// environment variable, and applies the change with an audit entry.
 func run(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: rolectl grant|revoke [flags]")
@@ -69,6 +72,7 @@ func run(args []string) error {
 	return nil
 }
 
+// split parses a comma-separated flag value, dropping empty items.
 func split(raw string) []string {
 	var out []string
 	for _, part := range strings.Split(raw, ",") {

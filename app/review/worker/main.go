@@ -23,6 +23,7 @@ import (
 
 var configFile = flag.String("f", "etc/review-worker.yaml", "config file")
 
+// main 启动审核 worker：接入送审消息、轮询机审队列、同步种子库并上报积压指标。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()
@@ -82,6 +83,7 @@ func activatePolicies(ctx context.Context, svcCtx *svc.ServiceContext) {
 	}
 }
 
+// runLoops 按各自周期驱动机审队列、种子同步与积压指标，直到进程退出。
 func runLoops(ctx context.Context, svcCtx *svc.ServiceContext) {
 	poll := time.NewTicker(time.Duration(max(svcCtx.Config.PollIntervalMs, 100)) * time.Millisecond)
 	defer poll.Stop()
@@ -125,6 +127,7 @@ func drainMachineQueue(ctx context.Context, svcCtx *svc.ServiceContext) {
 	}
 }
 
+// syncSeeds 把已生效的种子同步到向量索引；未配置向量依赖时跳过。
 func syncSeeds(ctx context.Context, svcCtx *svc.ServiceContext) {
 	if svcCtx.Embedder == nil || svcCtx.SeedIndex == nil {
 		return

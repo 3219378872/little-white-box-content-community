@@ -7,6 +7,7 @@ import (
 	service "esx/pkg/lifecycle"
 )
 
+// Config 是审核 worker 配置：MQ、outbox、政策版本、机审轮询周期与可选的排序/向量/Milvus 依赖。
 type Config struct {
 	service.ServiceConf
 	MQ         mqx.ConsumerConfig

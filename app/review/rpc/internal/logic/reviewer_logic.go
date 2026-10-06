@@ -13,8 +13,10 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetReviewerLogic 承载 GetReviewer 接口的业务逻辑；每个请求新建一个实例。
 type GetReviewerLogic struct{ base }
 
+// NewGetReviewerLogic 绑定请求上下文与服务依赖。
 func NewGetReviewerLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetReviewerLogic {
 	return &GetReviewerLogic{newBase(ctx, svcCtx)}
 }
@@ -38,12 +40,15 @@ func (l *GetReviewerLogic) GetReviewer(in *pb.GetReviewerReq) (*pb.GetReviewerRe
 	return &pb.GetReviewerResp{Active: true, Roles: r.Roles(), Markets: r.Markets(), Languages: r.Languages()}, nil
 }
 
+// GetQueueSummaryLogic 承载 GetQueueSummary 接口的业务逻辑；每个请求新建一个实例。
 type GetQueueSummaryLogic struct{ base }
 
+// NewGetQueueSummaryLogic 绑定请求上下文与服务依赖。
 func NewGetQueueSummaryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetQueueSummaryLogic {
 	return &GetQueueSummaryLogic{newBase(ctx, svcCtx)}
 }
 
+// GetQueueSummary 按送审目的汇总审核员可领取的待审数量与最老等待时长。
 func (l *GetQueueSummaryLogic) GetQueueSummary(in *pb.GetQueueSummaryReq) (*pb.GetQueueSummaryResp, error) {
 	r, err := l.reviewer(in.GetUserId(), store.RoleReviewer, store.RoleQA, store.RoleQualificationReviewer)
 	if err != nil {
@@ -60,8 +65,10 @@ func (l *GetQueueSummaryLogic) GetQueueSummary(in *pb.GetQueueSummaryReq) (*pb.G
 	return resp, nil
 }
 
+// ListPoliciesLogic 承载 ListPolicies 接口的业务逻辑；每个请求新建一个实例。
 type ListPoliciesLogic struct{ base }
 
+// NewListPoliciesLogic 绑定请求上下文与服务依赖。
 func NewListPoliciesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListPoliciesLogic {
 	return &ListPoliciesLogic{newBase(ctx, svcCtx)}
 }

@@ -19,6 +19,7 @@ import (
 
 var configFile = flag.String("f", "etc/review.yaml", "the config file")
 
+// main 启动审核 RPC 服务；配置了 MQ 时在后台运行 outbox relay 投递审核结论。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

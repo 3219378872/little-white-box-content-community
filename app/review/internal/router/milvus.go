@@ -51,6 +51,7 @@ func DialMilvus(ctx context.Context, cfg MilvusConfig) (*MilvusIndex, error) {
 	return index, nil
 }
 
+// Close 关闭 Milvus 连接。
 func (m *MilvusIndex) Close() error {
 	if m == nil || m.cli == nil {
 		return nil
@@ -58,6 +59,7 @@ func (m *MilvusIndex) Close() error {
 	return m.cli.Close()
 }
 
+// ensure 在集合不存在时按种子库 schema 创建；Milvus 只是检索副本，权威状态在 review_seed 表。
 func (m *MilvusIndex) ensure(ctx context.Context) error {
 	exists, err := m.cli.HasCollection(ctx, m.collection)
 	if err != nil {

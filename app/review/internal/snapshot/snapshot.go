@@ -88,6 +88,7 @@ func NormalizeText(value string) string {
 	return strings.Join(strings.FieldsFunc(folded, unicode.IsSpace), " ")
 }
 
+// stripInvisible 去掉零宽字符与其他格式控制字符，防止用不可见字符绕过关键词规则。
 func stripInvisible(value string) string {
 	return strings.Map(func(r rune) rune {
 		switch r {

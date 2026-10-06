@@ -23,6 +23,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// ServiceContext 持有审核 worker 的存储、生效/影子政策、机审处理器与可选的向量依赖。
 type ServiceContext struct {
 	Config      config.Config
 	DB          *sql.DB
@@ -38,6 +39,7 @@ type ServiceContext struct {
 	ranker      *ranker.Client
 }
 
+// NewServiceContext 装配数据库与政策；排序、向量与 Milvus 依赖按配置可选接入，缺失时机审对应阶段降级。
 func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, error) {
 	conn, err := sqlx.NewConn(sqlx.SqlConf{DataSource: c.DataSource, DriverName: "mysql"})
 	if err != nil {
@@ -124,6 +126,7 @@ func (s *ServiceContext) connectRouter(ctx context.Context) cascade.RouterWithVe
 	return &router.Router{Embedder: embedder, Index: index, Authority: s.Store, TopK: s.Active.RouterTopK}
 }
 
+// Close 关闭所有外部连接，汇总关闭错误。
 func (s *ServiceContext) Close() error {
 	var errs []error
 	if s.Producer != nil {

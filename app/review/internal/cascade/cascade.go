@@ -410,6 +410,7 @@ func (r *runner) lookupVerdict(ctx context.Context) (string, []string, string, b
 	return r.c.Lookup.LookupVerdict(ctx, r.in.SnapshotHash, r.in.Snapshot.Market, r.p.Version)
 }
 
+// ruleHit 是一条规则命中，作为规则阶段的输出写入阶段记录。
 type ruleHit struct {
 	Rule   string `json:"rule"`
 	Code   string `json:"code"`
@@ -580,6 +581,7 @@ func ValidateRank(issues []string, result RankResult) error {
 	return nil
 }
 
+// ruleCodes 收集指定动作的命中代码，去重并排序，保证同一输入的输出稳定。
 func ruleCodes(hits []ruleHit, action string) []string {
 	var codes []string
 	for _, hit := range hits {
@@ -591,6 +593,7 @@ func ruleCodes(hits []ruleHit, action string) []string {
 	return codes
 }
 
+// blockedDomain 判断域名本身或其任一上级域名是否在封禁名单中。
 func blockedDomain(domain string, blocked []string) bool {
 	for _, b := range blocked {
 		if domain == b || strings.HasSuffix(domain, "."+b) {
@@ -619,6 +622,7 @@ func joinTexts(texts map[string]string) string {
 // JoinTexts 导出给种子提名等调用方。
 func JoinTexts(texts map[string]string) string { return joinTexts(texts) }
 
+// errorClass 把依赖错误归为 timeout/unavailable/error，用作降级原因标签。
 func errorClass(err error) string {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
@@ -630,6 +634,7 @@ func errorClass(err error) string {
 	}
 }
 
+// nonEmpty 在值为空时返回兜底值。
 func nonEmpty(value, fallback string) string {
 	if value == "" {
 		return fallback

@@ -169,6 +169,7 @@ type Backlog struct {
 	OldestSubmit int64 `db:"oldest_submit"`
 }
 
+// HumanBacklog 统计待人审与已领取的任务数及最早送审时间。
 func (s *Store) HumanBacklog(ctx context.Context) (Backlog, error) {
 	var b Backlog
 	err := s.conn.QueryRowCtx(ctx, &b, `SELECT COUNT(*) AS pending, COALESCE(MIN(submitted_at_ms), 0) AS oldest_submit
@@ -176,6 +177,7 @@ func (s *Store) HumanBacklog(ctx context.Context) (Backlog, error) {
 	return b, err
 }
 
+// claimableRoles 返回审核员可用于领取任务的角色；停用的审核员没有可领取角色。
 func claimableRoles(reviewer *Reviewer) []string {
 	if reviewer == nil || !reviewer.Active {
 		return nil

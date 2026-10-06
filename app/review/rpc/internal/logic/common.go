@@ -17,12 +17,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// base 是各审核 Logic 共用的请求上下文、依赖与日志。
 type base struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// newBase 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
 	return base{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
@@ -62,6 +64,7 @@ func canSeeTask(r *store.Reviewer, task *store.Task) bool {
 	return slices.Contains(r.Markets(), task.Market) && slices.Contains(r.Languages(), task.Language)
 }
 
+// mapStoreError 把租约、围栏、幂等与送审校验错误映射为业务错误码，未识别的错误记日志后返回系统错误。
 func (b base) mapStoreError(err error, action string) error {
 	switch {
 	case err == nil:
@@ -88,6 +91,7 @@ func (b base) mapStoreError(err error, action string) error {
 	}
 }
 
+// taskView 组装任务视图；withEvidence 时附带冻结快照与各阶段记录，只给有权查看的审核员。
 func (b base) taskView(task *store.Task, withEvidence bool) (*pb.TaskView, error) {
 	view := &pb.TaskView{
 		TaskId: task.ID, BizType: task.BizType, ObjectId: task.ObjectID, ObjectRevision: task.ObjectRevision,
@@ -142,6 +146,7 @@ func (b base) taskView(task *store.Task, withEvidence bool) (*pb.TaskView, error
 	return view, nil
 }
 
+// decisionView 组装结论视图。
 func decisionView(d *store.Decision) *pb.DecisionView {
 	if d == nil {
 		return nil

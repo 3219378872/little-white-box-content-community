@@ -8,8 +8,10 @@ import (
 	pb "esx/kitex_gen/review"
 )
 
+// EnsureSubmittedLogic 承载 EnsureSubmitted 接口的业务逻辑；每个请求新建一个实例。
 type EnsureSubmittedLogic struct{ base }
 
+// NewEnsureSubmittedLogic 绑定请求上下文与服务依赖。
 func NewEnsureSubmittedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *EnsureSubmittedLogic {
 	return &EnsureSubmittedLogic{newBase(ctx, svcCtx)}
 }

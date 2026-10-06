@@ -51,6 +51,7 @@ type Router struct {
 	version   string
 }
 
+// Version 返回路由组件版本，写入阶段记录便于追溯。
 func (r *Router) Version() string {
 	if r.version != "" {
 		return r.version
@@ -133,6 +134,7 @@ type GRPCEmbedder struct {
 	dim    int
 }
 
+// DialEmbedder 建立到向量侧车的 gRPC 连接；连接是惰性的，侧车不可用不阻塞启动。
 func DialEmbedder(address string, dim int) (*GRPCEmbedder, error) {
 	if strings.TrimSpace(address) == "" {
 		return nil, fmt.Errorf("router: embedding address is required")
@@ -148,6 +150,7 @@ func DialEmbedder(address string, dim int) (*GRPCEmbedder, error) {
 	return &GRPCEmbedder{conn: conn, client: embeddingpb.NewEmbeddingServiceClient(conn), dim: dim}, nil
 }
 
+// Close 关闭与向量侧车的连接。
 func (e *GRPCEmbedder) Close() error {
 	if e == nil || e.conn == nil {
 		return nil
@@ -155,6 +158,7 @@ func (e *GRPCEmbedder) Close() error {
 	return e.conn.Close()
 }
 
+// Embed 生成文本向量；除超时外的失败与维度不符都归为 ErrUnavailable，由级联按降级处理。
 func (e *GRPCEmbedder) Embed(ctx context.Context, text string) ([]float32, string, error) {
 	resp, err := e.client.Embed(ctx, &embeddingpb.EmbedReq{Text: text})
 	if err != nil {

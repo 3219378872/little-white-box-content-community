@@ -45,6 +45,7 @@ func NewWithClient(client pb.ModerationInferServiceClient) *Client {
 	return &Client{client: client}
 }
 
+// Close 关闭与排序侧车的连接。
 func (c *Client) Close() error {
 	if c == nil || c.conn == nil {
 		return nil
