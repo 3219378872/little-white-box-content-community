@@ -22,6 +22,8 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// ServiceContext holds interaction storage, the outbox relay, the count cache
+// and the content client used to check that targets are interactable.
 type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
@@ -44,6 +46,8 @@ type ContentService interface {
 	AssertInteractable(ctx context.Context, in *contentservice.AssertInteractableReq, opts ...callopt.Option) (*contentservice.AssertInteractableResp, error)
 }
 
+// NewServiceContext wires MySQL models, Redis, the outbox relay and the optional
+// content client.
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn, err := sqlx.NewConn(sqlx.SqlConf{
 		DataSource: c.DataSource,
@@ -113,6 +117,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// Close shuts down the MQ producer and the database pool, joining their errors.
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

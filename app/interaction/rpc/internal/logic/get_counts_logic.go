@@ -14,12 +14,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetCountsLogic 承载 GetCounts 接口的业务逻辑；每个请求新建一个实例。
 type GetCountsLogic struct {
 	ctx    context.Context
 	svcCtx *svc2.ServiceContext
 	logging.Logger
 }
 
+// NewGetCountsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetCountsLogic(ctx context.Context, svcCtx *svc2.ServiceContext) *GetCountsLogic {
 	return &GetCountsLogic{
 		ctx:    ctx,
@@ -28,6 +30,8 @@ func NewGetCountsLogic(ctx context.Context, svcCtx *svc2.ServiceContext) *GetCou
 	}
 }
 
+// GetCounts 读取目标的互动计数：先读缓存，未命中时经 singleflight 合并回源；
+// 不存在的目标缓存短 TTL 的零值，避免反复穿透数据库。
 func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, error) {
 	key := actionCountCacheKey(in.TargetId, int64(in.TargetType))
 
@@ -69,10 +73,12 @@ func (l *GetCountsLogic) GetCounts(in *pb.GetCountsReq) (*pb.GetCountsResp, erro
 	return result.(*pb.GetCountsResp), nil
 }
 
+// actionCountCacheKey 是目标互动计数的缓存键。
 func actionCountCacheKey(targetID, targetType int64) string {
 	return fmt.Sprintf("interaction:action_count:%d:%d", targetID, targetType)
 }
 
+// invalidateActionCountCache 在计数变化后删除缓存，下次读取回源数据库。
 func invalidateActionCountCache(ctx context.Context, svcCtx *svc2.ServiceContext, targetID, targetType int64) error {
 	store := svcCtx.RedisStore
 	if store == nil && svcCtx.Redis != nil {
@@ -84,6 +90,7 @@ func invalidateActionCountCache(ctx context.Context, svcCtx *svc2.ServiceContext
 	return store.Del(ctx, actionCountCacheKey(targetID, targetType))
 }
 
+// readCountsFromCache 从缓存哈希读取计数；任一字段缺失或读取失败都按未命中处理。
 func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, bool) {
 	store := l.redisStore()
 	if store == nil {
@@ -110,6 +117,7 @@ func (l *GetCountsLogic) readCountsFromCache(key string) (*pb.GetCountsResp, boo
 	}, true
 }
 
+// writeCountsToCache 把计数写入缓存哈希并设置 TTL；写入失败只记录，不影响响应。
 func (l *GetCountsLogic) writeCountsToCache(key string, count *model2.ActionCount, ttlSeconds int) {
 	store := l.redisStore()
 	if store == nil {
@@ -133,6 +141,7 @@ func (l *GetCountsLogic) writeCountsToCache(key string, count *model2.ActionCoun
 	}
 }
 
+// redisStore 返回缓存存储；测试可注入 RedisStore，未配置 Redis 时返回 nil 表示不使用缓存。
 func (l *GetCountsLogic) redisStore() svc2.RedisStore {
 	if l.svcCtx.RedisStore != nil {
 		return l.svcCtx.RedisStore
@@ -143,6 +152,7 @@ func (l *GetCountsLogic) redisStore() svc2.RedisStore {
 	return nil
 }
 
+// parseInt64 解析缓存中的计数；值损坏时记录并按 0 处理。
 func parseInt64(value string, logger logging.Logger) int64 {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {

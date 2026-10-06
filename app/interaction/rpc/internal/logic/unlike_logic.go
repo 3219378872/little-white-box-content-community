@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnlikeLogic 承载 Unlike 接口的业务逻辑；每个请求新建一个实例。
 type UnlikeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUnlikeLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogic {
 	return &UnlikeLogic{
 		ctx:    ctx,
@@ -26,6 +28,7 @@ func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogi
 	}
 }
 
+// Unlike 取消点赞；不要求目标仍可见，目标下线后用户仍能取消。未点赞时直接成功。
 func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 	if in.UserId <= 0 || in.TargetId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

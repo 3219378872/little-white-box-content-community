@@ -46,6 +46,7 @@ type (
 	}
 )
 
+// newFavoriteModel creates the cached base model.
 func newFavoriteModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultFavoriteModel {
 	return &defaultFavoriteModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -53,6 +54,7 @@ func newFavoriteModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option
 	}
 }
 
+// Delete removes a favorite and evicts its id and (user, post) cache keys.
 func (m *defaultFavoriteModel) Delete(ctx context.Context, id int64) error {
 	data, err := m.FindOne(ctx, id)
 	if err != nil {
@@ -68,6 +70,7 @@ func (m *defaultFavoriteModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a favorite by id through the cache.
 func (m *defaultFavoriteModel) FindOne(ctx context.Context, id int64) (*Favorite, error) {
 	favoriteIdKey := fmt.Sprintf("%s%v", cacheFavoriteIdPrefix, id)
 	var resp Favorite
@@ -85,6 +88,8 @@ func (m *defaultFavoriteModel) FindOne(ctx context.Context, id int64) (*Favorite
 	}
 }
 
+// FindOneByUserIdPostId loads a favorite by its unique (user, post) key; the
+// cache maps that key to the id, then to the row.
 func (m *defaultFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userId int64, postId int64) (*Favorite, error) {
 	favoriteUserIdPostIdKey := fmt.Sprintf("%s%v:%v", cacheFavoriteUserIdPostIdPrefix, userId, postId)
 	var resp Favorite
@@ -105,6 +110,7 @@ func (m *defaultFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userId
 	}
 }
 
+// Insert creates a favorite and evicts its cache keys.
 func (m *defaultFavoriteModel) Insert(ctx context.Context, data *Favorite) (sql.Result, error) {
 	favoriteIdKey := fmt.Sprintf("%s%v", cacheFavoriteIdPrefix, data.Id)
 	favoriteUserIdPostIdKey := fmt.Sprintf("%s%v:%v", cacheFavoriteUserIdPostIdPrefix, data.UserId, data.PostId)
@@ -115,6 +121,7 @@ func (m *defaultFavoriteModel) Insert(ctx context.Context, data *Favorite) (sql.
 	return ret, err
 }
 
+// Update rewrites a favorite and evicts its cache keys.
 func (m *defaultFavoriteModel) Update(ctx context.Context, newData *Favorite) error {
 	data, err := m.FindOne(ctx, newData.Id)
 	if err != nil {
@@ -130,10 +137,12 @@ func (m *defaultFavoriteModel) Update(ctx context.Context, newData *Favorite) er
 	return err
 }
 
+// formatPrimary builds the id cache key used by the unique-key index cache.
 func (m *defaultFavoriteModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cacheFavoriteIdPrefix, primary)
 }
 
+// queryPrimary loads the row for an id resolved from the unique-key cache.
 func (m *defaultFavoriteModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", favoriteRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)

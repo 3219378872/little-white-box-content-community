@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnfavoriteLogic 承载 Unfavorite 接口的业务逻辑；每个请求新建一个实例。
 type UnfavoriteLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewUnfavoriteLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnfavoriteLogic {
 	return &UnfavoriteLogic{
 		ctx:    ctx,
@@ -26,6 +28,7 @@ func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfavo
 	}
 }
 
+// Unfavorite 取消收藏；不要求帖子仍可见，帖子下线后用户仍能取消。未收藏时直接成功。
 func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, error) {
 	if in.UserId <= 0 || in.PostId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

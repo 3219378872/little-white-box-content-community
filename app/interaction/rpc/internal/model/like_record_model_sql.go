@@ -46,6 +46,7 @@ type (
 	}
 )
 
+// newLikeRecordModel creates the cached base model.
 func newLikeRecordModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultLikeRecordModel {
 	return &defaultLikeRecordModel{
 		CachedConn: sqlc.NewConn(conn, c, opts...),
@@ -53,6 +54,7 @@ func newLikeRecordModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Opti
 	}
 }
 
+// Delete removes a like record and evicts its id and unique-key cache keys.
 func (m *defaultLikeRecordModel) Delete(ctx context.Context, id int64) error {
 	data, err := m.FindOne(ctx, id)
 	if err != nil {
@@ -68,6 +70,7 @@ func (m *defaultLikeRecordModel) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// FindOne loads a like record by id through the cache.
 func (m *defaultLikeRecordModel) FindOne(ctx context.Context, id int64) (*LikeRecord, error) {
 	likeRecordIdKey := fmt.Sprintf("%s%v", cacheLikeRecordIdPrefix, id)
 	var resp LikeRecord
@@ -85,6 +88,8 @@ func (m *defaultLikeRecordModel) FindOne(ctx context.Context, id int64) (*LikeRe
 	}
 }
 
+// FindOneByUserIdTargetIdTargetType loads a like record by its unique key; the
+// cache maps that key to the id, then to the row.
 func (m *defaultLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Context, userId int64, targetId int64, targetType int64) (*LikeRecord, error) {
 	likeRecordUserIdTargetIdTargetTypeKey := fmt.Sprintf("%s%v:%v:%v", cacheLikeRecordUserIdTargetIdTargetTypePrefix, userId, targetId, targetType)
 	var resp LikeRecord
@@ -105,6 +110,7 @@ func (m *defaultLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.C
 	}
 }
 
+// Insert creates a like record and evicts its cache keys.
 func (m *defaultLikeRecordModel) Insert(ctx context.Context, data *LikeRecord) (sql.Result, error) {
 	likeRecordIdKey := fmt.Sprintf("%s%v", cacheLikeRecordIdPrefix, data.Id)
 	likeRecordUserIdTargetIdTargetTypeKey := fmt.Sprintf("%s%v:%v:%v", cacheLikeRecordUserIdTargetIdTargetTypePrefix, data.UserId, data.TargetId, data.TargetType)
@@ -115,6 +121,7 @@ func (m *defaultLikeRecordModel) Insert(ctx context.Context, data *LikeRecord) (
 	return ret, err
 }
 
+// Update rewrites a like record and evicts its cache keys.
 func (m *defaultLikeRecordModel) Update(ctx context.Context, newData *LikeRecord) error {
 	data, err := m.FindOne(ctx, newData.Id)
 	if err != nil {
@@ -130,10 +137,12 @@ func (m *defaultLikeRecordModel) Update(ctx context.Context, newData *LikeRecord
 	return err
 }
 
+// formatPrimary builds the id cache key used by the unique-key index cache.
 func (m *defaultLikeRecordModel) formatPrimary(primary any) string {
 	return fmt.Sprintf("%s%v", cacheLikeRecordIdPrefix, primary)
 }
 
+// queryPrimary loads the row for an id resolved from the unique-key cache.
 func (m *defaultLikeRecordModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", likeRecordRows, m.table)
 	return conn.QueryRowCtx(ctx, v, query, primary)

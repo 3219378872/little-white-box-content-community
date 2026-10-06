@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetFavoriteListLogic 承载 GetFavoriteList 接口的业务逻辑；每个请求新建一个实例。
 type GetFavoriteListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetFavoriteListLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetFavoriteListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFavoriteListLogic {
 	return &GetFavoriteListLogic{
 		ctx:    ctx,
@@ -26,6 +28,7 @@ func NewGetFavoriteListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *G
 	}
 }
 
+// GetFavoriteList 分页返回用户当前收藏的帖子 ID，按收藏时间倒序；超出分页窗口视为参数错误。
 func (l *GetFavoriteListLogic) GetFavoriteList(in *pb.GetFavoriteListReq) (*pb.GetFavoriteListResp, error) {
 	page := pageutil.ClampPage(in.Page)
 	pageSize := pageutil.ClampPageSizeTo(in.PageSize, pageutil.DefaultPageSize, pageutil.InteractionMaxPageSize)

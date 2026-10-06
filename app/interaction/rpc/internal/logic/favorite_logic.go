@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// FavoriteLogic 承载 Favorite 接口的业务逻辑；每个请求新建一个实例。
 type FavoriteLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewFavoriteLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FavoriteLogic {
 	return &FavoriteLogic{
 		ctx:    ctx,
@@ -26,6 +28,7 @@ func NewFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Favorite
 	}
 }
 
+// Favorite 收藏已发布的帖子：收藏记录、计数与行为事件同事务写入；已收藏时直接成功，不重复计数。
 func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	if in.UserId <= 0 || in.PostId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

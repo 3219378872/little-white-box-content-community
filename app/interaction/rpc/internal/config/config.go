@@ -7,6 +7,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是互动 RPC 配置：数据库、MQ/outbox 与用于校验目标可互动的内容服务。
 type Config struct {
 	rpcx.RpcServerConf
 	InternalSecret string

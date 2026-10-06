@@ -50,6 +50,8 @@ func (m *customFavoriteModel) FindOneByUserIdPostId(ctx context.Context, userID,
 	return &record, nil
 }
 
+// FindActivePostIds pages a user's active favorites, newest first, and returns
+// the total; pages past the window return pageutil.ErrPageWindow.
 func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int64, page, pageSize int32) ([]int64, int64, error) {
 	offset, err := pageutil.PageOffset(page, pageSize)
 	if err != nil {
@@ -77,6 +79,7 @@ func (m *customFavoriteModel) FindActivePostIds(ctx context.Context, userID int6
 	return postIDs, total, nil
 }
 
+// UpsertFavoriteStatus creates the favorite or overwrites its status.
 func (m *customFavoriteModel) UpsertFavoriteStatus(ctx context.Context, userId, postId, status int64) (sql.Result, error) {
 	query := fmt.Sprintf(
 		"insert into %s (`user_id`,`post_id`,`status`) values (?,?,?) on duplicate key update `status`=values(`status`)",
@@ -87,6 +90,8 @@ func (m *customFavoriteModel) UpsertFavoriteStatus(ctx context.Context, userId, 
 	})
 }
 
+// FindFavoriteStatusByUserAndPosts returns which of the posts the user has an
+// active favorite on; missing posts are false.
 func (m *customFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Context, userId int64, postIds []int64) (map[int64]bool, error) {
 	if len(postIds) == 0 {
 		return map[int64]bool{}, nil
@@ -115,6 +120,7 @@ func (m *customFavoriteModel) FindFavoriteStatusByUserAndPosts(ctx context.Conte
 	return results, nil
 }
 
+// InvalidateFavoriteCache evicts the (user, post) key and, when known, the id key.
 func (m *customFavoriteModel) InvalidateFavoriteCache(ctx context.Context, id, userId, postId int64) error {
 	keys := []string{fmt.Sprintf("%s%v:%v", cacheFavoriteUserIdPostIdPrefix, userId, postId)}
 	if id > 0 {
@@ -123,6 +129,8 @@ func (m *customFavoriteModel) InvalidateFavoriteCache(ctx context.Context, id, u
 	return m.DelCacheCtx(ctx, keys...)
 }
 
+// UpdateStatusById changes status only from expectedStatus, so concurrent
+// toggles cannot both apply.
 func (m *customFavoriteModel) UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error) {
 	query := fmt.Sprintf("update %s set `status`=? where `id`=? and `status`=?", m.table)
 	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {

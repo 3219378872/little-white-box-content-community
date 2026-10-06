@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// LikeLogic 承载 Like 接口的业务逻辑；每个请求新建一个实例。
 type LikeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewLikeLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 	return &LikeLogic{
 		ctx:    ctx,
@@ -26,6 +28,7 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 	}
 }
 
+// Like 点赞已发布的帖子或评论：点赞记录、计数与行为事件同事务写入；已点赞时直接成功，不重复计数。
 func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if in.UserId <= 0 || in.TargetId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

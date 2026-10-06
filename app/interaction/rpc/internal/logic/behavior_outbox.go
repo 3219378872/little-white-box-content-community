@@ -10,6 +10,8 @@ import (
 	"esx/pkg/util"
 )
 
+// interactionOutboxEvent 把互动转换为行为事件并封装为 outbox 事件，与互动写入同事务提交，
+// 推荐与行为日志据此更新特征。
 func interactionOutboxEvent(userID, targetID int64, targetType, action string) (outboxx.Event, error) {
 	eventID, err := util.NextID()
 	if err != nil {
@@ -33,6 +35,7 @@ func interactionOutboxEvent(userID, targetID int64, targetType, action string) (
 	}, nil
 }
 
+// targetTypeName 把目标类型编号映射为行为事件中的名称（2=comment，其余为 post）。
 func targetTypeName(targetType int32) string {
 	if targetType == 2 {
 		return "comment"

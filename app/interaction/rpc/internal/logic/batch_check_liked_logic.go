@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// BatchCheckLikedLogic 承载 BatchCheckLiked 接口的业务逻辑；每个请求新建一个实例。
 type BatchCheckLikedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewBatchCheckLikedLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewBatchCheckLikedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchCheckLikedLogic {
 	return &BatchCheckLikedLogic{
 		ctx:    ctx,
@@ -25,6 +27,7 @@ func NewBatchCheckLikedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *B
 	}
 }
 
+// BatchCheckLiked 批量查询用户是否点赞了各目标；未出现的目标返回 false。
 func (l *BatchCheckLikedLogic) BatchCheckLiked(in *pb.BatchCheckLikedReq) (*pb.BatchCheckLikedResp, error) {
 	if in.UserId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

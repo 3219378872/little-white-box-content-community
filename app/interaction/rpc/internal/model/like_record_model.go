@@ -52,6 +52,8 @@ func (m *customLikeRecordModel) FindOneByUserIdTargetIdTargetType(ctx context.Co
 	return &record, nil
 }
 
+// FindActiveTargetIds pages a user's active likes of one target type, newest
+// first, and returns the total; pages past the window return pageutil.ErrPageWindow.
 func (m *customLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, targetType int64, page, pageSize int32) ([]int64, int64, error) {
 	offset, err := pageutil.PageOffset(page, pageSize)
 	if err != nil {
@@ -79,6 +81,7 @@ func (m *customLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID,
 	return targetIDs, total, nil
 }
 
+// UpsertLikeStatus creates the like or overwrites its status.
 func (m *customLikeRecordModel) UpsertLikeStatus(ctx context.Context, userId, targetId, targetType, status int64) (sql.Result, error) {
 	query := fmt.Sprintf(
 		"insert into %s (`user_id`,`target_id`,`target_type`,`status`) values (?,?,?,?) on duplicate key update `status`=values(`status`)",
@@ -89,6 +92,8 @@ func (m *customLikeRecordModel) UpsertLikeStatus(ctx context.Context, userId, ta
 	})
 }
 
+// UpsertLikeStatusTx upserts on the caller's transaction and returns the row id;
+// LAST_INSERT_ID(id) makes the id available on the update path too.
 func (m *customLikeRecordModel) UpsertLikeStatusTx(ctx context.Context, conn sqlx.SqlConn, userId, targetId, targetType, status int64) (sql.Result, int64, error) {
 	query := fmt.Sprintf(
 		"insert into %s (`user_id`,`target_id`,`target_type`,`status`) values (?,?,?,?) on duplicate key update `id`=last_insert_id(`id`), `status`=values(`status`)",
@@ -105,6 +110,7 @@ func (m *customLikeRecordModel) UpsertLikeStatusTx(ctx context.Context, conn sql
 	return result, id, nil
 }
 
+// InvalidateLikeRecordCache evicts the (user, target, type) key and, when known, the id key.
 func (m *customLikeRecordModel) InvalidateLikeRecordCache(ctx context.Context, id, userId, targetId, targetType int64) error {
 	keys := []string{fmt.Sprintf("%s%v:%v:%v", cacheLikeRecordUserIdTargetIdTargetTypePrefix, userId, targetId, targetType)}
 	if id > 0 {
@@ -113,6 +119,8 @@ func (m *customLikeRecordModel) InvalidateLikeRecordCache(ctx context.Context, i
 	return m.DelCacheCtx(ctx, keys...)
 }
 
+// FindStatusByUserAndTargets returns which targets the user has an active like
+// on; missing targets are false.
 func (m *customLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, userId int64, targetIds []int64, targetType int64) (map[int64]bool, error) {
 	if len(targetIds) == 0 {
 		return map[int64]bool{}, nil
@@ -141,6 +149,8 @@ func (m *customLikeRecordModel) FindStatusByUserAndTargets(ctx context.Context, 
 	return results, nil
 }
 
+// UpdateStatusById changes status only from expectedStatus, so concurrent
+// toggles cannot both apply.
 func (m *customLikeRecordModel) UpdateStatusById(ctx context.Context, id, expectedStatus, newStatus int64) (sql.Result, error) {
 	query := fmt.Sprintf("update %s set `status`=? where `id`=? and `status`=?", m.table)
 	return m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (sql.Result, error) {
