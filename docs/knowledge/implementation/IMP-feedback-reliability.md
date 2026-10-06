@@ -19,6 +19,7 @@ code_paths:
 - app/behavior
 - app/pipeline/behaviorlog
 - app/recommend/mq
+- app/recommend/featurekey
 - pkg/outboxx
 - app/gateway
 - app/assistant

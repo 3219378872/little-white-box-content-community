@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"esx/app/recommend/featurekey"
 )
 
 type hashReader interface {
@@ -12,15 +14,15 @@ type hashReader interface {
 }
 
 type HiddenPostReader struct {
-	redis   hashReader
-	version string
+	redis    hashReader
+	features featurekey.Space
 }
 
 func NewHiddenPostReader(client hashReader, version string) *HiddenPostReader {
 	if version == "" {
 		version = "v2"
 	}
-	return &HiddenPostReader{redis: client, version: version}
+	return &HiddenPostReader{redis: client, features: featurekey.New(version)}
 }
 
 // HiddenPosts reads only the explicit negative-feedback boundary. A missing
@@ -33,7 +35,7 @@ func (r *HiddenPostReader) HiddenPosts(ctx context.Context, userID int64) (map[i
 	if r == nil || r.redis == nil {
 		return nil, fmt.Errorf("negative feedback unavailable")
 	}
-	values, err := r.redis.HgetallCtx(ctx, fmt.Sprintf("feature:%s:u:%d:negative", r.version, userID))
+	values, err := r.redis.HgetallCtx(ctx, r.features.ViewerNegative(featurekey.Identity(userID, "")))
 	if err != nil {
 		return nil, err
 	}

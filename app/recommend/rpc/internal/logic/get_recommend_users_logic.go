@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"esx/app/recommend/featurekey"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
 	pb "esx/kitex_gen/recommend"
@@ -32,7 +33,7 @@ func (l *GetRecommendUsersLogic) GetRecommendUsers(in *pb.GetRecommendUsersReq) 
 	if err != nil {
 		return nil, err
 	}
-	identity := model.IdentityKey(in.GetUserId(), strings.TrimSpace(in.GetAnonymousId()))
+	identity := featurekey.Identity(in.GetUserId(), strings.TrimSpace(in.GetAnonymousId()))
 	requestID := strings.TrimSpace(in.GetRequestId())
 	recallReq := model.RecallRequest{
 		UserID:       in.GetUserId(),

@@ -139,13 +139,3 @@ func TestRedisSnapshotStoreRoundTripAndMissing(t *testing.T) {
 		t.Fatalf("missing Load() error = %v, want ErrSnapshotMissing", err)
 	}
 }
-
-func TestIdentityKeyDoesNotExposeAnonymousIdentifier(t *testing.T) {
-	key := IdentityKey(0, "private-device-id")
-	if key == "" || key == "a:private-device-id" {
-		t.Fatalf("anonymous identity was not hashed: %q", key)
-	}
-	if key != IdentityKey(0, "private-device-id") {
-		t.Fatal("anonymous identity hashing is not deterministic")
-	}
-}

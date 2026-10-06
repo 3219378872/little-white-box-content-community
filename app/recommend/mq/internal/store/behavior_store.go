@@ -2,8 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/cloudwego/kitex/client/callopt"
 
+	"esx/app/recommend/featurekey"
 	"esx/pkg/event"
 
 	"esx/app/user/rpc/userservice"
@@ -28,20 +27,18 @@ type RedisEvaler interface {
 	EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 }
 
+// PersonalizationPreferenceReader 是读取用户个性化开关的最小依赖，在使用方声明（recommend-rpc 有同名接口）。
 type PersonalizationPreferenceReader interface {
 	GetPersonalizationPreference(context.Context, *userservice.GetPersonalizationPreferenceReq, ...callopt.Option) (*userservice.GetPersonalizationPreferenceResp, error)
 }
 
 type RedisBehaviorStore struct {
-	preferences    PersonalizationPreferenceReader
-	redis          RedisEvaler
-	featureVersion string
-	recallPrefix   string
-	ttlSeconds     int
+	preferences  PersonalizationPreferenceReader
+	redis        RedisEvaler
+	features     featurekey.Space
+	recallPrefix string
+	ttlSeconds   int
 }
-
-// personalizationOptOutKeyPrefix 与 user 服务写入的关闭标记保持一致（REL-023）。
-const personalizationOptOutKeyPrefix = "personalization:optout:"
 
 type RedisGetter interface {
 	GetCtx(ctx context.Context, key string) (string, error)
@@ -49,7 +46,7 @@ type RedisGetter interface {
 
 func NewRedisBehaviorStore(redis RedisEvaler, featureVersion, recallKeyPrefix string, ttlSeconds int, readers ...PersonalizationPreferenceReader) *RedisBehaviorStore {
 	s := &RedisBehaviorStore{
-		redis: redis, featureVersion: featureVersion,
+		redis: redis, features: featurekey.New(featureVersion),
 		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
 	}
 	if len(readers) > 0 {
@@ -62,7 +59,7 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 	if err := behavior.Validate(); err != nil {
 		return fmt.Errorf("validate behavior feature event: %w", err)
 	}
-	identity := behaviorIdentity(behavior)
+	identity := featurekey.Identity(behavior.UserID, behavior.AnonymousID)
 	if identity == "" {
 		return fmt.Errorf("behavior feature identity is required")
 	}
@@ -82,7 +79,7 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 		}
 		return nil
 	}
-	prefix := "feature:" + s.featureVersion + ":" + identity
+	prefix := s.features.Viewer(identity)
 	targetID := strconv.FormatInt(behavior.TargetID, 10)
 	scene := behavior.Scene
 	if scene == "" {
@@ -104,18 +101,18 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 		exposureDedupKey = prefix + ":exposure:dedup:" + behavior.RequestID + ":" + targetID
 	}
 	_, err = s.redis.EvalCtx(ctx, recordFeatureScript, []string{
-		"feature:" + s.featureVersion + ":dedup:" + behavior.EventIDString(),
+		s.features.Dedup(behavior.EventIDString()),
 		exposureDedupKey,
 		prefix + ":recent", prefix + ":positive", prefix + ":negative", prefix + ":scene",
 		s.recallPrefix + ":recall:post:hot:" + scene,
 		s.recallPrefix + ":recall:post:itemcf:" + identity + ":" + scene,
 		s.recallPrefix + ":recall:post:itemcf:seed:" + targetID + ":" + scene,
 		s.recallPrefix + ":recall:user:popular:" + scene,
-		"feature:" + s.featureVersion + ":user:" + targetID,
+		s.features.User(behavior.TargetID),
 		s.recallPrefix + ":follow:author:" + targetID + ":followers",
 		s.recallPrefix + ":author:" + targetID + ":posts",
 		s.recallPrefix + ":recall:post:follow:" + identity + ":" + scene,
-		"feature:" + s.featureVersion + ":post:" + targetID,
+		s.features.Post(behavior.TargetID),
 		prefix + ":state",
 	}, s.ttlSeconds, string(recent), behavior.Action,
 		behavior.TargetType+":"+targetID, scene, targetID, behavior.TargetType,
@@ -128,7 +125,7 @@ func (s *RedisBehaviorStore) Record(ctx context.Context, behavior event.Behavior
 
 func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID int64) (bool, error) {
 	if getter, ok := s.redis.(RedisGetter); ok {
-		value, err := getter.GetCtx(ctx, personalizationOptOutKeyPrefix+strconv.FormatInt(userID, 10))
+		value, err := getter.GetCtx(ctx, featurekey.OptOutKey(userID))
 		if err == nil && value != "" {
 			return true, nil
 		}
@@ -148,7 +145,7 @@ func (s *RedisBehaviorStore) personalizationOptedOut(ctx context.Context, userID
 
 // purgeIdentityFeatures 删除该身份的全部在线个性化特征与个性化召回键。
 func (s *RedisBehaviorStore) purgeIdentityFeatures(ctx context.Context, identity string) error {
-	prefix := "feature:" + s.featureVersion + ":" + identity
+	prefix := s.features.Viewer(identity)
 	purger, ok := s.redis.(interface {
 		EvalCtx(ctx context.Context, script string, keys []string, args ...any) (any, error)
 	})
@@ -199,17 +196,6 @@ for index = tonumber(ARGV[1]) + 1, #KEYS do
 end
 return 1
 `
-
-func behaviorIdentity(behavior event.BehaviorEvent) string {
-	if behavior.UserID > 0 {
-		return "u:" + strconv.FormatInt(behavior.UserID, 10)
-	}
-	if behavior.AnonymousID == "" {
-		return ""
-	}
-	digest := sha256.Sum256([]byte(behavior.AnonymousID))
-	return "a:" + hex.EncodeToString(digest[:8])
-}
 
 const recordFeatureScript = `
 if redis.call('EXISTS', KEYS[1]) == 1 then
@@ -402,14 +388,14 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 	if !ok {
 		return 0, nil
 	}
-	keys, err := lister.KeysCtx(ctx, personalizationOptOutKeyPrefix+"*")
+	keys, err := lister.KeysCtx(ctx, featurekey.OptOutKeyPrefix+"*")
 	if err != nil {
 		return 0, fmt.Errorf("list personalization opt-out markers: %w", err)
 	}
 	// Discover retained profiles independently of cache markers. This also repairs
 	// opt-outs whose marker write failed and users who never send another event.
 	identities := make(map[int64]bool)
-	for _, pattern := range []string{"feature:" + s.featureVersion + ":u:*", s.recallPrefix + ":recall:*"} {
+	for _, pattern := range []string{s.features.LoggedInViewerPattern(), s.recallPrefix + ":recall:*"} {
 		retained, err := lister.KeysCtx(ctx, pattern)
 		if err != nil {
 			return 0, err
@@ -428,8 +414,8 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 		}
 	}
 	for _, key := range keys {
-		if strings.HasPrefix(key, personalizationOptOutKeyPrefix) {
-			id, err := strconv.ParseInt(strings.TrimPrefix(key, personalizationOptOutKeyPrefix), 10, 64)
+		if strings.HasPrefix(key, featurekey.OptOutKeyPrefix) {
+			id, err := strconv.ParseInt(strings.TrimPrefix(key, featurekey.OptOutKeyPrefix), 10, 64)
 			if err == nil && id > 0 {
 				delete(identities, id)
 			}
@@ -443,17 +429,17 @@ func (s *RedisBehaviorStore) PurgeOptedOutFeatures(ctx context.Context) (int, er
 			continue
 		}
 		if optedOut {
-			keys = append(keys, personalizationOptOutKeyPrefix+strconv.FormatInt(id, 10))
+			keys = append(keys, featurekey.OptOutKey(id))
 		}
 	}
 	purged := 0
 	for _, key := range keys {
-		userID, err := strconv.ParseInt(strings.TrimPrefix(key, personalizationOptOutKeyPrefix), 10, 64)
+		userID, err := strconv.ParseInt(strings.TrimPrefix(key, featurekey.OptOutKeyPrefix), 10, 64)
 		if err != nil || userID <= 0 {
 			// 非用户 ID 形式的标记不属于 REL-023 清理范围，跳过不视为失败。
 			continue
 		}
-		if err := s.purgeIdentityFeatures(ctx, "u:"+strconv.FormatInt(userID, 10)); err != nil {
+		if err := s.purgeIdentityFeatures(ctx, featurekey.Identity(userID, "")); err != nil {
 			return purged, fmt.Errorf("purge opted-out features for user %d: %w", userID, err)
 		}
 		purged++

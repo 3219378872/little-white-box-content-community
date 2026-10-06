@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"esx/app/recommend/featurekey"
 	"esx/app/recommend/rpc/internal/cursor"
 	"esx/app/recommend/rpc/internal/model"
 	"esx/app/recommend/rpc/internal/svc"
@@ -38,7 +39,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 	if err != nil {
 		return nil, err
 	}
-	identity := model.IdentityKey(in.GetUserId(), strings.TrimSpace(in.GetAnonymousId()))
+	identity := featurekey.Identity(in.GetUserId(), strings.TrimSpace(in.GetAnonymousId()))
 	scene := normalizedScene(in.GetScene())
 	binding := cursor.Binding{
 		IdentityHash: cursor.IdentityHash(identity),
@@ -216,8 +217,8 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 	}
 	// Personalization may have been disabled since the snapshot was created.
 	// Old serialized snapshots lack RuleOnly and are conservatively invalidated.
-	if strings.HasPrefix(identity, "u:") && !snapshot.RuleOnly {
-		userID, err := strconv.ParseInt(strings.TrimPrefix(identity, "u:"), 10, 64)
+	if strings.HasPrefix(identity, featurekey.UserIdentityPrefix) && !snapshot.RuleOnly {
+		userID, err := strconv.ParseInt(strings.TrimPrefix(identity, featurekey.UserIdentityPrefix), 10, 64)
 		if err != nil || userID <= 0 || l.personalizationOptedOut(userID) {
 			return nil, errx.New(errx.ParamError, "recommendation cursor expired after personalization changed")
 		}
@@ -231,7 +232,7 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 	}
 	// A snapshot freezes ranking, not explicit feedback. Another tab can hide
 	// a remaining candidate after the first page was returned (DISC-035).
-	if strings.HasPrefix(identity, "u:") {
+	if strings.HasPrefix(identity, featurekey.UserIdentityPrefix) {
 		if l.svcCtx.FeatureRepository == nil {
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}

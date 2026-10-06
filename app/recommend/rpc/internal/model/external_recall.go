@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"esx/app/recommend/featurekey"
 	"esx/pkg/vectorprojection"
 
 	milvusclient "github.com/milvus-io/milvus-sdk-go/v2/client"
@@ -25,14 +26,14 @@ import (
 const maxExternalRecallSeeds = 5
 
 type ElasticsearchPostRecallSource struct {
-	endpoint       string
-	index          string
-	username       string
-	password       string
-	featureVersion string
-	redis          redisClient
-	client         *http.Client
-	timeout        time.Duration
+	endpoint string
+	index    string
+	username string
+	password string
+	features featurekey.Space
+	redis    redisClient
+	client   *http.Client
+	timeout  time.Duration
 }
 
 func NewElasticsearchPostRecallSource(
@@ -58,7 +59,7 @@ func NewElasticsearchPostRecallSource(
 	transport.Proxy = nil
 	return &ElasticsearchPostRecallSource{
 		endpoint: endpoint, index: index, username: username, password: password,
-		featureVersion: featureVersion, redis: redis,
+		features: featurekey.New(featureVersion), redis: redis,
 		client: &http.Client{Transport: transport}, timeout: timeout,
 	}, nil
 }
@@ -69,7 +70,7 @@ func (s *ElasticsearchPostRecallSource) Recall(ctx context.Context, req RecallRe
 	if req.Limit <= 0 {
 		return nil, fmt.Errorf("elasticsearch recall limit must be positive")
 	}
-	seedIDs, err := externalRecallSeedIDs(ctx, s.redis, s.featureVersion, req)
+	seedIDs, err := externalRecallSeedIDs(ctx, s.redis, s.features, req)
 	if err != nil {
 		return nil, fmt.Errorf("load elasticsearch recall seeds: %w", err)
 	}
@@ -163,16 +164,16 @@ type milvusRecallClient interface {
 type milvusClientFactory func(context.Context, milvusclient.Config) (milvusRecallClient, error)
 
 type MilvusPostRecallSource struct {
-	address        string
-	collection     string
-	username       string
-	password       string
-	database       string
-	featureVersion string
-	nprobe         int
-	timeout        time.Duration
-	redis          redisClient
-	factory        milvusClientFactory
+	address    string
+	collection string
+	username   string
+	password   string
+	database   string
+	features   featurekey.Space
+	nprobe     int
+	timeout    time.Duration
+	redis      redisClient
+	factory    milvusClientFactory
 
 	mu     sync.Mutex
 	client milvusRecallClient
@@ -192,7 +193,7 @@ func NewMilvusPostRecallSource(
 ) *MilvusPostRecallSource {
 	return &MilvusPostRecallSource{
 		address: address, collection: collection, username: username, password: password,
-		database: database, featureVersion: featureVersion, nprobe: nprobe, redis: redis, timeout: timeout,
+		database: database, features: featurekey.New(featureVersion), nprobe: nprobe, redis: redis, timeout: timeout,
 		factory: func(ctx context.Context, config milvusclient.Config) (milvusRecallClient, error) {
 			return milvusclient.NewClient(ctx, config)
 		},
@@ -205,7 +206,7 @@ func (s *MilvusPostRecallSource) Recall(ctx context.Context, req RecallRequest) 
 	if req.Limit <= 0 {
 		return nil, fmt.Errorf("milvus recall limit must be positive")
 	}
-	seedIDs, err := externalRecallSeedIDs(ctx, s.redis, s.featureVersion, req)
+	seedIDs, err := externalRecallSeedIDs(ctx, s.redis, s.features, req)
 	if err != nil {
 		return nil, fmt.Errorf("load milvus recall seeds: %w", err)
 	}
@@ -335,14 +336,14 @@ func (s *MilvusPostRecallSource) Close() error {
 	return s.client.Close()
 }
 
-func externalRecallSeedIDs(ctx context.Context, redis redisClient, featureVersion string, req RecallRequest) ([]int64, error) {
+func externalRecallSeedIDs(ctx context.Context, redis redisClient, features featurekey.Space, req RecallRequest) ([]int64, error) {
 	if req.SeedPostID > 0 {
 		return []int64{req.SeedPostID}, nil
 	}
 	if req.Identity == "" || redis == nil {
 		return nil, nil
 	}
-	recent, err := redis.LrangeCtx(ctx, "feature:"+featureVersion+":"+req.Identity+":recent", 0, 49)
+	recent, err := redis.LrangeCtx(ctx, features.ViewerRecent(req.Identity), 0, 49)
 	if err != nil {
 		return nil, err
 	}

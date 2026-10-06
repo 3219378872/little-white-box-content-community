@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"esx/app/recommend/featurekey"
 	"esx/pkg/event"
 	"esx/pkg/visibilityx"
 )
@@ -17,11 +18,11 @@ type CandidateStore interface {
 }
 
 type RedisCandidateStore struct {
-	privacy        *RedisBehaviorStore
-	redis          RedisEvaler
-	featureVersion string
-	recallPrefix   string
-	ttlSeconds     int
+	privacy      *RedisBehaviorStore
+	redis        RedisEvaler
+	features     featurekey.Space
+	recallPrefix string
+	ttlSeconds   int
 }
 
 func NewRedisCandidateStore(
@@ -33,7 +34,7 @@ func NewRedisCandidateStore(
 ) *RedisCandidateStore {
 	return &RedisCandidateStore{
 		privacy: NewRedisBehaviorStore(redis, featureVersion, recallKeyPrefix, ttlSeconds, readers...),
-		redis:   redis, featureVersion: featureVersion,
+		redis:   redis, features: featurekey.New(featureVersion),
 		recallPrefix: recallKeyPrefix + ":" + featureVersion, ttlSeconds: ttlSeconds,
 	}
 }
@@ -66,10 +67,11 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 			return fmt.Errorf("load candidate followers: %w", err)
 		}
 		for _, identity := range followers {
-			if !strings.HasPrefix(identity, "u:") {
+			// 只有登录用户有可复核的个性化偏好；匿名身份不参与个性化扇出。
+			if !strings.HasPrefix(identity, featurekey.UserIdentityPrefix) {
 				continue
 			}
-			userID, err := strconv.ParseInt(strings.TrimPrefix(identity, "u:"), 10, 64)
+			userID, err := strconv.ParseInt(strings.TrimPrefix(identity, featurekey.UserIdentityPrefix), 10, 64)
 			if err != nil || userID <= 0 {
 				continue
 			}
@@ -87,7 +89,7 @@ func (s *RedisCandidateStore) RecordPost(ctx context.Context, post event.PostEve
 		return fmt.Errorf("marshal candidate preferences: %w", err)
 	}
 	_, err = s.redis.EvalCtx(ctx, recordPostCandidateScript, []string{
-		"feature:" + s.featureVersion + ":post:" + postID,
+		s.features.Post(post.PostID),
 		s.recallPrefix + ":recall:post:hot:home",
 		s.recallPrefix + ":recall:post:explore:home",
 		s.recallPrefix + ":author:" + authorID + ":posts",
