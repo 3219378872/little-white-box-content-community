@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 )
 
+// unavailableResult 是工具不可用时给模型的结构化结果，引导其改用其它能力。
 func unavailableResult(name string) string {
 	raw, _ := json.Marshal(map[string]any{
 		"ok":    false,
@@ -13,6 +14,7 @@ func unavailableResult(name string) string {
 	return string(raw)
 }
 
+// limitResult 把超长结果截断并包装为带 truncated 标记的 JSON，保证结果不超过上限。
 func limitResult(text string, limit int) string {
 	if limit <= 0 {
 		limit = defaultMaxResultBytes
@@ -35,6 +37,7 @@ func limitResult(text string, limit int) string {
 	return `{"ok":true,"truncated":true,"text":""}`
 }
 
+// truncateUTF8Bytes 按字节截断且不切开 UTF-8 字符。
 func truncateUTF8Bytes(text string, limit int) string {
 	if limit <= 0 {
 		return ""

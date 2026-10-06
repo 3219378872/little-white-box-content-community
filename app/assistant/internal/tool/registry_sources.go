@@ -15,6 +15,8 @@ import (
 	"esx/pkg/logging"
 )
 
+// bindSources 把工具返回的来源登记到 run 的来源台账，并把 handle 附在给模型的结果里；
+// 模型只能引用登记过的 handle。v2 客户端同时写入证据片段并以 JSON 返回。
 func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) (string, error) {
 	var retrieved []map[string]any
 	var b strings.Builder
@@ -26,6 +28,7 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 			handle = randomHandle()
 		}
 		payload, _ := json.Marshal(src)
+		// 在租约栅栏内写入，run 已被取消时拒绝登记新来源。
 		insert := func(ctx context.Context, target store.Store) error {
 			if session.Fence.Generation > 0 {
 				run, err := target.GetRun(ctx, session.RunID)
@@ -83,12 +86,14 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 	return b.String(), nil
 }
 
+// randomHandle 生成不可猜测的来源 handle，避免模型凭空构造可用的引用。
 func randomHandle() string {
 	var buf [8]byte
 	_, _ = rand.Read(buf[:])
 	return "src_" + hex.EncodeToString(buf[:])
 }
 
+// publishedPosts 批量回源，只返回当前仍已发布的帖子。
 func publishedPosts(ctx context.Context, client contentservice.ContentService, ids []int64) (map[int64]*contentservice.PostInfo, error) {
 	return visibility.PublishedByIDs(ctx, client, ids)
 }

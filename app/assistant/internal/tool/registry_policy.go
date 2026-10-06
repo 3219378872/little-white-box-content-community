@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// RestrictToolsForConsent 在授权版本低于当前版本时只保留 v1 工具。
 func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry {
 	if registry == nil || consentVersion >= CurrentConsentVersion {
 		return registry
@@ -13,6 +14,7 @@ func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry
 	return registry.Restrict(Version1Tools())
 }
 
+// ForSource 按 run 来源与授权版本筛选工具；冻结视图优先使用冻结定义里的来源与授权要求。
 func ForSource(registry *Registry, source string, consentVersion int32) *Registry {
 	if registry == nil {
 		return nil
@@ -48,6 +50,7 @@ func ForSource(registry *Registry, source string, consentVersion int32) *Registr
 	return registry.Restrict(names)
 }
 
+// currentlyAuthorized 按当前元数据复核会话的协议版本、来源与授权版本是否允许调用。
 func (r *Registry) currentlyAuthorized(session *Session, name string) bool {
 	if r == nil {
 		return false
@@ -72,6 +75,7 @@ func (r *Registry) currentlyAuthorized(session *Session, name string) bool {
 	return consent >= meta.MinConsent && containsString(meta.Sources, source)
 }
 
+// frozenMetadata 返回会话冻结定义中的元数据；非冻结视图返回 false。
 func (r *Registry) frozenMetadata(name string) (Metadata, bool) {
 	if r == nil || !r.frozen {
 		return Metadata{}, false
@@ -90,6 +94,7 @@ func (r *Registry) frozenMetadata(name string) (Metadata, bool) {
 	return Metadata{}, false
 }
 
+// resultLimit 取当前与冻结结果上限中较小的一个。
 func (r *Registry) resultLimit(name string, current int) int {
 	frozen, ok := r.frozenMetadata(name)
 	if !ok || frozen.MaxResultBytes <= 0 {
@@ -101,6 +106,7 @@ func (r *Registry) resultLimit(name string, current int) int {
 	return current
 }
 
+// filterFrozenDefinitions 保留允许集合中的冻结定义。
 func filterFrozenDefinitions(defs []prompt.ToolDef, allowed map[string]struct{}) []prompt.ToolDef {
 	out := make([]prompt.ToolDef, 0, len(defs))
 	for _, def := range defs {
@@ -111,6 +117,7 @@ func filterFrozenDefinitions(defs []prompt.ToolDef, allowed map[string]struct{})
 	return out
 }
 
+// containsString 报告切片是否包含指定字符串。
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
@@ -120,6 +127,7 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
+// stringSet 构造字符串集合。
 func stringSet(values ...string) map[string]struct{} {
 	out := make(map[string]struct{}, len(values))
 	for _, value := range values {

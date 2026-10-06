@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// decodeStrictValue 解码单个 JSON 值并保留数字原文，拒绝尾随内容。
 func decodeStrictValue(raw string) (any, error) {
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.UseNumber()
@@ -26,6 +27,7 @@ func decodeStrictValue(raw string) (any, error) {
 	return value, nil
 }
 
+// validateSchemaValue 按工具 schema 的子集（类型、属性、必填、枚举）校验参数，未声明的字段一律拒绝。
 func validateSchemaValue(value any, schema map[string]any, path string) error {
 	if schema == nil {
 		return nil
@@ -90,6 +92,7 @@ func validateSchemaValue(value any, schema map[string]any, path string) error {
 	return nil
 }
 
+// schemaProperties 读取 schema 的 properties。
 func schemaProperties(raw any) map[string]any {
 	if properties, ok := raw.(map[string]any); ok {
 		return properties
@@ -97,6 +100,7 @@ func schemaProperties(raw any) map[string]any {
 	return map[string]any{}
 }
 
+// schemaRequired 读取 schema 的 required，兼容 []string 与解码后的 []any。
 func schemaRequired(raw any) []string {
 	switch values := raw.(type) {
 	case []string:
@@ -114,6 +118,7 @@ func schemaRequired(raw any) []string {
 	}
 }
 
+// isJSONInteger 判断值是否为整数。
 func isJSONInteger(value any) bool {
 	number, ok := value.(json.Number)
 	if !ok {
@@ -123,6 +128,7 @@ func isJSONInteger(value any) bool {
 	return err == nil
 }
 
+// isJSONNumber 判断值是否为数字。
 func isJSONNumber(value any) bool {
 	if number, ok := value.(json.Number); ok {
 		_, err := number.Float64()
@@ -131,6 +137,7 @@ func isJSONNumber(value any) bool {
 	return false
 }
 
+// enumContains 判断值是否在枚举内。
 func enumContains(raw, value any) bool {
 	switch values := raw.(type) {
 	case []string:
@@ -153,6 +160,7 @@ func enumContains(raw, value any) bool {
 	return false
 }
 
+// strictUnmarshal 把参数解码到具体结构，拒绝未知字段与尾随内容。
 func strictUnmarshal(raw string, target any) error {
 	raw = canonical.UnwrapArgsJSON(raw)
 	if raw == "" {
@@ -174,6 +182,7 @@ func strictUnmarshal(raw string, target any) error {
 	return nil
 }
 
+// truncateRunes 按字符截断并在截断时追加省略号。
 func truncateRunes(value string, limit int) string {
 	runes := []rune(value)
 	if len(runes) <= limit {
@@ -182,11 +191,13 @@ func truncateRunes(value string, limit int) string {
 	return string(runes[:limit]) + "…"
 }
 
+// excerptRunes 按字符截取前缀，不加省略号。
 func excerptRunes(value string, limit int) string {
 	runes := []rune(value)
 	return string(runes[:min(len(runes), limit)])
 }
 
+// sessionUserID 取调用者用户 ID，未登录时返回 LoginRequired。
 func sessionUserID(session *Session) (int64, error) {
 	if session == nil || session.UserID <= 0 {
 		return 0, errx.NewWithCode(errx.LoginRequired)
@@ -194,10 +205,12 @@ func sessionUserID(session *Session) (int64, error) {
 	return session.UserID, nil
 }
 
+// CanonicalDigest 计算参数的规范化摘要。
 func CanonicalDigest(argsJSON string) (string, error) {
 	return canonical.DigestArgs(argsJSON)
 }
 
+// objectSchema 构造对象类型的参数 schema。
 func objectSchema(properties map[string]any, required []string) map[string]any {
 	schema := map[string]any{"type": "object", "properties": properties}
 	if len(required) > 0 {

@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+// presentSourcesExecutor 把本 run 已登记的至多 10 个 handle 重新回源校验后展示为来源卡片；
+// 已删除或已改版的来源不会展示。
 func presentSourcesExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Store == nil || session == nil {
@@ -70,6 +72,7 @@ func presentSourcesExecutor(clients Clients) executorFunc {
 	}
 }
 
+// revalidateSource 确认来源仍可引用：帖子须仍已发布且版本未变，网页须仍能被搜索到同一 URL。
 func revalidateSource(ctx context.Context, clients Clients, src store.Source, published map[int64]*contentservice.PostInfo) (store.SourceRef, bool) {
 	switch src.Kind {
 	case "post":
@@ -107,6 +110,7 @@ func revalidateSource(ctx context.Context, clients Clients, src store.Source, pu
 	}
 }
 
+// sourcePayloadJSON 编码来源卡片展示所需的标题、摘录与链接。
 func sourcePayloadJSON(title, snippet, url string) string {
 	payload, _ := json.Marshal(map[string]string{"title": title, "snippet": snippet, "url": url})
 	return string(payload)

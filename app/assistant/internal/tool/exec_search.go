@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// searchPostsExecutor 搜索帖子后再回源过滤，只把仍已发布的结果登记为来源。
 func searchPostsExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Search == nil || clients.Content == nil {
@@ -69,6 +70,7 @@ func searchPostsExecutor(clients Clients) executorFunc {
 	}
 }
 
+// searchUsersExecutor 搜索公开用户；结果不是可引用来源。
 func searchUsersExecutor(search searchservice.SearchService) executorFunc {
 	return func(ctx context.Context, _ *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if search == nil {
@@ -111,6 +113,7 @@ func searchUsersExecutor(search searchservice.SearchService) executorFunc {
 	}
 }
 
+// searchTagsExecutor 搜索标签。
 func searchTagsExecutor(search searchservice.SearchService) executorFunc {
 	return func(ctx context.Context, _ *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if search == nil {
@@ -147,6 +150,7 @@ func searchTagsExecutor(search searchservice.SearchService) executorFunc {
 	}
 }
 
+// searchHistoryExecutor 检索不在当前上下文中的助手历史。
 func searchHistoryExecutor(h History) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if h == nil {

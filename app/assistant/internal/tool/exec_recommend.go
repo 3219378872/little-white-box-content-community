@@ -8,6 +8,7 @@ import (
 	"esx/pkg/errx"
 )
 
+// recommendPostsExecutor 取个性化推荐中仍已发布的前 5 篇帖子并登记为来源。
 func recommendPostsExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Recommend == nil || clients.Content == nil {
@@ -55,6 +56,7 @@ func recommendPostsExecutor(clients Clients) executorFunc {
 	}
 }
 
+// similarPostsExecutor 取与种子帖相似且仍已发布的帖子并登记为来源。
 func similarPostsExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Recommend == nil || clients.Content == nil {

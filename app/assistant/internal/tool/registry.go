@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// NewRegistry builds the registry from the full catalog, limited to allowed names when given.
 func NewRegistry(clients Clients, allowed []string) (*Registry, error) {
 	defs := allDefinitions(clients)
 	reg := &Registry{
@@ -43,6 +44,7 @@ func NewRegistry(clients Clients, allowed []string) (*Registry, error) {
 	return reg, nil
 }
 
+// Restrict returns a view limited to names this registry already allows.
 func (r *Registry) Restrict(names []string) *Registry {
 	if r == nil {
 		return nil
@@ -59,6 +61,7 @@ func (r *Registry) Restrict(names []string) *Registry {
 	}
 }
 
+// ResolveDefinitions returns a frozen view that exposes exactly the definitions captured for a session.
 func (r *Registry) ResolveDefinitions(defs []prompt.ToolDef) *Registry {
 	if r == nil {
 		return nil
@@ -75,6 +78,7 @@ func (r *Registry) ResolveDefinitions(defs []prompt.ToolDef) *Registry {
 	}
 }
 
+// Prepare authorizes the call, validates and canonicalizes its arguments, then runs the tool's preparer.
 func (r *Registry) Prepare(ctx context.Context, session *Session, name, argsJSON string) (string, error) {
 	argsJSON = canonical.UnwrapArgsJSON(argsJSON)
 	if r == nil || !r.Has(name) || !r.currentlyAuthorized(session, name) {
@@ -91,6 +95,7 @@ func (r *Registry) Prepare(ctx context.Context, session *Session, name, argsJSON
 	return prepare(ctx, session, canonicalArgs)
 }
 
+// Has reports whether the tool is allowed in this view.
 func (r *Registry) Has(name string) bool {
 	if r == nil {
 		return false
@@ -99,6 +104,7 @@ func (r *Registry) Has(name string) bool {
 	return ok
 }
 
+// HighRisk reports whether the tool needs user confirmation under either current or frozen metadata.
 func (r *Registry) HighRisk(name string) bool {
 	if r == nil {
 		return false
@@ -108,6 +114,8 @@ func (r *Registry) HighRisk(name string) bool {
 	return current || (ok && frozen.Confirmation)
 }
 
+// SideEffect reports whether the tool writes under either current or frozen metadata, so a
+// recovered run never skips idempotency for a tool that became write-capable.
 func (r *Registry) SideEffect(name string) bool {
 	if r == nil {
 		return false
@@ -117,6 +125,8 @@ func (r *Registry) SideEffect(name string) bool {
 	return current || (ok && frozen.Effect == EffectWrite)
 }
 
+// Poller reports whether the tool may be called repeatedly with the same result; both current
+// and frozen metadata must agree.
 func (r *Registry) Poller(name string) bool {
 	if r == nil || !r.metadata[name].Poller {
 		return false
@@ -125,6 +135,7 @@ func (r *Registry) Poller(name string) bool {
 	return !ok || frozen.Poller
 }
 
+// Metadata returns the tool's current metadata.
 func (r *Registry) Metadata(name string) (Metadata, bool) {
 	if r == nil {
 		return Metadata{}, false
@@ -133,6 +144,7 @@ func (r *Registry) Metadata(name string) (Metadata, bool) {
 	return meta, ok
 }
 
+// Definitions returns the tool definitions sent to the model.
 func (r *Registry) Definitions() []prompt.ToolDef {
 	if r == nil {
 		return nil
@@ -160,6 +172,8 @@ func (r *Registry) Definitions() []prompt.ToolDef {
 	return out
 }
 
+// Call re-checks authorization and arguments, runs the executor, binds any returned sources to the
+// run ledger and caps the result size.
 func (r *Registry) Call(ctx context.Context, session *Session, name, callID, argsJSON string) (string, []store.SourceRef, error) {
 	if !r.Has(name) || !r.currentlyAuthorized(session, name) {
 		return "", nil, errx.New(errx.PermissionDenied, "agent tool is not allowed")
@@ -233,6 +247,7 @@ func (r *Registry) validateArguments(name, raw string) (string, error) {
 	return string(canonicalValue), nil
 }
 
+// definition looks up a tool in the full catalog.
 func (r *Registry) definition(name string) (Definition, bool) {
 	for _, definition := range r.definitions {
 		if definition.Name == name {

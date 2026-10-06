@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// allDefinitions 是全部工具的目录：名称、给模型的说明、参数 schema 与执行器。
 func allDefinitions(clients Clients) []Definition {
 	defs := []Definition{
 		{Name: SearchPosts, Description: "搜索站内已发布帖子。结果以 source handle 返回。", Parameters: objectSchema(map[string]any{
@@ -63,6 +64,8 @@ func allDefinitions(clients Clients) []Definition {
 	return defs
 }
 
+// decorateDefinitions 统一补齐元数据：写工具按请求幂等，v1 工具只需最低授权版本，
+// 记忆工具开放给后台回顾，删帖需逐次确认，研究类工具要求客户端协议 v2。
 func decorateDefinitions(defs []Definition, clients Clients) {
 	writeTools := stringSet(CreatePost, UpdatePost, DeletePost, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory)
 	versionOne := stringSet(Version1Tools()...)
@@ -92,6 +95,7 @@ func decorateDefinitions(defs []Definition, clients Clients) {
 	}
 }
 
+// definitionAvailable 按依赖的下游客户端是否已配置判断工具当前是否可用。
 func definitionAvailable(name string, clients Clients) bool {
 	switch name {
 	case SearchPosts:
@@ -123,6 +127,7 @@ func definitionAvailable(name string, clients Clients) bool {
 	}
 }
 
+// nonNil 判断接口值是否真正非空，包括装着 nil 指针的接口。
 func nonNil(value any) bool {
 	if value == nil {
 		return false

@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	// 工具名，即模型调用时使用的函数名。
 	SearchPosts     = "search_posts"
 	SearchUsers     = "search_users"
 	SearchTags      = "search_tags"
@@ -43,6 +44,7 @@ const (
 	ReadSource      = "read_source"
 	PublishAnswer   = "publish_answer"
 
+	// 当前授权版本，以及工具结果与写入内容的上限。
 	CurrentConsentVersion   int32 = consent.CurrentVersion
 	maxEvidenceSnippetRunes       = 360
 	defaultPageResult             = 5
@@ -57,6 +59,7 @@ const (
 )
 
 const (
+	// 工具副作用类别与幂等策略。
 	EffectRead  = "read"
 	EffectWrite = "write"
 
@@ -64,14 +67,17 @@ const (
 	IdempotencyRequest = "request"
 )
 
+// Version1Tools 是授权版本 1 即可使用的工具。
 func Version1Tools() []string {
 	return []string{SearchPosts, WebSearch, CreatePost, UpdatePost, DeletePost}
 }
 
+// ReviewTools 是后台记忆回顾可用的工具。
 func ReviewTools() []string {
 	return []string{GetMemory, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory}
 }
 
+// Clients 是工具执行依赖的下游服务；未配置的依赖会使相关工具不可用。
 type Clients struct {
 	Search      searchservice.SearchService
 	Content     contentservice.ContentService
@@ -85,11 +91,13 @@ type Clients struct {
 	History     History
 }
 
+// Attachment 是本次对话中用户上传的媒体，发帖工具只能引用这些图片。
 type Attachment struct {
 	MediaID int64
 	URL     string
 }
 
+// Session 是一次工具调用的上下文：调用者身份、run 与租约栅栏、授权版本及对话附件。
 type Session struct {
 	ClientProtocolVersion int
 	Question              *store.QuestionRequest
@@ -108,10 +116,12 @@ type Session struct {
 	Recovery              bool
 }
 
+// History 检索当前上下文之外的助手历史。
 type History interface {
 	Search(ctx context.Context, sess *Session, args HistoryArgs) (string, error)
 }
 
+// HistoryArgs 是 search_history 的参数；Shape 决定检索方式。
 type HistoryArgs struct {
 	Shape     string `json:"shape"`
 	Query     string `json:"query"`
@@ -120,6 +130,7 @@ type HistoryArgs struct {
 	Limit     int    `json:"limit"`
 }
 
+// Definition 是一个工具的完整定义，含执行器与可选的参数预处理器。
 type Definition struct {
 	Name        string
 	Description string
@@ -129,6 +140,7 @@ type Definition struct {
 	prepare     prepareFunc
 }
 
+// Metadata 是工具的策略属性：副作用、可用来源、所需授权与协议版本、是否需确认及结果上限。
 type Metadata struct {
 	MinClientProtocol int
 	Effect            string
@@ -141,16 +153,21 @@ type Metadata struct {
 	Poller            bool
 }
 
+// UnavailableError 表示工具依赖未配置；调用方据此返回结构化的不可用结果。
 type UnavailableError struct {
 	Tool string
 }
 
+// Error 不暴露内部依赖信息。
 func (e *UnavailableError) Error() string { return "agent tool is unavailable" }
 
+// executorFunc 执行一次工具调用，返回给模型的文本与待登记的来源。
 type executorFunc func(ctx context.Context, session *Session, callID, argsJSON string) (string, []store.SourceRef, error)
 
+// prepareFunc 在执行前补全或校验参数，结果参与幂等摘要与确认。
 type prepareFunc func(ctx context.Context, session *Session, argsJSON string) (string, error)
 
+// Registry 是可用工具的集合；frozen 时以会话冻结的定义为准，保证同一会话内工具集稳定。
 type Registry struct {
 	definitions       []Definition
 	frozenDefinitions []prompt.ToolDef

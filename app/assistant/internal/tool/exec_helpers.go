@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 )
 
+// postSource 为帖子生成来源引用。
 func postSource(info *contentservice.PostInfo, snippet string) store.SourceRef {
 	return store.SourceRef{
 		Handle: randomHandle(), Kind: "post", AuthorityID: strconv.FormatInt(info.Id, 10),
@@ -23,6 +24,7 @@ func postSource(info *contentservice.PostInfo, snippet string) store.SourceRef {
 	}
 }
 
+// formatPosts 把帖子列表渲染为带 handle 的文本，并返回待登记的来源。
 func formatPosts(prefix string, infos []*contentservice.PostInfo) (string, []store.SourceRef) {
 	if len(infos) == 0 {
 		return prefix + "没有可展示的已发布帖子。", nil
@@ -39,6 +41,7 @@ func formatPosts(prefix string, infos []*contentservice.PostInfo) (string, []sto
 	return strings.TrimRight(b.String(), "\n"), sources
 }
 
+// formatUserPosts 回源并渲染当前用户相关的帖子列表，只保留仍已发布的帖子。
 func formatUserPosts(ctx context.Context, content contentservice.ContentService, ids []int64, kind string) (string, []store.SourceRef, error) {
 	published, err := publishedPosts(ctx, content, ids)
 	if err != nil {
@@ -54,6 +57,7 @@ func formatUserPosts(ctx context.Context, content contentservice.ContentService,
 	return text, sources, nil
 }
 
+// parsePage 解析分页参数并给出默认值，拒绝超过深分页上限的窗口。
 func parsePage(argsJSON string) (int32, int32, error) {
 	var args struct {
 		Page     int32 `json:"page"`
@@ -72,6 +76,7 @@ func parsePage(argsJSON string) (int32, int32, error) {
 	return args.Page, args.PageSize, nil
 }
 
+// numericInt64 从 JSON 解码值中取整数，拒绝带小数的数字。
 func numericInt64(value any) (int64, bool) {
 	switch typed := value.(type) {
 	case float64:
@@ -88,6 +93,7 @@ func numericInt64(value any) (int64, bool) {
 	}
 }
 
+// resolveAttachments 把模型给出的媒体 ID 限定在本次对话附件内，防止引用他人或任意媒体。
 func resolveAttachments(session *Session, requested []int64) ([]int64, []string, error) {
 	if len(requested) == 0 {
 		return nil, nil, nil
@@ -114,6 +120,7 @@ func resolveAttachments(session *Session, requested []int64) ([]int64, []string,
 	return ids, urls, nil
 }
 
+// assertMediaOwnership 确认媒体存在、归属当前用户且状态可用。
 func assertMediaOwnership(ctx context.Context, media mediaservice.MediaService, userID int64, mediaIDs []int64) error {
 	response, err := media.BatchGetMedia(ctx, &mediaservice.BatchGetMediaReq{MediaIds: mediaIDs})
 	if err != nil {
@@ -137,6 +144,7 @@ func assertMediaOwnership(ctx context.Context, media mediaservice.MediaService, 
 	return nil
 }
 
+// validateTextLimits 校验标题、正文与标签的长度上限。
 func validateTextLimits(title, content string, tags []string) error {
 	if title != "" && utf8.RuneCountInString(title) > maxTitleRunes {
 		return errx.New(errx.ParamError, "title exceeds 120 characters")
@@ -155,6 +163,7 @@ func validateTextLimits(title, content string, tags []string) error {
 	return nil
 }
 
+// sanitizeTags 去掉空白标签。
 func sanitizeTags(tags []string) []string {
 	out := make([]string, 0, len(tags))
 	for _, tag := range tags {
@@ -166,11 +175,13 @@ func sanitizeTags(tags []string) []string {
 	return out
 }
 
+// deriveIdempotencyKey 由 run 请求 ID 与调用 ID 派生下游幂等键，同一调用重试得到相同的键。
 func deriveIdempotencyKey(requestID, callID, action string) string {
 	sum := sha256.Sum256([]byte(requestID + "\x00" + callID))
 	return fmt.Sprintf("agent:%s:%x", action, sum[:])
 }
 
+// deriveMemoryRequestID 由 run 请求 ID 与调用 ID 派生记忆写入的请求 ID。
 func deriveMemoryRequestID(requestID, callID string) string {
 	sum := sha256.Sum256([]byte(requestID + "\x00" + callID))
 	return fmt.Sprintf("agent-memory:%x", sum[:24])

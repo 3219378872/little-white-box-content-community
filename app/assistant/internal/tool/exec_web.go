@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// webSearchExecutor 搜索公共互联网，只保留通过 SafeSourceURL 检查的结果并登记为 web 来源。
 func webSearchExecutor(searcher websearch.Searcher) executorFunc {
 	return func(ctx context.Context, _ *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if searcher == nil {

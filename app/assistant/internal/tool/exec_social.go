@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// getMyFavoritesExecutor 列出当前用户收藏中仍已发布的帖子，并登记为来源。
 func getMyFavoritesExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Interaction == nil || clients.Content == nil {
@@ -31,6 +32,7 @@ func getMyFavoritesExecutor(clients Clients) executorFunc {
 	}
 }
 
+// getMyLikesExecutor 列出当前用户点赞中仍已发布的帖子，并登记为来源。
 func getMyLikesExecutor(clients Clients) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if clients.Interaction == nil || clients.Content == nil {
@@ -52,6 +54,7 @@ func getMyLikesExecutor(clients Clients) executorFunc {
 	}
 }
 
+// getMyFollowingExecutor 列出当前用户关注的人；结果不是可引用来源。
 func getMyFollowingExecutor(user userservice.UserService) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if user == nil {

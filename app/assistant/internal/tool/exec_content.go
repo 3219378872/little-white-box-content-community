@@ -13,6 +13,7 @@ import (
 	"strings"
 )
 
+// getPostExecutor 读取一篇当前用户可见的已发布帖子并登记为来源。
 func getPostExecutor(content contentservice.ContentService) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -40,6 +41,7 @@ func getPostExecutor(content contentservice.ContentService) executorFunc {
 	}
 }
 
+// getPostCommentsExecutor 读取已发布帖子下的有效评论。
 func getPostCommentsExecutor(content contentservice.ContentService) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -91,6 +93,7 @@ func getPostCommentsExecutor(content contentservice.ContentService) executorFunc
 	}
 }
 
+// comparePostsExecutor 回源 2～5 篇帖子供模型对比。
 func comparePostsExecutor(content contentservice.ContentService) executorFunc {
 	return func(ctx context.Context, _ *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		var args struct {
@@ -117,6 +120,7 @@ func comparePostsExecutor(content contentservice.ContentService) executorFunc {
 	}
 }
 
+// getMyPostsExecutor 列出当前用户自己已发布的帖子。
 func getMyPostsExecutor(content contentservice.ContentService) executorFunc {
 	return func(ctx context.Context, session *Session, _ string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -144,6 +148,8 @@ func getMyPostsExecutor(content contentservice.ContentService) executorFunc {
 	}
 }
 
+// createPostExecutor 以当前用户身份发帖；图片只能取自本次对话的附件且须归属本人，
+// 幂等键由请求 ID 与调用 ID 派生，重试不会重复发帖。
 func createPostExecutor(content contentservice.ContentService, media mediaservice.MediaService) executorFunc {
 	return func(ctx context.Context, session *Session, callID, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -190,6 +196,7 @@ func createPostExecutor(content contentservice.ContentService, media mediaservic
 	}
 }
 
+// updatePostExecutor 更新本人帖子，携带预处理阶段确定的期望版本做乐观并发控制。
 func updatePostExecutor(content contentservice.ContentService, media mediaservice.MediaService) executorFunc {
 	return func(ctx context.Context, session *Session, callID string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -251,6 +258,7 @@ func updatePostExecutor(content contentservice.ContentService, media mediaservic
 	}
 }
 
+// deletePostExecutor 删除本人帖子；运行时已在调用前取得用户对该版本的确认。
 func deletePostExecutor(content contentservice.ContentService) executorFunc {
 	return func(ctx context.Context, session *Session, callID string, argsJSON string) (string, []store.SourceRef, error) {
 		if content == nil {
@@ -281,6 +289,7 @@ func deletePostExecutor(content contentservice.ContentService) executorFunc {
 	}
 }
 
+// postRevisionPreparer 在执行前确认帖子归属本人，并把当前版本写入参数；确认与执行因此绑定到同一版本。
 func postRevisionPreparer(content contentservice.ContentService) prepareFunc {
 	return func(ctx context.Context, session *Session, argsJSON string) (string, error) {
 		if content == nil || session == nil || session.UserID <= 0 {
