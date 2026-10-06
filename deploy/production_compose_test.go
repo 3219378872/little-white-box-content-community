@@ -189,6 +189,42 @@ func TestProductionComposeStartsUserCardCallersAfterUserRPC(t *testing.T) {
 	}
 }
 
+// Assistant services poll MySQL for run events and never open Redis, and assistant-rpc only
+// dials content-rpc and user-rpc; unused backends must not be injected or gate startup.
+func TestProductionComposeAssistantDependsOnlyOnUsedBackends(t *testing.T) {
+	project := loadProductionCompose(t)
+	required := map[string][]string{
+		"assistant-rpc":   {"etcd", "content-rpc", "user-rpc"},
+		"assistant-agent": {"mysql", "etcd", "search-rpc", "content-rpc", "user-rpc"},
+	}
+	forbidden := map[string][]string{
+		"assistant-rpc":   {"redis", "search-rpc", "recommend-rpc"},
+		"assistant-agent": {"redis"},
+	}
+	for name, dependencies := range required {
+		service, ok := project.Services[name]
+		if !ok {
+			t.Errorf("production %s is missing", name)
+			continue
+		}
+		for _, dependency := range dependencies {
+			if got, ok := service.DependsOn[dependency]; !ok || got.Condition != "service_healthy" {
+				t.Errorf("production %s must wait for healthy %s", name, dependency)
+			}
+		}
+		for _, dependency := range forbidden[name] {
+			if _, ok := service.DependsOn[dependency]; ok {
+				t.Errorf("production %s must not depend on unused %s", name, dependency)
+			}
+		}
+		for _, key := range []string{"REDIS_HOST", "REDIS_PASSWORD"} {
+			if _, ok := service.Environment[key]; ok {
+				t.Errorf("production %s must not receive unused %s", name, key)
+			}
+		}
+	}
+}
+
 func TestProductionComposeHostPortsAndNginxUpstreamsDoNotConflict(t *testing.T) {
 	project := loadProductionCompose(t)
 	published := make(map[string]string)

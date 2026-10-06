@@ -450,7 +450,7 @@ services:
         SERVICE_PATH: app/assistant/rpc
         SERVICE_CONFIG: app/assistant/rpc/etc/assistant.yaml
     environment:
-      <<: [*etcd-env, *redis-env]
+      <<: *etcd-env
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
     expose: ["9024", "9124"]
@@ -462,12 +462,6 @@ services:
       start_period: 20s
     depends_on:
       etcd:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      search-rpc:
-        condition: service_healthy
-      recommend-rpc:
         condition: service_healthy
       content-rpc:
         condition: service_healthy
@@ -629,7 +623,7 @@ services:
         SERVICE_PATH: app/assistant/worker
         SERVICE_CONFIG: app/assistant/worker/etc/agent.yaml
     environment:
-      <<: [*etcd-env, *redis-env, *es-env]
+      <<: [*etcd-env, *es-env]
       RPC_INTERNAL_SECRET: ${RPC_INTERNAL_SECRET:?RPC_INTERNAL_SECRET is required}
       DB_ASSISTANT: ${DB_ASSISTANT:?DB_ASSISTANT is required}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-false}
@@ -661,8 +655,6 @@ services:
     healthcheck: *process-healthcheck
     depends_on:
       mysql:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       etcd:
         condition: service_healthy
