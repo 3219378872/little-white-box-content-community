@@ -36,31 +36,36 @@ type ElasticsearchPostRecallSource struct {
 	timeout  time.Duration
 }
 
-func NewElasticsearchPostRecallSource(
-	addresses []string,
-	index string,
-	username string,
-	password string,
-	featureVersion string,
-	redis redisClient,
-	timeout time.Duration,
-) (*ElasticsearchPostRecallSource, error) {
-	if len(addresses) == 0 || strings.TrimSpace(addresses[0]) == "" || strings.TrimSpace(index) == "" {
+// ElasticsearchRecallOptions 是 Elasticsearch 相似帖召回的连接参数；Redis 用于读取观看者近期行为作为种子。
+type ElasticsearchRecallOptions struct {
+	Addresses      []string
+	Index          string
+	Username       string
+	Password       string
+	FeatureVersion string
+	Redis          redisClient
+	Timeout        time.Duration
+}
+
+// NewElasticsearchPostRecallSource 校验地址、索引与超时；只使用第一个地址，且不走环境代理。
+func NewElasticsearchPostRecallSource(opts ElasticsearchRecallOptions) (*ElasticsearchPostRecallSource, error) {
+	if len(opts.Addresses) == 0 || strings.TrimSpace(opts.Addresses[0]) == "" || strings.TrimSpace(opts.Index) == "" {
 		return nil, fmt.Errorf("elasticsearch recall address and index are required")
 	}
-	endpoint := strings.TrimRight(strings.TrimSpace(addresses[0]), "/")
+	endpoint := strings.TrimRight(strings.TrimSpace(opts.Addresses[0]), "/")
 	if _, err := url.ParseRequestURI(endpoint); err != nil {
 		return nil, fmt.Errorf("parse elasticsearch recall address: %w", err)
 	}
-	if timeout <= 0 {
+	if opts.Timeout <= 0 {
 		return nil, fmt.Errorf("elasticsearch recall timeout must be positive")
 	}
+	// 召回请求只访问内网 ES，不能被环境变量里的 HTTP 代理劫持。
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	return &ElasticsearchPostRecallSource{
-		endpoint: endpoint, index: index, username: username, password: password,
-		features: featurekey.New(featureVersion), redis: redis,
-		client: &http.Client{Transport: transport}, timeout: timeout,
+		endpoint: endpoint, index: opts.Index, username: opts.Username, password: opts.Password,
+		features: featurekey.New(opts.FeatureVersion), redis: opts.Redis,
+		client: &http.Client{Transport: transport}, timeout: opts.Timeout,
 	}, nil
 }
 
@@ -180,20 +185,25 @@ type MilvusPostRecallSource struct {
 	closed bool
 }
 
-func NewMilvusPostRecallSource(
-	address string,
-	collection string,
-	username string,
-	password string,
-	database string,
-	featureVersion string,
-	nprobe int,
-	redis redisClient,
-	timeout time.Duration,
-) *MilvusPostRecallSource {
+// MilvusRecallOptions 是 Milvus 向量召回的连接与检索参数；Redis 用于读取观看者近期行为作为种子。
+type MilvusRecallOptions struct {
+	Address        string
+	Collection     string
+	Username       string
+	Password       string
+	Database       string
+	FeatureVersion string
+	NProbe         int
+	Redis          redisClient
+	Timeout        time.Duration
+}
+
+// NewMilvusPostRecallSource 只保存参数，连接在首次召回时惰性建立。
+func NewMilvusPostRecallSource(opts MilvusRecallOptions) *MilvusPostRecallSource {
 	return &MilvusPostRecallSource{
-		address: address, collection: collection, username: username, password: password,
-		database: database, features: featurekey.New(featureVersion), nprobe: nprobe, redis: redis, timeout: timeout,
+		address: opts.Address, collection: opts.Collection, username: opts.Username, password: opts.Password,
+		database: opts.Database, features: featurekey.New(opts.FeatureVersion), nprobe: opts.NProbe,
+		redis: opts.Redis, timeout: opts.Timeout,
 		factory: func(ctx context.Context, config milvusclient.Config) (milvusRecallClient, error) {
 			return milvusclient.NewClient(ctx, config)
 		},

@@ -45,9 +45,10 @@ func TestElasticsearchRecallAgainstRealIndex(t *testing.T) {
 		})
 	}
 
-	source, err := NewElasticsearchPostRecallSource(
-		[]string{env.URL}, index, env.Username, env.Password, "v2", nil, 10*time.Second,
-	)
+	source, err := NewElasticsearchPostRecallSource(ElasticsearchRecallOptions{
+		Addresses: []string{env.URL}, Index: index, Username: env.Username, Password: env.Password,
+		FeatureVersion: "v2", Timeout: 10 * time.Second,
+	})
 	require.NoError(t, err)
 	candidates, err := source.Recall(context.Background(), RecallRequest{SeedPostID: 41001, Limit: 3})
 	require.NoError(t, err)
@@ -102,9 +103,10 @@ func TestMilvusRecallAgainstRealCollection(t *testing.T) {
 	require.NoError(t, client.Flush(ctx, collection, false))
 	require.NoError(t, client.LoadCollection(ctx, collection, false))
 
-	source := NewMilvusPostRecallSource(
-		env.Address, collection, "", "", "", "v2", 1, nil, 20*time.Second,
-	)
+	source := NewMilvusPostRecallSource(MilvusRecallOptions{
+		Address: env.Address, Collection: collection,
+		FeatureVersion: "v2", NProbe: 1, Timeout: 20 * time.Second,
+	})
 	t.Cleanup(func() { _ = source.Close() })
 	candidates, err := source.Recall(ctx, RecallRequest{SeedPostID: 42001, Limit: 2})
 	require.NoError(t, err)

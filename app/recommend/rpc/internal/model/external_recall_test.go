@@ -28,9 +28,10 @@ func TestElasticsearchRecallQueriesMoreLikeThisAndExcludesSeed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	source, err := NewElasticsearchPostRecallSource(
-		[]string{server.URL}, "posts", "", "", "v2", nil, time.Second,
-	)
+	source, err := NewElasticsearchPostRecallSource(ElasticsearchRecallOptions{
+		Addresses: []string{server.URL}, Index: "posts",
+		FeatureVersion: "v2", Timeout: time.Second,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,9 +59,10 @@ func TestElasticsearchRecallUsesRecentPositiveHistoryAndReportsFailures(t *testi
 		http.Error(w, "unavailable", http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
-	source, err := NewElasticsearchPostRecallSource(
-		[]string{server.URL}, "posts", "", "", "v2", redis, time.Second,
-	)
+	source, err := NewElasticsearchPostRecallSource(ElasticsearchRecallOptions{
+		Addresses: []string{server.URL}, Index: "posts",
+		FeatureVersion: "v2", Redis: redis, Timeout: time.Second,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,9 +120,10 @@ func TestMilvusRecallLoadsSeedVectorRanksDistanceAndCloses(t *testing.T) {
 			Scores:      []float32{0, 0.5, 0.1},
 		}},
 	}
-	source := NewMilvusPostRecallSource(
-		"milvus:19530", "embeddings", "", "", "", "v2", 16, nil, time.Second,
-	)
+	source := NewMilvusPostRecallSource(MilvusRecallOptions{
+		Address: "milvus:19530", Collection: "embeddings",
+		FeatureVersion: "v2", NProbe: 16, Timeout: time.Second,
+	})
 	source.factory = func(context.Context, milvusclient.Config) (milvusRecallClient, error) {
 		return fake, nil
 	}
@@ -140,9 +143,10 @@ func TestMilvusRecallLoadsSeedVectorRanksDistanceAndCloses(t *testing.T) {
 }
 
 func TestExternalRecallWithoutSeedIsNotApplicable(t *testing.T) {
-	source, err := NewElasticsearchPostRecallSource(
-		[]string{"http://127.0.0.1:9200"}, "posts", "", "", "v2", &fakeRedisClient{}, time.Second,
-	)
+	source, err := NewElasticsearchPostRecallSource(ElasticsearchRecallOptions{
+		Addresses: []string{"http://127.0.0.1:9200"}, Index: "posts",
+		FeatureVersion: "v2", Redis: &fakeRedisClient{}, Timeout: time.Second,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +164,10 @@ func TestMilvusRecallRejectsStaleAndDeletedRevisions(t *testing.T) {
 		},
 		searchResult: []milvusclient.SearchResult{{ResultCount: 3, Fields: milvusclient.ResultSet{entity.NewColumnInt64("post_id", []int64{11, 12, 13}), entity.NewColumnInt64("revision", []int64{2, 3, 2})}, Scores: []float32{0.1, 0.2, 0.3}}},
 	}
-	source := NewMilvusPostRecallSource("milvus:19530", "test", "", "", "", "v2", 16, nil, time.Second)
+	source := NewMilvusPostRecallSource(MilvusRecallOptions{
+		Address: "milvus:19530", Collection: "test",
+		FeatureVersion: "v2", NProbe: 16, Timeout: time.Second,
+	})
 	source.factory = func(context.Context, milvusclient.Config) (milvusRecallClient, error) { return fake, nil }
 	result, err := source.Recall(context.Background(), RecallRequest{SeedPostID: 10, Limit: 5})
 	if err != nil {
