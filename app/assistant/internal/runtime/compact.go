@@ -51,11 +51,6 @@ func SummaryInput(messages []store.Message, budgetTokens int) string {
 	return strings.Join(selected, "")
 }
 
-// ShouldCompact is ShouldCompactWithAnchor without a provider-reported prompt size.
-func ShouldCompact(messages []store.Message, windowTokens int) bool {
-	return ShouldCompactWithAnchor(messages, windowTokens, 0)
-}
-
 // ShouldCompactWithAnchor compacts once the prompt reaches half the window. The provider's last
 // reported prompt size overrides the local estimate when it is larger.
 func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, lastPromptTokens int64) bool {

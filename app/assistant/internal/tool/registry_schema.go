@@ -205,11 +205,6 @@ func sessionUserID(session *Session) (int64, error) {
 	return session.UserID, nil
 }
 
-// CanonicalDigest 计算参数的规范化摘要。
-func CanonicalDigest(argsJSON string) (string, error) {
-	return canonical.DigestArgs(argsJSON)
-}
-
 // objectSchema 构造对象类型的参数 schema。
 func objectSchema(properties map[string]any, required []string) map[string]any {
 	schema := map[string]any{"type": "object", "properties": properties}

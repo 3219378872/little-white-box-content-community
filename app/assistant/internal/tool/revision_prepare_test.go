@@ -7,6 +7,7 @@ import (
 
 	"github.com/cloudwego/kitex/client/callopt"
 
+	"esx/app/assistant/internal/canonical"
 	"esx/app/content/rpc/contentservice"
 	"esx/pkg/errx"
 )
@@ -49,7 +50,7 @@ func TestPostRevisionIsFrozenBeforeCanonicalDigest(t *testing.T) {
 	if args.PostID != 9 || args.ExpectedRevision != 7 {
 		t.Fatalf("prepared args=%s", prepared)
 	}
-	firstDigest, err := CanonicalDigest(prepared)
+	firstDigest, err := canonical.DigestArgs(prepared)
 	if err != nil || firstDigest == "" {
 		t.Fatalf("digest=%q err=%v", firstDigest, err)
 	}

@@ -69,14 +69,14 @@ func TestCompactedMessagesDoNotRetriggerCompact(t *testing.T) {
 	if got := EstimateMessageTokens(msgs); got != EstimateMessageTokens(msgs[1:]) {
 		t.Fatalf("compacted message counted: got=%d live=%d", got, EstimateMessageTokens(msgs[1:]))
 	}
-	if ShouldCompact(msgs, 400) {
+	if ShouldCompactWithAnchor(msgs, 400, 0) {
 		t.Fatal("already compacted history must not trigger another compact pass")
 	}
 }
 
 func TestSingleOversizedLiveMessageDoesNotCompactForever(t *testing.T) {
 	msgs := []store.Message{{ID: 1, Role: store.RoleUser, Content: strings.Repeat("字", 1000), Visible: true}}
-	if ShouldCompact(msgs, 400) {
+	if ShouldCompactWithAnchor(msgs, 400, 0) {
 		t.Fatal("a message that cannot be reduced must not retrigger compact")
 	}
 }
@@ -89,7 +89,7 @@ func TestCompletedToolRoundCanBeCompacted(t *testing.T) {
 		{ID: 2, Role: store.RoleTool, Kind: store.KindTool, APIContent: prompt.EncodeTurn(result)},
 		{ID: 3, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
 	}
-	if !ShouldCompact(msgs, 300) {
+	if !ShouldCompactWithAnchor(msgs, 300, 0) {
 		t.Fatal("a completed tool round must remain eligible for compact")
 	}
 	selected := SelectKeep(msgs, EstimateMessageTokens(msgs)/5, unfinishedCallIDs(msgs))

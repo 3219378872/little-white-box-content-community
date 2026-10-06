@@ -139,6 +139,3 @@ func (e *Engine) run(workCtx, persistCtx context.Context, run store.Run) error {
 		}
 	}
 }
-
-// ObserveQueueAge 记录 run 从入队到被领取的等待秒数。
-func ObserveQueueAge(seconds float64) { agentQueueAge.ObserveFloat(seconds) }

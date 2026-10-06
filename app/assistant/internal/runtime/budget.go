@@ -8,7 +8,6 @@ import (
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
-	"esx/pkg/errx"
 )
 
 const (
@@ -29,11 +28,6 @@ const (
 	ReviewMaxRounds = 16
 	ReviewMaxInput  = int64(600_000)
 )
-
-// BudgetConfig 预留 provider 侧的输出上限配置。
-type BudgetConfig struct {
-	ProviderMaxOutput int
-}
 
 // SingleOutputLimit 取 provider 单次输出上限，未配置或超出系统上限时用系统上限。
 func SingleOutputLimit(provider int) int {
@@ -148,11 +142,6 @@ func HardLimitExceeded(run store.Run, nowMs int64) bool {
 		}
 	}
 	return false
-}
-
-// ResourceLimitError 是资源上限对外的错误码。
-func ResourceLimitError() error {
-	return errx.NewWithCode(errx.AgentResourceLimit)
 }
 
 // RecordAlarms 记录本轮新触发的告警（每个维度与级别只记一次），返回需注入的第一条提示。

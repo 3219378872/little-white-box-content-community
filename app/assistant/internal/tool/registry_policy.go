@@ -6,14 +6,6 @@ import (
 	"strings"
 )
 
-// RestrictToolsForConsent 在授权版本低于当前版本时只保留 v1 工具。
-func RestrictToolsForConsent(registry *Registry, consentVersion int32) *Registry {
-	if registry == nil || consentVersion >= CurrentConsentVersion {
-		return registry
-	}
-	return registry.Restrict(Version1Tools())
-}
-
 // ForSource 按 run 来源与授权版本筛选工具；冻结视图优先使用冻结定义里的来源与授权要求。
 func ForSource(registry *Registry, source string, consentVersion int32) *Registry {
 	if registry == nil {
