@@ -17,6 +17,7 @@ import (
 
 var configFile = flag.String("f", "etc/feed.yaml", "the config file")
 
+// main 启动 Feed RPC 服务。
 func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()

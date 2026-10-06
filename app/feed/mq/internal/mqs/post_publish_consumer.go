@@ -38,10 +38,14 @@ func NewPostPublishConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeMessageBatch 为一批帖子事件写 outbox 并向粉丝 inbox 推送。fanout 失败时整批稍后重试；
+// 两张表都用 INSERT IGNORE，重放已处理的消息不会产生重复行。
 func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
+	// 单批处理设上限，避免下游卡住时消费线程无限阻塞。
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	for _, msg := range msgs {
+		// 无法解析或校验失败的消息重试也不会成功：计数后跳过，不阻塞同批其他消息。
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
 			logging.WithContext(ctx).Errorw("feed-consumer: unmarshal failed",

@@ -23,18 +23,22 @@ import (
 
 const defaultRecommendScene = "home"
 
+// GetRecommendFeedLogic 承载 GetRecommendFeed 接口的业务逻辑；每个请求新建一个实例。
 type GetRecommendFeedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetRecommendFeedLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendFeedLogic {
 	return &GetRecommendFeedLogic{
 		ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx),
 	}
 }
 
+// GetRecommendFeed 返回推荐流一页：优先调用推荐服务；首屏遇到推荐服务不可用时降级为规则兜底流，
+// 兜底游标的后续页始终走兜底流。
 func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*pb.GetRecommendFeedResp, error) {
 	if in == nil || l.svcCtx == nil || in.PageSize <= 0 || in.PageSize > maxFeedPageSize || strings.TrimSpace(in.RequestId) == "" || len(strings.TrimSpace(in.RequestId)) > 128 || len(strings.TrimSpace(in.Scene)) > 64 || len(strings.TrimSpace(in.SessionId)) > 128 || len(strings.TrimSpace(in.ExperimentId)) > 128 {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -44,6 +48,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 	}
 	requestID := strings.TrimSpace(in.RequestId)
 	binding := fallbackRequestBinding(in)
+	// 兜底游标由本服务签发，命中时直接续读兜底状态，不再访问推荐服务。
 	if stateID, expiresAt, matched, err := decodeFallbackCursor(
 		l.svcCtx.Config.CursorSecret, in.Cursor, binding, l.now(),
 	); err != nil {
@@ -56,6 +61,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 	if scene == "" {
 		scene = defaultRecommendScene
 	}
+	// 翻页中途不能切换到兜底流，否则会与已下发的推荐结果重复或错位。
 	if l.svcCtx.RecommendService == nil {
 		if in.Cursor != "" {
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
@@ -91,6 +97,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 	return response, nil
 }
 
+// now 返回当前时间，测试可通过 ServiceContext.Now 固定时钟。
 func (l *GetRecommendFeedLogic) now() time.Time {
 	if l.svcCtx.Now != nil {
 		return l.svcCtx.Now()
@@ -98,6 +105,7 @@ func (l *GetRecommendFeedLogic) now() time.Time {
 	return time.Now()
 }
 
+// fallbackRequestBinding 生成兜底游标的请求绑定；身份只存哈希，游标与状态中不出现原始 ID。
 func fallbackRequestBinding(in *pb.GetRecommendFeedReq) model.FallbackBinding {
 	identity := "a:" + strings.TrimSpace(in.AnonymousId)
 	if in.UserId > 0 {
@@ -111,10 +119,12 @@ func fallbackRequestBinding(in *pb.GetRecommendFeedReq) model.FallbackBinding {
 	return model.FallbackBinding{IdentityHash: hex.EncodeToString(digest[:]), RequestID: strings.TrimSpace(in.RequestId), Scene: scene, SessionID: strings.TrimSpace(in.SessionId), ExperimentID: strings.TrimSpace(in.ExperimentId), PageSize: in.PageSize}
 }
 
+// recommendationCanFallback 只在推荐服务不可用或超时时允许降级；参数错误等业务错误原样返回。
 func recommendationCanFallback(err error) bool {
 	return errx.Is(err, errx.ServiceUnavailable) || status.Code(err) == codes.Unavailable || status.Code(err) == codes.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded)
 }
 
+// enrichRecommendation 把推荐结果补全为 FeedItem；缺省的位置按返回顺序从 1 编号，实验 ID 回退到请求值。
 func (l *GetRecommendFeedLogic) enrichRecommendation(
 	in *pb.GetRecommendFeedReq,
 	recommendation *recommendservice.GetRecommendPostsResp,

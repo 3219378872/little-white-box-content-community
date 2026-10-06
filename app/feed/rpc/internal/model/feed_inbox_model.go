@@ -22,14 +22,18 @@ type (
 	}
 )
 
+// NewFeedInboxModel 创建带关注流查询扩展的 inbox 模型。
 func NewFeedInboxModel(conn sqlx.SqlConn) FeedInboxModel {
 	return &customFeedInboxModel{defaultFeedInboxModel: newFeedInboxModel(conn)}
 }
 
+// withSession 返回绑定到事务会话的模型。
 func (m *customFeedInboxModel) withSession(session sqlx.Session) FeedInboxModel {
 	return NewFeedInboxModel(sqlx.NewSqlConnFromSession(session))
 }
 
+// BatchInsertIgnore 用一条多值 INSERT IGNORE 批量写入，(user_id, post_id) 唯一键使重复推送幂等；
+// 返回实际新增的行数。
 func (m *customFeedInboxModel) BatchInsertIgnore(ctx context.Context, rows []*FeedInbox) (int64, error) {
 	if len(rows) == 0 {
 		return 0, nil
@@ -48,6 +52,7 @@ func (m *customFeedInboxModel) BatchInsertIgnore(ctx context.Context, rows []*Fe
 	return ret.RowsAffected()
 }
 
+// FindByUserBefore 按 (created_at, post_id) 降序读取游标之前的 inbox 行，与 outbox 查询使用同一排序键。
 func (m *customFeedInboxModel) FindByUserBefore(ctx context.Context, userID, cursorCreatedAt, cursorPostID int64, limit int64) ([]*FeedInbox, error) {
 	query := `SELECT id, user_id, author_id, post_id, created_at
 FROM feed_inbox

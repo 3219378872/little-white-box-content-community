@@ -11,12 +11,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// PushToInboxLogic 承载 PushToInbox 接口的业务逻辑；每个请求新建一个实例。
 type PushToInboxLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewPushToInboxLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewPushToInboxLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PushToInboxLogic {
 	return &PushToInboxLogic{
 		ctx:    ctx,
@@ -25,6 +27,7 @@ func NewPushToInboxLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PushT
 	}
 }
 
+// PushToInbox 把帖子写入调用方指定粉丝的 inbox，忽略非法 ID，返回新增行数。
 func (l *PushToInboxLogic) PushToInbox(in *pb.PushToInboxReq) (*pb.PushToInboxResp, error) {
 	if in.AuthorId <= 0 || in.PostId <= 0 || in.CreatedAt <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

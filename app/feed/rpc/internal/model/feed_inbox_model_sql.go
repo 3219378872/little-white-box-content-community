@@ -38,6 +38,7 @@ type (
 	}
 )
 
+// newFeedInboxModel 创建基础 CRUD 模型。
 func newFeedInboxModel(conn sqlx.SqlConn) *defaultFeedInboxModel {
 	return &defaultFeedInboxModel{
 		conn:  conn,
@@ -45,12 +46,14 @@ func newFeedInboxModel(conn sqlx.SqlConn) *defaultFeedInboxModel {
 	}
 }
 
+// Delete 按主键删除。
 func (m *defaultFeedInboxModel) Delete(ctx context.Context, id int64) error {
 	query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
+// FindOne 按主键查询，未找到返回 ErrNotFound。
 func (m *defaultFeedInboxModel) FindOne(ctx context.Context, id int64) (*FeedInbox, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", feedInboxRows, m.table)
 	var resp FeedInbox
@@ -65,6 +68,7 @@ func (m *defaultFeedInboxModel) FindOne(ctx context.Context, id int64) (*FeedInb
 	}
 }
 
+// FindOneByUserIdPostId 按唯一键查询，未找到返回 ErrNotFound。
 func (m *defaultFeedInboxModel) FindOneByUserIdPostId(ctx context.Context, userId int64, postId int64) (*FeedInbox, error) {
 	var resp FeedInbox
 	query := fmt.Sprintf("select %s from %s where `user_id` = ? and `post_id` = ? limit 1", feedInboxRows, m.table)
@@ -79,12 +83,14 @@ func (m *defaultFeedInboxModel) FindOneByUserIdPostId(ctx context.Context, userI
 	}
 }
 
+// Insert 是基础 CRUD 写入，不含 created_at 列；关注流写入走 InsertIgnore/BatchInsertIgnore。
 func (m *defaultFeedInboxModel) Insert(ctx context.Context, data *FeedInbox) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?)", m.table, feedInboxRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.AuthorId, data.PostId)
 	return ret, err
 }
 
+// Update 按主键更新。
 func (m *defaultFeedInboxModel) Update(ctx context.Context, newData *FeedInbox) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, feedInboxRowsWithPlaceHolder)
 	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.AuthorId, newData.PostId, newData.Id)

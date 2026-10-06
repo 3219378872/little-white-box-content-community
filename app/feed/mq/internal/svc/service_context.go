@@ -12,11 +12,13 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// UserService 是 fanout 用到的用户服务子集：作者粉丝数与粉丝分页。
 type UserService interface {
 	GetUser(ctx context.Context, in *userservice.GetUserReq, opts ...callopt.Option) (*userservice.GetUserResp, error)
 	GetFollowers(ctx context.Context, in *userservice.GetFollowersReq, opts ...callopt.Option) (*userservice.GetFollowersResp, error)
 }
 
+// ServiceContext 持有 fanout 消费者的数据库模型、用户服务与推送阈值。
 type ServiceContext struct {
 	Config          config.Config
 	Conn            sqlx.SqlConn
@@ -27,6 +29,7 @@ type ServiceContext struct {
 	FanoutBatchSize int64
 }
 
+// NewServiceContext 装配 MySQL 模型与带内部鉴权的用户服务客户端。
 func NewServiceContext(c config.Config) *ServiceContext {
 	conn := sqlx.NewMysql(c.DataSource)
 	userRpcClient := rpcx.MustNewClient(c.UserRpc,
@@ -42,6 +45,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 }
 
+// MustServiceContext 在数据库连接不可用时终止启动。
 func MustServiceContext(c config.Config) *ServiceContext {
 	ctx := NewServiceContext(c)
 	if ctx.Conn == nil {

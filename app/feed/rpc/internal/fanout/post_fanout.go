@@ -8,12 +8,15 @@ import (
 	"esx/app/user/rpc/userservice"
 )
 
+// PostPublished 是手动触发 fanout 的帖子。
 type PostPublished struct {
 	PostId    int64
 	AuthorId  int64
 	CreatedAt int64
 }
 
+// HandlePostPublished 供 FanoutPost RPC 使用，流程与 mq/internal/logic.HandlePostPublished 相同：
+// 写 outbox，非大 V 作者再推送到粉丝 inbox；作者不存在时只写 outbox。
 func HandlePostPublished(ctx context.Context, svcCtx *svc.ServiceContext, event PostPublished) (int64, error) {
 	userResp, err := svcCtx.UserService.GetUser(ctx, &userservice.GetUserReq{UserId: event.AuthorId})
 	if err != nil {

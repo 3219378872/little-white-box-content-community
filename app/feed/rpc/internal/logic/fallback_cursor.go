@@ -15,11 +15,13 @@ import (
 	"esx/app/feed/rpc/internal/model"
 )
 
+// 兜底游标前缀带版本号；TTL 限制状态在 Redis 中的存活时间。
 const (
 	fallbackCursorPrefix = "feedv3."
 	fallbackCursorTTL    = 10 * time.Minute
 )
 
+// fallbackCursor 是签名游标的载荷：状态 ID、请求绑定与过期时间。
 type fallbackCursor struct {
 	Version   int                   `json:"v"`
 	StateID   string                `json:"state"`
@@ -27,6 +29,7 @@ type fallbackCursor struct {
 	ExpiresAt int64                 `json:"e"`
 }
 
+// encodeFallbackCursor 生成 HMAC 签名的兜底游标；过期时间必须在 TTL 范围内。
 func encodeFallbackCursor(secret, stateID string, binding model.FallbackBinding, expiresAt int64, now time.Time) (string, error) {
 	if secret == "" || stateID == "" || binding.IdentityHash == "" || binding.RequestID == "" || binding.PageSize <= 0 || expiresAt <= now.Unix() || expiresAt > now.Add(fallbackCursorTTL).Unix() {
 		return "", fmt.Errorf("invalid fallback cursor input")
@@ -42,6 +45,8 @@ func encodeFallbackCursor(secret, stateID string, binding model.FallbackBinding,
 	return fallbackCursorPrefix + encoded + "." + signature, nil
 }
 
+// decodeFallbackCursor 校验并解析兜底游标。matched=false 表示这不是兜底游标（交给推荐服务处理）；
+// 旧版本、签名错误、绑定不一致或已过期的兜底游标都返回错误。
 func decodeFallbackCursor(secret, token string, binding model.FallbackBinding, now time.Time) (stateID string, expiresAt int64, matched bool, err error) {
 	if !strings.HasPrefix(token, fallbackCursorPrefix) {
 		if strings.HasPrefix(token, "feedv") {
@@ -60,6 +65,7 @@ func decodeFallbackCursor(secret, token string, binding model.FallbackBinding, n
 	if err != nil {
 		return "", 0, true, fmt.Errorf("decode fallback cursor: %w", err)
 	}
+	// 严格解码：拒绝未知字段与尾随数据。
 	var cursor fallbackCursor
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
@@ -78,6 +84,7 @@ func decodeFallbackCursor(secret, token string, binding model.FallbackBinding, n
 	return cursor.StateID, cursor.ExpiresAt, true, nil
 }
 
+// signFallbackCursor 对编码后的载荷做 HMAC-SHA256 签名。
 func signFallbackCursor(secret, payload string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(payload))

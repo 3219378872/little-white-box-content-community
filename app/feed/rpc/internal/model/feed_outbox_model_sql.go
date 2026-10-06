@@ -37,6 +37,7 @@ type (
 	}
 )
 
+// newFeedOutboxModel 创建基础 CRUD 模型。
 func newFeedOutboxModel(conn sqlx.SqlConn) *defaultFeedOutboxModel {
 	return &defaultFeedOutboxModel{
 		conn:  conn,
@@ -44,12 +45,14 @@ func newFeedOutboxModel(conn sqlx.SqlConn) *defaultFeedOutboxModel {
 	}
 }
 
+// Delete 按主键删除。
 func (m *defaultFeedOutboxModel) Delete(ctx context.Context, id int64) error {
 	query := fmt.Sprintf("delete from %s where `id` = ?", m.table)
 	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
+// FindOne 按主键查询，未找到返回 ErrNotFound。
 func (m *defaultFeedOutboxModel) FindOne(ctx context.Context, id int64) (*FeedOutbox, error) {
 	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", feedOutboxRows, m.table)
 	var resp FeedOutbox
@@ -64,6 +67,7 @@ func (m *defaultFeedOutboxModel) FindOne(ctx context.Context, id int64) (*FeedOu
 	}
 }
 
+// FindOneByAuthorIdPostId 按唯一键查询，未找到返回 ErrNotFound。
 func (m *defaultFeedOutboxModel) FindOneByAuthorIdPostId(ctx context.Context, authorId int64, postId int64) (*FeedOutbox, error) {
 	var resp FeedOutbox
 	query := fmt.Sprintf("select %s from %s where `author_id` = ? and `post_id` = ? limit 1", feedOutboxRows, m.table)
@@ -78,12 +82,14 @@ func (m *defaultFeedOutboxModel) FindOneByAuthorIdPostId(ctx context.Context, au
 	}
 }
 
+// Insert 是基础 CRUD 写入，不含 created_at 列；关注流写入走 InsertIgnore/BatchInsertIgnore。
 func (m *defaultFeedOutboxModel) Insert(ctx context.Context, data *FeedOutbox) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (?, ?)", m.table, feedOutboxRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.AuthorId, data.PostId)
 	return ret, err
 }
 
+// Update 按主键更新。
 func (m *defaultFeedOutboxModel) Update(ctx context.Context, newData *FeedOutbox) error {
 	query := fmt.Sprintf("update %s set %s where `id` = ?", m.table, feedOutboxRowsWithPlaceHolder)
 	_, err := m.conn.ExecCtx(ctx, query, newData.AuthorId, newData.PostId, newData.Id)

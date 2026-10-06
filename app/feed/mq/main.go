@@ -18,6 +18,7 @@ import (
 
 var configFile = flag.String("f", "etc/feed-consumer.yaml", "config file")
 
+// main 启动关注流 fanout 消费者，进程退出前优雅停止消费。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer proc.CloseResources()

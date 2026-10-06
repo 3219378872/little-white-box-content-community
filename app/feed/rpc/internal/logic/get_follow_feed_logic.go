@@ -21,12 +21,14 @@ const (
 	maxFollowingLookupPages = 100
 )
 
+// GetFollowFeedLogic 承载 GetFollowFeed 接口的业务逻辑；每个请求新建一个实例。
 type GetFollowFeedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logging.Logger
 }
 
+// NewGetFollowFeedLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetFollowFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFollowFeedLogic {
 	return &GetFollowFeedLogic{
 		ctx:    ctx,

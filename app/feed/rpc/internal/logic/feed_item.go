@@ -9,12 +9,14 @@ import (
 	pb "esx/kitex_gen/feed"
 )
 
+// 单页上限与 FeedItem.FeedType 取值：1=关注流，2=推荐流。
 const (
 	maxFeedPageSize   = 100
 	feedTypeFollow    = 1
 	feedTypeRecommend = 2
 )
 
+// enrichFeedItems 用内容服务补全帖子详情，只保留已发布的帖子并按帖子去重，保持输入顺序。
 func enrichFeedItems(ctx context.Context, contentService svc.ContentService, baseItems []*pb.FeedItem) ([]*pb.FeedItem, error) {
 	postIDs := make([]int64, 0, len(baseItems))
 	for _, item := range baseItems {
@@ -47,6 +49,7 @@ func enrichFeedItems(ctx context.Context, contentService svc.ContentService, bas
 	return items, nil
 }
 
+// renderFeedItem 合并推荐元数据与帖子详情；作者与创建时间以内容服务的权威值为准。
 func renderFeedItem(base *pb.FeedItem, post *contentservice.PostInfo) *pb.FeedItem {
 	return &pb.FeedItem{
 		PostId:        base.PostId,
@@ -70,6 +73,7 @@ func renderFeedItem(base *pb.FeedItem, post *contentservice.PostInfo) *pb.FeedIt
 	}
 }
 
+// cloneStrings 复制切片，并把空值规范为空数组，避免响应序列化出 null。
 func cloneStrings(values []string) []string {
 	if len(values) == 0 {
 		return []string{}
