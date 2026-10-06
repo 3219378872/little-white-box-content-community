@@ -2,14 +2,17 @@
 id: SPEC-agent-watch
 layer: spec
 title: Agent Watch 主动私信规范
-status: approved
+status: retired
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-07
+updated_at: 2026-10-06
 ---
 
 # Agent Watch 主动私信规范
+
+> Retired（2026-10-06）：产品决定移除 Watch，条件追踪与收藏的定位重复。本规范只保留历史契约，
+> 不再约束实现；Watch 任务、匹配、主动消息及其 API 均已删除，条款 ID 不复用。
 
 ## 范围
 

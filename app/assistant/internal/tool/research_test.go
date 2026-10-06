@@ -40,7 +40,7 @@ func researchFixture(t *testing.T) (Clients, *Session, store.Evidence) {
 	if err := st.PutEvidence(ctx, evidence); err != nil {
 		t.Fatal(err)
 	}
-	return Clients{Store: st, Content: content}, &Session{UserID: 1, RunID: 7, Source: store.SourceUser, ConsentVersion: 2, ClientProtocolVersion: 2}, evidence
+	return Clients{Store: st, Content: content}, &Session{UserID: 1, RunID: 7, Source: store.SourceUser, ConsentVersion: 3, ClientProtocolVersion: 2}, evidence
 }
 
 func citedBlock(evidence store.Evidence) store.AnswerBlock {
@@ -121,7 +121,7 @@ func TestQuestionSchemaAndProtocolIsolation(t *testing.T) {
 	if ForClient(registry, 1).Has(AskQuestions) || !ForClient(registry, 2).Has(AskQuestions) {
 		t.Fatal("protocol gate failed")
 	}
-	if ForSource(registry, store.SourceWatch, 2).Has(AskQuestions) || ForSource(registry, store.SourceMemoryReview, 2).Has(PublishAnswer) {
+	if ForSource(registry, store.SourceMemoryReview, 2).Has(AskQuestions) || ForSource(registry, store.SourceMemoryReview, 2).Has(PublishAnswer) {
 		t.Fatal("background tool boundary failed")
 	}
 	if ValidateQuestions([]store.Question{{ID: "q", Text: "问题", Selection: "single", Options: []store.QuestionOption{{ID: "a", Label: "一"}, {ID: "a", Label: "二"}}}}) == nil {

@@ -81,7 +81,7 @@ func TestPendingJournalRecoveryReplaysDownstreamIdempotencyOnlyOnce(t *testing.T
 	}
 	queued, err := mem.InsertRun(ctx, store.Run{
 		UserID: 1, SessionID: session.ID, RequestID: "request-1", Source: store.SourceUser,
-		Status: store.StatusQueued, Phase: store.PhaseToolExecuting, ConsentVersion: 2, InputVersion: 1,
+		Status: store.StatusQueued, Phase: store.PhaseToolExecuting, ConsentVersion: 3, InputVersion: 1,
 		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {

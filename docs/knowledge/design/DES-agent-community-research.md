@@ -4,10 +4,9 @@ layer: design
 title: 社区复杂需求与可信回答交付
 status: active
 owner: agent
-updated_at: 2026-09-08
+updated_at: 2026-10-06
 tracks:
 - AGENT-031
-- WCH-011
 - AGENT-070
 - AGENT-071
 - AGENT-072
@@ -45,16 +44,10 @@ tracks:
 消息请求增加可选 `clientProtocolVersion`，缺省 1，新客户端为 2，接受后随 run 持久化。能力快照仍在
 冷启动、30 分钟冷对话拼接或 compact 时生成；旧快照不被强制重写。模型广告按快照、任务来源、授权
 和冻结的客户端协议取交集。新协议提供 `ask_questions`、`read_source`、`publish_answer`；旧协议继续
-原有 `present_sources` 路径。Watch 可使用读取/发布，但没有问答与新增平台写权限。
-
-Watch 的协议版本在运行时按 2 处理，实际工具仍取冻结快照、source、consent 与当前执行策略的交集。
-资料读取包括站内搜索、帖子/评论回源、推荐/相似/比较、`read_memory` 与 `search_history`；新协议的
-`read_source` 只分页读取本 run 已登记来源。当前 Watch 不提供 `web_search`、`ask_questions`、本人
-收藏/点赞/关注/帖子列表或 Watch task 管理工具，不因协议升级扩大数据访问或业务写权限。
+原有 `present_sources` 路径。新协议的 `read_source` 只分页读取本 run 已登记来源。
 
 快照含 `publish_answer` 时，协议过滤移除 `present_sources`，回答必须通过结构化发布；旧冻结快照没有
-该能力时保留原有来源展示与终态提交路径，不强制重写正在恢复的快照。新建 Watch 隐藏输入只说明回源、
-校验与按当前工具交付的要求，不硬编码必须调用旧工具；已经持久化的输入仍按原字节恢复。
+该能力时保留原有来源展示与终态提交路径，不强制重写正在恢复的快照。
 
 工具仍由统一 registry metadata 派生 schema、任务来源、授权、可用性和结果限额。新工具不扩大个人
 数据访问权限，也不引入 Intent Router。系统规则和 SOUL 明确社区优先、按需澄清、互联网补充、诚实
@@ -113,7 +106,6 @@ queued 状态。相同提交返回原结果，不同提交竞争返回冲突。S
 
 完成事务原子写入工具结果、assistant_message、assistant_message_presentation、索引 outbox、线程摘要
 和 answer_committed/done。正文和引用编号由同一 presentation 生成，不使用字符偏移猜测对应关系。
-Watch 使用同一发布机制，并保持命中复核、配额完成和未读更新的原子边界。
 
 ## 读取、兼容与删除
 
@@ -122,5 +114,5 @@ Watch 使用同一发布机制，并保持命中复核、配额完成和未读�
 当作当前已核实依据。新字段为增量扩展，旧字段、未知事件忽略和原有流式尝试隔离保持。
 
 新表与客户端协议列通过幂等增量 patch 创建，不触发旧清库迁移。问题和展示快照随消息物理清理，
-来源片段遵循 365 天期限；清除历史取消待答状态并清理来源与展示数据，不删除 MEMORY/USER/Watch。
+来源片段遵循 365 天期限；清除历史取消待答状态并清理来源与展示数据，不删除 MEMORY/USER。
 当前源码、实际测试及剩余边界由实现映射和带日期证据记录。

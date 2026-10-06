@@ -20,7 +20,7 @@ func (e *Engine) compact(workCtx, persistCtx context.Context, run *store.Run, se
 	if keep < 1 {
 		keep = 1
 	}
-	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs), run.ID)
+	selected := SelectKeep(msgs, keep, unfinishedCallIDs(msgs))
 	keepIDs := make(map[int64]struct{}, len(selected))
 	for _, msg := range selected {
 		keepIDs[msg.ID] = struct{}{}

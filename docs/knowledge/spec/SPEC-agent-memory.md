@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-05
+updated_at: 2026-10-06
 ---
 
 # Agent 双文档自然语言记忆规范
@@ -63,7 +63,7 @@ updated_at: 2026-09-05
 
 - `MEM-030`：认证 API 支持按 target 列表、add/replace/remove/batch、容量统计，以及按 change id
   undo。返回字段仅包含自然语言条目、版本、时间、容量和必要的 change 元数据。
-- `MEM-031`：Agent 工具与 API 使用同一业务服务；用户 run 与 memory-review 可写，Watch run 只读。
+- `MEM-031`：Agent 工具与 API 使用同一业务服务；用户 run 与 memory-review 可写。
 - `MEM-032`：Memory 存储不可用时，Memory 工具和 API 明确失败；普通对话可继续，但不得声称已经
   记住、修改、删除或撤销。
 - `MEM-033`：MEMORY/USER 是个人上下文而不是社区、网络或历史来源，不能产生 source handle，不能

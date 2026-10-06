@@ -75,10 +75,6 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:9134']
 
-  - job_name: 'assistant-watch-matcher'
-    static_configs:
-      - targets: ['host.docker.internal:9135']
-
   - job_name: 'assistant-agent'
     static_configs:
       - targets: ['host.docker.internal:9136']

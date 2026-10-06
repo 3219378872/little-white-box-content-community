@@ -217,17 +217,9 @@ func (e *Engine) recordModelToolStep(ctx context.Context, run store.Run, turn pr
 	return err
 }
 
-func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}, history []prompt.Turn) ([]prompt.Turn, int64, error) {
+func (e *Engine) pendingUserTurns(ctx context.Context, run store.Run, seen map[int64]struct{}) ([]prompt.Turn, int64, error) {
 	out := make([]prompt.Turn, 0)
-	if run.Source == store.SourceWatch {
-		if !historyHasWatchInput(history) {
-			turn, err := e.watchInputTurn(ctx, run)
-			if err != nil {
-				return nil, 0, err
-			}
-			out = append(out, turn)
-		}
-	} else if len(run.QueuedPayload) > 0 {
+	if len(run.QueuedPayload) > 0 {
 		payload := decodeInputPayload(run.QueuedPayload)
 		if payload.Text != "" {
 			content := providerUserContent(payload.Text, payload.Attachments, payload.ContextPostID)

@@ -34,7 +34,7 @@ type PostEvent struct {
 	StatsSeq     int64         `json:"stats_seq,omitempty"`
 }
 
-// IndexText is the body used by search, embeddings and keyword watches.
+// IndexText is the body used by search and embeddings.
 // Older events only carry BodyExcerpt.
 func (e PostEvent) IndexText() string {
 	if e.Body != "" {

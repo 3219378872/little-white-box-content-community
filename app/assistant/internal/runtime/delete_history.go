@@ -16,7 +16,7 @@ func (a *Acceptor) DeleteHistory(ctx context.Context, userID int64) error {
 		// Match worker and accept lock ordering: runs before thread. Terminalizing
 		// under these locks fences old RunStep writers before the prompt is cleared.
 		var err error
-		cancelled, err = tx.CancelOpenBackground(ctx, userID, []string{store.SourceUser, store.SourceWatch, store.SourceMemoryReview})
+		cancelled, err = tx.CancelOpenBackground(ctx, userID, []string{store.SourceUser, store.SourceMemoryReview})
 		if err != nil {
 			return err
 		}
@@ -78,13 +78,6 @@ func cancelHistoryRun(ctx context.Context, tx store.Store, run store.Run, now in
 	}
 	if err := tx.DeleteQueue(ctx, run.ID); err != nil {
 		return err
-	}
-	if run.Source == store.SourceWatch {
-		if bucketID := watchBucketID(run.QueuedPayload); bucketID > 0 {
-			if err := tx.FinishWatchDelivery(ctx, bucketID, run.UserID, run.ID, store.StatusCancelled, now); err != nil {
-				return err
-			}
-		}
 	}
 	_, err = finishRunTx(ctx, tx, run, store.StatusCancelled, store.EventError, store.EventPayload{ErrorCode: "CANCELLED", Text: "run cancelled"}, now)
 	return err

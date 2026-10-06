@@ -2,9 +2,9 @@
 id: EVD-20260906-agent-watch
 layer: evidence
 title: Agent Watch 当前确定性验证
-status: active
+status: superseded
 owner: agent
-updated_at: 2026-09-06
+updated_at: 2026-10-06
 scope:
 - static
 - unit
@@ -51,6 +51,8 @@ coverage:
 ---
 
 # Agent Watch 当前确定性验证
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本证据随之 superseded；原观察结果不变，不再支持当前对齐结论。
 
 列出的命令均在 `observed_commit` 上返回 0。`make engineering-lint` 运行 74 个治理测试；`make check`
 通过格式检查、治理检查、`go vet` 与 `golangci-lint`（0 issues）；`make test` 完成全模块 race/coverage；

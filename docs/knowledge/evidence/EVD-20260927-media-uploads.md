@@ -4,7 +4,7 @@ layer: evidence
 title: 视频音频上传、媒体权威引用与回归验证
 status: active
 owner: agent
-updated_at: '2026-09-27'
+updated_at: 2026-10-06
 scope:
 - static
 - unit
@@ -268,40 +268,6 @@ coverage:
   - scripts/integration-test.sh
   - scripts/_lib.sh
 - requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - pkg/interceptor
-  - pkg/jwtx
-  - pkg/testutil
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
-  - go.mod
-  - go.sum
-  - Makefile
-  - scripts/test.sh
-  - scripts/integration-test.sh
-  - scripts/_lib.sh
-- requirements:
   - REL-001
   - REL-002
   - REL-003
@@ -374,6 +340,8 @@ coverage:
 ---
 
 # 媒体上传与回归验证
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 实现映射见 [社区](../implementation/IMP-community-core.md)，其余覆盖组回链各领域 IMP。
 新增视频/音频 REST、音频流式 RPC、容器轨道识别、稳定上传重试及消息权威 URL/类型校验已通过

@@ -18,7 +18,7 @@ func TestDeleteConfirmationBindsConcreteTargetRevision(t *testing.T) {
 	mem := store.NewMemoryStore()
 	queued, err := mem.InsertRun(ctx, store.Run{
 		UserID: 3, SessionID: 4, RequestID: "delete-request", Source: store.SourceUser,
-		Status: store.StatusQueued, Phase: store.PhaseToolExecuting, ConsentVersion: 2, InputVersion: 1,
+		Status: store.StatusQueued, Phase: store.PhaseToolExecuting, ConsentVersion: 3, InputVersion: 1,
 		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {

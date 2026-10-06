@@ -65,7 +65,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		"message-rpc", "behavior-rpc", "search-rpc", "recommend-rpc", "assistant-rpc",
 		"feed-consumer", "media-consumer", "behavior-log-consumer",
 		"recommend-consumer", "search-consumer", "embedding-consumer", "content-cleanup-consumer",
-		"assistant-watch-consumer", "assistant-agent",
+		"assistant-agent",
 		"embedding-service", "online-infer",
 	}
 	for _, name := range runtimeServices {
@@ -82,7 +82,7 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 		}
 	}
 
-	goServices := runtimeServices[1:22]
+	goServices := runtimeServices[1:21]
 	for _, name := range goServices {
 		service := project.Services[name]
 		if service.Build == nil || service.Build.Dockerfile != "deploy/Dockerfile.service" {
@@ -169,13 +169,6 @@ func TestProductionComposeParsesAndCoversRuntimeTopology(t *testing.T) {
 	}
 	if limit := string(project.Services["media-rpc"].MemLimit); limit != `"536870912"` && limit != `536870912` {
 		t.Errorf("production media-rpc mem_limit=%s, want 512 MiB", limit)
-	}
-	watch := project.Services["assistant-watch-consumer"]
-	if watch.Environment["ETCD_ENDPOINT"] == "" || watch.Environment["RPC_INTERNAL_SECRET"] == "" {
-		t.Error("assistant Watch consumer must receive Content RPC discovery and auth settings")
-	}
-	if dependency, ok := watch.DependsOn["content-rpc"]; !ok || dependency.Condition != "service_healthy" {
-		t.Error("assistant Watch consumer must wait for healthy content-rpc")
 	}
 }
 

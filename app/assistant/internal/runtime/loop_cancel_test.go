@@ -137,159 +137,6 @@ func TestStopAfterToolCallDoesNotMarkRunDone(t *testing.T) {
 	assertCancelled(t, mem, run.ID)
 }
 
-func TestWatchStickyCancellationWinsFailureAndDoesNotConsumeRetry(t *testing.T) {
-	ctx := context.Background()
-	mem := store.NewMemoryStore()
-	watchStore, bucket, _ := watchFixture(t, mem)
-	now := store.NowMs()
-	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, allowAllWatchPosts, bucket, now); err != nil {
-		t.Fatal(err)
-	}
-	scheduled, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || scheduled == nil {
-		t.Fatalf("scheduled bucket=%+v err=%v", scheduled, err)
-	}
-	oldRun, err := mem.Claim(ctx, "watch-worker", now, 60_000)
-	if err != nil || oldRun == nil || oldRun.ID != scheduled.RunID {
-		t.Fatalf("claim old run=%+v err=%v", oldRun, err)
-	}
-	if err := mem.RequestCancel(ctx, oldRun.UserID, oldRun.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := mem.ResetBucket(ctx, bucket.ID, oldRun.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, allowAllWatchPosts, bucket, now+1); err != nil {
-		t.Fatal(err)
-	}
-	replacementBucket, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || replacementBucket == nil || replacementBucket.RunID == 0 || replacementBucket.RunID == oldRun.ID {
-		t.Fatalf("replacement bucket=%+v err=%v", replacementBucket, err)
-	}
-
-	engine := &Engine{Store: mem}
-	if err := engine.fail(ctx, *oldRun, "RUN_FAILED", "simulated failure"); err != nil {
-		t.Fatal(err)
-	}
-	freshOld, err := mem.GetRun(ctx, oldRun.ID)
-	if err != nil || freshOld.Status != store.StatusCancelled || freshOld.ErrorCode != "CANCELLED" {
-		t.Fatalf("old run=%+v err=%v", freshOld, err)
-	}
-	freshBucket, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || freshBucket.Status != "scheduled" || freshBucket.RunID != replacementBucket.RunID {
-		t.Fatalf("old failure mutated replacement bucket=%+v err=%v", freshBucket, err)
-	}
-
-	replacement, err := mem.Claim(ctx, "watch-worker", now+2, 60_000)
-	if err != nil || replacement == nil || replacement.ID != replacementBucket.RunID {
-		t.Fatalf("claim replacement=%+v err=%v", replacement, err)
-	}
-	failureStartedAt := store.NowMs()
-	if err := engine.fail(ctx, *replacement, "RUN_FAILED", "simulated failure"); err != nil {
-		t.Fatal(err)
-	}
-	failedBucket, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || failedBucket.Status != "deferred" {
-		t.Fatalf("failed replacement bucket=%+v err=%v", failedBucket, err)
-	}
-	minRetryAt := failureStartedAt + time.Minute.Milliseconds()
-	maxRetryAt := store.NowMs() + time.Minute.Milliseconds()
-	if failedBucket.NotBeforeMs < minRetryAt || failedBucket.NotBeforeMs > maxRetryAt {
-		t.Fatalf("first error retry=%d want [%d,%d]", failedBucket.NotBeforeMs, minRetryAt, maxRetryAt)
-	}
-}
-
-func TestWatchStickyCancellationBlocksLegacyCompletion(t *testing.T) {
-	ctx := context.Background()
-	mem := store.NewMemoryStore()
-	watchStore, bucket, _ := watchFixture(t, mem)
-	now := store.NowMs()
-	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, allowAllWatchPosts, bucket, now); err != nil {
-		t.Fatal(err)
-	}
-	scheduled, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || scheduled == nil {
-		t.Fatalf("scheduled bucket=%+v err=%v", scheduled, err)
-	}
-	run, err := mem.Claim(ctx, "watch-worker", now, 60_000)
-	if err != nil || run == nil || run.ID != scheduled.RunID {
-		t.Fatalf("claim run=%+v err=%v", run, err)
-	}
-	if err := mem.RequestCancel(ctx, run.UserID, run.ID); err != nil {
-		t.Fatal(err)
-	}
-
-	engine := &Engine{Store: mem, Watch: watchStore, WatchPosts: allowAllWatchPosts}
-	err = engine.completeWatchWithStream(ctx, *run, "must not publish", nil, true, "stream-stale")
-	if !errors.Is(err, errRunCancelled) {
-		t.Fatalf("complete error=%v want cancellation", err)
-	}
-	if err := engine.cancel(ctx, *run); err != nil {
-		t.Fatal(err)
-	}
-	assertCancelled(t, mem, run.ID)
-
-	freshBucket, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || freshBucket.Status != "pending" || freshBucket.RunID != 0 {
-		t.Fatalf("cancelled bucket=%+v err=%v", freshBucket, err)
-	}
-	messages, err := mem.ListSessionMessages(ctx, run.UserID, run.SessionID, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, message := range messages {
-		if message.RunID == run.ID && message.Role == store.RoleAssistant {
-			t.Fatalf("cancelled watch published message=%+v", message)
-		}
-	}
-	outbox, err := mem.ListUnpublishedOutbox(ctx, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(outbox) != 0 {
-		t.Fatalf("cancelled watch published outbox=%+v", outbox)
-	}
-	thread, err := mem.GetThread(ctx, run.UserID)
-	if err != nil || thread.UnreadCount != 0 {
-		t.Fatalf("cancelled watch unread=%d err=%v", thread.UnreadCount, err)
-	}
-}
-
-func TestWatchStickyCancellationBlocksDismissal(t *testing.T) {
-	ctx := context.Background()
-	mem := store.NewMemoryStore()
-	watchStore, bucket, _ := watchFixture(t, mem)
-	now := store.NowMs()
-	if err := scheduleBucket(ctx, mem, nil, watchStore, nil, allowAllWatchPosts, bucket, now); err != nil {
-		t.Fatal(err)
-	}
-	scheduled, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || scheduled == nil {
-		t.Fatalf("scheduled bucket=%+v err=%v", scheduled, err)
-	}
-	run, err := mem.Claim(ctx, "watch-worker", now, 60_000)
-	if err != nil || run == nil || run.ID != scheduled.RunID {
-		t.Fatalf("claim run=%+v err=%v", run, err)
-	}
-	if err := mem.RequestCancel(ctx, run.UserID, run.ID); err != nil {
-		t.Fatal(err)
-	}
-
-	engine := &Engine{Store: mem}
-	err = engine.dismissWatchRun(ctx, *run)
-	if !errors.Is(err, errRunCancelled) {
-		t.Fatalf("dismiss error=%v want cancellation", err)
-	}
-	if err := engine.cancel(ctx, *run); err != nil {
-		t.Fatal(err)
-	}
-	assertCancelled(t, mem, run.ID)
-	freshBucket, err := mem.GetBucket(ctx, bucket.ID)
-	if err != nil || freshBucket.Status != "pending" || freshBucket.RunID != 0 {
-		t.Fatalf("cancelled bucket=%+v err=%v", freshBucket, err)
-	}
-}
-
 func TestMemoryReviewStickyCancellationPreservesUndoNotification(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
@@ -307,7 +154,7 @@ func TestMemoryReviewStickyCancellationPreservesUndoNotification(t *testing.T) {
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 71, SessionID: session.ID, RequestID: "review-cancelled", Source: store.SourceMemoryReview,
-		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 3, InputVersion: 1,
 		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {
@@ -362,7 +209,7 @@ func TestMemoryReviewCancellationClosesPendingToolCallsAndJournals(t *testing.T)
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 72, SessionID: session.ID, RequestID: "review-pending", Source: store.SourceMemoryReview,
-		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 3, InputVersion: 1,
 		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {
@@ -520,7 +367,7 @@ func newCancelTestEngine(t *testing.T, mem *store.MemoryStore, model llm.Client)
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 1, SessionID: session.ID, RequestID: "r1", Source: store.SourceUser,
-		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		Status: store.StatusQueued, Phase: store.PhaseQueued, ConsentVersion: 3, InputVersion: 1,
 		CreatedAtMs: store.NowMs(),
 	})
 	if err != nil {

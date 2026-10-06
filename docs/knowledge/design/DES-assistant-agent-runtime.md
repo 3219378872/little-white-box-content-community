@@ -4,7 +4,7 @@ layer: design
 title: 持久异步 Assistant Agent Runtime
 status: active
 owner: agent
-updated_at: 2026-09-19
+updated_at: 2026-10-06
 tracks:
 - AGENT-001
 - AGENT-002
@@ -69,26 +69,6 @@ tracks:
 - MEM-A04
 - MEM-A05
 - MEM-A06
-- WCH-001
-- WCH-002
-- WCH-003
-- WCH-004
-- WCH-010
-- WCH-011
-- WCH-012
-- WCH-013
-- WCH-014
-- WCH-020
-- WCH-021
-- WCH-022
-- WCH-023
-- WCH-024
-- WCH-A01
-- WCH-A02
-- WCH-A03
-- WCH-A04
-- WCH-A05
-- WCH-A06
 ---
 
 # 持久异步 Assistant Agent Runtime
@@ -99,6 +79,8 @@ SQL 与测试仍是事实权威。
 
 > 2026-09-05：复杂需求、问答和结构化回答由[社区研究设计](DES-agent-community-research.md)承接。
 > 本页继续记录基础运行机制及旧协议兼容路径。设计完成不等于实现验证完成，当前状态见实现层。
+>
+> 2026-10-06：`SPEC-agent-watch` 退役，Watch matcher、投递窗口、配额与主动消息已从本设计及实现中删除。
 
 ## 组件与所有权
 
@@ -111,17 +93,12 @@ Gateway REST/SSE
 assistant-agent worker
   -> MySQL lease queue -> provider -> tools -> journal/events/messages
   -> Elasticsearch Assistant history derivative
-
-assistant-watch matcher
-  -> content/behavior events -> two-minute buckets -> Watch run queue
 ```
 
-- `assistant-rpc`：鉴权、校验、接受 message/read/cancel/confirm/memory/watch 命令，读取 thread、
+- `assistant-rpc`：鉴权、校验、接受 message/read/cancel/confirm/memory 命令，读取 thread、
   messages、events；不在请求内调用模型。不提供新 session API。
 - `assistant-agent`：独立二进制，claim/renew/execute/recover run。进程可以横向扩展，数据库租约保证
   同一 run 同时只有一个 owner。
-- `assistant-watch`：保留事件匹配，写内部 execution/hit 并按用户两分钟 bucket 调度只读 Watch run；
-  不直接产生用户可见 hit。
 - MySQL：所有 Assistant 可见与运行状态权威；Redis：事件 channel 通知，可完全故障降级；ES：
   Assistant 历史派生索引，可 rebuild/delete。
 - 普通 message RPC/库不新增 Agent 用户或数据，Gateway 并行合并两种 thread read model。
@@ -131,7 +108,7 @@ assistant-watch matcher
 ### 代码组织
 
 `app/assistant/internal/store/sql.go` 与 `app/assistant/internal/store/fake.go` 只保留构造、事务入口和共享状态；session/message/run/event、command
-与 journal、source、outbox、Watch 和 quota 分别由同包的 `sql_*` / `fake_*` 文件承接。SQL 方法仍使用
+与 journal、source 和 outbox 分别由同包的 `sql_*` / `fake_*` 文件承接。SQL 方法仍使用
 同一个事务绑定的 `exec`；内存实现仍共享原锁与 map，只保证串行，不模拟 MySQL 回滚。
 
 `Engine.run` 只初始化本次执行并驱动 iteration。私有 `executionState` 按每次 Execute 分配，依次负责
@@ -155,12 +132,6 @@ assistant-watch matcher
 - `memory_target_lock(user_id, target)`：按用户和 MEMORY/USER target 串行容量、规范化去重、replace/remove
   与 undo，避免并发锁升级和超容量提交。
 - `assistant_index_outbox`：message upsert/delete 到 ES；MySQL 消息永远是回源权威。
-- Watch task 保留；execution/hit 只作内部 bucket 输入与 90 天审计，到期分批物理删除；
-  `watch_send_reservation` 与 `watch_send_stat.reserved_count` 在调度事务中原子预留小时/日配额，只有成功
-  投递才转为 sent，失败、抢占和 discard 均释放 reservation。
-- Watch 创建经 `watch.Lookups.Validate`：目标存在且可见（WCH-003）；`author_new_post` 的目标作者或
-  `post_revised` 的帖子作者等于当前用户时返回 `CannotWatchSelf`（WCH-024）。REST 与
-  `create_watch_task` 工具共用该校验。`discussion_spike` 仍允许盯自己的帖。
 
 破坏性迁移用 `assistant_runtime_v3` marker：首次执行清空并重建 `xbh_assistant`，清空 user 库 Agent
 consent；marker 提交后重复 patch 不再清理。生产执行前必须绑定 MySQL `server_uuid`，分别备份并验证
@@ -170,17 +141,16 @@ Assistant 库与 consent，且提供精确确认值；补丁名和 SHA-256 写�
 ## 接收、并发与输入处置
 
 `POST /assistant/messages` 在一个事务中：先校验 consent 与 requestId 重放，再按 id 锁该用户全部开放
-`agent_run`（只把 Watch/review 标为取消），之后锁 thread、重查幂等结果并写 user message。这样输入
-redirect/steer、worker 终态与 Watch 抢占统一遵守 `agent_run -> assistant_thread -> Watch bucket/quota`
-锁序。随后按当前前台 run phase 决定 disposition，创建或更新 run；模型请求 phase 写 redirect，工具
+`agent_run`（只把 memory-review 标为取消），之后锁 thread、重查幂等结果并写 user message。这样输入
+redirect/steer、worker 终态与后台抢占统一遵守 `agent_run -> assistant_thread` 锁序。随后按当前前台 run phase 决定 disposition，创建或更新 run；模型请求 phase 写 redirect，工具
 phase 写 steer，compact/attachment/unsafe phase 写最多 32 条 FIFO。无活跃前台 run 则创建 queued
 user run。数据库提交前不报告 accepted。
 
 每用户一条永久前台 session：缺失则创建，遗留 `closed` 行 reopen，不再因用户操作关闭并另开一行。
-线程 `last_message_at_ms` 距今不少于 30 分钟后，下一次新建 user 或 Watch run 在同一 session 上滚动
+线程 `last_message_at_ms` 距今不少于 30 分钟后，下一次新建 user run 在同一 session 上滚动
 prompt epoch，重建 Safety/SOUL/工具规则/MEMORY，并保留 `compact_summary`。redirect、steer、FIFO
 和崩溃恢复复用已保存快照。clear history 逻辑删除 message、写 ES
-delete outbox、清 thread 可见摘要，不删 Memory/Watch。消息删除与 delete outbox 插入在同一事务内，
+delete outbox、清 thread 可见摘要，不删 Memory。消息删除与 delete outbox 插入在同一事务内，
 发件箱写入失败必须回滚删除。ES 删除仅在成功或 404 时确认完成，其他 HTTP 错误保留事件等待重试。
 显式 Stop 只把 `cancel_requested` 置 1，该位
 一旦置位就不能被后续 `UpdateRun` 清掉。worker 为 in-flight 模型/工具请求单独派生 work context：
@@ -209,8 +179,7 @@ active run，重置该轮已公开的 stream 并读取新输入重启。工具�
 不能采用接管者的新身份；正常、取消、错误和恢复收尾都使用原 claim fence。取消监视器观察到 owner
 变化只停止旧 work context，不替新 owner 修改状态。最终 step 事务仍作权威 fence 校验，覆盖读后接管。
 
-用户 run 优先于 Watch、后者优先于 memory-review。claim 按 priority/created_at；前台消息可设置后台
-run cancel。Watch 取消前尚未投递的 hit bucket 重置为 pending。
+用户 run 优先于 memory-review。claim 按 priority/created_at；前台消息可设置后台 run cancel。
 
 ## 事件与 SSE
 
@@ -240,14 +209,14 @@ usage adapter 分离 input/output/cache-read/cache-write/reasoning，并按独�
 `BackgroundReview.Model` 只用于 memory-review，`LLM.AuxModel` 用于 compact；缺省使用冻结主 route。
 
 compact 优先以上一次 provider prompt usage 为锚点，只估算后续新增消息；无 usage 时 ASCII 约四字符
-一 token、非 ASCII 至少一字符一 token。达到窗口 50% 后选择最新 20% token、所有未完成 tool/confirm，
-以及当前 Watch 的隐藏 `watch_input` sidecar；摘要模型接收预算内的完整消息。压缩结果必须比输入小并
+一 token、非 ASCII 至少一字符一 token。达到窗口 50% 后选择最新 20% token 与所有未完成 tool/confirm；
+摘要模型接收预算内的完整消息。压缩结果必须比输入小并
 低于目标阈值，否则保留原消息并明确失败。事务成功后才提交摘要、新 prompt epoch/sidecar/capability
 快照和 compact 标志。原 message 在 365 天保留期内通过 outbox 可检索；worker 启动及每小时执行有界
 批次清理，物理删除与 ES delete outbox 同事务，旧 upsert payload 同时移除。
 每次摘要输入都将旧 `compact_summary` 与本轮待压缩消息作为 JSON 历史材料送入模型，不进入 system；
 旧摘要与序列化开销计入输入预算。第二次及后续 compact 不能仅摘要本轮新增消息后覆盖旧条件。
-隐藏 sidecar（工具轮与 Watch 注入）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
+隐藏 sidecar（工具轮）只通过 `api_content` 进入 provider 历史，不写可见正文或 ES outbox。
 
 ## Memory Review
 
@@ -292,42 +261,10 @@ Memory add/replace/undo 在现有 `(user_id,target)` mutation lock 下读取当�
 缺陷，不应混跑来宣称该缺陷已修复。MapStore 以私有副本提交整个 batch，并使用与 SQL 相同的
 逐项 request id，失败不保留 entry/change，replace/undo 同样拒绝全文重复。
 
-## Watch 投递
+## 后台 run 取消收尾
 
-Watch RPC 与模型工具经过共享 consent mutation 入口，缺少、撤销、旧版本、未知版本或读取失败
-均拒绝 create/update/delete；当前授权版本是 2。SQLStore 在同一 mutation 事务中以
-`SELECT ... FOR SHARE` 锁定 `xbh_user.agent_capability_consent`，再执行归属/version 校验与写入，
-使撤权与变更形成唯一提交次序。只有底层测试 MapStore 可独立用于预置数据。
-此处遵循 WCH-021：停用与删除也要求当前 consent。撤权后的任务保留，调度继续禁止新 run；用户
-若要清理任务需重新授权。这是既有规格的 UX 取舍，未增加撤权后自助清理的语义例外。
-
-`WCH-011` 的只读边界限制平台业务变更，不禁止向本人 Assistant 线程交付经校验的回答。Watch v2
-使用 `read_source` 与 `publish_answer`，旧冻结快照继续兼容原路径；工具映射由
-[社区研究设计](DES-agent-community-research.md)承接。Watch 不进入需求澄清的 waiting_input 状态机，
-用户回复主动消息仍按用户 run 的输入流程处理，后台 run 不自行取得交互或业务写权限。
-
-matcher 先按事件 revision 回源当前 published 状态，再将命中写 2 分钟 user bucket。调度事务锁 thread、
-bucket 和 quota 行，原子预留同任务每小时 3 条与每用户每日 20 条额度；超额 bucket 保持 deferred 并在
-下一允许窗口摘要。Watch worker 读取精确 hit ids，把命中 JSON 写成当前 run 的隐藏 `watch_input`
-sidecar（`visible=false`，`api_content` 为 provider user turn），再使用只读 registry 形成回答。恢复、每个
-模型轮之前及最终消息提交之前都重新回源全部命中的当前可见性；缺失、过期或任一不可见时 fail-closed
-discard，已流式正文先写 `response_reset`。sidecar 重放放在本 run 工具消息之前，不得每轮追加到上下文
-末尾。最终 assistant message、thread unread、bucket sent、reservation 转 sent 与 run 终态在同一事务
-提交。用户 run 抢占时 bucket 回 pending 并释放 reservation。
-
-Watch run 的 `error` 与用户抢占/取消分开处理：失败先释放 reservation，再用 `not_before_ms` 从 1 分钟
-开始指数退避，单次最多 30 分钟；同一用户、同一 bucket 的 error run 总尝试最多 8 次，对应重试间隔
-1/2/4/8/16/30/30 分钟。历史次数只通过结构化 `queued_payload.bucket_id` 关联并排除当前 run；当前
-run 的关联缺失或不一致时 fail-closed discard。第 8 次失败，或下一次重试将越过 bucket 创建后 90 天
-保留边界时，bucket 转为 discarded，不再创建 run。`cancelled`、Stop、撤权和用户输入抢占不消耗失败
-次数，仍立即回 pending 并释放 reservation。worker 异常退出后，调度器对遗留终态 run 执行同一转换，
-且只接受 user 与 source 均匹配的 Watch run 关联。
-
-run 终态事务在首个消息、outbox、未读或 bucket 写入前重新读取 sticky cancel；取消先提交时，旧协议
-Watch 成功与不可见 discard 均回滚并进入 cancelled 收尾。旧 run 的 finalizer 若发现 bucket 已由新
-run 接管则幂等返回，不能释放新 reservation。Memory Review 已成功的变更即使随后取消，仍写入
-`memory_changed` 撤销入口，但 run 以 cancelled 终止；未完成 tool call 及同 run、同 lease generation
-的 pending journal 一并收口，已成功记录不得降级。
+Memory Review 已成功的变更即使随后取消，仍写入 `memory_changed` 撤销入口，但 run 以 cancelled
+终止；未完成 tool call 及同 run、同 lease generation 的 pending journal 一并收口，已成功记录不得降级。
 
 ## 预算与观测
 
@@ -340,23 +277,23 @@ critical 按时间、round、output 三个维度以唯一 `(run, level, dimensio
 结构化回答或等待问答不能绕开触顶终止。memory-review 发起请求前同时检查累计输入和本次估算预算。
 
 Prometheus 覆盖 queue age、lease claim/recovery/renew failure、run phase/elapsed/idle、token/cost、journal hit、
-confirmation、compact、BM25/outbox、Watch bucket/rate、review、Redis notify failure 和 SSE poll fallback。
+confirmation、compact、BM25/outbox、review、Redis notify failure 和 SSE poll fallback。
 
 ## 验证
 
 - 纯逻辑：disposition state machine、预算、canonical digest、source handles、Memory 容量/version/undo。
-- MySQL 集成：lease crash recovery、journal、confirm CAS、event replay、compact transaction、Watch bucket。
+- MySQL 集成：lease crash recovery、journal、confirm CAS、event replay、compact transaction。
 - Redis/ES：通知故障轮询、history rebuild/delete、user isolation 与回源剔除。
 - provider contract：Chat Completions 与 Responses 的非流式/流式 tool-call fixture、cache usage、错误分类、
   Retry-After、fallback、canary 与跨 chunk scrub。
-- 根真实栈：授权、异步发送、断线重连、删除确认、memory-review、compact 新 epoch、history、Watch 主动消息。
+- 根真实栈：授权、异步发送、断线重连、删除确认、memory-review、compact 新 epoch、history。
 
 ## 2026-09-25 历史删除与订阅失败边界
 
 历史删除在同一事务中按 run → thread 的顺序锁定并取消所有活跃任务，关闭等待交互、清理队列和
-历史派生数据，清除会话压缩摘要与 prompt snapshot 并推进 epoch，MEMORY/USER 和 Watch 定义保留。
+历史派生数据，清除会话压缩摘要与 prompt snapshot 并推进 epoch，MEMORY/USER 保留。
 取消终态使旧 worker 的 RunStep 失效，防止 compact 或回答写回。事务内读取 session 使用当前读，
-防止并发请求的 repeatable-read 快照恢复删除前的历史；Watch 调度遵守相同 run/thread 锁顺序。
+防止并发请求的 repeatable-read 快照恢复删除前的历史。
 
 订阅发现 run 终态后再次读取持久事件，以补齐两次查询之间提交的最终结果。网关在流尚未开始时
 按公共错误映射返回 JSON 4xx/5xx；开始后发送无 id 的 transport_error，携带公共错误及 retryable。

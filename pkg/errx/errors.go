@@ -108,7 +108,7 @@ func (e *BizError) HTTPStatus() int {
 		return http.StatusGone
 	case AdQualificationRequired, AdLandingInvalid, AdIndustryUnsupported, AdMediaInvalid:
 		return http.StatusBadRequest
-	case CannotFollowSelf, CannotWatchSelf:
+	case CannotFollowSelf:
 		return http.StatusBadRequest
 	case FileTooLarge:
 		return http.StatusRequestEntityTooLarge

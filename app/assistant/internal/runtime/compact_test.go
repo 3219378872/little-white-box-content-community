@@ -37,7 +37,7 @@ func TestLastPromptUsageCanTriggerCompact(t *testing.T) {
 		{ID: 1, Role: store.RoleUser, Content: strings.Repeat("旧", 100), Visible: true},
 		{ID: 2, Role: store.RoleAssistant, Content: strings.Repeat("新", 100), Visible: true},
 	}
-	if !ShouldCompactWithAnchor(msgs, 1000, 0, 700) {
+	if !ShouldCompactWithAnchor(msgs, 1000, 700) {
 		t.Fatal("provider prompt usage should be the conservative compact anchor")
 	}
 }
@@ -49,7 +49,7 @@ func TestSelectKeepLastTwentyPercent(t *testing.T) {
 	}
 	total := EstimateMessageTokens(msgs)
 	keep := total / 5
-	selected := SelectKeep(msgs, keep, nil, 0)
+	selected := SelectKeep(msgs, keep, nil)
 	if len(selected) == 0 {
 		t.Fatal("expected some kept messages")
 	}
@@ -69,14 +69,14 @@ func TestCompactedMessagesDoNotRetriggerCompact(t *testing.T) {
 	if got := EstimateMessageTokens(msgs); got != EstimateMessageTokens(msgs[1:]) {
 		t.Fatalf("compacted message counted: got=%d live=%d", got, EstimateMessageTokens(msgs[1:]))
 	}
-	if ShouldCompact(msgs, 400, 0) {
+	if ShouldCompact(msgs, 400) {
 		t.Fatal("already compacted history must not trigger another compact pass")
 	}
 }
 
 func TestSingleOversizedLiveMessageDoesNotCompactForever(t *testing.T) {
 	msgs := []store.Message{{ID: 1, Role: store.RoleUser, Content: strings.Repeat("字", 1000), Visible: true}}
-	if ShouldCompact(msgs, 400, 0) {
+	if ShouldCompact(msgs, 400) {
 		t.Fatal("a message that cannot be reduced must not retrigger compact")
 	}
 }
@@ -89,10 +89,10 @@ func TestCompletedToolRoundCanBeCompacted(t *testing.T) {
 		{ID: 2, Role: store.RoleTool, Kind: store.KindTool, APIContent: prompt.EncodeTurn(result)},
 		{ID: 3, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
 	}
-	if !ShouldCompact(msgs, 300, 0) {
+	if !ShouldCompact(msgs, 300) {
 		t.Fatal("a completed tool round must remain eligible for compact")
 	}
-	selected := SelectKeep(msgs, EstimateMessageTokens(msgs)/5, unfinishedCallIDs(msgs), 0)
+	selected := SelectKeep(msgs, EstimateMessageTokens(msgs)/5, unfinishedCallIDs(msgs))
 	if len(selected) >= len(msgs) {
 		t.Fatalf("completed tool messages were force-kept: %+v", selected)
 	}
@@ -104,7 +104,7 @@ func TestUnfinishedToolCallIsKept(t *testing.T) {
 		{ID: 1, Role: store.RoleAssistant, Kind: store.KindTool, APIContent: prompt.EncodeTurn(call)},
 		{ID: 2, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
 	}
-	selected := SelectKeep(msgs, 1, unfinishedCallIDs(msgs), 0)
+	selected := SelectKeep(msgs, 1, unfinishedCallIDs(msgs))
 	for _, msg := range selected {
 		if msg.ID == 1 {
 			return
@@ -138,42 +138,6 @@ func TestHistoryTurnsReplaysHiddenToolSidecar(t *testing.T) {
 	}
 }
 
-func TestHistoryTurnsReplaysHiddenWatchInputSidecar(t *testing.T) {
-	input := prompt.Turn{Role: store.RoleUser, Content: watchHitsMarker + ":\n{\"hit_ids\":[1]}"}
-	got := HistoryTurns([]store.Message{
-		{ID: 1, Role: store.RoleUser, Kind: store.KindWatchInput, Visible: false, APIContent: prompt.EncodeTurn(input)},
-		{ID: 2, Role: store.RoleAssistant, Kind: store.KindMemoryChanged, Content: "ignored", Visible: false},
-	})
-	if len(got) != 1 || got[0].Role != store.RoleUser || !strings.Contains(got[0].Content, watchHitsMarker) {
-		t.Fatalf("turns=%+v", got)
-	}
-}
-
-func TestPlaceWatchInputBeforeCurrentRunTools(t *testing.T) {
-	input := store.Message{ID: 3, RunID: 9, Role: store.RoleUser, Kind: store.KindWatchInput, Visible: false}
-	call := store.Message{ID: 1, RunID: 9, Role: store.RoleAssistant, Kind: store.KindTool, Visible: false}
-	older := store.Message{ID: 2, RunID: 8, Role: store.RoleUser, Kind: store.KindMessage, Visible: true}
-	got := placeWatchInput([]store.Message{older, call, input}, 9)
-	if len(got) != 3 || got[0].ID != 2 || got[1].ID != 3 || got[2].ID != 1 {
-		t.Fatalf("order=%+v", got)
-	}
-}
-
-func TestLiveWatchInputIsKeptDuringCompact(t *testing.T) {
-	input := prompt.Turn{Role: store.RoleUser, Content: watchHitsMarker + ":\n{}"}
-	msgs := []store.Message{
-		{ID: 1, RunID: 4, Role: store.RoleUser, Kind: store.KindWatchInput, Visible: false, APIContent: prompt.EncodeTurn(input)},
-		{ID: 2, Role: store.RoleUser, Kind: store.KindMessage, Content: strings.Repeat("新", 40), Visible: true},
-	}
-	selected := SelectKeep(msgs, 1, nil, 4)
-	for _, msg := range selected {
-		if msg.ID == 1 {
-			return
-		}
-	}
-	t.Fatalf("live watch input was dropped: %+v", selected)
-}
-
 func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 	mem := store.NewMemoryStore()
 	ctx := context.Background()
@@ -196,7 +160,7 @@ func TestCompactLeavesKeptMessagesLive(t *testing.T) {
 		msgs = append(msgs, msg)
 	}
 	run, err := mem.InsertRun(ctx, store.Run{UserID: 1, SessionID: session.ID, Status: store.StatusQueued,
-		ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1})
+		ConsentVersion: 3, InputVersion: 1, CreatedAtMs: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +231,7 @@ func TestCompactNoGainPreservesMessagesAndPromptEpoch(t *testing.T) {
 		msgs = append(msgs, msg)
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
-		UserID: 1, SessionID: session.ID, Status: store.StatusQueued, ConsentVersion: 2,
+		UserID: 1, SessionID: session.ID, Status: store.StatusQueued, ConsentVersion: 3,
 		InputVersion: 1, PromptEpoch: session.PromptEpoch, CreatedAtMs: 1,
 	})
 	if err != nil {

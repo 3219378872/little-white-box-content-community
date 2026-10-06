@@ -4,7 +4,7 @@ layer: implementation
 title: Assistant Agent 实现映射
 status: active
 owner: agent
-updated_at: 2026-09-25
+updated_at: 2026-10-06
 code_paths:
 - pkg/rpcx
 - pkg/httpx
@@ -102,7 +102,7 @@ code_paths:
 | AGENT-081 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | AGENT-082 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
 | AGENT-083 | DES-assistant-agent-runtime | unknown | gap: 框架与生成契约已迁移，待新提交上的对应验收证据。 |
-| AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，Watch 5 分钟与生产 p95 未验证。 |
+| AGENT-090 | DES-assistant-agent-runtime | unknown | gap: 接收/首事件实现可测；45 秒完成仅观察，生产 p95 未验证。 |
 | AGENT-A01 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A02 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |
 | AGENT-A03 | DES-assistant-agent-runtime | unknown | gap: 确定性 fixture/单测覆盖核心路径；外部 live provider 与生产边界未关闭。 |

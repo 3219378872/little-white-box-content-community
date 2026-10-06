@@ -8,22 +8,17 @@ import (
 
 const (
 	AssistantMessageRetention = 365 * 24 * time.Hour
-	WatchAuditRetention       = 90 * 24 * time.Hour
 	DefaultBatchSize          = 500
 	DefaultMaxBatches         = 20
 )
 
 type Store interface {
 	PurgeExpiredMessages(ctx context.Context, cutoffMs int64, batchSize int) (int, error)
-	PurgeExpiredWatchHits(ctx context.Context, cutoffMs int64, batchSize int) (int, error)
-	PurgeExpiredWatchExecutions(ctx context.Context, cutoffMs int64, batchSize int) (int, error)
 }
 
 type Result struct {
-	SourceEvidence  int
-	Messages        int
-	WatchHits       int
-	WatchExecutions int
+	SourceEvidence int
+	Messages       int
 }
 
 type Cleaner struct {
@@ -46,7 +41,6 @@ func (c *Cleaner) RunOnce(ctx context.Context) (Result, error) {
 	}
 	now := c.now()
 	messageCutoff := now.Add(-AssistantMessageRetention).UnixMilli()
-	watchCutoff := now.Add(-WatchAuditRetention).UnixMilli()
 
 	var result Result
 	var errs []error
@@ -56,8 +50,6 @@ func (c *Cleaner) RunOnce(ctx context.Context) (Result, error) {
 	}); ok {
 		result.SourceEvidence, errs = c.runBatches(ctx, messageCutoff, sourceStore.PurgeExpiredSourceEvidence, errs)
 	}
-	result.WatchHits, errs = c.runBatches(ctx, watchCutoff, c.store.PurgeExpiredWatchHits, errs)
-	result.WatchExecutions, errs = c.runBatches(ctx, watchCutoff, c.store.PurgeExpiredWatchExecutions, errs)
 	return result, errors.Join(errs...)
 }
 

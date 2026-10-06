@@ -118,7 +118,7 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 
 	// Worker steps lock agent_run before assistant_thread. Preemption must take
 	// background run locks first to keep the same order during final delivery.
-	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceWatch, store.SourceMemoryReview}); err != nil {
+	if _, err := tx.CancelOpenBackground(ctx, in.UserID, []string{store.SourceMemoryReview}); err != nil {
 		return AcceptResult{}, err
 	}
 	thread, err := tx.LockThread(ctx, in.UserID)
@@ -146,10 +146,6 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	thread.LastMessageAtMs = now
 	thread.SessionID = session.ID
 	thread.UpdatedAtMs = now
-
-	if err := tx.ResetUnsentBuckets(ctx, in.UserID); err != nil {
-		return AcceptResult{}, err
-	}
 
 	active, disposition, err := activeInputDisposition(ctx, tx, in.UserID, thread.ActiveRunID, in.ClientProtocolVersion)
 	if err != nil {

@@ -48,7 +48,7 @@ func TestDeleteHistoryClearsPromptAndPreservesMemory(t *testing.T) {
 	entries, err := memories.Active(ctx, 1)
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
-	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "after-delete", ConsentOK: true, ConsentVersion: 2})
+	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "after-delete", ConsentOK: true, ConsentVersion: 3})
 	require.NoError(t, err)
 	require.Equal(t, session.ID, accepted.SessionID)
 	claimed, err := st.Claim(ctx, "test-worker", store.NowMs(), 60000)
@@ -114,7 +114,7 @@ func TestDeleteHistoryFencesEveryOpenRunAndKeepsOtherUsers(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, st.SaveThread(ctx, store.Thread{UserID: 1, SessionID: session.ID}))
 	var runs []store.Run
-	for _, source := range []string{store.SourceUser, store.SourceWatch, store.SourceMemoryReview} {
+	for _, source := range []string{store.SourceUser, store.SourceMemoryReview} {
 		for _, status := range []string{store.StatusQueued, store.StatusRunning, store.StatusWaitingInput, store.StatusWaitingConfirm} {
 			run, err := st.InsertRun(ctx, store.Run{UserID: 1, SessionID: session.ID, Source: source, Status: status, LeaseOwner: "old-worker", LeaseGeneration: 1, LeaseUntilMs: store.NowMs() + 60000})
 			require.NoError(t, err)

@@ -95,7 +95,7 @@ func TestSanitizeOutputRemovesStandaloneInternalNote(t *testing.T) {
 func TestCapabilitySnapshotRoundTripAndLegacyUpgradeInput(t *testing.T) {
 	tool := ToolDef{
 		Name: "search_posts", Description: "search", Parameters: map[string]any{"type": "object"},
-		Effect: "read", Sources: []string{"user", "watch"}, MinConsent: 2, MaxResultBytes: 1024,
+		Effect: "read", Sources: []string{"user", "memory-review"}, MinConsent: 2, MaxResultBytes: 1024,
 	}
 	snapshot := CapabilitySnapshot{
 		Version: CapabilitySnapshotVersion,

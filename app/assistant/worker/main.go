@@ -52,7 +52,6 @@ func main() {
 				_ = svcCtx.Index.Relay(ctx)
 			}
 		case <-ticker.C:
-			runtime.ScheduleDueWatchRuns(ctx, svcCtx.Store, svcCtx.Memory, svcCtx.Watch, svcCtx.Consent, svcCtx.WatchPosts)
 			run, recovered, err := svcCtx.Lease.Claim(ctx)
 			if err != nil {
 				logx.WithContext(ctx).Errorw("assistant-agent claim failed", logx.Field("err", err.Error()))
@@ -101,11 +100,9 @@ func runRetention(ctx context.Context, svcCtx *svc.ServiceContext) {
 			logx.WithContext(ctx).Errorw("assistant retention cleanup failed", logx.Field("err", err.Error()))
 			return
 		}
-		if result.Messages+result.WatchHits+result.WatchExecutions > 0 {
+		if result.Messages > 0 {
 			logx.WithContext(ctx).Infow("assistant retention cleanup completed",
-				logx.Field("messages", result.Messages),
-				logx.Field("watch_hits", result.WatchHits),
-				logx.Field("watch_executions", result.WatchExecutions))
+				logx.Field("messages", result.Messages))
 		}
 	}
 	run()

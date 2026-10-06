@@ -23,7 +23,7 @@ func TestSQLDeleteHistoryOutboxFailureRollsBack(t *testing.T) {
 	for _, query := range []string{
 		`CREATE DATABASE xbh_user`,
 		`CREATE TABLE xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY, granted TINYINT NOT NULL, consent_version INT NOT NULL)`,
-		`INSERT INTO xbh_user.agent_capability_consent VALUES (7, 1, 2)`,
+		`INSERT INTO xbh_user.agent_capability_consent VALUES (7, 1, 3)`,
 	} {
 		_, err := env.DB.ExecContext(ctx, query)
 		require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestSQLDeleteHistoryOutboxFailureRollsBack(t *testing.T) {
 	st := store.NewSQLStore(sqlx.NewSqlConnFromDB(env.DB))
 	accepted, err := (&Acceptor{Store: st}).Accept(ctx, AcceptInput{
 		UserID: 7, RequestID: "history-outbox-failure", Message: "private history",
-		ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2,
+		ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3,
 	})
 	require.NoError(t, err)
 	claimed, err := st.Claim(ctx, "history-worker", store.NowMs(), 60_000)

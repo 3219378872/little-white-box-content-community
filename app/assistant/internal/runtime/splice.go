@@ -81,10 +81,3 @@ func spliceColdSession(ctx context.Context, tx store.Store, memories memory.Stor
 	}
 	return session, nil
 }
-
-func spliceIfCold(ctx context.Context, tx store.Store, memories memory.Store, thread *store.Thread, session *store.Session, now int64) (*store.Session, error) {
-	if session == nil || thread == nil || thread.ActiveRunID > 0 || !isColdConversation(thread, now) {
-		return session, nil
-	}
-	return spliceColdSession(ctx, tx, memories, session)
-}

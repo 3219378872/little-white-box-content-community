@@ -59,7 +59,6 @@ CONSUMER_GROUPS=(
   recommend-feature-service-group
   behavior-log-service-group
   media-service-group
-  assistant-watch-matcher-group
   review-worker-group
   ad-decision-group
 )

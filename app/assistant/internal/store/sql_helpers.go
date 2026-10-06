@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"strings"
 )
 
@@ -53,20 +52,6 @@ func stringsToAny(values []string) []any {
 	for i, v := range values {
 		out[i] = v
 	}
-	return out
-}
-
-func mustJSON(v any) string {
-	raw, _ := json.Marshal(v)
-	return string(raw)
-}
-
-func decodeInt64s(raw []byte) []int64 {
-	if len(raw) == 0 {
-		return nil
-	}
-	var out []int64
-	_ = json.Unmarshal(raw, &out)
 	return out
 }
 

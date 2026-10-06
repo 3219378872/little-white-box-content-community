@@ -49,11 +49,11 @@ func SummaryInput(messages []store.Message, budgetTokens int) string {
 	return strings.Join(selected, "")
 }
 
-func ShouldCompact(messages []store.Message, windowTokens int, runID int64) bool {
-	return ShouldCompactWithAnchor(messages, windowTokens, runID, 0)
+func ShouldCompact(messages []store.Message, windowTokens int) bool {
+	return ShouldCompactWithAnchor(messages, windowTokens, 0)
 }
 
-func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, runID int64, lastPromptTokens int64) bool {
+func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, lastPromptTokens int64) bool {
 	if windowTokens <= 0 {
 		windowTokens = 128000
 	}
@@ -68,7 +68,7 @@ func ShouldCompactWithAnchor(messages []store.Message, windowTokens int, runID i
 	// A single oversized message (or a set of mandatory tool messages) cannot
 	// be reduced by another compact pass. Requiring at least one droppable
 	// message prevents the new prompt epoch from compacting forever.
-	selected := SelectKeep(live, maxInt(total/5, 1), unfinishedCallIDs(live), runID)
+	selected := SelectKeep(live, maxInt(total/5, 1), unfinishedCallIDs(live))
 	return len(selected) < len(live)
 }
 
@@ -98,7 +98,7 @@ func estimateStoredTokens(msg store.Message) int {
 	return EstimateTokens(msg.Content)
 }
 
-func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]struct{}, runID int64) []store.Message {
+func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]struct{}) []store.Message {
 	if keepTokens <= 0 {
 		keepTokens = 1
 	}
@@ -109,7 +109,7 @@ func SelectKeep(messages []store.Message, keepTokens int, unfinished map[string]
 		if msg.DeletedAtMs != 0 || msg.Compacted {
 			continue
 		}
-		force := messageHasUnfinishedCall(msg, unfinished) || messageIsLiveWatchInput(msg, runID)
+		force := messageHasUnfinishedCall(msg, unfinished)
 		cost := estimateStoredTokens(msg)
 		if !force && used+cost > keepTokens && len(kept) > 0 {
 			continue
@@ -163,47 +163,8 @@ func HistoryTurns(messages []store.Message) []prompt.Turn {
 	return out
 }
 
-func promptHistory(messages []store.Message, run store.Run) []prompt.Turn {
-	live := visibleForPrompt(messages)
-	if run.Source == store.SourceWatch {
-		live = placeWatchInput(live, run.ID)
-	}
-	return HistoryTurns(live)
-}
-
-func placeWatchInput(messages []store.Message, runID int64) []store.Message {
-	if runID <= 0 {
-		return messages
-	}
-	input := make([]store.Message, 0, 1)
-	rest := make([]store.Message, 0, len(messages))
-	for _, msg := range messages {
-		if msg.RunID == runID && msg.Kind == store.KindWatchInput {
-			input = append(input, msg)
-			continue
-		}
-		rest = append(rest, msg)
-	}
-	if len(input) == 0 {
-		return messages
-	}
-	out := make([]store.Message, 0, len(messages))
-	placed := false
-	for _, msg := range rest {
-		if !placed && msg.RunID == runID {
-			out = append(out, input...)
-			placed = true
-		}
-		out = append(out, msg)
-	}
-	if !placed {
-		out = append(out, input...)
-	}
-	return out
-}
-
-func messageIsLiveWatchInput(msg store.Message, runID int64) bool {
-	return runID > 0 && msg.RunID == runID && msg.Kind == store.KindWatchInput
+func promptHistory(messages []store.Message) []prompt.Turn {
+	return HistoryTurns(visibleForPrompt(messages))
 }
 
 func liveMessages(messages []store.Message) []store.Message {

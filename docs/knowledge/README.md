@@ -34,7 +34,6 @@ legacy_upstream:
 | 发现 | [发现](spec/SPEC-content-discovery.md) | [后端](design/DES-content-community-backend.md) | [发现](implementation/IMP-content-discovery.md) |
 | Agent | [Agent](spec/SPEC-assistant-agent.md) | [运行时](design/DES-assistant-agent-runtime.md)、[研究](design/DES-agent-community-research.md) | [Agent](implementation/IMP-assistant-agent.md) |
 | Memory | [Memory](spec/SPEC-agent-memory.md) | [运行时](design/DES-assistant-agent-runtime.md)、[治理](design/DES-agent-capability-governance.md) | [Memory](implementation/IMP-agent-memory.md) |
-| Watch | [Watch](spec/SPEC-agent-watch.md) | [运行时](design/DES-assistant-agent-runtime.md) | [Watch](implementation/IMP-agent-watch.md) |
 | 可靠性 | [可靠性](spec/SPEC-feedback-reliability.md) | [后端](design/DES-content-community-backend.md) | [可靠性](implementation/IMP-feedback-reliability.md) |
 | 审核 | [审核平台](spec/SPEC-review-platform.md) | [审核平台](design/DES-review-platform.md) | [审核](implementation/IMP-review-platform.md) |
 | 广告 | [广告投放](spec/SPEC-sponsored-ads.md) | [广告投放](design/DES-sponsored-ads.md) | [广告](implementation/IMP-sponsored-ads.md) |

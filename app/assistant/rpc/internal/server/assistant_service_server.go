@@ -62,18 +62,6 @@ func (s *AssistantServiceServer) BatchMemory(ctx context.Context, req *pb.BatchM
 func (s *AssistantServiceServer) UndoMemoryChange(ctx context.Context, req *pb.UndoMemoryChangeReq) (*pb.UndoMemoryChangeResp, error) {
 	return logic.NewUndoMemoryChangeLogic(ctx, s.svcCtx).UndoMemoryChange(req)
 }
-func (s *AssistantServiceServer) ListWatchTasks(ctx context.Context, req *pb.ListWatchTasksReq) (*pb.ListWatchTasksResp, error) {
-	return logic.NewListWatchTasksLogic(ctx, s.svcCtx).ListWatchTasks(req)
-}
-func (s *AssistantServiceServer) CreateWatchTask(ctx context.Context, req *pb.CreateWatchTaskReq) (*pb.CreateWatchTaskResp, error) {
-	return logic.NewCreateWatchTaskLogic(ctx, s.svcCtx).CreateWatchTask(req)
-}
-func (s *AssistantServiceServer) UpdateWatchTask(ctx context.Context, req *pb.UpdateWatchTaskReq) (*pb.UpdateWatchTaskResp, error) {
-	return logic.NewUpdateWatchTaskLogic(ctx, s.svcCtx).UpdateWatchTask(req)
-}
-func (s *AssistantServiceServer) DeleteWatchTask(ctx context.Context, req *pb.DeleteWatchTaskReq) (*pb.DeleteWatchTaskResp, error) {
-	return logic.NewDeleteWatchTaskLogic(ctx, s.svcCtx).DeleteWatchTask(req)
-}
 func (s *AssistantServiceServer) SubmitRecommendFeedback(ctx context.Context, req *pb.SubmitRecommendFeedbackReq) (*pb.SubmitRecommendFeedbackResp, error) {
 	return logic.NewSubmitRecommendFeedbackLogic(ctx, s.svcCtx).SubmitRecommendFeedback(req)
 }

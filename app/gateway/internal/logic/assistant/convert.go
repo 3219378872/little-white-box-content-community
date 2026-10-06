@@ -40,16 +40,6 @@ func mapMemory(in *assistantservice.MemoryEntry) types.AssistantMemoryEntry {
 	}
 }
 
-func mapWatch(in *assistantservice.WatchTask) types.AssistantWatchTask {
-	if in == nil {
-		return types.AssistantWatchTask{}
-	}
-	return types.AssistantWatchTask{
-		Id: in.Id, ConditionType: in.ConditionType, TargetType: in.TargetType, TargetId: in.TargetId,
-		TargetText: in.TargetText, Enabled: in.Enabled, Version: in.Version, CreatedAt: in.CreatedAt,
-	}
-}
-
 func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 	if in == nil {
 		return nil

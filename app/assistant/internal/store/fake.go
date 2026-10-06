@@ -24,11 +24,6 @@ type MemoryStore struct {
 	queue         map[int64][]QueueItem
 	alerts        map[string]Alert
 	outbox        []Outbox
-	buckets       map[int64]DeliveryBucket
-	bucketByKey   map[string]int64
-	sent          map[string]int
-	reserved      map[string]int
-	reservations  map[int64]map[string]struct{}
 	claimFail     bool
 	consents      map[int64]int32
 	evidence      map[string]Evidence
@@ -51,11 +46,6 @@ func NewMemoryStore() *MemoryStore {
 		inputCommands: map[string]InputCommand{},
 		queue:         map[int64][]QueueItem{},
 		alerts:        map[string]Alert{},
-		buckets:       map[int64]DeliveryBucket{},
-		bucketByKey:   map[string]int64{},
-		sent:          map[string]int{},
-		reserved:      map[string]int{},
-		reservations:  map[int64]map[string]struct{}{},
 		consents:      map[int64]int32{},
 		evidence:      map[string]Evidence{},
 		questions:     map[string]QuestionRequest{},

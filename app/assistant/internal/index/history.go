@@ -353,7 +353,7 @@ func historyMessageEligible(message store.Message, cutoff int64, live map[int64]
 	if message.Role != store.RoleUser && message.Role != store.RoleAssistant {
 		return false
 	}
-	if message.Kind != store.KindMessage && message.Kind != store.KindWatch {
+	if message.Kind != store.KindMessage {
 		return false
 	}
 	_, excluded := live[message.ID]

@@ -4,7 +4,7 @@ layer: evidence
 title: 后端隐私、一致性与订阅错误修复验证
 status: active
 owner: agent
-updated_at: '2026-09-25'
+updated_at: 2026-10-06
 scope:
 - static
 - unit
@@ -263,40 +263,6 @@ coverage:
   - scripts/integration-test.sh
   - scripts/_lib.sh
 - requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - pkg/interceptor
-  - pkg/jwtx
-  - pkg/testutil
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
-  - go.mod
-  - go.sum
-  - Makefile
-  - scripts/test.sh
-  - scripts/integration-test.sh
-  - scripts/_lib.sh
-- requirements:
   - REL-001
   - REL-002
   - REL-003
@@ -368,6 +334,8 @@ coverage:
 ---
 
 # 后端隐私、一致性与订阅错误修复验证
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 全部命令在页头固定实现提交执行；本页及 IMP 引用随后提交。格式、vet、lint、govulncheck、
 规格评测器与 Python 工具均通过。全模块 race 为 1790 个测试/子测试通过、195 个有测试包通过，

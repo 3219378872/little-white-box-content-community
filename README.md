@@ -17,10 +17,10 @@
 | 社区 | 账户与公开资料、关注关系、帖子草稿与发布、媒体、评论、点赞与收藏 |
 | 发现 | 关注流、帖子/用户/标签搜索、个性化与冷启动推荐、行为反馈 |
 | 消息 | 普通用户的一对一私信，与 Assistant 虚拟线程保持独立数据边界 |
-| Assistant | 授权后的持久任务、结构化澄清、社区优先研究、来源验证、自然语言记忆及 Watch 条件追踪 |
+| Assistant | 授权后的持久任务、结构化澄清、社区优先研究、来源验证与自然语言记忆 |
 | 广告 | 广告主与行业资质、广告 revision 与私有素材、推荐流广告槽位与频控、举报、申诉与投后回扫 |
 | 审核 | 按业务类型接入的送审快照、机审级联（指纹、硬规则、召回、精排）、领取制人审、质检、种子库与审计 |
-| 异步处理 | 事务 outbox、索引与 embedding 更新、Feed 分发、计数同步、清理、Watch 匹配、审核送审与结论下发和行为日志管道 |
+| 异步处理 | 事务 outbox、索引与 embedding 更新、Feed 分发、计数同步、清理、审核送审与结论下发和行为日志管道 |
 
 审核平台首批只接入广告主资质与广告素材，社区帖子、评论与私信不经过它。政策码与阈值是演示配置，
 机审精排目前是可辨识的占位实现；竞价、计费与结算不在范围内。
@@ -38,9 +38,8 @@ flowchart TD
     gateway -->|RPC| ads["Ad / Review RPC"]
     services --> data["MySQL / Redis / 搜索与对象存储"]
     services -->|事务 outbox 投递| mq["RocketMQ"]
-    mq --> consumers["索引 / Feed / 计数 / Watch / 机审与结论应用等消费者"]
+    mq --> consumers["索引 / Feed / 计数 / 机审与结论应用等消费者"]
     assistant --> state["Assistant MySQL 权威状态"]
-    consumers -->|Watch 命中与调度| state
     state -->|worker 通过 lease 领取任务| worker["Assistant Agent worker"]
     worker --> tools["社区工具 / 模型 / 外部检索"]
     ads -->|送审与结论 outbox| mq
@@ -48,7 +47,7 @@ flowchart TD
 
 Gateway 负责 HTTP 入口、鉴权与 RPC 编排，内部 RPC 使用 Kitex（gRPC HTTP/2） 与 etcd 服务发现。
 Assistant RPC 接收命令并读取状态；模型与工具循环由独立 worker 执行，任务状态持久化到 MySQL，
-不依赖浏览器持续在线。Watch matcher 处理事件命中与任务调度，不承担模型执行。
+不依赖浏览器持续在线。
 广告与审核各有独立权威库：ad-rpc 写广告快照并经 outbox 送审，review-worker 建任务并跑机审级联，
 自动或人工结论再经 outbox 下发，由 ad-mq 按 revision 应用并维护投放索引。Gateway 只在推荐请求声明
 `adSlots` 时并行查询广告槽位，失败即降级为不含广告。

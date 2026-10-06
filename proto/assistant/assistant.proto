@@ -23,11 +23,6 @@ service AssistantService {
   rpc BatchMemory(BatchMemoryReq) returns (BatchMemoryResp);
   rpc UndoMemoryChange(UndoMemoryChangeReq) returns (UndoMemoryChangeResp);
 
-  rpc ListWatchTasks(ListWatchTasksReq) returns (ListWatchTasksResp);
-  rpc CreateWatchTask(CreateWatchTaskReq) returns (CreateWatchTaskResp);
-  rpc UpdateWatchTask(UpdateWatchTaskReq) returns (UpdateWatchTaskResp);
-  rpc DeleteWatchTask(DeleteWatchTaskReq) returns (DeleteWatchTaskResp);
-
   rpc SubmitRecommendFeedback(SubmitRecommendFeedbackReq) returns (SubmitRecommendFeedbackResp);
 }
 
@@ -272,56 +267,6 @@ message UndoMemoryChangeReq {
 message UndoMemoryChangeResp {
   MemoryEntry entry = 1;
 }
-
-message WatchTask {
-  int64 id = 1;
-  string condition_type = 2;
-  string target_type = 3;
-  int64 target_id = 4;
-  string target_text = 5;
-  bool enabled = 6;
-  int32 version = 7;
-  int64 created_at = 8;
-}
-
-message ListWatchTasksReq {
-  int64 user_id = 1;
-}
-
-message ListWatchTasksResp {
-  repeated WatchTask tasks = 1;
-}
-
-message CreateWatchTaskReq {
-  int64 user_id = 1;
-  string condition_type = 2;
-  string target_type = 3;
-  int64 target_id = 4;
-  string target_text = 5;
-}
-
-message CreateWatchTaskResp {
-  WatchTask task = 1;
-}
-
-message UpdateWatchTaskReq {
-  int64 user_id = 1;
-  int64 id = 2;
-  bool enabled = 3;
-  int32 expected_version = 4;
-}
-
-message UpdateWatchTaskResp {
-  WatchTask task = 1;
-}
-
-message DeleteWatchTaskReq {
-  int64 user_id = 1;
-  int64 id = 2;
-  int32 expected_version = 3;
-}
-
-message DeleteWatchTaskResp {}
 
 message SubmitRecommendFeedbackReq {
   int64 user_id = 1;

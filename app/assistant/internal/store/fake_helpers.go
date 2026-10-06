@@ -36,12 +36,6 @@ func alertKey(runID int64, level, dim string) string {
 	return itoa(runID) + ":" + level + ":" + dim
 }
 
-func bucketKey(userID, window int64) string { return itoa(userID) + ":" + itoa(window) }
-
-func sentKey(userID, taskID int64, kind string, start int64) string {
-	return itoa(userID) + ":" + itoa(taskID) + ":" + kind + ":" + itoa(start)
-}
-
 func itoa(v int64) string {
 	raw, _ := json.Marshal(v)
 	return string(raw)

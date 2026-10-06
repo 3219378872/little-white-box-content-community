@@ -23,7 +23,7 @@ func TestMemoryReviewWritesUndoableMemoryChangedMessage(t *testing.T) {
 	}
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 7, SessionID: session.ID, RequestID: "review-1", Source: store.SourceMemoryReview,
-		Status: store.StatusQueued, Phase: store.PhaseModelRequest, ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1,
+		Status: store.StatusQueued, Phase: store.PhaseModelRequest, ConsentVersion: 3, InputVersion: 1, CreatedAtMs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

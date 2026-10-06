@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 
+	"esx/app/assistant/internal/consent"
 	sqlx "esx/pkg/sqlstore"
 )
 
@@ -198,7 +199,7 @@ func (m *MemoryStore) AgentConsent(_ context.Context, userID int64) (int32, bool
 	defer m.mu.Unlock()
 	version, ok := m.consents[userID]
 	if !ok {
-		return 2, true, nil
+		return consent.CurrentVersion, true, nil
 	}
 	return version, version > 0, nil
 }

@@ -53,7 +53,7 @@ const (
 	AgentResourceLimit = 6002
 	AgentQueueFull     = 6003
 	AgentRunConflict   = 6004
-	CannotWatchSelf    = 6005
+	// 6005 曾为 CannotWatchSelf，随 Watch 退役后保留不复用。
 
 	// 审核平台与付费广告错误码 7000-7999（SPEC-review-platform、SPEC-sponsored-ads）
 	ReviewLeaseLost         = 7001
@@ -115,7 +115,6 @@ var codeMsg = map[int]string{
 	AgentResourceLimit: "Agent 资源预算已耗尽",
 	AgentQueueFull:     "Agent 输入队列已满",
 	AgentRunConflict:   "Agent 运行状态冲突",
-	CannotWatchSelf:    "不能关注自己的动态",
 
 	ReviewLeaseLost:         "审核任务持有已失效",
 	ReviewTaskSuperseded:    "审核任务已作废",

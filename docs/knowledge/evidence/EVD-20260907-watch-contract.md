@@ -4,7 +4,7 @@ layer: evidence
 title: Watch 工具边界维护与共享输入复验
 status: active
 owner: agent
-updated_at: 2026-09-07
+updated_at: 2026-10-06
 scope:
 - static
 - unit
@@ -79,31 +79,6 @@ coverage:
   - deploy/sql/patches/20260905_agent_research.sql
   - scripts/spec_evals.py
   - eval/dev/assistant_cases.synthetic.json
-- requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
 - requirements:
   - MEM-001
   - MEM-002
@@ -189,6 +164,8 @@ coverage:
 ---
 
 # Watch 工具边界维护与共享输入复验
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 上述命令均在 `observed_commit` 上返回 0，验证结束工作树为空。知识与工程规则测试为 40+11 项，
 `go vet` 与 `golangci-lint` 通过（0 issues）；全模块测试使用 `-race -cover -count=1`。规格评测工具

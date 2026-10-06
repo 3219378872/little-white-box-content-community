@@ -93,7 +93,7 @@ func (s *SQLStore) ListHistorySessionSummaries(ctx context.Context, userID, sess
 
 func historyWhere(userID, cutoffMs int64, excludeIDs []int64) (string, []any) {
 	where := `user_id=? AND deleted_at_ms IS NULL AND visible=1
-		AND role IN ('user','assistant') AND kind IN ('message','watch') AND created_at_ms>=?`
+		AND role IN ('user','assistant') AND kind='message' AND created_at_ms>=?`
 	args := []any{userID, cutoffMs}
 	if len(excludeIDs) > 0 {
 		where += ` AND id NOT IN (` + placeholders(len(excludeIDs)) + `)`
@@ -119,7 +119,7 @@ func historyMessageEligible(message Message, userID, cutoffMs int64, excluded ma
 	if message.Role != RoleUser && message.Role != RoleAssistant {
 		return false
 	}
-	if message.Kind != KindMessage && message.Kind != KindWatch {
+	if message.Kind != KindMessage {
 		return false
 	}
 	_, blocked := excluded[message.ID]

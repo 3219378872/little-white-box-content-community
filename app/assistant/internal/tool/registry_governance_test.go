@@ -115,7 +115,7 @@ func TestFrozenDefinitionsIgnoreRegistryChangesButExecutionRechecksPolicy(t *tes
 	frozen := registry.ResolveDefinitions(definitions)
 
 	current := registry.metadata[GetMemory]
-	current.Sources = []string{store.SourceWatch}
+	current.Sources = []string{store.SourceMemoryReview}
 	current.Confirmation = false
 	current.Effect = EffectRead
 	registry.metadata[GetMemory] = current

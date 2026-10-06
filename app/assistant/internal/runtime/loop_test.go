@@ -196,7 +196,7 @@ func mustStartRun(t *testing.T, mem *store.MemoryStore, text string) (store.Sess
 	run, err := mem.InsertRun(ctx, store.Run{
 		UserID: 1, SessionID: session.ID, RequestID: "r1", Source: store.SourceUser,
 		Status: store.StatusQueued, Phase: store.PhaseModelRequest, QueuedPayload: payload,
-		ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1,
+		ConsentVersion: 3, InputVersion: 1, CreatedAtMs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

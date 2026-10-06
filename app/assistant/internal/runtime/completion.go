@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sort"
 
 	"esx/app/assistant/internal/llm"
@@ -15,9 +14,6 @@ import (
 func (e *Engine) completeModelText(ctx context.Context, run store.Run, result llm.Result) error {
 	text := result.Text
 	switch run.Source {
-	case store.SourceWatch:
-		return e.completeWatchWithStream(ctx, run, text,
-			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
 	case store.SourceMemoryReview:
 		return e.completeMemoryReview(ctx, run)
 	default:
@@ -25,71 +21,6 @@ func (e *Engine) completeModelText(ctx context.Context, run store.Run, result ll
 			store.EventPayload{Text: text, StreamID: result.StreamID}, text,
 			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
 	}
-}
-
-func (e *Engine) completeWatchWithStream(ctx context.Context, run store.Run, text string, apiContent []byte, emitToken bool, streamID string) error {
-	payload := decodeWatchRunPayload(run.QueuedPayload)
-	if payload.BucketID <= 0 {
-		return e.fail(ctx, run, "WATCH_BUCKET_MISSING", "watch delivery bucket is missing")
-	}
-	if _, err := e.currentWatchHits(ctx, run, payload); err != nil {
-		if !emitToken && streamID != "" {
-			if _, resetErr := e.appendEvent(ctx, run, store.EventResponseReset, store.EventPayload{StreamID: streamID}); resetErr != nil {
-				return resetErr
-			}
-		}
-		if errors.Is(err, errNoVisibleWatchHits) {
-			return e.dismissWatchRun(ctx, run)
-		}
-		return err
-	}
-	now := store.NowMs()
-	err := e.step(ctx, run, func(ctx context.Context, tx store.Store) error {
-		cancelled, err := runCancellationRequested(ctx, tx, run.ID)
-		if err != nil {
-			return err
-		}
-		if cancelled {
-			return errRunCancelled
-		}
-		if text != "" && emitToken {
-			if _, err := appendEventTx(ctx, tx, run, store.EventToken, store.EventPayload{Text: text, StreamID: streamID}, now); err != nil {
-				return err
-			}
-		}
-		msg, err := tx.InsertMessage(ctx, store.Message{
-			UserID: run.UserID, SessionID: run.SessionID, RunID: run.ID, Role: store.RoleAssistant,
-			Kind: store.KindWatch, Content: text, APIContent: apiContent, Visible: true, Unread: true, CreatedAtMs: now,
-		})
-		if err != nil {
-			return err
-		}
-		if err := insertMessageOutbox(ctx, tx, msg); err != nil {
-			return err
-		}
-		thread, err := tx.LockThread(ctx, run.UserID)
-		if err != nil {
-			return err
-		}
-		thread.UnreadCount++
-		thread.LastMessageID = msg.ID
-		thread.LastMessagePreview = store.Preview(text, 80)
-		thread.LastMessageAtMs = now
-		thread.UpdatedAtMs = now
-		if err := tx.SaveThread(ctx, *thread); err != nil {
-			return err
-		}
-		if err := tx.FinishWatchDelivery(ctx, payload.BucketID, run.UserID, run.ID, store.StatusDone, now); err != nil {
-			return err
-		}
-		_, finishErr := finishRunTx(ctx, tx, run, store.StatusDone, store.EventDone, store.EventPayload{Text: text, StreamID: streamID}, now)
-		return finishErr
-	})
-	if err != nil {
-		return err
-	}
-	e.wake(ctx, run.ID)
-	return nil
 }
 
 func (e *Engine) completeMemoryReview(ctx context.Context, run store.Run) error {
@@ -142,14 +73,6 @@ func publishMemoryChanges(ctx context.Context, tx store.Store, run store.Run, th
 		}
 	}
 	return nil
-}
-
-func runCancellationRequested(ctx context.Context, tx store.Store, runID int64) (bool, error) {
-	fresh, err := tx.GetRun(ctx, runID)
-	if err != nil {
-		return false, err
-	}
-	return fresh.CancelRequested, nil
 }
 
 func memoryChangeIDs(ctx context.Context, st store.Store, runID int64) ([]int64, error) {

@@ -48,7 +48,7 @@ func TestSQLModelResultAndAcceptanceLockOrders(t *testing.T) {
 	t.Cleanup(env.Close)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	for _, q := range []string{`CREATE DATABASE xbh_user`, `CREATE TABLE xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY, granted TINYINT NOT NULL, consent_version INT NOT NULL)`, `INSERT INTO xbh_user.agent_capability_consent VALUES (1,1,2),(2,1,2),(3,1,2)`} {
+	for _, q := range []string{`CREATE DATABASE xbh_user`, `CREATE TABLE xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY, granted TINYINT NOT NULL, consent_version INT NOT NULL)`, `INSERT INTO xbh_user.agent_capability_consent VALUES (1,1,3),(2,1,3),(3,1,3)`} {
 		if _, err := env.DB.ExecContext(ctx, q); err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func TestSQLModelResultAndAcceptanceLockOrders(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			userID := int64(i + 1)
 			accept := &Acceptor{Store: st}
-			_, err := accept.Accept(ctx, AcceptInput{UserID: userID, RequestID: "original", Message: "original", ConsentOK: true, ConsentVersion: 2})
+			_, err := accept.Accept(ctx, AcceptInput{UserID: userID, RequestID: "original", Message: "original", ConsentOK: true, ConsentVersion: 3})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,7 +90,7 @@ func TestSQLModelResultAndAcceptanceLockOrders(t *testing.T) {
 			}
 			accepted := make(chan result, 1)
 			go func() {
-				out, err := (&Acceptor{Store: wrapper}).Accept(ctx, AcceptInput{UserID: userID, RequestID: "new", Message: "new input", ConsentOK: true, ConsentVersion: 2})
+				out, err := (&Acceptor{Store: wrapper}).Accept(ctx, AcceptInput{UserID: userID, RequestID: "new", Message: "new input", ConsentOK: true, ConsentVersion: 3})
 				accepted <- result{out, err}
 			}()
 			select {

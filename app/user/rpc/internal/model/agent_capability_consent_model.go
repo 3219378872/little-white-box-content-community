@@ -14,7 +14,7 @@ var ErrAgentCapabilityConsentNotFound = errors.New("agent capability consent not
 
 // AgentCapabilityConsent 是用户对 Assistant Agent 模式的授权记录（AGNT-004/006）。
 // CurrentAgentConsentVersion 是服务端当前披露版本（AGNT-007）。
-const CurrentAgentConsentVersion int32 = 2
+const CurrentAgentConsentVersion int32 = 3
 
 type AgentCapabilityConsent struct {
 	UserID         int64

@@ -4,7 +4,7 @@ layer: evidence
 title: 后端职责拆分与本地回归验证
 status: active
 owner: agent
-updated_at: '2026-09-07'
+updated_at: 2026-10-06
 scope:
 - static
 - unit
@@ -80,33 +80,6 @@ coverage:
   - deploy/sql/patches/20260905_agent_research.sql
   - scripts/spec_evals.py
   - eval/dev/assistant_cases.synthetic.json
-  - go.mod
-  - go.sum
-- requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
   - go.mod
   - go.sum
 - requirements:
@@ -301,6 +274,8 @@ coverage:
 ---
 
 # 后端职责拆分与本地回归验证
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 上述命令在 observed_commit 上全部返回 0。全模块单测使用 race 与包级覆盖率；golangci-lint 为
 0 issues，govulncheck 无可达漏洞（仍报告未被调用的间接包/模块漏洞，不据此声明依赖全部无漏洞）。

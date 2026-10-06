@@ -16,10 +16,8 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/app/assistant/internal/websearch"
-	"esx/app/assistant/watch"
 	"esx/app/assistant/worker/internal/config"
 	"esx/app/content/rpc/contentservice"
-	contentvisibility "esx/app/content/visibility"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
 	"esx/app/recommend/rpc/recommendservice"
@@ -32,17 +30,14 @@ import (
 )
 
 type ServiceContext struct {
-	Config     config.Config
-	Store      store.Store
-	Memory     memory.Store
-	Watch      watch.Store
-	Lease      *lease.Manager
-	Engine     *runtime.Engine
-	Index      *index.Client
-	LLM        llm.Client
-	Consent    runtime.ConsentChecker
-	WatchPosts runtime.WatchPostVisibility
-	Retention  *retention.Cleaner
+	Config    config.Config
+	Store     store.Store
+	Memory    memory.Store
+	Lease     *lease.Manager
+	Engine    *runtime.Engine
+	Index     *index.Client
+	LLM       llm.Client
+	Retention *retention.Cleaner
 }
 
 func NewServiceContext(c config.Config) (*ServiceContext, error) {
@@ -73,18 +68,6 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		safetyFilter = filter
 	}
 	mem := memory.NewSQLStore(conn, safetyFilter)
-	watchStore := watch.NewSQLStore(conn)
-	watchPosts := func(ctx context.Context, _ int64, postIDs []int64) (map[int64]bool, error) {
-		published, err := contentvisibility.PublishedByIDs(ctx, contentService, postIDs)
-		if err != nil {
-			return nil, err
-		}
-		visible := make(map[int64]bool, len(published))
-		for postID := range published {
-			visible[postID] = true
-		}
-		return visible, nil
-	}
 	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 	notify := store.NewRedisNotifier(redisClient)
 
@@ -117,7 +100,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	}
 	registry, err := tool.NewRegistry(tool.Clients{
 		Search: searchService, Content: contentService, Media: mediaService, Recommend: recommendService,
-		Interaction: interactionService, User: userService, Memory: mem, Watch: watchStore, Store: st, History: historyTool,
+		Interaction: interactionService, User: userService, Memory: mem, Store: st, History: historyTool,
 		Web: websearch.New(websearch.Config{
 			APIKey: c.WebSearch.APIKey, Endpoint: c.WebSearch.Endpoint,
 			Timeout: time.Duration(c.WebSearch.TimeoutMs) * time.Millisecond, MaxResults: c.WebSearch.MaxResults,
@@ -127,21 +110,14 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 	engine := &runtime.Engine{
-		Store: st, Memory: mem, Watch: watchStore, Tools: registry, LLM: client, AuxLLM: auxClient, ReviewLLM: reviewClient, Notify: notify,
-		WatchPosts: watchPosts, Window: c.LLM.ContextWindowTokens, Provider: c.LLM.MaxOutputTokens,
+		Store: st, Memory: mem, Tools: registry, LLM: client, AuxLLM: auxClient, ReviewLLM: reviewClient, Notify: notify,
+		Window: c.LLM.ContextWindowTokens, Provider: c.LLM.MaxOutputTokens,
 	}
 	return &ServiceContext{
-		Config: c, Store: st, Memory: mem, Watch: watchStore,
+		Config: c, Store: st, Memory: mem,
 		Lease:  &lease.Manager{Store: st, Owner: lease.NewOwner(c.Name), Lease: time.Duration(c.LeaseSeconds) * time.Second, Renew: time.Duration(c.RenewSeconds) * time.Second},
-		Engine: engine, Index: history, LLM: client, WatchPosts: watchPosts,
+		Engine: engine, Index: history, LLM: client,
 		Retention: retention.New(st),
-		Consent: func(ctx context.Context, userID int64) (bool, error) {
-			consent, err := userService.GetAgentCapabilityConsent(ctx, &userservice.GetAgentCapabilityConsentReq{UserId: userID})
-			if err != nil {
-				return false, err
-			}
-			return currentConsentGranted(consent), nil
-		},
 	}, nil
 }
 
@@ -223,17 +199,6 @@ func runLLMCanary(timeout time.Duration, client llm.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return llm.Canary(ctx, client)
-}
-
-func currentConsentGranted(consent *userservice.GetAgentCapabilityConsentResp) bool {
-	if consent == nil || !consent.Granted {
-		return false
-	}
-	requiredVersion := consent.CurrentVersion
-	if requiredVersion < tool.CurrentConsentVersion {
-		requiredVersion = tool.CurrentConsentVersion
-	}
-	return consent.ConsentVersion >= requiredVersion
 }
 
 func checkConfiguredRoutes(c config.LLMConfig, client llm.Client, routeIDs []string, auxClient, reviewClient llm.Client) error {

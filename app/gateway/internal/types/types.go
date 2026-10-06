@@ -318,17 +318,6 @@ type AssistantToolCallInfo struct {
 	PayloadJson string `json:"payloadJson,optional"`
 }
 
-type AssistantWatchTask struct {
-	Id            int64  `json:"id"`
-	ConditionType string `json:"conditionType"`
-	TargetType    string `json:"targetType"`
-	TargetId      int64  `json:"targetId"`
-	TargetText    string `json:"targetText"`
-	Enabled       bool   `json:"enabled"`
-	Version       int32  `json:"version"`
-	CreatedAt     int64  `json:"createdAt"`
-}
-
 type BatchAssistantMemoryReq struct {
 	RequestId string              `json:"requestId,optional"`
 	Ops       []AssistantMemoryOp `json:"ops"`
@@ -419,17 +408,6 @@ type CreateAdReq struct {
 	IdempotencyKey string  `json:"idempotencyKey,optional"`
 }
 
-type CreateAssistantWatchReq struct {
-	ConditionType string `json:"conditionType"`
-	TargetType    string `json:"targetType"`
-	TargetId      int64  `json:"targetId,optional"`
-	TargetText    string `json:"targetText,optional"`
-}
-
-type CreateAssistantWatchResp struct {
-	Task AssistantWatchTask `json:"task"`
-}
-
 type CreateCommentReq struct {
 	PostId         int64  `json:"postId"`
 	ParentId       int64  `json:"parentId,optional"`
@@ -459,14 +437,6 @@ type CreatePostResp struct {
 }
 
 type DeleteAssistantHistoryResp struct {
-}
-
-type DeleteAssistantWatchReq struct {
-	Id              int64 `path:"id"`
-	ExpectedVersion int32 `json:"expectedVersion"`
-}
-
-type DeleteAssistantWatchResp struct {
 }
 
 type DeleteCommentReq struct {
@@ -780,13 +750,6 @@ type ListAssistantMessagesResp struct {
 	Messages     []AssistantMessage `json:"messages"`
 	HasMore      bool               `json:"hasMore"`
 	NextBeforeId int64              `json:"nextBeforeId,optional"`
-}
-
-type ListAssistantWatchReq struct {
-}
-
-type ListAssistantWatchResp struct {
-	Tasks []AssistantWatchTask `json:"tasks"`
 }
 
 type ListReviewSeedsReq struct {
@@ -1238,16 +1201,6 @@ type UpdateAdReq struct {
 	StartMs          int64   `json:"startMs,optional"`
 	EndMs            int64   `json:"endMs,optional"`
 	IdempotencyKey   string  `json:"idempotencyKey,optional"`
-}
-
-type UpdateAssistantWatchReq struct {
-	Id              int64 `path:"id"`
-	Enabled         bool  `json:"enabled"`
-	ExpectedVersion int32 `json:"expectedVersion"`
-}
-
-type UpdateAssistantWatchResp struct {
-	Task AssistantWatchTask `json:"task"`
 }
 
 type UpdatePostResp struct {

@@ -11,7 +11,7 @@ func TestLeaseGenerationFencesRecoveredWorkerWrites(t *testing.T) {
 	mem := NewMemoryStore()
 	run, err := mem.InsertRun(ctx, Run{
 		UserID: 1, SessionID: 1, RequestID: "r1", Source: SourceUser,
-		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 2, InputVersion: 1, CreatedAtMs: 1,
+		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 3, InputVersion: 1, CreatedAtMs: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

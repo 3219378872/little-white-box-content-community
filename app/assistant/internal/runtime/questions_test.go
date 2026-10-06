@@ -20,7 +20,7 @@ func questionRun(t *testing.T) (*store.MemoryStore, *Engine, store.Run, *scripte
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	accept := &Acceptor{Store: mem}
-	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "帮我比较方案", RequestID: "question-test", ConsentOK: true, ConsentVersion: 2, ClientProtocolVersion: 2})
+	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "帮我比较方案", RequestID: "question-test", ConsentOK: true, ConsentVersion: 3, ClientProtocolVersion: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestModernInputRetryRejectsChangedContext(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	accept := &Acceptor{Store: mem}
-	input := AcceptInput{UserID: 1, Message: "问题", RequestID: "modern-retry", ConsentOK: true, ConsentVersion: 2, ClientProtocolVersion: 2}
+	input := AcceptInput{UserID: 1, Message: "问题", RequestID: "modern-retry", ConsentOK: true, ConsentVersion: 3, ClientProtocolVersion: 2}
 	first, err := accept.Accept(ctx, input)
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestInteractiveRoundRejectsCompanionTools(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	accept := &Acceptor{Store: mem}
-	_, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "问题", RequestID: "exclusive", ConsentOK: true, ConsentVersion: 2, ClientProtocolVersion: 2})
+	_, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "问题", RequestID: "exclusive", ConsentOK: true, ConsentVersion: 3, ClientProtocolVersion: 2})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -59,12 +59,12 @@ func TestSQLExecuteKeepsClaimFenceAfterTakeover(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			userID := int64(index + 1)
-			if _, err := env.DB.ExecContext(ctx, `INSERT INTO xbh_user.agent_capability_consent VALUES (?, 1, 2)`, userID); err != nil {
+			if _, err := env.DB.ExecContext(ctx, `INSERT INTO xbh_user.agent_capability_consent VALUES (?, 1, 3)`, userID); err != nil {
 				t.Fatal(err)
 			}
 			accepted, err := (&Acceptor{Store: st}).Accept(ctx, AcceptInput{
 				UserID: userID, RequestID: tc.name, Message: "lease ownership test",
-				ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2,
+				ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3,
 			})
 			if err != nil {
 				t.Fatal(err)

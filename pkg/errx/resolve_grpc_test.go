@@ -35,7 +35,6 @@ func TestBizError_GRPCCode(t *testing.T) {
 		{"TitleEmpty maps to InvalidArgument", TitleEmpty, codes.InvalidArgument},
 		{"FileTooLarge maps to InvalidArgument", FileTooLarge, codes.InvalidArgument},
 		{"CannotFollowSelf maps to InvalidArgument", CannotFollowSelf, codes.InvalidArgument},
-		{"CannotWatchSelf maps to InvalidArgument", CannotWatchSelf, codes.InvalidArgument},
 		{"PasswordError maps to Unauthenticated", PasswordError, codes.Unauthenticated},
 		{"VerifyCodeError maps to InvalidArgument", VerifyCodeError, codes.InvalidArgument},
 		{"VerifyCodeExpired maps to InvalidArgument", VerifyCodeExpired, codes.InvalidArgument},

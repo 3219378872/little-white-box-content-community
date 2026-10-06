@@ -7,11 +7,8 @@ import (
 	"esx/app/assistant/internal/runtime"
 	"esx/app/assistant/internal/safety"
 	"esx/app/assistant/internal/store"
-	"esx/app/assistant/internal/tool"
 	"esx/app/assistant/rpc/internal/config"
-	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
-	"esx/app/search/rpc/searchservice"
 	"esx/app/user/rpc/userservice"
 
 	redis "esx/pkg/redisstore"
@@ -24,11 +21,9 @@ type ServiceContext struct {
 	Store          store.Store
 	Notify         store.Notifier
 	Memory         memory.Store
-	Watch          watch.Store
 	Safety         safety.Filter
 	Acceptor       *runtime.Acceptor
 	ContentService contentservice.ContentService
-	SearchService  searchservice.SearchService
 	UserService    userservice.UserService
 }
 
@@ -41,18 +36,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			internalAuthOption,
 		)
 	}
-	searchService := searchservice.NewSearchService(newClient(c.SearchRpc))
 	contentService := contentservice.NewContentService(newClient(c.ContentRpc))
 	userService := userservice.NewUserService(newClient(c.UserRpc))
 
 	var st store.Store
 	var mem memory.Store
-	var watchStore watch.Store
 	if strings.TrimSpace(c.DataSource) != "" {
 		// Assistant SQL parameters contain prompts and tool payloads (REL-022).
 		conn := sqlx.NewMysql(c.DataSource)
 		st = store.NewSQLStore(conn)
-		watchStore = watch.NewSQLStore(conn)
 		var filter safety.Filter
 		if c.Safety.Enabled {
 			f, err := safety.NewKeywordFilter(c.Safety.BlockedTerms, c.Safety.MaxScanRunes)
@@ -76,19 +68,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Store:          st,
 		Notify:         notify,
 		Memory:         mem,
-		Watch:          watchStore,
 		Safety:         safetyFilter,
 		Acceptor:       &runtime.Acceptor{Store: st, Memory: mem, Notify: notify, MaxRunes: c.MaxMessageRunes},
 		ContentService: contentService,
-		SearchService:  searchService,
 		UserService:    userService,
 	}
-}
-
-func (s *ServiceContext) WatchLookups() tool.Clients {
-	return tool.Clients{Search: s.SearchService, Content: s.ContentService, User: s.UserService, Watch: s.Watch}
-}
-
-func (s *ServiceContext) WatchMutations() watch.Store {
-	return watch.WithConsent(s.Watch, s.Store)
 }

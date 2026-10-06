@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-10-01
+updated_at: 2026-10-06
 ---
 
 # 行为闭环与服务可靠性规范
@@ -50,9 +50,9 @@ updated_at: 2026-10-01
 ## 隐私、保留与个性化控制
 
 - `REL-020`：原始行为保留 90 天，推荐在线特征保留 30 天，去重记录保留 90 天，死信保留 7 天，
-  去标识聚合结果最长保留 365 天；Assistant 原始消息保留 365 天，Watch 内部 hit/execution 保留
-  90 天；广告审核任务、快照、结论与审计记录保留至对象最后一次投放或最后一次结论后 365 天（取较晚者），
-  广告主资质证件在资质失效或撤销后 90 天删除。到期数据必须自动删除并传播到派生索引。
+  去标识聚合结果最长保留 365 天；Assistant 原始消息保留 365 天；广告审核任务、快照、结论与审计
+  记录保留至对象最后一次投放或最后一次结论后 365 天（取较晚者），广告主资质证件在资质失效或撤销
+  后 90 天删除。到期数据必须自动删除并传播到派生索引。
 - `REL-021`：完整客户端 IP 不得写入行为分析表；安全访问日志最多保留 7 天。
 - `REL-022`：业务日志最多保留 30 天，不得记录 secret、完整手机号、验证码、私信正文、Assistant
   全量输入或社区正文。
@@ -84,7 +84,6 @@ updated_at: 2026-10-01
 | Assistant 接收 | 99.0% | 500 ms |
 | Assistant 首个事件 | 99.0% | 2 s |
 | Assistant 普通完成（观测目标） | 不作可用性门禁 | 45 s |
-| Watch 命中到主动消息 | 99.0% | 5 min |
 
 Assistant 活跃 run 的持久心跳间隔不得超过 30 秒；长任务不设统一完成 SLO，不能把超过 45 秒但仍
 有心跳且未触顶的运行判成不可用。
@@ -104,7 +103,7 @@ Assistant 活跃 run 的持久心跳间隔不得超过 30 秒；长任务不设�
 
 - `REL-050`：社区核心、发现、Assistant 和行为链路可观察请求量、成功率、错误类别、延迟和降级状态。
   Assistant 额外观察 run elapsed/idle、rounds、tool calls、input/output/cache tokens、cost、queue age、
-  lease recovery、compact、BM25、Watch、memory-review 和 Redis 通知降级。
+  lease recovery、compact、BM25、memory-review 和 Redis 通知降级。
 - `REL-051`：异步链路可观察接收、拒绝、重复、失败、重试、死信、积压和端到端延迟。
 - `REL-052`：同一请求跨能力调用保留可关联的请求或追踪标识，且观测数据遵守隐私要求。
 - `REL-053`：健康检查分为存活与就绪；就绪响应列出必需依赖及其状态。可选发现能力故障不使整个

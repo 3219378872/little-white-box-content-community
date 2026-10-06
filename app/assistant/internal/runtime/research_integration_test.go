@@ -61,12 +61,12 @@ func TestResearchSQLTransactions(t *testing.T) {
 	}
 	if _, err := connection.ExecContext(ctx, `CREATE DATABASE IF NOT EXISTS xbh_user;
 		CREATE TABLE IF NOT EXISTS xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY,granted TINYINT NOT NULL,consent_version INT NOT NULL);
-		INSERT INTO xbh_user.agent_capability_consent VALUES (1,1,2),(2,1,2);`); err != nil {
+		INSERT INTO xbh_user.agent_capability_consent VALUES (1,1,3),(2,1,3);`); err != nil {
 		t.Fatal(err)
 	}
 	st := store.NewSQLStore(sqlx.NewSqlConnFromDB(env.DB))
 	accept := &Acceptor{Store: st}
-	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "比较方案", RequestID: "sql-question", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2})
+	accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "比较方案", RequestID: "sql-question", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestResearchSQLTransactions(t *testing.T) {
 		t.Fatalf("long URL did not round-trip: %v", err)
 	}
 
-	accepted, err = accept.Accept(ctx, AcceptInput{UserID: 2, Message: "给出结论", RequestID: "sql-publish", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2})
+	accepted, err = accept.Accept(ctx, AcceptInput{UserID: 2, Message: "给出结论", RequestID: "sql-publish", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}

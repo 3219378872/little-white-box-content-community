@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: '2026-10-04'
+updated_at: 2026-10-06
 tracks:
 - CORE-001
 - CORE-002
@@ -139,7 +139,7 @@ tracks:
 # 小白盒内容社区后端设计
 
 本设计说明如何以 Kitex / Hertz 工程结构满足社区核心、发现、持久异步 Assistant Agent 与
-反馈可靠性规范。Agent Runtime、记忆与 Watch 的细节以
+反馈可靠性规范。Agent Runtime 与记忆的细节以
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md) 为准。实现对齐状态以
 [六域 IMP](../implementation/README.md) 和源码、`openapi.yaml`、`.proto`、SQL、测试为准；本文不覆盖代码事实。
 
@@ -254,7 +254,7 @@ Redis 接线回归验证通过真实 ServiceContext 读取的负反馈命名空�
 检索结果必须回源；`present_sources` 只把经复核的 run-local handle 发布为结构化来源卡。研究回答仍须
 让实质信息就近关联实际取得且支持表述的帖子/网页 URL，不能以未调用 `present_sources`、只有正文链接
 或卡片存在为由豁免；普通闲聊和澄清按 SPEC 明确例外。
-完整运行、Memory、Watch、历史 BM25、compact 与预算设计见
+完整运行、Memory、历史 BM25、compact 与预算设计见
 [DES-assistant-agent-runtime](DES-assistant-agent-runtime.md)。
 
 ### 写入与私信

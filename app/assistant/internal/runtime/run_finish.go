@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
@@ -181,14 +180,6 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 				}
 			}
 		}
-		if run.Source == store.SourceWatch {
-			bucketID := watchBucketID(run.QueuedPayload)
-			if bucketID > 0 {
-				if err := tx.FinishWatchDelivery(ctx, bucketID, run.UserID, run.ID, status, now); err != nil {
-					return err
-				}
-			}
-		}
 		_, err = AppendEvent(ctx, tx, nil, run, eventType, payload)
 		return err
 	})
@@ -199,16 +190,6 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 		_ = e.Notify.Wake(ctx, run.ID)
 	}
 	return nil
-}
-
-func watchBucketID(payload []byte) int64 {
-	var parsed struct {
-		BucketID int64 `json:"bucket_id"`
-	}
-	if json.Unmarshal(payload, &parsed) != nil {
-		return 0
-	}
-	return parsed.BucketID
 }
 
 type terminalPublication struct {
@@ -234,14 +215,9 @@ func (p *terminalPublication) write(ctx context.Context, tx store.Store, thread 
 		if p.streamID != "" && p.payload.StreamID == "" {
 			p.payload.StreamID = p.streamID
 		}
-		kind := store.KindMessage
-		if p.run.Source == store.SourceWatch {
-			kind = store.KindWatch
-		}
 		msg, err := tx.InsertMessage(ctx, store.Message{
 			UserID: p.run.UserID, SessionID: p.run.SessionID, RunID: p.run.ID, Role: store.RoleAssistant,
-			Kind: kind, Content: p.message, APIContent: p.apiContent, Visible: true,
-			Unread: p.run.Source == store.SourceWatch, CreatedAtMs: p.now,
+			Kind: store.KindMessage, Content: p.message, APIContent: p.apiContent, Visible: true, CreatedAtMs: p.now,
 		})
 		if err != nil {
 			return err
@@ -267,9 +243,6 @@ func (p *terminalPublication) write(ctx context.Context, tx store.Store, thread 
 		thread.LastMessageID = msg.ID
 		thread.LastMessagePreview = store.Preview(p.message, 80)
 		thread.LastMessageAtMs = p.now
-		if p.run.Source == store.SourceWatch {
-			thread.UnreadCount++
-		}
 	}
 	return nil
 }

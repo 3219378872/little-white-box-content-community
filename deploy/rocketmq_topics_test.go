@@ -22,7 +22,6 @@ func TestRocketMQBootstrapUsesOnlyActiveTopicsAndGroups(t *testing.T) {
 		"embedding-service-group",
 		"content-cleanup-service-group",
 		"content-count-sync-service-group",
-		"assistant-watch-matcher-group",
 	} {
 		if !strings.Contains(content, required) {
 			t.Errorf("RocketMQ bootstrap is missing active contract %q", required)
@@ -39,6 +38,7 @@ func TestRocketMQBootstrapUsesOnlyActiveTopicsAndGroups(t *testing.T) {
 		"search-index",
 		"search-delete",
 		"feed-generate",
+		"assistant-watch-matcher-group",
 	} {
 		if strings.Contains(content, retired) {
 			t.Errorf("RocketMQ bootstrap still creates retired topic %q", retired)

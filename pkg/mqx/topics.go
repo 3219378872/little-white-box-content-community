@@ -29,10 +29,9 @@ const (
 // ConsumerGroup 定义。行为日志管道消费者组由配置引用，见
 // app/pipeline/behaviorlog/etc/behavior-log.yaml。
 const (
-	GroupBehaviorLogService    = "behavior-log-service-group"
-	GroupContentCleanup        = "content-cleanup-service-group"
-	GroupContentCountSync      = "content-count-sync-service-group"
-	GroupAssistantWatchMatcher = "assistant-watch-matcher-group"
-	GroupReviewWorker          = "review-worker-group"
-	GroupAdDecisionApplier     = "ad-decision-group"
+	GroupBehaviorLogService = "behavior-log-service-group"
+	GroupContentCleanup     = "content-cleanup-service-group"
+	GroupContentCountSync   = "content-count-sync-service-group"
+	GroupReviewWorker       = "review-worker-group"
+	GroupAdDecisionApplier  = "ad-decision-group"
 )

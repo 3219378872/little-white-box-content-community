@@ -7,7 +7,6 @@
 | Page | State | Related |
 | --- | --- | --- |
 | [SPEC-agent-memory](SPEC-agent-memory.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
-| [SPEC-agent-watch](SPEC-agent-watch.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 | [SPEC-assistant-agent](SPEC-assistant-agent.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 | [SPEC-community-core](SPEC-community-core.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
 | [SPEC-content-discovery](SPEC-content-discovery.md) | approved | [INT-content-community-backend](../intent/INT-content-community-backend.md) |
@@ -17,6 +16,7 @@
 
 ### History
 
+- [SPEC-agent-watch](SPEC-agent-watch.md)
 - [SPEC-assistant-agent-mode](SPEC-assistant-agent-mode.md)
 - [SPEC-grounded-assistant](SPEC-grounded-assistant.md)
 

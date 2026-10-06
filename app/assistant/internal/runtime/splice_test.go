@@ -15,7 +15,7 @@ func TestAcceptColdConversationSplicesPersistentLayersOnSameSession(t *testing.T
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
 	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
-	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 2})
+	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestAcceptColdConversationSplicesPersistentLayersOnSameSession(t *testing.T
 		t.Fatal(err)
 	}
 
-	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "again", RequestID: "r2", ConsentOK: true, ConsentVersion: 2})
+	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "again", RequestID: "r2", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestAcceptWarmConversationDoesNotSplice(t *testing.T) {
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
 	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
-	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 2})
+	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestAcceptWarmConversationDoesNotSplice(t *testing.T) {
 	if err := mem.SaveThread(ctx, *thread); err != nil {
 		t.Fatal(err)
 	}
-	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "again", RequestID: "r2", ConsentOK: true, ConsentVersion: 2})
+	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "again", RequestID: "r2", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestAcceptEmptyThreadIsNotCold(t *testing.T) {
 	ctx := context.Background()
 	mem := store.NewMemoryStore()
 	a := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
-	got, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 2})
+	got, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestAcceptRedirectDoesNotSpliceColdSnapshot(t *testing.T) {
 	mem := store.NewMemoryStore()
 	memories := memory.NewMapStore()
 	a := &Acceptor{Store: mem, Memory: memories, Notify: store.NewMemoryNotifier()}
-	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 2})
+	first, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "hello", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestAcceptRedirectDoesNotSpliceColdSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "redirect", RequestID: "r2", ConsentOK: true, ConsentVersion: 2})
+	second, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "redirect", RequestID: "r2", ConsentOK: true, ConsentVersion: 3})
 	if err != nil || second.Disposition != store.DispositionRedirected || second.SessionID != first.SessionID {
 		t.Fatalf("redirect=%+v err=%v", second, err)
 	}
@@ -156,7 +156,7 @@ func TestEnsureForegroundSessionReopensClosedLegacyRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
-	got, err := a.Accept(ctx, AcceptInput{UserID: 4, Message: "resume", RequestID: "r1", ConsentOK: true, ConsentVersion: 2})
+	got, err := a.Accept(ctx, AcceptInput{UserID: 4, Message: "resume", RequestID: "r1", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,44 +187,6 @@ func TestSpliceColdSessionKeepsCompactSummary(t *testing.T) {
 	snap, ok := prompt.DecodeSnapshot(updated.PromptSnapshot)
 	if !ok || snap.CompactSummary != "压缩过的旧对话" {
 		t.Fatalf("summary dropped: %+v", snap)
-	}
-}
-
-func TestWatchColdScheduleSplicesExistingSession(t *testing.T) {
-	ctx := context.Background()
-	mem := store.NewMemoryStore()
-	memories := memory.NewMapStore()
-	if _, _, err := memories.Add(ctx, 7, memory.TargetUser, "设计师", "mem-1", store.NowMs()); err != nil {
-		t.Fatal(err)
-	}
-	now := store.NowMs()
-	session, err := mem.CreateSession(ctx, store.Session{
-		UserID: 7, PromptEpoch: 1, Status: store.SessionOpen, CreatedAtMs: now - ColdConversationIdle.Milliseconds(),
-		PromptSnapshot: prompt.EncodeSnapshot(prompt.BuildSnapshot(nil, nil, "")),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := mem.SaveThread(ctx, store.Thread{
-		UserID: 7, SessionID: session.ID, LastMessageAtMs: now - ColdConversationIdle.Milliseconds(), UpdatedAtMs: now,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	watchStore, bucket, _ := watchFixture(t, mem)
-	if err := scheduleBucket(ctx, mem, memories, watchStore, func(context.Context, int64) (bool, error) { return true, nil }, allowAllWatchPosts, bucket, now); err != nil {
-		t.Fatal(err)
-	}
-	updated, err := mem.GetSession(ctx, session.ID)
-	if err != nil || updated.PromptEpoch != 2 {
-		t.Fatalf("watch splice=%+v err=%v", updated, err)
-	}
-	snap, _ := prompt.DecodeSnapshot(updated.PromptSnapshot)
-	if len(snap.Memory) != 1 || snap.Memory[0].Content != "设计师" {
-		t.Fatalf("watch memory=%+v", snap.Memory)
-	}
-	thread, _ := mem.GetThread(ctx, 7)
-	if thread.SessionID != session.ID {
-		t.Fatalf("watch created another session: %+v", thread)
 	}
 }
 

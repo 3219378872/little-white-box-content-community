@@ -6,7 +6,7 @@ import (
 	"esx/pkg/errx"
 )
 
-const CurrentVersion int32 = 2
+const CurrentVersion int32 = 3
 
 type Reader interface {
 	AgentConsent(context.Context, int64) (int32, bool, error)

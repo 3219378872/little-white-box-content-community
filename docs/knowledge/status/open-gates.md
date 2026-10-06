@@ -37,7 +37,6 @@ DISC-062 的 10,000 次有效曝光与 1,000 个有效身份门槛，再用真�
 | Assistant 接收 | 500 ms | 正式门禁 |
 | Assistant 首个持久事件 | 2 s | 正式门禁 |
 | Assistant 普通完成 | 45 s | 只观察，不判长任务不可用 |
-| Watch 命中到主动消息 | 5 min | 正式门禁 |
 
 长任务必须继续观察心跳、elapsed/idle、queue age 和阶段，不设单一完成 SLO。浏览器、设备、真实
 provider 和生产结果须分别记录 scope，不能由静态、单元、集成或 synthetic 证据推断。

@@ -423,18 +423,6 @@ func (contractAssistantService) BatchMemory(context.Context, *assistantservice.B
 func (contractAssistantService) UndoMemoryChange(context.Context, *assistantservice.UndoMemoryChangeReq, ...callopt.Option) (*assistantpb.UndoMemoryChangeResp, error) {
 	return &assistantpb.UndoMemoryChangeResp{}, nil
 }
-func (contractAssistantService) ListWatchTasks(context.Context, *assistantservice.ListWatchTasksReq, ...callopt.Option) (*assistantpb.ListWatchTasksResp, error) {
-	return &assistantpb.ListWatchTasksResp{}, nil
-}
-func (contractAssistantService) CreateWatchTask(context.Context, *assistantservice.CreateWatchTaskReq, ...callopt.Option) (*assistantpb.CreateWatchTaskResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
-}
-func (contractAssistantService) UpdateWatchTask(context.Context, *assistantservice.UpdateWatchTaskReq, ...callopt.Option) (*assistantpb.UpdateWatchTaskResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
-}
-func (contractAssistantService) DeleteWatchTask(context.Context, *assistantservice.DeleteWatchTaskReq, ...callopt.Option) (*assistantpb.DeleteWatchTaskResp, error) {
-	return nil, errx.NewWithCode(errx.ServiceUnavailable)
-}
 func (contractAssistantService) SubmitRecommendFeedback(context.Context, *assistantservice.SubmitRecommendFeedbackReq, ...callopt.Option) (*assistantpb.SubmitRecommendFeedbackResp, error) {
 	return nil, errx.NewWithCode(errx.ServiceUnavailable)
 }
@@ -632,7 +620,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "ASSISTANT-MEMORY-ADD-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory", body: jsonBody(`{"target":"memory","content":"喜欢步行"}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"entry", "changeId"}},
 		{id: "ASSISTANT-MEMORY-BATCH-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/batch", body: jsonBody(`{"ops":[{"op":"add","target":"memory","content":"x"}]}`), auth: true, wantStatus: http.StatusOK},
 		{id: "ASSISTANT-MEMORY-UNDO-VALID", method: http.MethodPost, path: "/api/v2/assistant/memory/changes/1/undo", routePath: "/api/v2/assistant/memory/changes/:id/undo", auth: true, wantStatus: http.StatusOK},
-		{id: "ASSISTANT-WATCH-LIST-VALID", method: http.MethodGet, path: "/api/v2/assistant/watch", auth: true, wantStatus: http.StatusOK, wantFields: []string{"tasks"}},
 		{id: "ADS-ADVERTISER-GET-VALID", method: http.MethodGet, path: "/api/v2/ads/advertiser", auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "advertiser"}},
 		{id: "ADS-ADVERTISER-APPLY-VALID", method: http.MethodPut, path: "/api/v2/ads/advertiser", body: jsonBody(`{"name":"Acme","markets":["US"],"expectedRevision":0}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"found", "advertiser"}},
 		{id: "ADS-QUALIFICATION-ADD-VALID", method: http.MethodPost, path: "/api/v2/ads/advertiser/qualifications", body: jsonBody(`{"market":"DE","industry":"FINANCIAL","documentAssetId":9,"validUntilMs":4102444800000,"expectedRevision":1}`), auth: true, wantStatus: http.StatusOK, wantFields: []string{"advertiser"}},
@@ -659,9 +646,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		{id: "REVIEW-SEED-RETIRE-VALID", method: http.MethodPost, path: "/api/v2/review/seeds/4/retire", routePath: "/api/v2/review/seeds/:seedId/retire", auth: true, wantStatus: http.StatusOK, wantFields: []string{"seed"}},
 		{id: "ASSISTANT-MEMORY-REPLACE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", routePath: "/api/v2/assistant/memory/:id", body: jsonBody(`{"content":"rpg","version":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-MEMORY-REMOVE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/memory/1?version=1", routePath: "/api/v2/assistant/memory/:id", auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-CREATE-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{"conditionType":"author_new_post","targetType":"author","targetId":2}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-UPDATE-UNAVAILABLE", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false,"expectedVersion":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
-		{id: "ASSISTANT-WATCH-DELETE-UNAVAILABLE", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"expectedVersion":1}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 		{id: "ASSISTANT-RECOMMEND-FEEDBACK-UNAVAILABLE", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{"postId":11,"reason":"not_interested"}`), auth: true, wantStatus: http.StatusServiceUnavailable, wantCode: errx.ServiceUnavailable},
 	}
 
@@ -753,11 +737,6 @@ func TestRESTDecisionTable(t *testing.T) {
 		restDecision{id: "ASSISTANT-ANSWERS-EMPTY", method: http.MethodPost, path: "/api/v2/assistant/runs/9/answers", routePath: "/api/v2/assistant/runs/:id/answers", body: jsonBody(`{"questionRequestId":"q1","requestId":"r1","answers":[]}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-MEMORY-REPLACE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/memory/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-MEMORY-REMOVE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/memory/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-CREATE-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/watch", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-UPDATE-MALFORMED", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-UPDATE-MISSING-VERSION", method: http.MethodPatch, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", body: jsonBody(`{"enabled":false}`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-DELETE-MISSING-VERSION", method: http.MethodDelete, path: "/api/v2/assistant/watch/1", routePath: "/api/v2/assistant/watch/:id", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
-		restDecision{id: "ASSISTANT-WATCH-DELETE-BAD-PATH", method: http.MethodDelete, path: "/api/v2/assistant/watch/not-a-number", auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 		restDecision{id: "ASSISTANT-RECOMMEND-FEEDBACK-MALFORMED", method: http.MethodPost, path: "/api/v2/assistant/recommend/feedback", body: jsonBody(`{`), auth: true, wantStatus: http.StatusBadRequest, wantCode: errx.ParamError},
 	)
 
@@ -848,8 +827,8 @@ func TestRESTDecisionTable(t *testing.T) {
 		})
 	}
 
-	if len(successes) != 87 {
-		t.Fatalf("route inventory drift: got %d success rules, want 87", len(successes))
+	if len(successes) != 83 {
+		t.Fatalf("route inventory drift: got %d success rules, want 83", len(successes))
 	}
 	coveredRoutes := make(map[string]struct{}, len(successes))
 	for _, success := range successes {

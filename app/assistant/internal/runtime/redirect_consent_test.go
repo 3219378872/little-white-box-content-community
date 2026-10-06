@@ -46,7 +46,7 @@ func TestRedirectCancelsAndDiscardsOldModelResponse(t *testing.T) {
 	mem := store.NewMemoryStore()
 	acceptor := &Acceptor{Store: mem, Notify: store.NewMemoryNotifier()}
 	first, err := acceptor.Accept(ctx, AcceptInput{
-		UserID: 1, Message: "first", RequestID: "request-1", ConsentOK: true, ConsentVersion: 2,
+		UserID: 1, Message: "first", RequestID: "request-1", ConsentOK: true, ConsentVersion: 3,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestRedirectCancelsAndDiscardsOldModelResponse(t *testing.T) {
 		t.Fatal("first model call did not start")
 	}
 	second, err := acceptor.Accept(ctx, AcceptInput{
-		UserID: 1, Message: "second", RequestID: "request-2", ConsentOK: true, ConsentVersion: 2,
+		UserID: 1, Message: "second", RequestID: "request-2", ConsentOK: true, ConsentVersion: 3,
 	})
 	if err != nil || second.Disposition != store.DispositionRedirected || second.RunID != first.RunID {
 		t.Fatalf("redirect=%+v err=%v", second, err)
@@ -133,7 +133,7 @@ func TestConsentRevocationCancelsInFlightRun(t *testing.T) {
 	mem := store.NewMemoryStore()
 	acceptor := &Acceptor{Store: mem}
 	accepted, err := acceptor.Accept(ctx, AcceptInput{
-		UserID: 1, Message: "long task", RequestID: "consent-run", ConsentOK: true, ConsentVersion: 2,
+		UserID: 1, Message: "long task", RequestID: "consent-run", ConsentOK: true, ConsentVersion: 3,
 	})
 	if err != nil {
 		t.Fatal(err)

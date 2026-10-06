@@ -47,7 +47,6 @@ func TestHTTPStatus_MapsEveryBusinessCode(t *testing.T) {
 		AgentResourceLimit:      http.StatusTooManyRequests,
 		AgentQueueFull:          http.StatusTooManyRequests,
 		AgentRunConflict:        http.StatusConflict,
-		CannotWatchSelf:         http.StatusBadRequest,
 		ReviewLeaseLost:         http.StatusConflict,
 		ReviewTaskSuperseded:    http.StatusGone,
 		ReviewRoleRequired:      http.StatusForbidden,

@@ -1,4 +1,4 @@
--- Assistant 权威库 v3：虚拟线程、异步 run、自然语言记忆、Watch 内部审计
+-- Assistant 权威库 v3：虚拟线程、异步 run、自然语言记忆
 -- （DES-assistant-agent-runtime / SPEC-assistant-agent）。
 CREATE DATABASE IF NOT EXISTS `xbh_assistant` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -262,85 +262,6 @@ CREATE TABLE IF NOT EXISTS `assistant_index_outbox` (
     PRIMARY KEY (`id`),
     KEY `idx_outbox_pub` (`published`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Assistant 历史 ES 派生 outbox';
-
-CREATE TABLE IF NOT EXISTS `watch_task` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `condition_type` VARCHAR(32) NOT NULL,
-    `target_type` VARCHAR(16) NOT NULL,
-    `target_id` BIGINT NOT NULL DEFAULT 0,
-    `target_text` VARCHAR(191) NOT NULL DEFAULT '',
-    `enabled` TINYINT NOT NULL DEFAULT 1,
-    `version` INT NOT NULL DEFAULT 1,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_watch_user_cond_target` (`user_id`, `condition_type`, `target_type`, `target_id`, `target_text`),
-    KEY `idx_watch_enabled_type` (`enabled`, `condition_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 任务';
-
-CREATE TABLE IF NOT EXISTS `watch_execution` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `task_id` BIGINT NOT NULL,
-    `event_key` VARCHAR(191) NOT NULL,
-    `hit` TINYINT NOT NULL DEFAULT 0,
-    `used_llm` TINYINT NOT NULL DEFAULT 0,
-    `status` VARCHAR(16) NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_watch_exec_event` (`task_id`, `event_key`),
-    KEY `idx_watch_exec_created` (`created_at`, `id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 匹配执行审计';
-
-CREATE TABLE IF NOT EXISTS `watch_hit` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `task_id` BIGINT NOT NULL,
-    `post_id` BIGINT NOT NULL DEFAULT 0,
-    `title` VARCHAR(255) DEFAULT NULL,
-    `summary` VARCHAR(512) DEFAULT NULL,
-    `read_at_ms` BIGINT DEFAULT NULL,
-    `created_at_ms` BIGINT NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_watch_hit_user` (`user_id`, `created_at_ms`),
-    KEY `idx_watch_hit_created` (`created_at_ms`, `id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 内部命中（90 天审计，非用户收件箱）';
-
-CREATE TABLE IF NOT EXISTS `watch_delivery_bucket` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `window_start_ms` BIGINT NOT NULL,
-    `not_before_ms` BIGINT NOT NULL DEFAULT 0,
-    `status` VARCHAR(16) NOT NULL,
-    `hit_ids` JSON DEFAULT NULL,
-    `run_id` BIGINT NOT NULL DEFAULT 0,
-    `created_at_ms` BIGINT NOT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_bucket_user_window` (`user_id`, `window_start_ms`),
-    KEY `idx_bucket_status` (`status`, `window_start_ms`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 两分钟投递窗口';
-
-CREATE TABLE IF NOT EXISTS `watch_send_stat` (
-    `user_id` BIGINT NOT NULL,
-    `task_id` BIGINT NOT NULL DEFAULT 0,
-    `period_kind` VARCHAR(16) NOT NULL,
-    `period_start_ms` BIGINT NOT NULL,
-    `sent_count` INT NOT NULL DEFAULT 0,
-    `reserved_count` INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (`user_id`, `task_id`, `period_kind`, `period_start_ms`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 小时/日发送计数';
-
-CREATE TABLE IF NOT EXISTS `watch_send_reservation` (
-    `bucket_id` BIGINT NOT NULL,
-    `user_id` BIGINT NOT NULL,
-    `task_id` BIGINT NOT NULL,
-    `period_kind` VARCHAR(16) NOT NULL,
-    `period_start_ms` BIGINT NOT NULL,
-    `created_at_ms` BIGINT NOT NULL,
-    PRIMARY KEY (`bucket_id`, `task_id`, `period_kind`),
-    KEY `idx_watch_reservation_stat` (`user_id`, `task_id`, `period_kind`, `period_start_ms`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 发送配额预留';
 
 CREATE TABLE IF NOT EXISTS `recommendation_feedback` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,

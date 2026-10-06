@@ -7,11 +7,9 @@ import (
 
 const (
 	SourceUser         = "user"
-	SourceWatch        = "watch"
 	SourceMemoryReview = "memory-review"
 
 	PriorityUser         = 0
-	PriorityWatch        = 10
 	PriorityMemoryReview = 20
 
 	PhaseQueued        = "queued"
@@ -57,8 +55,6 @@ const (
 
 	KindMessage       = "message"
 	KindMemoryChanged = "memory_changed"
-	KindWatch         = "watch"
-	KindWatchInput    = "watch_input"
 	KindTool          = "tool"
 	KindQuestion      = "question"
 
@@ -305,17 +301,6 @@ type Outbox struct {
 	CreatedAtMs int64
 }
 
-type DeliveryBucket struct {
-	ID            int64
-	UserID        int64
-	WindowStartMs int64
-	NotBeforeMs   int64
-	Status        string
-	HitIDs        []int64
-	RunID         int64
-	CreatedAtMs   int64
-}
-
 type HistorySessionSummary struct {
 	SessionID int64
 	First     Message
@@ -344,8 +329,6 @@ func PriorityForSource(source string) int {
 	switch source {
 	case SourceUser:
 		return PriorityUser
-	case SourceWatch:
-		return PriorityWatch
 	case SourceMemoryReview:
 		return PriorityMemoryReview
 	default:

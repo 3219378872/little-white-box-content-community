@@ -31,10 +31,6 @@ type Client interface {
 	RemoveMemory(ctx context.Context, Req *assistant.RemoveMemoryReq, callOptions ...callopt.Option) (r *assistant.RemoveMemoryResp, err error)
 	BatchMemory(ctx context.Context, Req *assistant.BatchMemoryReq, callOptions ...callopt.Option) (r *assistant.BatchMemoryResp, err error)
 	UndoMemoryChange(ctx context.Context, Req *assistant.UndoMemoryChangeReq, callOptions ...callopt.Option) (r *assistant.UndoMemoryChangeResp, err error)
-	ListWatchTasks(ctx context.Context, Req *assistant.ListWatchTasksReq, callOptions ...callopt.Option) (r *assistant.ListWatchTasksResp, err error)
-	CreateWatchTask(ctx context.Context, Req *assistant.CreateWatchTaskReq, callOptions ...callopt.Option) (r *assistant.CreateWatchTaskResp, err error)
-	UpdateWatchTask(ctx context.Context, Req *assistant.UpdateWatchTaskReq, callOptions ...callopt.Option) (r *assistant.UpdateWatchTaskResp, err error)
-	DeleteWatchTask(ctx context.Context, Req *assistant.DeleteWatchTaskReq, callOptions ...callopt.Option) (r *assistant.DeleteWatchTaskResp, err error)
 	SubmitRecommendFeedback(ctx context.Context, Req *assistant.SubmitRecommendFeedbackReq, callOptions ...callopt.Option) (r *assistant.SubmitRecommendFeedbackResp, err error)
 }
 
@@ -157,26 +153,6 @@ func (p *kAssistantServiceClient) BatchMemory(ctx context.Context, Req *assistan
 func (p *kAssistantServiceClient) UndoMemoryChange(ctx context.Context, Req *assistant.UndoMemoryChangeReq, callOptions ...callopt.Option) (r *assistant.UndoMemoryChangeResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.UndoMemoryChange(ctx, Req)
-}
-
-func (p *kAssistantServiceClient) ListWatchTasks(ctx context.Context, Req *assistant.ListWatchTasksReq, callOptions ...callopt.Option) (r *assistant.ListWatchTasksResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.ListWatchTasks(ctx, Req)
-}
-
-func (p *kAssistantServiceClient) CreateWatchTask(ctx context.Context, Req *assistant.CreateWatchTaskReq, callOptions ...callopt.Option) (r *assistant.CreateWatchTaskResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.CreateWatchTask(ctx, Req)
-}
-
-func (p *kAssistantServiceClient) UpdateWatchTask(ctx context.Context, Req *assistant.UpdateWatchTaskReq, callOptions ...callopt.Option) (r *assistant.UpdateWatchTaskResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.UpdateWatchTask(ctx, Req)
-}
-
-func (p *kAssistantServiceClient) DeleteWatchTask(ctx context.Context, Req *assistant.DeleteWatchTaskReq, callOptions ...callopt.Option) (r *assistant.DeleteWatchTaskResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.DeleteWatchTask(ctx, Req)
 }
 
 func (p *kAssistantServiceClient) SubmitRecommendFeedback(ctx context.Context, Req *assistant.SubmitRecommendFeedbackReq, callOptions ...callopt.Option) (r *assistant.SubmitRecommendFeedbackResp, err error) {

@@ -52,15 +52,6 @@ type BatchMemoryReq = pb.BatchMemoryReq
 type BatchMemoryResp = pb.BatchMemoryResp
 type UndoMemoryChangeReq = pb.UndoMemoryChangeReq
 type UndoMemoryChangeResp = pb.UndoMemoryChangeResp
-type WatchTask = pb.WatchTask
-type ListWatchTasksReq = pb.ListWatchTasksReq
-type ListWatchTasksResp = pb.ListWatchTasksResp
-type CreateWatchTaskReq = pb.CreateWatchTaskReq
-type CreateWatchTaskResp = pb.CreateWatchTaskResp
-type UpdateWatchTaskReq = pb.UpdateWatchTaskReq
-type UpdateWatchTaskResp = pb.UpdateWatchTaskResp
-type DeleteWatchTaskReq = pb.DeleteWatchTaskReq
-type DeleteWatchTaskResp = pb.DeleteWatchTaskResp
 type SubmitRecommendFeedbackReq = pb.SubmitRecommendFeedbackReq
 type SubmitRecommendFeedbackResp = pb.SubmitRecommendFeedbackResp
 type AssistantService = native.Client
@@ -149,22 +140,6 @@ func (c *client) BatchMemory(ctx context.Context, req *pb.BatchMemoryReq, opts .
 }
 func (c *client) UndoMemoryChange(ctx context.Context, req *pb.UndoMemoryChangeReq, opts ...callopt.Option) (*pb.UndoMemoryChangeResp, error) {
 	v, e := c.Client.UndoMemoryChange(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
-func (c *client) ListWatchTasks(ctx context.Context, req *pb.ListWatchTasksReq, opts ...callopt.Option) (*pb.ListWatchTasksResp, error) {
-	v, e := c.Client.ListWatchTasks(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
-func (c *client) CreateWatchTask(ctx context.Context, req *pb.CreateWatchTaskReq, opts ...callopt.Option) (*pb.CreateWatchTaskResp, error) {
-	v, e := c.Client.CreateWatchTask(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
-func (c *client) UpdateWatchTask(ctx context.Context, req *pb.UpdateWatchTaskReq, opts ...callopt.Option) (*pb.UpdateWatchTaskResp, error) {
-	v, e := c.Client.UpdateWatchTask(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
-func (c *client) DeleteWatchTask(ctx context.Context, req *pb.DeleteWatchTaskReq, opts ...callopt.Option) (*pb.DeleteWatchTaskResp, error) {
-	v, e := c.Client.DeleteWatchTask(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }
 func (c *client) SubmitRecommendFeedback(ctx context.Context, req *pb.SubmitRecommendFeedbackReq, opts ...callopt.Option) (*pb.SubmitRecommendFeedbackResp, error) {

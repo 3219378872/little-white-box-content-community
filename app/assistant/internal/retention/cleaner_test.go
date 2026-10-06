@@ -8,12 +8,11 @@ import (
 )
 
 type fakeStore struct {
-	messageBatches []int
-	hitBatches     []int
-	execBatches    []int
-	messageCutoffs []int64
-	watchCutoffs   []int64
-	errMessages    error
+	messageBatches  []int
+	evidenceBatches []int
+	messageCutoffs  []int64
+	evidenceCutoffs []int64
+	errMessages     error
 }
 
 func (f *fakeStore) PurgeExpiredMessages(_ context.Context, cutoffMs int64, _ int) (int, error) {
@@ -24,14 +23,9 @@ func (f *fakeStore) PurgeExpiredMessages(_ context.Context, cutoffMs int64, _ in
 	return popBatch(&f.messageBatches), nil
 }
 
-func (f *fakeStore) PurgeExpiredWatchHits(_ context.Context, cutoffMs int64, _ int) (int, error) {
-	f.watchCutoffs = append(f.watchCutoffs, cutoffMs)
-	return popBatch(&f.hitBatches), nil
-}
-
-func (f *fakeStore) PurgeExpiredWatchExecutions(_ context.Context, cutoffMs int64, _ int) (int, error) {
-	f.watchCutoffs = append(f.watchCutoffs, cutoffMs)
-	return popBatch(&f.execBatches), nil
+func (f *fakeStore) PurgeExpiredSourceEvidence(_ context.Context, cutoffMs int64, _ int) (int, error) {
+	f.evidenceCutoffs = append(f.evidenceCutoffs, cutoffMs)
+	return popBatch(&f.evidenceBatches), nil
 }
 
 func popBatch(batches *[]int) int {
@@ -46,9 +40,8 @@ func popBatch(batches *[]int) int {
 func TestCleanerUsesBoundedBatchesAndRetentionCutoffs(t *testing.T) {
 	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
 	store := &fakeStore{
-		messageBatches: []int{2, 2, 1},
-		hitBatches:     []int{2, 0},
-		execBatches:    []int{1},
+		messageBatches:  []int{2, 2, 1},
+		evidenceBatches: []int{2, 0},
 	}
 	cleaner := New(store)
 	cleaner.now = func() time.Time { return now }
@@ -59,25 +52,21 @@ func TestCleanerUsesBoundedBatchesAndRetentionCutoffs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result != (Result{Messages: 5, WatchHits: 2, WatchExecutions: 1}) {
+	if result != (Result{Messages: 5, SourceEvidence: 2}) {
 		t.Fatalf("result=%+v", result)
 	}
-	if len(store.messageCutoffs) != 3 || store.messageCutoffs[0] != now.Add(-AssistantMessageRetention).UnixMilli() {
+	cutoff := now.Add(-AssistantMessageRetention).UnixMilli()
+	if len(store.messageCutoffs) != 3 || store.messageCutoffs[0] != cutoff {
 		t.Fatalf("message cutoffs=%v", store.messageCutoffs)
 	}
-	if len(store.watchCutoffs) != 3 {
-		t.Fatalf("watch cutoffs=%v", store.watchCutoffs)
-	}
-	for _, cutoff := range store.watchCutoffs {
-		if cutoff != now.Add(-WatchAuditRetention).UnixMilli() {
-			t.Fatalf("watch cutoff=%d", cutoff)
-		}
+	if len(store.evidenceCutoffs) != 2 || store.evidenceCutoffs[0] != cutoff {
+		t.Fatalf("evidence cutoffs=%v", store.evidenceCutoffs)
 	}
 }
 
-func TestCleanerContinuesWatchCleanupAfterMessageFailure(t *testing.T) {
+func TestCleanerContinuesEvidenceCleanupAfterMessageFailure(t *testing.T) {
 	wantErr := errors.New("message purge failed")
-	store := &fakeStore{errMessages: wantErr, hitBatches: []int{1}, execBatches: []int{1}}
+	store := &fakeStore{errMessages: wantErr, evidenceBatches: []int{1}}
 	cleaner := New(store)
 	cleaner.batchSize = 10
 
@@ -85,7 +74,7 @@ func TestCleanerContinuesWatchCleanupAfterMessageFailure(t *testing.T) {
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("err=%v", err)
 	}
-	if result.WatchHits != 1 || result.WatchExecutions != 1 {
+	if result.SourceEvidence != 1 {
 		t.Fatalf("result=%+v", result)
 	}
 }

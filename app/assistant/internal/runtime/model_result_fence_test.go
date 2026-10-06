@@ -53,7 +53,7 @@ func TestModelResultCommitLosesToAcceptedRedirect(t *testing.T) {
 			st := store.NewMemoryStore()
 			mem := memory.NewMapStore()
 			accept := &Acceptor{Store: st}
-			accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "original request", RequestID: "original", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2})
+			accepted, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "original request", RequestID: "original", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,7 +81,7 @@ func TestModelResultCommitLosesToAcceptedRedirect(t *testing.T) {
 						}
 					}
 					barrier.beforeCommit = func() {
-						out, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "new requested answer", RequestID: "redirect", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2})
+						out, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "new requested answer", RequestID: "redirect", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3})
 						if err != nil || out.Disposition != store.DispositionRedirected || out.RunID != accepted.RunID {
 							t.Fatalf("accept %+v %v", out, err)
 						}
@@ -180,7 +180,7 @@ func TestCommittedModelToolStepKeepsSteerRecoverable(t *testing.T) {
 	st := store.NewMemoryStore()
 	mem := memory.NewMapStore()
 	accept := &Acceptor{Store: st}
-	_, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "remember preference", RequestID: "original", ConsentOK: true, ConsentVersion: 2})
+	_, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "remember preference", RequestID: "original", ConsentOK: true, ConsentVersion: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestCommittedModelToolStepKeepsSteerRecoverable(t *testing.T) {
 	if err := e.recordModelToolStep(ctx, *run, turn, nil); err != nil {
 		t.Fatal(err)
 	}
-	out, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "steered new input", RequestID: "steer", ConsentOK: true, ConsentVersion: 2})
+	out, err := accept.Accept(ctx, AcceptInput{UserID: 1, Message: "steered new input", RequestID: "steer", ConsentOK: true, ConsentVersion: 3})
 	if err != nil || out.Disposition != store.DispositionSteered {
 		t.Fatalf("steer %+v %v", out, err)
 	}

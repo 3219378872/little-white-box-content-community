@@ -5,7 +5,6 @@ import (
 	"esx/app/assistant/internal/canonical"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
-	"esx/app/assistant/watch"
 	"esx/pkg/errx"
 	"fmt"
 	"reflect"
@@ -13,7 +12,6 @@ import (
 )
 
 func NewRegistry(clients Clients, allowed []string) (*Registry, error) {
-	clients.Watch = watch.WithConsent(clients.Watch, clients.Store)
 	defs := allDefinitions(clients)
 	reg := &Registry{
 		executors: make(map[string]executorFunc, len(defs)),

@@ -36,7 +36,7 @@ func TestSQLDeleteHistoryBetweenAcceptSnapshotAndLocks(t *testing.T) {
 	env := testutil.SetupTestEnv(t, "xbh_assistant", testutil.SchemaPath("xbh_assistant.sql"))
 	t.Cleanup(env.Close)
 	ctx := context.Background()
-	for _, q := range []string{`CREATE DATABASE xbh_user`, `CREATE TABLE xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY,granted TINYINT NOT NULL,consent_version INT NOT NULL)`, `INSERT INTO xbh_user.agent_capability_consent VALUES (7,1,2)`} {
+	for _, q := range []string{`CREATE DATABASE xbh_user`, `CREATE TABLE xbh_user.agent_capability_consent (user_id BIGINT PRIMARY KEY,granted TINYINT NOT NULL,consent_version INT NOT NULL)`, `INSERT INTO xbh_user.agent_capability_consent VALUES (7,1,3)`} {
 		_, err := env.DB.ExecContext(ctx, q)
 		require.NoError(t, err)
 	}
@@ -48,7 +48,7 @@ func TestSQLDeleteHistoryBetweenAcceptSnapshotAndLocks(t *testing.T) {
 	_, err = st.InsertMessage(ctx, store.Message{UserID: 7, SessionID: session.ID, Role: store.RoleUser, Content: secret, Visible: true, Compacted: true})
 	require.NoError(t, err)
 	wrapper := historySnapshotStore{Store: st, once: &sync.Once{}, afterRead: func() { require.NoError(t, (&Acceptor{Store: st}).DeleteHistory(ctx, 7)) }}
-	_, err = (&Acceptor{Store: wrapper}).Accept(ctx, AcceptInput{UserID: 7, RequestID: "new-after-delete", Message: "hello", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 2})
+	_, err = (&Acceptor{Store: wrapper}).Accept(ctx, AcceptInput{UserID: 7, RequestID: "new-after-delete", Message: "hello", ClientProtocolVersion: 2, ConsentOK: true, ConsentVersion: 3})
 	require.NoError(t, err)
 	current, err := st.GetSession(ctx, session.ID)
 	require.NoError(t, err)

@@ -4,7 +4,7 @@ layer: evidence
 title: 全面审查后端修复与隔离集成回归
 status: active
 owner: agent
-updated_at: '2026-09-08'
+updated_at: 2026-10-06
 scope: [static, unit, integration]
 commands:
 - make fmt-check vet lint vulncheck spec-evals-test python-unit
@@ -76,33 +76,6 @@ coverage:
   - deploy/sql/patches/20260905_agent_research.sql
   - scripts/spec_evals.py
   - eval/dev/assistant_cases.synthetic.json
-  - go.mod
-  - go.sum
-- requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
   - go.mod
   - go.sum
 - requirements:
@@ -304,6 +277,8 @@ coverage:
 ---
 
 # 全面审查后端修复与隔离集成回归
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 本页记录两个实现提交合并后的最终代码，所有声明命令在观察提交上实际取得 exit 0，开始和结束时
 工作树干净。证据和 IMP 更新在随后独立提交完成，不使用自指 SHA。公开 `gateway.api` 未改变，

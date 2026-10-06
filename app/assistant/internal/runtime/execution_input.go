@@ -35,9 +35,6 @@ func (s *executionState) loadRound(workCtx, persistCtx context.Context) (iterati
 		return iterationFinished, err
 	}
 
-	if err := e.ensureWatchInput(persistCtx, s.run); err != nil {
-		return iterationFinished, err
-	}
 	s.messages, err = e.Store.ListSessionMessages(persistCtx, s.run.UserID, s.run.SessionID, true)
 	if err != nil {
 		return iterationFinished, err
@@ -54,7 +51,7 @@ func (s *executionState) compactRound(workCtx, persistCtx context.Context) (iter
 		window = s.client.ContextWindowTokens()
 	}
 
-	if ShouldCompactWithAnchor(s.messages, window, s.run.ID, s.run.LastPromptTokens) {
+	if ShouldCompactWithAnchor(s.messages, window, s.run.LastPromptTokens) {
 		if err := e.compact(workCtx, persistCtx, &s.run, s.session, s.messages, s.client); err != nil {
 			if errors.Is(err, errRunCancelled) {
 				return iterationFinished, e.cancel(persistCtx, s.run)
@@ -93,7 +90,7 @@ func (s *executionState) prepareTurns(workCtx, persistCtx context.Context) (iter
 	e := s.engine
 	var err error
 
-	history := promptHistory(s.messages, s.run)
+	history := promptHistory(s.messages)
 	if s.run.Source == store.SourceMemoryReview {
 		history = append(history, s.reviewLive...)
 	} else if open := unmatchedToolCalls(history); len(open) > 0 {
@@ -112,7 +109,7 @@ func (s *executionState) prepareTurns(workCtx, persistCtx context.Context) (iter
 		if err != nil {
 			return iterationFinished, err
 		}
-		history = promptHistory(s.messages, s.run)
+		history = promptHistory(s.messages)
 	}
 	s.snapshot.History = history
 	s.turns = prompt.Messages(s.snapshot)
@@ -122,7 +119,7 @@ func (s *executionState) prepareTurns(workCtx, persistCtx context.Context) (iter
 			seen[msg.ID] = struct{}{}
 		}
 	}
-	pending, queuedThrough, err := e.pendingUserTurns(persistCtx, s.run, seen, history)
+	pending, queuedThrough, err := e.pendingUserTurns(persistCtx, s.run, seen)
 	if err != nil {
 		return iterationFinished, err
 	}
@@ -156,7 +153,7 @@ func (s *executionState) prepareRequest(workCtx, persistCtx context.Context) (it
 		if sourceErr != nil {
 			return iterationFinished, sourceErr
 		}
-		s.suppressText = s.run.Source == store.SourceWatch || len(sources) > 0
+		s.suppressText = len(sources) > 0
 	}
 	return iterationNext, nil
 }

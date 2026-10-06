@@ -28,7 +28,7 @@ func TestRetrievedExcerptsRemainExactAndRejectChangedSources(t *testing.T) {
 					comments: []*contentservice.CommentInfo{{Id: 11, PostId: 9, Status: 1, Content: strings.Repeat("c", length)}},
 				}
 				clients := Clients{Store: st, Content: content}
-				session := &Session{UserID: 1, RunID: 7, Source: store.SourceUser, ConsentVersion: 2, ClientProtocolVersion: 2}
+				session := &Session{UserID: 1, RunID: 7, Source: store.SourceUser, ConsentVersion: 3, ClientProtocolVersion: 2}
 				registry, err := NewRegistry(clients, nil)
 				if err != nil {
 					t.Fatal(err)

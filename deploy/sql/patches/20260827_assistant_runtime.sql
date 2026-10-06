@@ -81,47 +81,6 @@ CREATE TABLE IF NOT EXISTS `task_memory` (
     KEY `idx_task_user_status` (`user_id`, `status`, `updated_at_ms`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Task 记忆';
 
-CREATE TABLE IF NOT EXISTS `watch_task` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `condition_type` VARCHAR(32) NOT NULL COMMENT 'author_new_post/tag_new_post/keyword_new_post/post_revised/discussion_spike',
-    `target_type` VARCHAR(16) NOT NULL COMMENT 'author/tag/keyword/post',
-    `target_id` BIGINT NOT NULL DEFAULT 0,
-    `target_text` VARCHAR(191) NOT NULL DEFAULT '',
-    `enabled` TINYINT NOT NULL DEFAULT 1,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_watch_user_cond_target` (`user_id`, `condition_type`, `target_type`, `target_id`, `target_text`),
-    KEY `idx_watch_enabled_type` (`enabled`, `condition_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 任务';
-
-CREATE TABLE IF NOT EXISTS `watch_execution` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `task_id` BIGINT NOT NULL,
-    `event_key` VARCHAR(191) NOT NULL,
-    `hit` TINYINT NOT NULL DEFAULT 0,
-    `used_llm` TINYINT NOT NULL DEFAULT 0,
-    `status` VARCHAR(16) NOT NULL COMMENT 'matched/skipped/failed',
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_watch_exec_event` (`task_id`, `event_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 匹配执行';
-
-CREATE TABLE IF NOT EXISTS `watch_hit` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `task_id` BIGINT NOT NULL,
-    `post_id` BIGINT NOT NULL DEFAULT 0,
-    `title` VARCHAR(255) DEFAULT NULL,
-    `summary` VARCHAR(512) DEFAULT NULL,
-    `read_at_ms` BIGINT DEFAULT NULL,
-    `created_at_ms` BIGINT NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_watch_hit_user_read` (`user_id`, `read_at_ms`, `id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Watch 命中收件箱';
-
 CREATE TABLE IF NOT EXISTS `agent_run` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,

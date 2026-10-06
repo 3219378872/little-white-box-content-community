@@ -91,22 +91,6 @@ type Store interface {
 	InsertOutbox(ctx context.Context, row Outbox) error
 	ListUnpublishedOutbox(ctx context.Context, limit int) ([]Outbox, error)
 	MarkOutboxPublished(ctx context.Context, ids []int64) error
-
-	UpsertDeliveryBucket(ctx context.Context, userID, hitID, windowStartMs, nowMs int64) (DeliveryBucket, error)
-	GetBucket(ctx context.Context, id int64) (*DeliveryBucket, error)
-	GetPendingBucket(ctx context.Context, userID int64) (*DeliveryBucket, error)
-	ListDueBuckets(ctx context.Context, nowMs, windowMs int64) ([]DeliveryBucket, error)
-	MarkBucketScheduled(ctx context.Context, id, runID int64) error
-	MarkBucketSent(ctx context.Context, id, runID int64) error
-	DeferBucket(ctx context.Context, id, notBeforeMs int64) error
-	DismissBucket(ctx context.Context, id, runID int64) error
-	ResetBucket(ctx context.Context, id, runID int64) error
-	RequeueFailedBuckets(ctx context.Context, nowMs int64) error
-	ReserveWatchQuota(ctx context.Context, bucketID, userID int64, taskIDs []int64, dayStartMs, hourStartMs int64, dailyLimit, hourlyLimit int) (allowed bool, retryAtMs int64, err error)
-	FinishWatchDelivery(ctx context.Context, id, userID, runID int64, runStatus string, nowMs int64) error
-	ResetUnsentBuckets(ctx context.Context, userID int64) error
-	CountSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) (int, error)
-	IncrSent(ctx context.Context, userID, taskID int64, periodKind string, periodStartMs int64) error
 }
 
 type Notifier interface {

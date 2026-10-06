@@ -43,7 +43,7 @@ func TestConcurrentExecutionsKeepRoundStateLocal(t *testing.T) {
 	}
 	acceptor := &Acceptor{Store: mem}
 	for userID := int64(1); userID <= 2; userID++ {
-		_, err := acceptor.Accept(ctx, AcceptInput{UserID: userID, Message: fmt.Sprintf("user-%d", userID), RequestID: fmt.Sprintf("request-%d", userID), ConsentOK: true, ConsentVersion: 2})
+		_, err := acceptor.Accept(ctx, AcceptInput{UserID: userID, Message: fmt.Sprintf("user-%d", userID), RequestID: fmt.Sprintf("request-%d", userID), ConsentOK: true, ConsentVersion: 3})
 		if err != nil {
 			t.Fatal(err)
 		}

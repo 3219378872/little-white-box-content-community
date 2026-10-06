@@ -433,7 +433,6 @@ SLO_THRESHOLDS = [
     SLOThreshold("assistant_accept", 0.990, 500),
     SLOThreshold("assistant_first_event", 0.990, 2000),
     SLOThreshold("assistant_completion", None, 45000, enforced=False),
-    SLOThreshold("watch_delivery", 0.990, 300000),
 ]
 
 

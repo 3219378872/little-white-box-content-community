@@ -84,7 +84,7 @@ func TestAssistantRetentionIndexesCoverEveryGlobalPurge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, index := range []string{"idx_msg_retention", "idx_watch_hit_created", "idx_watch_exec_created"} {
+	for _, index := range []string{"idx_msg_retention"} {
 		if !strings.Contains(string(baseline), index) {
 			t.Errorf("Assistant baseline is missing %s", index)
 		}

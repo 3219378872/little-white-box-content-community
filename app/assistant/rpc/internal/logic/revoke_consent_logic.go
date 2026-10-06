@@ -41,8 +41,5 @@ func (l *RevokeConsentLogic) RevokeConsent(in *pb.RevokeConsentReq) (*pb.RevokeC
 			return nil, err
 		}
 	}
-	if err := l.svcCtx.Store.ResetUnsentBuckets(l.ctx, in.UserId); err != nil {
-		return nil, err
-	}
 	return &pb.RevokeConsentResp{}, nil
 }

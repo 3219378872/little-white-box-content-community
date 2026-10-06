@@ -7,7 +7,6 @@ import (
 	"esx/app/assistant/internal/memory"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
-	"esx/app/assistant/watch"
 	"time"
 
 	logx "esx/pkg/logging"
@@ -45,17 +44,15 @@ var (
 )
 
 type Engine struct {
-	Store      store.Store
-	Memory     memory.Store
-	Watch      watch.Store
-	Tools      *tool.Registry
-	LLM        llm.Client
-	AuxLLM     llm.Client
-	ReviewLLM  llm.Client
-	Notify     store.Notifier
-	WatchPosts WatchPostVisibility
-	Window     int
-	Provider   int
+	Store     store.Store
+	Memory    memory.Store
+	Tools     *tool.Registry
+	LLM       llm.Client
+	AuxLLM    llm.Client
+	ReviewLLM llm.Client
+	Notify    store.Notifier
+	Window    int
+	Provider  int
 }
 
 func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {

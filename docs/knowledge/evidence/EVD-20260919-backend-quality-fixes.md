@@ -4,7 +4,7 @@ layer: evidence
 title: 后端质量审查六项修复与故障回归
 status: active
 owner: agent
-updated_at: '2026-09-19'
+updated_at: 2026-10-06
 scope: [static, unit, integration]
 commands:
 - make fmt-check vet lint vulncheck spec-evals-test python-unit
@@ -86,36 +86,6 @@ coverage:
   - deploy/sql/patches/20260905_agent_research.sql
   - scripts/spec_evals.py
   - eval/dev/assistant_cases.synthetic.json
-  - go.mod
-  - go.sum
-- requirements:
-  - WCH-001
-  - WCH-003
-  - WCH-004
-  - WCH-010
-  - WCH-011
-  - WCH-012
-  - WCH-013
-  - WCH-020
-  - WCH-021
-  - WCH-022
-  - WCH-023
-  - WCH-024
-  - WCH-A02
-  - WCH-A04
-  - WCH-A06
-  paths:
-  - pkg/interceptor
-  - pkg/jwtx
-  - pkg/testutil
-  - app/assistant/watch
-  - app/assistant/mq
-  - app/assistant/internal/runtime
-  - app/assistant/internal/store
-  - app/assistant/internal/tool
-  - app/gateway/internal/logic/assistant
-  - proto/assistant/assistant.proto
-  - deploy/sql/xbh_assistant.sql
   - go.mod
   - go.sum
 - requirements:
@@ -329,6 +299,8 @@ coverage:
 ---
 
 # 后端质量审查六项修复与故障回归
+
+> 2026-10-06：`SPEC-agent-watch` 退役，本页移除只含 WCH 条款的覆盖组；原观察结果不变，可从 Git 历史读取。
 
 上列命令均在观察提交上实际执行并取得 exit 0，执行期间受跟踪工作树干净。证据与 IMP 引用在独立
 后续提交记录，不使用自指 SHA。公开 REST、内部 RPC 契约、生成文件、依赖和数据库结构均未改变。

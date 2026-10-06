@@ -16,12 +16,10 @@ Client → Gateway (REST :8888) → User RPC (:9090)
 ```
 
 异步链路经 RocketMQ 驱动：内容变更 → search 索引 / embedding / feed fanout /
-count-sync / 清理 / Watch 匹配；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
-推荐特征；权威业务事务通过 outbox 同事务投递。Assistant 记忆与 Watch 权威库是
+count-sync / 清理；客户端行为 → behavior RPC → 行为日志管道（ClickHouse）与
+推荐特征；权威业务事务通过 outbox 同事务投递。Assistant 记忆权威库是
 `xbh_assistant`（DSN `DB_ASSISTANT`）。`assistant-rpc` 只接受命令并读权威库；
-`assistant-agent` worker 通过 MySQL lease 执行 run。Watch matcher 进程订阅
-`post-create` / `post-update` / `post-delete` / `user-behavior-v2`，消费组
-`assistant-watch-matcher-group`，把命中写入内部 bucket 并调度 Watch run。
+`assistant-agent` worker 通过 MySQL lease 执行 run。
 
 付费广告与审核平台（`DES-sponsored-ads`、`DES-review-platform`）各有独立权威库 `xbh_ad`（`DB_AD`）与
 `xbh_review`（`DB_REVIEW`）。ad-rpc 写广告与快照，同事务经 outbox 发 `review-submitted`（tag 为业务类型）；
@@ -47,7 +45,6 @@ revision CAS 应用结论、发布过审素材并维护 Redis 投放索引。举
 | Embedding | MQ + service | `app/embedding/mq/main.go`、`app/embedding/service` | `proto/embedding/embedding.proto` |
 | Assistant | RPC（命令/读模型/SSE replay） | `app/assistant/rpc/assistant.go` | `proto/assistant/assistant.proto` |
 | Assistant Agent worker | 异步 run 执行器 | `app/assistant/worker/main.go` | `app/assistant/worker/etc/agent.yaml` |
-| Assistant Watch matcher | MQ 消费者 | `app/assistant/mq/main.go` | — |
 | Behavior | RPC | `app/behavior/rpc/behavior.go` | `proto/behavior/behavior.proto` |
 | Pipeline | 行为日志管道 | `app/pipeline/behaviorlog/main.go` | — |
 | Content cleanup | MQ 消费者 | `app/content/mq/cleanup/main.go` | — |
@@ -95,7 +92,7 @@ internal/model/    → 数据访问层
 ## 包边界（内聚）
 
 - Assistant 工具执行器按职责拆在 `app/assistant/internal/tool/exec_*.go`（搜索、
-  内容、推荐、社交、记忆、Watch、来源、Web），注册表仍在 `registry.go`。
+  内容、推荐、社交、记忆、来源、Web），注册表仍在 `registry.go`。
 - Content 权威可见性：`pkg/visibilityx` 是纯策略；`app/content/visibility` 只适配
   Content RPC 客户端。Feed/Search/Recommend/Assistant 回源走适配层。
 - SQL 基线里仍保留但无运行时 Model 的表（`category`、`media_task`、
@@ -107,7 +104,7 @@ internal/model/    → 数据访问层
 - **Gateway → RPC**：Kitex 客户端 + etcd 服务发现；trace_id 经 gRPC metadata 透传。
 - **RPC → RPC**：Interaction 写赞/藏前问 Content 校验 published；Assistant 经 Content
   重读正文并验证 published。详情/列表的访问者互动状态由 Gateway 回填 Interaction。
-  记忆与 Watch 的权威在 assistant RPC（`xbh_assistant`），不新开业务服务。
+  记忆的权威在 assistant RPC（`xbh_assistant`），不新开业务服务。
 - **算法旁路**：`algorithm/online_infer` 与 `offline_train` 可选；推荐超时则规则降级。
 
 ### 行为事件双轨可靠性模型

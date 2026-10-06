@@ -37,7 +37,7 @@ func TestSQLLeaseGenerationAndJournalTakeover(t *testing.T) {
 	st := newAssistantTestStore()
 	queued, err := st.InsertRun(ctx, Run{
 		UserID: 1, SessionID: 1, RequestID: "sql-fence", Source: SourceUser,
-		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 2, InputVersion: 1, CreatedAtMs: NowMs(),
+		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 3, InputVersion: 1, CreatedAtMs: NowMs(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestSQLRunPersistsNormalizedProviderUsage(t *testing.T) {
 	st := newAssistantTestStore()
 	run, err := st.InsertRun(ctx, Run{
 		UserID: 9, SessionID: 7, RequestID: "usage-roundtrip", Source: SourceUser,
-		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 2, InputVersion: 1,
+		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 3, InputVersion: 1,
 		InputTokens: 100, OutputTokens: 20, CacheTokens: 40, CacheWriteTokens: 8,
 		ReasoningTokens: 6, LastPromptTokens: 96, UsageEstimated: true, CostUSD: 0.0123, CreatedAtMs: NowMs(),
 	})
@@ -134,7 +134,7 @@ func TestSQLTerminalFailureRollsBackRunMessageOutboxAndThread(t *testing.T) {
 	}
 	queued, err := st.InsertRun(ctx, Run{
 		UserID: 3, SessionID: session.ID, RequestID: "terminal-rollback", Source: SourceUser,
-		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 2, InputVersion: 1, CreatedAtMs: NowMs(),
+		Status: StatusQueued, Phase: PhaseQueued, ConsentVersion: 3, InputVersion: 1, CreatedAtMs: NowMs(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -202,13 +202,12 @@ func TestSQLTerminalFailureRollsBackRunMessageOutboxAndThread(t *testing.T) {
 	}
 }
 
-func TestSQLRetentionPurgesMessagesAndWatchAuditInBoundedBatches(t *testing.T) {
-	assistantTestEnv.TruncateAll(t, "assistant_index_outbox", "assistant_message", "assistant_thread", "assistant_session", "watch_hit", "watch_execution", "watch_task")
+func TestSQLRetentionPurgesMessagesInBoundedBatches(t *testing.T) {
+	assistantTestEnv.TruncateAll(t, "assistant_index_outbox", "assistant_message", "assistant_thread", "assistant_session")
 	ctx := context.Background()
 	st := newAssistantTestStore()
 	now := time.Now().UTC().Truncate(time.Second)
 	messageCutoff := now.Add(-365 * 24 * time.Hour).UnixMilli()
-	watchCutoff := now.Add(-90 * 24 * time.Hour).UnixMilli()
 
 	session, err := st.CreateSession(ctx, Session{UserID: 41, Status: SessionOpen, CreatedAtMs: messageCutoff - 10})
 	if err != nil {
@@ -261,32 +260,6 @@ func TestSQLRetentionPurgesMessagesAndWatchAuditInBoundedBatches(t *testing.T) {
 	thread, err := st.GetThread(ctx, 41)
 	if err != nil || thread.LastMessageID != 0 || thread.LastMessagePreview != "" || thread.UnreadCount != 0 {
 		t.Fatalf("thread=%+v err=%v", thread, err)
-	}
-
-	if _, err := st.exec.ExecCtx(ctx, `INSERT INTO watch_task (id, user_id, condition_type, target_type, target_id, target_text, enabled)
-		VALUES (7001, 41, 'author_new_post', 'author', 1, '', 1)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := st.exec.ExecCtx(ctx, `INSERT INTO watch_hit (user_id, task_id, post_id, created_at_ms) VALUES
-		(41, 7001, 1, ?), (41, 7001, 2, ?)`, watchCutoff-1, watchCutoff+1); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := st.exec.ExecCtx(ctx, `INSERT INTO watch_execution (task_id, event_key, hit, used_llm, status, created_at) VALUES
-		(7001, 'old', 1, 0, 'matched', FROM_UNIXTIME(?)),
-		(7001, 'fresh', 1, 0, 'matched', FROM_UNIXTIME(?))`, watchCutoff/1000-1, watchCutoff/1000+1); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := st.PurgeExpiredWatchHits(ctx, watchCutoff, 10); err != nil || got != 1 {
-		t.Fatalf("watch hit purge=%d err=%v", got, err)
-	}
-	if got, err := st.PurgeExpiredWatchExecutions(ctx, watchCutoff, 10); err != nil || got != 1 {
-		t.Fatalf("watch execution purge=%d err=%v", got, err)
-	}
-	var freshAudit int64
-	if err := st.exec.QueryRowCtx(ctx, &freshAudit, `SELECT
-		(SELECT COUNT(*) FROM watch_hit WHERE post_id=2) +
-		(SELECT COUNT(*) FROM watch_execution WHERE event_key='fresh')`); err != nil || freshAudit != 2 {
-		t.Fatalf("fresh watch audit=%d err=%v", freshAudit, err)
 	}
 }
 
@@ -446,138 +419,6 @@ func TestSQLMemoryMutationsSerializeCapacityDedupeAndUndo(t *testing.T) {
 	})
 }
 
-func TestSQLWatchQuotaReservationSerializesWorkers(t *testing.T) {
-	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket")
-	ctx := context.Background()
-	st := newAssistantTestStore()
-	now := NowMs()
-	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
-	buckets := make([]DeliveryBucket, 4)
-	for i := range buckets {
-		var err error
-		buckets[i], err = st.UpsertDeliveryBucket(ctx, 81, int64(i+1), int64(i+1)*120_000, now)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	var wg sync.WaitGroup
-	allowed := make(chan int, len(buckets))
-	for index, bucket := range buckets {
-		wg.Add(1)
-		go func(index int, bucket DeliveryBucket) {
-			defer wg.Done()
-			ok, _, err := st.ReserveWatchQuota(ctx, bucket.ID, 81, []int64{91}, dayStart, hourStart, 20, 3)
-			if err != nil {
-				t.Errorf("reserve %d: %v", index, err)
-				return
-			}
-			if ok {
-				allowed <- index
-			}
-		}(index, bucket)
-	}
-	wg.Wait()
-	close(allowed)
-	allowedIndexes := make([]int, 0, 3)
-	for index := range allowed {
-		allowedIndexes = append(allowedIndexes, index)
-	}
-	if len(allowedIndexes) != 3 {
-		t.Fatalf("allowed=%v", allowedIndexes)
-	}
-	released := buckets[allowedIndexes[0]]
-	if err := st.MarkBucketScheduled(ctx, released.ID, 1001); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.FinishWatchDelivery(ctx, released.ID, 81, 1001, StatusCancelled, now); err != nil {
-		t.Fatal(err)
-	}
-	var blocked DeliveryBucket
-	for index, bucket := range buckets {
-		found := false
-		for _, allowedIndex := range allowedIndexes {
-			found = found || index == allowedIndex
-		}
-		if !found {
-			blocked = bucket
-		}
-	}
-	if ok, _, err := st.ReserveWatchQuota(ctx, blocked.ID, 81, []int64{91}, dayStart, hourStart, 20, 3); err != nil || !ok {
-		t.Fatalf("released quota reusable=%v err=%v", ok, err)
-	}
-	delivered := buckets[allowedIndexes[1]]
-	if err := st.MarkBucketScheduled(ctx, delivered.ID, 1002); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.FinishWatchDelivery(ctx, delivered.ID, 81, 1002, StatusDone, now); err != nil {
-		t.Fatal(err)
-	}
-	if daily, _ := st.CountSent(ctx, 81, 0, "day", dayStart); daily != 1 {
-		t.Fatalf("daily=%d", daily)
-	}
-	if hourly, _ := st.CountSent(ctx, 81, 91, "hour", hourStart); hourly != 1 {
-		t.Fatalf("hourly=%d", hourly)
-	}
-
-	legacy, err := st.UpsertDeliveryBucket(ctx, 82, 9001, 600_000, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := st.MarkBucketScheduled(ctx, legacy.ID, 1003); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.FinishWatchDelivery(ctx, legacy.ID, 82, 1003, StatusDone, now); err != nil {
-		t.Fatal(err)
-	}
-	if daily, _ := st.CountSent(ctx, 82, 0, "day", dayStart); daily != 1 {
-		t.Fatalf("legacy daily=%d", daily)
-	}
-}
-
-func TestSQLRequeueFailedWatchBucketReleasesReservation(t *testing.T) {
-	assistantTestEnv.TruncateAll(t, "watch_send_reservation", "watch_send_stat", "watch_delivery_bucket", "agent_run_event", "agent_run")
-	ctx := context.Background()
-	st := newAssistantTestStore()
-	now := NowMs()
-	dayStart := now / int64((24 * time.Hour).Milliseconds()) * int64((24 * time.Hour).Milliseconds())
-	hourStart := now / int64(time.Hour.Milliseconds()) * int64(time.Hour.Milliseconds())
-	bucket, err := st.UpsertDeliveryBucket(ctx, 83, 9101, 720_000, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	allowed, _, err := st.ReserveWatchQuota(ctx, bucket.ID, 83, []int64{93}, dayStart, hourStart, 1, 1)
-	if err != nil || !allowed {
-		t.Fatalf("reserve allowed=%v err=%v", allowed, err)
-	}
-	run, err := st.InsertRun(ctx, Run{
-		UserID: 83, SessionID: 1, RequestID: "watch-requeue", Source: SourceWatch,
-		Status: StatusError, Phase: PhaseDone, ConsentVersion: 2, InputVersion: 1,
-		QueuedPayload: []byte(mustJSON(map[string]any{"bucket_id": bucket.ID})), CreatedAtMs: now, EndedAtMs: now,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := st.MarkBucketScheduled(ctx, bucket.ID, run.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.RequeueFailedBuckets(ctx, now); err != nil {
-		t.Fatal(err)
-	}
-	fresh, err := st.GetBucket(ctx, bucket.ID)
-	if err != nil || fresh.Status != "deferred" || fresh.RunID != 0 || fresh.NotBeforeMs != now+time.Minute.Milliseconds() {
-		t.Fatalf("bucket=%+v err=%v", fresh, err)
-	}
-	next, err := st.UpsertDeliveryBucket(ctx, 83, 9102, 840_000, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	allowed, _, err = st.ReserveWatchQuota(ctx, next.ID, 83, []int64{93}, dayStart, hourStart, 1, 1)
-	if err != nil || !allowed {
-		t.Fatalf("released quota reusable=%v err=%v", allowed, err)
-	}
-}
-
 func TestSQLInputAcceptanceLocksOpenRunBeforeThread(t *testing.T) {
 	assistantTestEnv.TruncateAll(t, "assistant_thread", "agent_run_event", "agent_run")
 	ctx := context.Background()
@@ -585,7 +426,7 @@ func TestSQLInputAcceptanceLocksOpenRunBeforeThread(t *testing.T) {
 	now := NowMs()
 	run, err := st.InsertRun(ctx, Run{
 		UserID: 84, SessionID: 1, RequestID: "lock-order", Source: SourceUser,
-		Status: StatusRunning, Phase: PhaseModelRequest, ConsentVersion: 2, InputVersion: 1,
+		Status: StatusRunning, Phase: PhaseModelRequest, ConsentVersion: 3, InputVersion: 1,
 		LeaseOwner: "worker-lock-order", LeaseGeneration: 1, LeaseUntilMs: now + 60_000,
 		CreatedAtMs: now, LastActivityAtMs: now,
 	})
@@ -614,7 +455,7 @@ func TestSQLInputAcceptanceLocksOpenRunBeforeThread(t *testing.T) {
 	go func() {
 		close(acceptStarted)
 		acceptDone <- st.Transact(ctx, func(ctx context.Context, tx Store) error {
-			if _, cancelErr := tx.CancelOpenBackground(ctx, run.UserID, []string{SourceWatch, SourceMemoryReview}); cancelErr != nil {
+			if _, cancelErr := tx.CancelOpenBackground(ctx, run.UserID, []string{SourceMemoryReview}); cancelErr != nil {
 				return cancelErr
 			}
 			if _, lockErr := tx.LockThread(ctx, run.UserID); lockErr != nil {

@@ -239,7 +239,6 @@ class SLOReportTest(unittest.TestCase):
         self.assertEqual(2000, thresholds["assistant_first_event"].p95_ms)
         self.assertEqual(45000, thresholds["assistant_completion"].p95_ms)
         self.assertFalse(thresholds["assistant_completion"].enforced)
-        self.assertEqual(300000, thresholds["watch_delivery"].p95_ms)
 
     def test_monthly_slo_availability_and_p95(self):
         requests = []

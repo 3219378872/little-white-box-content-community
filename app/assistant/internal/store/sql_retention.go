@@ -64,27 +64,6 @@ func (s *SQLStore) PurgeExpiredMessages(ctx context.Context, cutoffMs int64, bat
 	return deleted, err
 }
 
-func (s *SQLStore) PurgeExpiredWatchHits(ctx context.Context, cutoffMs int64, batchSize int) (int, error) {
-	return s.purgeExpiredRows(ctx, `DELETE FROM watch_hit WHERE id IN (
-		SELECT id FROM (SELECT id FROM watch_hit WHERE created_at_ms < ? ORDER BY id ASC LIMIT ?) expired
-	)`, cutoffMs, boundedPurgeBatchSize(batchSize))
-}
-
-func (s *SQLStore) PurgeExpiredWatchExecutions(ctx context.Context, cutoffMs int64, batchSize int) (int, error) {
-	return s.purgeExpiredRows(ctx, `DELETE FROM watch_execution WHERE id IN (
-		SELECT id FROM (SELECT id FROM watch_execution WHERE created_at < FROM_UNIXTIME(?) ORDER BY id ASC LIMIT ?) expired
-	)`, cutoffMs/1000, boundedPurgeBatchSize(batchSize))
-}
-
-func (s *SQLStore) purgeExpiredRows(ctx context.Context, query string, cutoff int64, batchSize int) (int, error) {
-	result, err := s.exec.ExecCtx(ctx, query, cutoff, batchSize)
-	if err != nil {
-		return 0, err
-	}
-	affected, err := result.RowsAffected()
-	return int(affected), err
-}
-
 func boundedPurgeBatchSize(size int) int {
 	if size <= 0 {
 		return 500

@@ -34,13 +34,6 @@ func allDefinitions(clients Clients) []Definition {
 		{Name: GetMyLikes, Description: "列出自己点赞的已发布帖子。", Parameters: objectSchema(map[string]any{"page": map[string]any{"type": "integer"}, "page_size": map[string]any{"type": "integer"}}, nil), executor: getMyLikesExecutor(clients)},
 		{Name: GetMyFollowing, Description: "列出自己关注的人。", Parameters: objectSchema(map[string]any{"page": map[string]any{"type": "integer"}, "page_size": map[string]any{"type": "integer"}}, nil), executor: getMyFollowingExecutor(clients.User)},
 		{Name: GetMyPosts, Description: "列出自己已发布的帖子。", Parameters: objectSchema(map[string]any{"page_size": map[string]any{"type": "integer"}}, nil), executor: getMyPostsExecutor(clients.Content)},
-		{Name: ListWatchTasks, Description: "列出条件追踪任务。", Parameters: objectSchema(map[string]any{}, nil), executor: listWatchTasksExecutor(clients.Watch)},
-		{Name: CreateWatchTask, Description: "创建条件追踪任务。", Parameters: objectSchema(map[string]any{
-			"condition_type": map[string]any{"type": "string"}, "target_type": map[string]any{"type": "string"},
-			"target_id": map[string]any{"type": "integer"}, "target_text": map[string]any{"type": "string"},
-		}, []string{"condition_type", "target_type"}), executor: createWatchTaskExecutor(clients)},
-		{Name: UpdateWatchTask, Description: "启用或停用追踪。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}, "enabled": map[string]any{"type": "boolean"}, "expected_version": map[string]any{"type": "integer"}}, []string{"id", "enabled", "expected_version"}), executor: updateWatchTaskExecutor(clients.Watch)},
-		{Name: DeleteWatchTask, Description: "删除追踪任务。", Parameters: objectSchema(map[string]any{"id": map[string]any{"type": "integer"}, "expected_version": map[string]any{"type": "integer"}}, []string{"id", "expected_version"}), executor: deleteWatchTaskExecutor(clients.Watch)},
 		{Name: WebSearch, Description: "搜索公共互联网，结果登记为 web source handle。", Parameters: objectSchema(map[string]any{"query": map[string]any{"type": "string"}}, []string{"query"}), executor: webSearchExecutor(clients.Web)},
 		{Name: CreatePost, Description: "以当前用户身份创建帖子。", Parameters: objectSchema(map[string]any{
 			"title": map[string]any{"type": "string"}, "content": map[string]any{"type": "string"},
@@ -71,10 +64,8 @@ func allDefinitions(clients Clients) []Definition {
 }
 
 func decorateDefinitions(defs []Definition, clients Clients) {
-	writeTools := stringSet(CreatePost, UpdatePost, DeletePost, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory,
-		CreateWatchTask, UpdateWatchTask, DeleteWatchTask)
+	writeTools := stringSet(CreatePost, UpdatePost, DeletePost, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory)
 	versionOne := stringSet(Version1Tools()...)
-	watchTools := stringSet(WatchTools()...)
 	reviewTools := stringSet(ReviewTools()...)
 	for i := range defs {
 		def := &defs[i]
@@ -89,9 +80,6 @@ func decorateDefinitions(defs []Definition, clients Clients) {
 		}
 		if _, ok := versionOne[def.Name]; ok {
 			meta.MinConsent = 1
-		}
-		if _, ok := watchTools[def.Name]; ok {
-			meta.Sources = append(meta.Sources, store.SourceWatch)
 		}
 		if _, ok := reviewTools[def.Name]; ok {
 			meta.Sources = append(meta.Sources, store.SourceMemoryReview)
@@ -120,10 +108,6 @@ func definitionAvailable(name string, clients Clients) bool {
 		return nonNil(clients.Interaction) && nonNil(clients.Content)
 	case GetMyFollowing:
 		return nonNil(clients.User)
-	case ListWatchTasks:
-		return nonNil(clients.Watch)
-	case CreateWatchTask, UpdateWatchTask, DeleteWatchTask:
-		return nonNil(clients.Watch) && nonNil(clients.Store)
 	case WebSearch:
 		return nonNil(clients.Web)
 	case CreatePost:

@@ -12,9 +12,6 @@ import (
 )
 
 func clientProtocol(run store.Run) int {
-	if run.Source == store.SourceWatch {
-		return 2
-	}
 	return max(1, run.ClientProtocolVersion)
 }
 
@@ -92,17 +89,6 @@ func requiresExclusiveRound(calls []llm.ToolCall) bool {
 }
 
 func (e *Engine) publishAnswer(ctx context.Context, run *store.Run, call llm.ToolCall, answer store.AnswerPresentation) error {
-	if run.Source == store.SourceWatch {
-		if _, err := e.currentWatchHits(ctx, *run, decodeWatchRunPayload(run.QueuedPayload)); err != nil {
-			if errors.Is(err, errNoVisibleWatchHits) {
-				if err := e.dismissWatchRun(ctx, *run); err != nil {
-					return err
-				}
-				return errRunTerminated
-			}
-			return err
-		}
-	}
 	text := tool.AnswerText(&answer)
 	run.ToolCalls++
 	err := e.finishMessage(ctx, *run, store.StatusDone, store.EventDone, store.EventPayload{Answer: &answer, Text: text}, text,

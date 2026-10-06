@@ -23,7 +23,6 @@ func TestAllConsumerConfigsDeclareBoundedRetries(t *testing.T) {
 		"app/pipeline/behaviorlog/etc/behavior-log.yaml",
 		"app/recommend/mq/etc/recommend-consumer.yaml",
 		"app/search/mq/etc/search-consumer.yaml",
-		"app/assistant/mq/etc/watch-consumer.yaml",
 		"app/review/worker/etc/review-worker.yaml",
 		"app/ad/mq/etc/ad-consumer.yaml",
 	}

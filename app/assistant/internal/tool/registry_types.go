@@ -7,7 +7,6 @@ import (
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/websearch"
-	"esx/app/assistant/watch"
 	"esx/app/content/rpc/contentservice"
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/app/media/rpc/mediaservice"
@@ -34,10 +33,6 @@ const (
 	GetMyLikes      = "get_my_likes"
 	GetMyFollowing  = "get_my_following"
 	GetMyPosts      = "get_my_posts"
-	CreateWatchTask = "create_watch_task"
-	ListWatchTasks  = "list_watch_tasks"
-	UpdateWatchTask = "update_watch_task"
-	DeleteWatchTask = "delete_watch_task"
 	WebSearch       = "web_search"
 	CreatePost      = "create_post"
 	UpdatePost      = "update_post"
@@ -73,10 +68,6 @@ func Version1Tools() []string {
 	return []string{SearchPosts, WebSearch, CreatePost, UpdatePost, DeletePost}
 }
 
-func WatchTools() []string {
-	return []string{SearchPosts, SearchUsers, SearchTags, GetPost, GetPostComments, RecommendPosts, SimilarPosts, ComparePosts, GetMemory, SearchHistory, PresentSources, ReadSource, PublishAnswer}
-}
-
 func ReviewTools() []string {
 	return []string{GetMemory, AddMemory, ReplaceMemory, RemoveMemory, BatchMemory}
 }
@@ -90,7 +81,6 @@ type Clients struct {
 	User        userservice.UserService
 	Web         websearch.Searcher
 	Memory      memory.Store
-	Watch       watch.Store
 	Store       store.Store
 	History     History
 }
@@ -112,7 +102,6 @@ type Session struct {
 	ConsentVersion        int32
 	Attachments           []Attachment
 	ContextPostID         int64
-	WatchPostIDs          []int64
 	LiveMessageIDs        []int64
 	ChangeIDs             []int64
 	Fence                 store.LeaseFence

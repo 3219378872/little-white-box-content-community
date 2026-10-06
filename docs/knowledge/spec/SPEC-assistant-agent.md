@@ -6,7 +6,7 @@ status: approved
 owner: human
 upstream:
   - INT-content-community-backend
-updated_at: 2026-09-07
+updated_at: 2026-10-06
 ---
 
 # 持久异步 Assistant Agent 规范
@@ -16,8 +16,8 @@ updated_at: 2026-09-07
 本规范统一约束帮助用户使用内容社区的“小白盒 Agent”：复杂需求澄清、社区优先检索、互联网补充、
 逐项 URL 引用，以及消息虚拟线程、异步运行、平台工具、历史召回、授权、预算和恢复语义。
 它接替已 retired/deprecated 的 `SPEC-grounded-assistant` 与
-`SPEC-assistant-agent-mode`。Memory 与 Watch 的专门行为分别由 `SPEC-agent-memory` 和
-`SPEC-agent-watch` 约束。
+`SPEC-assistant-agent-mode`。Memory 的专门行为由 `SPEC-agent-memory` 约束；Watch 条件追踪已随
+`SPEC-agent-watch` 退役。
 
 - `AGENT-001`：Assistant 是每个认证用户拥有的一条虚拟私信线程，不创建机器人用户，不写入普通
   私信 conversation/message 模型，也不改变普通 Message API。
@@ -26,7 +26,7 @@ updated_at: 2026-09-07
 - `AGENT-003`：Agent 可直接对话并自主选择权限内的工具；用户不必先选择模式或被强制归类为固定意图。
   平台安全规则与真实用户条件优先于工具和资料中的不可信指令。
 - `AGENT-004`：用户 run 以当前认证用户身份执行，只能访问该用户直接可访问的数据，只能更新或
-  删除本人帖子；Watch run 只读，memory-review run 只能读写 MEMORY/USER。
+  删除本人帖子；memory-review run 只能读写 MEMORY/USER。
 
 ## 复杂需求与社区优先
 
@@ -63,8 +63,8 @@ updated_at: 2026-09-07
   不重复追问用户已明确跳过的问题，除非先解释新的必要性，且用户仍可跳过。等待回答不能被解释为
   用户已经选择、同意或确认。
 - `AGENT-115`：`ask_questions` 只用于用户 run 的需求澄清，答案须关联正确用户和对应问题；不能作为
-  capability consent 或 `delete_post` 确认，也不能绕过现有工具权限。Watch 与 memory-review 不调用
-  该交互工具，保持各自现有权限边界。
+  capability consent 或 `delete_post` 确认，也不能绕过现有工具权限。memory-review 不调用该交互
+  工具，保持现有权限边界。
 
 ## 线程、会话与消息
 
@@ -74,13 +74,13 @@ updated_at: 2026-09-07
 - `AGENT-012`：每用户同时最多一个前台 run。新消息在模型请求阶段可安全 redirect，在工具阶段
   steer；compact、附件处理或其它不能安全注入的阶段进入最多 32 条 FIFO，超限明确拒绝。
 - `AGENT-013`：每用户仅一条永久前台 session。`POST /api/v2/assistant/sessions` 硬删除，不提供
-  兼容适配层。线程上一条可见消息距今不少于 30 分钟后，下一次新建 user 或 Watch run 时在同一
+  兼容适配层。线程上一条可见消息距今不少于 30 分钟后，下一次新建 user run 时在同一
   session 上滚动 prompt epoch，并按字节重建安全规则、`SOUL.md`、工具规则与冻结 MEMORY/USER；
-  不删除历史消息、不把历史移出 live prompt、不删除 MEMORY/USER 或 Watch。redirect、steer、FIFO
+  不删除历史消息、不把历史移出 live prompt、不删除 MEMORY/USER。redirect、steer、FIFO
   与崩溃恢复不得因空闲拼接而重写快照。`DELETE /api/v2/assistant/history` 删除 Assistant 历史，
-  不影响 MEMORY/USER 或 Watch。
-- `AGENT-014`：`POST /api/v2/assistant/thread/read` 更新 Assistant 未读；主动 Watch 消息计入未读，
-  `memory_changed` 系统行不计未读。
+  不影响 MEMORY/USER。
+- `AGENT-014`：`POST /api/v2/assistant/thread/read` 更新 Assistant 未读；`memory_changed` 系统行
+  不计未读。
 - `AGENT-015`：用户可见历史与真实模型输入相互隔离；恢复必须复用已提交的原始输入字节。
   个人记忆、历史检索和平台上下文不能泄漏为用户正文，也不能在恢复时被重新拼接成不同请求。
 
@@ -90,7 +90,7 @@ updated_at: 2026-09-07
 - `AGENT-021`：任务、消息、事件、工具结果和执行上下文可靠持久化；执行所有权排他且可接管。
   执行器故障后从已提交步骤恢复，过期执行器不得覆盖新执行器的结果。
 - `AGENT-022`：客户端断线不取消 run。只有显式 Stop 或取消 API 才请求硬取消；用户前台 run 可
-  抢占 Watch 与 memory-review，未发送 Watch 命中重新进入合并窗口。
+  抢占 memory-review。
 - `AGENT-023`：事件提交后才能对外通知，顺序单调且支持按游标补齐。通知通道故障不丢失持久事件，
   尤其不能丢失终止结果；具体存储和通知方式由设计决定。
 - `AGENT-024`：任务事件只允许所属用户读取；进度、工具、问答、引用、记忆和终止结果可恢复。
@@ -103,11 +103,10 @@ updated_at: 2026-09-07
 ## 授权、工具和副作用
 
 - `AGENT-030`：用户必须显式授予 Agent capability consent；授权说明列出当前工具分组、数据边界、
-  delete_post 逐次确认、Memory/Watch 和长任务预算。撤销后不接受新用户 run，活跃 run 安全停止。
-- `AGENT-031`：用户 run 可获得授权版本覆盖的完整工具集；Watch run 的资料读取与回答交付遵守
-  `WCH-011` 的受限能力边界；memory-review 只允许 Memory 工具。协议版本与工具名称的映射由设计承接，
+  delete_post 逐次确认、Memory 和长任务预算。撤销后不接受新用户 run，活跃 run 安全停止。
+- `AGENT-031`：用户 run 可获得授权版本覆盖的完整工具集；memory-review 只允许 Memory 工具。协议版本与工具名称的映射由设计承接，
   不得因更换交付机制扩大数据访问、业务写操作或交互权限。
-- `AGENT-032`：只有 `delete_post` 逐次确认。create/update、Memory 与 Watch 写仍须通过授权版本、
+- `AGENT-032`：只有 `delete_post` 逐次确认。create/update 与 Memory 写仍须通过授权版本、
   schema、所有权、revision、幂等和审计校验，但不弹逐次确认。
 - `AGENT-033`：工具副作用按用户、命令和等价参数幂等；恢复或重复调用复用已提交结果，不再次执行
   成功动作。不同参数不能误复用旧成功结果，结果不确定时不能伪造成功。
@@ -196,13 +195,13 @@ updated_at: 2026-09-07
   不可见收敛提示，不向用户消息写预算文案。
 - `AGENT-082`：真正触顶以 `AGENT_RESOURCE_LIMIT` 终止，并保留部分文本与已完成副作用摘要。
 - `AGENT-083`：观测 run elapsed/idle、queue age、rounds、tool calls、input/output/cache tokens、cost、
-  lease recovery、compact、BM25、Watch、memory-review 与 Redis 通知降级，且不得记录消息正文、
+  lease recovery、compact、BM25、memory-review 与 Redis 通知降级，且不得记录消息正文、
   prompt、secret 或普通私信。
 
 ## SLO 与验收
 
 - `AGENT-090`：接收 p95 500ms、首持久事件 p95 2s、活跃心跳间隔不超过 30s；普通完成 p95 45s
-  仅作观测目标，长任务不设统一完成 SLO；Watch 命中到主动私信 p95 5 分钟。
+  仅作观测目标，长任务不设统一完成 SLO。
 - `AGENT-A01`：覆盖执行权接管/恢复、单一前台任务、转向/补充/排队、显式停止、断线恢复、通知降级
   和唯一终止；等待用户时释放执行资源但不延长现有 30 分钟无活动和 6 小时绝对上限。
 - `AGENT-A02`：覆盖副作用幂等、一次性删除确认、版本/参数变化、权限与工具分组。
@@ -215,14 +214,14 @@ updated_at: 2026-09-07
   fencing、断线重放，以及前端最终文本只包含获胜 attempt。
 - `AGENT-A08`：覆盖 capability snapshot 恢复、启动 canary、typed retry/Retry-After/fallback、cache usage
   规范化、中文 compact 与压缩无收益拒绝提交。
-- `AGENT-A09`：覆盖严格工具 schema、availability/output limit、普通 user/Watch/review 的 no-progress
+- `AGENT-A09`：覆盖严格工具 schema、availability/output limit、普通 user/review 的 no-progress
   guard，以及 Memory sidecar 不能覆盖系统规则或泄漏到流式/非流式输出。
 - `AGENT-A10`：以“选择适合的猫粮”“如何选择适合自己的狗”等复杂需求验证社区优先、多轮检索与
   比较综合；覆盖社区充分、部分不足、无资料、检索故障、外部补充成功与不可用，核验不足说明真实，
   不绕过可见性检查，也不以单次结果列表或空结果代替尽力解答。
 - `AGENT-A11`：覆盖 `ask_questions` 单选、多选、文字补充、分轮追问、已知条件不重复询问、条件足够
   即检索，以及未知/无偏好/跳过/要求先搜索时的分情况回答；不补造偏好，不默认为授权或删除确认，
-  不把答案关联到其他用户或问题，Watch/review 不调用该工具。
+  不把答案关联到其他用户或问题，review 不调用该工具。
 - `AGENT-A12`：覆盖回答后继续澄清与检索后出现新分歧；重问已跳过项须说明新必要性且仍可跳过，
   等待期间不得伪造工具答案；提交幂等且绑定正确问题，过期保留记录并由用户显式继续新任务。
 - `AGENT-A13`：逐项核验自然语言回答的信息与帖子/网页 URL 对应、来源实际取得且支持表述；覆盖多源
