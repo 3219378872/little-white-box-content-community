@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -82,7 +83,7 @@ func noProgressFixture(t *testing.T, source string, count int) (*store.MemorySto
 	}
 	for i := 1; i <= count; i++ {
 		_, err := mem.InsertToolCall(context.Background(), store.ToolCall{
-			RunID: run.ID, CallID: "call-" + itoa(int64(i)), Tool: tool.GetMemory,
+			RunID: run.ID, CallID: "call-" + strconv.FormatInt(int64(i), 10), Tool: tool.GetMemory,
 			CanonicalArgsDigest: "same-args", Status: "success", ResultJSON: `{"ok":true}`,
 			CreatedAtMs: int64(i),
 		})

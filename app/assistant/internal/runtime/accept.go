@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -68,7 +69,7 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 		return AcceptResult{}, errx.NewWithCode(errx.ParamError)
 	}
 	if strings.TrimSpace(in.RequestID) == "" {
-		in.RequestID = "msg-" + itoa(store.NowMs())
+		in.RequestID = "msg-" + strconv.FormatInt(store.NowMs(), 10)
 	}
 	if in.ClientProtocolVersion == 0 {
 		in.ClientProtocolVersion = 1
@@ -272,29 +273,6 @@ func decodeInputPayload(raw []byte) inputPayload {
 	var payload inputPayload
 	_ = json.Unmarshal(raw, &payload)
 	return payload
-}
-
-func itoa(v int64) string {
-	if v == 0 {
-		return "0"
-	}
-	neg := false
-	if v < 0 {
-		neg = true
-		v = -v
-	}
-	var buf [20]byte
-	i := len(buf)
-	for v > 0 {
-		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
 }
 
 func replayAcceptedInput(ctx context.Context, tx store.Store, in AcceptInput, text string) (AcceptResult, bool, error) {

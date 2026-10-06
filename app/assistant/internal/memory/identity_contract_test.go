@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"esx/pkg/errx"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -65,7 +66,7 @@ func memoryMutationContract(t *testing.T, st Store, target string) {
 		go func(i int, text string) {
 			defer wg.Done()
 			<-start
-			_, _, err := st.Add(ctx, 14, target, text, itoa(int64(i)), 9)
+			_, _, err := st.Add(ctx, 14, target, text, strconv.FormatInt(int64(i), 10), 9)
 			errs <- err
 		}(i, text)
 	}

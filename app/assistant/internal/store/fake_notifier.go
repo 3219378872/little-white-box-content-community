@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strconv"
 	"sync"
 )
 
@@ -24,5 +25,5 @@ func (n *MemoryNotifier) Wake(_ context.Context, runID int64) error {
 func (n *MemoryNotifier) WakeToken(_ context.Context, runID int64) (string, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return itoa(n.token[runID]), nil
+	return strconv.FormatInt(n.token[runID], 10), nil
 }

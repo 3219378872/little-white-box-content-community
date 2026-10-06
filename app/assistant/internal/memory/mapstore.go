@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"maps"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -95,7 +96,7 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 			req = "anon"
 		}
 		if len(ops) > 1 {
-			req += "#" + itoa(int64(i))
+			req += "#" + strconv.FormatInt(int64(i), 10)
 		}
 		entry, changeID, err := tx.applyLocked(ctx, userID, req, op, nowMs)
 		if err != nil {

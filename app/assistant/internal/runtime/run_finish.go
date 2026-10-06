@@ -5,6 +5,7 @@ import (
 	"esx/app/assistant/internal/llm"
 	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
+	"strconv"
 	"strings"
 )
 
@@ -171,7 +172,7 @@ func (e *Engine) finishMessage(ctx context.Context, run store.Run, status, event
 			}
 			if session.SuccessfulUserTurns%10 == 0 {
 				if _, err := tx.InsertRun(ctx, store.Run{
-					UserID: run.UserID, SessionID: run.SessionID, RequestID: "review-" + itoa(now),
+					UserID: run.UserID, SessionID: run.SessionID, RequestID: "review-" + strconv.FormatInt(now, 10),
 					Source: store.SourceMemoryReview, Status: store.StatusQueued, Phase: store.PhaseQueued,
 					Priority: store.PriorityMemoryReview, ConsentVersion: run.ConsentVersion, InputVersion: 1,
 					PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,

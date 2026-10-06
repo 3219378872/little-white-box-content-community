@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 
 func TestExecuteChecksFinalOutputBudgetAndRetainsPartial(t *testing.T) {
 	for _, completion := range []int64{0, 1, 20} {
-		t.Run(itoa(completion), func(t *testing.T) {
+		t.Run(strconv.FormatInt(completion, 10), func(t *testing.T) {
 			ctx := context.Background()
 			st := store.NewMemoryStore()
 			engine, run := newCancelTestEngine(t, st, scriptLLM{complete: func(_ context.Context, req llm.Request) (llm.Result, error) {
@@ -176,7 +177,7 @@ func TestCompactionEnforcesCumulativeBudgetBeforeCommittingSnapshot(t *testing.T
 
 func TestReviewInputBudgetIsCheckedBeforeAndAfterModel(t *testing.T) {
 	for _, remaining := range []int64{1, 10_000} {
-		t.Run(itoa(remaining), func(t *testing.T) {
+		t.Run(strconv.FormatInt(remaining, 10), func(t *testing.T) {
 			ctx := context.Background()
 			st := store.NewMemoryStore()
 			calls := 0

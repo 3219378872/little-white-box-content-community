@@ -9,6 +9,7 @@ import (
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/errx"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,7 +103,7 @@ func (s *executionState) executeCalls(workCtx, persistCtx context.Context) (iter
 	for i, call := range s.result.ToolCalls {
 		id := strings.TrimSpace(call.ID)
 		if id == "" {
-			id = "call_" + itoa(store.NowMs()) + "_" + itoa(int64(i+1))
+			id = "call_" + strconv.FormatInt(store.NowMs(), 10) + "_" + strconv.FormatInt(int64(i+1), 10)
 		}
 		args := canonical.UnwrapArgsJSON(call.Arguments)
 		sess := &tool.Session{UserID: s.run.UserID, SessionID: s.run.SessionID, RunID: s.run.ID,

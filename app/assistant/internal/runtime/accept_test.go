@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestAcceptDispositionAndFIFO(t *testing.T) {
 	run.Phase = store.PhaseCompact
 	_ = mem.UpdateRun(ctx, *run)
 	for i := 0; i < store.MaxInputQueue; i++ {
-		got, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "queued", RequestID: "q" + itoa(int64(i)), ConsentOK: true, ConsentVersion: 3})
+		got, err := a.Accept(ctx, AcceptInput{UserID: 1, Message: "queued", RequestID: "q" + strconv.FormatInt(int64(i), 10), ConsentOK: true, ConsentVersion: 3})
 		if err != nil || got.Disposition != store.DispositionQueued {
 			t.Fatalf("queue %d: %+v err=%v", i, got, err)
 		}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -161,7 +162,7 @@ func (s *SQLStore) replayOps(
 	for i, op := range ops {
 		req := requestID
 		if len(ops) > 1 {
-			req += "#" + itoa(int64(i))
+			req += "#" + strconv.FormatInt(int64(i), 10)
 		}
 		change, err := s.findChangeByRequest(ctx, q, userID, req)
 		if err != nil {
@@ -190,7 +191,7 @@ func (s *SQLStore) applyOps(ctx context.Context, session sqlx.Session, userID in
 			req = "anon"
 		}
 		if len(ops) > 1 {
-			req = req + "#" + itoa(int64(i))
+			req = req + "#" + strconv.FormatInt(int64(i), 10)
 		}
 		entry, changeID, err := s.applyOne(ctx, session, userID, req, op, nowMs)
 		if err != nil {
@@ -731,13 +732,4 @@ func clipNorm(v string) string {
 		return string(runes[:512])
 	}
 	return v
-}
-
-func itoa(v int64) string {
-	return strings.TrimSpace(strings.TrimLeft(jsonNumber(v), " "))
-}
-
-func jsonNumber(v int64) string {
-	raw, _ := json.Marshal(v)
-	return string(raw)
 }

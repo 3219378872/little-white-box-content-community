@@ -1,7 +1,7 @@
 package store
 
 import (
-	"encoding/json"
+	"strconv"
 )
 
 func sortMessages(msgs []Message) {
@@ -15,28 +15,23 @@ func sortMessages(msgs []Message) {
 }
 
 func toolKey(runID int64, callID string) string {
-	return itoa(runID) + ":" + callID
+	return strconv.FormatInt(runID, 10) + ":" + callID
 }
 
 func journalKey(userID int64, requestID, tool, digest string) string {
-	return itoa(userID) + ":" + requestID + ":" + tool + ":" + digest
+	return strconv.FormatInt(userID, 10) + ":" + requestID + ":" + tool + ":" + digest
 }
 
-func sourceKey(runID int64, handle string) string { return itoa(runID) + ":" + handle }
+func sourceKey(runID int64, handle string) string { return strconv.FormatInt(runID, 10) + ":" + handle }
 
 func confirmKey(runID int64, callID string) string {
-	return itoa(runID) + ":" + callID
+	return strconv.FormatInt(runID, 10) + ":" + callID
 }
 
 func inputCommandKey(userID int64, requestID string) string {
-	return itoa(userID) + ":" + requestID
+	return strconv.FormatInt(userID, 10) + ":" + requestID
 }
 
 func alertKey(runID int64, level, dim string) string {
-	return itoa(runID) + ":" + level + ":" + dim
-}
-
-func itoa(v int64) string {
-	raw, _ := json.Marshal(v)
-	return string(raw)
+	return strconv.FormatInt(runID, 10) + ":" + level + ":" + dim
 }

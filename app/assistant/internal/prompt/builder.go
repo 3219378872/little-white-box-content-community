@@ -3,6 +3,7 @@ package prompt
 import (
 	"encoding/json"
 	"sort"
+	"strconv"
 	"strings"
 
 	"esx/app/assistant/agent"
@@ -223,7 +224,7 @@ func Messages(snap Snapshot) []Turn {
 			mem.WriteString("- [")
 			mem.WriteString(line.Target)
 			mem.WriteString("#")
-			mem.WriteString(itoa(line.ID))
+			mem.WriteString(strconv.FormatInt(line.ID, 10))
 			mem.WriteString("] ")
 			mem.WriteString(line.Content)
 			mem.WriteByte('\n')
@@ -294,26 +295,4 @@ func filterEmpty(in []string) []string {
 		}
 	}
 	return out
-}
-
-func itoa(v int64) string {
-	if v == 0 {
-		return "0"
-	}
-	neg := v < 0
-	if neg {
-		v = -v
-	}
-	var buf [20]byte
-	i := len(buf)
-	for v > 0 {
-		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
 }
