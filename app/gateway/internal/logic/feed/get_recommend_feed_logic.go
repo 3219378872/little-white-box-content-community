@@ -19,7 +19,6 @@ type GetRecommendFeedLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 获取推荐流
 func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendFeedLogic {
 	return &GetRecommendFeedLogic{
 		Logger: logging.WithContext(ctx),
@@ -28,6 +27,8 @@ func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// GetRecommendFeed 获取推荐流：登录用户或匿名设备至少有一个身份；声明支持广告槽位时
+// 并行查询广告，在推荐结果补全后再按槽位插入。
 func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq) (resp *types.GetRecommendFeedResp, err error) {
 	if req == nil || req.PageSize <= 0 || req.PageSize > 100 || strings.TrimSpace(req.RequestId) == "" {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -74,6 +75,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 		l.Error("FeedService.GetRecommendFeed returned a nil response")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	// 批量补全作者资料与当前用户的点赞状态。
 	enrichment, err := loadFeedEnrichment(l.ctx, l.svcCtx, result.Items, userID)
 	if err != nil {
 		l.Errorw("failed to enrich recommend feed", logging.Field("err", err.Error()))
@@ -85,31 +87,9 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 		if item == nil {
 			continue
 		}
-		author := enrichment.author(item.AuthorId)
-		items = append(items, types.RecommendFeedItem{
-			PostId:        item.PostId,
-			AuthorId:      item.AuthorId,
-			AuthorName:    author.Name,
-			AuthorAvatar:  author.Avatar,
-			CreatedAt:     item.CreatedAt,
-			FeedType:      item.FeedType,
-			Title:         item.Title,
-			Content:       item.Content,
-			Images:        copyStrings(item.Images),
-			Tags:          copyStrings(item.Tags),
-			ViewCount:     item.ViewCount,
-			LikeCount:     item.LikeCount,
-			CommentCount:  item.CommentCount,
-			FavoriteCount: item.FavoriteCount,
-			IsLiked:       enrichment.isLiked(item.PostId),
-			Score:         item.Score,
-			Reason:        defaultString(item.Reason, "fallback"),
-			RecallSource:  defaultString(item.RecallSource, "feed"),
-			ModelVersion:  defaultString(item.ModelVersion, "rule-fallback-v1"),
-			ExperimentId:  defaultString(item.ExperimentId, req.ExperimentId),
-			Position:      defaultPosition(item.Position, index),
-		})
+		items = append(items, recommendFeedItem(item, index, enrichment, req.ExperimentId))
 	}
+	// 下游未回传 requestId 时沿用客户端的值，保证曝光上报能与本次请求关联。
 	requestID := result.RequestId
 	if requestID == "" {
 		requestID = req.RequestId
@@ -127,6 +107,36 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 	return resp, nil
 }
 
+// recommendFeedItem 把 Feed 服务的条目与作者、点赞信息合并为公开响应项；
+// 推荐元数据缺失时（规则兜底）填入固定默认值，客户端上报时字段始终非空。
+func recommendFeedItem(item *feedservice.FeedItem, index int, enrichment *feedEnrichment, experimentID string) types.RecommendFeedItem {
+	author := enrichment.author(item.AuthorId)
+	return types.RecommendFeedItem{
+		PostId:        item.PostId,
+		AuthorId:      item.AuthorId,
+		AuthorName:    author.Name,
+		AuthorAvatar:  author.Avatar,
+		CreatedAt:     item.CreatedAt,
+		FeedType:      item.FeedType,
+		Title:         item.Title,
+		Content:       item.Content,
+		Images:        copyStrings(item.Images),
+		Tags:          copyStrings(item.Tags),
+		ViewCount:     item.ViewCount,
+		LikeCount:     item.LikeCount,
+		CommentCount:  item.CommentCount,
+		FavoriteCount: item.FavoriteCount,
+		IsLiked:       enrichment.isLiked(item.PostId),
+		Score:         item.Score,
+		Reason:        defaultString(item.Reason, "fallback"),
+		RecallSource:  defaultString(item.RecallSource, "feed"),
+		ModelVersion:  defaultString(item.ModelVersion, "rule-fallback-v1"),
+		ExperimentId:  defaultString(item.ExperimentId, experimentID),
+		Position:      defaultPosition(item.Position, index),
+	}
+}
+
+// defaultString 在值为空时返回兜底值。
 func defaultString(value, fallback string) string {
 	if value == "" {
 		return fallback
@@ -134,6 +144,7 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
+// defaultPosition 在下游未给出位置时按返回顺序从 1 编号。
 func defaultPosition(position int32, index int) int32 {
 	if position > 0 {
 		return position
