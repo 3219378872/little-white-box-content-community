@@ -24,17 +24,5 @@ var (
 
 // observeRecommendEventLag 按数据流（behavior/post）记录事件到特征更新的延迟。
 func observeRecommendEventLag(stream string, eventTime int64, now time.Time) {
-	recommendFeatureEventLag.ObserveFloat(nonNegativeEventLagSeconds(eventTime, now), stream)
-}
-
-// nonNegativeEventLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
-func nonNegativeEventLagSeconds(eventTime int64, now time.Time) float64 {
-	if eventTime <= 0 {
-		return 0
-	}
-	lag := now.Sub(time.UnixMilli(eventTime)).Seconds()
-	if lag < 0 {
-		return 0
-	}
-	return lag
+	recommendFeatureEventLag.ObserveFloat(metric.EventLagSeconds(eventTime, now), stream)
 }

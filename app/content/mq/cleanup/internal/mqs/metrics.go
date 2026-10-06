@@ -24,17 +24,5 @@ var (
 
 // observeCountSyncLag 记录行为发生到计数同步完成的延迟。
 func observeCountSyncLag(eventTime int64, now time.Time) {
-	countSyncEventLag.ObserveFloat(countSyncLagSeconds(eventTime, now))
-}
-
-// countSyncLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
-func countSyncLagSeconds(eventTime int64, now time.Time) float64 {
-	if eventTime <= 0 {
-		return 0
-	}
-	lag := now.Sub(time.UnixMilli(eventTime)).Seconds()
-	if lag < 0 {
-		return 0
-	}
-	return lag
+	countSyncEventLag.ObserveFloat(metric.EventLagSeconds(eventTime, now))
 }

@@ -20,17 +20,5 @@ var (
 
 // observeFeedLag 记录事件发生到 fanout 完成的延迟，用于观察关注流的新鲜度。
 func observeFeedLag(eventTime int64, now time.Time) {
-	feedConsumerEventLag.ObserveFloat(feedLagSeconds(eventTime, now))
-}
-
-// feedLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
-func feedLagSeconds(eventTime int64, now time.Time) float64 {
-	if eventTime <= 0 {
-		return 0
-	}
-	lag := now.Sub(time.UnixMilli(eventTime)).Seconds()
-	if lag < 0 {
-		return 0
-	}
-	return lag
+	feedConsumerEventLag.ObserveFloat(metric.EventLagSeconds(eventTime, now))
 }

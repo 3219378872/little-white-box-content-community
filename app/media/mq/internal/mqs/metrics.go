@@ -36,15 +36,7 @@ func observeMediaLag(e event.MediaDeletedEvent, now time.Time) {
 	mediaConsumerEventLag.ObserveFloat(mediaLagSeconds(e, now))
 }
 
-// mediaLagSeconds 计算事件延迟秒数；缺少时间或时钟回拨时记为 0，避免污染直方图。
+// mediaLagSeconds 计算媒体删除事件的延迟秒数，事件时间先经 mediaEventMillis 统一为毫秒。
 func mediaLagSeconds(e event.MediaDeletedEvent, now time.Time) float64 {
-	eventTime := mediaEventMillis(e)
-	if eventTime <= 0 {
-		return 0
-	}
-	lag := now.Sub(time.UnixMilli(eventTime)).Seconds()
-	if lag < 0 {
-		return 0
-	}
-	return lag
+	return metric.EventLagSeconds(mediaEventMillis(e), now)
 }
