@@ -67,3 +67,16 @@ func TestHertzCORS_PreflightShortCircuitsAndNoOriginPassesThrough(t *testing.T) 
 	assert.Empty(t, resp.Header.Peek("Vary"))
 	assert.True(t, called)
 }
+
+func TestHertzCORS_EmptyListsOmitHeaders(t *testing.T) {
+	mw := HertzCORS(CORSConfig{AllowOrigins: []string{"https://example.com"}})
+
+	resp := performHertz(mw, noopHandler, http.MethodGet, "/", ut.Header{Key: "Origin", Value: "https://example.com"}).Result()
+	// 空列表不能回写空值头：HertzCORS 依赖 RequestContext.Header 对空值执行删除，这里锁住该行为。
+	assert.Equal(t, "https://example.com", string(resp.Header.Peek("Access-Control-Allow-Origin")))
+	present := map[string]bool{}
+	resp.Header.VisitAll(func(key, _ []byte) { present[string(key)] = true })
+	for _, header := range []string{"Access-Control-Allow-Methods", "Access-Control-Allow-Headers", "Access-Control-Expose-Headers"} {
+		assert.False(t, present[header], "%s should be omitted", header)
+	}
+}
