@@ -7,7 +7,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/pkg/cleanupx"
 	"esx/pkg/httpx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/cloudwego/hertz/pkg/app"
 )
@@ -20,7 +20,7 @@ func UploadVideoHandler(s *svc.ServiceContext) app.HandlerFunc {
 			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
-		defer cleanupx.Close(logx.WithContext(ctx), "uploaded multipart file", file)
+		defer cleanupx.Close(logging.WithContext(ctx), "uploaded multipart file", file)
 		resp, err := media.NewUploadVideoLogic(ctx, s).UploadMultipart(file, header.Filename, key)
 		if err != nil {
 			httpx.ErrorCtx(ctx, c, err)

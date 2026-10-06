@@ -8,20 +8,20 @@ import (
 	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeleteCommentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewDeleteCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteCommentLogic {
 	return &DeleteCommentLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -37,8 +37,8 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("CommentModel.FindCommentById failed",
-			logx.Field("commentId", in.CommentId),
-			logx.Field("err", err.Error()),
+			logging.Field("commentId", in.CommentId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -56,16 +56,16 @@ func (l *DeleteCommentLogic) DeleteComment(in *pb.DeleteCommentReq) (*pb.DeleteC
 	}
 	if err = l.svcCtx.CommentCommandModel.DeleteComment(l.ctx, comment); err != nil {
 		l.Errorw("delete comment transaction failed",
-			logx.Field("commentId", comment.Id),
-			logx.Field("err", err.Error()),
+			logging.Field("commentId", comment.Id),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, comment.Id); err != nil {
-		l.Errorw("invalidate comment cache after delete failed", logx.Field("err", err.Error()))
+		l.Errorw("invalidate comment cache after delete failed", logging.Field("err", err.Error()))
 	}
 	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, comment.PostId); err != nil {
-		l.Errorw("invalidate post cache after comment delete failed", logx.Field("err", err.Error()))
+		l.Errorw("invalidate post cache after comment delete failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.DeleteCommentResp{}, nil

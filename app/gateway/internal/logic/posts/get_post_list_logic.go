@@ -13,11 +13,11 @@ import (
 	"esx/pkg/jwtx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPostListLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -25,7 +25,7 @@ type GetPostListLogic struct {
 // 获取帖子列表
 func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostListLogic {
 	return &GetPostListLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -56,7 +56,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 	}
 	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
 	if err != nil {
-		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		l.Errorw("viewerstate.Enrich failed", logging.Field("err", err.Error()))
 		return nil, err
 	}
 	authors := authorx.LoadSoft(l.ctx, l.svcCtx, authorx.PostAuthorIDs(result.Posts))

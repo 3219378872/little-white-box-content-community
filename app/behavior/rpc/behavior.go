@@ -14,7 +14,7 @@ import (
 	"esx/pkg/cleanupx"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"esx/pkg/rpcx"
 )
@@ -29,7 +29,7 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
-	logger := logx.WithContext(context.Background())
+	logger := logging.WithContext(context.Background())
 	defer cleanupx.Shutdown(logger, "behavior producer", ctx.Close)
 
 	s := native.NewServer(server.NewBehaviorServiceServer(ctx), rpcx.ServerOptions(c.RpcServerConf, c.InternalSecret)...)

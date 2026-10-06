@@ -12,20 +12,20 @@ import (
 	"esx/pkg/util"
 	"os"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UploadImageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadImageLogic {
 	return &UploadImageLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -68,9 +68,9 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 			return errx.NewWithCode(errx.FileTypeNotAllowed)
 		}
 		l.Errorw("compress image failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("file_name", meta.GetFileName()),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", meta.GetUserId()),
+			logging.Field("file_name", meta.GetFileName()),
+			logging.Field("err", err.Error()),
 		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
@@ -82,9 +82,9 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 			return errx.NewWithCode(errx.FileTypeNotAllowed)
 		}
 		l.Errorw("make thumbnail failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("file_name", meta.GetFileName()),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", meta.GetUserId()),
+			logging.Field("file_name", meta.GetFileName()),
+			logging.Field("err", err.Error()),
 		)
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
@@ -122,10 +122,10 @@ func (l *UploadImageLogic) UploadImage(stream pb2.MediaService_UploadImageServer
 	}
 
 	l.Infow("upload image success",
-		logx.Field("media_id", row.Id),
-		logx.Field("user_id", meta.GetUserId()),
-		logx.Field("file_size", row.FileSize),
-		logx.Field("object_key", objKey),
+		logging.Field("media_id", row.Id),
+		logging.Field("user_id", meta.GetUserId()),
+		logging.Field("file_size", row.FileSize),
+		logging.Field("object_key", objKey),
 	)
 	return stream.SendAndClose(&pb2.UploadImageResp{Media: toPBMediaInfo(row)})
 }
@@ -136,7 +136,7 @@ func putFile(ctx context.Context, svcCtx *svc.ServiceContext, localPath, objectK
 	if err != nil {
 		return err
 	}
-	defer cleanupx.Close(logx.WithContext(ctx), "upload source file", f)
+	defer cleanupx.Close(logging.WithContext(ctx), "upload source file", f)
 	info, err := f.Stat()
 	if err != nil {
 		return err
@@ -153,7 +153,7 @@ func (l *UploadImageLogic) imageRecord(meta *pb2.UploadMeta, compressedPath, obj
 
 	mediaId, err := util.NextID()
 	if err != nil {
-		l.Errorw("NextID failed", logx.Field("err", err.Error()))
+		l.Errorw("NextID failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -192,7 +192,7 @@ func (l *UploadImageLogic) validateImage(path string, userID int64) error {
 			return errx.NewWithCode(errx.FileTypeNotAllowed)
 		}
 		l.Errorw("decode image dimensions failed",
-			logx.Field("user_id", userID), logx.Field("err", err.Error()))
+			logging.Field("user_id", userID), logging.Field("err", err.Error()))
 		return errx.NewWithCode(errx.MediaProcessFailed)
 	}
 
@@ -205,18 +205,18 @@ func (l *UploadImageLogic) putImageVariants(userID int64, compressedPath, thumbP
 	var err error
 	if err = putFile(l.ctx, l.svcCtx, compressedPath, objKey, "image/jpeg"); err != nil {
 		l.Errorw("put original failed",
-			logx.Field("user_id", userID),
-			logx.Field("object_key", objKey),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", userID),
+			logging.Field("object_key", objKey),
+			logging.Field("err", err.Error()),
 		)
 		return uploadedKeys, errx.NewWithCode(errx.UploadFailed)
 	}
 	uploadedKeys = append(uploadedKeys, objKey)
 	if err = putFile(l.ctx, l.svcCtx, thumbPath, thumbKey, "image/jpeg"); err != nil {
 		l.Errorw("put thumbnail failed",
-			logx.Field("user_id", userID),
-			logx.Field("object_key", thumbKey),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", userID),
+			logging.Field("object_key", thumbKey),
+			logging.Field("err", err.Error()),
 		)
 		return uploadedKeys, errx.NewWithCode(errx.UploadFailed)
 	}

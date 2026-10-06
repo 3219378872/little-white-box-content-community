@@ -10,7 +10,7 @@ import (
 	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -54,7 +54,7 @@ func (l *GetRecommendFeedLogic) fallbackPage(in *pb.GetRecommendFeedReq, state m
 		var err error
 		hidden, err = l.svcCtx.NegativeFeedback.HiddenPosts(l.ctx, in.UserId)
 		if err != nil {
-			l.Errorw("fallback negative feedback unavailable", logx.Field("err", err.Error()))
+			l.Errorw("fallback negative feedback unavailable", logging.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
 	}
@@ -65,7 +65,7 @@ func (l *GetRecommendFeedLogic) fallbackPage(in *pb.GetRecommendFeedReq, state m
 		source := &state.Sources[i]
 		if len(source.Pending) == 0 && !source.Exhausted {
 			if err := l.refillFallbackSource(in, source); err != nil {
-				l.Errorw("fallback source unavailable", logx.Field("source", source.Name), logx.Field("err", err.Error()))
+				l.Errorw("fallback source unavailable", logging.Field("source", source.Name), logging.Field("err", err.Error()))
 				failures++
 			}
 		}
@@ -119,7 +119,7 @@ func (l *GetRecommendFeedLogic) fallbackPage(in *pb.GetRecommendFeedReq, state m
 		}
 		id := rand.Text()
 		if err := l.svcCtx.FallbackStates.Save(l.ctx, id, state, ttl); err != nil {
-			l.Errorw("save fallback state failed", logx.Field("err", err.Error()))
+			l.Errorw("save fallback state failed", logging.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
 		response.NextCursor, err = encodeFallbackCursor(l.svcCtx.Config.CursorSecret, id, state.Binding, state.ExpiresAt, l.now())

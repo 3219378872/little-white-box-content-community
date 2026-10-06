@@ -7,7 +7,7 @@ import (
 
 	"esx/pkg/rpcx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	redis "esx/pkg/redisstore"
 )
 
@@ -19,7 +19,7 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	logx.Must(c.Validate())
+	logging.Must(c.Validate())
 	userClient := rpcx.MustNewClient(c.UserRpc,
 
 		rpcx.WithInternalAuth(c.InternalSecret))

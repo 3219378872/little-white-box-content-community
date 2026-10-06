@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetFollowFeedLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type GetFollowFeedLogic struct {
 // 获取关注流
 func NewGetFollowFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFollowFeedLogic {
 	return &GetFollowFeedLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -43,7 +43,7 @@ func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *t
 		PageSize:        req.PageSize,
 	})
 	if err != nil {
-		l.Errorw("FeedService.GetFollowFeed RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("FeedService.GetFollowFeed RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {
@@ -52,7 +52,7 @@ func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *t
 	}
 	enrichment, err := loadFeedEnrichment(l.ctx, l.svcCtx, result.Items, userID)
 	if err != nil {
-		l.Errorw("failed to enrich follow feed", logx.Field("err", err.Error()))
+		l.Errorw("failed to enrich follow feed", logging.Field("err", err.Error()))
 		return nil, err
 	}
 

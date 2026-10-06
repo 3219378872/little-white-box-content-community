@@ -8,20 +8,20 @@ import (
 	"esx/app/feed/rpc/internal/svc"
 	pb "esx/kitex_gen/feed"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type FanoutPostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewFanoutPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FanoutPostLogic {
 	return &FanoutPostLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -35,7 +35,7 @@ func (l *FanoutPostLogic) FanoutPost(in *pb.FanoutPostReq) (*pb.FanoutPostResp, 
 		CreatedAt: in.CreatedAt,
 	})
 	if err != nil {
-		l.Errorw("FanoutPost failed", logx.Field("err", err.Error()))
+		l.Errorw("FanoutPost failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

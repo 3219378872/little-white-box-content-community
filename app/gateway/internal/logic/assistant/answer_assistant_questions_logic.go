@@ -11,18 +11,18 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type AnswerAssistantQuestionsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewAnswerAssistantQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AnswerAssistantQuestionsLogic {
 	return &AnswerAssistantQuestionsLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

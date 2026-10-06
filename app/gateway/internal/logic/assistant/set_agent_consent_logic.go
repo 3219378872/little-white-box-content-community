@@ -10,11 +10,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SetAgentConsentLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type SetAgentConsentLogic struct {
 // 记录或撤销 Agent 能力授权（AGNT-004/006）
 func NewSetAgentConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetAgentConsentLogic {
 	return &SetAgentConsentLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -38,15 +38,15 @@ func (l *SetAgentConsentLogic) SetAgentConsent(req *types.SetAgentConsentReq) (r
 		Granted: req.Granted,
 	}); err != nil {
 		l.Errorw("UserService.SetAgentCapabilityConsent RPC failed",
-			logx.Field("userId", userID),
-			logx.Field("granted", req.Granted),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", userID),
+			logging.Field("granted", req.Granted),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}
 	if !req.Granted {
 		if _, err := l.svcCtx.AssistantService.RevokeConsent(l.ctx, &assistantservice.RevokeConsentReq{UserId: userID}); err != nil {
-			l.Errorw("AssistantService.RevokeConsent RPC failed", logx.Field("userId", userID), logx.Field("err", err.Error()))
+			l.Errorw("AssistantService.RevokeConsent RPC failed", logging.Field("userId", userID), logging.Field("err", err.Error()))
 			return nil, errx.FromRPCError(err)
 		}
 	}

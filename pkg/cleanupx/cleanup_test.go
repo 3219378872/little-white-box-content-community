@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type recordingCloser struct {
@@ -20,9 +20,9 @@ func (c *recordingCloser) Close() error {
 	return c.err
 }
 
-func testLogger() logx.Logger {
-	logx.Disable()
-	return logx.WithContext(context.Background())
+func testLogger() logging.Logger {
+	logging.Disable()
+	return logging.WithContext(context.Background())
 }
 
 func TestCloseNilDoesNotPanic(t *testing.T) {

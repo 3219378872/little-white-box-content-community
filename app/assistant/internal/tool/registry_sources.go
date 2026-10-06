@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 func (r *Registry) bindSources(ctx context.Context, session *Session, sources []store.SourceRef, text string) (string, error) {
@@ -64,7 +64,7 @@ func (r *Registry) bindSources(ctx context.Context, session *Session, sources []
 			err = insert(ctx, r.store)
 		}
 		if err != nil {
-			logx.WithContext(ctx).Errorw("source ledger insert failed", logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("source ledger insert failed", logging.Field("err", err.Error()))
 			return "", fmt.Errorf("source ledger insert: %w", err)
 		}
 		fmt.Fprintf(&b, "\n- %s (%s)", handle, src.Kind)

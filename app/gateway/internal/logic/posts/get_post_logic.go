@@ -13,13 +13,13 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"google.golang.org/grpc/metadata"
 )
 
 type GetPostLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -27,7 +27,7 @@ type GetPostLogic struct {
 // 获取帖子详情
 func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLogic {
 	return &GetPostLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -42,7 +42,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 		UserId: userId,
 	})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "ContentService.GetPost", err, logx.Field("postId", req.PostId))
+		return nil, rpcx.Error(l.Logger, "ContentService.GetPost", err, logging.Field("postId", req.PostId))
 	}
 
 	post := result.Post
@@ -52,7 +52,7 @@ func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, 
 
 	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, userId, []int64{post.Id})
 	if err != nil {
-		l.Errorw("viewerstate.Enrich failed", logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+		l.Errorw("viewerstate.Enrich failed", logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 		return nil, err
 	}
 

@@ -15,20 +15,20 @@ import (
 	"strings"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeleteMediaLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewDeleteMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteMediaLogic {
 	return &DeleteMediaLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -75,8 +75,8 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 			return nil, errx.NewWithCode(errx.MediaNotFound)
 		}
 		l.Errorw("MediaModel.FindOne failed",
-			logx.Field("media_id", in.MediaId),
-			logx.Field("err", err.Error()),
+			logging.Field("media_id", in.MediaId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -95,9 +95,9 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 		event, buildErr := buildMediaDeletedOutboxEvent(in.MediaId, objectKey, l.svcCtx.Config.S3Storage.Bucket)
 		if buildErr != nil {
 			l.Errorw("build media_deleted outbox event failed",
-				logx.Field("media_id", in.MediaId),
-				logx.Field("object_key", objectKey),
-				logx.Field("err", buildErr.Error()),
+				logging.Field("media_id", in.MediaId),
+				logging.Field("object_key", objectKey),
+				logging.Field("err", buildErr.Error()),
 			)
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
@@ -105,8 +105,8 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 	}
 	if err := l.svcCtx.MediaCommandModel.SoftDelete(l.ctx, in.MediaId, events...); err != nil {
 		l.Errorw("MediaCommandModel.SoftDelete failed",
-			logx.Field("media_id", in.MediaId),
-			logx.Field("err", err.Error()),
+			logging.Field("media_id", in.MediaId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -114,14 +114,14 @@ func (l *DeleteMediaLogic) DeleteMedia(in *pb.DeleteMediaReq) (*pb.DeleteMediaRe
 	// CORE-053：权威写入已提交，缓存失效失败不得把响应改成可重试失败。
 	if err := l.svcCtx.MediaModel.DelCache(l.ctx, in.MediaId); err != nil {
 		l.Errorw("MediaModel.DelCache failed",
-			logx.Field("media_id", in.MediaId),
-			logx.Field("err", err.Error()),
+			logging.Field("media_id", in.MediaId),
+			logging.Field("err", err.Error()),
 		)
 	}
 
 	l.Infow("delete media success",
-		logx.Field("media_id", in.MediaId),
-		logx.Field("user_id", in.UserId),
+		logging.Field("media_id", in.MediaId),
+		logging.Field("user_id", in.UserId),
 	)
 	return &pb.DeleteMediaResp{}, nil
 }

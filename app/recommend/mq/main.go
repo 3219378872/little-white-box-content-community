@@ -16,7 +16,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/recommend-consumer.yaml", "config file")
@@ -33,10 +33,10 @@ func main() {
 
 	recConsumer, err := mqs.NewRecommendConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := recConsumer.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 
 	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
@@ -48,7 +48,7 @@ func main() {
 	fmt.Println("Recommend MQ consumer started, subscribing user-behavior...")
 	<-proc.Done()
 	cancelCleanup()
-	cleanupx.Shutdown(logx.WithContext(context.Background()), "recommend consumer", recConsumer.Shutdown)
+	cleanupx.Shutdown(logging.WithContext(context.Background()), "recommend consumer", recConsumer.Shutdown)
 	background.Wait()
 }
 
@@ -74,11 +74,11 @@ func runOptOutCleanup(ctx context.Context, intervalSeconds int, store store.Beha
 			if ctx.Err() != nil {
 				return
 			}
-			logx.WithContext(ctx).Errorw("REL-023 opted-out feature cleanup failed",
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("REL-023 opted-out feature cleanup failed",
+				logging.Field("err", err.Error()))
 		} else if purged > 0 {
-			logx.WithContext(ctx).Infow("REL-023 opted-out feature cleanup",
-				logx.Field("purged_users", purged))
+			logging.WithContext(ctx).Infow("REL-023 opted-out feature cleanup",
+				logging.Field("purged_users", purged))
 		}
 	}
 }

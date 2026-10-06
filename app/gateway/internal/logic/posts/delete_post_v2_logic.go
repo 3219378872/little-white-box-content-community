@@ -10,11 +10,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeletePostV2Logic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type DeletePostV2Logic struct {
 // 删除帖子（v2，强制 expectedRevision，CORE-013）
 func NewDeletePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *DeletePostV2Logic {
 	return &DeletePostV2Logic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -45,7 +45,7 @@ func (l *DeletePostV2Logic) DeletePostV2(req *types.DeletePostV2Req) (resp *type
 		ExpectedRevision: req.ExpectedRevision,
 	})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "ContentService.DeletePost", err, logx.Field("postId", req.PostId))
+		return nil, rpcx.Error(l.Logger, "ContentService.DeletePost", err, logging.Field("postId", req.PostId))
 	}
 
 	return &types.DeletePostResp{}, nil

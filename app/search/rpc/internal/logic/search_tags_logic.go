@@ -7,20 +7,20 @@ import (
 	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchTagsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSearchTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchTagsLogic {
 	return &SearchTagsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -35,7 +35,7 @@ func (l *SearchTagsLogic) SearchTags(in *pb.SearchTagsReq) (*pb.SearchTagsResp, 
 	}
 	result, err := l.svcCtx.Store.SearchTags(l.ctx, searchKeyword, in.Limit)
 	if err != nil {
-		l.Errorw("search tags from post index failed", logx.Field("err", err.Error()))
+		l.Errorw("search tags from post index failed", logging.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	return &pb.SearchTagsResp{Tags: tagResults(result)}, nil

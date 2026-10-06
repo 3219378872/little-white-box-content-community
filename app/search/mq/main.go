@@ -13,7 +13,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/search-consumer.yaml", "config file")
@@ -28,17 +28,17 @@ func main() {
 
 	svcCtx, err := svc.NewServiceContext(c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 
 	searchConsumer, err := mqs.NewSearchConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := searchConsumer.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "search consumer", searchConsumer.Shutdown)
+	defer cleanupx.Shutdown(logging.WithContext(context.Background()), "search consumer", searchConsumer.Shutdown)
 
 	fmt.Println("Search MQ consumer started, subscribing post lifecycle topics...")
 	<-proc.Done()

@@ -7,17 +7,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UndoMemoryChangeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUndoMemoryChangeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UndoMemoryChangeLogic {
-	return &UndoMemoryChangeLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &UndoMemoryChangeLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *UndoMemoryChangeLogic) UndoMemoryChange(in *pb.UndoMemoryChangeReq) (*pb.UndoMemoryChangeResp, error) {

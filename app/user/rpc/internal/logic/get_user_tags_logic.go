@@ -7,20 +7,20 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	pb "esx/kitex_gen/user"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserTagsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetUserTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserTagsLogic {
 	return &GetUserTagsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -34,7 +34,7 @@ func (l *GetUserTagsLogic) GetUserTags(in *pb.GetUserTagsReq) (*pb.GetUserTagsRe
 	}
 	tags, err := l.svcCtx.UserTagModel.FindByUserId(l.ctx, in.UserId)
 	if err != nil {
-		l.Errorw("UserTagModel.FindByUserId failed", logx.Field("user_id", in.UserId), logx.Field("err", err.Error()))
+		l.Errorw("UserTagModel.FindByUserId failed", logging.Field("user_id", in.UserId), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	result := make([]string, 0, len(tags))

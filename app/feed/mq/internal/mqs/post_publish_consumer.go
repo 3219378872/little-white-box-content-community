@@ -12,7 +12,7 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -44,14 +44,14 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 	for _, msg := range msgs {
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
-			logx.WithContext(ctx).Errorw("feed-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("feed-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			feedConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("feed-consumer: invalid event, skipping",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("feed-consumer: invalid event, skipping",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			feedConsumerMessages.Inc("invalid")
 			continue
 		}
@@ -67,9 +67,9 @@ func consumeMessageBatch(ctx context.Context, svcCtx *svc.ServiceContext, msgs .
 				PostId: e.PostID, AuthorId: e.AuthorID, CreatedAt: e.EventTime,
 			})
 		if err != nil {
-			logx.WithContext(ctx).Errorw("feed-consumer: fanout failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("feed-consumer: fanout failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+				logging.Field("err", err.Error()))
 			feedConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}

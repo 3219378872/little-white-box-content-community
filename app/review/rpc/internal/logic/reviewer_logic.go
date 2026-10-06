@@ -10,7 +10,7 @@ import (
 	"esx/pkg/adpolicy"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetReviewerLogic struct{ base }
@@ -29,7 +29,7 @@ func (l *GetReviewerLogic) GetReviewer(in *pb.GetReviewerReq) (*pb.GetReviewerRe
 		return &pb.GetReviewerResp{}, nil
 	}
 	if err != nil {
-		l.Errorw("load reviewer failed", logx.Field("err", err.Error()))
+		l.Errorw("load reviewer failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if !r.Active {

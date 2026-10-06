@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterationAction, error) {
@@ -45,8 +45,8 @@ func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterati
 			return iterationFinished, err
 		}
 		agentLLMCalls.Inc("failure")
-		logx.WithContext(persistCtx).Errorw("assistant LLM complete failed",
-			logx.Field("runId", s.run.ID), logx.Field("err", err.Error()))
+		logging.WithContext(persistCtx).Errorw("assistant LLM complete failed",
+			logging.Field("runId", s.run.ID), logging.Field("err", err.Error()))
 		if strings.TrimSpace(s.result.Text) != "" && s.run.Source == store.SourceUser {
 			payload := store.EventPayload{ErrorCode: "LLM_UNAVAILABLE", Text: "模型调用失败", Partial: s.result.Text}
 			return iterationFinished, e.finishWithMessageEvent(persistCtx, s.run, store.StatusError, store.EventError, payload,

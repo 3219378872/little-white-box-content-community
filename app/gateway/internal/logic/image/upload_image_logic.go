@@ -11,20 +11,20 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const chunkSize = 1 << 20 // 1 MB per chunk
 
 type UploadImageLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadImageLogic {
 	return &UploadImageLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -45,7 +45,7 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 
 	stream, err := l.svcCtx.MediaService.UploadImage(l.ctx)
 	if err != nil {
-		l.Errorw("MediaService.UploadImage stream failed", logx.Field("err", err.Error()))
+		l.Errorw("MediaService.UploadImage stream failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -59,7 +59,7 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 			},
 		},
 	}); err != nil {
-		l.Errorw("stream.Send meta failed", logx.Field("err", err.Error()))
+		l.Errorw("stream.Send meta failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.UploadFailed)
 	}
 
@@ -72,7 +72,7 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 			if err := stream.Send(&mediapb.UploadImageReq{
 				Data: &mediapb.UploadImageReq_Chunk{Chunk: chunk},
 			}); err != nil {
-				l.Errorw("stream.Send chunk failed", logx.Field("err", err.Error()))
+				l.Errorw("stream.Send chunk failed", logging.Field("err", err.Error()))
 				return nil, errx.NewWithCode(errx.UploadFailed)
 			}
 		}
@@ -80,14 +80,14 @@ func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *mul
 			break
 		}
 		if readErr != nil {
-			l.Errorw("file.Read failed", logx.Field("err", readErr.Error()))
+			l.Errorw("file.Read failed", logging.Field("err", readErr.Error()))
 			return nil, errx.NewWithCode(errx.UploadFailed)
 		}
 	}
 
 	mediaResp, err := stream.CloseAndRecv()
 	if err != nil {
-		l.Errorw("stream.CloseAndRecv failed", logx.Field("err", err.Error()))
+		l.Errorw("stream.CloseAndRecv failed", logging.Field("err", err.Error()))
 		return nil, errx.FromGRPCError(err)
 	}
 	if mediaResp == nil || mediaResp.Media == nil {

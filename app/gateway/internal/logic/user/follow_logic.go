@@ -9,11 +9,11 @@ import (
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type FollowLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type FollowLogic struct {
 // 关注用户
 func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogic {
 	return &FollowLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

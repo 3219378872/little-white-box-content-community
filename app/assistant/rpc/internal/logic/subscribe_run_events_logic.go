@@ -11,17 +11,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SubscribeRunEventsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSubscribeRunEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SubscribeRunEventsLogic {
-	return &SubscribeRunEventsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &SubscribeRunEventsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *SubscribeRunEventsLogic) SubscribeRunEvents(in *pb.SubscribeRunEventsReq, stream pb.AssistantService_SubscribeRunEventsServer) error {

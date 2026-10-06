@@ -17,7 +17,7 @@ import (
 	"esx/app/embedding/mq/internal/vectorstore"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	"esx/pkg/rpcx"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	defer lifecycle.CloseResources()
 	flag.Parse()
 	if err := run(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 }
 
@@ -104,7 +104,7 @@ func run() (err error) {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cleanupCancel()
 		if err := target.Drop(cleanupCtx); err != nil {
-			logx.WithContext(cleanupCtx).Errorf("drop failed embedding rebuild target %s: %v", physicalTarget, err)
+			logging.WithContext(cleanupCtx).Errorf("drop failed embedding rebuild target %s: %v", physicalTarget, err)
 		}
 	}()
 

@@ -14,7 +14,7 @@ import (
 	native "esx/kitex_gen/user/userservice"
 	"esx/pkg/errx"
 	"esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	"esx/pkg/rpcx"
 
 	"github.com/stretchr/testify/require"
@@ -69,9 +69,9 @@ func TestRPCLogsExcludeBodiesAndErrorDetails(t *testing.T) {
 	conf := rpcx.RpcServerConf{ServiceConf: lifecycle.ServiceConf{Name: "user.rpc"}, ListenOn: addr, Timeout: 100, Health: true, MaxConnections: 100, MaxQPS: 1000}
 	server := native.NewServer(&loggingUserServer{}, rpcx.ServerOptions(conf, secret)...)
 	var logs lockedLogBuffer
-	original := logx.Reset()
-	logx.SetWriter(logx.NewWriter(&logs))
-	t.Cleanup(func() { logx.SetWriter(original) })
+	original := logging.Reset()
+	logging.SetWriter(logging.NewWriter(&logs))
+	t.Cleanup(func() { logging.SetWriter(original) })
 	done := make(chan error, 1)
 	go func() { done <- server.Run() }()
 	t.Cleanup(func() {

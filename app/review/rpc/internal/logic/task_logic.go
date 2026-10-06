@@ -14,7 +14,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var claimRoles = []string{store.RoleReviewer, store.RoleQA, store.RoleQualificationReviewer}
@@ -45,7 +45,7 @@ func (l *ClaimTaskLogic) ClaimTask(in *pb.ClaimTaskReq) (*pb.TaskResp, error) {
 	}
 	if task.Attempts > store.MaxHumanAttempts {
 		metrics.AttemptsExceeded()
-		l.Infow("review task claimed beyond attempt limit", logx.Field("taskId", task.ID), logx.Field("attempts", task.Attempts))
+		l.Infow("review task claimed beyond attempt limit", logging.Field("taskId", task.ID), logging.Field("attempts", task.Attempts))
 	}
 	view, err := l.taskView(task, true)
 	if err != nil {

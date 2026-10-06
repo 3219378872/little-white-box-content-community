@@ -9,20 +9,20 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserLogic {
 	return &GetUserLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -31,8 +31,8 @@ func (l *GetUserLogic) GetUser(in *pb.GetUserReq) (*pb.GetUserResp, error) {
 	one, err := l.svcCtx.UserProfileModel.FindOne(l.ctx, in.UserId)
 	if err != nil {
 		l.Errorw("UserProfileModel.FindOne failed",
-			logx.Field("userId", in.UserId),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", in.UserId),
+			logging.Field("err", err.Error()),
 		)
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.UserNotFound)
@@ -50,7 +50,7 @@ func (l *GetUserLogic) GetUser(in *pb.GetUserReq) (*pb.GetUserResp, error) {
 			isFollowing = true
 		case errors.Is(followErr, model.ErrNotFound):
 		default:
-			l.Errorw("UserFollowModel relation lookup failed", logx.Field("err", followErr.Error()))
+			l.Errorw("UserFollowModel relation lookup failed", logging.Field("err", followErr.Error()))
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 	}

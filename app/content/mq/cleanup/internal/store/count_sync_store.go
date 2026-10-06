@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"esx/pkg/event"
 	"esx/pkg/mqx"
@@ -73,8 +73,8 @@ func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.
 		// 占位在增量应用前设置；应用失败时移除占位，MQ 重投后能重新应用。
 		// 占位删除失败则保留占位：宁可漏一次也不对同一事件重复计数。
 		if _, delErr := s.redis.DelCtx(ctx, dedupKey); delErr != nil {
-			logx.WithContext(ctx).Errorw("count-sync: failed to release dedup key after apply failure",
-				logx.Field("dedup_key", dedupKey), logx.Field("err", delErr.Error()))
+			logging.WithContext(ctx).Errorw("count-sync: failed to release dedup key after apply failure",
+				logging.Field("dedup_key", dedupKey), logging.Field("err", delErr.Error()))
 		}
 		return fmt.Errorf("count-sync: apply delta: %w", err)
 	}

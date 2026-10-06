@@ -9,20 +9,20 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	pb "esx/kitex_gen/user"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPersonalizationPreferenceLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPersonalizationPreferenceLogic {
 	return &GetPersonalizationPreferenceLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -40,7 +40,7 @@ func (l *GetPersonalizationPreferenceLogic) GetPersonalizationPreference(in *pb.
 			// 默认开启个性化
 			return &pb.GetPersonalizationPreferenceResp{Enabled: true}, nil
 		}
-		l.Errorw("Personalization.Get failed", logx.Field("user_id", in.UserId), logx.Field("err", err.Error()))
+		l.Errorw("Personalization.Get failed", logging.Field("user_id", in.UserId), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	return &pb.GetPersonalizationPreferenceResp{

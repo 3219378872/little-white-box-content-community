@@ -10,17 +10,17 @@ import (
 	pb "esx/kitex_gen/assistant"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type PostMessageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewPostMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PostMessageLogic {
-	return &PostMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &PostMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *PostMessageLogic) PostMessage(in *pb.PostMessageReq) (*pb.PostMessageResp, error) {

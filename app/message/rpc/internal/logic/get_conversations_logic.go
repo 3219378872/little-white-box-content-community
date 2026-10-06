@@ -10,17 +10,17 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetConversationsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetConversationsLogic {
-	return &GetConversationsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &GetConversationsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 // 获取会话列表
@@ -31,7 +31,7 @@ func (l *GetConversationsLogic) GetConversations(in *pb.GetConversationsReq) (*p
 	page, pageSize := normalizePage(in.Page, in.PageSize)
 	rows, total, err := l.svcCtx.ConversationModel.FindByUser(l.ctx, in.UserId, page, pageSize)
 	if err != nil {
-		l.Errorw("ConversationModel.FindByUser failed", logx.Field("err", err.Error()))
+		l.Errorw("ConversationModel.FindByUser failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	targetIDs := uniqueConversationTargetIDs(rows)
@@ -43,7 +43,7 @@ func (l *GetConversationsLogic) GetConversations(in *pb.GetConversationsReq) (*p
 		}
 		users, err := l.svcCtx.UserService.BatchGetUserCards(l.ctx, &userservice.BatchGetUserCardsReq{UserIds: targetIDs})
 		if err != nil {
-			l.Errorw("UserService.BatchGetUserCards failed", logx.Field("err", err.Error()))
+			l.Errorw("UserService.BatchGetUserCards failed", logging.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 		if users == nil {

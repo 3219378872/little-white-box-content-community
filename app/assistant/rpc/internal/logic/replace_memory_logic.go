@@ -7,17 +7,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ReplaceMemoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewReplaceMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReplaceMemoryLogic {
-	return &ReplaceMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &ReplaceMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *ReplaceMemoryLogic) ReplaceMemory(in *pb.ReplaceMemoryReq) (*pb.ReplaceMemoryResp, error) {

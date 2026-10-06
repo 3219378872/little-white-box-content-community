@@ -6,7 +6,7 @@ import (
 	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const maxBatchSize = 100
@@ -14,14 +14,14 @@ const maxBatchSize = 100
 type BatchGetMediaLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchGetMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchGetMediaLogic {
 	return &BatchGetMediaLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -40,8 +40,8 @@ func (l *BatchGetMediaLogic) BatchGetMedia(in *pb.BatchGetMediaReq) (*pb.BatchGe
 	rows, err := l.svcCtx.MediaModel.FindByIds(l.ctx, in.MediaIds)
 	if err != nil {
 		l.Errorw("MediaModel.FindByIds failed",
-			logx.Field("media_ids", in.MediaIds),
-			logx.Field("err", err.Error()),
+			logging.Field("media_ids", in.MediaIds),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}

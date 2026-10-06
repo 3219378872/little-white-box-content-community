@@ -12,7 +12,7 @@ import (
 
 	"esx/app/assistant/internal/store"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const (
@@ -55,8 +55,8 @@ func (m *Manager) Claim(ctx context.Context) (*store.Run, bool, error) {
 	}
 	recovered := run.LeaseOwner != "" && run.StartedAtMs > 0 && run.StartedAtMs < now
 	if recovered {
-		logx.WithContext(ctx).Infow("assistant-agent recovered expired lease",
-			logx.Field("runId", run.ID), logx.Field("userId", run.UserID))
+		logging.WithContext(ctx).Infow("assistant-agent recovered expired lease",
+			logging.Field("runId", run.ID), logging.Field("userId", run.UserID))
 	}
 	return run, recovered, nil
 }
@@ -97,8 +97,8 @@ func (m *Manager) RenewLoop(ctx context.Context, run store.Run, onLost context.C
 			now := store.NowMs()
 			ok, err := m.Store.RenewLease(ctx, run.ID, m.owner(), run.LeaseGeneration, now+m.leaseMs(), now)
 			if err != nil {
-				logx.WithContext(ctx).Errorw("assistant-agent lease renew failed",
-					logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("assistant-agent lease renew failed",
+					logging.Field("runId", run.ID), logging.Field("err", err.Error()))
 				if now >= run.LeaseUntilMs {
 					onLost()
 					return
@@ -106,7 +106,7 @@ func (m *Manager) RenewLoop(ctx context.Context, run store.Run, onLost context.C
 				continue
 			}
 			if !ok {
-				logx.WithContext(ctx).Infow("assistant-agent lost lease", logx.Field("runId", run.ID))
+				logging.WithContext(ctx).Infow("assistant-agent lost lease", logging.Field("runId", run.ID))
 				onLost()
 				return
 			}

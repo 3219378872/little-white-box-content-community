@@ -11,7 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -46,32 +46,32 @@ func consumeCountSyncBatch(ctx context.Context, cs store.CountSyncStore, msgs ..
 	for _, msg := range msgs {
 		var behavior event.BehaviorEvent
 		if err := json.Unmarshal(msg.Body, &behavior); err != nil {
-			logx.WithContext(ctx).Errorw("count-sync-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("count-sync-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			countSyncConsumerMessages.Inc("invalid")
 			// 结构化损坏的事件无法恢复，转入死信语义由 MQ 重试上限兜底。
 			continue
 		}
 		if err := behavior.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("count-sync-consumer: invalid event, skipping",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("count-sync-consumer: invalid event, skipping",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			countSyncConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := cs.ApplyBehaviorCount(ctx, behavior); err != nil {
-			logx.WithContext(ctx).Errorw("count-sync-consumer: apply count failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("event_id", behavior.EventID),
-				logx.Field("action", behavior.Action), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("count-sync-consumer: apply count failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("event_id", behavior.EventID),
+				logging.Field("action", behavior.Action), logging.Field("err", err.Error()))
 			countSyncConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		countSyncConsumerMessages.Inc("processed")
 		observeCountSyncLag(behavior.EventTime, time.Now())
-		logx.WithContext(ctx).Infow("count-sync-consumer: count applied",
-			logx.Field("event_id", behavior.EventID),
-			logx.Field("action", behavior.Action),
-			logx.Field("target_id", behavior.TargetID),
-			logx.Field("target_type", behavior.TargetType))
+		logging.WithContext(ctx).Infow("count-sync-consumer: count applied",
+			logging.Field("event_id", behavior.EventID),
+			logging.Field("action", behavior.Action),
+			logging.Field("target_id", behavior.TargetID),
+			logging.Field("target_type", behavior.TargetType))
 	}
 	return consumer.ConsumeSuccess
 }

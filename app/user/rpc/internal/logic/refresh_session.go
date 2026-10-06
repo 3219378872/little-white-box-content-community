@@ -9,7 +9,7 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // refreshKeyPrefix 刷新令牌 jti 白名单键前缀；值为所属用户 ID，
@@ -49,14 +49,14 @@ func generateTokenPair(ctx context.Context, svcCtx *svc.ServiceContext, userId i
 	cfg := svcCtx.Config.JwtConfig
 	access, err = jwtx.GenerateToken(userId, username, cfg)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("jwtx.GenerateToken failed",
-			logx.Field("userId", userId), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("jwtx.GenerateToken failed",
+			logging.Field("userId", userId), logging.Field("err", err.Error()))
 		return "", "", errx.NewWithCode(errx.SystemError)
 	}
 	refresh, err = jwtx.GenerateRefreshToken(userId, username, cfg)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("jwtx.GenerateRefreshToken failed",
-			logx.Field("userId", userId), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("jwtx.GenerateRefreshToken failed",
+			logging.Field("userId", userId), logging.Field("err", err.Error()))
 		return "", "", errx.NewWithCode(errx.SystemError)
 	}
 	return access, refresh, nil
@@ -76,8 +76,8 @@ func storeRefreshJTI(ctx context.Context, svcCtx *svc.ServiceContext, refreshTok
 		ttl = 7 * 24 * 3600
 	}
 	if err := svcCtx.RedisClient.SetexCtx(ctx, refreshJTIKey(claims.ID), fmt.Sprintf("%d", userId), int(ttl)); err != nil {
-		logx.WithContext(ctx).Errorw("store refresh jti failed",
-			logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("store refresh jti failed",
+			logging.Field("err", err.Error()))
 		return errx.Wrap(err, errx.SystemError)
 	}
 	return nil
@@ -110,14 +110,14 @@ func rotateRefreshToken(ctx context.Context, svcCtx *svc.ServiceContext, oldRefr
 	}
 	result, err := svcCtx.RedisClient.EvalCtx(ctx, rotateRefreshJTIScript, []string{key, refreshJTIKey(next.ID)}, wantOwner, ttl)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("rotate refresh jti failed",
-			logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("rotate refresh jti failed",
+			logging.Field("err", err.Error()))
 		return "", "", errx.Wrap(err, errx.SystemError)
 	}
 	consumed, err := redisInteger(result)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("consume refresh jti returned unexpected result",
-			logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("consume refresh jti returned unexpected result",
+			logging.Field("err", err.Error()))
 		return "", "", errx.Wrap(err, errx.SystemError)
 	}
 	if consumed == -2 {

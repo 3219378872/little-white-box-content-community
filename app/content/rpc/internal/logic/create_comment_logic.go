@@ -16,13 +16,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type CreateCommentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 // commentIdempotencyRecord 构造评论创建幂等记录（CORE-050/051）。
@@ -46,7 +46,7 @@ func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 	return &CreateCommentLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -95,7 +95,7 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 		TargetID: in.PostId, TargetType: "post", Scene: "content",
 	})
 	if err != nil {
-		l.Errorw("build comment behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build comment behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if l.svcCtx.CommentCommandModel == nil {
@@ -111,17 +111,17 @@ func (l *CreateCommentLogic) CreateComment(in *pb.CreateCommentReq) (*pb.CreateC
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("create comment transaction failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if created {
 		if err = l.svcCtx.CommentModel.InvalidateCommentCache(l.ctx, id); err != nil {
-			l.Errorw("invalidate comment cache after create failed", logx.Field("err", err.Error()))
+			l.Errorw("invalidate comment cache after create failed", logging.Field("err", err.Error()))
 		}
 		if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, in.PostId); err != nil {
-			l.Errorw("invalidate post cache after comment create failed", logx.Field("err", err.Error()))
+			l.Errorw("invalidate post cache after comment create failed", logging.Field("err", err.Error()))
 		}
 	}
 
@@ -138,8 +138,8 @@ func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) erro
 			return errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return errx.NewWithCode(errx.SystemError)
 	}
@@ -161,8 +161,8 @@ func (l *CreateCommentLogic) validateCommentTarget(in *pb.CreateCommentReq) erro
 				return errx.NewWithCode(errx.ParamError)
 			}
 			l.Errorw("CommentModel.FindCommentById failed",
-				logx.Field("parentId", in.ParentId),
-				logx.Field("err", err.Error()),
+				logging.Field("parentId", in.ParentId),
+				logging.Field("err", err.Error()),
 			)
 			return errx.NewWithCode(errx.SystemError)
 		}

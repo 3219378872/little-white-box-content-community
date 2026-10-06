@@ -7,7 +7,7 @@ import (
 	"esx/app/ad/internal/metrics"
 	"esx/app/ad/internal/store"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // Generation 是审核平台给出的回扫代次（ADS-031）。
@@ -54,7 +54,7 @@ func (r *Rescanner) now() time.Time {
 func (r *Rescanner) Run(ctx context.Context) {
 	gen, err := r.Source.RescanGeneration(ctx)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("load rescan generation failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("load rescan generation failed", logging.Field("err", err.Error()))
 		return
 	}
 	if !gen.Ready || gen.Value == "" {
@@ -63,7 +63,7 @@ func (r *Rescanner) Run(ctx context.Context) {
 	for range RescanBatchesPerTick {
 		ads, err := r.Store.RescanCandidates(ctx, gen.Value, RescanBatch)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("load rescan candidates failed", logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("load rescan candidates failed", logging.Field("err", err.Error()))
 			return
 		}
 		progressed := false
@@ -81,7 +81,7 @@ func (r *Rescanner) Run(ctx context.Context) {
 func (r *Rescanner) handle(ctx context.Context, ad store.Ad, gen Generation) bool {
 	if ad.ApprovedAtMs >= gen.EffectiveSinceMs {
 		if err := r.Store.MarkRescanned(ctx, ad.ID, ad.ApprovedRevision, gen.Value); err != nil {
-			logx.WithContext(ctx).Errorw("mark rescanned failed", logx.Field("adId", ad.ID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("mark rescanned failed", logging.Field("adId", ad.ID), logging.Field("err", err.Error()))
 			return false
 		}
 		metrics.Rescan("current")
@@ -90,7 +90,7 @@ func (r *Rescanner) handle(ctx context.Context, ad store.Ad, gen Generation) boo
 	submitted, err := r.Store.SubmitRescan(ctx, ad.ID, ad.ApprovedRevision, gen.Value, r.now())
 	if err != nil {
 		metrics.Rescan("error")
-		logx.WithContext(ctx).Errorw("submit rescan failed", logx.Field("adId", ad.ID), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("submit rescan failed", logging.Field("adId", ad.ID), logging.Field("err", err.Error()))
 		return false
 	}
 	if submitted {

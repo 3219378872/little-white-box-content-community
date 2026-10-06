@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type RemoveAssistantMemoryLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewRemoveAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RemoveAssistantMemoryLogic {
-	return &RemoveAssistantMemoryLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &RemoveAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *RemoveAssistantMemoryLogic) RemoveAssistantMemory(req *types.RemoveAssistantMemoryReq) (*types.RemoveAssistantMemoryResp, error) {

@@ -9,11 +9,11 @@ import (
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UnfavoriteLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type UnfavoriteLogic struct {
 // 取消收藏
 func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnfavoriteLogic {
 	return &UnfavoriteLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -39,8 +39,8 @@ func (l *UnfavoriteLogic) Unfavorite(req *types.UnfavoriteReq) (resp *types.Unfa
 	})
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "InteractionService.Unfavorite", err,
-			logx.Field("userId", userId),
-			logx.Field("postId", req.PostId),
+			logging.Field("userId", userId),
+			logging.Field("postId", req.PostId),
 		)
 	}
 

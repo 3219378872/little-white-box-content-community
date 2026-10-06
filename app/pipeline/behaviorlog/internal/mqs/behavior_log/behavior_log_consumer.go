@@ -11,7 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	rocketconsumer "github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -46,9 +46,9 @@ func consumeBehaviorMsg(
 			behaviorConsumerMessages.Inc("dead_letter")
 			return rocketconsumer.ConsumeSuccess
 		}
-		logx.WithContext(ctx).Errorw("behavior-log: process failed",
-			logx.Field("msg_id", msg.MsgId), logx.Field("event_id", e.EventID),
-			logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("behavior-log: process failed",
+			logging.Field("msg_id", msg.MsgId), logging.Field("event_id", e.EventID),
+			logging.Field("err", err.Error()))
 		behaviorConsumerMessages.Inc("retry")
 		return rocketconsumer.ConsumeRetryLater
 	}
@@ -82,8 +82,8 @@ func parseBehaviorEvent(msg *primitive.MessageExt) (event.BehaviorEvent, error) 
 }
 
 func recordPermanent(ctx context.Context, deadLetters DeadLetterRecorder, msg *primitive.MessageExt, eventID int64, eventErr error) error {
-	logx.WithContext(ctx).Errorw("behavior-log: permanent event skipped",
-		logx.Field("msg_id", msg.MsgId), logx.Field("err", eventErr.Error()))
+	logging.WithContext(ctx).Errorw("behavior-log: permanent event skipped",
+		logging.Field("msg_id", msg.MsgId), logging.Field("err", eventErr.Error()))
 	if deadLetters == nil {
 		return fmt.Errorf("behavior-log: dead letter store is not configured")
 	}
@@ -91,8 +91,8 @@ func recordPermanent(ctx context.Context, deadLetters DeadLetterRecorder, msg *p
 		MessageID: msg.MsgId, EventID: eventID, Payload: msg.Body,
 		Error: eventErr.Error(), ReceivedAt: msg.StoreTimestamp,
 	}); err != nil {
-		logx.WithContext(ctx).Errorw("behavior-log: dead letter insert failed",
-			logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("behavior-log: dead letter insert failed",
+			logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 		return err
 	}
 	return nil

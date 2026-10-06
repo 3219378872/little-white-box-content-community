@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	sqlx "esx/pkg/sqlstore"
 )
 
@@ -30,12 +30,12 @@ func TestPrivateMessageSQLLoggingPolicy(t *testing.T) {
 
 			const privateText = "SYNTHETIC_PRIVATE_MESSAGE_DO_NOT_LOG"
 			var logs bytes.Buffer
-			previous := logx.Reset()
-			logx.SetWriter(logx.NewWriter(&logs))
+			previous := logging.Reset()
+			logging.SetWriter(logging.NewWriter(&logs))
 			t.Cleanup(func() {
-				logx.Reset()
+				logging.Reset()
 				if previous != nil {
-					logx.SetWriter(previous)
+					logging.SetWriter(previous)
 				}
 			})
 			var writeErr error

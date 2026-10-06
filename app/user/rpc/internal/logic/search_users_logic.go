@@ -9,20 +9,20 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSearchUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchUsersLogic {
 	return &SearchUsersLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -48,7 +48,7 @@ func (l *SearchUsersLogic) SearchUsers(in *pb.SearchUsersReq) (*pb.SearchUsersRe
 		profiles, total, err = l.svcCtx.UserProfileModel.SearchPublic(l.ctx, keyword, offset, int64(in.PageSize))
 	}
 	if err != nil {
-		l.Errorw("UserProfileModel.SearchPublic failed", logx.Field("err", err.Error()))
+		l.Errorw("UserProfileModel.SearchPublic failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	users := make([]*pb.UserInfo, 0, len(profiles))

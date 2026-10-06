@@ -10,11 +10,11 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeleteCommentLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type DeleteCommentLogic struct {
 // 删除评论
 func NewDeleteCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteCommentLogic {
 	return &DeleteCommentLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,8 +40,8 @@ func (l *DeleteCommentLogic) DeleteComment(req *types.DeleteCommentReq) (resp *t
 	})
 	if err != nil {
 		l.Errorw("ContentService.DeleteComment RPC failed",
-			logx.Field("commentId", req.CommentId),
-			logx.Field("err", err.Error()),
+			logging.Field("commentId", req.CommentId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}

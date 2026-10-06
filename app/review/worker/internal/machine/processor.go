@@ -13,7 +13,7 @@ import (
 	"esx/app/review/internal/store"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // Store 是机审需要的存储操作。
@@ -111,7 +111,7 @@ func (p *Processor) Process(ctx context.Context, task *store.Task) error {
 func (p *Processor) runShadow(ctx context.Context, taskID int64, input cascade.Input, active cascade.Result) {
 	shadow := p.Cascade.Run(ctx, p.Shadow, input)
 	if err := p.recordStages(ctx, taskID, shadow.Stages, true); err != nil {
-		logx.WithContext(ctx).Errorw("record shadow stages failed", logx.Field("taskId", taskID), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("record shadow stages failed", logging.Field("taskId", taskID), logging.Field("err", err.Error()))
 	}
 	metrics.Shadow(shadow.Outcome, shadow.Outcome == active.Outcome)
 }
@@ -141,7 +141,7 @@ func (p *Processor) recordStages(ctx context.Context, taskID int64, stages []cas
 
 func fenced(ctx context.Context, err error) error {
 	if errors.Is(err, store.ErrTaskSuperseded) || errors.Is(err, store.ErrLeaseLost) || errors.Is(err, store.ErrTaskDecided) {
-		logx.WithContext(ctx).Infow("machine review result dropped by fencing", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Infow("machine review result dropped by fencing", logging.Field("err", err.Error()))
 		return nil
 	}
 	return err

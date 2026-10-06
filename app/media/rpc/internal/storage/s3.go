@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -59,9 +59,9 @@ func NewS3Client(cfg Config) (*S3Client, error) {
 	}
 	if !cfg.SkipBucketPolicy {
 		if err = client.setPublicReadPolicy(context.Background()); err != nil {
-			logx.Errorw("set public read policy failed (non-blocking, may need manual anonymous-read config)",
-				logx.Field("bucket", cfg.Bucket),
-				logx.Field("err", err.Error()),
+			logging.Errorw("set public read policy failed (non-blocking, may need manual anonymous-read config)",
+				logging.Field("bucket", cfg.Bucket),
+				logging.Field("err", err.Error()),
 			)
 		}
 	}

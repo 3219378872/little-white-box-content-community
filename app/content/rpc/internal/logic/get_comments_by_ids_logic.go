@@ -10,20 +10,20 @@ import (
 	"esx/app/content/rpc/internal/svc"
 	pb "esx/kitex_gen/content"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetCommentsByIdsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetCommentsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentsByIdsLogic {
 	return &GetCommentsByIdsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

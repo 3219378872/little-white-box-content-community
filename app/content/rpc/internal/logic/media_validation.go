@@ -11,13 +11,13 @@ import (
 	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // validatePostMedia 校验帖子引用的媒体（CORE-024）：媒体必须存在、已完成上传
 // 且属于调用者。未配置媒体服务时返回不可用，避免绕过校验。
 // 成功时按请求顺序返回公开 URL，供 images 为空时回填。
-func validatePostMedia(ctx context.Context, logger logx.Logger, media mediaservice.MediaService, userID int64, mediaIDs []int64) ([]string, error) {
+func validatePostMedia(ctx context.Context, logger logging.Logger, media mediaservice.MediaService, userID int64, mediaIDs []int64) ([]string, error) {
 	if len(mediaIDs) == 0 {
 		return nil, nil
 	}
@@ -26,7 +26,7 @@ func validatePostMedia(ctx context.Context, logger logx.Logger, media mediaservi
 	}
 	response, err := media.BatchGetMedia(ctx, &mediaservice.BatchGetMediaReq{MediaIds: mediaIDs})
 	if err != nil {
-		logger.Errorw("media validation BatchGetMedia failed", logx.Field("media_ids", mediaIDs), logx.Field("err", err.Error()))
+		logger.Errorw("media validation BatchGetMedia failed", logging.Field("media_ids", mediaIDs), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.ServiceUnavailable)
 	}
 	if response == nil {

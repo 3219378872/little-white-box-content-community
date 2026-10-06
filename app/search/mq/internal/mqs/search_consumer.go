@@ -13,7 +13,7 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -43,22 +43,22 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 	for _, msg := range msgs {
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
-			logx.WithContext(ctx).Errorw("search-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("search-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			searchConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("search-consumer: invalid event, skipping",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("search-consumer: invalid event, skipping",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			searchConsumerMessages.Inc("invalid")
 			continue
 		}
 		if e.Type == event.PostEventCounted {
 			if err := idx.PatchCounts(ctx, indexer.PostEventToIndexDoc(e)); err != nil {
-				logx.WithContext(ctx).Errorw("search-consumer: count patch failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("search-consumer: count patch failed",
+					logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+					logging.Field("err", err.Error()))
 				searchConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
@@ -72,39 +72,39 @@ func consumeSearchBatch(ctx context.Context, idx indexer.Indexer, msgs ...*primi
 			if !visibilityx.IsPublished(int32(e.Status)) {
 				docID := strconv.FormatInt(e.PostID, 10)
 				if err := idx.Delete(ctx, docID, e.Revision); err != nil {
-					logx.WithContext(ctx).Errorw("search-consumer: delete non-published doc failed",
-						logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-						logx.Field("err", err.Error()))
+					logging.WithContext(ctx).Errorw("search-consumer: delete non-published doc failed",
+						logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+						logging.Field("err", err.Error()))
 					searchConsumerMessages.Inc("retry")
 					return consumer.ConsumeRetryLater
 				}
-				logx.WithContext(ctx).Infow("search-consumer: non-published doc removed",
-					logx.Field("post_id", e.PostID), logx.Field("status", e.Status))
+				logging.WithContext(ctx).Infow("search-consumer: non-published doc removed",
+					logging.Field("post_id", e.PostID), logging.Field("status", e.Status))
 				searchConsumerMessages.Inc("processed")
 				observeSearchIndexLag(e.EventTime, time.Now())
 				continue
 			}
 			doc := indexer.PostEventToIndexDoc(e)
 			if err := idx.Index(ctx, doc); err != nil {
-				logx.WithContext(ctx).Errorw("search-consumer: index failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("search-consumer: index failed",
+					logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+					logging.Field("err", err.Error()))
 				searchConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
-			logx.WithContext(ctx).Infow("search-consumer: document indexed",
-				logx.Field("post_id", e.PostID), logx.Field("type", string(e.Type)))
+			logging.WithContext(ctx).Infow("search-consumer: document indexed",
+				logging.Field("post_id", e.PostID), logging.Field("type", string(e.Type)))
 		case event.PostEventDeleted:
 			docID := strconv.FormatInt(e.PostID, 10)
 			if err := idx.Delete(ctx, docID, e.Revision); err != nil {
-				logx.WithContext(ctx).Errorw("search-consumer: delete failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("search-consumer: delete failed",
+					logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+					logging.Field("err", err.Error()))
 				searchConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
-			logx.WithContext(ctx).Infow("search-consumer: document deleted",
-				logx.Field("post_id", e.PostID))
+			logging.WithContext(ctx).Infow("search-consumer: document deleted",
+				logging.Field("post_id", e.PostID))
 		}
 		searchConsumerMessages.Inc("processed")
 		observeSearchIndexLag(e.EventTime, time.Now())

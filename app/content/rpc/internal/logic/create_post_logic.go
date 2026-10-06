@@ -17,20 +17,20 @@ import (
 	"time"
 	"unicode/utf8"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type CreatePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewCreatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreatePostLogic {
 	return &CreatePostLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -75,7 +75,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		}
 		tid, idErr := util.NextID()
 		if idErr != nil {
-			l.Errorw("generate tag id failed", logx.Field("err", idErr.Error()))
+			l.Errorw("generate tag id failed", logging.Field("err", idErr.Error()))
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 		validTags = append(validTags, tag)
@@ -104,7 +104,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		StatsSeq:    createdAt,
 	})
 	if err != nil {
-		l.Errorw("build post-created event failed", logx.Field("err", err.Error()))
+		l.Errorw("build post-created event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	postID, created, err := l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent, idem)
@@ -112,12 +112,12 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
-		l.Errorw("create post transaction failed", logx.Field("err", err.Error()))
+		l.Errorw("create post transaction failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if created {
 		if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, id); err != nil {
-			l.Errorw("invalidate post cache after create failed", logx.Field("postId", id), logx.Field("err", err.Error()))
+			l.Errorw("invalidate post cache after create failed", logging.Field("postId", id), logging.Field("err", err.Error()))
 		}
 	}
 
@@ -187,12 +187,12 @@ func (l *CreatePostLogic) newPost(in *pb.CreatePostReq, images []string) (*model
 
 	imageJsonString, err := model.ToJSONObject(images).JSONString()
 	if err != nil {
-		l.Errorw("json convert images failed", logx.Field("err", err.Error()))
+		l.Errorw("json convert images failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	mediaIDsJSON, err := encodeInt64sJSON(in.MediaIds)
 	if err != nil {
-		l.Errorw("json convert media ids failed", logx.Field("err", err.Error()))
+		l.Errorw("json convert media ids failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	post := &model.Post{

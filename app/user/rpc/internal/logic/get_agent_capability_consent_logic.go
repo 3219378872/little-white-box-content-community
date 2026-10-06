@@ -9,20 +9,20 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetAgentCapabilityConsentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetAgentCapabilityConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAgentCapabilityConsentLogic {
 	return &GetAgentCapabilityConsentLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -43,7 +43,7 @@ func (l *GetAgentCapabilityConsentLogic) GetAgentCapabilityConsent(in *pb.GetAge
 				CurrentVersion: model.CurrentAgentConsentVersion,
 			}, nil
 		}
-		l.Errorw("AgentConsent.Get failed", logx.Field("user_id", in.UserId), logx.Field("err", err.Error()))
+		l.Errorw("AgentConsent.Get failed", logging.Field("user_id", in.UserId), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	return &pb.GetAgentCapabilityConsentResp{

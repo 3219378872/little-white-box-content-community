@@ -10,11 +10,11 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type CreateCommentLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type CreateCommentLogic struct {
 // 创建评论
 func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateCommentLogic {
 	return &CreateCommentLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -43,7 +43,7 @@ func (l *CreateCommentLogic) CreateComment(req *types.CreateCommentReq) (resp *t
 		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
-		l.Errorw("ContentService.CreateComment RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("ContentService.CreateComment RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 

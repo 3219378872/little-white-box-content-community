@@ -25,7 +25,7 @@ import (
 
 	"uuid"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const storageTypeSeaweedFS = 3
@@ -41,7 +41,7 @@ func sha256File(ctx context.Context, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer cleanupx.Close(logx.WithContext(ctx), "hash upload file", handle)
+	defer cleanupx.Close(logging.WithContext(ctx), "hash upload file", handle)
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, handle); err != nil {
 		return "", err
@@ -134,7 +134,7 @@ func nullInt(v int) sql.NullInt64 {
 // definite pre-commit failure or confirmed duplicate. Unknown commits must never
 // reach this unconditional cleanup path. An S3 failure is converted into a durable media-delete outbox
 // event so broker delivery and the existing cleanup consumer can retry it.
-func compensateUploadedObjects(ctx context.Context, logger logx.Logger, svcCtx *svc.ServiceContext, objectKeys ...string) {
+func compensateUploadedObjects(ctx context.Context, logger logging.Logger, svcCtx *svc.ServiceContext, objectKeys ...string) {
 	if logger == nil || svcCtx == nil || svcCtx.Storage == nil {
 		return
 	}
@@ -147,16 +147,16 @@ func compensateUploadedObjects(ctx context.Context, logger logx.Logger, svcCtx *
 		cancelDelete()
 		if err != nil {
 			logger.Errorw("delete uncommitted media object failed",
-				logx.Field("object_key", key), logx.Field("err", err.Error()))
+				logging.Field("object_key", key), logging.Field("err", err.Error()))
 			event, eventErr := buildUploadCompensationEvent(key, svcCtx.Config.S3Storage.Bucket)
 			if eventErr != nil {
 				logger.Errorw("build media compensation event failed",
-					logx.Field("object_key", key), logx.Field("err", eventErr.Error()))
+					logging.Field("object_key", key), logging.Field("err", eventErr.Error()))
 				continue
 			}
 			if svcCtx.MediaCommandModel == nil {
 				logger.Errorw("enqueue media compensation failed",
-					logx.Field("object_key", key), logx.Field("err", "media command model unavailable"))
+					logging.Field("object_key", key), logging.Field("err", "media command model unavailable"))
 				continue
 			}
 			queueCtx, cancelQueue := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
@@ -164,7 +164,7 @@ func compensateUploadedObjects(ctx context.Context, logger logx.Logger, svcCtx *
 			cancelQueue()
 			if queueErr != nil {
 				logger.Errorw("enqueue media compensation failed",
-					logx.Field("object_key", key), logx.Field("err", queueErr.Error()))
+					logging.Field("object_key", key), logging.Field("err", queueErr.Error()))
 			}
 		}
 	}

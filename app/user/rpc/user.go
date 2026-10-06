@@ -14,7 +14,7 @@ import (
 	"esx/pkg/outboxx"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"esx/pkg/rpcx"
 )
@@ -31,13 +31,13 @@ func main() {
 	ctx := svc.NewServiceContext(c)
 	defer func() {
 		if err := ctx.Close(); err != nil {
-			logx.Errorw("close user service dependencies", logx.Field("err", err.Error()))
+			logging.Errorw("close user service dependencies", logging.Field("err", err.Error()))
 		}
 	}()
 	relay := outboxx.StartRelay(context.Background(), ctx.OutboxRelay)
 	defer func() {
 		if err := relay.Stop(); err != nil {
-			logx.Errorw("user outbox relay stopped", logx.Field("err", err.Error()))
+			logging.Errorw("user outbox relay stopped", logging.Field("err", err.Error()))
 		}
 	}()
 

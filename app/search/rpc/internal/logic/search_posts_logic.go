@@ -11,20 +11,20 @@ import (
 
 	"esx/app/user/rpc/userservice"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSearchPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchPostsLogic {
 	return &SearchPostsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -47,20 +47,20 @@ func (l *SearchPostsLogic) SearchPosts(in *pb.SearchPostsReq) (*pb.SearchPostsRe
 		Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize, SortBy: in.SortBy, Tags: tags,
 	})
 	if err != nil {
-		l.Errorw("search posts failed", logx.Field("err", err.Error()))
+		l.Errorw("search posts failed", logging.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	fetched := len(result.Posts)
 	visiblePosts, err := publishedSearchPosts(l.ctx, l.svcCtx.ContentService, result.Posts)
 	if err != nil {
-		l.Errorw("search posts visibility check failed", logx.Field("err", err.Error()))
+		l.Errorw("search posts visibility check failed", logging.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	result.Posts = visiblePosts
 	result.Total = searchTotalAfterVisibility(result.Total, fetched, len(visiblePosts))
 	profiles, err := loadAuthorCards(l.ctx, l.svcCtx.UserService, result.Posts)
 	if err != nil {
-		l.Errorw("hydrate search post authors failed", logx.Field("err", err.Error()))
+		l.Errorw("hydrate search post authors failed", logging.Field("err", err.Error()))
 		profiles = map[int64]*userservice.UserCard{}
 	}
 	return &pb.SearchPostsResp{Posts: postResults(result.Posts, profiles), Total: result.Total}, nil

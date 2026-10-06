@@ -6,17 +6,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeleteHistoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewDeleteHistoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteHistoryLogic {
-	return &DeleteHistoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &DeleteHistoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *DeleteHistoryLogic) DeleteHistory(in *pb.DeleteHistoryReq) (*pb.DeleteHistoryResp, error) {

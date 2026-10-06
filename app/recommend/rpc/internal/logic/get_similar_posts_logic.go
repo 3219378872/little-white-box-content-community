@@ -10,17 +10,17 @@ import (
 	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetSimilarPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetSimilarPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetSimilarPostsLogic {
-	return &GetSimilarPostsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &GetSimilarPostsLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.GetSimilarPostsResp, error) {
@@ -43,7 +43,7 @@ func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.G
 	batches, recallDegraded, err := recallPosts(l.ctx, l.svcCtx.SimilarPostSources, recallReq)
 	if err != nil {
 		recommendPipelineTotal.Inc("similar_posts", "recall", "unavailable")
-		l.Errorw("similar post recall unavailable", logx.Field("err", err.Error()))
+		l.Errorw("similar post recall unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	recordPipelineStage("similar_posts", "recall", recallDegraded)
@@ -71,7 +71,7 @@ func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.G
 	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
 	if err != nil {
 		recommendPipelineTotal.Inc("similar_posts", "visibility", "unavailable")
-		l.Errorw("similar post visibility check unavailable", logx.Field("err", err.Error()))
+		l.Errorw("similar post visibility check unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	if recallDegraded {
@@ -81,7 +81,7 @@ func (l *GetSimilarPostsLogic) GetSimilarPosts(in *pb.GetSimilarPostsReq) (*pb.G
 		markPostDegradation(candidates, "feature-degraded")
 	}
 	if inferenceDegradation != "" {
-		l.Errorw("similar post inference degraded", logx.Field("mode", inferenceDegradation))
+		l.Errorw("similar post inference degraded", logging.Field("mode", inferenceDegradation))
 	}
 	if len(candidates) > limit {
 		candidates = candidates[:limit]

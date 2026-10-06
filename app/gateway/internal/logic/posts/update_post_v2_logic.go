@@ -10,11 +10,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UpdatePostV2Logic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type UpdatePostV2Logic struct {
 // 更新帖子（v2，强制 expectedRevision，CORE-013）
 func NewUpdatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdatePostV2Logic {
 	return &UpdatePostV2Logic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -54,7 +54,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		MediaIdsProvided: req.MediaIds != nil,
 	})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "ContentService.UpdatePost", err, logx.Field("postId", req.PostId))
+		return nil, rpcx.Error(l.Logger, "ContentService.UpdatePost", err, logging.Field("postId", req.PostId))
 	}
 
 	return &types.UpdatePostResp{

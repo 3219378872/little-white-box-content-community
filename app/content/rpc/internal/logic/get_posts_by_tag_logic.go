@@ -7,20 +7,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPostsByTagLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetPostsByTagLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostsByTagLogic {
 	return &GetPostsByTagLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -36,8 +36,8 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 	postIds, total, err := l.svcCtx.PostTagModel.FindPostIdsByTagName(l.ctx, in.TagName, page, pageSize)
 	if err != nil {
 		l.Errorw("PostTagModel.FindPostIdsByTagName failed",
-			logx.Field("tagName", in.TagName),
-			logx.Field("err", err.Error()),
+			logging.Field("tagName", in.TagName),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -48,7 +48,7 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 
 	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, postIds)
 	if err != nil {
-		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
+		l.Errorw("PostModel.FindByIds failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	postsByID := indexPublishedPosts(posts)
@@ -61,7 +61,7 @@ func (l *GetPostsByTagLogic) GetPostsByTag(in *pb.GetPostsByTagReq) (*pb.GetPost
 
 	tagsMap, err := l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, publishedIDs)
 	if err != nil {
-		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
+		l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logging.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 	postInfos := make([]*pb.PostInfo, 0, len(publishedIDs))

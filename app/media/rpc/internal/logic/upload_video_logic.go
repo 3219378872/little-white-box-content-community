@@ -6,20 +6,20 @@ import (
 	"esx/app/media/rpc/internal/svc"
 	pb2 "esx/kitex_gen/media"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UploadVideoLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUploadVideoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadVideoLogic {
 	return &UploadVideoLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

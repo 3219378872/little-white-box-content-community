@@ -11,20 +11,20 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetCountsLogic struct {
 	ctx    context.Context
 	svcCtx *svc2.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetCountsLogic(ctx context.Context, svcCtx *svc2.ServiceContext) *GetCountsLogic {
 	return &GetCountsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -143,7 +143,7 @@ func (l *GetCountsLogic) redisStore() svc2.RedisStore {
 	return nil
 }
 
-func parseInt64(value string, logger logx.Logger) int64 {
+func parseInt64(value string, logger logging.Logger) int64 {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		logger.Errorf("parseInt64 failed: value=%s, err=%v", value, err)

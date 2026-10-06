@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetAssistantThreadLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewGetAssistantThreadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAssistantThreadLogic {
-	return &GetAssistantThreadLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &GetAssistantThreadLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *GetAssistantThreadLogic) GetAssistantThread() (*types.GetAssistantThreadResp, error) {

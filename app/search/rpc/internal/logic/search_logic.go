@@ -11,20 +11,20 @@ import (
 	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogic {
 	return &SearchLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -46,12 +46,12 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 			Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
 		})
 		if err != nil {
-			l.Errorw("combined search posts failed", logx.Field("err", err.Error()))
+			l.Errorw("combined search posts failed", logging.Field("err", err.Error()))
 			return storeError(err)
 		}
 		posts, err = publishedSearchPosts(ctx, l.svcCtx.ContentService, result.Posts)
 		if err != nil {
-			l.Errorw("combined search visibility check failed", logx.Field("err", err.Error()))
+			l.Errorw("combined search visibility check failed", logging.Field("err", err.Error()))
 			return storeError(err)
 		}
 		return nil
@@ -67,7 +67,7 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 			Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize, SkipTotal: true,
 		})
 		if err != nil || result == nil {
-			l.Errorw("combined search users RPC failed", logx.Field("err", err))
+			l.Errorw("combined search users RPC failed", logging.Field("err", err))
 			userUnavailable = true
 			return nil
 		}
@@ -79,7 +79,7 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 	group.Go(func() error {
 		result, err := l.svcCtx.Store.SearchTags(ctx, searchKeyword, in.PageSize)
 		if err != nil {
-			l.Errorw("combined search tags failed", logx.Field("err", err.Error()))
+			l.Errorw("combined search tags failed", logging.Field("err", err.Error()))
 			tagUnavailable = true
 			return nil
 		}
@@ -99,7 +99,7 @@ func (l *SearchLogic) Search(in *pb.SearchReq) (*pb.SearchResp, error) {
 	}
 	profiles, err := loadAuthorCards(l.ctx, l.svcCtx.UserService, posts)
 	if err != nil {
-		l.Errorw("hydrate combined search authors failed", logx.Field("err", err.Error()))
+		l.Errorw("hydrate combined search authors failed", logging.Field("err", err.Error()))
 		profiles = map[int64]*userservice.UserCard{}
 	}
 	return &pb.SearchResp{

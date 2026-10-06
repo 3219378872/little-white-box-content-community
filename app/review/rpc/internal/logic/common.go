@@ -14,17 +14,17 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/idempotencyx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type base struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
-	return base{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return base{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 // reviewer 每次请求实时读取角色（RVW-050）：撤销对下一次请求立即生效。
@@ -37,7 +37,7 @@ func (b base) reviewer(userID int64, anyOf ...string) (*store.Reviewer, error) {
 		return nil, errx.NewWithCode(errx.ReviewRoleRequired)
 	}
 	if err != nil {
-		b.Errorw("load reviewer failed", logx.Field("err", err.Error()))
+		b.Errorw("load reviewer failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if !r.Active {
@@ -83,7 +83,7 @@ func (b base) mapStoreError(err error, action string) error {
 	case errors.As(err, new(intake.ErrInvalidSubmission)):
 		return errx.NewWithCode(errx.ParamError)
 	default:
-		b.Errorw(action+" failed", logx.Field("err", err.Error()))
+		b.Errorw(action+" failed", logging.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
 }

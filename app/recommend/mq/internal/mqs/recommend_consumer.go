@@ -11,7 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -50,8 +50,8 @@ func consumeBehaviorBatch(
 	for _, msg := range msgs {
 		var behavior event.BehaviorEvent
 		if err := json.Unmarshal(msg.Body, &behavior); err != nil {
-			logx.WithContext(ctx).Errorw("recommend-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("recommend-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			if recordDeadLetter(ctx, deadLetters, msg, err) != nil {
 				recommendConsumerMessages.Inc("behavior", "retry")
 				return consumer.ConsumeRetryLater
@@ -60,8 +60,8 @@ func consumeBehaviorBatch(
 			continue
 		}
 		if err := behavior.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("recommend-consumer: invalid behavior event",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("recommend-consumer: invalid behavior event",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			if recordDeadLetter(ctx, deadLetters, msg, err) != nil {
 				recommendConsumerMessages.Inc("behavior", "retry")
 				return consumer.ConsumeRetryLater
@@ -75,16 +75,16 @@ func consumeBehaviorBatch(
 			continue
 		}
 		if err := bs.Record(ctx, behavior); err != nil {
-			logx.WithContext(ctx).Errorw("recommend-consumer: record behavior failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("event_id", behavior.EventID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("recommend-consumer: record behavior failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("event_id", behavior.EventID),
+				logging.Field("err", err.Error()))
 			recommendConsumerMessages.Inc("behavior", "retry")
 			return consumer.ConsumeRetryLater
 		}
 		recommendConsumerMessages.Inc("behavior", "processed")
 		observeRecommendEventLag("behavior", behavior.EventTime, time.Now())
-		logx.WithContext(ctx).Infow("recommend-consumer: behavior recorded",
-			logx.Field("event_id", behavior.EventID), logx.Field("action", behavior.Action))
+		logging.WithContext(ctx).Infow("recommend-consumer: behavior recorded",
+			logging.Field("event_id", behavior.EventID), logging.Field("action", behavior.Action))
 	}
 	return consumer.ConsumeSuccess
 }
@@ -116,9 +116,9 @@ func consumePostBatch(
 			continue
 		}
 		if err := candidates.RecordPost(ctx, post); err != nil {
-			logx.WithContext(ctx).Errorw("recommend-consumer: record post candidate failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", post.PostID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("recommend-consumer: record post candidate failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("post_id", post.PostID),
+				logging.Field("err", err.Error()))
 			recommendConsumerMessages.Inc("post", "retry")
 			return consumer.ConsumeRetryLater
 		}
@@ -138,8 +138,8 @@ func recordDeadLetter(
 		return fmt.Errorf("recommend-consumer: dead letter recorder is not configured")
 	}
 	if err := recorder.RecordDeadLetter(ctx, msg.MsgId, msg.Body, cause); err != nil {
-		logx.WithContext(ctx).Errorw("recommend-consumer: dead letter write failed",
-			logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("recommend-consumer: dead letter write failed",
+			logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 		return err
 	}
 	return nil

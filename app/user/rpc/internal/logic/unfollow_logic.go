@@ -10,20 +10,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UnfollowLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUnfollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnfollowLogic {
 	return &UnfollowLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -47,7 +47,7 @@ func (l *UnfollowLogic) Unfollow(in *pb.UnfollowReq) (*pb.UnfollowResp, error) {
 	}
 	outboxEvent, err := followOutboxEvent(in.UserId, in.TargetUserId, event.BehaviorActionUnfollow)
 	if err != nil {
-		l.Errorw("build unfollow behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build unfollow behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := l.svcCtx.UserFollowCommands.Unfollow(l.ctx, in.UserId, in.TargetUserId, outboxEvent); err != nil {

@@ -17,7 +17,7 @@ import (
 	"esx/pkg/cleanupx"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/embedding-consumer.yaml", "config file")
@@ -34,17 +34,17 @@ func main() {
 	defer startupCancel()
 	svcCtx, err := svc.NewServiceContext(startupCtx, c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	logger := logx.WithContext(context.Background())
+	logger := logging.WithContext(context.Background())
 	defer cleanupx.Shutdown(logger, "embedding dependencies", svcCtx.Close)
 
 	embeddingConsumer, err := mqs.NewEmbeddingConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := embeddingConsumer.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	defer cleanupx.Shutdown(logger, "embedding consumer", embeddingConsumer.Shutdown)
 

@@ -10,17 +10,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ReplaceAssistantMemoryLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewReplaceAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReplaceAssistantMemoryLogic {
-	return &ReplaceAssistantMemoryLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &ReplaceAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *ReplaceAssistantMemoryLogic) ReplaceAssistantMemory(req *types.ReplaceAssistantMemoryReq) (*types.ReplaceAssistantMemoryResp, error) {

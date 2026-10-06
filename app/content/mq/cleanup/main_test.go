@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 func TestShutdownContentCleanupStopsConsumersBeforeDatabase(t *testing.T) {
@@ -18,7 +18,7 @@ func TestShutdownContentCleanupStopsConsumersBeforeDatabase(t *testing.T) {
 	}
 
 	shutdownContentCleanup(
-		logx.WithContext(context.Background()),
+		logging.WithContext(context.Background()),
 		shutdown("count-sync"),
 		shutdown("cleanup"),
 		shutdown("database"),

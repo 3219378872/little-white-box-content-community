@@ -6,7 +6,7 @@ import (
 	"esx/app/user/rpc/internal/svc"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const (
@@ -37,7 +37,7 @@ func consumeVerifyCode(ctx context.Context, rds svc.RedisStore, phone, code stri
 		[]string{verifyCodeRedisKey(phone), "verify:attempts:" + phone},
 		code, verifyCodeMaxAttempts, verifyCodeAttemptWindowSeconds)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("consume verification code failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("consume verification code failed", logging.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
 	consumed, err := redisInteger(result)

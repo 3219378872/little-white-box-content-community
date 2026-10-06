@@ -11,7 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -39,14 +39,14 @@ func consumeCleanupBatch(ctx context.Context, cs store.CleanupStore, msgs ...*pr
 	for _, msg := range msgs {
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
-			logx.WithContext(ctx).Errorw("cleanup-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("cleanup-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			cleanupConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("cleanup-consumer: invalid event, skipping",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("cleanup-consumer: invalid event, skipping",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			cleanupConsumerMessages.Inc("invalid")
 			continue
 		}
@@ -56,31 +56,31 @@ func consumeCleanupBatch(ctx context.Context, cs store.CleanupStore, msgs ...*pr
 			continue
 		}
 		if err := cs.DeletePostState(ctx, e.PostID); err != nil {
-			logx.WithContext(ctx).Errorw("cleanup-consumer: delete post state failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("cleanup-consumer: delete post state failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+				logging.Field("err", err.Error()))
 			cleanupConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if err := cs.RemoveFromHotZSets(ctx, e.PostID); err != nil {
-			logx.WithContext(ctx).Errorw("cleanup-consumer: remove from hot zsets failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("cleanup-consumer: remove from hot zsets failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+				logging.Field("err", err.Error()))
 			cleanupConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if len(e.Tags) > 0 {
 			if err := cs.RemoveFromTagZSets(ctx, e.PostID, e.Tags); err != nil {
-				logx.WithContext(ctx).Errorw("cleanup-consumer: remove from tag zsets failed",
-					logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-					logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("cleanup-consumer: remove from tag zsets failed",
+					logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+					logging.Field("err", err.Error()))
 				cleanupConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 		}
 		cleanupConsumerMessages.Inc("processed")
-		logx.WithContext(ctx).Infow("cleanup-consumer: post cleaned",
-			logx.Field("post_id", e.PostID), logx.Field("tag_count", len(e.Tags)))
+		logging.WithContext(ctx).Infow("cleanup-consumer: post cleaned",
+			logging.Field("post_id", e.PostID), logging.Field("tag_count", len(e.Tags)))
 	}
 	return consumer.ConsumeSuccess
 }

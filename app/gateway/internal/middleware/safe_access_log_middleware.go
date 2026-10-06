@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // SafeAccessLogMiddleware records request metadata only. Headers, query values,
@@ -68,10 +68,10 @@ func (m *SafeAccessLogMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc
 		if status == 0 {
 			status = http.StatusOK
 		}
-		logx.WithContext(r.Context()).Infow("gateway request completed",
-			logx.Field("method", r.Method),
-			logx.Field("path", r.URL.Path),
-			logx.Field("status", status),
-			logx.Field("duration_ms", time.Since(started).Milliseconds()))
+		logging.WithContext(r.Context()).Infow("gateway request completed",
+			logging.Field("method", r.Method),
+			logging.Field("path", r.URL.Path),
+			logging.Field("status", status),
+			logging.Field("duration_ms", time.Since(started).Milliseconds()))
 	}
 }

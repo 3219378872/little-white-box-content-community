@@ -4,44 +4,44 @@ import (
 	"io"
 	"os"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
-func Close(logger logx.Logger, resource string, closer io.Closer) {
+func Close(logger logging.Logger, resource string, closer io.Closer) {
 	if closer == nil {
 		return
 	}
 
 	if err := closer.Close(); err != nil {
 		logger.Errorw("close resource failed",
-			logx.Field("resource", resource),
-			logx.Field("err", err.Error()),
+			logging.Field("resource", resource),
+			logging.Field("err", err.Error()),
 		)
 	}
 }
 
-func Remove(logger logx.Logger, path string) {
+func Remove(logger logging.Logger, path string) {
 	if path == "" {
 		return
 	}
 
 	if err := os.Remove(path); err != nil {
 		logger.Errorw("remove path failed",
-			logx.Field("path", path),
-			logx.Field("err", err.Error()),
+			logging.Field("path", path),
+			logging.Field("err", err.Error()),
 		)
 	}
 }
 
-func Shutdown(logger logx.Logger, resource string, shutdown func() error) {
+func Shutdown(logger logging.Logger, resource string, shutdown func() error) {
 	if shutdown == nil {
 		return
 	}
 
 	if err := shutdown(); err != nil {
 		logger.Errorw("shutdown resource failed",
-			logx.Field("resource", resource),
-			logx.Field("err", err.Error()),
+			logging.Field("resource", resource),
+			logging.Field("err", err.Error()),
 		)
 	}
 }

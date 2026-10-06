@@ -7,20 +7,20 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type BatchGetUserCardsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchGetUserCardsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchGetUserCardsLogic {
 	return &BatchGetUserCardsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -43,7 +43,7 @@ func (l *BatchGetUserCardsLogic) BatchGetUserCards(in *pb.BatchGetUserCardsReq) 
 	}
 	cards, err := l.svcCtx.UserProfileModel.FindCardsByIDs(l.ctx, ids)
 	if err != nil {
-		l.Errorw("UserProfileModel.FindCardsByIDs failed", logx.Field("err", err.Error()))
+		l.Errorw("UserProfileModel.FindCardsByIDs failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	users := make([]*pb.UserCard, 0, len(cards))

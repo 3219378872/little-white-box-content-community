@@ -11,20 +11,20 @@ import (
 	"esx/pkg/errx"
 	"fmt"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type LoginLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic {
 	return &LoginLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -63,14 +63,14 @@ func (l *LoginLogic) Login(in *pb.LoginReq) (*pb.LoginResp, error) {
 		// 先看锁定：窗口内错误次数已达上限则拒绝，正确密码也不能登录。
 		if locked, lockErr := l.loginLocked(user.Id); lockErr != nil {
 			l.Errorw("login lock check failed",
-				logx.Field("username", in.Username), logx.Field("err", lockErr.Error()))
+				logging.Field("username", in.Username), logging.Field("err", lockErr.Error()))
 		} else if locked {
 			return nil, errx.NewWithCode(errx.TooManyReq)
 		}
 		if password.Compare(user.Password, in.Password) != nil {
 			if recErr := l.recordLoginFailure(user.Id); recErr != nil {
 				l.Errorw("login failure record failed",
-					logx.Field("username", in.Username), logx.Field("err", recErr.Error()))
+					logging.Field("username", in.Username), logging.Field("err", recErr.Error()))
 			}
 			return nil, errx.NewWithCode(errx.PasswordError)
 		}

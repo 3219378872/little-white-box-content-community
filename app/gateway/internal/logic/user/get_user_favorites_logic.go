@@ -18,11 +18,11 @@ import (
 	"esx/pkg/jwtx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserFavoritesLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -30,7 +30,7 @@ type GetUserFavoritesLogic struct {
 // 获取用户的收藏帖子列表
 func NewGetUserFavoritesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserFavoritesLogic {
 	return &GetUserFavoritesLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -54,7 +54,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 
 	userResp, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "UserService.GetUser", err, logx.Field("userId", req.UserId))
+		return nil, rpcx.Error(l.Logger, "UserService.GetUser", err, logging.Field("userId", req.UserId))
 	}
 	if userResp.User == nil {
 		return nil, errx.NewWithCode(errx.UserNotFound)
@@ -72,7 +72,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		PageSize: pageSize,
 	})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "InteractionService.GetFavoriteList", err, logx.Field("userId", req.UserId))
+		return nil, rpcx.Error(l.Logger, "InteractionService.GetFavoriteList", err, logging.Field("userId", req.UserId))
 	}
 
 	if len(favoriteResp.PostIds) == 0 {
@@ -81,7 +81,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 
 	published, err := visibility.PublishedByIDs(l.ctx, l.svcCtx.ContentService, favoriteResp.PostIds)
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "ContentService.GetPostsByIds", err, logx.Field("postIds", favoriteResp.PostIds))
+		return nil, rpcx.Error(l.Logger, "ContentService.GetPostsByIds", err, logging.Field("postIds", favoriteResp.PostIds))
 	}
 
 	visible := make([]*contentservice.PostInfo, 0, len(favoriteResp.PostIds))
@@ -97,7 +97,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
 	if err != nil {
-		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		l.Errorw("viewerstate.Enrich failed", logging.Field("err", err.Error()))
 		return nil, err
 	}
 
@@ -105,7 +105,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 	if len(favoriteResp.PostIds) >= int(pageSize) {
 		token, err := cursorx.Encode(cursorx.Data{"p": int64(page) + 1})
 		if err != nil {
-			l.Errorw("encode favorites cursor failed", logx.Field("err", err.Error()))
+			l.Errorw("encode favorites cursor failed", logging.Field("err", err.Error()))
 		} else {
 			nextCursor = token
 		}

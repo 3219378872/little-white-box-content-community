@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ListAssistantMessagesLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewListAssistantMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListAssistantMessagesLogic {
-	return &ListAssistantMessagesLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &ListAssistantMessagesLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *ListAssistantMessagesLogic) ListAssistantMessages(req *types.ListAssistantMessagesReq) (*types.ListAssistantMessagesResp, error) {

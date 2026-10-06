@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type MarkConversationReadLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type MarkConversationReadLogic struct {
 // 标记会话已读
 func NewMarkConversationReadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MarkConversationReadLogic {
 	return &MarkConversationReadLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -42,8 +42,8 @@ func (l *MarkConversationReadLogic) MarkConversationRead(req *types.MarkConversa
 	})
 	if err != nil {
 		l.Errorw("MessageService.MarkRead RPC failed",
-			logx.Field("conversationId", req.ConversationId),
-			logx.Field("err", err.Error()),
+			logging.Field("conversationId", req.ConversationId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}

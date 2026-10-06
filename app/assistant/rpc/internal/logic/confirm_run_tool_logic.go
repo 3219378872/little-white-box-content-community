@@ -7,17 +7,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ConfirmRunToolLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewConfirmRunToolLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ConfirmRunToolLogic {
-	return &ConfirmRunToolLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &ConfirmRunToolLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *ConfirmRunToolLogic) ConfirmRunTool(in *pb.ConfirmRunToolReq) (*pb.ConfirmRunToolResp, error) {

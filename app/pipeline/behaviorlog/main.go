@@ -20,7 +20,7 @@ import (
 	"esx/pkg/mqx"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/behavior-log.yaml", "config file")
@@ -39,17 +39,17 @@ func main() {
 
 	mq, err := mqx.NewConsumer(c.MQ)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 
 	if err := mq.Subscribe(handler); err != nil {
-		logx.Must(fmt.Errorf("subscribe %s: %w", c.MQ.Topic, err))
+		logging.Must(fmt.Errorf("subscribe %s: %w", c.MQ.Topic, err))
 	}
 
 	if err := mq.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	logger := logx.WithContext(context.Background())
+	logger := logging.WithContext(context.Background())
 
 	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -81,14 +81,14 @@ func runDailyAggregation(ctx context.Context, intervalSeconds, backfillDays int,
 			if ctx.Err() != nil {
 				return false
 			}
-			logx.WithContext(runCtx).Errorw("REL-020 daily aggregate failed",
-				logx.Field("err", err.Error()))
+			logging.WithContext(runCtx).Errorw("REL-020 daily aggregate failed",
+				logging.Field("err", err.Error()))
 			return true
 		}
-		logx.WithContext(runCtx).Infow("REL-020 daily aggregate",
-			logx.Field("from", from.Format(time.DateOnly)),
-			logx.Field("to", to.Format(time.DateOnly)),
-			logx.Field("rows", count))
+		logging.WithContext(runCtx).Infow("REL-020 daily aggregate",
+			logging.Field("from", from.Format(time.DateOnly)),
+			logging.Field("to", to.Format(time.DateOnly)),
+			logging.Field("rows", count))
 		return true
 	}
 	// 启动后立即执行一次（配合 AggregateBackfillDays 回填存量），再进入周期。

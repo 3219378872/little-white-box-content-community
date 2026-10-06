@@ -16,20 +16,20 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UpdatePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUpdatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdatePostLogic {
 	return &UpdatePostLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -101,7 +101,7 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		CreatedAt:    createdAt,
 	})
 	if err != nil {
-		l.Errorw("build post-updated event failed", logx.Field("err", err.Error()))
+		l.Errorw("build post-updated event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if l.svcCtx.PostCommandModel == nil {
@@ -122,12 +122,12 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("update post transaction failed",
-			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
 		l.Errorw("invalidate post cache after update failed",
-			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 	}
 
 	return &pb.UpdatePostResp{
@@ -211,8 +211,8 @@ func (l *UpdatePostLogic) postForUpdate(in *pb.UpdatePostReq) (*model.Post, erro
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -317,7 +317,7 @@ func (l *UpdatePostLogic) tagsForUpdate(in *pb.UpdatePostReq, post *model.Post) 
 		for range eventTags {
 			tid, idErr := util.NextID()
 			if idErr != nil {
-				l.Errorw("generate tag id failed", logx.Field("err", idErr.Error()))
+				l.Errorw("generate tag id failed", logging.Field("err", idErr.Error()))
 				return nil, errx.NewWithCode(errx.SystemError)
 			}
 			modelTagIDs = append(modelTagIDs, tid)
@@ -326,7 +326,7 @@ func (l *UpdatePostLogic) tagsForUpdate(in *pb.UpdatePostReq, post *model.Post) 
 		eventTags, err = l.svcCtx.PostTagModel.FindTagNamesByPostId(l.ctx, post.Id)
 		if err != nil {
 			l.Errorw("find existing tags for update failed",
-				logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+				logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 			return nil, errx.NewWithCode(errx.SystemError)
 		}
 	}

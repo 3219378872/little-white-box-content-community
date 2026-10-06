@@ -18,7 +18,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/review-worker.yaml", "config file")
@@ -37,11 +37,11 @@ func main() {
 
 	svcCtx, err := svc.NewServiceContext(ctx, c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	defer func() {
 		if err := svcCtx.Close(); err != nil {
-			logx.Errorw("close review worker dependencies", logx.Field("err", err.Error()))
+			logging.Errorw("close review worker dependencies", logging.Field("err", err.Error()))
 		}
 	}()
 	activatePolicies(ctx, svcCtx)
@@ -50,18 +50,18 @@ func main() {
 		relay := outboxx.StartRelay(ctx, svcCtx.OutboxRelay)
 		defer func() {
 			if err := relay.Stop(); err != nil {
-				logx.Errorw("review worker outbox relay stopped", logx.Field("err", err.Error()))
+				logging.Errorw("review worker outbox relay stopped", logging.Field("err", err.Error()))
 			}
 		}()
 	}
 	submitted, err := mqs.NewSubmittedConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := submitted.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "review submitted consumer", submitted.Shutdown)
+	defer cleanupx.Shutdown(logging.WithContext(context.Background()), "review submitted consumer", submitted.Shutdown)
 
 	fmt.Println("Review worker started")
 	runLoops(ctx, svcCtx)
@@ -77,7 +77,7 @@ func activatePolicies(ctx context.Context, svcCtx *svc.ServiceContext) {
 	}
 	for _, entry := range entries {
 		if err := svcCtx.Store.Audit(ctx, entry, time.Now()); err != nil {
-			logx.Errorw("record policy activation failed", logx.Field("err", err.Error()))
+			logging.Errorw("record policy activation failed", logging.Field("err", err.Error()))
 		}
 	}
 }
@@ -110,7 +110,7 @@ func drainMachineQueue(ctx context.Context, svcCtx *svc.ServiceContext) {
 	for range 20 {
 		task, err := svcCtx.Store.ClaimMachine(ctx, time.Now())
 		if err != nil {
-			logx.WithContext(ctx).Errorw("review worker claim failed", logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("review worker claim failed", logging.Field("err", err.Error()))
 			return
 		}
 		if task == nil {
@@ -118,8 +118,8 @@ func drainMachineQueue(ctx context.Context, svcCtx *svc.ServiceContext) {
 		}
 		if err := svcCtx.Processor.Process(ctx, task); err != nil {
 			// 租约到期后任务会被重领；阶段记录按（task, stage, version）幂等。
-			logx.WithContext(ctx).Errorw("review worker process failed",
-				logx.Field("taskId", task.ID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("review worker process failed",
+				logging.Field("taskId", task.ID), logging.Field("err", err.Error()))
 			return
 		}
 	}
@@ -130,6 +130,6 @@ func syncSeeds(ctx context.Context, svcCtx *svc.ServiceContext) {
 		return
 	}
 	if _, err := router.SyncSeeds(ctx, svcCtx.Store, svcCtx.Embedder, svcCtx.SeedIndex, 50); err != nil {
-		logx.WithContext(ctx).Errorw("review seed sync failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("review seed sync failed", logging.Field("err", err.Error()))
 	}
 }

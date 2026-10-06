@@ -20,7 +20,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 	"esx/pkg/util"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ServiceContext struct {
@@ -101,12 +101,12 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 func (s *ServiceContext) connectRouter(ctx context.Context) cascade.RouterWithVersion {
 	c := s.Config
 	if c.Embedding.Address == "" || c.Milvus.Address == "" {
-		logx.WithContext(ctx).Infow("review router disabled: embedding or milvus address not configured")
+		logging.WithContext(ctx).Infow("review router disabled: embedding or milvus address not configured")
 		return nil
 	}
 	embedder, err := router.DialEmbedder(c.Embedding.Address, c.Embedding.Dim)
 	if err != nil {
-		logx.Errorw("review router embedding unavailable", logx.Field("err", err.Error()))
+		logging.Errorw("review router embedding unavailable", logging.Field("err", err.Error()))
 		return nil
 	}
 	dialCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -117,7 +117,7 @@ func (s *ServiceContext) connectRouter(ctx context.Context) cascade.RouterWithVe
 	})
 	if err != nil {
 		_ = embedder.Close()
-		logx.Errorw("review router milvus unavailable", logx.Field("err", err.Error()))
+		logging.Errorw("review router milvus unavailable", logging.Field("err", err.Error()))
 		return nil
 	}
 	s.Embedder, s.SeedIndex = embedder, index

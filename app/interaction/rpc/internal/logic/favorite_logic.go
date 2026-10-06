@@ -9,20 +9,20 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type FavoriteLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FavoriteLogic {
 	return &FavoriteLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -40,7 +40,7 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	}
 	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "favorite")
 	if err != nil {
-		l.Errorw("build favorite behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build favorite behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	recordID, err := l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
@@ -49,21 +49,21 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 			return &pb.FavoriteResp{}, nil
 		}
 		l.Errorw("favorite transaction failed",
-			logx.Field("userId", in.UserId),
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", in.UserId),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if l.svcCtx.FavoriteModel != nil {
 		if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, recordID, in.UserId, in.PostId); err != nil {
-			l.Errorw("InvalidateFavoriteCache failed", logx.Field("err", err.Error()))
+			l.Errorw("InvalidateFavoriteCache failed", logging.Field("err", err.Error()))
 		}
 	}
 
 	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.PostId, 1); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
-		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.FavoriteResp{}, nil

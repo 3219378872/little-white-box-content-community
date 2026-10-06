@@ -8,17 +8,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type BatchMemoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchMemoryLogic {
-	return &BatchMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &BatchMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *BatchMemoryLogic) BatchMemory(in *pb.BatchMemoryReq) (*pb.BatchMemoryResp, error) {

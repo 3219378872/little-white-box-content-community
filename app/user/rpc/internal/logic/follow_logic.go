@@ -10,20 +10,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type FollowLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogic {
 	return &FollowLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -47,7 +47,7 @@ func (l *FollowLogic) Follow(in *pb.FollowReq) (*pb.FollowResp, error) {
 	}
 	outboxEvent, err := followOutboxEvent(in.UserId, in.TargetUserId, event.BehaviorActionFollow)
 	if err != nil {
-		l.Errorw("build follow behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build follow behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := l.svcCtx.UserFollowCommands.Follow(l.ctx, in.UserId, in.TargetUserId, outboxEvent); err != nil {

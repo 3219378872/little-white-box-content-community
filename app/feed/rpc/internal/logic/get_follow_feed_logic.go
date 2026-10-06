@@ -11,7 +11,7 @@ import (
 	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const (
@@ -23,14 +23,14 @@ const (
 type GetFollowFeedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetFollowFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFollowFeedLogic {
 	return &GetFollowFeedLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -58,7 +58,7 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 
 	inboxRows, err := l.svcCtx.InboxModel.FindByUserBefore(l.ctx, in.UserId, cursorCreatedAt, cursorPostID, limit)
 	if err != nil {
-		l.Errorw("InboxModel.FindByUserBefore failed", logx.Field("err", err.Error()))
+		l.Errorw("InboxModel.FindByUserBefore failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -99,7 +99,7 @@ func (l *GetFollowFeedLogic) GetFollowFeed(in *pb.GetFollowFeedReq) (*pb.GetFoll
 
 	rendered, err := enrichFeedItems(l.ctx, l.svcCtx.ContentService, rawItems)
 	if err != nil {
-		l.Errorw("ContentService.GetPostsByIds failed", logx.Field("err", err.Error()))
+		l.Errorw("ContentService.GetPostsByIds failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	renderedByPostID := make(map[int64]*pb.FeedItem, len(rendered))
@@ -167,7 +167,7 @@ func (l *GetFollowFeedLogic) currentFollowingAuthorIDs(userID int64) ([]int64, m
 			PageSize: followingLookupPageSize,
 		})
 		if err != nil {
-			l.Errorw("UserService.GetFollowing failed", logx.Field("err", err.Error()), logx.Field("page", page))
+			l.Errorw("UserService.GetFollowing failed", logging.Field("err", err.Error()), logging.Field("page", page))
 			return nil, nil, errx.NewWithCode(errx.SystemError)
 		}
 		if followingResp == nil {
@@ -191,7 +191,7 @@ func (l *GetFollowFeedLogic) currentFollowingAuthorIDs(userID int64) ([]int64, m
 			return authorIDs, seen, nil
 		}
 	}
-	l.Errorw("following lookup exceeded page cap", logx.Field("userId", userID), logx.Field("loaded", len(authorIDs)))
+	l.Errorw("following lookup exceeded page cap", logging.Field("userId", userID), logging.Field("loaded", len(authorIDs)))
 	return nil, nil, errx.NewWithCode(errx.SystemError)
 }
 
@@ -202,7 +202,7 @@ func (l *GetFollowFeedLogic) outboxRowsForAuthors(authorIDs []int64, cursorCreat
 		end := min(start+outboxAuthorBatchSize, len(authorIDs))
 		rows, err := l.svcCtx.OutboxModel.FindByAuthorsBefore(l.ctx, authorIDs[start:end], cursorCreatedAt, cursorPostID, limit)
 		if err != nil {
-			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logx.Field("err", err.Error()))
+			l.Errorw("OutboxModel.FindByAuthorsBefore failed", logging.Field("err", err.Error()))
 			return nil, false, errx.NewWithCode(errx.SystemError)
 		}
 		if len(rows) == int(limit) {

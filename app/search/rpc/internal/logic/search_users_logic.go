@@ -8,20 +8,20 @@ import (
 	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSearchUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchUsersLogic {
 	return &SearchUsersLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -41,7 +41,7 @@ func (l *SearchUsersLogic) SearchUsers(in *pb.SearchUsersReq) (*pb.SearchUsersRe
 		Keyword: searchKeyword, Page: in.Page, PageSize: in.PageSize,
 	})
 	if err != nil {
-		l.Errorw("search users RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("search users RPC failed", logging.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	if result == nil {

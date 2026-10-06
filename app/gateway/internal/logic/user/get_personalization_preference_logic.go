@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPersonalizationPreferenceLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type GetPersonalizationPreferenceLogic struct {
 // 获取个性化偏好
 func NewGetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPersonalizationPreferenceLogic {
 	return &GetPersonalizationPreferenceLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -37,8 +37,8 @@ func (l *GetPersonalizationPreferenceLogic) GetPersonalizationPreference() (resp
 	})
 	if err != nil {
 		l.Errorw("UserService.GetPersonalizationPreference RPC failed",
-			logx.Field("userId", userID),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", userID),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}

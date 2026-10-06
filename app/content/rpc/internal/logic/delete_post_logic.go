@@ -14,20 +14,20 @@ import (
 	"esx/pkg/visibilityx"
 	"strings"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type DeletePostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewDeletePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeletePostLogic {
 	return &DeletePostLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -63,8 +63,8 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -89,7 +89,7 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		Revision: post.Revision + 1,
 	})
 	if err != nil {
-		l.Errorw("build post-deleted event failed", logx.Field("err", err.Error()))
+		l.Errorw("build post-deleted event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if l.svcCtx.PostCommandModel == nil {
@@ -109,12 +109,12 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
 		l.Errorw("delete post transaction failed",
-			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
 		l.Errorw("invalidate post cache after delete failed",
-			logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 	}
 
 	return &pb.DeletePostResp{}, nil

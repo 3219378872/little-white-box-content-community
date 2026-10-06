@@ -11,7 +11,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	metric "esx/pkg/metrics"
 )
 
@@ -28,12 +28,12 @@ var behaviorMQPublishTotal = metric.NewCounterVec(&metric.CounterVecOpts{
 type RecordEventsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewRecordEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RecordEventsLogic {
 	return &RecordEventsLogic{
-		ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx),
+		ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -115,7 +115,7 @@ func (l *RecordEventsLogic) recordOne(
 		TraceID: request.TraceId, UserAgent: request.UserAgent,
 	}); err != nil {
 		l.Errorw("publish behavior event failed",
-			logx.Field("client_event_id", input.ClientEventId), logx.Field("err", err.Error()))
+			logging.Field("client_event_id", input.ClientEventId), logging.Field("err", err.Error()))
 		behaviorMQPublishTotal.Inc("failure")
 		return rejected(input.ClientEventId, behavior.EventID, errx.ServiceUnavailable, "event publish failed")
 	}

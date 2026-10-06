@@ -12,20 +12,20 @@ import (
 	"strconv"
 	"strings"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetRecommendPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetRecommendPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendPostsLogic {
 	return &GetRecommendPostsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -71,7 +71,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 	batches, recallDegraded, err := recallPosts(l.ctx, sources, recallReq)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "recall", "unavailable")
-		l.Errorw("post recall unavailable", logx.Field("err", err.Error()))
+		l.Errorw("post recall unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	recordPipelineStage("posts", "recall", recallDegraded)
@@ -86,7 +86,7 @@ func (l *GetRecommendPostsLogic) GetRecommendPosts(in *pb.GetRecommendPostsReq) 
 	)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "features", "unavailable")
-		l.Errorw("post feature enrichment unavailable", logx.Field("err", err.Error()))
+		l.Errorw("post feature enrichment unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	recordPipelineStage("posts", "features", featureDegraded)
@@ -141,7 +141,7 @@ func (l *GetRecommendPostsLogic) personalizationOptedOut(userID int64) bool {
 	}
 	optedOut, err := l.svcCtx.FeatureRepository.IsPersonalizationOptedOut(l.ctx, userID)
 	if err != nil {
-		l.Errorw("check personalization opt-out failed", logx.Field("user_id", userID), logx.Field("err", err.Error()))
+		l.Errorw("check personalization opt-out failed", logging.Field("user_id", userID), logging.Field("err", err.Error()))
 		return true
 	}
 	return optedOut
@@ -184,7 +184,7 @@ func (l *GetRecommendPostsLogic) firstPage(posts []model.RankedPost, pageSize in
 		Posts:        posts,
 	}
 	if err := l.svcCtx.SnapshotStore.Save(l.ctx, snapshotID, snapshot, cursorTTL(l.svcCtx.Config)); err != nil {
-		l.Errorw("save recommendation snapshot failed", logx.Field("err", err.Error()))
+		l.Errorw("save recommendation snapshot failed", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	response.NextCursor, err = l.svcCtx.CursorCodec.Encode(snapshotID, end, expiresAt, binding)
@@ -295,7 +295,7 @@ func (l *GetRecommendPostsLogic) rankVisiblePosts(candidates []model.PostCandida
 		return nil, recommendationRPCError(err)
 	}
 	if inferenceDegradation != "" {
-		l.Errorw("online inference degraded", logx.Field("mode", inferenceDegradation))
+		l.Errorw("online inference degraded", logging.Field("mode", inferenceDegradation))
 	}
 	candidates = rerankPosts(
 		candidates, l.svcCtx.Config.ExploreRatio, l.svcCtx.Config.MaxPerAuthor,
@@ -305,7 +305,7 @@ func (l *GetRecommendPostsLogic) rankVisiblePosts(candidates []model.PostCandida
 	candidates, err = filterPublishedPostCandidates(l.ctx, l.svcCtx.ContentService, candidates)
 	if err != nil {
 		recommendPipelineTotal.Inc("posts", "visibility", "unavailable")
-		l.Errorw("post visibility check unavailable", logx.Field("err", err.Error()))
+		l.Errorw("post visibility check unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	return candidates, nil

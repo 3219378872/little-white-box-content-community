@@ -10,7 +10,7 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/adpolicy"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	metric "esx/pkg/metrics"
 )
 
@@ -59,7 +59,7 @@ func startSponsored(ctx context.Context, svcCtx *svc.ServiceContext, req sponsor
 				outcome = "timeout"
 			}
 			sponsoredRequests.Inc(outcome)
-			logx.WithContext(ctx).Infow("sponsored slots degraded", logx.Field("outcome", outcome))
+			logging.WithContext(ctx).Infow("sponsored slots degraded", logging.Field("outcome", outcome))
 			out <- sponsoredResult{}
 			return
 		}

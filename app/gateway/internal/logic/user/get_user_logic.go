@@ -10,11 +10,11 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type GetUserLogic struct {
 // 获取用户信息（公开接口）
 func NewGetUserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserLogic {
 	return &GetUserLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -33,8 +33,8 @@ func (l *GetUserLogic) GetUser(req *types.GetUserReq) (resp *types.GetUserResp, 
 	result, err := l.svcCtx.UserService.GetUser(l.ctx, &pb.GetUserReq{UserId: req.UserId, ViewerId: viewerID})
 	if err != nil {
 		l.Errorw("UserService.GetUser RPC failed",
-			logx.Field("userId", req.UserId),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", req.UserId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}

@@ -11,7 +11,7 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/cleanupx"
 	"esx/pkg/httpx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // 付费广告：上传素材或资质证件到私有存储（ADS-015）
@@ -24,7 +24,7 @@ func UploadAdAssetHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
-		defer cleanupx.Close(logx.WithContext(ctx), "uploaded multipart file", file)
+		defer cleanupx.Close(logging.WithContext(ctx), "uploaded multipart file", file)
 		resp, err := ads.NewUploadAdAssetLogic(ctx, svcCtx).UploadAdAsset(&req, file, header.Filename, key)
 		if err != nil {
 			httpx.ErrorCtx(ctx, c, err)

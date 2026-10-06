@@ -9,20 +9,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetFavoriteListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetFavoriteListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFavoriteListLogic {
 	return &GetFavoriteListLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

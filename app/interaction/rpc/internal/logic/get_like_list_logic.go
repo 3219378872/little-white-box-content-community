@@ -9,7 +9,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const likeListTargetTypePost int64 = 1
@@ -17,14 +17,14 @@ const likeListTargetTypePost int64 = 1
 type GetLikeListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetLikeListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLikeListLogic {
 	return &GetLikeListLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

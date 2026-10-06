@@ -8,7 +8,7 @@ import (
 	"esx/app/ad/internal/store"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // DecisionStore 是应用结论需要的存储操作。
@@ -57,10 +57,10 @@ func (a *Applier) Apply(ctx context.Context, d event.ReviewDecidedEvent) error {
 			action = "serve"
 		}
 		metrics.Propagation(action, d.DecidedAt, a.Server.now())
-		logx.WithContext(ctx).Infow("ad review decision applied",
-			logx.Field("adId", d.ObjectID), logx.Field("revision", d.Revision),
-			logx.Field("verdict", d.Verdict), logx.Field("purpose", d.Purpose), logx.Field("interim", d.Interim),
-			logx.Field("applied", effect.Applied), logx.Field("servable", servable))
+		logging.WithContext(ctx).Infow("ad review decision applied",
+			logging.Field("adId", d.ObjectID), logging.Field("revision", d.Revision),
+			logging.Field("verdict", d.Verdict), logging.Field("purpose", d.Purpose), logging.Field("interim", d.Interim),
+			logging.Field("applied", effect.Applied), logging.Field("servable", servable))
 	case event.ReviewBizAdvertiserQualification:
 		effect, err := a.Store.ApplyAdvertiserDecision(ctx, d, now)
 		if err != nil {

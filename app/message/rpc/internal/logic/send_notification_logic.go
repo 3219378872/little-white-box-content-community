@@ -10,17 +10,17 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SendNotificationLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSendNotificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendNotificationLogic {
-	return &SendNotificationLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &SendNotificationLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 // 发送系统通知
@@ -44,7 +44,7 @@ func (l *SendNotificationLogic) SendNotification(in *pb.SendNotificationReq) (*p
 	}
 	result, err := l.svcCtx.NotificationModel.Insert(l.ctx, row)
 	if err != nil {
-		l.Errorw("NotificationModel.Insert failed", logx.Field("err", err.Error()))
+		l.Errorw("NotificationModel.Insert failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	id, err := result.LastInsertId()
@@ -53,7 +53,7 @@ func (l *SendNotificationLogic) SendNotification(in *pb.SendNotificationReq) (*p
 	}
 	if l.svcCtx.UnreadStore != nil {
 		if err := l.svcCtx.UnreadStore.DeleteUserUnread(l.ctx, in.UserId); err != nil {
-			l.Errorw("UnreadStore.DeleteUserUnread failed", logx.Field("err", err.Error()))
+			l.Errorw("UnreadStore.DeleteUserUnread failed", logging.Field("err", err.Error()))
 		}
 	}
 	return &pb.SendNotificationResp{NotificationId: id}, nil

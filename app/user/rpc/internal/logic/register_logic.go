@@ -18,20 +18,20 @@ import (
 	"esx/pkg/util"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type RegisterLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RegisterLogic {
 	return &RegisterLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -65,12 +65,12 @@ func (l *RegisterLogic) registerByUserName(req *pb.RegisterReq) (*pb.RegisterRes
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		l.Errorw("jwtx.GenerateToken failed", logging.Field("userId", user.Id), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	refreshToken, err := jwtx.GenerateRefreshToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		l.Errorw("jwtx.GenerateRefreshToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		l.Errorw("jwtx.GenerateRefreshToken failed", logging.Field("userId", user.Id), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if err := storeRefreshJTI(l.ctx, l.svcCtx, refreshToken, user.Id); err != nil {
@@ -98,7 +98,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 		Valid:  true,
 	})
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorw("UserProfileModel.FindOneByPhone failed", logx.Field("err", err.Error()))
+		l.Errorw("UserProfileModel.FindOneByPhone failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if phone != nil {
@@ -121,12 +121,12 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 
 	token, err := jwtx.GenerateToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		l.Errorw("jwtx.GenerateToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		l.Errorw("jwtx.GenerateToken failed", logging.Field("userId", user.Id), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	refreshToken, err := jwtx.GenerateRefreshToken(user.Id, user.Username, l.svcCtx.Config.JwtConfig)
 	if err != nil {
-		l.Errorw("jwtx.GenerateRefreshToken failed", logx.Field("userId", user.Id), logx.Field("err", err.Error()))
+		l.Errorw("jwtx.GenerateRefreshToken failed", logging.Field("userId", user.Id), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if err := storeRefreshJTI(l.ctx, l.svcCtx, refreshToken, user.Id); err != nil {
@@ -143,7 +143,7 @@ func (l *RegisterLogic) registerByPhone(in *pb.RegisterReq) (*pb.RegisterResp, e
 func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error) {
 	id, err := util.NextID()
 	if err != nil {
-		l.Errorw("util.NextID snowflake id generation failed", logx.Field("err", err.Error()))
+		l.Errorw("util.NextID snowflake id generation failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -165,13 +165,13 @@ func (l *RegisterLogic) newUser(req *pb.RegisterReq) (*model.UserProfile, error)
 		rawPass := "rp_" + hex.EncodeToString(randomBytes)
 		hashed, err = password.Hash(rawPass)
 		if err != nil {
-			l.Errorw("password.Hash failed", logx.Field("err", err.Error()))
+			l.Errorw("password.Hash failed", logging.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	} else {
 		hashed, err = password.Hash(req.Password)
 		if err != nil {
-			l.Errorw("password.Hash failed", logx.Field("err", err.Error()))
+			l.Errorw("password.Hash failed", logging.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 	}

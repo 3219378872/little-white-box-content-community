@@ -4,16 +4,16 @@ package rpcx
 import (
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
-func Error(logger logx.Logger, op string, err error, fields ...logx.LogField) error {
+func Error(logger logging.Logger, op string, err error, fields ...logging.LogField) error {
 	if err == nil {
 		return nil
 	}
-	args := make([]logx.LogField, 0, len(fields)+1)
+	args := make([]logging.LogField, 0, len(fields)+1)
 	args = append(args, fields...)
-	args = append(args, logx.Field("err", err.Error()))
+	args = append(args, logging.Field("err", err.Error()))
 	logger.Errorw(op+" RPC failed", args...)
 	return errx.FromRPCError(err)
 }

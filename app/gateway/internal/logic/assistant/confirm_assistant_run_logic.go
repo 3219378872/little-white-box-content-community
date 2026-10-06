@@ -10,17 +10,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type ConfirmAssistantRunLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewConfirmAssistantRunLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ConfirmAssistantRunLogic {
-	return &ConfirmAssistantRunLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &ConfirmAssistantRunLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *ConfirmAssistantRunLogic) ConfirmAssistantRun(req *types.ConfirmAssistantRunReq) (*types.ConfirmAssistantRunResp, error) {

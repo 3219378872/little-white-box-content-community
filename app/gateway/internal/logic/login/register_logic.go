@@ -8,11 +8,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type RegisterLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -20,7 +20,7 @@ type RegisterLogic struct {
 // 用户注册
 func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RegisterLogic {
 	return &RegisterLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

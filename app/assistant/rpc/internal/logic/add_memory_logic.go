@@ -7,17 +7,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type AddMemoryLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewAddMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddMemoryLogic {
-	return &AddMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &AddMemoryLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *AddMemoryLogic) AddMemory(in *pb.AddMemoryReq) (*pb.AddMemoryResp, error) {

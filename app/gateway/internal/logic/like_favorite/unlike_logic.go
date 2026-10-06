@@ -9,11 +9,11 @@ import (
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UnlikeLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type UnlikeLogic struct {
 // 取消点赞
 func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogic {
 	return &UnlikeLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,9 +40,9 @@ func (l *UnlikeLogic) Unlike(req *types.UnlikeReq) (resp *types.UnlikeResp, err 
 	})
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "InteractionService.Unlike", err,
-			logx.Field("userId", userId),
-			logx.Field("targetId", req.TargetId),
-			logx.Field("targetType", req.TargetType),
+			logging.Field("userId", userId),
+			logging.Field("targetId", req.TargetId),
+			logging.Field("targetType", req.TargetType),
 		)
 	}
 

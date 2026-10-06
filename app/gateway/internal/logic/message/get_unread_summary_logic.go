@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUnreadSummaryLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type GetUnreadSummaryLogic struct {
 // 获取未读汇总
 func NewGetUnreadSummaryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUnreadSummaryLogic {
 	return &GetUnreadSummaryLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -35,7 +35,7 @@ func (l *GetUnreadSummaryLogic) GetUnreadSummary() (resp *types.GetUnreadSummary
 
 	result, err := l.svcCtx.MessageService.GetUnreadCount(l.ctx, &messageservice.GetUnreadCountReq{UserId: userID})
 	if err != nil {
-		l.Errorw("MessageService.GetUnreadCount RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("MessageService.GetUnreadCount RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

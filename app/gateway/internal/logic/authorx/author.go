@@ -10,7 +10,7 @@ import (
 	"esx/app/user/rpc/userservice"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type Author struct {
@@ -94,9 +94,9 @@ func LoadSoft(ctx context.Context, svcCtx *svc.ServiceContext, ids []int64) map[
 	}
 	authors, err := Load(ctx, svcCtx, unique)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("UserService.BatchGetUserCards failed",
-			logx.Field("authorIds", unique),
-			logx.Field("err", err.Error()),
+		logging.WithContext(ctx).Errorw("UserService.BatchGetUserCards failed",
+			logging.Field("authorIds", unique),
+			logging.Field("err", err.Error()),
 		)
 		return map[int64]Author{}
 	}

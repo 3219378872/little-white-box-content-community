@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type LoginLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type LoginLogic struct {
 // 用户登录
 func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic {
 	return &LoginLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

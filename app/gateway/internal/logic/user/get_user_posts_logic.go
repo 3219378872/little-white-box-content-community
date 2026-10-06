@@ -13,11 +13,11 @@ import (
 	"esx/pkg/jwtx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserPostsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -25,7 +25,7 @@ type GetUserPostsLogic struct {
 // 获取用户发布的帖子列表（公开接口）
 func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserPostsLogic {
 	return &GetUserPostsLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,7 +40,7 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 		Cursor:   req.Cursor,
 	})
 	if err != nil {
-		return nil, rpcx.Error(l.Logger, "ContentService.GetUserPosts", err, logx.Field("userId", req.UserId))
+		return nil, rpcx.Error(l.Logger, "ContentService.GetUserPosts", err, logging.Field("userId", req.UserId))
 	}
 
 	postIDs := make([]int64, 0, len(result.Posts))
@@ -52,7 +52,7 @@ func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.Get
 	viewerID, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 	liked, favorited, err := viewerstate.Enrich(l.ctx, l.svcCtx, viewerID, postIDs)
 	if err != nil {
-		l.Errorw("viewerstate.Enrich failed", logx.Field("err", err.Error()))
+		l.Errorw("viewerstate.Enrich failed", logging.Field("err", err.Error()))
 		return nil, err
 	}
 	authors := authorx.LoadSoft(l.ctx, l.svcCtx, authorx.PostAuthorIDs(result.Posts))

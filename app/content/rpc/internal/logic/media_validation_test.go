@@ -10,7 +10,7 @@ import (
 	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +30,7 @@ func completedMedia(id, userID int64) *mediapb.MediaInfo {
 }
 
 func TestValidatePostMedia(t *testing.T) {
-	logger := logx.WithContext(context.Background())
+	logger := logging.WithContext(context.Background())
 
 	t.Run("无媒体ID直接通过", func(t *testing.T) {
 		urls, err := validatePostMedia(context.Background(), logger, nil, 1, nil)

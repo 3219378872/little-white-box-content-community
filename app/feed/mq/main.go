@@ -13,7 +13,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/feed-consumer.yaml", "config file")
@@ -29,12 +29,12 @@ func main() {
 
 	postConsumer, err := mqs.NewPostPublishConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := postConsumer.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "feed post-publish consumer", postConsumer.Shutdown)
+	defer cleanupx.Shutdown(logging.WithContext(context.Background()), "feed post-publish consumer", postConsumer.Shutdown)
 
 	fmt.Println("Feed MQ consumer started, subscribing post-create...")
 	<-proc.Done()

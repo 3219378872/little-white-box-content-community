@@ -7,20 +7,20 @@ import (
 	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPostListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostListLogic {
 	return &GetPostListLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -43,7 +43,7 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 		if model.ErrInvalidCursorArity(err) {
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
-		l.Errorw("PostModel.FindListByCursor failed", logx.Field("err", err.Error()))
+		l.Errorw("PostModel.FindListByCursor failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -56,7 +56,7 @@ func (l *GetPostListLogic) GetPostList(in *pb.GetPostListReq) (*pb.GetPostListRe
 		boundary := posts[len(posts)-1]
 		nextCursor, err = encodePostCursor(cursor.SortBy, boundary)
 		if err != nil {
-			l.Errorw("encode post cursor failed", logx.Field("err", err.Error()))
+			l.Errorw("encode post cursor failed", logging.Field("err", err.Error()))
 			nextCursor = ""
 		}
 	}

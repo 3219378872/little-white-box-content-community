@@ -9,20 +9,20 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UnlikeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogic {
 	return &UnlikeLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -36,7 +36,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		return &pb.UnlikeResp{}, nil
 	}
 	if err != nil {
-		l.Errorw("FindOneByUserIdTargetIdTargetType failed", logx.Field("err", err.Error()))
+		l.Errorw("FindOneByUserIdTargetIdTargetType failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
@@ -51,7 +51,7 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		in.UserId, in.TargetId, targetTypeName(in.TargetType), "unlike",
 	)
 	if err != nil {
-		l.Errorw("build unlike behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build unlike behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err = l.svcCtx.InteractionCommands.Unlike(
@@ -60,17 +60,17 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.UnlikeResp{}, nil
 		}
-		l.Errorw("unlike transaction failed", logx.Field("err", err.Error()))
+		l.Errorw("unlike transaction failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := l.svcCtx.LikeRecordModel.InvalidateLikeRecordCache(
 		l.ctx, record.Id, in.UserId, in.TargetId, int64(in.TargetType),
 	); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
-		l.Errorw("InvalidateLikeRecordCache failed", logx.Field("err", err.Error()))
+		l.Errorw("InvalidateLikeRecordCache failed", logging.Field("err", err.Error()))
 	}
 	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
-		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.UnlikeResp{}, nil

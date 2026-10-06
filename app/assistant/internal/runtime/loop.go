@@ -9,7 +9,7 @@ import (
 	"esx/app/assistant/internal/tool"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 	metric "esx/pkg/metrics"
 )
 
@@ -68,11 +68,11 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 	stopWatch := watchCancel(persistCtx, e.Store, run, cancelWork)
 	defer stopWatch()
 
-	logger := logx.WithContext(persistCtx)
+	logger := logging.WithContext(persistCtx)
 	if recovered {
 		if err := e.resetRecoveredStreams(persistCtx, run); err != nil {
 			if !errors.Is(err, store.ErrLeaseLost) {
-				logger.Errorw("assistant-agent reset recovered stream failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+				logger.Errorw("assistant-agent reset recovered stream failed", logging.Field("runId", run.ID), logging.Field("err", err.Error()))
 			}
 			return
 		}
@@ -91,7 +91,7 @@ func (e *Engine) Execute(ctx context.Context, run store.Run, recovered bool) {
 			}
 			return
 		}
-		logger.Errorw("assistant-agent run failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+		logger.Errorw("assistant-agent run failed", logging.Field("runId", run.ID), logging.Field("err", err.Error()))
 		if fresh, getErr := e.ownedRun(persistCtx, run); getErr == nil &&
 			(fresh.Status == store.StatusRunning || fresh.Status == store.StatusQueued) {
 			_ = e.fail(persistCtx, *fresh, "RUN_FAILED", "助手暂时无法完成这个请求")

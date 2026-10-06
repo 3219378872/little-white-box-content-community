@@ -7,20 +7,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetTagsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetTagsLogic {
 	return &GetTagsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -30,7 +30,7 @@ func (l *GetTagsLogic) GetTags(in *pb.GetTagsReq) (*pb.GetTagsResp, error) {
 
 	tags, err := l.svcCtx.TagModel.FindList(l.ctx, limit)
 	if err != nil {
-		l.Errorw("TagModel.FindList failed", logx.Field("err", err.Error()))
+		l.Errorw("TagModel.FindList failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

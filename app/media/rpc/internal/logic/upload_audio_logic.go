@@ -6,20 +6,20 @@ import (
 	"esx/app/media/rpc/internal/svc"
 	pb2 "esx/kitex_gen/media"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UploadAudioLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUploadAudioLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadAudioLogic {
 	return &UploadAudioLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

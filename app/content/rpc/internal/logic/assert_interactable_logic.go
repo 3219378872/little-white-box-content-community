@@ -10,7 +10,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const (
@@ -21,14 +21,14 @@ const (
 type AssertInteractableLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewAssertInteractableLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssertInteractableLogic {
 	return &AssertInteractableLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -61,8 +61,8 @@ func (l *AssertInteractableLogic) assertComment(commentID int64) (*pb.AssertInte
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("CommentModel.FindCommentById failed",
-			logx.Field("commentId", commentID),
-			logx.Field("err", err.Error()),
+			logging.Field("commentId", commentID),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -85,8 +85,8 @@ func (l *AssertInteractableLogic) requirePublishedPost(postID int64) error {
 			return errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", postID),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", postID),
+			logging.Field("err", err.Error()),
 		)
 		return errx.NewWithCode(errx.SystemError)
 	}

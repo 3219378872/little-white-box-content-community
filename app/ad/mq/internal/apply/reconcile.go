@@ -8,7 +8,7 @@ import (
 	"esx/app/ad/internal/store"
 	"esx/pkg/event"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // Ensurer 是审核平台的对账入口（RVW-041）。
@@ -49,7 +49,7 @@ func (r *Reconciler) ReconcileSubmissions(ctx context.Context) {
 	now := r.now()
 	ads, err := r.Store.PendingAdsWithoutTask(ctx, now, 50)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("reconcile ads query failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("reconcile ads query failed", logging.Field("err", err.Error()))
 	}
 	for i := range ads {
 		ad := &ads[i]
@@ -67,7 +67,7 @@ func (r *Reconciler) ReconcileSubmissions(ctx context.Context) {
 	}
 	advertisers, err := r.Store.PendingAdvertisersWithoutTask(ctx, now, 50)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("reconcile advertisers query failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("reconcile advertisers query failed", logging.Field("err", err.Error()))
 	}
 	for _, adv := range advertisers {
 		full, err := r.Store.AdvertiserByID(ctx, adv.ID)
@@ -84,7 +84,7 @@ func (r *Reconciler) ensure(ctx context.Context, bizType string, sub event.Revie
 	taskID, created, err := r.Review.EnsureSubmitted(ctx, sub)
 	if err != nil {
 		metrics.Reconcile(bizType, "error")
-		logx.WithContext(ctx).Errorw("ensure submitted failed", logx.Field("objectId", sub.ObjectID), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("ensure submitted failed", logging.Field("objectId", sub.ObjectID), logging.Field("err", err.Error()))
 		return
 	}
 	outcome := "confirmed"
@@ -93,7 +93,7 @@ func (r *Reconciler) ensure(ctx context.Context, bizType string, sub event.Revie
 	}
 	metrics.Reconcile(bizType, outcome)
 	if err := record(taskID); err != nil {
-		logx.WithContext(ctx).Errorw("record review task failed", logx.Field("objectId", sub.ObjectID), logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("record review task failed", logging.Field("objectId", sub.ObjectID), logging.Field("err", err.Error()))
 	}
 }
 
@@ -102,17 +102,17 @@ func (r *Reconciler) ExpireQualifications(ctx context.Context) {
 	now := r.now()
 	expired, err := r.Store.ExpireQualifications(ctx, now)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("expire qualifications failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("expire qualifications failed", logging.Field("err", err.Error()))
 	}
 	for _, q := range expired {
 		ids, err := r.Store.MarkQualificationLapsed(ctx, q, now)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("mark qualification lapse failed", logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("mark qualification lapse failed", logging.Field("err", err.Error()))
 			continue
 		}
 		for _, id := range ids {
 			if _, err := r.Server.Refresh(ctx, id); err != nil {
-				logx.WithContext(ctx).Errorw("refresh serving after lapse failed", logx.Field("adId", id), logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("refresh serving after lapse failed", logging.Field("adId", id), logging.Field("err", err.Error()))
 			}
 		}
 	}
@@ -122,12 +122,12 @@ func (r *Reconciler) ExpireQualifications(ctx context.Context) {
 func (r *Reconciler) RebuildIndex(ctx context.Context) {
 	ads, err := r.Store.ServingCandidates(ctx)
 	if err != nil {
-		logx.WithContext(ctx).Errorw("load serving candidates failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("load serving candidates failed", logging.Field("err", err.Error()))
 		return
 	}
 	for _, ad := range ads {
 		if _, err := r.Server.Refresh(ctx, ad.ID); err != nil {
-			logx.WithContext(ctx).Errorw("rebuild serving entry failed", logx.Field("adId", ad.ID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("rebuild serving entry failed", logging.Field("adId", ad.ID), logging.Field("err", err.Error()))
 		}
 	}
 }

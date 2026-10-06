@@ -9,7 +9,7 @@ import (
 	"esx/app/feed/mq/internal/model"
 	"esx/app/user/rpc/userservice"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type PostPublished struct {
@@ -50,8 +50,8 @@ func HandlePostPublished(
 		return 0, fmt.Errorf("fanout: insert outbox for post %d: %w", event.PostId, err)
 	}
 	if userResp.User == nil {
-		logx.WithContext(ctx).Errorw("fanout: GetUser returned nil user",
-			logx.Field("author_id", event.AuthorId), logx.Field("post_id", event.PostId))
+		logging.WithContext(ctx).Errorw("fanout: GetUser returned nil user",
+			logging.Field("author_id", event.AuthorId), logging.Field("post_id", event.PostId))
 		return 0, fmt.Errorf("fanout: nil user for author %d", event.AuthorId)
 	}
 	if userResp.User.FollowerCount >= bigVThreshold {

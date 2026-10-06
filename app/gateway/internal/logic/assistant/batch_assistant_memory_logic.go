@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type BatchAssistantMemoryLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewBatchAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchAssistantMemoryLogic {
-	return &BatchAssistantMemoryLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &BatchAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *BatchAssistantMemoryLogic) BatchAssistantMemory(req *types.BatchAssistantMemoryReq) (*types.BatchAssistantMemoryResp, error) {

@@ -8,20 +8,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type BatchCheckFavoritedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchCheckFavoritedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchCheckFavoritedLogic {
 	return &BatchCheckFavoritedLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -40,7 +40,7 @@ func (l *BatchCheckFavoritedLogic) BatchCheckFavorited(in *pb.BatchCheckFavorite
 
 	statusMap, err := l.svcCtx.FavoriteModel.FindFavoriteStatusByUserAndPosts(l.ctx, in.UserId, in.PostIds)
 	if err != nil {
-		l.Errorw("FindFavoriteStatusByUserAndPosts failed", logx.Field("err", err.Error()))
+		l.Errorw("FindFavoriteStatusByUserAndPosts failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

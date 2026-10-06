@@ -12,12 +12,20 @@ linters:
     - bodyclose
     - errcheck
     - govet
+    - importas
     - ineffassign
     - misspell
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
     - unused
+  settings:
+    importas:
+      # Logging calls read as logging.WithContext(ctx) everywhere (AGENTS.md);
+      # any other alias for the shared logging package is rejected.
+      alias:
+        - pkg: esx/pkg/logging
+          alias: logging
   exclusions:
     generated: lax
     paths:

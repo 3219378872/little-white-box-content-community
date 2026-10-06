@@ -8,20 +8,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetPostsByIdsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetPostsByIdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostsByIdsLogic {
 	return &GetPostsByIdsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -33,7 +33,7 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 
 	posts, err := l.svcCtx.PostModel.FindByIds(l.ctx, in.PostIds)
 	if err != nil {
-		l.Errorw("PostModel.FindByIds failed", logx.Field("err", err.Error()))
+		l.Errorw("PostModel.FindByIds failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 
@@ -51,7 +51,7 @@ func (l *GetPostsByIdsLogic) GetPostsByIds(in *pb.GetPostsByIdsReq) (*pb.GetPost
 	if !in.SkipTags {
 		tagsMap, err = l.svcCtx.PostTagModel.FindTagNamesByPostIds(l.ctx, validIds)
 		if err != nil {
-			l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
+			l.Errorw("PostTagModel.FindTagNamesByPostIds failed", logging.Field("err", err.Error()))
 			tagsMap = map[int64][]string{}
 		}
 	}

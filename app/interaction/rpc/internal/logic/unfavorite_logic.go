@@ -9,20 +9,20 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UnfavoriteLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnfavoriteLogic {
 	return &UnfavoriteLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -36,7 +36,7 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 		return &pb.UnfavoriteResp{}, nil
 	}
 	if err != nil {
-		l.Errorw("FindOneByUserIdPostId failed", logx.Field("err", err.Error()))
+		l.Errorw("FindOneByUserIdPostId failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if record.Status == model.StatusInactive {
@@ -49,22 +49,22 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 	}
 	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "unfavorite")
 	if err != nil {
-		l.Errorw("build unfavorite behavior event failed", logx.Field("err", err.Error()))
+		l.Errorw("build unfavorite behavior event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err = l.svcCtx.InteractionCommands.Unfavorite(l.ctx, record.Id, in.PostId, outboxEvent); err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.UnfavoriteResp{}, nil
 		}
-		l.Errorw("unfavorite transaction failed", logx.Field("err", err.Error()))
+		l.Errorw("unfavorite transaction failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, record.Id, in.UserId, in.PostId); err != nil {
-		l.Errorw("InvalidateFavoriteCache failed", logx.Field("err", err.Error()))
+		l.Errorw("InvalidateFavoriteCache failed", logging.Field("err", err.Error()))
 	}
 	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.PostId, 1); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
-		l.Errorw("invalidate action count cache failed", logx.Field("err", err.Error()))
+		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.UnfavoriteResp{}, nil

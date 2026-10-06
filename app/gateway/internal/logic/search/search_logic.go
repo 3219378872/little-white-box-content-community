@@ -8,11 +8,11 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -20,7 +20,7 @@ type SearchLogic struct {
 // 综合搜索
 func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogic {
 	return &SearchLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -41,7 +41,7 @@ func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err 
 		PageSize: req.PageSize,
 	})
 	if err != nil {
-		l.Errorw("SearchService.Search RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("SearchService.Search RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

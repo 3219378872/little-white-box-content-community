@@ -11,7 +11,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -46,12 +46,12 @@ func consume(ctx context.Context, applier decisionApplier, msgs ...*primitive.Me
 	for _, msg := range msgs {
 		var decided event.ReviewDecidedEvent
 		if err := json.Unmarshal(msg.Body, &decided); err != nil || decided.Validate() != nil {
-			logx.WithContext(ctx).Errorw("ad-mq: invalid review decision skipped", logx.Field("msg_id", msg.MsgId))
+			logging.WithContext(ctx).Errorw("ad-mq: invalid review decision skipped", logging.Field("msg_id", msg.MsgId))
 			continue
 		}
 		if err := applier.Apply(ctx, decided); err != nil {
-			logx.WithContext(ctx).Errorw("ad-mq: apply decision failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("objectId", decided.ObjectID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("ad-mq: apply decision failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("objectId", decided.ObjectID), logging.Field("err", err.Error()))
 			return consumer.ConsumeRetryLater
 		}
 	}

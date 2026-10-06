@@ -10,11 +10,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetRecommendFeedLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type GetRecommendFeedLogic struct {
 // 获取推荐流
 func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendFeedLogic {
 	return &GetRecommendFeedLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -65,8 +65,8 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 	})
 	if err != nil {
 		l.Errorw("FeedService.GetRecommendFeed RPC failed",
-			logx.Field("err", err.Error()),
-			logx.Field("requestId", req.RequestId),
+			logging.Field("err", err.Error()),
+			logging.Field("requestId", req.RequestId),
 		)
 		return nil, errx.FromRPCError(err)
 	}
@@ -76,7 +76,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(req *types.GetRecommendFeedReq)
 	}
 	enrichment, err := loadFeedEnrichment(l.ctx, l.svcCtx, result.Items, userID)
 	if err != nil {
-		l.Errorw("failed to enrich recommend feed", logx.Field("err", err.Error()))
+		l.Errorw("failed to enrich recommend feed", logging.Field("err", err.Error()))
 		return nil, err
 	}
 

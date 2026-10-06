@@ -9,11 +9,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetConversationsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type GetConversationsLogic struct {
 // 获取会话列表
 func NewGetConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetConversationsLogic {
 	return &GetConversationsLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -42,7 +42,7 @@ func (l *GetConversationsLogic) GetConversations(req *types.GetConversationsReq)
 		PageSize: req.PageSize,
 	})
 	if err != nil {
-		l.Errorw("MessageService.GetConversations RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("MessageService.GetConversations RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

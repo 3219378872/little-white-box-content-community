@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type Publisher interface {
@@ -278,7 +278,7 @@ func (r *Relay) drain(ctx context.Context) {
 		processed, err := r.ProcessBatch(ctx)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
-				logx.WithContext(ctx).Errorw("outbox relay batch failed", logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("outbox relay batch failed", logging.Field("err", err.Error()))
 			}
 			return
 		}
@@ -301,7 +301,7 @@ func (r *Relay) purge(ctx context.Context) {
 		deleted, err := r.store.Purge(ctx, cutoff, r.config.PurgeBatch)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) && ctx.Err() == nil {
-				logx.WithContext(ctx).Errorw("outbox purge failed", logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("outbox purge failed", logging.Field("err", err.Error()))
 			}
 			return
 		}
@@ -326,7 +326,7 @@ func (r *Relay) observeBacklog(ctx context.Context) {
 			return
 		}
 		outboxBacklogCollectionsTotal.Inc(service, "failure")
-		logx.WithContext(ctx).Errorw("outbox backlog collection failed", logx.Field("err", err.Error()))
+		logging.WithContext(ctx).Errorw("outbox backlog collection failed", logging.Field("err", err.Error()))
 		return
 	}
 	outboxBacklogCollectionsTotal.Inc(service, "success")

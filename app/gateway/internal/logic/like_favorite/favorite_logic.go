@@ -9,11 +9,11 @@ import (
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type FavoriteLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type FavoriteLogic struct {
 // 收藏
 func NewFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FavoriteLogic {
 	return &FavoriteLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -39,8 +39,8 @@ func (l *FavoriteLogic) Favorite(req *types.FavoriteReq) (resp *types.FavoriteRe
 	})
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "InteractionService.Favorite", err,
-			logx.Field("userId", userId),
-			logx.Field("postId", req.PostId),
+			logging.Field("userId", userId),
+			logging.Field("postId", req.PostId),
 		)
 	}
 

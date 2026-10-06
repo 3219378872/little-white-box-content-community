@@ -7,7 +7,7 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 const maxBatchGetUsers = 100
@@ -15,14 +15,14 @@ const maxBatchGetUsers = 100
 type BatchGetUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchGetUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchGetUsersLogic {
 	return &BatchGetUsersLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -45,7 +45,7 @@ func (l *BatchGetUsersLogic) BatchGetUsers(in *pb.BatchGetUsersReq) (*pb.BatchGe
 	}
 	profiles, err := l.svcCtx.UserProfileModel.FindByIDs(l.ctx, ids)
 	if err != nil {
-		l.Errorw("UserProfileModel.FindByIDs failed", logx.Field("err", err.Error()))
+		l.Errorw("UserProfileModel.FindByIDs failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	byID := make(map[int64]*pb.UserInfo, len(profiles))

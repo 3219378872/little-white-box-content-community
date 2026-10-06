@@ -9,20 +9,20 @@ import (
 	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetMediaLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetMediaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMediaLogic {
 	return &GetMediaLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -38,8 +38,8 @@ func (l *GetMediaLogic) GetMedia(in *pb.GetMediaReq) (*pb.GetMediaResp, error) {
 			return nil, errx.NewWithCode(errx.MediaNotFound)
 		}
 		l.Errorw("MediaModel.FindOne failed",
-			logx.Field("media_id", in.MediaId),
-			logx.Field("err", err.Error()),
+			logging.Field("media_id", in.MediaId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}

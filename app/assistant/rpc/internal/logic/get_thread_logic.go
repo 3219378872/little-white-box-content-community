@@ -8,17 +8,17 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 	pb "esx/kitex_gen/assistant"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetThreadLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetThreadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetThreadLogic {
-	return &GetThreadLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &GetThreadLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *GetThreadLogic) GetThread(in *pb.GetThreadReq) (*pb.GetThreadResp, error) {

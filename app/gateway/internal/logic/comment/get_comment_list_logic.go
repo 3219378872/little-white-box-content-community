@@ -10,11 +10,11 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetCommentListLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -22,7 +22,7 @@ type GetCommentListLogic struct {
 // 获取评论列表
 func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentListLogic {
 	return &GetCommentListLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,8 +40,8 @@ func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp
 	})
 	if err != nil {
 		l.Errorw("ContentService.GetCommentList RPC failed",
-			logx.Field("postId", req.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", req.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.FromRPCError(err)
 	}

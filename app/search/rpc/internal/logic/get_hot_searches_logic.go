@@ -7,20 +7,20 @@ import (
 	pb "esx/kitex_gen/search"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetHotSearchesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetHotSearchesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetHotSearchesLogic {
 	return &GetHotSearchesLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -31,7 +31,7 @@ func (l *GetHotSearchesLogic) GetHotSearches(in *pb.GetHotSearchesReq) (*pb.GetH
 	}
 	keywords, err := l.svcCtx.Store.HotSearches(l.ctx, in.Limit)
 	if err != nil {
-		l.Errorw("aggregate hot searches from tags failed", logx.Field("err", err.Error()))
+		l.Errorw("aggregate hot searches from tags failed", logging.Field("err", err.Error()))
 		return nil, storeError(err)
 	}
 	return &pb.GetHotSearchesResp{Keywords: keywords}, nil

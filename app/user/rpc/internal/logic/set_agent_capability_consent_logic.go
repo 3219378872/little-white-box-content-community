@@ -10,20 +10,20 @@ import (
 	pb "esx/kitex_gen/user"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SetAgentCapabilityConsentLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSetAgentCapabilityConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SetAgentCapabilityConsentLogic {
 	return &SetAgentCapabilityConsentLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -48,7 +48,7 @@ func (l *SetAgentCapabilityConsentLogic) SetAgentCapabilityConsent(in *pb.SetAge
 		consent.ConsentVersion = 0
 	}
 	if err := l.svcCtx.AgentConsent.Upsert(l.ctx, consent); err != nil {
-		l.Errorw("AgentConsent.Upsert failed", logx.Field("user_id", in.UserId), logx.Field("granted", in.Granted), logx.Field("err", err.Error()))
+		l.Errorw("AgentConsent.Upsert failed", logging.Field("user_id", in.UserId), logging.Field("granted", in.Granted), logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	return &pb.SetAgentCapabilityConsentResp{}, nil

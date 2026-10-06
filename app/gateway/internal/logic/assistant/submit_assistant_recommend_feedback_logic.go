@@ -10,17 +10,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SubmitAssistantRecommendFeedbackLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewSubmitAssistantRecommendFeedbackLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SubmitAssistantRecommendFeedbackLogic {
-	return &SubmitAssistantRecommendFeedbackLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &SubmitAssistantRecommendFeedbackLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *SubmitAssistantRecommendFeedbackLogic) SubmitAssistantRecommendFeedback(req *types.AssistantRecommendFeedbackReq) (*types.AssistantRecommendFeedbackResp, error) {

@@ -14,7 +14,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/agent.yaml", "config file")
@@ -29,7 +29,7 @@ func main() {
 
 	svcCtx, err := svc.NewServiceContext(c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -54,7 +54,7 @@ func main() {
 		case <-ticker.C:
 			run, recovered, err := svcCtx.Lease.Claim(ctx)
 			if err != nil {
-				logx.WithContext(ctx).Errorw("assistant-agent claim failed", logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("assistant-agent claim failed", logging.Field("err", err.Error()))
 				continue
 			}
 			if run == nil {
@@ -78,16 +78,16 @@ func runWaitingExpiry(ctx context.Context, svcCtx *svc.ServiceContext) {
 		case <-ticker.C:
 			runs, err := svcCtx.Store.ListWaitingRuns(ctx)
 			if err != nil {
-				logx.WithContext(ctx).Errorw("assistant waiting scan failed", logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("assistant waiting scan failed", logging.Field("err", err.Error()))
 				continue
 			}
 			for _, run := range runs {
 				if err := runtime.ResolveWaiting(ctx, svcCtx.Store, nil, run.ID, store.NowMs()); err != nil {
-					logx.WithContext(ctx).Errorw("assistant waiting resolution failed", logx.Field("runId", run.ID), logx.Field("err", err.Error()))
+					logging.WithContext(ctx).Errorw("assistant waiting resolution failed", logging.Field("runId", run.ID), logging.Field("err", err.Error()))
 				}
 			}
 			if err := runtime.ExpireConfirmationWaits(ctx, svcCtx.Store, store.NowMs()); err != nil {
-				logx.WithContext(ctx).Errorw("assistant confirmation wait scan failed", logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("assistant confirmation wait scan failed", logging.Field("err", err.Error()))
 			}
 		}
 	}
@@ -97,12 +97,12 @@ func runRetention(ctx context.Context, svcCtx *svc.ServiceContext) {
 	run := func() {
 		result, err := svcCtx.Retention.RunOnce(ctx)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("assistant retention cleanup failed", logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("assistant retention cleanup failed", logging.Field("err", err.Error()))
 			return
 		}
 		if result.Messages > 0 {
-			logx.WithContext(ctx).Infow("assistant retention cleanup completed",
-				logx.Field("messages", result.Messages))
+			logging.WithContext(ctx).Infow("assistant retention cleanup completed",
+				logging.Field("messages", result.Messages))
 		}
 	}
 	run()

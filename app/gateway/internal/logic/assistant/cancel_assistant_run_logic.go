@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type CancelAssistantRunLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewCancelAssistantRunLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CancelAssistantRunLogic {
-	return &CancelAssistantRunLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &CancelAssistantRunLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *CancelAssistantRunLogic) CancelAssistantRun(req *types.CancelAssistantRunReq) (*types.CancelAssistantRunResp, error) {

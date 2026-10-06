@@ -13,17 +13,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type base struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
-	return base{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return base{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 // userID 读取已认证审核员；审核接口都需要登录。
@@ -32,7 +32,7 @@ func (b base) userID() (int64, error) {
 }
 
 func (b base) rpcError(err error, action string) error {
-	b.Errorw(action+" RPC failed", logx.Field("err", err.Error()))
+	b.Errorw(action+" RPC failed", logging.Field("err", err.Error()))
 	return errx.FromRPCError(err)
 }
 

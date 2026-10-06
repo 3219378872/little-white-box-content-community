@@ -15,7 +15,7 @@ import (
 	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,12 +26,12 @@ const defaultRecommendScene = "home"
 type GetRecommendFeedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendFeedLogic {
 	return &GetRecommendFeedLogic{
-		ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx),
+		ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -72,7 +72,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 		if in.Cursor != "" || !recommendationCanFallback(err) {
 			return nil, errx.FromRPCError(err)
 		}
-		l.Errorw("RecommendService.GetRecommendPosts failed; using rule fallback", logx.Field("requestId", requestID), logx.Field("err", err.Error()))
+		l.Errorw("RecommendService.GetRecommendPosts failed; using rule fallback", logging.Field("requestId", requestID), logging.Field("err", err.Error()))
 		return l.startFallback(in, binding)
 	}
 	if recommendation == nil {
@@ -85,7 +85,7 @@ func (l *GetRecommendFeedLogic) GetRecommendFeed(in *pb.GetRecommendFeedReq) (*p
 	response, err := l.enrichRecommendation(in, recommendation)
 	if err != nil {
 		l.Errorw("recommendation enrichment failed",
-			logx.Field("requestId", requestID), logx.Field("err", err.Error()))
+			logging.Field("requestId", requestID), logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.ServiceUnavailable)
 	}
 	return response, nil

@@ -14,7 +14,7 @@ import (
 	"esx/pkg/rpcx"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/ad.yaml", "the config file")
@@ -32,14 +32,14 @@ func main() {
 	ctx := svc.NewServiceContext(c)
 	defer func() {
 		if err := ctx.Close(); err != nil {
-			logx.Errorw("close ad service dependencies", logx.Field("err", err.Error()))
+			logging.Errorw("close ad service dependencies", logging.Field("err", err.Error()))
 		}
 	}()
 	if ctx.OutboxRelay != nil {
 		relay := outboxx.StartRelay(context.Background(), ctx.OutboxRelay)
 		defer func() {
 			if err := relay.Stop(); err != nil {
-				logx.Errorw("ad outbox relay stopped", logx.Field("err", err.Error()))
+				logging.Errorw("ad outbox relay stopped", logging.Field("err", err.Error()))
 			}
 		}()
 	}

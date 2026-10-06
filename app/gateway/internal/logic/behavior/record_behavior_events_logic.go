@@ -11,11 +11,11 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type RecordBehaviorEventsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -23,7 +23,7 @@ type RecordBehaviorEventsLogic struct {
 // 批量记录客户端行为
 func NewRecordBehaviorEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *RecordBehaviorEventsLogic {
 	return &RecordBehaviorEventsLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -72,7 +72,7 @@ func (l *RecordBehaviorEventsLogic) RecordBehaviorEvents(req *types.RecordBehavi
 		TraceId:       metadata.TraceID,
 	})
 	if err != nil {
-		l.Errorw("BehaviorService.RecordEvents RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("BehaviorService.RecordEvents RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

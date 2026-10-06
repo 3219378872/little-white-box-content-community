@@ -12,7 +12,7 @@ import (
 	"esx/pkg/idempotencyx"
 	"esx/pkg/util"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 // receivedUpload 是已完整落盘、算好内容指纹并绑定幂等记录的上传，
@@ -24,7 +24,7 @@ type receivedUpload struct {
 }
 
 // Close 删除临时文件；调用方拿到 receivedUpload 后负责 defer 调用。
-func (u *receivedUpload) Close(logger logx.Logger, kind string) {
+func (u *receivedUpload) Close(logger logging.Logger, kind string) {
 	cleanupx.Close(logger, "upload "+kind+" temp sink", u.sink)
 }
 
@@ -43,7 +43,7 @@ type uploadSpec struct {
 // 失败时已自行清理临时文件；成功时由调用方 Close。
 func receiveUpload[Req any](
 	ctx context.Context,
-	logger logx.Logger,
+	logger logging.Logger,
 	svcCtx *svc.ServiceContext,
 	spec uploadSpec,
 	recv func() (*Req, error),
@@ -52,7 +52,7 @@ func receiveUpload[Req any](
 ) (_ *receivedUpload, err error) {
 	sink, err := mediautil.NewTempSink(svcCtx.Config.Upload.TempDir, spec.maxSize)
 	if err != nil {
-		logger.Errorw("create temp sink failed", logx.Field("err", err.Error()))
+		logger.Errorw("create temp sink failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	upload := &receivedUpload{sink: sink}
@@ -76,9 +76,9 @@ func receiveUpload[Req any](
 	contentHash, err := sha256File(ctx, sink.Path())
 	if err != nil {
 		logger.Errorw("hash uploaded "+spec.kind+" failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("file_name", meta.GetFileName()),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", meta.GetUserId()),
+			logging.Field("file_name", meta.GetFileName()),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -111,7 +111,7 @@ var (
 // 入库判定为重放（已有记录）时，本次上传的对象会被补偿删除，返回已有记录。
 func storeAVUpload(
 	ctx context.Context,
-	logger logx.Logger,
+	logger logging.Logger,
 	svcCtx *svc.ServiceContext,
 	kind avUploadKind,
 	upload *receivedUpload,
@@ -133,9 +133,9 @@ func storeAVUpload(
 	}()
 	if err = putFile(ctx, svcCtx, upload.sink.Path(), objKey, detected.MIME); err != nil {
 		logger.Errorw("put "+kind.fileType+" failed",
-			logx.Field("user_id", meta.GetUserId()),
-			logx.Field("object_key", objKey),
-			logx.Field("err", err.Error()),
+			logging.Field("user_id", meta.GetUserId()),
+			logging.Field("object_key", objKey),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.UploadFailed)
 	}
@@ -143,7 +143,7 @@ func storeAVUpload(
 
 	mediaId, err := util.NextID()
 	if err != nil {
-		logger.Errorw("NextID failed", logx.Field("err", err.Error()))
+		logger.Errorw("NextID failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	row := &model.Media{
@@ -171,10 +171,10 @@ func storeAVUpload(
 		return stored, nil
 	}
 	logger.Infow("upload "+kind.fileType+" success",
-		logx.Field("media_id", mediaId),
-		logx.Field("user_id", meta.GetUserId()),
-		logx.Field("file_size", upload.sink.Size()),
-		logx.Field("object_key", objKey),
+		logging.Field("media_id", mediaId),
+		logging.Field("user_id", meta.GetUserId()),
+		logging.Field("file_size", upload.sink.Size()),
+		logging.Field("object_key", objKey),
 	)
 	return row, nil
 }

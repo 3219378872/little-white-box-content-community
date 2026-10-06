@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UndoAssistantMemoryChangeLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewUndoAssistantMemoryChangeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UndoAssistantMemoryChangeLogic {
-	return &UndoAssistantMemoryChangeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &UndoAssistantMemoryChangeLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *UndoAssistantMemoryChangeLogic) UndoAssistantMemoryChange(req *types.UndoAssistantMemoryChangeReq) (*types.UndoAssistantMemoryChangeResp, error) {

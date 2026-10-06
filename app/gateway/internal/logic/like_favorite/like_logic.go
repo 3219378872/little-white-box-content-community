@@ -9,11 +9,11 @@ import (
 	"esx/app/interaction/rpc/interactionservice"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type LikeLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type LikeLogic struct {
 // 点赞
 func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 	return &LikeLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,9 +40,9 @@ func (l *LikeLogic) Like(req *types.LikeReq) (resp *types.LikeResp, err error) {
 	})
 	if err != nil {
 		return nil, rpcx.Error(l.Logger, "InteractionService.Like", err,
-			logx.Field("userId", userId),
-			logx.Field("targetId", req.TargetId),
-			logx.Field("targetType", req.TargetType),
+			logging.Field("userId", userId),
+			logging.Field("targetId", req.TargetId),
+			logging.Field("targetType", req.TargetType),
 		)
 	}
 

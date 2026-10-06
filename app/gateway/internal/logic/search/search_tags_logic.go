@@ -8,11 +8,11 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchTagsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -20,7 +20,7 @@ type SearchTagsLogic struct {
 // 搜索标签
 func NewSearchTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchTagsLogic {
 	return &SearchTagsLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -40,7 +40,7 @@ func (l *SearchTagsLogic) SearchTags(req *types.SearchTagsReq) (resp *types.Sear
 		Limit:   req.Limit,
 	})
 	if err != nil {
-		l.Errorw("SearchService.SearchTags RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("SearchService.SearchTags RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

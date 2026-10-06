@@ -8,20 +8,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/pageutil"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetFollowingLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetFollowingLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetFollowingLogic {
 	return &GetFollowingLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -38,12 +38,12 @@ func (l *GetFollowingLogic) GetFollowing(in *pb.GetFollowingReq) (*pb.GetFollowi
 
 	users, err := l.svcCtx.UserFollowModel.FindFollowing(l.ctx, in.UserId, offset, limit)
 	if err != nil {
-		l.Errorw("UserFollowModel.FindFollowing failed", logx.Field("err", err.Error()))
+		l.Errorw("UserFollowModel.FindFollowing failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	total, err := l.svcCtx.UserFollowModel.CountFollowing(l.ctx, in.UserId)
 	if err != nil {
-		l.Errorw("UserFollowModel.CountFollowing failed", logx.Field("err", err.Error()))
+		l.Errorw("UserFollowModel.CountFollowing failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 

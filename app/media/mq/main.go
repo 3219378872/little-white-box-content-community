@@ -13,7 +13,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/media-consumer.yaml", "config file")
@@ -38,7 +38,7 @@ func main() {
 	if err := mqConsumer.Start(); err != nil {
 		panic(fmt.Sprintf("media-consumer: MQ consumer start failed: %v", err))
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "media cleanup consumer", mqConsumer.Shutdown)
+	defer cleanupx.Shutdown(logging.WithContext(context.Background()), "media cleanup consumer", mqConsumer.Shutdown)
 
 	fmt.Println("Media MQ consumer started, subscribing media-deleted...")
 	<-proc.Done()

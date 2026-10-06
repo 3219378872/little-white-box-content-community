@@ -8,7 +8,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type Deduper interface {
@@ -57,8 +57,8 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 		return fmt.Errorf("behavior-log: dedup check: %w", err)
 	}
 	if dup {
-		logx.WithContext(ctx).Infow("behavior-log: duplicate event skipped",
-			logx.Field("event_id", e.EventID))
+		logging.WithContext(ctx).Infow("behavior-log: duplicate event skipped",
+			logging.Field("event_id", e.EventID))
 		return nil
 	}
 
@@ -70,9 +70,9 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 		return fmt.Errorf("behavior-log: mark processed: %w", err)
 	}
 
-	logx.WithContext(ctx).Infow("behavior-log: event recorded",
-		logx.Field("event_id", e.EventID), logx.Field("user_id", e.UserID),
-		logx.Field("action", e.Action))
+	logging.WithContext(ctx).Infow("behavior-log: event recorded",
+		logging.Field("event_id", e.EventID), logging.Field("user_id", e.UserID),
+		logging.Field("action", e.Action))
 
 	return nil
 }

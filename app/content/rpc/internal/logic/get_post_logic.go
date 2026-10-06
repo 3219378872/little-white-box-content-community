@@ -9,7 +9,7 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/metadata"
 )
@@ -28,14 +28,14 @@ func recordViewRequested(ctx context.Context) bool {
 type GetPostLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLogic {
 	return &GetPostLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -51,8 +51,8 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -64,7 +64,7 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 	}
 	if recordViewRequested(l.ctx) && visibilityx.IsPublished(int32(post.Status)) {
 		if err = l.svcCtx.PostModel.IncrViewCount(l.ctx, post.Id); err != nil {
-			l.Errorw("IncrViewCount failed", logx.Field("postId", post.Id), logx.Field("err", err.Error()))
+			l.Errorw("IncrViewCount failed", logging.Field("postId", post.Id), logging.Field("err", err.Error()))
 		} else {
 			post.ViewCount++
 		}
@@ -73,8 +73,8 @@ func (l *GetPostLogic) GetPost(in *pb.GetPostReq) (*pb.GetPostResp, error) {
 	tags, err := l.svcCtx.PostTagModel.FindTagNamesByPostId(l.ctx, post.Id)
 	if err != nil {
 		l.Errorw("PostTagModel.FindTagNamesByPostId failed",
-			logx.Field("postId", post.Id),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", post.Id),
+			logging.Field("err", err.Error()),
 		)
 		tags = []string{}
 	}

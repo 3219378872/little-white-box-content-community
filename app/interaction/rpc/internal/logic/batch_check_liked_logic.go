@@ -8,20 +8,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type BatchCheckLikedLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewBatchCheckLikedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchCheckLikedLogic {
 	return &BatchCheckLikedLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -41,8 +41,8 @@ func (l *BatchCheckLikedLogic) BatchCheckLiked(in *pb.BatchCheckLikedReq) (*pb.B
 	statusMap, err := l.svcCtx.LikeRecordModel.FindStatusByUserAndTargets(l.ctx, in.UserId, in.TargetIds, int64(in.TargetType))
 	if err != nil {
 		l.Errorw("FindStatusByUserAndTargets failed",
-			logx.Field("userId", in.UserId),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", in.UserId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -18,10 +18,10 @@ func SafeDurationUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 		started := time.Now()
 		err := invoker(ctx, method, req, reply, cc, opts...)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("rpc client call failed",
-				logx.Field("method", method),
-				logx.Field("duration_ms", time.Since(started).Milliseconds()),
-				logx.Field("grpc_code", status.Code(err).String()))
+			logging.WithContext(ctx).Errorw("rpc client call failed",
+				logging.Field("method", method),
+				logging.Field("duration_ms", time.Since(started).Milliseconds()),
+				logging.Field("grpc_code", status.Code(err).String()))
 		}
 		return err
 	}

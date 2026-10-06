@@ -10,20 +10,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type AssistantRunEventsLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewAssistantRunEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssistantRunEventsLogic {
-	return &AssistantRunEventsLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &AssistantRunEventsLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEventsReq, client chan<- *types.AssistantRunEvent) error {

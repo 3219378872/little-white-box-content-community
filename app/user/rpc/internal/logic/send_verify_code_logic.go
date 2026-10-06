@@ -12,20 +12,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/validator"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SendVerifyCodeLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendVerifyCodeLogic {
 	return &SendVerifyCodeLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -71,7 +71,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	// 号码维度频控。
 	phoneCount, err := l.incrWindow(fmt.Sprintf("verify:send:cnt:phone:%s", in.GetPhone()), verifyCodeWindowSeconds)
 	if err != nil {
-		l.Errorw("verify phone rate limit incr failed", logx.Field("err", err.Error()))
+		l.Errorw("verify phone rate limit incr failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if phoneCount > verifyCodePhoneHourlyLimit {
@@ -82,7 +82,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	if ip := in.GetClientIp(); ip != "" {
 		ipCount, err := l.incrWindow(fmt.Sprintf("verify:send:cnt:ip:%s", ip), verifyCodeWindowSeconds)
 		if err != nil {
-			l.Errorw("verify ip rate limit incr failed", logx.Field("err", err.Error()))
+			l.Errorw("verify ip rate limit incr failed", logging.Field("err", err.Error()))
 			return nil, errx.Wrap(err, errx.SystemError)
 		}
 		if ipCount > verifyCodeIPHourlyLimit {
@@ -94,12 +94,12 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	day := time.Now().Format("20060102")
 	globalCount, err := l.incrWindow(fmt.Sprintf("verify:send:cnt:global:%s", day), verifyCodeDailyWindowSeconds)
 	if err != nil {
-		l.Errorw("verify global rate limit incr failed", logx.Field("err", err.Error()))
+		l.Errorw("verify global rate limit incr failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if globalCount > verifyCodeDailyGlobalLimit {
 		l.Errorw("verify code daily global quota exceeded",
-			logx.Field("day", day), logx.Field("count", globalCount))
+			logging.Field("day", day), logging.Field("count", globalCount))
 		return nil, errx.NewWithCode(errx.TooManyReq)
 	}
 
@@ -108,14 +108,14 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	// 马上验证码登录是正常流程，不应被 60 秒冷却阻断。
 	existing, err := l.svcCtx.RedisClient.GetCtx(l.ctx, verifyCodeRedisKey(in.GetPhone()))
 	if err != nil {
-		l.Errorw("Redis.GetCtx failed", logx.Field("err", err.Error()))
+		l.Errorw("Redis.GetCtx failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if existing != "" {
 		cooldownKey := fmt.Sprintf("verify:cooldown:%s", in.GetPhone())
 		first, setErr := l.svcCtx.RedisClient.SetnxExCtx(l.ctx, cooldownKey, "1", verifyCodeCooldownSeconds)
 		if setErr != nil {
-			l.Errorw("Redis.SetnxExCtx failed", logx.Field("err", setErr.Error()))
+			l.Errorw("Redis.SetnxExCtx failed", logging.Field("err", setErr.Error()))
 			return nil, errx.Wrap(setErr, errx.SystemError)
 		}
 		if !first {
@@ -125,7 +125,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 
 	n, err := cr.Int(cr.Reader, big.NewInt(1000000))
 	if err != nil {
-		l.Errorw("crypto/rand.Int failed", logx.Field("err", err.Error()))
+		l.Errorw("crypto/rand.Int failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	randInt := n.Int64()
@@ -135,7 +135,7 @@ func (l *SendVerifyCodeLogic) SendVerifyCode(in *pb.SendVerifyCodeReq) (*pb.Send
 	err = l.svcCtx.RedisClient.SetexCtx(l.ctx, verifyCodeRedisKey(in.GetPhone()), fmt.Sprintf("%06d", randInt), expireTime)
 
 	if err != nil {
-		l.Errorw("Redis.SetexCtx failed", logx.Field("err", err.Error()))
+		l.Errorw("Redis.SetexCtx failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 

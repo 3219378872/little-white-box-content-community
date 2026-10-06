@@ -14,7 +14,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/ad-consumer.yaml", "config file")
@@ -32,18 +32,18 @@ func main() {
 
 	svcCtx, err := svc.NewServiceContext(c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	defer func() { _ = svcCtx.Close() }()
 
 	decided, err := mqs.NewDecidedConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := decided.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	defer cleanupx.Shutdown(logx.WithContext(context.Background()), "ad decision consumer", decided.Shutdown)
+	defer cleanupx.Shutdown(logging.WithContext(context.Background()), "ad decision consumer", decided.Shutdown)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

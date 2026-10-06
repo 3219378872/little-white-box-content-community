@@ -8,17 +8,17 @@ import (
 	"esx/pkg/errx"
 	"strings"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SendMessageLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendMessageLogic {
-	return &SendMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &SendMessageLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 // 发送私信
@@ -51,12 +51,12 @@ func (l *SendMessageLogic) SendMessage(in *pb.SendMessageReq) (*pb.SendMessageRe
 		if model.IsIdempotencyConflict(err) {
 			return nil, errx.NewWithCode(errx.IdempotencyConflict)
 		}
-		l.Errorw("MessageCommandModel.CreateMessageWithConversations failed", logx.Field("err", err.Error()))
+		l.Errorw("MessageCommandModel.CreateMessageWithConversations failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	if result.Created && l.svcCtx.UnreadStore != nil {
 		if err := l.svcCtx.UnreadStore.DeleteUserUnread(l.ctx, in.ReceiverId); err != nil {
-			l.Errorw("UnreadStore.DeleteUserUnread failed", logx.Field("err", err.Error()))
+			l.Errorw("UnreadStore.DeleteUserUnread failed", logging.Field("err", err.Error()))
 		}
 	}
 	return &pb.SendMessageResp{MessageId: result.MessageID}, nil

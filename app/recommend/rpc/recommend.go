@@ -11,7 +11,7 @@ import (
 	"esx/app/recommend/rpc/internal/svc"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"esx/pkg/rpcx"
 )
@@ -27,11 +27,11 @@ func main() {
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx, err := svc.NewServiceContext(c)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	defer func() {
 		if err := ctx.Close(); err != nil {
-			logx.Error(err)
+			logging.Error(err)
 		}
 	}()
 

@@ -8,20 +8,20 @@ import (
 	pb "esx/kitex_gen/feed"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type PushToInboxLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewPushToInboxLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PushToInboxLogic {
 	return &PushToInboxLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -44,7 +44,7 @@ func (l *PushToInboxLogic) PushToInbox(in *pb.PushToInboxReq) (*pb.PushToInboxRe
 	}
 	affected, err := l.svcCtx.InboxModel.BatchInsertIgnore(l.ctx, rows)
 	if err != nil {
-		l.Errorw("InboxModel.BatchInsertIgnore failed", logx.Field("err", err.Error()))
+		l.Errorw("InboxModel.BatchInsertIgnore failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	return &pb.PushToInboxResp{PushedCount: affected}, nil

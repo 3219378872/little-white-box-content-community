@@ -12,7 +12,7 @@ import (
 	pb "esx/kitex_gen/ad"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type UploadAssetLogic struct{ base }
@@ -69,7 +69,7 @@ func (l *UploadAssetLogic) discardUnrecorded(id int64, key string) {
 	defer cancel()
 	if _, err := l.svcCtx.Store.GetAsset(ctx, id); !errors.Is(err, store.ErrNotFound) {
 		if err != nil {
-			l.Errorw("keep private asset: record state unknown", logx.Field("objectKey", key), logx.Field("err", err.Error()))
+			l.Errorw("keep private asset: record state unknown", logging.Field("objectKey", key), logging.Field("err", err.Error()))
 		}
 		return
 	}
@@ -80,7 +80,7 @@ func (l *UploadAssetLogic) deletePrivate(key string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(l.ctx), assetCleanupTimeout)
 	defer cancel()
 	if err := l.svcCtx.Assets.DeletePrivate(ctx, key); err != nil {
-		l.Errorw("delete orphaned private asset failed", logx.Field("objectKey", key), logx.Field("err", err.Error()))
+		l.Errorw("delete orphaned private asset failed", logging.Field("objectKey", key), logging.Field("err", err.Error()))
 	}
 }
 

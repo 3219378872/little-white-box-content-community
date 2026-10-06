@@ -12,7 +12,7 @@ import (
 	"esx/app/search/rpc/internal/svc"
 
 	conf "esx/pkg/configx"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"esx/pkg/rpcx"
 )
@@ -31,8 +31,8 @@ func main() {
 	s := native.NewServer(server.NewSearchServiceServer(ctx), rpcx.ServerOptions(c.RpcServerConf, c.InternalSecret)...)
 	defer func() { _ = s.Stop() }()
 
-	logx.WithContext(context.Background()).Infow("search rpc ready",
-		logx.Field("listen_on", c.ListenOn), logx.Field("index", c.ES.Index))
+	logging.WithContext(context.Background()).Infow("search rpc ready",
+		logging.Field("listen_on", c.ListenOn), logging.Field("index", c.ES.Index))
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	if err := s.Run(); err != nil {
 		panic(err)

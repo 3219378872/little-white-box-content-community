@@ -7,20 +7,20 @@ import (
 	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetUserPostsLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserPostsLogic {
 	return &GetUserPostsLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -43,8 +43,8 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 			return nil, errx.NewWithCode(errx.ParamError)
 		}
 		l.Errorw("PostModel.FindUserPostsByCursor failed",
-			logx.Field("userId", in.UserId),
-			logx.Field("err", err.Error()),
+			logging.Field("userId", in.UserId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -58,7 +58,7 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 		boundary := posts[len(posts)-1]
 		nextCursor, err = encodePostCursor(cursor.SortBy, boundary)
 		if err != nil {
-			l.Errorw("encode user posts cursor failed", logx.Field("err", err.Error()))
+			l.Errorw("encode user posts cursor failed", logging.Field("err", err.Error()))
 			nextCursor = ""
 		}
 	}
@@ -79,7 +79,7 @@ func (l *GetUserPostsLogic) GetUserPosts(in *pb.GetUserPostsReq) (*pb.GetUserPos
 func hydratePostInfos(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
-	logger logx.Logger,
+	logger logging.Logger,
 	posts []*model.Post,
 ) []*pb.PostInfo {
 	postIds := make([]int64, 0, len(posts))
@@ -88,7 +88,7 @@ func hydratePostInfos(
 	}
 	tagsMap, err := svcCtx.PostTagModel.FindTagNamesByPostIds(ctx, postIds)
 	if err != nil {
-		logger.Errorw("PostTagModel.FindTagNamesByPostIds failed", logx.Field("err", err.Error()))
+		logger.Errorw("PostTagModel.FindTagNamesByPostIds failed", logging.Field("err", err.Error()))
 		tagsMap = map[int64][]string{}
 	}
 	postInfos := make([]*pb.PostInfo, 0, len(posts))

@@ -12,17 +12,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/idempotencyx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type base struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
-	return base{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return base{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func requireUser(userID int64) error {
@@ -62,7 +62,7 @@ func (b base) mapError(err error, action string) error {
 		return errx.NewWithCode(errx.ParamError)
 	default:
 		// REL-022：业务日志不记录广告正文与证件内容，只记录动作与错误。
-		b.Errorw(action+" failed", logx.Field("err", err.Error()))
+		b.Errorw(action+" failed", logging.Field("err", err.Error()))
 		return errx.NewWithCode(errx.SystemError)
 	}
 }

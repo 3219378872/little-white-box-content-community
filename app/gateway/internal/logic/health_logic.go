@@ -6,11 +6,11 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type HealthLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -18,7 +18,7 @@ type HealthLogic struct {
 // 健康检查
 func NewHealthLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HealthLogic {
 	return &HealthLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

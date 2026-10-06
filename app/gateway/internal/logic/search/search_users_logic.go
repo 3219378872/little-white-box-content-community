@@ -8,11 +8,11 @@ import (
 	"esx/app/search/rpc/searchservice"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type SearchUsersLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -20,7 +20,7 @@ type SearchUsersLogic struct {
 // 搜索用户
 func NewSearchUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchUsersLogic {
 	return &SearchUsersLogic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
@@ -41,7 +41,7 @@ func (l *SearchUsersLogic) SearchUsers(req *types.SearchUsersReq) (resp *types.S
 		PageSize: req.PageSize,
 	})
 	if err != nil {
-		l.Errorw("SearchService.SearchUsers RPC failed", logx.Field("err", err.Error()))
+		l.Errorw("SearchService.SearchUsers RPC failed", logging.Field("err", err.Error()))
 		return nil, errx.FromRPCError(err)
 	}
 	if result == nil {

@@ -8,7 +8,7 @@ import (
 	pb "esx/kitex_gen/interaction"
 	"testing"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -182,9 +182,9 @@ func TestInvalidateActionCountCache(t *testing.T) {
 }
 
 func TestParseInt64_Valid(t *testing.T) {
-	assert.Equal(t, int64(42), parseInt64("42", logx.WithContext(context.Background())))
+	assert.Equal(t, int64(42), parseInt64("42", logging.WithContext(context.Background())))
 }
 
 func TestParseInt64_Invalid(t *testing.T) {
-	assert.Equal(t, int64(0), parseInt64("not-a-number", logx.WithContext(context.Background())))
+	assert.Equal(t, int64(0), parseInt64("not-a-number", logging.WithContext(context.Background())))
 }

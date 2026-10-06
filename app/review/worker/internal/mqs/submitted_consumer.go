@@ -12,7 +12,7 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -50,13 +50,13 @@ func consume(ctx context.Context, in submissionIngester, msgs ...*primitive.Mess
 		}
 		var invalid intake.ErrInvalidSubmission
 		if errors.As(err, &invalid) {
-			logx.WithContext(ctx).Errorw("review-worker: invalid submission skipped",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("review-worker: invalid submission skipped",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			continue
 		}
 		if err != nil {
-			logx.WithContext(ctx).Errorw("review-worker: ingest failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("review-worker: ingest failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			return consumer.ConsumeRetryLater
 		}
 	}

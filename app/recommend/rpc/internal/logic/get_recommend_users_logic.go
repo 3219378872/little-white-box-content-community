@@ -10,17 +10,17 @@ import (
 	pb "esx/kitex_gen/recommend"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetRecommendUsersLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetRecommendUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendUsersLogic {
-	return &GetRecommendUsersLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &GetRecommendUsersLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 func (l *GetRecommendUsersLogic) GetRecommendUsers(in *pb.GetRecommendUsersReq) (*pb.GetRecommendUsersResp, error) {
@@ -46,7 +46,7 @@ func (l *GetRecommendUsersLogic) GetRecommendUsers(in *pb.GetRecommendUsersReq) 
 	batches, recallDegraded, err := recallUsers(l.ctx, l.svcCtx.UserRecallSources, recallReq)
 	if err != nil {
 		recommendPipelineTotal.Inc("users", "recall", "unavailable")
-		l.Errorw("user recall unavailable", logx.Field("err", err.Error()))
+		l.Errorw("user recall unavailable", logging.Field("err", err.Error()))
 		return nil, recommendationRPCError(err)
 	}
 	recordPipelineStage("users", "recall", recallDegraded)

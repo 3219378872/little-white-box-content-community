@@ -9,17 +9,17 @@ import (
 
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetMessagesLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetMessagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMessagesLogic {
-	return &GetMessagesLogic{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx)}
+	return &GetMessagesLogic{ctx: ctx, svcCtx: svcCtx, Logger: logging.WithContext(ctx)}
 }
 
 // 获取聊天记录
@@ -29,7 +29,7 @@ func (l *GetMessagesLogic) GetMessages(in *pb.GetMessagesReq) (*pb.GetMessagesRe
 	}
 	conversation, err := l.svcCtx.ConversationModel.FindOneForUser(l.ctx, in.UserId, in.ConversationId)
 	if err != nil {
-		l.Errorw("ConversationModel.FindOneForUser failed", logx.Field("err", err.Error()))
+		l.Errorw("ConversationModel.FindOneForUser failed", logging.Field("err", err.Error()))
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, errx.NewWithCode(errx.PermissionDenied)
 		}
@@ -38,7 +38,7 @@ func (l *GetMessagesLogic) GetMessages(in *pb.GetMessagesReq) (*pb.GetMessagesRe
 	_, pageSize := normalizePage(1, in.PageSize)
 	rows, hasMore, err := l.svcCtx.MessageModel.FindByUserConversation(l.ctx, in.UserId, conversation.TargetUserId, in.LastId, pageSize)
 	if err != nil {
-		l.Errorw("MessageModel.FindByUserConversation failed", logx.Field("err", err.Error()))
+		l.Errorw("MessageModel.FindByUserConversation failed", logging.Field("err", err.Error()))
 		return nil, errx.Wrap(err, errx.SystemError)
 	}
 	items := make([]*pb.MessageInfo, 0, len(rows))

@@ -9,20 +9,20 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetCommentListLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetCommentListLogic {
 	return &GetCommentListLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 
@@ -38,8 +38,8 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 			return nil, errx.NewWithCode(errx.ContentNotFound)
 		}
 		l.Errorw("PostModel.FindPostById failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -50,8 +50,8 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 	comments, total, err := l.svcCtx.CommentModel.FindByPostId(l.ctx, in.PostId, page, pageSize, int(in.SortBy))
 	if err != nil {
 		l.Errorw("CommentModel.FindByPostId failed",
-			logx.Field("postId", in.PostId),
-			logx.Field("err", err.Error()),
+			logging.Field("postId", in.PostId),
+			logging.Field("err", err.Error()),
 		)
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
@@ -73,8 +73,8 @@ func (l *GetCommentListLogic) GetCommentList(in *pb.GetCommentListReq) (*pb.GetC
 		replies, err = l.svcCtx.CommentModel.FindByParentIds(l.ctx, in.PostId, parentIds, previewReplyLimit)
 		if err != nil {
 			l.Errorw("CommentModel.FindByParentIds failed",
-				logx.Field("postId", in.PostId),
-				logx.Field("err", err.Error()),
+				logging.Field("postId", in.PostId),
+				logging.Field("err", err.Error()),
 			)
 			return nil, errx.NewWithCode(errx.SystemError)
 		}

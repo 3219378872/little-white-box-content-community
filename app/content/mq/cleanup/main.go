@@ -13,7 +13,7 @@ import (
 
 	conf "esx/pkg/configx"
 	proc "esx/pkg/lifecycle"
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 var configFile = flag.String("f", "etc/content-cleanup.yaml", "config file")
@@ -29,12 +29,12 @@ func main() {
 
 	cleanupConsumer, err := mqs.NewCleanupConsumer(svcCtx)
 	if err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
 	if err := cleanupConsumer.Start(); err != nil {
-		logx.Must(err)
+		logging.Must(err)
 	}
-	logger := logx.WithContext(context.Background())
+	logger := logging.WithContext(context.Background())
 	var countSyncShutdown func() error
 	defer func() {
 		shutdownContentCleanup(logger, countSyncShutdown, cleanupConsumer.Shutdown, svcCtx.Close)
@@ -43,10 +43,10 @@ func main() {
 	if svcCtx.CountSyncStore != nil {
 		countSyncConsumer, err := mqs.NewCountSyncConsumer(svcCtx)
 		if err != nil {
-			logx.Must(err)
+			logging.Must(err)
 		}
 		if err := countSyncConsumer.Start(); err != nil {
-			logx.Must(err)
+			logging.Must(err)
 		}
 		countSyncShutdown = countSyncConsumer.Shutdown
 	}
@@ -55,7 +55,7 @@ func main() {
 	<-proc.Done()
 }
 
-func shutdownContentCleanup(logger logx.Logger, countSync, cleanup, database func() error) {
+func shutdownContentCleanup(logger logging.Logger, countSync, cleanup, database func() error) {
 	cleanupx.Shutdown(logger, "count-sync consumer", countSync)
 	cleanupx.Shutdown(logger, "content-cleanup consumer", cleanup)
 	cleanupx.Shutdown(logger, "content cleanup database", database)

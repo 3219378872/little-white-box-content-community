@@ -9,17 +9,17 @@ import (
 	"esx/pkg/errx"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type MarkAssistantThreadReadLogic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
 func NewMarkAssistantThreadReadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MarkAssistantThreadReadLogic {
-	return &MarkAssistantThreadReadLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+	return &MarkAssistantThreadReadLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
 func (l *MarkAssistantThreadReadLogic) MarkAssistantThreadRead() (*types.MarkAssistantThreadReadResp, error) {

@@ -15,7 +15,7 @@ import (
 	"esx/pkg/mqx"
 	"esx/pkg/visibilityx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -45,14 +45,14 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 	for _, msg := range msgs {
 		var e event.PostEvent
 		if err := json.Unmarshal(msg.Body, &e); err != nil {
-			logx.WithContext(ctx).Errorw("embedding-consumer: unmarshal failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("embedding-consumer: unmarshal failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
 		if err := e.Validate(); err != nil {
-			logx.WithContext(ctx).Errorw("embedding-consumer: invalid event, skipping",
-				logx.Field("msg_id", msg.MsgId), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("embedding-consumer: invalid event, skipping",
+				logging.Field("msg_id", msg.MsgId), logging.Field("err", err.Error()))
 			embeddingConsumerMessages.Inc("invalid")
 			continue
 		}
@@ -62,16 +62,16 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 		}
 		storedRevision, err := vs.CurrentRevision(ctx, e.PostID)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("embedding-consumer: read revision failed",
-				logx.Field("msg_id", msg.MsgId), logx.Field("post_id", e.PostID),
-				logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("embedding-consumer: read revision failed",
+				logging.Field("msg_id", msg.MsgId), logging.Field("post_id", e.PostID),
+				logging.Field("err", err.Error()))
 			embeddingConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if !event.ReplacesStoredRevision(e.Revision, storedRevision) {
-			logx.WithContext(ctx).Infow("embedding-consumer: stale revision skipped",
-				logx.Field("post_id", e.PostID), logx.Field("revision", e.Revision),
-				logx.Field("stored_revision", storedRevision))
+			logging.WithContext(ctx).Infow("embedding-consumer: stale revision skipped",
+				logging.Field("post_id", e.PostID), logging.Field("revision", e.Revision),
+				logging.Field("stored_revision", storedRevision))
 			embeddingConsumerMessages.Inc("processed")
 			continue
 		}
@@ -80,13 +80,13 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 		// trusting an old event body after alias promotion.
 		post, err := authoritativePost(ctx, source, e.PostID)
 		if err != nil {
-			logx.WithContext(ctx).Errorw("embedding-consumer: authority lookup failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("embedding-consumer: authority lookup failed", logging.Field("post_id", e.PostID), logging.Field("err", err.Error()))
 			embeddingConsumerMessages.Inc("retry")
 			return consumer.ConsumeRetryLater
 		}
 		if post == nil {
 			if err := vs.Delete(ctx, e.PostID, max(e.Revision, storedRevision, 1)); err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: tombstone failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("embedding-consumer: tombstone failed", logging.Field("post_id", e.PostID), logging.Field("err", err.Error()))
 				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
@@ -99,12 +99,12 @@ func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vector
 			}
 			result, err := emb.Embed(ctx, post.Title+"\n"+post.Content)
 			if err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: embed failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("embedding-consumer: embed failed", logging.Field("post_id", e.PostID), logging.Field("err", err.Error()))
 				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}
 			if err := vs.Upsert(ctx, vectorstore.Record{PostID: e.PostID, Vector: result.Vector, ModelVersion: result.ModelVersion, Dimension: result.Dimension, Revision: post.Revision}); err != nil {
-				logx.WithContext(ctx).Errorw("embedding-consumer: upsert failed", logx.Field("post_id", e.PostID), logx.Field("err", err.Error()))
+				logging.WithContext(ctx).Errorw("embedding-consumer: upsert failed", logging.Field("post_id", e.PostID), logging.Field("err", err.Error()))
 				embeddingConsumerMessages.Inc("retry")
 				return consumer.ConsumeRetryLater
 			}

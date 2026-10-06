@@ -5,20 +5,20 @@ import (
 	"esx/app/interaction/rpc/internal/svc"
 	pb "esx/kitex_gen/interaction"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type GetLikeCountLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
-	logx.Logger
+	logging.Logger
 }
 
 func NewGetLikeCountLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetLikeCountLogic {
 	return &GetLikeCountLogic{
 		ctx:    ctx,
 		svcCtx: svcCtx,
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 	}
 }
 

@@ -9,11 +9,11 @@ import (
 	"esx/app/gateway/internal/types"
 	"esx/pkg/jwtx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 )
 
 type CreatePostV2Logic struct {
-	logx.Logger
+	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
@@ -21,7 +21,7 @@ type CreatePostV2Logic struct {
 // 创建帖子（v2）：创建无前置 revision，契约与 v1 一致（CORE-013 只约束变更类操作）。
 func NewCreatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *CreatePostV2Logic {
 	return &CreatePostV2Logic{
-		Logger: logx.WithContext(ctx),
+		Logger: logging.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}

@@ -13,7 +13,7 @@ import (
 	"esx/app/assistant/internal/tool"
 	"esx/pkg/errx"
 
-	logx "esx/pkg/logging"
+	"esx/pkg/logging"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -102,7 +102,7 @@ func (c *Client) Relay(ctx context.Context) error {
 	published := make([]int64, 0, len(rows))
 	for _, row := range rows {
 		if err := c.apply(ctx, row); err != nil {
-			logx.WithContext(ctx).Errorw("assistant history outbox failed", logx.Field("id", row.ID), logx.Field("err", err.Error()))
+			logging.WithContext(ctx).Errorw("assistant history outbox failed", logging.Field("id", row.ID), logging.Field("err", err.Error()))
 			continue
 		}
 		published = append(published, row.ID)
