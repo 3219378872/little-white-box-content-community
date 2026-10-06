@@ -5,6 +5,8 @@ import (
 	"strconv"
 )
 
+// ListHistoryAround returns up to before/after messages around an anchor, within the anchor's session
+// and the history search eligibility rules.
 func (s *SQLStore) ListHistoryAround(ctx context.Context, userID, messageID int64, before, after int, cutoffMs int64, excludeIDs []int64) ([]Message, error) {
 	before = boundedHistoryEdge(before)
 	after = boundedHistoryEdge(after)
@@ -37,6 +39,7 @@ func (s *SQLStore) ListHistoryAround(ctx context.Context, userID, messageID int6
 	return out, nil
 }
 
+// ListHistorySessionSummaries returns the first and last eligible message of the most recent sessions.
 func (s *SQLStore) ListHistorySessionSummaries(ctx context.Context, userID, sessionID int64, limit int, cutoffMs int64, excludeIDs []int64) ([]HistorySessionSummary, error) {
 	if limit <= 0 {
 		limit = 3
@@ -67,6 +70,7 @@ func (s *SQLStore) ListHistorySessionSummaries(ctx context.Context, userID, sess
 			ids = append(ids, group.LastID)
 		}
 	}
+	// GetMessagesByIDs does not filter, so eligibility is re-checked in Go.
 	messages, err := s.GetMessagesByIDs(ctx, userID, ids)
 	if err != nil {
 		return nil, err
@@ -91,6 +95,7 @@ func (s *SQLStore) ListHistorySessionSummaries(ctx context.Context, userID, sess
 	return out, nil
 }
 
+// historyWhere limits history search to visible user/assistant chat messages within retention.
 func historyWhere(userID, cutoffMs int64, excludeIDs []int64) (string, []any) {
 	where := `user_id=? AND deleted_at_ms IS NULL AND visible=1
 		AND role IN ('user','assistant') AND kind='message' AND created_at_ms>=?`
@@ -102,6 +107,7 @@ func historyWhere(userID, cutoffMs int64, excludeIDs []int64) (string, []any) {
 	return where, args
 }
 
+// boundedHistoryEdge defaults the context window to 5 messages and caps it at 20.
 func boundedHistoryEdge(value int) int {
 	if value <= 0 {
 		return 5
@@ -112,6 +118,7 @@ func boundedHistoryEdge(value int) int {
 	return value
 }
 
+// historyMessageEligible mirrors historyWhere for rows loaded by ID.
 func historyMessageEligible(message Message, userID, cutoffMs int64, excluded map[int64]struct{}) bool {
 	if message.UserID != userID || message.DeletedAtMs != 0 || !message.Visible || message.CreatedAtMs < cutoffMs {
 		return false
@@ -126,6 +133,7 @@ func historyMessageEligible(message Message, userID, cutoffMs int64, excluded ma
 	return !blocked
 }
 
+// int64Set builds a lookup set from IDs.
 func int64Set(values []int64) map[int64]struct{} {
 	out := make(map[int64]struct{}, len(values))
 	for _, value := range values {

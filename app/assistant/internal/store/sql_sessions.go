@@ -8,6 +8,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// LockThread locks the user's thread row, creating an empty one on first use.
 func (s *SQLStore) LockThread(ctx context.Context, userID int64) (*Thread, error) {
 	thread, err := s.getThread(ctx, `SELECT user_id, session_id, unread_count, last_message_id, last_message_preview,
 		last_message_at_ms, active_run_id, updated_at_ms FROM assistant_thread WHERE user_id = ? FOR UPDATE`, userID)
@@ -18,6 +19,7 @@ func (s *SQLStore) LockThread(ctx context.Context, userID int64) (*Thread, error
 	if _, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_thread
 		(user_id, session_id, unread_count, last_message_id, last_message_preview, last_message_at_ms, active_run_id, updated_at_ms)
 		VALUES (?, 0, 0, 0, '', 0, 0, ?)`, userID, now); err != nil {
+		// A concurrent first request may have inserted the row; re-read it under the lock.
 		if !strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			return nil, err
 		}
@@ -26,6 +28,7 @@ func (s *SQLStore) LockThread(ctx context.Context, userID int64) (*Thread, error
 		last_message_at_ms, active_run_id, updated_at_ms FROM assistant_thread WHERE user_id = ? FOR UPDATE`, userID)
 }
 
+// GetThread reads the thread without locking; a missing row reads as an empty thread.
 func (s *SQLStore) GetThread(ctx context.Context, userID int64) (*Thread, error) {
 	thread, err := s.getThread(ctx, `SELECT user_id, session_id, unread_count, last_message_id, last_message_preview,
 		last_message_at_ms, active_run_id, updated_at_ms FROM assistant_thread WHERE user_id = ?`, userID)
@@ -35,6 +38,7 @@ func (s *SQLStore) GetThread(ctx context.Context, userID int64) (*Thread, error)
 	return thread, err
 }
 
+// getThread scans one assistant_thread row with the given query.
 func (s *SQLStore) getThread(ctx context.Context, query string, args ...any) (*Thread, error) {
 	var row struct {
 		UserID             int64  `db:"user_id"`
@@ -56,6 +60,7 @@ func (s *SQLStore) getThread(ctx context.Context, query string, args ...any) (*T
 	}, nil
 }
 
+// SaveThread upserts the whole thread summary.
 func (s *SQLStore) SaveThread(ctx context.Context, thread Thread) error {
 	_, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_thread
 		(user_id, session_id, unread_count, last_message_id, last_message_preview, last_message_at_ms, active_run_id, updated_at_ms)
@@ -68,6 +73,7 @@ func (s *SQLStore) SaveThread(ctx context.Context, thread Thread) error {
 	return err
 }
 
+// CreateSession starts a new conversation session with its prompt and tool snapshots.
 func (s *SQLStore) CreateSession(ctx context.Context, session Session) (Session, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_session
 		(user_id, prompt_epoch, prompt_snapshot, tool_snapshot, compact_summary, status, successful_user_turns, created_at_ms, closed_at_ms)
@@ -82,6 +88,7 @@ func (s *SQLStore) CreateSession(ctx context.Context, session Session) (Session,
 	return session, nil
 }
 
+// GetSession reads a session; inside a transaction it locks the row so the snapshot is current.
 func (s *SQLStore) GetSession(ctx context.Context, id int64) (*Session, error) {
 	var row struct {
 		ID                  int64          `db:"id"`
@@ -112,6 +119,7 @@ func (s *SQLStore) GetSession(ctx context.Context, id int64) (*Session, error) {
 	}, nil
 }
 
+// UpdateSession writes the session's snapshots, summary and status.
 func (s *SQLStore) UpdateSession(ctx context.Context, session Session) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE assistant_session SET prompt_epoch=?, prompt_snapshot=?, tool_snapshot=?,
 		compact_summary=?, status=?, successful_user_turns=?, closed_at_ms=? WHERE id=?`,
@@ -120,6 +128,7 @@ func (s *SQLStore) UpdateSession(ctx context.Context, session Session) error {
 	return err
 }
 
+// CloseSession marks a session closed so new input starts a fresh one.
 func (s *SQLStore) CloseSession(ctx context.Context, id int64, closedAtMs int64) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE assistant_session SET status=?, closed_at_ms=? WHERE id=?`, SessionClosed, closedAtMs, id)
 	return err

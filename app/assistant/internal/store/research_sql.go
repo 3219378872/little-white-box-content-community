@@ -7,10 +7,12 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// LockRun reads a run with FOR UPDATE.
 func (s *SQLStore) LockRun(ctx context.Context, id int64) (*Run, error) {
 	return s.scanRun(ctx, runSelect+" WHERE id=? FOR UPDATE", id)
 }
 
+// ListSourceEvents returns up to the last 100 source_card events of a run in seq order.
 func (s *SQLStore) ListSourceEvents(ctx context.Context, runID int64) ([]Event, error) {
 	var rows []struct {
 		ID          int64  `db:"id"`
@@ -30,6 +32,8 @@ func (s *SQLStore) ListSourceEvents(ctx context.Context, runID int64) ([]Event, 
 	return out, nil
 }
 
+// HasDeletedRunHistory reports whether the user deleted history that this run produced or
+// was started from, so its events must no longer be served.
 func (s *SQLStore) HasDeletedRunHistory(ctx context.Context, run Run) (bool, error) {
 	var row struct {
 		N int `db:"n"`
@@ -40,6 +44,7 @@ func (s *SQLStore) HasDeletedRunHistory(ctx context.Context, run Run) (bool, err
 	return row.N > 0, err
 }
 
+// ListWaitingConfirmRuns returns up to 100 runs waiting for tool confirmation, least recently active first.
 func (s *SQLStore) ListWaitingConfirmRuns(ctx context.Context) ([]Run, error) {
 	var rows []runRow
 	err := s.exec.QueryRowsCtx(ctx, &rows, runSelect+" WHERE status='waiting_confirm' ORDER BY last_activity_at_ms, id LIMIT 100")
@@ -50,6 +55,7 @@ func (s *SQLStore) ListWaitingConfirmRuns(ctx context.Context) ([]Run, error) {
 	return out, err
 }
 
+// ListWaitingRuns returns up to 100 runs waiting for question answers, least recently active first.
 func (s *SQLStore) ListWaitingRuns(ctx context.Context) ([]Run, error) {
 	var rows []runRow
 	err := s.exec.QueryRowsCtx(ctx, &rows, runSelect+" WHERE status='waiting_input' ORDER BY last_activity_at_ms, id LIMIT 100")
@@ -60,6 +66,7 @@ func (s *SQLStore) ListWaitingRuns(ctx context.Context) ([]Run, error) {
 	return out, err
 }
 
+// PutEvidence stores a retrieved fragment once; re-retrieval of the same ID is ignored.
 func (s *SQLStore) PutEvidence(ctx context.Context, item Evidence) error {
 	raw, err := json.Marshal(item)
 	if err != nil {
@@ -71,6 +78,7 @@ func (s *SQLStore) PutEvidence(ctx context.Context, item Evidence) error {
 	return err
 }
 
+// ListEvidence returns the stored fragments of one source handle.
 func (s *SQLStore) ListEvidence(ctx context.Context, runID int64, handle string) ([]Evidence, error) {
 	var rows []struct {
 		Payload []byte `db:"payload_json"`
@@ -91,6 +99,7 @@ func (s *SQLStore) ListEvidence(ctx context.Context, runID int64, handle string)
 	return out, nil
 }
 
+// SaveQuestion upserts a question request with its answer state.
 func (s *SQLStore) SaveQuestion(ctx context.Context, item QuestionRequest) error {
 	raw, err := json.Marshal(item)
 	if err != nil {
@@ -103,6 +112,7 @@ func (s *SQLStore) SaveQuestion(ctx context.Context, item QuestionRequest) error
 	return err
 }
 
+// ListQuestions returns a run's question requests with server-only answer fields restored.
 func (s *SQLStore) ListQuestions(ctx context.Context, runID int64) ([]QuestionRequest, error) {
 	var rows []struct {
 		UserID    int64  `db:"user_id"`
@@ -127,6 +137,7 @@ func (s *SQLStore) ListQuestions(ctx context.Context, runID int64) ([]QuestionRe
 	return out, nil
 }
 
+// SavePresentation stores the structured answer for a message.
 func (s *SQLStore) SavePresentation(ctx context.Context, item AnswerPresentation) error {
 	raw, err := json.Marshal(item)
 	if err != nil {
@@ -136,6 +147,7 @@ func (s *SQLStore) SavePresentation(ctx context.Context, item AnswerPresentation
 	return err
 }
 
+// GetPresentation reads a message's structured answer; nil when it has none.
 func (s *SQLStore) GetPresentation(ctx context.Context, messageID int64) (*AnswerPresentation, error) {
 	var row struct {
 		Payload []byte `db:"payload_json"`
@@ -154,6 +166,7 @@ func (s *SQLStore) GetPresentation(ctx context.Context, messageID int64) (*Answe
 	return &item, nil
 }
 
+// ClearResearchHistory deletes the user's research side tables when history is deleted.
 func (s *SQLStore) ClearResearchHistory(ctx context.Context, userID int64) error {
 	for _, query := range []string{
 		`DELETE FROM agent_question_request WHERE user_id=?`,
@@ -168,6 +181,8 @@ func (s *SQLStore) ClearResearchHistory(ctx context.Context, userID int64) error
 	return nil
 }
 
+// PurgeExpiredSourceEvidence deletes one bounded batch, evidence first and then ledger rows
+// with the remaining batch budget.
 func (s *SQLStore) PurgeExpiredSourceEvidence(ctx context.Context, cutoffMs int64, batchSize int) (int, error) {
 	batchSize = boundedPurgeBatchSize(batchSize)
 	result, err := s.exec.ExecCtx(ctx, `DELETE FROM agent_source_evidence WHERE created_at_ms<? ORDER BY created_at_ms LIMIT ?`, cutoffMs, batchSize)

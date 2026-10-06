@@ -9,21 +9,25 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// execer is the subset shared by a connection and a transaction session.
 type execer interface {
 	ExecCtx(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
 	QueryRowsCtx(ctx context.Context, v any, query string, args ...any) error
 }
 
+// SQLStore implements Store on MySQL; conn is nil inside a transaction.
 type SQLStore struct {
 	exec execer
 	conn sqlx.SqlConn
 }
 
+// NewSQLStore wraps a connection; transactions get a session-bound copy.
 func NewSQLStore(conn sqlx.SqlConn) *SQLStore {
 	return &SQLStore{exec: conn, conn: conn}
 }
 
+// Transact runs fn in a transaction, or inline when already inside one.
 func (s *SQLStore) Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	if s.conn == nil {
 		return fn(ctx, s)
@@ -33,6 +37,8 @@ func (s *SQLStore) Transact(ctx context.Context, fn func(ctx context.Context, tx
 	})
 }
 
+// RunStep commits fn only while the caller still holds the run lease; the row lock
+// also serializes worker commits with input acceptance on the same run.
 func (s *SQLStore) RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error {
 	if fence.RunID <= 0 || strings.TrimSpace(fence.Owner) == "" || fence.Generation <= 0 {
 		return ErrLeaseLost

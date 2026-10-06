@@ -6,6 +6,9 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertEvent appends the next seq for a run. Writers are expected to hold the run row lock
+// (RunStep or LockRun) so MAX+1 does not race; uk_run_seq rejects a duplicate if one does,
+// and uk_run_terminal allows only one done/error event per run.
 func (s *SQLStore) InsertEvent(ctx context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error) {
 	var seqRow struct {
 		Seq int64 `db:"seq"`
@@ -28,6 +31,7 @@ func (s *SQLStore) InsertEvent(ctx context.Context, runID int64, eventType strin
 	return Event{ID: id, RunID: runID, Seq: seq, Type: eventType, PayloadJSON: payload, CreatedAtMs: createdAtMs}, nil
 }
 
+// ListEventsAfter returns a run's events after seq, for SSE resume.
 func (s *SQLStore) ListEventsAfter(ctx context.Context, runID, afterSeq int64) ([]Event, error) {
 	var rows []struct {
 		ID          int64  `db:"id"`
@@ -48,6 +52,7 @@ func (s *SQLStore) ListEventsAfter(ctx context.Context, runID, afterSeq int64) (
 	return out, nil
 }
 
+// MaxEventSeq returns the run's last seq, or zero when it has no events.
 func (s *SQLStore) MaxEventSeq(ctx context.Context, runID int64) (int64, error) {
 	var row struct {
 		Seq int64 `db:"seq"`

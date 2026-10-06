@@ -6,6 +6,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertMessage is the in-memory Store.InsertMessage used by unit tests.
 func (m *MemoryStore) InsertMessage(_ context.Context, msg Message) (Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -14,6 +15,7 @@ func (m *MemoryStore) InsertMessage(_ context.Context, msg Message) (Message, er
 	return msg, nil
 }
 
+// GetMessage is the in-memory Store.GetMessage used by unit tests.
 func (m *MemoryStore) GetMessage(_ context.Context, userID, id int64) (*Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -25,6 +27,7 @@ func (m *MemoryStore) GetMessage(_ context.Context, userID, id int64) (*Message,
 	return &cp, nil
 }
 
+// ListMessages is the in-memory Store.ListMessages used by unit tests.
 func (m *MemoryStore) ListMessages(_ context.Context, userID, sessionID, beforeID, afterID int64, limit int) ([]Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -58,6 +61,7 @@ func (m *MemoryStore) ListMessages(_ context.Context, userID, sessionID, beforeI
 	return out, nil
 }
 
+// ListSessionMessages is the in-memory Store.ListSessionMessages used by unit tests.
 func (m *MemoryStore) ListSessionMessages(_ context.Context, userID, sessionID int64, includeHidden bool) ([]Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -75,6 +79,7 @@ func (m *MemoryStore) ListSessionMessages(_ context.Context, userID, sessionID i
 	return out, nil
 }
 
+// GetMessagesByIDs is the in-memory Store.GetMessagesByIDs used by unit tests.
 func (m *MemoryStore) GetMessagesByIDs(_ context.Context, userID int64, ids []int64) ([]Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -88,6 +93,7 @@ func (m *MemoryStore) GetMessagesByIDs(_ context.Context, userID int64, ids []in
 	return out, nil
 }
 
+// ListHistoryAround is the in-memory Store.ListHistoryAround used by unit tests.
 func (m *MemoryStore) ListHistoryAround(_ context.Context, userID, messageID int64, before, after int, cutoffMs int64, excludeIDs []int64) ([]Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -126,6 +132,7 @@ func (m *MemoryStore) ListHistoryAround(_ context.Context, userID, messageID int
 	return append([]Message(nil), eligible[start:end]...), nil
 }
 
+// ListHistorySessionSummaries is the in-memory Store.ListHistorySessionSummaries used by unit tests.
 func (m *MemoryStore) ListHistorySessionSummaries(_ context.Context, userID, sessionID int64, limit int, cutoffMs int64, excludeIDs []int64) ([]HistorySessionSummary, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -165,6 +172,7 @@ func (m *MemoryStore) ListHistorySessionSummaries(_ context.Context, userID, ses
 	return out, nil
 }
 
+// SoftDeleteMessages is the in-memory Store.SoftDeleteMessages used by unit tests.
 func (m *MemoryStore) SoftDeleteMessages(_ context.Context, userID, deletedAtMs int64) ([]int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -179,6 +187,7 @@ func (m *MemoryStore) SoftDeleteMessages(_ context.Context, userID, deletedAtMs 
 	return ids, nil
 }
 
+// MarkMessagesRead is the in-memory Store.MarkMessagesRead used by unit tests.
 func (m *MemoryStore) MarkMessagesRead(_ context.Context, userID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -191,6 +200,7 @@ func (m *MemoryStore) MarkMessagesRead(_ context.Context, userID int64) error {
 	return nil
 }
 
+// MarkMessagesCompacted is the in-memory Store.MarkMessagesCompacted used by unit tests.
 func (m *MemoryStore) MarkMessagesCompacted(_ context.Context, ids []int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

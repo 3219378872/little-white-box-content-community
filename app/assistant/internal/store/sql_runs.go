@@ -8,6 +8,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertRun creates a run row; zero optional fields are stored as NULL.
 func (s *SQLStore) InsertRun(ctx context.Context, run Run) (Run, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_run
 		(user_id, session_id, request_id, source, status, phase, priority, queued_payload, lease_owner, lease_generation, lease_until_ms,
@@ -27,10 +28,12 @@ func (s *SQLStore) InsertRun(ctx context.Context, run Run) (Run, error) {
 	return run, nil
 }
 
+// GetRun reads a run without locking.
 func (s *SQLStore) GetRun(ctx context.Context, id int64) (*Run, error) {
 	return s.scanRun(ctx, `SELECT * FROM (`+runSelect+`) r WHERE r.id=?`, id)
 }
 
+// GetRunByRequestID finds the run created for a client request ID; nil when none exists.
 func (s *SQLStore) GetRunByRequestID(ctx context.Context, userID int64, requestID string) (*Run, error) {
 	run, err := s.scanRun(ctx, `SELECT * FROM (`+runSelect+`) r WHERE r.user_id=? AND r.request_id=?`, userID, requestID)
 	if err == sqlx.ErrNotFound {
@@ -43,6 +46,7 @@ const runSelect = `SELECT id, user_id, session_id, request_id, source, status, p
 	lease_generation, lease_until_ms, heartbeat_at_ms, cancel_requested, consent_version, input_version, prompt_epoch, model, rounds, tool_calls, input_tokens, output_tokens,
 	cache_tokens, cache_write_tokens, reasoning_tokens, last_prompt_tokens, usage_estimated, cost_usd, started_at_ms, ended_at_ms, last_activity_at_ms, error_code, created_at_ms, client_protocol_version FROM agent_run`
 
+// scanRun reads one run row and converts nullable columns.
 func (s *SQLStore) scanRun(ctx context.Context, query string, args ...any) (*Run, error) {
 	var row runRow
 	if err := s.exec.QueryRowCtx(ctx, &row, query, args...); err != nil {
@@ -52,6 +56,7 @@ func (s *SQLStore) scanRun(ctx context.Context, query string, args ...any) (*Run
 	return &out, nil
 }
 
+// runRow mirrors agent_run with nullable columns.
 type runRow struct {
 	ClientProtocolVersion int            `db:"client_protocol_version"`
 	ID                    int64          `db:"id"`
@@ -89,6 +94,7 @@ type runRow struct {
 	CreatedAtMs           int64          `db:"created_at_ms"`
 }
 
+// toRun converts a row to the domain type, mapping NULL to zero values.
 func (row runRow) toRun() Run {
 	return Run{
 		ClientProtocolVersion: row.ClientProtocolVersion,
@@ -104,6 +110,8 @@ func (row runRow) toRun() Run {
 	}
 }
 
+// UpdateRun writes progress and accounting; cancel_requested is OR-ed so a stale copy cannot clear a cancel.
+// Lease columns are owned by Claim and RenewLease and are not touched here.
 func (s *SQLStore) UpdateRun(ctx context.Context, run Run) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET status=?, phase=?,
 		cancel_requested=cancel_requested OR ?, prompt_epoch=?, model=?, rounds=?, tool_calls=?, input_tokens=?, output_tokens=?,
@@ -115,6 +123,8 @@ func (s *SQLStore) UpdateRun(ctx context.Context, run Run) error {
 	return err
 }
 
+// SetRunInput replaces the payload of a queued or running run and bumps input_version
+// so the worker notices the steer.
 func (s *SQLStore) SetRunInput(ctx context.Context, runID int64, payload []byte, lastActivityMs int64) error {
 	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run
 		SET queued_payload=?, input_version=input_version+1, last_activity_at_ms=?
@@ -132,6 +142,7 @@ func (s *SQLStore) SetRunInput(ctx context.Context, runID int64, payload []byte,
 	return nil
 }
 
+// RequestCancel flags one of the user's runs; the worker observes it at its next step.
 func (s *SQLStore) RequestCancel(ctx context.Context, userID, runID int64) error {
 	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET cancel_requested=1 WHERE id=? AND user_id=?`, runID, userID)
 	if err != nil {
@@ -147,6 +158,7 @@ func (s *SQLStore) RequestCancel(ctx context.Context, userID, runID int64) error
 	return nil
 }
 
+// RequestCancelAll flags every open run of the user, e.g. when consent is revoked.
 func (s *SQLStore) RequestCancelAll(ctx context.Context, userID int64) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET cancel_requested=1
 		WHERE user_id=? AND status IN ('queued','running','waiting_input','waiting_confirm')`, userID)
@@ -171,6 +183,7 @@ func (s *SQLStore) LockOpenRuns(ctx context.Context, userID int64) ([]Run, error
 	return runs, nil
 }
 
+// CancelOpenBackground flags open runs from the given background sources after locking all open runs.
 func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sources []string) ([]Run, error) {
 	if len(sources) == 0 {
 		return nil, nil
@@ -197,6 +210,8 @@ func (s *SQLStore) CancelOpenBackground(ctx context.Context, userID int64, sourc
 	return out, nil
 }
 
+// Claim leases the next queued run, or a running one whose lease expired, by priority then age.
+// SKIP LOCKED lets several workers claim concurrently; each claim bumps the lease generation.
 func (s *SQLStore) Claim(ctx context.Context, owner string, nowMs, leaseMs int64) (*Run, error) {
 	var claimed *Run
 	err := s.Transact(ctx, func(ctx context.Context, tx Store) error {
@@ -236,6 +251,7 @@ func (s *SQLStore) Claim(ctx context.Context, owner string, nowMs, leaseMs int64
 	return claimed, err
 }
 
+// RenewLease extends a lease only while the caller still owns an unexpired one.
 func (s *SQLStore) RenewLease(ctx context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error) {
 	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_run SET lease_until_ms=?, heartbeat_at_ms=?
 		WHERE id=? AND lease_owner=? AND lease_generation=? AND status='running' AND lease_until_ms>=?`,
@@ -247,6 +263,8 @@ func (s *SQLStore) RenewLease(ctx context.Context, runID int64, owner string, ge
 	return n > 0, err
 }
 
+// AgentConsent reads the user's capability consent from the user database; FOR SHARE keeps it
+// stable until the accepting transaction commits.
 func (s *SQLStore) AgentConsent(ctx context.Context, userID int64) (int32, bool, error) {
 	var row struct {
 		Granted        int64 `db:"granted"`
@@ -263,6 +281,7 @@ func (s *SQLStore) AgentConsent(ctx context.Context, userID int64) (int32, bool,
 	return row.ConsentVersion, row.Granted == 1 && row.ConsentVersion > 0, nil
 }
 
+// OldestQueuedAgeMs reports queue latency for metrics; zero when nothing is queued.
 func (s *SQLStore) OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, error) {
 	var row struct {
 		Created sql.NullInt64 `db:"created_at_ms"`

@@ -6,6 +6,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// LockThread is the in-memory Store.LockThread used by unit tests.
 func (m *MemoryStore) LockThread(_ context.Context, userID int64) (*Thread, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -18,6 +19,7 @@ func (m *MemoryStore) LockThread(_ context.Context, userID int64) (*Thread, erro
 	return &cp, nil
 }
 
+// GetThread is the in-memory Store.GetThread used by unit tests.
 func (m *MemoryStore) GetThread(_ context.Context, userID int64) (*Thread, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -29,6 +31,7 @@ func (m *MemoryStore) GetThread(_ context.Context, userID int64) (*Thread, error
 	return &cp, nil
 }
 
+// SaveThread is the in-memory Store.SaveThread used by unit tests.
 func (m *MemoryStore) SaveThread(_ context.Context, thread Thread) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -36,6 +39,7 @@ func (m *MemoryStore) SaveThread(_ context.Context, thread Thread) error {
 	return nil
 }
 
+// CreateSession is the in-memory Store.CreateSession used by unit tests.
 func (m *MemoryStore) CreateSession(_ context.Context, session Session) (Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -44,6 +48,7 @@ func (m *MemoryStore) CreateSession(_ context.Context, session Session) (Session
 	return session, nil
 }
 
+// GetSession is the in-memory Store.GetSession used by unit tests.
 func (m *MemoryStore) GetSession(_ context.Context, id int64) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -55,6 +60,7 @@ func (m *MemoryStore) GetSession(_ context.Context, id int64) (*Session, error) 
 	return &cp, nil
 }
 
+// UpdateSession is the in-memory Store.UpdateSession used by unit tests.
 func (m *MemoryStore) UpdateSession(_ context.Context, session Session) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -62,6 +68,7 @@ func (m *MemoryStore) UpdateSession(_ context.Context, session Session) error {
 	return nil
 }
 
+// CloseSession is the in-memory Store.CloseSession used by unit tests.
 func (m *MemoryStore) CloseSession(_ context.Context, id int64, closedAtMs int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -75,6 +82,7 @@ func (m *MemoryStore) CloseSession(_ context.Context, id int64, closedAtMs int64
 	return nil
 }
 
+// ClearSessionHistory is the in-memory Store.ClearSessionHistory used by unit tests.
 func (m *MemoryStore) ClearSessionHistory(_ context.Context, userID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

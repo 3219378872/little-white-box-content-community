@@ -1,10 +1,12 @@
 package store
 
+// QuestionOption is one selectable answer of a follow-up question.
 type QuestionOption struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 }
 
+// Question is one follow-up question the agent asks before researching.
 type Question struct {
 	ID        string           `json:"id"`
 	Text      string           `json:"text"`
@@ -12,6 +14,7 @@ type Question struct {
 	Options   []QuestionOption `json:"options"`
 }
 
+// QuestionAnswer is the user's answer to one question.
 type QuestionAnswer struct {
 	QuestionID        string   `json:"questionId"`
 	SelectedOptionIDs []string `json:"selectedOptionIds"`
@@ -19,6 +22,7 @@ type QuestionAnswer struct {
 	Disposition       string   `json:"disposition"`
 }
 
+// QuestionRequest groups the questions of one tool call; the answer request ID and digest make resubmission idempotent.
 type QuestionRequest struct {
 	ID              string           `json:"id"`
 	RunID           int64            `json:"runId"`
@@ -45,11 +49,13 @@ type Evidence struct {
 	RetrievedAtMs int64  `json:"retrievedAtMs"`
 }
 
+// AnswerCitation links an answer block to evidence fragments of one source.
 type AnswerCitation struct {
 	Handle      string   `json:"handle"`
 	EvidenceIDs []string `json:"evidenceIds"`
 }
 
+// AnswerBlock is one paragraph of a structured answer with its citations.
 type AnswerBlock struct {
 	ID        string           `json:"id"`
 	Kind      string           `json:"kind"`
@@ -57,6 +63,7 @@ type AnswerBlock struct {
 	Citations []AnswerCitation `json:"citations"`
 }
 
+// ResearchSource is a source shown under an answer, with the excerpts actually cited.
 type ResearchSource struct {
 	Handle            string     `json:"handle"`
 	Kind              string     `json:"kind"`
@@ -72,6 +79,7 @@ type ResearchSource struct {
 	Excerpts          []Evidence `json:"excerpts"`
 }
 
+// AnswerPresentation is the structured rendering stored alongside an assistant message.
 type AnswerPresentation struct {
 	Version   int              `json:"version"`
 	MessageID int64            `json:"messageId"`

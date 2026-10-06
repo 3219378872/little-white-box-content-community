@@ -8,6 +8,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertToolCall records a tool invocation requested by the model.
 func (s *SQLStore) InsertToolCall(ctx context.Context, call ToolCall) (ToolCall, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_tool_call (run_id, call_id, tool, args_json, canonical_args_digest, status, result_json, created_at_ms)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -20,6 +21,7 @@ func (s *SQLStore) InsertToolCall(ctx context.Context, call ToolCall) (ToolCall,
 	return call, nil
 }
 
+// GetToolCall reads one tool call; nil when it does not exist.
 func (s *SQLStore) GetToolCall(ctx context.Context, runID int64, callID string) (*ToolCall, error) {
 	var row struct {
 		ID                  int64          `db:"id"`
@@ -45,12 +47,14 @@ func (s *SQLStore) GetToolCall(ctx context.Context, runID int64, callID string) 
 	}, nil
 }
 
+// UpdateToolCall stores the call's outcome.
 func (s *SQLStore) UpdateToolCall(ctx context.Context, call ToolCall) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_tool_call SET status=?, result_json=? WHERE run_id=? AND call_id=?`,
 		call.Status, nullString(call.ResultJSON), call.RunID, call.CallID)
 	return err
 }
 
+// ListToolCalls returns a run's tool calls in creation order.
 func (s *SQLStore) ListToolCalls(ctx context.Context, runID int64) ([]ToolCall, error) {
 	var rows []struct {
 		ID                  int64          `db:"id"`
@@ -77,6 +81,7 @@ func (s *SQLStore) ListToolCalls(ctx context.Context, runID int64) ([]ToolCall, 
 	return out, nil
 }
 
+// GetJournal looks up the journal entry for one request, tool and argument digest; nil when absent.
 func (s *SQLStore) GetJournal(ctx context.Context, userID int64, requestID, tool, digest string) (*Journal, error) {
 	var row struct {
 		ID                  int64          `db:"id"`
@@ -107,12 +112,15 @@ func (s *SQLStore) GetJournal(ctx context.Context, userID int64, requestID, tool
 	}, nil
 }
 
+// ReserveJournal claims the right to execute a side-effecting tool call. It returns (entry, true)
+// when the caller should execute, and the existing entry with false when another attempt owns it.
 func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, bool, error) {
 	existing, err := s.GetJournal(ctx, row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest)
 	if err != nil {
 		return nil, false, err
 	}
 	if existing != nil {
+		// An unfinished entry from an older lease is taken over; success is never re-executed.
 		if existing.Status != JournalSuccess && existing.LeaseGeneration < row.LeaseGeneration {
 			res, updateErr := s.exec.ExecCtx(ctx, `UPDATE agent_command_journal
 				SET run_id=?, lease_generation=?, status=?, result_json=NULL, updated_at_ms=?
@@ -142,6 +150,7 @@ func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, b
 		row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest, row.RunID, row.LeaseGeneration,
 		nullString(row.ResultJSON), row.Status, row.CreatedAtMs, row.UpdatedAtMs)
 	if err != nil {
+		// A concurrent insert won the unique key; report its entry instead of executing twice.
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			existing, err = s.GetJournal(ctx, row.UserID, row.RequestID, row.Tool, row.CanonicalArgsDigest)
 			return existing, false, err
@@ -153,12 +162,15 @@ func (s *SQLStore) ReserveJournal(ctx context.Context, row Journal) (*Journal, b
 	return &row, true, nil
 }
 
+// CompleteJournal records the final status and result of a reserved entry.
 func (s *SQLStore) CompleteJournal(ctx context.Context, id int64, status, resultJSON string) error {
 	_, err := s.exec.ExecCtx(ctx, `UPDATE agent_command_journal SET status=?, result_json=?, updated_at_ms=? WHERE id=?`,
 		status, resultJSON, NowMs(), id)
 	return err
 }
 
+// ListSuccessfulJournal returns side effects a request already completed; a run stopped at its
+// resource limit reports them so the user knows what was done.
 func (s *SQLStore) ListSuccessfulJournal(ctx context.Context, userID int64, requestID string) ([]Journal, error) {
 	var rows []struct {
 		ID                  int64          `db:"id"`
@@ -189,6 +201,7 @@ func (s *SQLStore) ListSuccessfulJournal(ctx context.Context, userID int64, requ
 	return out, nil
 }
 
+// InsertConfirmation records a tool call awaiting user approval.
 func (s *SQLStore) InsertConfirmation(ctx context.Context, row Confirmation) (Confirmation, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_confirmation
 		(user_id, session_id, run_id, call_id, tool, canonical_args_digest, target_revision, status, created_at_ms, resolved_at_ms)
@@ -203,6 +216,7 @@ func (s *SQLStore) InsertConfirmation(ctx context.Context, row Confirmation) (Co
 	return row, nil
 }
 
+// GetConfirmation reads the confirmation of one tool call; nil when absent.
 func (s *SQLStore) GetConfirmation(ctx context.Context, runID int64, callID string) (*Confirmation, error) {
 	var row struct {
 		ID                  int64         `db:"id"`
@@ -231,6 +245,7 @@ func (s *SQLStore) GetConfirmation(ctx context.Context, runID int64, callID stri
 	}, nil
 }
 
+// PendingConfirmation returns the oldest unresolved confirmation of a run.
 func (s *SQLStore) PendingConfirmation(ctx context.Context, runID int64) (*Confirmation, error) {
 	var row struct {
 		ID                  int64         `db:"id"`
@@ -260,6 +275,7 @@ func (s *SQLStore) PendingConfirmation(ctx context.Context, runID int64) (*Confi
 	}, nil
 }
 
+// UpdateConfirmation resolves a confirmation only if it is still pending.
 func (s *SQLStore) UpdateConfirmation(ctx context.Context, row Confirmation) error {
 	res, err := s.exec.ExecCtx(ctx, `UPDATE agent_confirmation SET status=?, resolved_at_ms=? WHERE id=? AND status=?`,
 		row.Status, row.ResolvedAtMs, row.ID, ConfirmPending)
@@ -276,6 +292,8 @@ func (s *SQLStore) UpdateConfirmation(ctx context.Context, row Confirmation) err
 	return nil
 }
 
+// ResolveConfirmation applies the user's decision when user, call and argument digest all match
+// a pending row, then returns the current row so repeated or stale answers see the recorded outcome.
 func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error) {
 	status := ConfirmRejected
 	if approved {
@@ -297,6 +315,7 @@ func (s *SQLStore) ResolveConfirmation(ctx context.Context, userID, runID int64,
 	return s.GetConfirmation(ctx, runID, callID)
 }
 
+// GetInputCommand finds the recorded outcome of a posted message; nil when absent.
 func (s *SQLStore) GetInputCommand(ctx context.Context, userID int64, requestID string) (*InputCommand, error) {
 	var row InputCommand
 	if err := s.exec.QueryRowCtx(ctx, &row, `SELECT id, user_id, request_id, session_id, message_id, run_id, disposition, created_at_ms
@@ -309,6 +328,7 @@ func (s *SQLStore) GetInputCommand(ctx context.Context, userID int64, requestID 
 	return &row, nil
 }
 
+// InsertInputCommand records how a posted message was handled; unique per user and request ID.
 func (s *SQLStore) InsertInputCommand(ctx context.Context, command InputCommand) (InputCommand, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_input_command
 		(user_id, request_id, session_id, message_id, run_id, disposition, created_at_ms)
@@ -321,6 +341,7 @@ func (s *SQLStore) InsertInputCommand(ctx context.Context, command InputCommand)
 	return command, nil
 }
 
+// CountQueue counts messages waiting behind a run, checked against MaxInputQueue.
 func (s *SQLStore) CountQueue(ctx context.Context, runID int64) (int, error) {
 	var row struct {
 		N int64 `db:"n"`
@@ -331,6 +352,7 @@ func (s *SQLStore) CountQueue(ctx context.Context, runID int64) (int, error) {
 	return int(row.N), nil
 }
 
+// Enqueue parks a user message until the busy run picks it up.
 func (s *SQLStore) Enqueue(ctx context.Context, item QueueItem) (QueueItem, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_input_queue (user_id, run_id, message_id, created_at_ms) VALUES (?, ?, ?, ?)`,
 		item.UserID, item.RunID, item.MessageID, item.CreatedAtMs)
@@ -342,6 +364,7 @@ func (s *SQLStore) Enqueue(ctx context.Context, item QueueItem) (QueueItem, erro
 	return item, nil
 }
 
+// ListQueue returns queued messages in arrival order.
 func (s *SQLStore) ListQueue(ctx context.Context, runID int64) ([]QueueItem, error) {
 	var rows []struct {
 		ID          int64 `db:"id"`
@@ -360,6 +383,7 @@ func (s *SQLStore) ListQueue(ctx context.Context, runID int64) ([]QueueItem, err
 	return out, nil
 }
 
+// DeleteQueueThrough removes queued items the run has consumed, up to maxID.
 func (s *SQLStore) DeleteQueueThrough(ctx context.Context, runID, maxID int64) error {
 	if maxID <= 0 {
 		return nil
@@ -368,11 +392,13 @@ func (s *SQLStore) DeleteQueueThrough(ctx context.Context, runID, maxID int64) e
 	return err
 }
 
+// DeleteQueue drops every queued item of a run being cancelled.
 func (s *SQLStore) DeleteQueue(ctx context.Context, runID int64) error {
 	_, err := s.exec.ExecCtx(ctx, `DELETE FROM agent_input_queue WHERE run_id=?`, runID)
 	return err
 }
 
+// InsertAlert records a budget alert once per run, level and dimension; false when already raised.
 func (s *SQLStore) InsertAlert(ctx context.Context, alert Alert) (bool, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT IGNORE INTO agent_run_alert (run_id, level, dimension, created_at_ms) VALUES (?, ?, ?, ?)`,
 		alert.RunID, alert.Level, alert.Dimension, alert.CreatedAtMs)

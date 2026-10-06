@@ -34,6 +34,7 @@ func (s *SQLStore) PurgeExpiredMessages(ctx context.Context, cutoffMs int64, bat
 			ids = append(ids, row.ID)
 		}
 		args := intsToAny(ids)
+		// Replace pending index work for these messages with delete operations.
 		if _, err := session.ExecCtx(ctx, `DELETE FROM assistant_index_outbox WHERE message_id IN (`+placeholders(len(ids))+`)`, args...); err != nil {
 			return err
 		}
@@ -45,6 +46,7 @@ func (s *SQLStore) PurgeExpiredMessages(ctx context.Context, cutoffMs int64, bat
 				return err
 			}
 		}
+		// Threads must not keep previewing a purged message.
 		if _, err := session.ExecCtx(ctx, `UPDATE assistant_thread
 			SET unread_count=0, last_message_id=0, last_message_preview='', last_message_at_ms=0
 			WHERE last_message_id IN (`+placeholders(len(ids))+`)`, args...); err != nil {
@@ -64,6 +66,7 @@ func (s *SQLStore) PurgeExpiredMessages(ctx context.Context, cutoffMs int64, bat
 	return deleted, err
 }
 
+// boundedPurgeBatchSize defaults to 500 and caps a purge batch at 1000 rows.
 func boundedPurgeBatchSize(size int) int {
 	if size <= 0 {
 		return 500

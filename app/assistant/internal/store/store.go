@@ -4,9 +4,11 @@ import "context"
 
 // Store is the MySQL authority for Assistant threads, runs, events and side tables.
 type Store interface {
+	// Transactions: RunStep additionally re-checks the worker's lease fence under FOR UPDATE.
 	Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
 	RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error
 
+	// Thread and sessions: one thread row per user; LockThread creates it on first use.
 	LockThread(ctx context.Context, userID int64) (*Thread, error)
 	GetThread(ctx context.Context, userID int64) (*Thread, error)
 	SaveThread(ctx context.Context, thread Thread) error
@@ -17,6 +19,7 @@ type Store interface {
 	ClearSessionHistory(ctx context.Context, userID int64) error
 	CloseSession(ctx context.Context, id int64, closedAtMs int64) error
 
+	// Messages: user-visible transcript plus hidden tool/system rows; deletion is soft.
 	InsertMessage(ctx context.Context, msg Message) (Message, error)
 	GetMessage(ctx context.Context, userID, id int64) (*Message, error)
 	ListMessages(ctx context.Context, userID, sessionID, beforeID, afterID int64, limit int) ([]Message, error)
@@ -28,6 +31,7 @@ type Store interface {
 	ListHistoryAround(ctx context.Context, userID, messageID int64, before, after int, cutoffMs int64, excludeIDs []int64) ([]Message, error)
 	ListHistorySessionSummaries(ctx context.Context, userID, sessionID int64, limit int, cutoffMs int64, excludeIDs []int64) ([]HistorySessionSummary, error)
 
+	// Runs: the queue, lease and usage ledger for one assistant turn.
 	InsertRun(ctx context.Context, run Run) (Run, error)
 	GetRun(ctx context.Context, id int64) (*Run, error)
 	LockRun(ctx context.Context, id int64) (*Run, error)
@@ -45,11 +49,13 @@ type Store interface {
 	OldestQueuedAgeMs(ctx context.Context, nowMs int64) (int64, error)
 	AgentConsent(ctx context.Context, userID int64) (version int32, granted bool, err error)
 
+	// Events: per-run ordered stream replayed to SSE clients by seq.
 	InsertEvent(ctx context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error)
 	ListEventsAfter(ctx context.Context, runID, afterSeq int64) ([]Event, error)
 	ListSourceEvents(ctx context.Context, runID int64) ([]Event, error)
 	MaxEventSeq(ctx context.Context, runID int64) (int64, error)
 
+	// Tool calls and the command journal that makes side-effecting tools idempotent per request.
 	InsertToolCall(ctx context.Context, call ToolCall) (ToolCall, error)
 	GetToolCall(ctx context.Context, runID int64, callID string) (*ToolCall, error)
 	UpdateToolCall(ctx context.Context, call ToolCall) error
@@ -60,6 +66,7 @@ type Store interface {
 	CompleteJournal(ctx context.Context, id int64, status, resultJSON string) error
 	ListSuccessfulJournal(ctx context.Context, userID int64, requestID string) ([]Journal, error)
 
+	// Research artifacts: cited sources, evidence fragments, follow-up questions and answer layouts.
 	InsertSource(ctx context.Context, src Source) (Source, error)
 	GetSources(ctx context.Context, runID int64, handles []string) ([]Source, error)
 	ListSources(ctx context.Context, runID int64) ([]Source, error)
@@ -71,6 +78,7 @@ type Store interface {
 	GetPresentation(ctx context.Context, messageID int64) (*AnswerPresentation, error)
 	ClearResearchHistory(ctx context.Context, userID int64) error
 
+	// Confirmations and input commands: user decisions that unblock or steer a run.
 	InsertConfirmation(ctx context.Context, row Confirmation) (Confirmation, error)
 	GetConfirmation(ctx context.Context, runID int64, callID string) (*Confirmation, error)
 	PendingConfirmation(ctx context.Context, runID int64) (*Confirmation, error)
@@ -80,6 +88,7 @@ type Store interface {
 	GetInputCommand(ctx context.Context, userID int64, requestID string) (*InputCommand, error)
 	InsertInputCommand(ctx context.Context, command InputCommand) (InputCommand, error)
 
+	// Input queue: user messages sent while a run is busy, consumed in id order.
 	CountQueue(ctx context.Context, runID int64) (int, error)
 	Enqueue(ctx context.Context, item QueueItem) (QueueItem, error)
 	ListQueue(ctx context.Context, runID int64) ([]QueueItem, error)
@@ -88,11 +97,14 @@ type Store interface {
 
 	InsertAlert(ctx context.Context, alert Alert) (bool, error)
 
+	// Outbox: message index updates published to search after commit.
 	InsertOutbox(ctx context.Context, row Outbox) error
 	ListUnpublishedOutbox(ctx context.Context, limit int) ([]Outbox, error)
 	MarkOutboxPublished(ctx context.Context, ids []int64) error
 }
 
+// Notifier publishes per-run wake signals. Subscribe currently polls the event table
+// and ignores them, so WakeToken has no production reader yet.
 type Notifier interface {
 	Wake(ctx context.Context, runID int64) error
 	WakeToken(ctx context.Context, runID int64) (string, error)

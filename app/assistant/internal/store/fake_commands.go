@@ -7,6 +7,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertToolCall is the in-memory Store.InsertToolCall used by unit tests.
 func (m *MemoryStore) InsertToolCall(_ context.Context, call ToolCall) (ToolCall, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -15,6 +16,7 @@ func (m *MemoryStore) InsertToolCall(_ context.Context, call ToolCall) (ToolCall
 	return call, nil
 }
 
+// GetToolCall is the in-memory Store.GetToolCall used by unit tests.
 func (m *MemoryStore) GetToolCall(_ context.Context, runID int64, callID string) (*ToolCall, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -26,6 +28,7 @@ func (m *MemoryStore) GetToolCall(_ context.Context, runID int64, callID string)
 	return &cp, nil
 }
 
+// UpdateToolCall is the in-memory Store.UpdateToolCall used by unit tests.
 func (m *MemoryStore) UpdateToolCall(_ context.Context, call ToolCall) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -40,6 +43,7 @@ func (m *MemoryStore) UpdateToolCall(_ context.Context, call ToolCall) error {
 	return nil
 }
 
+// ListToolCalls is the in-memory Store.ListToolCalls used by unit tests.
 func (m *MemoryStore) ListToolCalls(_ context.Context, runID int64) ([]ToolCall, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -52,6 +56,7 @@ func (m *MemoryStore) ListToolCalls(_ context.Context, runID int64) ([]ToolCall,
 	return out, nil
 }
 
+// GetJournal is the in-memory Store.GetJournal used by unit tests.
 func (m *MemoryStore) GetJournal(_ context.Context, userID int64, requestID, tool, digest string) (*Journal, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -63,6 +68,7 @@ func (m *MemoryStore) GetJournal(_ context.Context, userID int64, requestID, too
 	return &cp, nil
 }
 
+// ReserveJournal is the in-memory Store.ReserveJournal used by unit tests.
 func (m *MemoryStore) ReserveJournal(_ context.Context, row Journal) (*Journal, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -85,6 +91,7 @@ func (m *MemoryStore) ReserveJournal(_ context.Context, row Journal) (*Journal, 
 	return &row, true, nil
 }
 
+// CompleteJournal is the in-memory Store.CompleteJournal used by unit tests.
 func (m *MemoryStore) CompleteJournal(_ context.Context, id int64, status, resultJSON string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -100,6 +107,7 @@ func (m *MemoryStore) CompleteJournal(_ context.Context, id int64, status, resul
 	return sqlx.ErrNotFound
 }
 
+// ListSuccessfulJournal is the in-memory Store.ListSuccessfulJournal used by unit tests.
 func (m *MemoryStore) ListSuccessfulJournal(_ context.Context, userID int64, requestID string) ([]Journal, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -112,6 +120,7 @@ func (m *MemoryStore) ListSuccessfulJournal(_ context.Context, userID int64, req
 	return out, nil
 }
 
+// InsertConfirmation is the in-memory Store.InsertConfirmation used by unit tests.
 func (m *MemoryStore) InsertConfirmation(_ context.Context, row Confirmation) (Confirmation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -120,6 +129,7 @@ func (m *MemoryStore) InsertConfirmation(_ context.Context, row Confirmation) (C
 	return row, nil
 }
 
+// GetConfirmation is the in-memory Store.GetConfirmation used by unit tests.
 func (m *MemoryStore) GetConfirmation(_ context.Context, runID int64, callID string) (*Confirmation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -131,6 +141,7 @@ func (m *MemoryStore) GetConfirmation(_ context.Context, runID int64, callID str
 	return &cp, nil
 }
 
+// PendingConfirmation is the in-memory Store.PendingConfirmation used by unit tests.
 func (m *MemoryStore) PendingConfirmation(_ context.Context, runID int64) (*Confirmation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -146,6 +157,7 @@ func (m *MemoryStore) PendingConfirmation(_ context.Context, runID int64) (*Conf
 	return found, nil
 }
 
+// UpdateConfirmation is the in-memory Store.UpdateConfirmation used by unit tests.
 func (m *MemoryStore) UpdateConfirmation(_ context.Context, row Confirmation) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -160,6 +172,7 @@ func (m *MemoryStore) UpdateConfirmation(_ context.Context, row Confirmation) er
 	return nil
 }
 
+// ResolveConfirmation is the in-memory Store.ResolveConfirmation used by unit tests.
 func (m *MemoryStore) ResolveConfirmation(_ context.Context, userID, runID int64, callID, digest string, approved bool, nowMs int64) (*Confirmation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -183,6 +196,7 @@ func (m *MemoryStore) ResolveConfirmation(_ context.Context, userID, runID int64
 	return &cp, nil
 }
 
+// GetInputCommand is the in-memory Store.GetInputCommand used by unit tests.
 func (m *MemoryStore) GetInputCommand(_ context.Context, userID int64, requestID string) (*InputCommand, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -194,6 +208,7 @@ func (m *MemoryStore) GetInputCommand(_ context.Context, userID int64, requestID
 	return &cp, nil
 }
 
+// InsertInputCommand is the in-memory Store.InsertInputCommand used by unit tests.
 func (m *MemoryStore) InsertInputCommand(_ context.Context, command InputCommand) (InputCommand, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -206,12 +221,14 @@ func (m *MemoryStore) InsertInputCommand(_ context.Context, command InputCommand
 	return command, nil
 }
 
+// CountQueue is the in-memory Store.CountQueue used by unit tests.
 func (m *MemoryStore) CountQueue(_ context.Context, runID int64) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.queue[runID]), nil
 }
 
+// Enqueue is the in-memory Store.Enqueue used by unit tests.
 func (m *MemoryStore) Enqueue(_ context.Context, item QueueItem) (QueueItem, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -220,6 +237,7 @@ func (m *MemoryStore) Enqueue(_ context.Context, item QueueItem) (QueueItem, err
 	return item, nil
 }
 
+// ListQueue is the in-memory Store.ListQueue used by unit tests.
 func (m *MemoryStore) ListQueue(_ context.Context, runID int64) ([]QueueItem, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -227,6 +245,7 @@ func (m *MemoryStore) ListQueue(_ context.Context, runID int64) ([]QueueItem, er
 	return out, nil
 }
 
+// DeleteQueueThrough is the in-memory Store.DeleteQueueThrough used by unit tests.
 func (m *MemoryStore) DeleteQueueThrough(_ context.Context, runID, maxID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -240,6 +259,7 @@ func (m *MemoryStore) DeleteQueueThrough(_ context.Context, runID, maxID int64) 
 	return nil
 }
 
+// DeleteQueue is the in-memory Store.DeleteQueue used by unit tests.
 func (m *MemoryStore) DeleteQueue(_ context.Context, runID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

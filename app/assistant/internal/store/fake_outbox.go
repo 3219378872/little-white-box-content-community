@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// InsertAlert is the in-memory Store.InsertAlert used by unit tests.
 func (m *MemoryStore) InsertAlert(_ context.Context, alert Alert) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -15,6 +16,7 @@ func (m *MemoryStore) InsertAlert(_ context.Context, alert Alert) (bool, error) 
 	return true, nil
 }
 
+// InsertOutbox is the in-memory Store.InsertOutbox used by unit tests.
 func (m *MemoryStore) InsertOutbox(_ context.Context, row Outbox) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -23,6 +25,7 @@ func (m *MemoryStore) InsertOutbox(_ context.Context, row Outbox) error {
 	return nil
 }
 
+// ListUnpublishedOutbox is the in-memory Store.ListUnpublishedOutbox used by unit tests.
 func (m *MemoryStore) ListUnpublishedOutbox(_ context.Context, limit int) ([]Outbox, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -38,6 +41,7 @@ func (m *MemoryStore) ListUnpublishedOutbox(_ context.Context, limit int) ([]Out
 	return out, nil
 }
 
+// MarkOutboxPublished is the in-memory Store.MarkOutboxPublished used by unit tests.
 func (m *MemoryStore) MarkOutboxPublished(_ context.Context, ids []int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

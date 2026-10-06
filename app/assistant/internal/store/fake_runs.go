@@ -7,6 +7,7 @@ import (
 	sqlx "esx/pkg/sqlstore"
 )
 
+// InsertRun is the in-memory Store.InsertRun used by unit tests.
 func (m *MemoryStore) InsertRun(_ context.Context, run Run) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -15,6 +16,7 @@ func (m *MemoryStore) InsertRun(_ context.Context, run Run) (Run, error) {
 	return run, nil
 }
 
+// GetRun is the in-memory Store.GetRun used by unit tests.
 func (m *MemoryStore) GetRun(_ context.Context, id int64) (*Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -26,6 +28,7 @@ func (m *MemoryStore) GetRun(_ context.Context, id int64) (*Run, error) {
 	return &cp, nil
 }
 
+// GetRunByRequestID is the in-memory Store.GetRunByRequestID used by unit tests.
 func (m *MemoryStore) GetRunByRequestID(_ context.Context, userID int64, requestID string) (*Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -38,6 +41,7 @@ func (m *MemoryStore) GetRunByRequestID(_ context.Context, userID int64, request
 	return nil, nil
 }
 
+// UpdateRun is the in-memory Store.UpdateRun used by unit tests.
 func (m *MemoryStore) UpdateRun(_ context.Context, run Run) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -55,6 +59,7 @@ func (m *MemoryStore) UpdateRun(_ context.Context, run Run) error {
 	return nil
 }
 
+// ExpireLease is the in-memory Store.ExpireLease used by unit tests.
 func (m *MemoryStore) ExpireLease(runID, leaseUntilMs int64) {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -65,6 +70,7 @@ func (m *MemoryStore) ExpireLease(runID, leaseUntilMs int64) {
 	m.runs[runID] = run
 }
 
+// SetRunInput is the in-memory Store.SetRunInput used by unit tests.
 func (m *MemoryStore) SetRunInput(_ context.Context, runID int64, payload []byte, lastActivityMs int64) error {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -81,6 +87,7 @@ func (m *MemoryStore) SetRunInput(_ context.Context, runID int64, payload []byte
 	return nil
 }
 
+// RequestCancel is the in-memory Store.RequestCancel used by unit tests.
 func (m *MemoryStore) RequestCancel(_ context.Context, userID, runID int64) error {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -95,6 +102,7 @@ func (m *MemoryStore) RequestCancel(_ context.Context, userID, runID int64) erro
 	return nil
 }
 
+// RequestCancelAll is the in-memory Store.RequestCancelAll used by unit tests.
 func (m *MemoryStore) RequestCancelAll(_ context.Context, userID int64) error {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -109,6 +117,7 @@ func (m *MemoryStore) RequestCancelAll(_ context.Context, userID int64) error {
 	return nil
 }
 
+// LockOpenRuns is the in-memory Store.LockOpenRuns used by unit tests.
 func (m *MemoryStore) LockOpenRuns(_ context.Context, userID int64) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -121,6 +130,7 @@ func (m *MemoryStore) LockOpenRuns(_ context.Context, userID int64) ([]Run, erro
 	return runs, nil
 }
 
+// CancelOpenBackground is the in-memory Store.CancelOpenBackground used by unit tests.
 func (m *MemoryStore) CancelOpenBackground(_ context.Context, userID int64, sources []string) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -143,6 +153,7 @@ func (m *MemoryStore) CancelOpenBackground(_ context.Context, userID int64, sour
 	return out, nil
 }
 
+// Claim mirrors the SQL claim order: priority first, then age.
 func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int64) (*Run, error) {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -179,6 +190,7 @@ func (m *MemoryStore) Claim(_ context.Context, owner string, nowMs, leaseMs int6
 	return best, nil
 }
 
+// RenewLease is the in-memory Store.RenewLease used by unit tests.
 func (m *MemoryStore) RenewLease(_ context.Context, runID int64, owner string, generation, leaseUntilMs, heartbeatMs int64) (bool, error) {
 	m.stepMu.Lock()
 	defer m.stepMu.Unlock()
@@ -194,6 +206,7 @@ func (m *MemoryStore) RenewLease(_ context.Context, runID int64, owner string, g
 	return true, nil
 }
 
+// AgentConsent is the in-memory Store.AgentConsent used by unit tests.
 func (m *MemoryStore) AgentConsent(_ context.Context, userID int64) (int32, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -204,12 +217,14 @@ func (m *MemoryStore) AgentConsent(_ context.Context, userID int64) (int32, bool
 	return version, version > 0, nil
 }
 
+// SetAgentConsent is the in-memory Store.SetAgentConsent used by unit tests.
 func (m *MemoryStore) SetAgentConsent(userID int64, version int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.consents[userID] = version
 }
 
+// OldestQueuedAgeMs is the in-memory Store.OldestQueuedAgeMs used by unit tests.
 func (m *MemoryStore) OldestQueuedAgeMs(_ context.Context, nowMs int64) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

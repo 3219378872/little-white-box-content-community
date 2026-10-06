@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// InsertEvent is the in-memory Store.InsertEvent used by unit tests.
 func (m *MemoryStore) InsertEvent(_ context.Context, runID int64, eventType string, payload []byte, createdAtMs int64) (Event, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -21,6 +22,7 @@ func (m *MemoryStore) InsertEvent(_ context.Context, runID int64, eventType stri
 	return ev, nil
 }
 
+// ListEventsAfter is the in-memory Store.ListEventsAfter used by unit tests.
 func (m *MemoryStore) ListEventsAfter(_ context.Context, runID, afterSeq int64) ([]Event, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -33,6 +35,7 @@ func (m *MemoryStore) ListEventsAfter(_ context.Context, runID, afterSeq int64) 
 	return out, nil
 }
 
+// MaxEventSeq is the in-memory Store.MaxEventSeq used by unit tests.
 func (m *MemoryStore) MaxEventSeq(_ context.Context, runID int64) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

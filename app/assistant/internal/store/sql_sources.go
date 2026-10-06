@@ -5,6 +5,7 @@ import (
 	"database/sql"
 )
 
+// InsertSource registers a source handle in the run's ledger; handles are unique per run.
 func (s *SQLStore) InsertSource(ctx context.Context, src Source) (Source, error) {
 	res, err := s.exec.ExecCtx(ctx, `INSERT INTO agent_source_ledger (run_id, handle, kind, authority_id, revision, payload_json, created_at_ms)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -17,6 +18,7 @@ func (s *SQLStore) InsertSource(ctx context.Context, src Source) (Source, error)
 	return src, nil
 }
 
+// GetSources resolves the given handles of a run; unknown handles are omitted.
 func (s *SQLStore) GetSources(ctx context.Context, runID int64, handles []string) ([]Source, error) {
 	if len(handles) == 0 {
 		return nil, nil
@@ -26,11 +28,13 @@ func (s *SQLStore) GetSources(ctx context.Context, runID int64, handles []string
 		FROM agent_source_ledger WHERE run_id=? AND handle IN (`+placeholders(len(handles))+`)`, args...)
 }
 
+// ListSources returns a run's sources in registration order.
 func (s *SQLStore) ListSources(ctx context.Context, runID int64) ([]Source, error) {
 	return s.scanSources(ctx, `SELECT id, run_id, handle, kind, authority_id, revision, payload_json, created_at_ms
 		FROM agent_source_ledger WHERE run_id=? ORDER BY id ASC`, runID)
 }
 
+// scanSources runs a source ledger query and converts nullable columns.
 func (s *SQLStore) scanSources(ctx context.Context, query string, args ...any) ([]Source, error) {
 	var rows []struct {
 		ID          int64          `db:"id"`

@@ -31,6 +31,7 @@ type MemoryStore struct {
 	presentations map[int64]AnswerPresentation
 }
 
+// NewMemoryStore returns an empty store whose IDs start at 1.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		next:          1,
@@ -53,18 +54,21 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
+// nextID allocates IDs from one counter shared by all tables.
 func (m *MemoryStore) nextID() int64 {
 	id := m.next
 	m.next++
 	return id
 }
 
+// Transact only serializes callers; it does not roll back writes when fn fails.
 func (m *MemoryStore) Transact(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	m.txMu.Lock()
 	defer m.txMu.Unlock()
 	return fn(ctx, m)
 }
 
+// RunStep checks the lease fence like the SQL store, then runs fn under the same locks.
 func (m *MemoryStore) RunStep(ctx context.Context, fence LeaseFence, fn func(ctx context.Context, tx Store) error) error {
 	// Match SQL's serialization of input acceptance with worker commits.
 	m.txMu.Lock()

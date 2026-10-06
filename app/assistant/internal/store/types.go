@@ -6,12 +6,14 @@ import (
 )
 
 const (
+	// Run sources; lower priority values are claimed first.
 	SourceUser         = "user"
 	SourceMemoryReview = "memory-review"
 
 	PriorityUser         = 0
 	PriorityMemoryReview = 20
 
+	// Run phases describe what a running worker is doing; statuses describe the run lifecycle.
 	PhaseQueued        = "queued"
 	PhaseModelRequest  = "model_request"
 	PhaseToolExecuting = "tool_executing"
@@ -28,11 +30,13 @@ const (
 	StatusWaitingInput   = "waiting_input"
 	StatusWaitingConfirm = "waiting_confirm"
 
+	// Dispositions tell the client how a posted message was absorbed.
 	DispositionStarted    = "started"
 	DispositionRedirected = "redirected"
 	DispositionSteered    = "steered"
 	DispositionQueued     = "queued"
 
+	// Event types emitted to the run event stream.
 	EventRunStarted        = "run_started"
 	EventToken             = "token"
 	EventResponseReset     = "response_reset"
@@ -70,20 +74,25 @@ const (
 	JournalSuccess = "success"
 	JournalError   = "error"
 
+	// MaxInputQueue caps messages waiting behind a busy run.
 	MaxInputQueue = 32
 
+	// Outbox operations for the message search index.
 	IndexOpUpsert = "upsert"
 	IndexOpDelete = "delete"
 )
 
+// ErrLeaseLost means another worker took over the run; the caller must stop writing.
 var ErrLeaseLost = errors.New("assistant run lease lost")
 
+// LeaseFence identifies the worker lease a write is valid under.
 type LeaseFence struct {
 	RunID      int64
 	Owner      string
 	Generation int64
 }
 
+// Thread is the per-user conversation summary shown in the inbox.
 type Thread struct {
 	UserID             int64
 	SessionID          int64
@@ -95,6 +104,7 @@ type Thread struct {
 	UpdatedAtMs        int64
 }
 
+// Session holds the prompt and tool snapshots a run is built from; PromptEpoch bumps invalidate them.
 type Session struct {
 	ID                  int64
 	UserID              int64
@@ -108,6 +118,7 @@ type Session struct {
 	ClosedAtMs          int64
 }
 
+// Message is one transcript row; APIContent keeps the provider-format payload for replay.
 type Message struct {
 	ID          int64
 	UserID      int64
@@ -125,6 +136,7 @@ type Message struct {
 	ChangeID    int64
 }
 
+// Run is one assistant turn with its lease, cancellation flag and token/cost accounting.
 type Run struct {
 	ClientProtocolVersion int
 	ID                    int64
@@ -162,6 +174,7 @@ type Run struct {
 	CreatedAtMs           int64
 }
 
+// Event is one item of a run's ordered event stream.
 type Event struct {
 	ID          int64
 	RunID       int64
@@ -171,6 +184,7 @@ type Event struct {
 	CreatedAtMs int64
 }
 
+// EventPayload is the JSON body of an Event; fields are set per event type.
 type EventPayload struct {
 	Question   *QuestionRequest    `json:"questionRequest,omitempty"`
 	Answer     *AnswerPresentation `json:"answerPresentation,omitempty"`
@@ -191,6 +205,7 @@ type EventPayload struct {
 	Retryable  bool                `json:"retryable,omitempty"`
 }
 
+// ToolInfo describes a tool call in tool_call and confirm_required events.
 type ToolInfo struct {
 	CallID      string `json:"call_id,omitempty"`
 	Tool        string `json:"tool,omitempty"`
@@ -198,6 +213,7 @@ type ToolInfo struct {
 	PayloadJSON string `json:"payload_json,omitempty"`
 }
 
+// SourceRef is a citable source card carried by source_card events.
 type SourceRef struct {
 	Evidence    []Evidence `json:"evidence,omitempty"`
 	Handle      string     `json:"handle"`
@@ -209,6 +225,7 @@ type SourceRef struct {
 	Available   bool       `json:"available,omitempty"`
 }
 
+// ToolCall records a model-requested tool invocation and its result.
 type ToolCall struct {
 	ID                  int64
 	RunID               int64
@@ -221,6 +238,8 @@ type ToolCall struct {
 	CreatedAtMs         int64
 }
 
+// Journal deduplicates side-effecting tool calls by (user, request, tool, args digest).
+// Takeover is set when a newer lease generation reclaimed an unfinished entry.
 type Journal struct {
 	ID                  int64
 	UserID              int64
@@ -236,10 +255,12 @@ type Journal struct {
 	Takeover            bool
 }
 
+// Fence returns the lease fence of the run as claimed.
 func (r Run) Fence() LeaseFence {
 	return LeaseFence{RunID: r.ID, Owner: r.LeaseOwner, Generation: r.LeaseGeneration}
 }
 
+// Source is a source handle registered in a run's ledger.
 type Source struct {
 	ID          int64
 	RunID       int64
@@ -251,6 +272,7 @@ type Source struct {
 	CreatedAtMs int64
 }
 
+// Confirmation is a pending or resolved user approval for a tool call.
 type Confirmation struct {
 	ID                  int64
 	UserID              int64
@@ -265,6 +287,7 @@ type Confirmation struct {
 	ResolvedAtMs        int64
 }
 
+// QueueItem is a user message waiting for the busy run to pick it up.
 type QueueItem struct {
 	ID          int64
 	UserID      int64
@@ -273,6 +296,7 @@ type QueueItem struct {
 	CreatedAtMs int64
 }
 
+// InputCommand records how a posted message was handled, so retries with the same request ID return the same outcome.
 type InputCommand struct {
 	ID          int64  `db:"id"`
 	UserID      int64  `db:"user_id"`
@@ -284,6 +308,7 @@ type InputCommand struct {
 	CreatedAtMs int64  `db:"created_at_ms"`
 }
 
+// Alert is a deduplicated budget alert for a run dimension.
 type Alert struct {
 	RunID       int64
 	Level       string
@@ -291,6 +316,7 @@ type Alert struct {
 	CreatedAtMs int64
 }
 
+// Outbox is a pending search index change for one message.
 type Outbox struct {
 	ID          int64
 	UserID      int64
@@ -301,6 +327,7 @@ type Outbox struct {
 	CreatedAtMs int64
 }
 
+// HistorySessionSummary is the first and last message of a past session, used by history search.
 type HistorySessionSummary struct {
 	SessionID int64
 	First     Message
@@ -308,8 +335,10 @@ type HistorySessionSummary struct {
 	LastAtMs  int64
 }
 
+// NowMs is the store's clock in Unix milliseconds.
 func NowMs() int64 { return time.Now().UnixMilli() }
 
+// Preview truncates text by runes for thread previews; maxRunes <= 0 means 80.
 func Preview(text string, maxRunes int) string {
 	runes := []rune(text)
 	if maxRunes <= 0 {
@@ -321,10 +350,12 @@ func Preview(text string, maxRunes int) string {
 	return string(runes[:maxRunes])
 }
 
+// IsTerminalStatus reports whether a run can no longer change.
 func IsTerminalStatus(status string) bool {
 	return status == StatusDone || status == StatusError || status == StatusCancelled
 }
 
+// PriorityForSource maps a run source to its claim priority; unknown sources go last.
 func PriorityForSource(source string) int {
 	switch source {
 	case SourceUser:

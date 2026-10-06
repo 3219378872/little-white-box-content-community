@@ -7,6 +7,7 @@ import (
 	"sort"
 )
 
+// cloneResearch deep-copies research values through JSON so callers cannot mutate stored state.
 func cloneResearch[T any](value T) T {
 	raw, _ := json.Marshal(value)
 	var copy T
@@ -14,8 +15,10 @@ func cloneResearch[T any](value T) T {
 	return copy
 }
 
+// LockRun is the in-memory Store.LockRun used by unit tests.
 func (m *MemoryStore) LockRun(ctx context.Context, id int64) (*Run, error) { return m.GetRun(ctx, id) }
 
+// ListSourceEvents is the in-memory Store.ListSourceEvents used by unit tests.
 func (m *MemoryStore) ListSourceEvents(ctx context.Context, runID int64) ([]Event, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -31,6 +34,7 @@ func (m *MemoryStore) ListSourceEvents(ctx context.Context, runID int64) ([]Even
 	return out, nil
 }
 
+// HasDeletedRunHistory is the in-memory Store.HasDeletedRunHistory used by unit tests.
 func (m *MemoryStore) HasDeletedRunHistory(_ context.Context, run Run) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -49,6 +53,7 @@ func (m *MemoryStore) HasDeletedRunHistory(_ context.Context, run Run) (bool, er
 	return false, nil
 }
 
+// ListWaitingConfirmRuns is the in-memory Store.ListWaitingConfirmRuns used by unit tests.
 func (m *MemoryStore) ListWaitingConfirmRuns(context.Context) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -65,6 +70,7 @@ func (m *MemoryStore) ListWaitingConfirmRuns(context.Context) ([]Run, error) {
 	return out, nil
 }
 
+// ListWaitingRuns is the in-memory Store.ListWaitingRuns used by unit tests.
 func (m *MemoryStore) ListWaitingRuns(context.Context) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -81,6 +87,7 @@ func (m *MemoryStore) ListWaitingRuns(context.Context) ([]Run, error) {
 	return out, nil
 }
 
+// PutEvidence is the in-memory Store.PutEvidence used by unit tests.
 func (m *MemoryStore) PutEvidence(_ context.Context, item Evidence) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -91,6 +98,7 @@ func (m *MemoryStore) PutEvidence(_ context.Context, item Evidence) error {
 	return nil
 }
 
+// ListEvidence is the in-memory Store.ListEvidence used by unit tests.
 func (m *MemoryStore) ListEvidence(_ context.Context, runID int64, handle string) ([]Evidence, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -104,6 +112,7 @@ func (m *MemoryStore) ListEvidence(_ context.Context, runID int64, handle string
 	return out, nil
 }
 
+// SaveQuestion is the in-memory Store.SaveQuestion used by unit tests.
 func (m *MemoryStore) SaveQuestion(_ context.Context, item QuestionRequest) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -113,6 +122,7 @@ func (m *MemoryStore) SaveQuestion(_ context.Context, item QuestionRequest) erro
 	return nil
 }
 
+// ListQuestions is the in-memory Store.ListQuestions used by unit tests.
 func (m *MemoryStore) ListQuestions(_ context.Context, runID int64) ([]QuestionRequest, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -128,6 +138,7 @@ func (m *MemoryStore) ListQuestions(_ context.Context, runID int64) ([]QuestionR
 	return out, nil
 }
 
+// SavePresentation is the in-memory Store.SavePresentation used by unit tests.
 func (m *MemoryStore) SavePresentation(_ context.Context, item AnswerPresentation) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -135,6 +146,7 @@ func (m *MemoryStore) SavePresentation(_ context.Context, item AnswerPresentatio
 	return nil
 }
 
+// GetPresentation is the in-memory Store.GetPresentation used by unit tests.
 func (m *MemoryStore) GetPresentation(_ context.Context, id int64) (*AnswerPresentation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -146,6 +158,7 @@ func (m *MemoryStore) GetPresentation(_ context.Context, id int64) (*AnswerPrese
 	return &copy, nil
 }
 
+// ClearResearchHistory is the in-memory Store.ClearResearchHistory used by unit tests.
 func (m *MemoryStore) ClearResearchHistory(_ context.Context, userID int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

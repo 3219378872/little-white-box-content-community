@@ -6,12 +6,14 @@ import (
 	"strconv"
 )
 
+// InsertOutbox queues a search index change in the caller's transaction.
 func (s *SQLStore) InsertOutbox(ctx context.Context, row Outbox) error {
 	_, err := s.exec.ExecCtx(ctx, `INSERT INTO assistant_index_outbox (user_id, message_id, op, payload_json, published, created_at_ms)
 		VALUES (?, ?, ?, ?, 0, ?)`, row.UserID, row.MessageID, row.Op, nullString(row.PayloadJSON), row.CreatedAtMs)
 	return err
 }
 
+// ListUnpublishedOutbox returns the oldest pending index changes.
 func (s *SQLStore) ListUnpublishedOutbox(ctx context.Context, limit int) ([]Outbox, error) {
 	if limit <= 0 {
 		limit = 50
@@ -39,6 +41,7 @@ func (s *SQLStore) ListUnpublishedOutbox(ctx context.Context, limit int) ([]Outb
 	return out, nil
 }
 
+// MarkOutboxPublished marks rows delivered to the index.
 func (s *SQLStore) MarkOutboxPublished(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
