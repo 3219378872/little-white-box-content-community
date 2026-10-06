@@ -10,6 +10,7 @@ const (
 	InteractionMaxPageSize int32 = 100
 )
 
+// ClampPage treats non-positive page numbers as the first page.
 func ClampPage(page int32) int32 {
 	if page <= 0 {
 		return 1
@@ -22,6 +23,7 @@ func ClampPageSize(pageSize int32) int32 {
 	return ClampPageSizeTo(pageSize, DefaultPageSize, ContentMaxPageSize)
 }
 
+// ClampPageSizeTo applies def for non-positive sizes and caps the size at max.
 func ClampPageSizeTo(pageSize, def, max int32) int32 {
 	if pageSize <= 0 {
 		return def

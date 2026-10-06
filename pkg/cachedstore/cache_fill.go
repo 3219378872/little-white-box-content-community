@@ -32,6 +32,8 @@ func newFillMarker() string {
 	return fmt.Sprintf("fill:%x", token)
 }
 
+// reserveFill claims the right to populate an empty key; "" means another reader owns the fill
+// or Redis is unavailable, and the caller just reads SQL without caching.
 func (c CachedConn) reserveFill(ctx context.Context, key string) string {
 	marker := newFillMarker()
 	if marker == "" {

@@ -26,14 +26,17 @@ type Post interface {
 // fetch error, or a nil batch is a fail-closed visibility failure.
 type Fetcher[T Post] func(ctx context.Context, ids []int64) ([]T, error)
 
+// IsDraft reports the draft status.
 func IsDraft(status int32) bool {
 	return status == DraftStatus
 }
 
+// IsPublished reports the published status.
 func IsPublished(status int32) bool {
 	return status == PublishedStatus
 }
 
+// IsDeleted reports the soft-deleted status.
 func IsDeleted(status int32) bool {
 	return status == DeletedStatus
 }
@@ -90,6 +93,7 @@ func AdjustPageTotal(total int64, fetched, visible int) int64 {
 	return total - removed
 }
 
+// uniquePositiveIDs drops invalid and duplicate IDs while keeping order.
 func uniquePositiveIDs(ids []int64) []int64 {
 	unique := make([]int64, 0, len(ids))
 	seen := make(map[int64]struct{}, len(ids))

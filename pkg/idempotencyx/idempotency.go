@@ -98,15 +98,19 @@ func ResolveIdempotencySession(
 	return existing.ResourceID, false, nil
 }
 
+// storedIdempotency 是已登记命令的资源 ID 与命令摘要。
 type storedIdempotency struct {
 	ResourceID  int64  `db:"resource_id"`
 	CommandHash string `db:"command_hash"`
 }
 
+// rowQuerier 同时被连接与事务满足，查询可在事务内外复用。
 type rowQuerier interface {
 	QueryRowCtx(ctx context.Context, v any, query string, args ...any) error
 }
 
+// findIdempotencySession 查找 (scope, user, key) 已登记的命令；currentRead 时加锁读当前版本，
+// 用于事务内判断是否已有并发请求先行登记。
 func findIdempotencySession(
 	ctx context.Context,
 	querier rowQuerier,

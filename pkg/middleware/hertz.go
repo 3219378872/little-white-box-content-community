@@ -14,6 +14,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
+// Hertz 是必需登录的 Hertz 版本：缺少或无效的 Bearer 令牌直接返回未登录，并在响应头标明原因。
 func (m *RequiredAuthMiddleware) Hertz(ctx context.Context, c *app.RequestContext) {
 	parts := strings.Fields(strings.TrimSpace(string(c.GetHeader("Authorization"))))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
@@ -32,11 +33,15 @@ func (m *RequiredAuthMiddleware) Hertz(ctx context.Context, c *app.RequestContex
 	c.Header(AuthStateHeader, AuthStateAuthenticated)
 	c.Next(jwtx.WithClaimsContext(ctx, claims))
 }
+
+// rejectAuth 写入认证状态头并以 LoginRequired 结束请求。
 func rejectAuth(ctx context.Context, c *app.RequestContext, state string) {
 	c.Header(AuthStateHeader, state)
 	httpx.ErrorCtx(ctx, c, errx.NewWithCode(errx.LoginRequired))
 	c.Abort()
 }
+
+// Hertz 是可选登录的 Hertz 版本：令牌缺失或无效时按匿名继续，只通过响应头告知认证状态。
 func (m *OptionalAuthMiddleware) Hertz(ctx context.Context, c *app.RequestContext) {
 	header := string(c.GetHeader("Authorization"))
 	if header == "" {
@@ -63,6 +68,8 @@ func (m *OptionalAuthMiddleware) Hertz(ctx context.Context, c *app.RequestContex
 	c.Header(AuthStateHeader, AuthStateAuthenticated)
 	c.Next(jwtx.WithClaimsContext(ctx, claims))
 }
+
+// HertzCORS 为白名单来源（或未启用凭证时的通配）回写 CORS 头，并直接应答预检请求。
 func HertzCORS(config CORSConfig) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		origin := string(c.GetHeader("Origin"))

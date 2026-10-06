@@ -28,6 +28,7 @@ type Event struct {
 	Payload []byte `db:"payload"`
 }
 
+// Validate rejects events that could not be routed or deduplicated downstream.
 func (e Event) Validate() error {
 	if e.ID <= 0 {
 		return fmt.Errorf("outboxx: id is required")
@@ -52,6 +53,7 @@ type Record struct {
 	CreatedAt int64  `db:"created_at"`
 }
 
+// Backlog summarizes undelivered events.
 type Backlog struct {
 	Count           int64 `db:"count"`
 	OldestCreatedAt int64 `db:"oldest_created_at"`
@@ -73,6 +75,7 @@ type Waker interface {
 	Wakeups() <-chan struct{}
 }
 
+// SQLStore persists events in event_outbox and wakes a same-process relay on commit.
 type SQLStore struct {
 	conn sqlx.SqlConn
 	wake chan struct{}
@@ -89,6 +92,7 @@ func (s *SQLStore) Wakeups() <-chan struct{} {
 	return s.wake
 }
 
+// notify sends a wakeup without blocking; one pending signal is enough.
 func (s *SQLStore) notify() {
 	select {
 	case s.wake <- struct{}{}:
@@ -96,6 +100,7 @@ func (s *SQLStore) notify() {
 	}
 }
 
+// Enqueue writes the event in the caller's transaction and wakes the relay after that transaction commits.
 func (s *SQLStore) Enqueue(ctx context.Context, session sqlx.Session, event Event) error {
 	if session == nil {
 		return fmt.Errorf("outboxx: nil transaction session")
@@ -118,6 +123,7 @@ func (s *SQLStore) Enqueue(ctx context.Context, session sqlx.Session, event Even
 	return nil
 }
 
+// EnqueueTx is Enqueue for callers that manage a database/sql transaction themselves.
 func (s *SQLStore) EnqueueTx(ctx context.Context, tx *sql.Tx, event Event) error {
 	if tx == nil {
 		return fmt.Errorf("outboxx: nil sql transaction")
@@ -232,6 +238,7 @@ func (s *SQLStore) Claim(
 	return claimed, nil
 }
 
+// selectClaimable locks up to limit due events in one status, skipping rows other relays hold.
 func selectClaimable(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -280,6 +287,7 @@ func (s *SQLStore) readCommitted(ctx context.Context, fn func(*sql.Tx) error) er
 	return tx.Commit()
 }
 
+// MarkSent records delivery; it fails if this owner no longer holds the lease.
 func (s *SQLStore) MarkSent(ctx context.Context, id int64, owner string, sentAt time.Time) error {
 	result, err := s.conn.ExecCtx(ctx, `UPDATE event_outbox
         SET status = ?, sent_at = ?, locked_by = '', locked_until = 0, last_error = '', updated_at = ?
@@ -292,6 +300,8 @@ func (s *SQLStore) MarkSent(ctx context.Context, id int64, owner string, sentAt 
 	return expectOneRow(result, "mark sent", id)
 }
 
+// MarkRetry schedules the next attempt, or marks the event dead after maxAttempts, keeping
+// a truncated error message.
 func (s *SQLStore) MarkRetry(
 	ctx context.Context,
 	id int64,
@@ -325,6 +335,7 @@ func (s *SQLStore) MarkRetry(
 	return expectOneRow(result, "mark retry", id)
 }
 
+// Backlog counts pending, in-flight and retrying events.
 func (s *SQLStore) Backlog(ctx context.Context) (Backlog, error) {
 	var backlog Backlog
 	err := s.conn.QueryRowCtx(ctx, &backlog, `SELECT
@@ -355,6 +366,7 @@ func (s *SQLStore) Purge(ctx context.Context, createdBefore time.Time, limit int
 	return deleted, err
 }
 
+// expectOneRow detects a lost lease: the conditional update matched no row.
 func expectOneRow(result sql.Result, action string, id int64) error {
 	rows, err := result.RowsAffected()
 	if err != nil {

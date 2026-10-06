@@ -111,6 +111,7 @@ func ParseRefreshToken(tokenString string, config JwtConfig) (*Claims, error) {
 	return claims, nil
 }
 
+// parseSigned 校验签名与有效期并解析声明；只接受 HMAC 签名算法。
 func parseSigned(tokenString, secret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		// 强制校验签名算法，防止算法混淆攻击（alg:none 或 RS256→HS256 等）

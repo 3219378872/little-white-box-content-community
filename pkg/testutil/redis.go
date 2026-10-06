@@ -22,6 +22,7 @@ type RedisEnv struct {
 	closeFn func()
 }
 
+// SetupRedisEnv 为单个测试启动 Redis。
 func SetupRedisEnv(t *testing.T) *RedisEnv {
 	t.Helper()
 	env, err := setupRedisEnv()
@@ -29,6 +30,7 @@ func SetupRedisEnv(t *testing.T) *RedisEnv {
 	return env
 }
 
+// SetupRedisEnvM 供 TestMain 使用，启动失败直接退出进程。
 func SetupRedisEnvM() *RedisEnv {
 	env, err := setupRedisEnv()
 	if err != nil {
@@ -38,6 +40,7 @@ func SetupRedisEnvM() *RedisEnv {
 	return env
 }
 
+// setupRedisEnv 启动 Redis 容器并等待其接受连接。
 func setupRedisEnv() (*RedisEnv, error) {
 	ctx := context.Background()
 	req := testcontainers.GenericContainerRequest{
@@ -66,6 +69,7 @@ func setupRedisEnv() (*RedisEnv, error) {
 	return &RedisEnv{Redis: rds, Addr: addr, closeFn: cleanup}, nil
 }
 
+// Close 关闭客户端并终止容器。
 func (e *RedisEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()

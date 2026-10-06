@@ -13,11 +13,14 @@ var resources struct {
 	closers []io.Closer
 }
 
+// TrackResource registers a resource to close at shutdown.
 func TrackResource(closer io.Closer) {
 	resources.Lock()
 	defer resources.Unlock()
 	resources.closers = append(resources.closers, closer)
 }
+
+// CloseResources closes tracked resources in reverse registration order, so dependents close first.
 func CloseResources() {
 	resources.Lock()
 	closers := resources.closers
@@ -28,6 +31,8 @@ func CloseResources() {
 	}
 }
 
+// closeResourceFunc adapts a func to io.Closer.
 type closeResourceFunc func()
 
+// Close runs the function.
 func (f closeResourceFunc) Close() error { f(); return nil }

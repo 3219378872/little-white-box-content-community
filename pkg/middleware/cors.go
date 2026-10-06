@@ -93,6 +93,7 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 	}
 }
 
+// joinStrings 拼接 CORS 头的值列表。
 func joinStrings(strs []string, sep string) string {
 	var result strings.Builder
 	for i, s := range strs {

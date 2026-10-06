@@ -35,12 +35,14 @@ const (
 	internalAuthMaxClockSkew = 5 * time.Minute
 )
 
+// requireInternalSecret 在启动时拒绝空的内部签名密钥。
 func requireInternalSecret(secret string) {
 	if strings.TrimSpace(secret) == "" {
 		panic("interceptor: internal auth secret is empty; set RPC_INTERNAL_SECRET")
 	}
 }
 
+// internalSignature 对时间戳与方法计算 HMAC-SHA256，与 pkg/rpcx 的签名格式一致。
 func internalSignature(secret, timestamp, method string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(timestamp))
@@ -55,6 +57,7 @@ func internalAuthExemptMethod(method string) bool {
 		strings.HasPrefix(method, "/grpc.reflection.")
 }
 
+// validateInternalAuth 校验入站元数据中的时间戳窗口与签名。
 func validateInternalAuth(ctx context.Context, secret, method string) error {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -80,6 +83,7 @@ func validateInternalAuth(ctx context.Context, secret, method string) error {
 	return nil
 }
 
+// signInternalAuthContext 为出站调用附加时间戳与签名元数据。
 func signInternalAuthContext(ctx context.Context, secret, method string) context.Context {
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	return metadata.AppendToOutgoingContext(ctx,

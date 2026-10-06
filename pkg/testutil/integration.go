@@ -19,6 +19,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestEnv 是一次性的 MySQL 与 Redis 容器组合，供集成测试使用。
 type TestEnv struct {
 	DB        *sql.DB
 	Redis     *redis.Redis
@@ -45,6 +46,7 @@ func SetupTestEnvM(dbName, schemaPath string) *TestEnv {
 	return env
 }
 
+// setupTestEnv 启动 MySQL 并导入建表脚本，再启动 Redis，返回两者的连接。
 func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 	ctx := context.Background()
 
@@ -132,6 +134,7 @@ func setupTestEnv(dbName, schemaPath string) (*TestEnv, error) {
 	}, nil
 }
 
+// Close 关闭连接并终止容器。
 func (e *TestEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()

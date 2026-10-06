@@ -20,13 +20,20 @@ var once sync.Once
 var ctx context.Context
 var stop context.CancelFunc
 
+// initContext lazily creates the process context that SIGINT/SIGTERM cancel.
 func initContext() {
 	once.Do(func() { ctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM) })
 }
-func Done() <-chan struct{}         { initContext(); return ctx.Done() }
+
+// Done is closed when the process is asked to stop; Shutdown requests a stop programmatically;
+// AddShutdownListener runs fn once the stop is requested.
+func Done() <-chan struct{} { initContext(); return ctx.Done() }
+
+// Shutdown requests a stop programmatically.
 func Shutdown()                     { initContext(); stop() }
 func AddShutdownListener(fn func()) { go func() { <-Done(); fn() }() }
 
+// ServiceConf is the common service block: name, logging, mode and the diagnostics server.
 type ServiceConf struct {
 	Name       string
 	Log        logging.Config
@@ -35,11 +42,15 @@ type ServiceConf struct {
 	Prometheus diagnostics.Config
 }
 
+// MustSetUp panics when SetUp fails (startup only).
 func (c ServiceConf) MustSetUp() {
 	if err := c.SetUp(); err != nil {
 		panic(err)
 	}
 }
+
+// SetUp configures logging and starts the diagnostics server; a legacy Prometheus port
+// alone still enables the metrics endpoint.
 func (c ServiceConf) SetUp() error {
 	if err := logging.Configure(c.Log); err != nil {
 		return err

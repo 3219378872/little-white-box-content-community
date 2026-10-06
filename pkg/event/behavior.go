@@ -85,6 +85,7 @@ type BehaviorEvent struct {
 	ClientVersion string `json:"client_version"`
 }
 
+// Validate 在入队前拒绝缺少身份、标识超长或动作/目标不合法的行为事件，消费者因此可以信任字段。
 func (e BehaviorEvent) Validate() error {
 	if e.EventID <= 0 {
 		return fmt.Errorf("event_id is required")
@@ -173,6 +174,7 @@ func DeterministicBehaviorEventID(clientEventID string) int64 {
 	return id
 }
 
+// EventIDString 返回事件 ID 的十进制文本，用作去重键。
 func (e BehaviorEvent) EventIDString() string {
 	return strconv.FormatInt(e.EventID, 10)
 }

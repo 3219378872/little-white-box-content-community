@@ -35,11 +35,13 @@ var (
 	})
 )
 
+// observeBacklogMetrics publishes the pending count and the age of the oldest event.
 func observeBacklogMetrics(service string, backlog Backlog, now time.Time) {
 	outboxBacklogCount.Set(float64(backlog.Count), service)
 	outboxOldestAgeSeconds.Set(backlogAgeSeconds(backlog, now), service)
 }
 
+// observeDeliveryLatency records commit-to-publish latency; clock skew samples are dropped.
 func observeDeliveryLatency(service string, createdAtMillis, nowMillis int64) {
 	if createdAtMillis <= 0 || nowMillis < createdAtMillis {
 		return
@@ -47,6 +49,7 @@ func observeDeliveryLatency(service string, createdAtMillis, nowMillis int64) {
 	outboxDeliveryLatencySeconds.ObserveFloat(float64(nowMillis-createdAtMillis)/1000.0, service)
 }
 
+// backlogAgeSeconds is the age of the oldest undelivered event, 0 when the backlog is empty.
 func backlogAgeSeconds(backlog Backlog, now time.Time) float64 {
 	if backlog.Count <= 0 || backlog.OldestCreatedAt <= 0 {
 		return 0

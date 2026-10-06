@@ -6,11 +6,14 @@ import (
 	"esx/pkg/redisstore"
 )
 
+// EtcdConf locates the service registry.
 type EtcdConf struct {
 	Hosts      []string
 	Key        string
 	User, Pass string
 }
+
+// RpcClientConf targets a service through etcd discovery or fixed endpoints; Timeout is in milliseconds.
 type RpcClientConf struct {
 	Etcd      EtcdConf
 	Endpoints []string
@@ -18,6 +21,8 @@ type RpcClientConf struct {
 	NonBlock  bool
 	Timeout   int64 `json:",default=2000"`
 }
+
+// RpcServerConf configures a Kitex gRPC server, its registry entry and its admission limits.
 type RpcServerConf struct {
 	lifecycle.ServiceConf
 	ListenOn       string

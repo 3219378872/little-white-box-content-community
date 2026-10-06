@@ -14,11 +14,13 @@ import (
 	"testing"
 )
 
+// entry is a stored value with the TTL it was written with.
 type entry struct {
 	value string
 	ttl   int
 }
 
+// Server is an in-process RESP server with injectable command failures, for testing Redis error paths.
 type Server struct {
 	mu       sync.Mutex
 	listener net.Listener
@@ -28,6 +30,7 @@ type Server struct {
 	fail     map[string]bool // value true applies command before returning an error
 }
 
+// New starts the server on a random local port and stops it when the test ends.
 func New(t *testing.T) *Server {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -62,12 +65,17 @@ func New(t *testing.T) *Server {
 	return s
 }
 
+// Addr is the host:port clients connect to.
 func (s *Server) Addr() string { return s.listener.Addr().String() }
+
+// Set seeds a value.
 func (s *Server) Set(key, value string, ttl int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.values[key] = entry{value, ttl}
 }
+
+// Value returns a stored value and its TTL.
 func (s *Server) Value(key string) (string, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -81,22 +89,29 @@ func (s *Server) Expire(key string) {
 	defer s.mu.Unlock()
 	delete(s.values, key)
 }
+
+// Fail makes a command fail; with after=true the command is applied before the error is returned.
 func (s *Server) Fail(command string, after bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.fail[strings.ToUpper(command)] = after
 }
+
+// Recover stops injecting failures for a command.
 func (s *Server) Recover(command string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.fail, strings.ToUpper(command))
 }
+
+// Calls returns how many times a command was received.
 func (s *Server) Calls(command string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.calls[strings.ToUpper(command)]
 }
 
+// serve reads commands from one connection and writes their replies.
 func (s *Server) serve(conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 	reader := bufio.NewReader(conn)
@@ -122,6 +137,8 @@ func (s *Server) serve(conn net.Conn) {
 		}
 	}
 }
+
+// readCommand parses one RESP array of bulk strings.
 func readCommand(reader *bufio.Reader) ([]string, error) {
 	header, err := reader.ReadString('\n')
 	if err != nil {
@@ -149,7 +166,11 @@ func readCommand(reader *bufio.Reader) ([]string, error) {
 	}
 	return args, nil
 }
+
+// bulk encodes a RESP bulk string.
 func bulk(value string) string { return fmt.Sprintf("$%d\r\n%s\r\n", len(value), value) }
+
+// execute implements the small command subset the tests use.
 func (s *Server) execute(command string, args []string) string {
 	switch command {
 	case "HELLO":

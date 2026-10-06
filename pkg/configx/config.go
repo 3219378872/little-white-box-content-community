@@ -13,15 +13,24 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// Option customizes Load.
 type Option func(*options)
+
+// options holds the Load switches.
 type options struct{ env bool }
 
+// UseEnv expands ${VAR} references from the environment before decoding.
 func UseEnv() Option { return func(o *options) { o.env = true } }
+
+// MustLoad panics when the configuration cannot be loaded (startup only).
 func MustLoad(path string, target any, opts ...Option) {
 	if err := Load(path, target, opts...); err != nil {
 		panic(err)
 	}
 }
+
+// Load fills tag defaults, decodes the YAML file over them (expanding ${VAR} with UseEnv)
+// and validates required fields, ranges and options.
 func Load(path string, target any, opts ...Option) error {
 	var o options
 	for _, opt := range opts {
@@ -57,6 +66,8 @@ func Load(path string, target any, opts ...Option) error {
 	}
 	return nil
 }
+
+// expand substitutes environment variables in every string of the decoded tree.
 func expand(v any) any {
 	switch x := v.(type) {
 	case string:
@@ -75,6 +86,8 @@ func expand(v any) any {
 	}
 	return v
 }
+
+// FillDefault applies `default=` tags to zero-valued fields of a struct pointer.
 func FillDefault(target any) error {
 	v := reflect.ValueOf(target)
 	if v.Kind() != reflect.Pointer || v.IsNil() {
@@ -82,6 +95,8 @@ func FillDefault(target any) error {
 	}
 	return defaults(v.Elem())
 }
+
+// defaults walks nested structs and fills zero values from their `default=` tags.
 func defaults(v reflect.Value) error {
 	if v.Kind() != reflect.Struct {
 		return nil
@@ -136,6 +151,8 @@ func defaults(v reflect.Value) error {
 	}
 	return nil
 }
+
+// validate enforces required fields (fields without optional/default), `options=` and `range=` tags.
 func validate(v reflect.Value) error {
 	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
@@ -199,6 +216,7 @@ func validate(v reflect.Value) error {
 	return nil
 }
 
+// fieldType finds the struct field matching a YAML key by json tag or name, case-insensitively.
 func fieldType(t reflect.Type, key string) reflect.Type {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -223,6 +241,8 @@ func fieldType(t reflect.Type, key string) reflect.Type {
 	}
 	return nil
 }
+
+// normalize converts decoded YAML values to the shapes the target fields expect before JSON decoding.
 func normalize(t reflect.Type, raw any) (any, error) {
 	if t == nil || raw == nil {
 		return raw, nil

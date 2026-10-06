@@ -25,6 +25,8 @@ func FromHTTPError(err error) *BizError {
 	return &BizError{Code: SystemError, Message: GetMsg(SystemError)}
 }
 
+// isHTTPParseError reports request-binding failures (malformed JSON, missing or
+// mistyped fields) so they surface as ParamError instead of a server error.
 func isHTTPParseError(err error) bool {
 	if _, ok := errors.AsType[*json.SyntaxError](err); ok {
 		return true

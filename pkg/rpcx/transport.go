@@ -42,15 +42,21 @@ import (
 	grpcstatus "google.golang.org/grpc/status"
 )
 
+// WithTraceID stores the trace ID propagated to downstream RPCs.
 func WithTraceID(ctx context.Context, id string) context.Context {
 	return logging.WithTraceID(ctx, id)
 }
+
+// TraceID returns the propagated trace ID.
 func TraceID(ctx context.Context) string { return logging.TraceID(ctx) }
 
 var calls = prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: "esx", Subsystem: "rpc", Name: "requests_total", Help: "RPC requests by side, method and outcome"}, []string{"side", "method", "code"})
 var latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{Namespace: "esx", Subsystem: "rpc", Name: "duration_seconds", Help: "RPC duration through response completion"}, []string{"side", "method"})
 
+// init registers RPC metrics and routes framework logs through pkg/logging.
 func init() { prometheus.MustRegister(calls, latency); logging.ConfigureFrameworks() }
+
+// fullMethod renders the gRPC method path (/package.Service/Method) that is signed and labelled.
 func fullMethod(ctx context.Context) string {
 	i := rpcinfo.GetRPCInfo(ctx).Invocation()
 	name := i.ServiceName()
@@ -59,6 +65,8 @@ func fullMethod(ctx context.Context) string {
 	}
 	return "/" + name + "/" + i.MethodName()
 }
+
+// signature is the HMAC-SHA256 of timestamp and method under the shared internal secret.
 func signature(secret, ts, method string) string {
 	h := hmac.New(sha256.New, []byte(secret))
 	_, _ = h.Write([]byte(ts))
@@ -66,7 +74,11 @@ func signature(secret, ts, method string) string {
 	_, _ = h.Write([]byte(method))
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+// exempt lets health checks through without internal credentials.
 func exempt(method string) bool { return strings.HasPrefix(method, "/grpc.health.v1.Health/") }
+
+// authClient signs every outgoing call with a timestamp and method signature and forwards the trace ID.
 func authClient(secret string) func(context.Context) (context.Context, error) {
 	return func(ctx context.Context) (context.Context, error) {
 		method := fullMethod(ctx)
@@ -86,6 +98,9 @@ func authClient(secret string) func(context.Context) (context.Context, error) {
 		return metadata.NewOutgoingContext(ctx, md), nil
 	}
 }
+
+// authServer rejects calls without a valid internal signature or with a timestamp more than
+// five minutes off, then restores the caller's trace ID.
 func authServer(secret string) func(context.Context) (context.Context, error) {
 	return func(ctx context.Context) (context.Context, error) {
 		method := fullMethod(ctx)
@@ -114,6 +129,9 @@ func authServer(secret string) func(context.Context) (context.Context, error) {
 		return ctx, nil
 	}
 }
+
+// ToTransportError converts a handler error into a gRPC status carrying the business code;
+// unknown errors become SystemError so internals do not leak.
 func ToTransportError(err error) error {
 	if err == nil {
 		return nil
@@ -133,6 +151,9 @@ func ToTransportError(err error) error {
 	}
 	return status.FromProto(grpcstatus.Convert(errx.NewWithCode(errx.SystemError)).Proto()).Err()
 }
+
+// FromTransportError converts a received gRPC status back into an errx business error;
+// EOF and cancellation pass through for stream handling.
 func FromTransportError(err error) error {
 	if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
 		return err
@@ -149,11 +170,16 @@ func FromTransportError(err error) error {
 
 // A Kitex tracer finishes with the stream, so latency includes all frames.
 type observationKey struct{ side string }
+
+// observer records per-call metrics and failure logs for one side (client or server).
 type observer struct{ side string }
 
+// Start records the start time.
 func (o observer) Start(ctx context.Context) context.Context {
 	return context.WithValue(ctx, observationKey(o), time.Now())
 }
+
+// Finish counts the call, observes latency and logs failures with method and duration.
 func (o observer) Finish(ctx context.Context) {
 	started, ok := ctx.Value(observationKey(o)).(time.Time)
 	if !ok {
@@ -175,6 +201,8 @@ func (o observer) Finish(ctx context.Context) {
 		logging.WithContext(ctx).Errorw("rpc call failed", logging.Field("side", o.side), logging.Field("method", method), logging.Field("duration_ms", time.Since(started).Milliseconds()))
 	}
 }
+
+// observed maps errors at the RPC boundary: servers encode business errors, clients decode them.
 func observed(side string) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req, resp any) error {
@@ -187,7 +215,10 @@ func observed(side string) endpoint.Middleware {
 	}
 }
 
+// ClientOption customizes NewClient.
 type ClientOption func(*clientSpec)
+
+// Client is a service client definition: Kitex options, health probing and owned resources.
 type Client interface {
 	Options() []client.Option
 	ServiceName() string
@@ -195,6 +226,8 @@ type Client interface {
 	Track(io.Closer)
 	Close() error
 }
+
+// clientSpec is the Client implementation; closers are released with the client.
 type clientSpec struct {
 	conf     RpcClientConf
 	secret   string
@@ -204,12 +237,16 @@ type clientSpec struct {
 	cancel   context.CancelFunc
 }
 
+// WithInternalAuth signs outgoing calls; an empty secret is a startup error.
 func WithInternalAuth(secret string) ClientOption {
 	if strings.TrimSpace(secret) == "" {
 		panic("RPC_INTERNAL_SECRET is required")
 	}
 	return func(c *clientSpec) { c.secret = secret }
 }
+
+// NewClient resolves the destination through etcd unless endpoints or a target are fixed,
+// and registers the client for CloseAllClients.
 func NewClient(c RpcClientConf, opts ...ClientOption) (Client, error) {
 	spec := &clientSpec{conf: c}
 	clientsMu.Lock()
@@ -232,6 +269,8 @@ func NewClient(c RpcClientConf, opts ...ClientOption) (Client, error) {
 	}
 	return spec, nil
 }
+
+// MustNewClient panics when the client cannot be built (startup only).
 func MustNewClient(c RpcClientConf, opts ...ClientOption) Client {
 	v, e := NewClient(c, opts...)
 	if e != nil {
@@ -239,12 +278,16 @@ func MustNewClient(c RpcClientConf, opts ...ClientOption) Client {
 	}
 	return v
 }
+
+// ServiceName is the registry key used for discovery and probing.
 func (c *clientSpec) ServiceName() string {
 	if c.conf.Etcd.Key != "" {
 		return c.conf.Etcd.Key
 	}
 	return "direct.rpc"
 }
+
+// addresses returns fixed endpoints, or the target without its dns:/// prefix.
 func (c *clientSpec) addresses() []string {
 	if len(c.conf.Endpoints) > 0 {
 		return c.conf.Endpoints
@@ -254,6 +297,9 @@ func (c *clientSpec) addresses() []string {
 	}
 	return nil
 }
+
+// Options returns the Kitex client options: gRPC transport, signing, metrics, circuit breaking,
+// a unary timeout and either discovery or fixed hosts.
 func (c *clientSpec) Options() []client.Option {
 	opts := []client.Option{client.WithTransportProtocol(transport.GRPC), client.WithConnectTimeout(time.Second), client.WithMiddleware(observed("client")), client.WithTracer(observer{side: "client"}), client.WithMetaHandler(remote.NewCustomMetaHandler(remote.WithOnConnectStream(authClient(c.secret)))), client.WithCircuitBreaker(circuitbreak.NewCBSuite(circuitbreak.RPCInfo2Key))}
 	// Unary deadlines must not impose a two-second lifetime on media/SSE streams.
@@ -266,6 +312,8 @@ func (c *clientSpec) Options() []client.Option {
 	}
 	return opts
 }
+
+// Probe succeeds when any resolved instance reports SERVING to a gRPC health check within one second.
 func (c *clientSpec) Probe(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
@@ -292,6 +340,9 @@ func (c *clientSpec) Probe(ctx context.Context) error {
 	}
 	return fmt.Errorf("RPC dependency unavailable")
 }
+
+// ServerOptions builds the Kitex server options: signature verification, metrics, deadlines,
+// admission limits, a health endpoint and etcd registration. Missing secrets or a bad address panic at startup.
 func ServerOptions(c RpcServerConf, secret string) []server.Option {
 	if strings.TrimSpace(secret) == "" {
 		panic("RPC_INTERNAL_SECRET is required")
@@ -345,11 +396,14 @@ func NewGRPCClient(c RpcClientConf) (*grpc.ClientConn, error) {
 var clientsMu sync.Mutex
 var allClients []*clientSpec
 
+// Track ties a resource's lifetime to the client.
 func (c *clientSpec) Track(closer io.Closer) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.closers = append(c.closers, closer)
 }
+
+// Close releases tracked resources and stops discovery.
 func (c *clientSpec) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -363,6 +417,8 @@ func (c *clientSpec) Close() error {
 	}
 	return errors.Join(errs...)
 }
+
+// CloseAllClients closes every client created by this process during shutdown.
 func CloseAllClients() {
 	clientsMu.Lock()
 	clients := allClients
@@ -373,6 +429,7 @@ func CloseAllClients() {
 	}
 }
 
+// etcdOptions configures the registry client: credentials, key prefix, dial timeout, no proxy and silent logs.
 func etcdOptions(ctx context.Context, c EtcdConf) []etcd.Option {
 	return []etcd.Option{etcd.WithAuthOpt(c.User, c.Pass), etcd.WithEtcdServicePrefix(RegistryPrefix), etcd.WithDialTimeoutOpt(3 * time.Second), func(cfg *etcd.Config) {
 		cfg.EtcdConfig.Context = ctx
@@ -388,10 +445,13 @@ type managedRegistry struct {
 	cancel context.CancelFunc
 }
 
+// Deregister removes the service entry and then stops the registry client.
 func (r *managedRegistry) Deregister(info *registry.Info) error {
 	defer r.cancel()
 	return r.Registry.Deregister(info)
 }
+
+// Close stops the registry client when deregistration never ran.
 func (r *managedRegistry) Close() error { r.cancel(); return nil }
 
 // serverDeadline caps unary work even when a caller supplies no deadline.

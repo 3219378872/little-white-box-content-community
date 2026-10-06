@@ -22,6 +22,7 @@ type MilvusEnv struct {
 // 使用本地已缓存的 v2.5.6 镜像；CI/生产环境可通过覆盖 MILVUS_IMAGE 环境变量调整
 const defaultMilvusImage = "milvusdb/milvus:v2.5.6"
 
+// SetupMilvusEnv 为单个测试启动 Milvus。
 func SetupMilvusEnv(t *testing.T) *MilvusEnv {
 	t.Helper()
 	env, err := setupMilvusEnv()
@@ -29,6 +30,7 @@ func SetupMilvusEnv(t *testing.T) *MilvusEnv {
 	return env
 }
 
+// SetupMilvusEnvM 供 TestMain 使用，启动失败直接退出进程。
 func SetupMilvusEnvM() *MilvusEnv {
 	env, err := setupMilvusEnv()
 	if err != nil {
@@ -38,6 +40,7 @@ func SetupMilvusEnvM() *MilvusEnv {
 	return env
 }
 
+// setupMilvusEnv 启动容器并等待 gRPC 端口可用。
 func setupMilvusEnv() (*MilvusEnv, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -63,6 +66,7 @@ func setupMilvusEnv() (*MilvusEnv, error) {
 	return &MilvusEnv{Address: addr, closeFn: cleanup}, nil
 }
 
+// Close 终止容器。
 func (e *MilvusEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()

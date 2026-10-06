@@ -76,6 +76,7 @@ type ReviewSubmittedEvent struct {
 	Snapshot    ReviewSnapshot `json:"snapshot"`
 }
 
+// Validate 检查送审事件的业务类型、对象修订与送审目的。
 func (e ReviewSubmittedEvent) Validate() error {
 	if !IsReviewBizType(e.BizType) {
 		return fmt.Errorf("event: unsupported review biz type %q", e.BizType)
@@ -95,6 +96,7 @@ func (e ReviewSubmittedEvent) Validate() error {
 	return nil
 }
 
+// MarshalPayload 编码为 outbox 消息体。
 func (e ReviewSubmittedEvent) MarshalPayload() ([]byte, error) {
 	return json.Marshal(e)
 }
@@ -120,6 +122,7 @@ type ReviewDecidedEvent struct {
 	Interim       bool     `json:"interim,omitempty"`
 }
 
+// Validate 检查审核结论事件的对象、任务身份与结论。
 func (e ReviewDecidedEvent) Validate() error {
 	if !IsReviewBizType(e.BizType) {
 		return fmt.Errorf("event: unsupported review biz type %q", e.BizType)
@@ -148,14 +151,17 @@ func (e ReviewDecidedEvent) Validate() error {
 	return nil
 }
 
+// MarshalPayload 编码为 outbox 消息体。
 func (e ReviewDecidedEvent) MarshalPayload() ([]byte, error) {
 	return json.Marshal(e)
 }
 
+// IsReviewBizType 判断是否为审核平台支持的业务类型（广告创意、广告主资质）。
 func IsReviewBizType(bizType string) bool {
 	return bizType == ReviewBizAdCreative || bizType == ReviewBizAdvertiserQualification
 }
 
+// isReviewPurpose 判断是否为已定义的送审目的。
 func isReviewPurpose(purpose string) bool {
 	switch purpose {
 	case ReviewPurposeInitial, ReviewPurposeQA, ReviewPurposeAppeal, ReviewPurposeReport, ReviewPurposeRescan:

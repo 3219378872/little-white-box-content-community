@@ -17,6 +17,7 @@ type MediaDeletedEvent struct {
 	Reason      string `json:"reason,omitempty"`
 }
 
+// Validate 要求对象键；上传补偿事件允许没有媒体 ID，因为记录可能尚未落库。
 func (e MediaDeletedEvent) Validate() error {
 	if e.MediaID <= 0 && e.Reason != "upload_compensation" {
 		return fmt.Errorf("event: media_id is required")

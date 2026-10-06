@@ -12,16 +12,20 @@ import (
 	"esx/pkg/logging"
 )
 
+// Publisher sends one outbox record to the broker.
 type Publisher interface {
 	Publish(ctx context.Context, record Record) error
 }
 
+// PublisherFunc adapts a function to Publisher.
 type PublisherFunc func(ctx context.Context, record Record) error
 
+// Publish calls f.
 func (f PublisherFunc) Publish(ctx context.Context, record Record) error {
 	return f(ctx, record)
 }
 
+// RelayConfig controls batching, polling, leases, retry backoff and retention.
 type RelayConfig struct {
 	Service      string
 	Owner        string
@@ -51,6 +55,7 @@ type Config struct {
 	PurgeBatchSize  int
 }
 
+// RelayConfig fills defaults for unset fields and converts milliseconds to durations.
 func (c Config) RelayConfig(service string) RelayConfig {
 	if c.BatchSize <= 0 {
 		c.BatchSize = 100
@@ -98,6 +103,7 @@ func (c Config) RelayConfig(service string) RelayConfig {
 	}
 }
 
+// validate rejects configurations that would stall or spin the relay.
 func (c RelayConfig) validate() error {
 	if c.Owner == "" {
 		return fmt.Errorf("outboxx: relay owner is required")
@@ -123,6 +129,7 @@ func (c RelayConfig) validate() error {
 	return nil
 }
 
+// Relay moves committed outbox events to the broker with at-least-once delivery.
 type Relay struct {
 	store     Store
 	publisher Publisher
@@ -141,6 +148,7 @@ type RelayHandle struct {
 	err    error
 }
 
+// NewRelay validates the configuration and subscribes to store wakeups when available.
 func NewRelay(store Store, publisher Publisher, config RelayConfig) (*Relay, error) {
 	if store == nil {
 		return nil, fmt.Errorf("outboxx: store is required")
@@ -172,6 +180,7 @@ func StartRelay(parent context.Context, relay *Relay) *RelayHandle {
 	return &RelayHandle{cancel: cancel, done: done}
 }
 
+// Stop cancels the relay and waits for it; a cancellation result is not an error.
 func (h *RelayHandle) Stop() error {
 	if h == nil {
 		return nil
@@ -225,6 +234,8 @@ func (r *Relay) ProcessBatch(ctx context.Context) (int, error) {
 // cannot hold the relay loop away from delivery for long.
 const maxPurgeBatchesPerTick = 20
 
+// Run drains on start, then on every wakeup or poll tick, while periodically reporting
+// the backlog and purging delivered events past retention.
 func (r *Relay) Run(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -288,6 +299,7 @@ func (r *Relay) drain(ctx context.Context) {
 	}
 }
 
+// purge deletes delivered events older than the retention in bounded batches.
 func (r *Relay) purge(ctx context.Context) {
 	service := r.config.Service
 	if service == "" {
@@ -312,6 +324,7 @@ func (r *Relay) purge(ctx context.Context) {
 	}
 }
 
+// observeBacklog reports the backlog metrics; read failures are only logged.
 func (r *Relay) observeBacklog(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
@@ -333,6 +346,7 @@ func (r *Relay) observeBacklog(ctx context.Context) {
 	observeBacklogMetrics(service, backlog, r.now())
 }
 
+// retryBackoff doubles the delay per attempt from base, capped at maximum.
 func retryBackoff(attempt int, base, maximum time.Duration) time.Duration {
 	if attempt <= 1 {
 		return base

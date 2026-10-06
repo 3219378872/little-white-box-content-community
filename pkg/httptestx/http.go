@@ -14,11 +14,15 @@ import (
 	"github.com/cloudwego/hertz/pkg/route/param"
 )
 
+// varsKey carries path parameters in a net/http request context.
 type varsKey struct{}
 
+// WithVars attaches path parameters to a test request.
 func WithVars(r *http.Request, vars map[string]string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), varsKey{}, vars))
 }
+
+// Context converts a net/http test request into a Hertz request context.
 func Context(r *http.Request) *app.RequestContext {
 	c := app.NewContext(0)
 	c.SetConn(mock.NewConn(""))
@@ -39,6 +43,8 @@ func Context(r *http.Request) *app.RequestContext {
 	}
 	return c
 }
+
+// Adapt lets httptest drive a Hertz handler, copying hijacked (streaming) output when present.
 func Adapt(handler app.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c := Context(r)
@@ -66,6 +72,8 @@ func Adapt(handler app.HandlerFunc) http.HandlerFunc {
 		_, _ = w.Write(c.Response.Body())
 	}
 }
+
+// Chain runs handlers as a Hertz middleware chain.
 func Chain(handlers ...app.HandlerFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) { c.SetHandlers(handlers); c.SetIndex(-1); c.Next(ctx) }
 }

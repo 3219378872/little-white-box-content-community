@@ -16,14 +16,17 @@ const (
 	AuthStateInvalid       = "invalid"
 )
 
+// OptionalAuthMiddleware 允许匿名访问，令牌有效时把登录身份放入上下文。
 type OptionalAuthMiddleware struct {
 	config jwtx.JwtConfig
 }
 
+// NewOptionalAuthMiddleware 使用网关的 JWT 配置校验令牌。
 func NewOptionalAuthMiddleware(config jwtx.JwtConfig) *OptionalAuthMiddleware {
 	return &OptionalAuthMiddleware{config: config}
 }
 
+// Handle 是 net/http 版本，语义与 Hertz 版本一致。
 func (m *OptionalAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

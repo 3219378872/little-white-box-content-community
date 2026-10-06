@@ -16,15 +16,21 @@ import (
 // rebuild, not deleting tombstones while old deliveries may still arrive.
 const MaxHistoryRows = 16384
 
+// Querier is the Milvus query surface Latest needs.
 type Querier interface {
 	Query(context.Context, string, []string, string, []string, ...client.SearchQueryOptionFunc) (client.ResultSet, error)
 }
+
+// Row is the newest projection of a post; Deleted marks a tombstone.
 type Row struct {
 	PostID, Revision int64
 	Deleted          bool
 	Vector           []float32
 }
 
+// Latest returns the newest revision per post from an append-only projection collection;
+// at equal revisions a tombstone wins. Hitting the history row limit is an error that
+// requires a rebuild rather than a silently truncated answer.
 func Latest(ctx context.Context, q Querier, collection string, ids []int64, withVector bool) (map[int64]Row, error) {
 	result := map[int64]Row{}
 	if len(ids) == 0 {

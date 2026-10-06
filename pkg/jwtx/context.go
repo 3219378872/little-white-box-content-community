@@ -40,6 +40,7 @@ func WithUsernameContext(ctx context.Context, username string) context.Context {
 	return context.WithValue(ctx, ctxUsernameKey, username)
 }
 
+// GetOptionalUserIdFromContext 读取可选的登录用户；上下文中没有可解析的用户 ID 时返回 false，供匿名也可访问的接口使用。
 func GetOptionalUserIdFromContext(ctx context.Context) (int64, bool) {
 	if id, ok := parseUserID(ctx.Value(ctxUserIDKey)); ok {
 		return id, true
@@ -48,6 +49,7 @@ func GetOptionalUserIdFromContext(ctx context.Context) (int64, bool) {
 	return parseUserID(ctx.Value("userId"))
 }
 
+// parseUserID 兼容中间件写入的多种类型（json.Number、int64、整数值 float64、十进制字符串）；是否为正由调用方判断。
 func parseUserID(raw any) (int64, bool) {
 	switch value := raw.(type) {
 	case json.Number:

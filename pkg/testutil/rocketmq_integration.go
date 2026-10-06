@@ -25,11 +25,13 @@ import (
 
 const rocketMQImage = "apache/rocketmq:5.1.3"
 
+// RocketMQEnv is a disposable RocketMQ name server and broker.
 type RocketMQEnv struct {
 	NameServer string
 	container  testcontainers.Container
 }
 
+// SetupRocketMQEnv starts RocketMQ for one test and creates the given topics.
 func SetupRocketMQEnv(t *testing.T, topics ...string) *RocketMQEnv {
 	t.Helper()
 	env, err := setupRocketMQEnv(topics...)
@@ -37,6 +39,7 @@ func SetupRocketMQEnv(t *testing.T, topics ...string) *RocketMQEnv {
 	return env
 }
 
+// setupRocketMQEnv starts the container with host-reachable broker ports and creates the topics.
 func setupRocketMQEnv(topics ...string) (*RocketMQEnv, error) {
 	ctx := context.Background()
 	provider, err := testcontainers.NewDockerProvider()
@@ -153,6 +156,7 @@ exit 1
 	return &RocketMQEnv{NameServer: nameServer, container: rocketContainer}, nil
 }
 
+// createRocketMQTopic retries topic creation until the broker accepts it.
 func createRocketMQTopic(
 	ctx context.Context,
 	rocketContainer testcontainers.Container,
@@ -198,6 +202,7 @@ func createRocketMQTopic(
 	return fmt.Errorf("rocketmq create topic %q failed: %s", topic, strings.TrimSpace(lastOutput))
 }
 
+// randomHighPort picks a broker port in 20000-39999 so parallel suites rarely collide.
 func randomHighPort() (int, error) {
 	value, err := rand.Int(rand.Reader, big.NewInt(20_000))
 	if err != nil {
@@ -206,6 +211,7 @@ func randomHighPort() (int, error) {
 	return 20_000 + int(value.Int64()), nil
 }
 
+// appendNoProxyHost keeps the Docker host out of any configured HTTP proxy.
 func appendNoProxyHost(host string) {
 	for _, name := range []string{"NO_PROXY", "no_proxy"} {
 		current := os.Getenv(name)
@@ -227,12 +233,15 @@ func appendNoProxyHost(host string) {
 	}
 }
 
+// Close terminates the container.
 func (e *RocketMQEnv) Close() {
 	if e != nil && e.container != nil {
 		_ = testcontainers.TerminateContainer(e.container)
 	}
 }
 
+// WaitConsumerReady waits until the consumer group reports progress on the topic with no backlog,
+// so assertions run after delivery has settled.
 func (e *RocketMQEnv) WaitConsumerReady(
 	ctx context.Context,
 	group string,

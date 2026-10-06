@@ -108,6 +108,7 @@ func reserveFills(ctx context.Context, c CachedConn, keys []string) []string {
 	return markers
 }
 
+// releaseFills gives back reservations without writing a value, e.g. when the batch query failed.
 func releaseFills(ctx context.Context, c CachedConn, keys, markers []string) {
 	var ownedKeys []string
 	var args [][]any
@@ -123,6 +124,8 @@ func releaseFills(ctx context.Context, c CachedConn, keys, markers []string) {
 	}
 }
 
+// finishFills writes each loaded row (or a not-found marker) into the keys this batch reserved;
+// keys reserved by someone else or invalidated meanwhile are left untouched by the script.
 func finishFills[K comparable, T any](ctx context.Context, c CachedConn, ids []K, keys, markers []string, loaded map[K]T) {
 	var ownedKeys []string
 	var args [][]any

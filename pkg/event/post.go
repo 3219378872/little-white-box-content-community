@@ -43,6 +43,7 @@ func (e PostEvent) IndexText() string {
 	return e.BodyExcerpt
 }
 
+// Validate 在入队前检查帖子事件的身份、类型与修订号。
 func (e *PostEvent) Validate() error {
 	if e.EventID <= 0 {
 		return fmt.Errorf("event_id is required")
@@ -90,6 +91,7 @@ type InteractionEvent struct {
 	ClientIP   string `json:"client_ip,omitempty"`
 }
 
+// Validate 在入队前检查互动事件的身份、动作与目标。
 func (e *InteractionEvent) Validate() error {
 	if e.EventID <= 0 {
 		return fmt.Errorf("event_id is required")

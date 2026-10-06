@@ -11,6 +11,7 @@ var (
 	phoneRegex = regexp.MustCompile(`^1[3-9]\d{9}$`)
 )
 
+// ValidatePhone accepts mainland China mobile numbers only.
 func ValidatePhone(phone string) error {
 	if !phoneRegex.MatchString(phone) {
 		return errx.New(errx.ParamError, "非法的手机号")
@@ -18,6 +19,7 @@ func ValidatePhone(phone string) error {
 	return nil
 }
 
+// CheckPasswordStrength requires 8-64 bytes containing upper case, lower case and digits.
 func CheckPasswordStrength(password string) (bool, error) {
 	if len(password) < 8 || len(password) > 64 {
 		return false, errx.New(errx.ParamError, "密码过长或过短")
@@ -41,6 +43,7 @@ func CheckPasswordStrength(password string) (bool, error) {
 	return false, errx.New(errx.ParamError, "密码强度过弱，至少需要包含大小写字母和数字")
 }
 
+// ValidateUserName requires 6-50 characters (counted as runes).
 func ValidateUserName(userName string) error {
 	n := utf8.RuneCountInString(userName)
 	if n <= 50 && n >= 6 {

@@ -13,6 +13,7 @@ type BizError struct {
 	cause   error
 }
 
+// Error 让 BizError 满足 error 接口，文本同时包含业务码与消息，便于日志排查。
 func (e *BizError) Error() string {
 	return fmt.Sprintf("code: %d, message: %s", e.Code, e.Message)
 }

@@ -12,11 +12,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Config is the legacy Prometheus endpoint block kept for older service configs.
 type Config struct {
 	Host string
 	Port int
 	Path string
 }
+
+// ServerConfig enables the internal diagnostics server and its optional endpoints.
 type ServerConfig struct {
 	Enabled       bool
 	Host          string
@@ -25,6 +28,8 @@ type ServerConfig struct {
 	EnablePprof   bool
 }
 
+// Start serves /healthz plus optional /metrics and pprof on a separate listener and returns
+// a function that shuts it down within five seconds.
 func Start(c ServerConfig) (func(), error) {
 	if !c.Enabled {
 		return func() {}, nil

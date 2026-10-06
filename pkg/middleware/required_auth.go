@@ -17,10 +17,12 @@ type RequiredAuthMiddleware struct {
 	config jwtx.JwtConfig
 }
 
+// NewRequiredAuthMiddleware validates tokens with the gateway JWT configuration.
 func NewRequiredAuthMiddleware(config jwtx.JwtConfig) *RequiredAuthMiddleware {
 	return &RequiredAuthMiddleware{config: config}
 }
 
+// Handle is the net/http variant: requests without a valid Bearer token are rejected.
 func (m *RequiredAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
@@ -45,6 +47,7 @@ func (m *RequiredAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc 
 	}
 }
 
+// writeUnauthorized writes the LoginRequired JSON body with the auth state header.
 func writeUnauthorized(w http.ResponseWriter, state string) {
 	w.Header().Set(AuthStateHeader, state)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

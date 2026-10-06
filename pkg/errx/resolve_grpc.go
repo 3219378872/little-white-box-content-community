@@ -77,6 +77,8 @@ func FromGRPCError(err error) error {
 	}
 }
 
+// grpcCodeToBizCode maps a transport status to the closest business code when the
+// peer did not attach one.
 func grpcCodeToBizCode(c codes.Code) int {
 	switch c {
 	case codes.OK:

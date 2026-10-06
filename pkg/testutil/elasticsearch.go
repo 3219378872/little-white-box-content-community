@@ -23,6 +23,7 @@ type ElasticsearchEnv struct {
 
 const defaultElasticsearchImage = "docker.elastic.co/elasticsearch/elasticsearch:8.8.0"
 
+// SetupElasticsearchEnv starts a single-node Elasticsearch for one test.
 func SetupElasticsearchEnv(t *testing.T) *ElasticsearchEnv {
 	t.Helper()
 	env, err := setupElasticsearchEnv()
@@ -30,6 +31,7 @@ func SetupElasticsearchEnv(t *testing.T) *ElasticsearchEnv {
 	return env
 }
 
+// SetupElasticsearchEnvM is the TestMain variant; startup failure exits the process.
 func SetupElasticsearchEnvM() *ElasticsearchEnv {
 	env, err := setupElasticsearchEnv()
 	if err != nil {
@@ -39,6 +41,7 @@ func SetupElasticsearchEnvM() *ElasticsearchEnv {
 	return env
 }
 
+// setupElasticsearchEnv starts the container and waits until the HTTP endpoint answers.
 func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
@@ -77,6 +80,7 @@ func setupElasticsearchEnv() (*ElasticsearchEnv, error) {
 	}, nil
 }
 
+// Close terminates the container.
 func (e *ElasticsearchEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()

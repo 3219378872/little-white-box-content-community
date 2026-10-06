@@ -17,12 +17,14 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// ClickHouseEnv 是一次性 ClickHouse 容器及其连接。
 type ClickHouseEnv struct {
 	DB      *sql.DB
 	DSN     string
 	closeFn func()
 }
 
+// SetupClickHouseEnv 为单个测试启动 ClickHouse 并执行初始化脚本，失败时让测试失败。
 func SetupClickHouseEnv(t *testing.T, initScripts ...string) *ClickHouseEnv {
 	t.Helper()
 	env, err := setupClickHouseEnv(initScripts...)
@@ -30,6 +32,7 @@ func SetupClickHouseEnv(t *testing.T, initScripts ...string) *ClickHouseEnv {
 	return env
 }
 
+// SetupClickHouseEnvM 供 TestMain 使用，启动失败直接退出进程。
 func SetupClickHouseEnvM(initScripts ...string) *ClickHouseEnv {
 	env, err := setupClickHouseEnv(initScripts...)
 	if err != nil {
@@ -39,6 +42,7 @@ func SetupClickHouseEnvM(initScripts ...string) *ClickHouseEnv {
 	return env
 }
 
+// setupClickHouseEnv 启动容器、等待就绪、执行初始化脚本并返回连接。
 func setupClickHouseEnv(initScripts ...string) (*ClickHouseEnv, error) {
 	ctx := context.Background()
 
@@ -88,12 +92,14 @@ func setupClickHouseEnv(initScripts ...string) (*ClickHouseEnv, error) {
 	return &ClickHouseEnv{DB: db, DSN: dsn, closeFn: cleanup}, nil
 }
 
+// Close 关闭连接并终止容器。
 func (e *ClickHouseEnv) Close() {
 	if e.closeFn != nil {
 		e.closeFn()
 	}
 }
 
+// ClickHouseSchemaPath 返回仓库 deploy/sql 下的建表脚本路径，与调用目录无关。
 func ClickHouseSchemaPath(filename string) string {
 	_, f, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(f), "..", "..")

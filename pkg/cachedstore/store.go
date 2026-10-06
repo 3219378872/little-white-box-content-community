@@ -18,12 +18,15 @@ var ErrNotFound = sql.ErrNoRows
 // v3 isolates entries written before cache fills were fenced by reservations.
 const Prefix = "cache:v3:"
 
+// CachedConn is a SQL connection with a Redis read-through row cache; a nil redis disables caching.
 type CachedConn struct {
 	conn    sqlstore.SqlConn
 	redis   *redisstore.Redis
 	options modelcache.Options
 }
 
+// NewConn applies the cache TTL options (seven days for rows, one minute for not-found) and
+// connects to the single configured Redis node or cluster.
 func NewConn(conn sqlstore.SqlConn, c modelcache.CacheConf, opts ...modelcache.Option) CachedConn {
 	options := modelcache.Options{TTLSeconds: 7 * 24 * 3600, NotFoundTTLSeconds: 60}
 	for _, opt := range opts {
@@ -38,19 +41,31 @@ func NewConn(conn sqlstore.SqlConn, c modelcache.CacheConf, opts ...modelcache.O
 	}
 	return CachedConn{conn: conn, redis: redis, options: options}
 }
+
+// RawDB and the NoCache variants bypass the cache for queries that must read current rows.
 func (c CachedConn) RawDB() (*sql.DB, error) { return c.conn.RawDB() }
+
+// QueryRowNoCacheCtx reads one row directly from SQL.
 func (c CachedConn) QueryRowNoCacheCtx(ctx context.Context, v any, q string, args ...any) error {
 	return c.conn.QueryRowCtx(ctx, v, q, args...)
 }
+
+// QueryRowsNoCacheCtx reads rows directly from SQL.
 func (c CachedConn) QueryRowsNoCacheCtx(ctx context.Context, v any, q string, args ...any) error {
 	return c.conn.QueryRowsCtx(ctx, v, q, args...)
 }
+
+// ExecNoCacheCtx writes without invalidating; the caller owns invalidation.
 func (c CachedConn) ExecNoCacheCtx(ctx context.Context, q string, args ...any) (sql.Result, error) {
 	return c.conn.ExecCtx(ctx, q, args...)
 }
+
+// TransactCtx runs fn in a SQL transaction; callers invalidate cache keys after it commits.
 func (c CachedConn) TransactCtx(ctx context.Context, fn func(context.Context, sqlstore.Session) error) error {
 	return c.conn.TransactCtx(ctx, fn)
 }
+
+// DelCacheCtx invalidates keys one by one and keeps going after a failure, returning all errors.
 func (c CachedConn) DelCacheCtx(ctx context.Context, keys ...string) error {
 	if c.redis == nil || len(keys) == 0 {
 		return nil
@@ -65,6 +80,9 @@ func (c CachedConn) DelCacheCtx(ctx context.Context, keys ...string) error {
 	}
 	return errors.Join(errs...)
 }
+
+// ExecCtx runs a write and then invalidates keys. An invalidation failure is only logged because
+// the write is already committed; TTLs bound the staleness.
 func (c CachedConn) ExecCtx(ctx context.Context, fn func(context.Context, sqlstore.SqlConn) (sql.Result, error), keys ...string) (sql.Result, error) {
 	result, err := fn(ctx, c.conn)
 	if err != nil {
@@ -75,6 +93,9 @@ func (c CachedConn) ExecCtx(ctx context.Context, fn func(context.Context, sqlsto
 	}
 	return result, nil
 }
+
+// QueryRowCtx serves a cached row or not-found marker; on a miss it reserves the key before
+// querying SQL so a concurrent invalidation prevents this read from refilling stale data.
 func (c CachedConn) QueryRowCtx(ctx context.Context, v any, key string, query func(context.Context, sqlstore.SqlConn, any) error) error {
 	var reservation string
 	if c.redis != nil {
@@ -106,6 +127,7 @@ func (c CachedConn) QueryRowCtx(ctx context.Context, v any, key string, query fu
 	return err
 }
 
+// finishFill stores the query outcome (row or not-found) under the reservation, or releases it on error.
 func (c CachedConn) finishFill(ctx context.Context, key, reservation string, v any, err error) {
 	var value string
 	var ttl int
@@ -149,4 +171,6 @@ func (c CachedConn) QueryRowIndexCtx(ctx context.Context, v any, key string, pri
 		return primary(ctx, conn, out, id)
 	})
 }
+
+// String describes whether caching is enabled, for startup logs.
 func (c CachedConn) String() string { return fmt.Sprintf("model cache (enabled=%t)", c.redis != nil) }
