@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	pb "esx/kitex_gen/content"
@@ -11,10 +10,8 @@ import (
 	"esx/pkg/event"
 	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
-	"esx/pkg/util"
 	"esx/pkg/visibilityx"
 	"strings"
-	"unicode/utf8"
 
 	"esx/pkg/logging"
 )
@@ -35,6 +32,7 @@ func NewUpdatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Update
 
 // UpdatePost 更新帖子（局部更新语义，B3）：.api 中 title/content 为 optional，
 // 空串表示未提供、保留现值；合并后的完整字段再统一做长度校验。
+// 流程：校验 → 幂等重放 → 校验媒体 → 读取并鉴权 → 合并字段与标签 → 事务内 CAS 写入并写 outbox → 清缓存。
 func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, error) {
 	if err := validateUpdatePost(in); err != nil {
 		return nil, err
@@ -43,63 +41,33 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 	if err != nil {
 		return nil, err
 	}
-	idemModel, idemEnabled := l.svcCtx.PostCommandModel.(model.IdempotentPostCommandModel)
-	if idem.Key != "" {
-		if !idemEnabled {
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		result, found, replayErr := idemModel.ReplayPostCommand(l.ctx, idem)
-		if replayErr != nil {
-			if errors.Is(replayErr, idempotencyx.ErrIdempotencyConflict) {
-				return nil, errx.NewWithCode(errx.IdempotencyConflict)
-			}
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		if found {
-			status, revision := decodePostCommandResult(result)
-			return &pb.UpdatePostResp{Status: status, Revision: revision}, nil
-		}
+	idemModel, result, found, err := replayIdempotentPostCommand(l.ctx, l.svcCtx, idem)
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		status, revision := decodePostCommandResult(result)
+		return &pb.UpdatePostResp{Status: status, Revision: revision}, nil
 	}
 	mediaURLs, err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds)
 	if err != nil {
 		return nil, err
 	}
 
-	post, err := l.postForUpdate(in)
+	post, err := loadOwnedPost(l.ctx, l.Logger, l.svcCtx, in.PostId, in.AuthorId, in.ExpectedRevision)
 	if err != nil {
 		return nil, err
 	}
-
 	patch, err := l.mergePostFields(in, post, mediaURLs)
 	if err != nil {
 		return nil, err
 	}
-	fields, mergedTitle, mergedContent, newStatus := patch.fields, patch.title, patch.content, patch.status
-
 	tags, err := l.tagsForUpdate(in, post)
 	if err != nil {
 		return nil, err
 	}
-	replaceTags, eventTags, modelTags, modelTagIDs := tags.replace, tags.event, tags.values, tags.ids
 
-	createdAt := post.CreatedAt.UnixMilli()
-	if createdAt < 0 {
-		createdAt = 0
-	}
-	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostUpdate, event.PostEvent{
-		Type:         event.PostEventUpdated,
-		PostID:       post.Id,
-		AuthorID:     post.AuthorId,
-		Title:        mergedTitle,
-		Body:         mergedContent,
-		BodyExcerpt:  runePrefix(mergedContent, postEventExcerptRunes),
-		Tags:         eventTags,
-		Status:       int32(newStatus),
-		Revision:     post.Revision + 1,
-		LikeCount:    post.LikeCount,
-		CommentCount: post.CommentCount,
-		CreatedAt:    createdAt,
-	})
+	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostUpdate, postUpdatedEvent(post, patch, tags.event))
 	if err != nil {
 		l.Errorw("build post-updated event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
@@ -108,34 +76,48 @@ func (l *UpdatePostLogic) UpdatePost(in *pb.UpdatePostReq) (*pb.UpdatePostResp, 
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	// 带幂等键时把结果（状态与新修订号）一并记下，供重试直接返回。
+	nextRevision := post.Revision + 1
 	if idem.Key != "" {
-		_, err = idemModel.UpdatePostIdempotent(l.ctx, post.Id, fields, modelTags, modelTagIDs, outboxEvent,
-			in.ExpectedRevision, replaceTags, encodePostCommandResult(int32(newStatus), post.Revision+1), idem)
+		_, err = idemModel.UpdatePostIdempotent(l.ctx, post.Id, patch.fields, tags.values, tags.ids, outboxEvent,
+			in.ExpectedRevision, tags.replace, encodePostCommandResult(int32(patch.status), nextRevision), idem)
 	} else {
-		err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, fields, modelTags, modelTagIDs, outboxEvent, in.ExpectedRevision, replaceTags)
+		err = l.svcCtx.PostCommandModel.UpdatePost(l.ctx, post.Id, patch.fields, tags.values, tags.ids, outboxEvent, in.ExpectedRevision, tags.replace)
 	}
 	if err != nil {
-		if errors.Is(err, model.ErrVersionConflict) {
-			return nil, errx.NewWithCode(errx.ContentVersionConflict)
-		}
-		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
-			return nil, errx.NewWithCode(errx.IdempotencyConflict)
-		}
-		l.Errorw("update post transaction failed",
-			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, postCommandError(l.Logger, "update", post.Id, err)
 	}
-	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
-		l.Errorw("invalidate post cache after update failed",
-			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
-	}
+	invalidatePostCacheAfter(l.ctx, l.Logger, l.svcCtx, "update", post.Id)
 
 	return &pb.UpdatePostResp{
-		Status:   int32(newStatus),
-		Revision: post.Revision + 1,
+		Status:   int32(patch.status),
+		Revision: nextRevision,
 	}, nil
 }
 
+// postUpdatedEvent 用合并后的字段组装更新事件；未改动的标签沿用旧值，计数沿用读取时的快照。
+func postUpdatedEvent(post *model.Post, patch *postFieldUpdate, tags []string) event.PostEvent {
+	createdAt := post.CreatedAt.UnixMilli()
+	if createdAt < 0 {
+		createdAt = 0
+	}
+	return event.PostEvent{
+		Type:         event.PostEventUpdated,
+		PostID:       post.Id,
+		AuthorID:     post.AuthorId,
+		Title:        patch.title,
+		Body:         patch.content,
+		BodyExcerpt:  runePrefix(patch.content, postEventExcerptRunes),
+		Tags:         tags,
+		Status:       int32(patch.status),
+		Revision:     post.Revision + 1,
+		LikeCount:    post.LikeCount,
+		CommentCount: post.CommentCount,
+		CreatedAt:    createdAt,
+	}
+}
+
+// updatePostIdempotency 以完整请求（含“显式清空”标记）的 JSON 作为命令摘要。
 func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord, error) {
 	key := strings.TrimSpace(in.GetIdempotencyKey())
 	payload, err := json.Marshal(struct {
@@ -162,35 +144,24 @@ func updatePostIdempotency(in *pb.UpdatePostReq) (idempotencyx.IdempotencyRecord
 	return row, nil
 }
 
+// encodePostCommandResult 把状态（个位）与修订号压进一个整数存入幂等记录。
 func encodePostCommandResult(status int32, revision int64) int64 {
 	return revision*10 + int64(status)
 }
 
+// decodePostCommandResult 是 encodePostCommandResult 的逆运算。
 func decodePostCommandResult(result int64) (int32, int64) {
 	return int32(result % 10), result / 10
 }
 
+// validateUpdatePost 校验与现值无关的字段；标题与正文要等合并现值后才能校验。
+// 至少要提供一个字段，否则这次更新没有意义。
 func validateUpdatePost(in *pb.UpdatePostReq) error {
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	if len(in.Images) > 9 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	if len(in.Tags) > 10 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	if len(in.MediaIds) > 9 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	for _, tag := range in.Tags {
-		if tag == "" {
-			continue
-		}
-		tagRunes := utf8.RuneCountInString(tag)
-		if tagRunes < 1 || tagRunes > 32 {
-			return errx.NewWithCode(errx.ParamError)
-		}
+	if err := validatePostCollections(in.Images, in.Tags, in.MediaIds); err != nil {
+		return err
 	}
 	if in.Status != nil && !visibilityx.IsDraft(*in.Status) && !visibilityx.IsPublished(*in.Status) {
 		return errx.NewWithCode(errx.ParamError)
@@ -203,41 +174,14 @@ func validateUpdatePost(in *pb.UpdatePostReq) error {
 	return nil
 }
 
-func (l *UpdatePostLogic) postForUpdate(in *pb.UpdatePostReq) (*model.Post, error) {
-	// 鉴权：查帖子仅用于身份校验与现值合并不用于写回（防止 Lost Update）
-	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
-	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
-			return nil, errx.NewWithCode(errx.ContentNotFound)
-		}
-		l.Errorw("PostModel.FindPostById failed",
-			logging.Field("postId", in.PostId),
-			logging.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	if visibilityx.IsDeleted(int32(post.Status)) {
-		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
-	}
-	if post.AuthorId != in.AuthorId {
-		return nil, errx.NewWithCode(errx.ContentForbidden)
-	}
-	if in.ExpectedRevision <= 0 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	if post.Revision != in.ExpectedRevision {
-		return nil, errx.NewWithCode(errx.ContentVersionConflict)
-	}
-
-	return post, nil
-}
-
+// postFieldUpdate 是合并现值后的写入字段，以及事件需要的完整标题、正文与新状态。
 type postFieldUpdate struct {
 	fields         map[string]any
 	title, content string
 	status         int64
 }
 
+// mergePostFields 把请求与现值合并并校验；只有显式提供的字段进入写入集合。
 func (l *UpdatePostLogic) mergePostFields(in *pb.UpdatePostReq, post *model.Post, mediaURLs []string) (*postFieldUpdate, error) {
 	mergedTitle := post.Title
 	if in.GetTitle() != "" {
@@ -247,19 +191,8 @@ func (l *UpdatePostLogic) mergePostFields(in *pb.UpdatePostReq, post *model.Post
 	if in.GetContent() != "" {
 		mergedContent = in.GetContent()
 	}
-	titleRunes := utf8.RuneCountInString(mergedTitle)
-	if titleRunes < 1 {
-		return nil, errx.NewWithCode(errx.TitleEmpty)
-	}
-	if titleRunes > 120 {
-		return nil, errx.NewWithCode(errx.ContentTooLong)
-	}
-	contentRunes := utf8.RuneCountInString(mergedContent)
-	if contentRunes < 1 {
-		return nil, errx.NewWithCode(errx.ContentEmpty)
-	}
-	if contentRunes > 20000 {
-		return nil, errx.NewWithCode(errx.ContentTooLong)
+	if err := validatePostText(mergedTitle, mergedContent); err != nil {
+		return nil, err
 	}
 
 	// 校验图片
@@ -291,6 +224,7 @@ func (l *UpdatePostLogic) mergePostFields(in *pb.UpdatePostReq, post *model.Post
 	return &postFieldUpdate{fields: fields, title: mergedTitle, content: mergedContent, status: newStatus}, nil
 }
 
+// postTagUpdate 描述标签是否替换、写入的标签与 ID，以及事件携带的标签。
 type postTagUpdate struct {
 	replace       bool
 	event, values []string
@@ -307,21 +241,11 @@ func (l *UpdatePostLogic) tagsForUpdate(in *pb.UpdatePostReq, post *model.Post) 
 	var modelTags []string
 	var modelTagIDs []int64
 	if replaceTags {
-		for _, tag := range in.Tags {
-			if tag != "" {
-				eventTags = append(eventTags, tag)
-			}
+		modelTags, modelTagIDs, err = allocateTagIDs(l.Logger, in.Tags)
+		if err != nil {
+			return nil, err
 		}
-		modelTags = eventTags
-		modelTagIDs = make([]int64, 0, len(eventTags))
-		for range eventTags {
-			tid, idErr := util.NextID()
-			if idErr != nil {
-				l.Errorw("generate tag id failed", logging.Field("err", idErr.Error()))
-				return nil, errx.NewWithCode(errx.SystemError)
-			}
-			modelTagIDs = append(modelTagIDs, tid)
-		}
+		eventTags = modelTags
 	} else {
 		eventTags, err = l.svcCtx.PostTagModel.FindTagNamesByPostId(l.ctx, post.Id)
 		if err != nil {

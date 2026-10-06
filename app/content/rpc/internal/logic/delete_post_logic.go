@@ -3,15 +3,12 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"esx/app/content/rpc/internal/model"
 	"esx/app/content/rpc/internal/svc"
 	pb "esx/kitex_gen/content"
 	"esx/pkg/errx"
 	"esx/pkg/event"
 	"esx/pkg/idempotencyx"
 	"esx/pkg/mqx"
-	"esx/pkg/visibilityx"
 	"strings"
 
 	"esx/pkg/logging"
@@ -31,7 +28,7 @@ func NewDeletePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delete
 	}
 }
 
-// DeletePost 删除帖子（软删除，status=2）
+// DeletePost 删除帖子（软删除，status=2）：幂等重放 → 读取并鉴权 → 事务内 CAS 删除并写 outbox → 清缓存。
 func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, error) {
 	if in.PostId <= 0 || in.AuthorId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)
@@ -40,48 +37,19 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 	if err != nil {
 		return nil, err
 	}
-	idemModel, idemEnabled := l.svcCtx.PostCommandModel.(model.IdempotentPostCommandModel)
-	if idem.Key != "" {
-		if !idemEnabled {
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		_, found, replayErr := idemModel.ReplayPostCommand(l.ctx, idem)
-		if replayErr != nil {
-			if errors.Is(replayErr, idempotencyx.ErrIdempotencyConflict) {
-				return nil, errx.NewWithCode(errx.IdempotencyConflict)
-			}
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		if found {
-			return &pb.DeletePostResp{}, nil
-		}
-	}
-
-	post, err := l.svcCtx.PostModel.FindPostById(l.ctx, in.PostId)
+	idemModel, _, found, err := replayIdempotentPostCommand(l.ctx, l.svcCtx, idem)
 	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
-			return nil, errx.NewWithCode(errx.ContentNotFound)
-		}
-		l.Errorw("PostModel.FindPostById failed",
-			logging.Field("postId", in.PostId),
-			logging.Field("err", err.Error()),
-		)
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, err
+	}
+	if found {
+		return &pb.DeletePostResp{}, nil
 	}
 
-	if visibilityx.IsDeleted(int32(post.Status)) {
-		return nil, errx.NewWithCode(errx.PostAlreadyDeleted)
+	post, err := loadOwnedPost(l.ctx, l.Logger, l.svcCtx, in.PostId, in.AuthorId, in.ExpectedRevision)
+	if err != nil {
+		return nil, err
 	}
-	if post.AuthorId != in.AuthorId {
-		return nil, errx.NewWithCode(errx.ContentForbidden)
-	}
-	if in.ExpectedRevision <= 0 {
-		return nil, errx.NewWithCode(errx.ParamError)
-	}
-	if post.Revision != in.ExpectedRevision {
-		return nil, errx.NewWithCode(errx.ContentVersionConflict)
-	}
-
+	// 删除事件只携带身份与新修订号，下游据此下架帖子。
 	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostDelete, event.PostEvent{
 		Type:     event.PostEventDeleted,
 		PostID:   post.Id,
@@ -102,24 +70,14 @@ func (l *DeletePostLogic) DeletePost(in *pb.DeletePostReq) (*pb.DeletePostResp, 
 		err = l.svcCtx.PostCommandModel.DeletePost(l.ctx, post.Id, outboxEvent, in.ExpectedRevision)
 	}
 	if err != nil {
-		if errors.Is(err, model.ErrVersionConflict) {
-			return nil, errx.NewWithCode(errx.ContentVersionConflict)
-		}
-		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
-			return nil, errx.NewWithCode(errx.IdempotencyConflict)
-		}
-		l.Errorw("delete post transaction failed",
-			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
+		return nil, postCommandError(l.Logger, "delete", post.Id, err)
 	}
-	if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, post.Id); err != nil {
-		l.Errorw("invalidate post cache after delete failed",
-			logging.Field("postId", post.Id), logging.Field("err", err.Error()))
-	}
+	invalidatePostCacheAfter(l.ctx, l.Logger, l.svcCtx, "delete", post.Id)
 
 	return &pb.DeletePostResp{}, nil
 }
 
+// deletePostIdempotency 以帖子、作者与期望修订号作为删除命令摘要。
 func deletePostIdempotency(in *pb.DeletePostReq) (idempotencyx.IdempotencyRecord, error) {
 	key := strings.TrimSpace(in.GetIdempotencyKey())
 	payload, err := json.Marshal(struct {

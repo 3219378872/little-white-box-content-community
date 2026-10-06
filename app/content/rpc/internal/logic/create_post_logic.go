@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"esx/pkg/logging"
 )
@@ -34,24 +33,17 @@ func NewCreatePostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Create
 	}
 }
 
-// CreatePost 创建帖子
+// CreatePost 创建帖子：校验 → 幂等记录 → 校验媒体归属 → 组装帖子与标签 →
+// 在同一事务内写帖子、标签、outbox 事件与幂等记录 → 首次创建时清理缓存。
 func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, error) {
 	if err := validateCreatePost(in); err != nil {
 		return nil, err
 	}
-	idempotencyKey := strings.TrimSpace(in.GetIdempotencyKey())
-	idem := idempotencyx.IdempotencyRecord{
-		Scope:  "post:create",
-		UserID: in.AuthorId,
-		Key:    idempotencyKey,
-		CommandHash: idempotencyx.CommandHash(
-			in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
-			strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
-		),
-	}
+	idem := createPostIdempotency(in)
 	if !idem.Valid() {
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
+	// 媒体必须属于作者且已上传完成，校验通过的媒体 URL 与客户端图片合并为帖子图片。
 	mediaURLs, err := validatePostMedia(l.ctx, l.Logger, l.svcCtx.MediaService, in.AuthorId, in.MediaIds)
 	if err != nil {
 		return nil, err
@@ -64,49 +56,22 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	if err != nil {
 		return nil, err
 	}
-	id := post.Id
-
-	// 收集有效标签并预生成分布式 ID
-	validTags := make([]string, 0, len(in.Tags))
-	tagIds := make([]int64, 0, len(in.Tags))
-	for _, tag := range in.Tags {
-		if tag == "" {
-			continue
-		}
-		tid, idErr := util.NextID()
-		if idErr != nil {
-			l.Errorw("generate tag id failed", logging.Field("err", idErr.Error()))
-			return nil, errx.NewWithCode(errx.SystemError)
-		}
-		validTags = append(validTags, tag)
-		tagIds = append(tagIds, tid)
+	validTags, tagIds, err := allocateTagIDs(l.Logger, in.Tags)
+	if err != nil {
+		return nil, err
 	}
 
 	if l.svcCtx.PostCommandModel == nil {
 		l.Errorw("PostCommandModel is nil")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-
-	createdAt := time.Now().UnixMilli()
-	content := in.GetContent()
-	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostCreate, event.PostEvent{
-		EventTime:   createdAt,
-		Type:        event.PostEventCreated,
-		PostID:      id,
-		AuthorID:    in.GetAuthorId(),
-		Title:       in.GetTitle(),
-		Body:        content,
-		BodyExcerpt: runePrefix(content, postEventExcerptRunes),
-		Tags:        validTags,
-		Status:      in.GetStatus(),
-		Revision:    1,
-		CreatedAt:   createdAt,
-		StatsSeq:    createdAt,
-	})
+	// 帖子创建事件随事务写入 outbox，保证下游（搜索、推荐等）不会漏掉已提交的帖子。
+	outboxEvent, err := buildPostOutboxEvent(mqx.TopicPostCreate, postCreatedEvent(in, post.Id, validTags, time.Now().UnixMilli()))
 	if err != nil {
 		l.Errorw("build post-created event failed", logging.Field("err", err.Error()))
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
+	// 幂等重放时返回首次创建的帖子 ID，created=false。
 	postID, created, err := l.svcCtx.PostCommandModel.CreatePost(l.ctx, post, validTags, tagIds, outboxEvent, idem)
 	if err != nil {
 		if errors.Is(err, idempotencyx.ErrIdempotencyConflict) {
@@ -116,9 +81,7 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
 	if created {
-		if err = l.svcCtx.PostModel.InvalidatePostCache(l.ctx, id); err != nil {
-			l.Errorw("invalidate post cache after create failed", logging.Field("postId", id), logging.Field("err", err.Error()))
-		}
+		invalidatePostCacheAfter(l.ctx, l.Logger, l.svcCtx, "create", post.Id)
 	}
 
 	return &pb.CreatePostResp{
@@ -128,58 +91,62 @@ func (l *CreatePostLogic) CreatePost(in *pb.CreatePostReq) (*pb.CreatePostResp, 
 	}, nil
 }
 
+// createPostIdempotency 以帖子内容各字段的哈希作为命令摘要：同一幂等键配不同内容会被判为冲突。
+func createPostIdempotency(in *pb.CreatePostReq) idempotencyx.IdempotencyRecord {
+	return idempotencyx.IdempotencyRecord{
+		Scope:  "post:create",
+		UserID: in.AuthorId,
+		Key:    strings.TrimSpace(in.GetIdempotencyKey()),
+		CommandHash: idempotencyx.CommandHash(
+			in.GetTitle(), in.GetContent(), strings.Join(in.Images, ","), strings.Join(in.Tags, ","),
+			strings.Join(sortedMediaIDs(in.MediaIds), ","), strconv.FormatInt(int64(in.GetStatus()), 10),
+		),
+	}
+}
+
+// postCreatedEvent 组装帖子创建事件；新帖修订号固定为 1，统计序号取创建时间。
+func postCreatedEvent(in *pb.CreatePostReq, postID int64, tags []string, createdAt int64) event.PostEvent {
+	content := in.GetContent()
+	return event.PostEvent{
+		EventTime:   createdAt,
+		Type:        event.PostEventCreated,
+		PostID:      postID,
+		AuthorID:    in.GetAuthorId(),
+		Title:       in.GetTitle(),
+		Body:        content,
+		BodyExcerpt: runePrefix(content, postEventExcerptRunes),
+		Tags:        tags,
+		Status:      in.GetStatus(),
+		Revision:    1,
+		CreatedAt:   createdAt,
+		StatsSeq:    createdAt,
+	}
+}
+
+// validateCreatePost 在任何外部调用前校验请求字段；图片 URL 不得含逗号，因为存储层按逗号分隔。
 func validateCreatePost(in *pb.CreatePostReq) error {
-	// 校验基本字段
 	if in.AuthorId <= 0 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	titleRunes := utf8.RuneCountInString(in.GetTitle())
-	if titleRunes < 1 {
-		return errx.NewWithCode(errx.TitleEmpty)
-	}
-	if titleRunes > 120 {
-		return errx.NewWithCode(errx.ContentTooLong)
-	}
-	contentRunes := utf8.RuneCountInString(in.GetContent())
-	if contentRunes < 1 {
-		return errx.NewWithCode(errx.ContentEmpty)
-	}
-	if contentRunes > 20000 {
-		return errx.NewWithCode(errx.ContentTooLong)
+	if err := validatePostText(in.GetTitle(), in.GetContent()); err != nil {
+		return err
 	}
 	if in.GetStatus() != 0 && in.GetStatus() != 1 {
 		return errx.NewWithCode(errx.ParamError)
 	}
-	if len(in.Images) > 9 {
-		return errx.NewWithCode(errx.ParamError)
+	if err := validatePostCollections(in.Images, in.Tags, in.MediaIds); err != nil {
+		return err
 	}
-	// 校验图片url（不得含','，因为我们用逗号分隔存储）
 	for _, image := range in.Images {
 		if strings.ContainsRune(image, ',') {
 			return errx.NewWithCode(errx.ParamError)
 		}
 	}
-	if len(in.Tags) > 10 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	if len(in.MediaIds) > 9 {
-		return errx.NewWithCode(errx.ParamError)
-	}
-	for _, tag := range in.Tags {
-		if tag == "" {
-			continue
-		}
-		tagRunes := utf8.RuneCountInString(tag)
-		if tagRunes < 1 || tagRunes > 32 {
-			return errx.NewWithCode(errx.ParamError)
-		}
-	}
-
 	return nil
 }
 
+// newPost 组装待写入的帖子行：预生成分布式 ID，图片与媒体 ID 以 JSON 存储。
 func (l *CreatePostLogic) newPost(in *pb.CreatePostReq, images []string) (*model.Post, error) {
-	// 生成分布式id
 	id, err := util.NextID()
 	if err != nil {
 		return nil, errx.NewWithCode(errx.SystemError)
