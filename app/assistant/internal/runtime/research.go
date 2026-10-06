@@ -88,11 +88,15 @@ func requiresExclusiveRound(calls []llm.ToolCall) bool {
 	return false
 }
 
+// publishAnswer 以已校验的检索回答结束 run：回答作为终态消息发布，
+// publish_answer 工具调用的结果在同一事务内补写。回答经 answer_committed 事件下发，不补发 token。
 func (e *Engine) publishAnswer(ctx context.Context, run *store.Run, call llm.ToolCall, answer store.AnswerPresentation) error {
 	text := tool.AnswerText(&answer)
 	run.ToolCalls++
-	err := e.finishMessage(ctx, *run, store.StatusDone, store.EventDone, store.EventPayload{Answer: &answer, Text: text}, text,
-		prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), false, "", func(ctx context.Context, tx store.Store) error {
+	err := e.finishMessage(ctx, *run, terminalOutcome{
+		status: store.StatusDone, eventType: store.EventDone, payload: store.EventPayload{Answer: &answer, Text: text},
+		message: text, apiContent: prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}),
+		before: func(ctx context.Context, tx store.Store) error {
 			result := "回答和来源已发布。"
 			if err := tx.UpdateToolCall(ctx, store.ToolCall{RunID: run.ID, CallID: call.ID, Status: "success", ResultJSON: encodeToolResultJSONWithChanges(result, nil, nil)}); err != nil {
 				return err
@@ -103,7 +107,8 @@ func (e *Engine) publishAnswer(ctx context.Context, run *store.Run, call llm.Too
 			}
 			_, err := AppendEvent(ctx, tx, nil, *run, store.EventToolResult, store.EventPayload{ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: "success"}})
 			return err
-		})
+		},
+	})
 	if err != nil {
 		return err
 	}

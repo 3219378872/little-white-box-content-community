@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+// execTool 执行一次工具调用：准备参数 → 登记调用并为有副作用的工具预留 journal →
+// 已成功的 journal 直接重放 → 高风险工具先取得用户确认 → 调用前复核取消、授权与预算 →
+// 调用并落库结果 → 检查是否陷入无进展的重复调用。
 func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, reviewLive *[]prompt.Turn) error {
 	if HardLimitExceeded(*run, store.NowMs()) {
 		return e.stopAtResourceLimit(persistCtx, *run)
@@ -23,99 +26,142 @@ func (e *Engine) execTool(workCtx, persistCtx context.Context, run *store.Run, r
 	}
 	call, digest, prepErr := prepareCall(workCtx, registry, sess, call)
 
+	// 只有参数合法的副作用工具才预留 journal，用于崩溃恢复后的去重与重放。
 	journal, reserved, err := e.startToolStep(persistCtx, *run, call, digest, prepErr == nil && registry.SideEffect(call.Name))
 	if err != nil {
 		return err
 	}
 	if journal != nil && journal.Status == store.JournalSuccess {
 		agentToolCalls.Inc(call.Name, "replay")
-		text := decodeToolResultText(journal.ResultJSON)
 		sess.ChangeIDs = decodeToolResultChangeIDs(journal.ResultJSON)
-		if err := e.finishToolStep(persistCtx, run, call, text, nil, nil, sess.ChangeIDs, journal, false, "replay", reviewLive); err != nil {
-			return err
-		}
-		return e.guardToolProgress(persistCtx, run, registry, call, reviewLive)
+		return e.completeToolStep(persistCtx, run, registry, call, toolStepResult{
+			text: decodeToolResultText(journal.ResultJSON), changeIDs: sess.ChangeIDs,
+			journal: journal, outcome: "replay",
+		}, reviewLive)
 	}
+	// journal 已被另一个执行者持有且未完成时不能并发执行同一副作用。
 	if journal != nil && !reserved && journal.Status == store.JournalPending {
 		return errors.New("side effect command is already in progress")
 	}
 	if prepErr != nil {
-		text := prepErr.Error()
-		if err := e.finishToolStep(persistCtx, run, call, text, prepErr, nil, nil, journal, true, "invalid", reviewLive); err != nil {
-			return err
-		}
-		return e.guardToolProgress(persistCtx, run, registry, call, reviewLive)
+		return e.completeToolStep(persistCtx, run, registry, call, toolStepResult{
+			text: prepErr.Error(), err: prepErr, journal: journal, countCall: true, outcome: "invalid",
+		}, reviewLive)
 	}
 	sess.Recovery = journal != nil && journal.Takeover
 	if registry.HighRisk(call.Name) {
-		if err := e.requireConfirm(workCtx, persistCtx, run, call, digest); err != nil {
+		if call, err = e.confirmHighRiskCall(workCtx, persistCtx, run, registry, sess, call, digest); err != nil {
 			return err
 		}
-		rechecked, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
-		if err != nil {
-			return err
-		}
-		recheckedDigest, err := canonical.DigestArgs(rechecked)
-		if err != nil || recheckedDigest != digest {
-			return errx.New(errx.ContentVersionConflict, "delete_post changed after confirmation")
-		}
-		call.Arguments = rechecked
 	}
-	if e.cancelled(persistCtx, run) {
-		return errRunCancelled
-	}
-	if err := e.requireFrozenConsent(persistCtx, run); err != nil {
+	if err := e.checkBeforeInvoke(persistCtx, run); err != nil {
 		return err
 	}
-	if HardLimitExceeded(*run, store.NowMs()) {
-		return e.stopAtResourceLimit(persistCtx, *run)
-	}
-	var (
-		text    string
-		cards   []store.SourceRef
-		callErr error
-	)
-	invoke := func() {
-		text, cards, callErr = registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
-	}
-	if registry.SideEffect(call.Name) {
-		if err := e.step(persistCtx, *run, func(context.Context, store.Store) error {
-			invoke()
-			return nil
-		}); err != nil {
-			return err
-		}
-	} else {
-		if err := e.step(persistCtx, *run, func(context.Context, store.Store) error { return nil }); err != nil {
-			return err
-		}
-		invoke()
+	text, cards, callErr, err := e.invokeTool(workCtx, persistCtx, *run, registry, sess, call)
+	if err != nil {
+		return err
 	}
 	outcome := "success"
 	if callErr != nil {
 		if errors.Is(callErr, context.Canceled) && e.cancelled(persistCtx, run) {
 			return errRunCancelled
 		}
+		// 工具失败不终止 run：错误文本作为工具结果交给模型自行调整。
 		outcome = "unavailable"
 		text = callErr.Error()
 	}
 	agentToolCalls.Inc(call.Name, outcome)
+	// 追问与发布回答会让 run 进入等待或直接结束，不再写普通工具结果。
 	if callErr == nil && sess.Question != nil {
 		return e.waitForQuestions(persistCtx, run, call, *sess.Question)
 	}
 	if callErr == nil && sess.Answer != nil {
 		return e.publishAnswer(persistCtx, run, call, *sess.Answer)
 	}
-	if err := e.finishToolStep(persistCtx, run, call, text, callErr, cards, sess.ChangeIDs, journal, true, outcome, reviewLive); err != nil {
-		return err
-	}
-	if err := e.guardToolProgress(persistCtx, run, registry, call, reviewLive); err != nil {
+	if err := e.completeToolStep(persistCtx, run, registry, call, toolStepResult{
+		text: text, err: callErr, cards: cards, changeIDs: sess.ChangeIDs,
+		journal: journal, countCall: true, outcome: outcome,
+	}, reviewLive); err != nil {
 		return err
 	}
 	if e.cancelled(persistCtx, run) {
 		return errRunCancelled
 	}
 	return nil
+}
+
+// confirmHighRiskCall 等待用户确认高风险调用，并在确认后重新准备参数：
+// 若目标在等待期间发生变化（摘要不同），拒绝执行而不是按旧确认操作新内容。
+func (e *Engine) confirmHighRiskCall(
+	workCtx, persistCtx context.Context,
+	run *store.Run,
+	registry *tool.Registry,
+	sess *tool.Session,
+	call llm.ToolCall,
+	digest string,
+) (llm.ToolCall, error) {
+	if err := e.requireConfirm(workCtx, persistCtx, run, call, digest); err != nil {
+		return call, err
+	}
+	rechecked, err := registry.Prepare(workCtx, sess, call.Name, call.Arguments)
+	if err != nil {
+		return call, err
+	}
+	recheckedDigest, err := canonical.DigestArgs(rechecked)
+	if err != nil || recheckedDigest != digest {
+		return call, errx.New(errx.ContentVersionConflict, "delete_post changed after confirmation")
+	}
+	call.Arguments = rechecked
+	return call, nil
+}
+
+// checkBeforeInvoke 在真正调用工具前复核：run 未被取消、授权快照未变、预算未耗尽。
+// 确认等待可能很久，这些条件都可能在此期间变化。
+func (e *Engine) checkBeforeInvoke(ctx context.Context, run *store.Run) error {
+	if e.cancelled(ctx, run) {
+		return errRunCancelled
+	}
+	if err := e.requireFrozenConsent(ctx, run); err != nil {
+		return err
+	}
+	if HardLimitExceeded(*run, store.NowMs()) {
+		return e.stopAtResourceLimit(ctx, *run)
+	}
+	return nil
+}
+
+// invokeTool 调用工具。副作用工具在租约栅栏校验的同一步骤内调用，失去租约的执行者不会产生副作用；
+// 只读工具先校验栅栏再在事务外调用。返回的 err 是栅栏错误，callErr 是工具自身的错误。
+func (e *Engine) invokeTool(
+	workCtx, persistCtx context.Context,
+	run store.Run,
+	registry *tool.Registry,
+	sess *tool.Session,
+	call llm.ToolCall,
+) (text string, cards []store.SourceRef, callErr error, err error) {
+	invoke := func() {
+		text, cards, callErr = registry.Call(workCtx, sess, call.Name, call.ID, call.Arguments)
+	}
+	if registry.SideEffect(call.Name) {
+		err = e.step(persistCtx, run, func(context.Context, store.Store) error {
+			invoke()
+			return nil
+		})
+		return text, cards, callErr, err
+	}
+	if err = e.step(persistCtx, run, func(context.Context, store.Store) error { return nil }); err != nil {
+		return "", nil, nil, err
+	}
+	invoke()
+	return text, cards, callErr, nil
+}
+
+// completeToolStep 落库工具结果后检查重复调用；两步总是成对出现。
+func (e *Engine) completeToolStep(ctx context.Context, run *store.Run, registry *tool.Registry, call llm.ToolCall, result toolStepResult, reviewLive *[]prompt.Turn) error {
+	if err := e.finishToolStep(ctx, run, call, result, reviewLive); err != nil {
+		return err
+	}
+	return e.guardToolProgress(ctx, run, registry, call, reviewLive)
 }
 
 func (e *Engine) populateToolLiveMessageIDs(ctx context.Context, run store.Run, sess *tool.Session) error {
@@ -259,40 +305,44 @@ func (e *Engine) startToolStep(
 	return journal, reserved, err
 }
 
-func (e *Engine) finishToolStep(
-	ctx context.Context,
-	run *store.Run,
-	call llm.ToolCall,
-	text string,
-	callErr error,
-	cards []store.SourceRef,
-	changeIDs []int64,
-	journal *store.Journal,
-	countCall bool,
-	outcome string,
-	reviewLive *[]prompt.Turn,
-) error {
-	if countCall {
+// toolStepResult 是一次工具调用要落库的结果。
+type toolStepResult struct {
+	text      string
+	err       error
+	cards     []store.SourceRef
+	changeIDs []int64
+	// journal 非空时同时完成副作用 journal，记录成功或失败。
+	journal *store.Journal
+	// countCall 决定是否计入工具调用预算；重放已计过数，不再重复计。
+	countCall bool
+	// outcome 是工具调用行与事件中的状态：success、unavailable、invalid、replay。
+	outcome string
+}
+
+// finishToolStep 在一个步骤内写入 run 计数、journal、工具调用结果、隐藏的工具消息与结果事件。
+// 后台记忆整理 run 不落工具消息，而是把结果追加到内存中的 reviewLive 对话。
+func (e *Engine) finishToolStep(ctx context.Context, run *store.Run, call llm.ToolCall, result toolStepResult, reviewLive *[]prompt.Turn) error {
+	if result.countCall {
 		run.ToolCalls++
 	}
 	run.LastActivityAtMs = store.NowMs()
-	resultJSON := encodeToolResultJSONWithChanges(text, callErr, changeIDs)
-	turn := prompt.Turn{Role: store.RoleTool, Content: text, ToolCallID: call.ID, Name: call.Name}
+	resultJSON := encodeToolResultJSONWithChanges(result.text, result.err, result.changeIDs)
+	turn := prompt.Turn{Role: store.RoleTool, Content: result.text, ToolCallID: call.ID, Name: call.Name}
 	err := e.step(ctx, *run, func(ctx context.Context, tx store.Store) error {
 		if err := tx.UpdateRun(ctx, *run); err != nil {
 			return err
 		}
-		if journal != nil {
+		if result.journal != nil {
 			status := store.JournalSuccess
-			if callErr != nil {
+			if result.err != nil {
 				status = store.JournalError
 			}
-			if err := tx.CompleteJournal(ctx, journal.ID, status, resultJSON); err != nil {
+			if err := tx.CompleteJournal(ctx, result.journal.ID, status, resultJSON); err != nil {
 				return err
 			}
 		}
 		if err := tx.UpdateToolCall(ctx, store.ToolCall{
-			RunID: run.ID, CallID: call.ID, Status: outcome, ResultJSON: resultJSON,
+			RunID: run.ID, CallID: call.ID, Status: result.outcome, ResultJSON: resultJSON,
 		}); err != nil {
 			return err
 		}
@@ -306,12 +356,12 @@ func (e *Engine) finishToolStep(
 			}
 		}
 		if _, err := AppendEvent(ctx, tx, nil, *run, store.EventToolResult, store.EventPayload{
-			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: outcome, PayloadJSON: text}, Text: text,
+			ToolCall: &store.ToolInfo{CallID: call.ID, Tool: call.Name, Summary: result.outcome, PayloadJSON: result.text}, Text: result.text,
 		}); err != nil {
 			return err
 		}
-		for i := range cards {
-			if _, err := AppendEvent(ctx, tx, nil, *run, store.EventSourceCard, store.EventPayload{SourceCard: &cards[i]}); err != nil {
+		for i := range result.cards {
+			if _, err := AppendEvent(ctx, tx, nil, *run, store.EventSourceCard, store.EventPayload{SourceCard: &result.cards[i]}); err != nil {
 				return err
 			}
 		}

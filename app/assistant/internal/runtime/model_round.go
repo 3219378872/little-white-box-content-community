@@ -25,8 +25,9 @@ func (e *Engine) incomplete(ctx context.Context, run store.Run, result llm.Resul
 		Partial:   partial,
 	}
 	if partial != "" && run.Source == store.SourceUser {
-		return e.finishWithMessageEvent(ctx, run, store.StatusError, store.EventError, payload, partial,
-			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: partial}), !result.Streamed, result.StreamID)
+		return e.finishMessage(ctx, run, terminalOutcome{
+			status: store.StatusError, eventType: store.EventError, payload: payload,
+		}.withAssistantText(partial, result))
 	}
 	return e.finish(ctx, run, store.StatusError, store.EventError, payload)
 }

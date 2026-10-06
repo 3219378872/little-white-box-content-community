@@ -104,6 +104,8 @@ func (a *Acceptor) Accept(ctx context.Context, in AcceptInput) (AcceptResult, er
 	return out, err
 }
 
+// acceptTx 在一个事务内接收用户输入：复核授权 → 幂等重放 → 抢占后台 run 并锁线程 →
+// 写入用户消息 → 按当前活跃 run 的状态决定处置并交给 run → 记录输入命令与线程摘要。
 func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput, text string) (AcceptResult, error) {
 	now := store.NowMs()
 	consentVersion, granted, err := tx.AgentConsent(ctx, in.UserID)
@@ -154,46 +156,13 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	}
 
 	payload := mustJSON(inputPayload{Text: text, MessageID: msg.ID, Attachments: in.Attachments, ContextPostID: in.ContextPostID})
-	var runID int64
-	switch disposition {
-	case store.DispositionStarted:
-		if cold {
-			session, err = spliceColdSession(ctx, tx, a.Memory, session)
-			if err != nil {
-				return AcceptResult{}, err
-			}
-		}
-		run, err := tx.InsertRun(ctx, store.Run{
-			ClientProtocolVersion: in.ClientProtocolVersion,
-			UserID:                in.UserID, SessionID: session.ID, RequestID: in.RequestID, Source: store.SourceUser,
-			Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityUser,
-			QueuedPayload: payload, ConsentVersion: in.ConsentVersion, InputVersion: 1,
-			PromptEpoch: session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
-		})
-		if err != nil {
-			return AcceptResult{}, err
-		}
-		runID = run.ID
-		thread.ActiveRunID = run.ID
-		msg.RunID = run.ID
-	case store.DispositionRedirected, store.DispositionSteered:
-		runID = active.ID
-		if err := tx.SetRunInput(ctx, active.ID, payload, now); err != nil {
-			return AcceptResult{}, err
-		}
-	case store.DispositionQueued:
-		n, err := tx.CountQueue(ctx, active.ID)
-		if err != nil {
-			return AcceptResult{}, err
-		}
-		if err := EnqueueOrReject(n); err != nil {
-			return AcceptResult{}, err
-		}
-		if _, err := tx.Enqueue(ctx, store.QueueItem{UserID: in.UserID, RunID: active.ID, MessageID: msg.ID, CreatedAtMs: now}); err != nil {
-			return AcceptResult{}, err
-		}
-		runID = active.ID
+	route := acceptedRoute{in: in, thread: thread, session: session, messageID: msg.ID, cold: cold, payload: payload, now: now}
+	runID, err := a.routeInput(ctx, tx, &route, active, disposition)
+	if err != nil {
+		return AcceptResult{}, err
 	}
+	session = route.session
+	// 记录输入命令，同一 requestID 的重试据此直接返回本次结果。
 	if _, err := tx.InsertInputCommand(ctx, store.InputCommand{
 		UserID: in.UserID, RequestID: in.RequestID, SessionID: session.ID,
 		MessageID: msg.ID, RunID: runID, Disposition: disposition, CreatedAtMs: now,
@@ -206,6 +175,66 @@ func (a *Acceptor) acceptTx(ctx context.Context, tx store.Store, in AcceptInput,
 	return AcceptResult{MessageID: msg.ID, SessionID: session.ID, RunID: runID, Disposition: disposition}, nil
 }
 
+// acceptedRoute 是已写入的用户消息交给 run 时需要的上下文；routeInput 可能替换 session（冷会话拼接）
+// 并更新 thread 的活跃 run。
+type acceptedRoute struct {
+	in        AcceptInput
+	thread    *store.Thread
+	session   *store.Session
+	messageID int64
+	cold      bool
+	payload   []byte
+	now       int64
+}
+
+// routeInput 按处置把输入交给 run，返回承接输入的 run ID：
+// started 新建排队的用户 run（冷会话先拼接新会话）；redirected/steered 改写当前 run 的输入；
+// queued 排到当前 run 之后，队列已满时拒绝。
+func (a *Acceptor) routeInput(ctx context.Context, tx store.Store, route *acceptedRoute, active *store.Run, disposition string) (int64, error) {
+	in, now := route.in, route.now
+	switch disposition {
+	case store.DispositionStarted:
+		if route.cold {
+			session, err := spliceColdSession(ctx, tx, a.Memory, route.session)
+			if err != nil {
+				return 0, err
+			}
+			route.session = session
+		}
+		run, err := tx.InsertRun(ctx, store.Run{
+			ClientProtocolVersion: in.ClientProtocolVersion,
+			UserID:                in.UserID, SessionID: route.session.ID, RequestID: in.RequestID, Source: store.SourceUser,
+			Status: store.StatusQueued, Phase: store.PhaseQueued, Priority: store.PriorityUser,
+			QueuedPayload: route.payload, ConsentVersion: in.ConsentVersion, InputVersion: 1,
+			PromptEpoch: route.session.PromptEpoch, CreatedAtMs: now, LastActivityAtMs: now,
+		})
+		if err != nil {
+			return 0, err
+		}
+		route.thread.ActiveRunID = run.ID
+		return run.ID, nil
+	case store.DispositionRedirected, store.DispositionSteered:
+		if err := tx.SetRunInput(ctx, active.ID, route.payload, now); err != nil {
+			return 0, err
+		}
+		return active.ID, nil
+	case store.DispositionQueued:
+		n, err := tx.CountQueue(ctx, active.ID)
+		if err != nil {
+			return 0, err
+		}
+		if err := EnqueueOrReject(n); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Enqueue(ctx, store.QueueItem{UserID: in.UserID, RunID: active.ID, MessageID: route.messageID, CreatedAtMs: now}); err != nil {
+			return 0, err
+		}
+		return active.ID, nil
+	}
+	return 0, nil
+}
+
+// MarkRead 把用户的助手消息全部标为已读并清零线程未读数。
 func (a *Acceptor) MarkRead(ctx context.Context, userID int64) (int32, error) {
 	if userID <= 0 {
 		return 0, errx.NewWithCode(errx.LoginRequired)

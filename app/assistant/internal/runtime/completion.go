@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"esx/app/assistant/internal/llm"
-	"esx/app/assistant/internal/prompt"
 	"esx/app/assistant/internal/store"
 	"esx/app/assistant/internal/tool"
 )
@@ -17,9 +16,10 @@ func (e *Engine) completeModelText(ctx context.Context, run store.Run, result ll
 	case store.SourceMemoryReview:
 		return e.completeMemoryReview(ctx, run)
 	default:
-		return e.finishWithMessageEvent(ctx, run, store.StatusDone, store.EventDone,
-			store.EventPayload{Text: text, StreamID: result.StreamID}, text,
-			prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: text}), !result.Streamed, result.StreamID)
+		return e.finishMessage(ctx, run, terminalOutcome{
+			status: store.StatusDone, eventType: store.EventDone,
+			payload: store.EventPayload{Text: text, StreamID: result.StreamID},
+		}.withAssistantText(text, result))
 	}
 }
 

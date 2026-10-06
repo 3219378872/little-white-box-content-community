@@ -102,7 +102,7 @@ func TestSQLModelResultAndAcceptanceLockOrders(t *testing.T) {
 			committed := make(chan error, 1)
 			go func() {
 				if scenario == "terminal_commit_first" {
-					committed <- engine.finishWithMessage(ctx, *run, store.StatusDone, store.EventDone, store.EventPayload{Text: "winner"}, "winner", nil)
+					committed <- engine.finishMessage(ctx, *run, terminalOutcome{status: store.StatusDone, eventType: store.EventDone, payload: store.EventPayload{Text: "winner"}, message: "winner", emitToken: true})
 					return
 				}
 				candidate := *run

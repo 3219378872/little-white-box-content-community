@@ -49,8 +49,9 @@ func (s *executionState) callModel(workCtx, persistCtx context.Context) (iterati
 			logging.Field("runId", s.run.ID), logging.Field("err", err.Error()))
 		if strings.TrimSpace(s.result.Text) != "" && s.run.Source == store.SourceUser {
 			payload := store.EventPayload{ErrorCode: "LLM_UNAVAILABLE", Text: "模型调用失败", Partial: s.result.Text}
-			return iterationFinished, e.finishWithMessageEvent(persistCtx, s.run, store.StatusError, store.EventError, payload,
-				s.result.Text, prompt.EncodeTurn(prompt.Turn{Role: store.RoleAssistant, Content: s.result.Text}), !s.result.Streamed, s.result.StreamID)
+			return iterationFinished, e.finishMessage(persistCtx, s.run, terminalOutcome{
+				status: store.StatusError, eventType: store.EventError, payload: payload,
+			}.withAssistantText(s.result.Text, s.result))
 		}
 		return iterationFinished, e.fail(persistCtx, s.run, "LLM_UNAVAILABLE", "model call failed")
 	}
@@ -136,7 +137,7 @@ func (s *executionState) executeCalls(workCtx, persistCtx context.Context) (iter
 				return iterationFinished, err
 			}
 			problem := errx.New(errx.ParamError, "ask_questions and publish_answer require an exclusive tool round")
-			if err := e.finishToolStep(persistCtx, &s.run, call, problem.Error(), problem, nil, nil, nil, true, "invalid", &s.reviewLive); err != nil {
+			if err := e.finishToolStep(persistCtx, &s.run, call, toolStepResult{text: problem.Error(), err: problem, countCall: true, outcome: "invalid"}, &s.reviewLive); err != nil {
 				return iterationFinished, err
 			}
 		}
