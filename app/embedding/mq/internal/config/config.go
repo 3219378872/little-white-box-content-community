@@ -10,6 +10,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是向量消费者与离线重建共用的配置：MQ、向量服务、Milvus、内容服务与重建参数。
 type Config struct {
 	service.ServiceConf
 	MQ               mqx.ConsumerConfig
@@ -21,6 +22,7 @@ type Config struct {
 	InternalSecret   string
 }
 
+// EmbeddingConfig 是向量服务连接与输入上限；模型版本与维度必须与服务端一致。
 type EmbeddingConfig struct {
 	Address       string
 	ModelVersion  string
@@ -31,6 +33,7 @@ type EmbeddingConfig struct {
 	MaxBatchBytes int   `json:",default=262144,range=[1:16777216]"`
 }
 
+// MilvusConfig 是 Milvus 连接与集合配置；Collection 指向线上别名。
 type MilvusConfig struct {
 	Address    string
 	Collection string
@@ -40,6 +43,7 @@ type MilvusConfig struct {
 	Database   string `json:",optional"`
 }
 
+// RebuildConfig 是离线重建参数：别名、新集合前缀、分页与批量、重试与总超时。
 type RebuildConfig struct {
 	Alias            string
 	CollectionPrefix string `json:",default=xbh_post_embeddings"`
@@ -50,6 +54,7 @@ type RebuildConfig struct {
 	TimeoutSeconds   int64  `json:",default=3600,range=[1:86400]"`
 }
 
+// ValidateRebuild 在运行时校验之外，要求重建别名与线上集合一致，避免重建切换了别的别名。
 func (c Config) ValidateRebuild() error {
 	if err := c.ValidateRuntime(); err != nil {
 		return err
@@ -78,6 +83,7 @@ func (c Config) ValidateRebuild() error {
 	return nil
 }
 
+// ValidateRuntime 校验内容服务、向量服务与 Milvus 的必需配置，并要求两侧维度一致。
 func (c Config) ValidateRuntime() error {
 	if len(c.ContentRpc.Endpoints) == 0 && strings.TrimSpace(c.ContentRpc.Target) == "" && strings.TrimSpace(c.ContentRpc.Etcd.Key) == "" {
 		return fmt.Errorf("ContentRpc authority is required")

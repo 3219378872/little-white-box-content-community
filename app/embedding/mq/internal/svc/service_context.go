@@ -14,6 +14,7 @@ import (
 	"io"
 )
 
+// ServiceContext 持有向量消费者的向量服务、Milvus 存储与内容服务客户端。
 type ServiceContext struct {
 	Config        config.Config
 	Embedder      embedder.Embedder
@@ -25,6 +26,7 @@ type ServiceContext struct {
 	milvusStore  *vectorstore.MilvusVectorStore
 }
 
+// NewServiceContext 校验配置并在启动超时内连接向量服务与 Milvus；任一依赖不可用时返回错误。
 func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, error) {
 	if err := c.ValidateRuntime(); err != nil {
 		return nil, err
@@ -65,6 +67,7 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 	}, nil
 }
 
+// newMilvusStore 按可选的认证与数据库配置连接 Milvus 集合。
 func newMilvusStore(ctx context.Context, cfg config.MilvusConfig) (*vectorstore.MilvusVectorStore, error) {
 	opts := make([]vectorstore.MilvusOption, 0, 2)
 	if cfg.Username != "" {
@@ -80,6 +83,7 @@ func newMilvusStore(ctx context.Context, cfg config.MilvusConfig) (*vectorstore.
 	return store, nil
 }
 
+// Close 关闭内容服务、Milvus 与向量服务连接，汇总关闭错误。
 func (s *ServiceContext) Close() error {
 	if s == nil {
 		return nil

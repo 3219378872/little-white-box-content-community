@@ -18,10 +18,12 @@ var (
 	})
 )
 
+// observeEmbeddingIndexLag 记录事件发生到向量更新的延迟。
 func observeEmbeddingIndexLag(eventTime int64, now time.Time) {
 	embeddingIndexEventLag.ObserveFloat(embeddingEventLagSeconds(eventTime, now))
 }
 
+// embeddingEventLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
 func embeddingEventLagSeconds(eventTime int64, now time.Time) float64 {
 	if eventTime <= 0 {
 		return 0

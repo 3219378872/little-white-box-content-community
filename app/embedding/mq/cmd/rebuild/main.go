@@ -26,6 +26,7 @@ var (
 	targetName = flag.String("target", "", "versioned target collection; generated when empty")
 )
 
+// main 离线重建帖子向量集合，失败时以非零状态退出。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer lifecycle.CloseResources()
@@ -35,6 +36,8 @@ func main() {
 	}
 }
 
+// run 向带版本号的新集合写入全部已发布帖子的向量，校验数量后把别名切换过去；
+// 未成功切换时删除新集合，线上别名保持原状。
 func run() (err error) {
 	var c config.Config
 	if err := conf.Load(*configFile, &c, conf.UseEnv()); err != nil {

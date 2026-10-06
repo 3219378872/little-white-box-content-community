@@ -19,10 +19,12 @@ const MaxPageSize int32 = 50
 
 var invalidCollectionRune = regexp.MustCompile(`[^A-Za-z0-9_]`)
 
+// PostSource 是重建所需的内容服务子集，便于测试替换。
 type PostSource interface {
 	GetPostList(context.Context, *contentservice.GetPostListReq, ...callopt.Option) (*contentservice.GetPostListResp, error)
 }
 
+// Target 是被重建的新集合：批量写入、落盘、计数与别名切换。
 type Target interface {
 	UpsertBatch(context.Context, []vectorstore.Record) error
 	Flush(context.Context) error
@@ -30,6 +32,7 @@ type Target interface {
 	PromoteAlias(context.Context, string) error
 }
 
+// Options 是重建的分页、批量与重试参数。
 type Options struct {
 	PageSize     int32
 	BatchSize    int
@@ -37,6 +40,7 @@ type Options struct {
 	RetryBackoff time.Duration
 }
 
+// VersionedCollectionName 生成带模型版本与时间戳的新集合名，非法字符替换为下划线并截断到 Milvus 长度上限。
 func VersionedCollectionName(prefix, modelVersion string, now time.Time) (string, error) {
 	prefix = strings.Trim(invalidCollectionRune.ReplaceAllString(prefix, "_"), "_")
 	modelVersion = strings.Trim(invalidCollectionRune.ReplaceAllString(modelVersion, "_"), "_")
@@ -56,6 +60,8 @@ func VersionedCollectionName(prefix, modelVersion string, now time.Time) (string
 	return name, nil
 }
 
+// RunAndPromote 分页读取已发布帖子、批量生成向量写入新集合，落盘后核对行数，一致才切换别名；
+// 各步骤失败按退避重试，返回写入数量。
 func RunAndPromote(
 	ctx context.Context,
 	source PostSource,
@@ -151,6 +157,7 @@ func RunAndPromote(
 	return indexed, nil
 }
 
+// validateOptions 校验重建参数均为正且分页不超过上限。
 func validateOptions(options Options) error {
 	if options.PageSize <= 0 || options.PageSize > MaxPageSize {
 		return fmt.Errorf("embedding rebuild page size must be between 1 and %d", MaxPageSize)
@@ -167,6 +174,7 @@ func validateOptions(options Options) error {
 	return nil
 }
 
+// publishedPosts 只保留已发布的帖子（CORE-015）。
 func publishedPosts(posts []*contentservice.PostInfo) []*contentservice.PostInfo {
 	result := make([]*contentservice.PostInfo, 0, len(posts))
 	for _, post := range posts {
@@ -178,6 +186,7 @@ func publishedPosts(posts []*contentservice.PostInfo) []*contentservice.PostInfo
 	return result
 }
 
+// retry 按重试策略执行无返回值的操作。
 func retry(ctx context.Context, options Options, operation func() error) error {
 	_, err := retryValue(ctx, options, func() (struct{}, error) {
 		return struct{}{}, operation()
@@ -185,6 +194,7 @@ func retry(ctx context.Context, options Options, operation func() error) error {
 	return err
 }
 
+// retryValue 最多重试 MaxAttempts 次，第 n 次失败后等待 n 倍退避；上下文取消时立即返回。
 func retryValue[T any](ctx context.Context, options Options, operation func() (T, error)) (T, error) {
 	var zero T
 	var lastErr error

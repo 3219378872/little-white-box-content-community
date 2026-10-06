@@ -13,25 +13,30 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// Metadata 是向量服务声明的模型版本与维度。
 type Metadata struct {
 	ModelVersion string
 	Dimension    int
 }
 
+// Embedding 是一段文本的向量及其元数据。
 type Embedding struct {
 	Vector []float32
 	Metadata
 }
 
+// Embedder 为单段文本生成向量。
 type Embedder interface {
 	Embed(ctx context.Context, text string) (Embedding, error)
 }
 
+// BatchEmbedder 额外支持批量生成，用于离线重建。
 type BatchEmbedder interface {
 	Embedder
 	EmbedBatch(ctx context.Context, texts []string) ([]Embedding, error)
 }
 
+// ClientConfig 是向量服务客户端配置：期望的模型版本与维度，以及单条与批量的输入上限。
 type ClientConfig struct {
 	Address              string
 	ExpectedModelVersion string
@@ -42,12 +47,14 @@ type ClientConfig struct {
 	MaxBatchBytes        int
 }
 
+// GRPCEmbedder 通过 gRPC 调用向量服务，并校验每个响应的版本、维度与数值。
 type GRPCEmbedder struct {
 	client embeddingpb.EmbeddingServiceClient
 	conn   *grpc.ClientConn
 	cfg    ClientConfig
 }
 
+// NewGRPCEmbedder 建立连接并做健康检查，模型版本或维度不符时拒绝启动。
 func NewGRPCEmbedder(ctx context.Context, cfg ClientConfig) (*GRPCEmbedder, error) {
 	if err := validateConfig(cfg, true); err != nil {
 		return nil, err
@@ -69,6 +76,7 @@ func NewGRPCEmbedder(ctx context.Context, cfg ClientConfig) (*GRPCEmbedder, erro
 	return emb, nil
 }
 
+// NewGRPCEmbedderWithClient 用已有客户端创建（测试使用），同样做健康检查。
 func NewGRPCEmbedderWithClient(ctx context.Context, client embeddingpb.EmbeddingServiceClient, cfg ClientConfig) (*GRPCEmbedder, error) {
 	if client == nil {
 		return nil, fmt.Errorf("embedding gRPC client is required")
@@ -83,6 +91,7 @@ func NewGRPCEmbedderWithClient(ctx context.Context, client embeddingpb.Embedding
 	return emb, nil
 }
 
+// validateConfig 校验客户端配置；注入客户端时不要求地址。
 func validateConfig(cfg ClientConfig, requireAddress bool) error {
 	if requireAddress && strings.TrimSpace(cfg.Address) == "" {
 		return fmt.Errorf("embedding service address is required")
@@ -108,6 +117,7 @@ func validateConfig(cfg ClientConfig, requireAddress bool) error {
 	return nil
 }
 
+// Health 查询服务就绪状态，并确认其模型版本与维度符合预期。
 func (e *GRPCEmbedder) Health(ctx context.Context) (Metadata, error) {
 	callCtx, cancel := context.WithTimeout(ctx, e.cfg.Timeout)
 	defer cancel()
@@ -128,6 +138,7 @@ func (e *GRPCEmbedder) Health(ctx context.Context) (Metadata, error) {
 	return metadata, nil
 }
 
+// Embed 生成单段文本的向量并校验响应。
 func (e *GRPCEmbedder) Embed(ctx context.Context, text string) (Embedding, error) {
 	if err := e.validateTexts([]string{text}); err != nil {
 		return Embedding{}, err
@@ -152,6 +163,7 @@ func (e *GRPCEmbedder) Embed(ctx context.Context, text string) (Embedding, error
 	return result, nil
 }
 
+// EmbedBatch 批量生成向量，要求结果数量与输入一致且逐个通过校验。
 func (e *GRPCEmbedder) EmbedBatch(ctx context.Context, texts []string) ([]Embedding, error) {
 	if err := e.validateTexts(texts); err != nil {
 		return nil, err
@@ -185,6 +197,7 @@ func (e *GRPCEmbedder) EmbedBatch(ctx context.Context, texts []string) ([]Embedd
 	return results, nil
 }
 
+// validateTexts 在调用前检查数量、空白文本与字节上限，避免把超限请求发给服务。
 func (e *GRPCEmbedder) validateTexts(texts []string) error {
 	if len(texts) == 0 {
 		return fmt.Errorf("embedding input is empty")
@@ -209,6 +222,7 @@ func (e *GRPCEmbedder) validateTexts(texts []string) error {
 	return nil
 }
 
+// validateMetadata 要求响应的模型版本与维度与预期一致，防止混入其他模型的向量。
 func (e *GRPCEmbedder) validateMetadata(metadata Metadata) error {
 	if strings.TrimSpace(metadata.ModelVersion) == "" {
 		return fmt.Errorf("embedding response has empty model version")
@@ -222,6 +236,7 @@ func (e *GRPCEmbedder) validateMetadata(metadata Metadata) error {
 	return nil
 }
 
+// validateEmbedding 校验向量长度与元数据一致，且不含 NaN/Inf、不全为零。
 func (e *GRPCEmbedder) validateEmbedding(result Embedding) error {
 	if err := e.validateMetadata(result.Metadata); err != nil {
 		return err
@@ -247,6 +262,7 @@ func (e *GRPCEmbedder) validateEmbedding(result Embedding) error {
 	return nil
 }
 
+// Close 关闭 gRPC 连接。
 func (e *GRPCEmbedder) Close() error {
 	if e == nil || e.conn == nil {
 		return nil

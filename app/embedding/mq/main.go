@@ -22,6 +22,7 @@ import (
 
 var configFile = flag.String("f", "etc/embedding-consumer.yaml", "config file")
 
+// main 启动帖子向量消费者，在启动超时内完成依赖连接。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer lifecycle.CloseResources()

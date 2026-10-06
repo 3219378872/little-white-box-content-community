@@ -39,6 +39,9 @@ func NewEmbeddingConsumer(svcCtx *svc.ServiceContext) (*mqx.Consumer, error) {
 	return c, nil
 }
 
+// consumeEmbeddingBatch keeps post vectors in sync with Content: published posts
+// are (re)embedded, others are deleted, both guarded by revision. Any failure
+// retries the batch; invalid messages are skipped.
 func consumeEmbeddingBatch(ctx context.Context, emb embedder.Embedder, vs vectorstore.VectorStore, source visibility.PostsByIDs, msgs ...*primitive.MessageExt) consumer.ConsumeResult {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
