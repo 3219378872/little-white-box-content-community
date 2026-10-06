@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnlikeLogic 承载 Unlike 接口的业务逻辑；每个请求新建一个实例。
 type UnlikeLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogi
 	}
 }
 
+// Unlike 取消点赞帖子或评论。
 func (l *UnlikeLogic) Unlike(req *types.UnlikeReq) (resp *types.UnlikeResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

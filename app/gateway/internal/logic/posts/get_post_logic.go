@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// GetPostLogic 承载 GetPost 接口的业务逻辑；每个请求新建一个实例。
 type GetPostLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -33,9 +34,11 @@ func NewGetPostLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPostLo
 	}
 }
 
+// GetPost 返回帖子详情，并通过 RPC 元数据请求内容服务记一次浏览。
 func (l *GetPostLogic) GetPost(req *types.GetPostReq) (resp *types.GetPostResp, err error) {
 	userId, _ := jwtx.GetOptionalUserIdFromContext(l.ctx)
 
+	// 只有详情接口带上该元数据，内部读取帖子不会虚增浏览数。
 	callCtx := metadata.AppendToOutgoingContext(l.ctx, "x-xbh-record-view", "1")
 	result, err := l.svcCtx.ContentService.GetPost(callCtx, &contentservice.GetPostReq{
 		PostId: req.PostId,

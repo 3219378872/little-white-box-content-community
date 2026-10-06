@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetPersonalizationPreferenceLogic 承载 GetPersonalizationPreference 接口的业务逻辑；每个请求新建一个实例。
 type GetPersonalizationPreferenceLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewGetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.Servi
 	}
 }
 
+// GetPersonalizationPreference 返回当前用户是否开启个性化推荐及退出时间。
 func (l *GetPersonalizationPreferenceLogic) GetPersonalizationPreference() (resp *types.GetPersonalizationPreferenceResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

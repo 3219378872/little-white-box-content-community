@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// LoginLogic 承载 Login 接口的业务逻辑；每个请求新建一个实例。
 type LoginLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,7 +28,9 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 	}
 }
 
+// Login 按登录方式做入参校验后转交用户服务签发令牌。
 func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err error) {
+	// LoginType 2 为手机号验证码登录，其余按用户名密码登录。
 	if req.LoginType == 2 {
 		if !validator.IsPhoneValid(req.Phone) {
 			return nil, errx.NewWithCode(errx.ParamError)

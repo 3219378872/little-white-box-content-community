@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnfavoriteLogic 承载 Unfavorite 接口的业务逻辑；每个请求新建一个实例。
 type UnfavoriteLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewUnfavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfavo
 	}
 }
 
+// Unfavorite 取消收藏帖子。
 func (l *UnfavoriteLogic) Unfavorite(req *types.UnfavoriteReq) (resp *types.UnfavoriteResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

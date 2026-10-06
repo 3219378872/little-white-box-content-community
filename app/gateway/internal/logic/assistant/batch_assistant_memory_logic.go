@@ -12,16 +12,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// BatchAssistantMemoryLogic 承载 BatchAssistantMemory 接口的业务逻辑；每个请求新建一个实例。
 type BatchAssistantMemoryLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewBatchAssistantMemoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewBatchAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BatchAssistantMemoryLogic {
 	return &BatchAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// BatchAssistantMemory 一次提交多条记忆增删改，返回每条操作的 ChangeId 供撤销。
 func (l *BatchAssistantMemoryLogic) BatchAssistantMemory(req *types.BatchAssistantMemoryReq) (*types.BatchAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

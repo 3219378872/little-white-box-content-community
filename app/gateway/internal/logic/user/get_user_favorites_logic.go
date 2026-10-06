@@ -21,6 +21,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUserFavoritesLogic 承载 GetUserFavorites 接口的业务逻辑；每个请求新建一个实例。
 type GetUserFavoritesLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -36,7 +37,9 @@ func NewGetUserFavoritesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// GetUserFavorites 返回用户收藏的帖子；收藏夹私密时只有本人可见。
 func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq) (*types.GetPostListResp, error) {
+	// 游标内编码的是页码；限制上限以免构造的游标触发深分页。
 	page := int32(1)
 	if req.Cursor != "" {
 		data, err := cursorx.Decode(req.Cursor)
@@ -60,6 +63,7 @@ func (l *GetUserFavoritesLogic) GetUserFavorites(req *types.GetUserFavoritesReq)
 		return nil, errx.NewWithCode(errx.UserNotFound)
 	}
 
+	// FavoritesVisibility 1 为公开，2 为私密。
 	isOwner := requesterID != 0 && requesterID == req.UserId
 	isPublic := userResp.User.FavoritesVisibility == 1
 	if !isOwner && !isPublic {

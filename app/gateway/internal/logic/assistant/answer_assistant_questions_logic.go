@@ -14,12 +14,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// AnswerAssistantQuestionsLogic 承载 AnswerAssistantQuestions 接口的业务逻辑；每个请求新建一个实例。
 type AnswerAssistantQuestionsLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewAnswerAssistantQuestionsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewAnswerAssistantQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AnswerAssistantQuestionsLogic {
 	return &AnswerAssistantQuestionsLogic{
 		Logger: logging.WithContext(ctx),
@@ -28,6 +30,7 @@ func NewAnswerAssistantQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceCo
 	}
 }
 
+// AnswerAssistantQuestions 提交对助手追问的 1–3 个回答，并返回服务端更新后的追问状态。
 func (l *AnswerAssistantQuestionsLogic) AnswerAssistantQuestions(req *types.AnswerAssistantQuestionsReq) (resp *types.AnswerAssistantQuestionsResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
@@ -44,6 +47,7 @@ func (l *AnswerAssistantQuestionsLogic) AnswerAssistantQuestions(req *types.Answ
 	if err != nil {
 		return nil, errx.FromRPCError(err)
 	}
+	// 追问状态是网关返回体的必填字段，无法解码说明服务端数据损坏。
 	question := decodeResearch[types.AssistantQuestionRequest](result.GetQuestionRequestJson())
 	if question == nil {
 		return nil, errx.NewWithCode(errx.SystemError)

@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeletePostV2Logic 承载 DeletePostV2 接口的业务逻辑；每个请求新建一个实例。
 type DeletePostV2Logic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewDeletePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *Dele
 	}
 }
 
+// DeletePostV2 删除当前用户自己的帖子，要求携带期望版本号。
 func (l *DeletePostV2Logic) DeletePostV2(req *types.DeletePostV2Req) (resp *types.DeletePostResp, err error) {
 	// CORE-013：v2 写接口强制乐观锁，缺失或为 0 一律按参数错误拒绝。
 	if req.ExpectedRevision <= 0 {

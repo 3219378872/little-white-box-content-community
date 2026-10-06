@@ -16,6 +16,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetPostListLogic 承载 GetPostList 接口的业务逻辑；每个请求新建一个实例。
 type GetPostListLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -31,6 +32,7 @@ func NewGetPostListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetPo
 	}
 }
 
+// GetPostList 返回帖子列表，并为登录用户补充点赞/收藏状态与作者信息。
 func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.GetPostListResp, err error) {
 	pageSize := pageutil.ClampPageSize(req.PageSize)
 	rpcReq := &contentservice.GetPostListReq{
@@ -48,6 +50,7 @@ func (l *GetPostListLogic) GetPostList(req *types.GetPostListReq) (resp *types.G
 		return nil, rpcx.Error(l.Logger, "ContentService.GetPostList", err)
 	}
 
+	// 互动状态失败直接报错，作者信息只做软加载：缺失时以空作者降级展示。
 	postIDs := make([]int64, 0, len(result.Posts))
 	for _, post := range result.Posts {
 		if post != nil && post.Id > 0 {

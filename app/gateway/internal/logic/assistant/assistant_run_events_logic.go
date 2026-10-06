@@ -16,16 +16,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// AssistantRunEventsLogic 承载 AssistantRunEvents 接口的业务逻辑；每个请求新建一个实例。
 type AssistantRunEventsLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewAssistantRunEventsLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewAssistantRunEventsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssistantRunEventsLogic {
 	return &AssistantRunEventsLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// AssistantRunEvents 订阅运行事件 gRPC 流并逐条转发给 SSE 处理器；从 AfterSeq 之后续传。
 func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEventsReq, client chan<- *types.AssistantRunEvent) error {
 	if client == nil {
 		return errx.NewWithCode(errx.ServiceUnavailable)
@@ -52,6 +55,7 @@ func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEven
 			return nil
 		}
 		if recvErr != nil {
+			// 客户端断开或上游取消属于正常结束，不再回报错误。
 			if l.ctx.Err() != nil {
 				return nil
 			}
@@ -64,6 +68,7 @@ func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEven
 		if mapped == nil {
 			continue
 		}
+		// 转发时同时监听 ctx，避免 SSE 写端退出后在满通道上永久阻塞。
 		select {
 		case <-l.ctx.Done():
 			return nil

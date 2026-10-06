@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SetAgentConsentLogic 承载 SetAgentConsent 接口的业务逻辑；每个请求新建一个实例。
 type SetAgentConsentLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewSetAgentConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *S
 	}
 }
 
+// SetAgentConsent 更新用户对助手能力的授权。
 func (l *SetAgentConsentLogic) SetAgentConsent(req *types.SetAgentConsentReq) (resp *types.SetAgentConsentResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
@@ -44,6 +46,7 @@ func (l *SetAgentConsentLogic) SetAgentConsent(req *types.SetAgentConsentReq) (r
 		)
 		return nil, errx.FromRPCError(err)
 	}
+	// 撤销授权后还要让助手服务取消该用户进行中的运行。
 	if !req.Granted {
 		if _, err := l.svcCtx.AssistantService.RevokeConsent(l.ctx, &assistantservice.RevokeConsentReq{UserId: userID}); err != nil {
 			l.Errorw("AssistantService.RevokeConsent RPC failed", logging.Field("userId", userID), logging.Field("err", err.Error()))

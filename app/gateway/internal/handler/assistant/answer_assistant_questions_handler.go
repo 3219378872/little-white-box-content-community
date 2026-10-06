@@ -11,6 +11,7 @@ import (
 	"esx/pkg/httpx"
 )
 
+// AnswerAssistantQuestionsHandler 提交用户对助手追问的回答。
 func AnswerAssistantQuestionsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		var req types.AnswerAssistantQuestionsReq

@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// CreatePostV2Logic 承载 CreatePostV2 接口的业务逻辑；每个请求新建一个实例。
 type CreatePostV2Logic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewCreatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 	}
 }
 
+// CreatePostV2 以当前登录用户为作者创建帖子；幂等键原样透传给内容服务去重重复提交。
 func (l *CreatePostV2Logic) CreatePostV2(req *types.CreatePostReq) (resp *types.CreatePostResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

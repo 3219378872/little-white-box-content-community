@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// FollowLogic 承载 Follow 接口的业务逻辑；每个请求新建一个实例。
 type FollowLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogi
 	}
 }
 
+// Follow 让当前用户关注目标用户。
 func (l *FollowLogic) Follow(req *types.FollowReq) (resp *types.FollowResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

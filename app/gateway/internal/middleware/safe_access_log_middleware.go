@@ -14,15 +14,18 @@ import (
 // request bodies and response bodies are deliberately excluded.
 type SafeAccessLogMiddleware struct{}
 
+// statusResponseWriter records the final status while preserving Flusher and Hijacker.
 type statusResponseWriter struct {
 	http.ResponseWriter
 	status int
 }
 
+// Unwrap lets http.ResponseController reach the underlying writer.
 func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
+// WriteHeader records only the first status, matching net/http semantics.
 func (w *statusResponseWriter) WriteHeader(status int) {
 	if w.status != 0 {
 		return
@@ -31,6 +34,7 @@ func (w *statusResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
+// Write records the implicit 200 when the handler never called WriteHeader.
 func (w *statusResponseWriter) Write(body []byte) (int, error) {
 	if w.status == 0 {
 		w.status = http.StatusOK
@@ -38,6 +42,7 @@ func (w *statusResponseWriter) Write(body []byte) (int, error) {
 	return w.ResponseWriter.Write(body)
 }
 
+// Flush also counts as an implicit 200, since streaming handlers may never write a status.
 func (w *statusResponseWriter) Flush() {
 	if w.status == 0 {
 		w.status = http.StatusOK
@@ -47,6 +52,7 @@ func (w *statusResponseWriter) Flush() {
 	}
 }
 
+// Hijack passes through for handlers that take over the connection.
 func (w *statusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := w.ResponseWriter.(http.Hijacker)
 	if !ok {
@@ -55,10 +61,12 @@ func (w *statusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
+// NewSafeAccessLogMiddleware creates the access log middleware.
 func NewSafeAccessLogMiddleware() *SafeAccessLogMiddleware {
 	return &SafeAccessLogMiddleware{}
 }
 
+// Handle is the net/http variant used only by unit tests; live routes use the Hertz method in hertz.go.
 func (m *SafeAccessLogMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()

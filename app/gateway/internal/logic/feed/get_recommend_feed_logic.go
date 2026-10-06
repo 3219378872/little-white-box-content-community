@@ -13,12 +13,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetRecommendFeedLogic 承载 GetRecommendFeed 接口的业务逻辑；每个请求新建一个实例。
 type GetRecommendFeedLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewGetRecommendFeedLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewGetRecommendFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetRecommendFeedLogic {
 	return &GetRecommendFeedLogic{
 		Logger: logging.WithContext(ctx),

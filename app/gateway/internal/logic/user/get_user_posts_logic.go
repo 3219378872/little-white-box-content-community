@@ -16,6 +16,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUserPostsLogic 承载 GetUserPosts 接口的业务逻辑；每个请求新建一个实例。
 type GetUserPostsLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -31,6 +32,7 @@ func NewGetUserPostsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetU
 	}
 }
 
+// GetUserPosts 返回指定用户的帖子，并为查看者补充互动状态与作者信息。
 func (l *GetUserPostsLogic) GetUserPosts(req *types.GetUserPostsReq) (*types.GetPostListResp, error) {
 	pageSize := pageutil.ClampPageSize(req.PageSize)
 	result, err := l.svcCtx.ContentService.GetUserPosts(l.ctx, &contentservice.GetUserPostsReq{

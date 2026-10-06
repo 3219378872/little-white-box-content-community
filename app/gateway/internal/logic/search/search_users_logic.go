@@ -11,6 +11,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SearchUsersLogic 承载 SearchUsers 接口的业务逻辑；每个请求新建一个实例。
 type SearchUsersLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -26,6 +27,7 @@ func NewSearchUsersLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Searc
 	}
 }
 
+// SearchUsers 分页搜索用户。
 func (l *SearchUsersLogic) SearchUsers(req *types.SearchUsersReq) (resp *types.SearchUsersResp, err error) {
 	if req == nil || !validPage(req.Page, req.PageSize) {
 		return nil, errx.NewWithCode(errx.ParamError)

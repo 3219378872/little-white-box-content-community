@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// LikeLogic 承载 Like 接口的业务逻辑；每个请求新建一个实例。
 type LikeLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewLikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LikeLogic {
 	}
 }
 
+// Like 点赞帖子或评论；TargetType 2 为评论，其余按帖子处理。
 func (l *LikeLogic) Like(req *types.LikeReq) (resp *types.LikeResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

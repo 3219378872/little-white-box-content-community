@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeleteCommentLogic 承载 DeleteComment 接口的业务逻辑；每个请求新建一个实例。
 type DeleteCommentLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewDeleteCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Del
 	}
 }
 
+// DeleteComment 删除评论；是否有权删除由内容服务判断。
 func (l *DeleteCommentLogic) DeleteComment(req *types.DeleteCommentReq) (resp *types.DeleteCommentResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

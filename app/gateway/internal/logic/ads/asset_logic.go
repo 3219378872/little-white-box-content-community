@@ -16,8 +16,10 @@ import (
 // MaxAssetBytes 与 ad-rpc 私有存储上限一致（受内部 gRPC 单消息上限约束）。
 const MaxAssetBytes int64 = 2 << 20
 
+// UploadAdAssetLogic 承载 UploadAdAsset 接口的业务逻辑；每个请求新建一个实例。
 type UploadAdAssetLogic struct{ base }
 
+// NewUploadAdAssetLogic 绑定请求上下文与服务依赖。
 func NewUploadAdAssetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UploadAdAssetLogic {
 	return &UploadAdAssetLogic{newBase(ctx, svcCtx)}
 }
@@ -51,8 +53,10 @@ func (l *UploadAdAssetLogic) UploadAdAsset(req *types.UploadAdAssetReq, file io.
 	}, nil
 }
 
+// GetAdAssetLogic 承载 GetAdAsset 接口的业务逻辑；每个请求新建一个实例。
 type GetAdAssetLogic struct{ base }
 
+// NewGetAdAssetLogic 绑定请求上下文与服务依赖。
 func NewGetAdAssetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAdAssetLogic {
 	return &GetAdAssetLogic{newBase(ctx, svcCtx)}
 }
@@ -77,8 +81,10 @@ func AssetContent(resp *adservice.ReadAssetResp) *types.AdAssetContentResp {
 	}
 }
 
+// ListAdPoliciesLogic 承载 ListAdPolicies 接口的业务逻辑；每个请求新建一个实例。
 type ListAdPoliciesLogic struct{ base }
 
+// NewListAdPoliciesLogic 绑定请求上下文与服务依赖。
 func NewListAdPoliciesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListAdPoliciesLogic {
 	return &ListAdPoliciesLogic{newBase(ctx, svcCtx)}
 }

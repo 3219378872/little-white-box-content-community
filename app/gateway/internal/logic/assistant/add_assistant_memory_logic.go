@@ -13,16 +13,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// AddAssistantMemoryLogic 承载 AddAssistantMemory 接口的业务逻辑；每个请求新建一个实例。
 type AddAssistantMemoryLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewAddAssistantMemoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewAddAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddAssistantMemoryLogic {
 	return &AddAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// AddAssistantMemory 为当前用户新增一条助手记忆；返回的 ChangeId 供前端提供撤销入口。
 func (l *AddAssistantMemoryLogic) AddAssistantMemory(req *types.AddAssistantMemoryReq) (*types.AddAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetCommentListLogic 承载 GetCommentList 接口的业务逻辑；每个请求新建一个实例。
 type GetCommentListLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewGetCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 	}
 }
 
+// GetCommentList 分页返回帖子的一级评论。
 func (l *GetCommentListLogic) GetCommentList(req *types.GetCommentListReq) (resp *types.GetCommentListResp, err error) {
 	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)

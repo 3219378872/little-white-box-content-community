@@ -7,6 +7,7 @@ import (
 
 const maxMessagePageSize = 100
 
+// conversationItems 把会话列表映射为 REST 项，跳过 nil 结果。
 func conversationItems(conversations []*messageservice.ConversationInfo) []types.ConversationItem {
 	items := make([]types.ConversationItem, 0, len(conversations))
 	for _, conversation := range conversations {
@@ -26,6 +27,7 @@ func conversationItems(conversations []*messageservice.ConversationInfo) []types
 	return items
 }
 
+// messageItems 把消息列表映射为 REST 项，跳过 nil 结果。
 func messageItems(messages []*messageservice.MessageInfo) []types.MessageItem {
 	items := make([]types.MessageItem, 0, len(messages))
 	for _, message := range messages {

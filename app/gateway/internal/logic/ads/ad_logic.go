@@ -12,12 +12,15 @@ import (
 	"esx/pkg/jwtx"
 )
 
+// ListAdsLogic 承载 ListAds 接口的业务逻辑；每个请求新建一个实例。
 type ListAdsLogic struct{ base }
 
+// NewListAdsLogic 绑定请求上下文与服务依赖。
 func NewListAdsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListAdsLogic {
 	return &ListAdsLogic{newBase(ctx, svcCtx)}
 }
 
+// ListAds 按十进制字符串游标分页列出当前广告主的广告。
 func (l *ListAdsLogic) ListAds(req *types.ListAdsReq) (*types.ListAdsResp, error) {
 	userID, err := l.userID()
 	if err != nil {
@@ -47,8 +50,10 @@ func (l *ListAdsLogic) ListAds(req *types.ListAdsReq) (*types.ListAdsResp, error
 	return out, nil
 }
 
+// CreateAdLogic 承载 CreateAd 接口的业务逻辑；每个请求新建一个实例。
 type CreateAdLogic struct{ base }
 
+// NewCreateAdLogic 绑定请求上下文与服务依赖。
 func NewCreateAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateAdLogic {
 	return &CreateAdLogic{newBase(ctx, svcCtx)}
 }
@@ -72,12 +77,15 @@ func (l *CreateAdLogic) CreateAd(req *types.CreateAdReq) (*types.AdResp, error) 
 	return &types.AdResp{Ad: adItem(resp.GetAd())}, nil
 }
 
+// GetAdLogic 承载 GetAd 接口的业务逻辑；每个请求新建一个实例。
 type GetAdLogic struct{ base }
 
+// NewGetAdLogic 绑定请求上下文与服务依赖。
 func NewGetAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetAdLogic {
 	return &GetAdLogic{newBase(ctx, svcCtx)}
 }
 
+// GetAd 读取当前广告主的一条广告；归属由广告服务校验。
 func (l *GetAdLogic) GetAd(req *types.GetAdReq) (*types.AdResp, error) {
 	userID, err := l.userID()
 	if err != nil {
@@ -90,8 +98,10 @@ func (l *GetAdLogic) GetAd(req *types.GetAdReq) (*types.AdResp, error) {
 	return &types.AdResp{Ad: adItem(resp.GetAd())}, nil
 }
 
+// UpdateAdLogic 承载 UpdateAd 接口的业务逻辑；每个请求新建一个实例。
 type UpdateAdLogic struct{ base }
 
+// NewUpdateAdLogic 绑定请求上下文与服务依赖。
 func NewUpdateAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateAdLogic {
 	return &UpdateAdLogic{newBase(ctx, svcCtx)}
 }
@@ -115,8 +125,10 @@ func (l *UpdateAdLogic) UpdateAd(req *types.UpdateAdReq) (*types.AdResp, error) 
 	return &types.AdResp{Ad: adItem(resp.GetAd())}, nil
 }
 
+// HideAdLogic 承载 HideAd 接口的业务逻辑；每个请求新建一个实例。
 type HideAdLogic struct{ base }
 
+// NewHideAdLogic 绑定请求上下文与服务依赖。
 func NewHideAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HideAdLogic {
 	return &HideAdLogic{newBase(ctx, svcCtx)}
 }
@@ -137,8 +149,10 @@ func (l *HideAdLogic) HideAd(req *types.HideAdReq) (*types.AdActionResp, error) 
 	return &types.AdActionResp{Ok: true}, nil
 }
 
+// ReportAdLogic 承载 ReportAd 接口的业务逻辑；每个请求新建一个实例。
 type ReportAdLogic struct{ base }
 
+// NewReportAdLogic 绑定请求上下文与服务依赖。
 func NewReportAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReportAdLogic {
 	return &ReportAdLogic{newBase(ctx, svcCtx)}
 }
@@ -162,8 +176,10 @@ func (l *ReportAdLogic) ReportAd(req *types.ReportAdReq) (*types.ReportAdResp, e
 	return &types.ReportAdResp{Counted: resp.GetCounted()}, nil
 }
 
+// AppealAdLogic 承载 AppealAd 接口的业务逻辑；每个请求新建一个实例。
 type AppealAdLogic struct{ base }
 
+// NewAppealAdLogic 绑定请求上下文与服务依赖。
 func NewAppealAdLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AppealAdLogic {
 	return &AppealAdLogic{newBase(ctx, svcCtx)}
 }
@@ -183,6 +199,7 @@ func (l *AppealAdLogic) AppealAd(req *types.AppealAdReq) (*types.AdResp, error) 
 	return &types.AdResp{Ad: adItem(resp.GetAd())}, nil
 }
 
+// adItem 把广告视图映射为 REST 结构；仅在存在已过审版本时输出 Approved。
 func adItem(ad *adservice.AdView) types.AdItem {
 	if ad == nil {
 		return types.AdItem{PolicyCodes: []string{}}
@@ -201,6 +218,7 @@ func adItem(ad *adservice.AdView) types.AdItem {
 	return item
 }
 
+// adContent 把一个广告版本的内容映射为 REST 结构；nil 返回带空媒体列表的零值。
 func adContent(content *adservice.AdContent) types.AdContentItem {
 	out := types.AdContentItem{Media: []types.AdMediaItem{}}
 	if content == nil {

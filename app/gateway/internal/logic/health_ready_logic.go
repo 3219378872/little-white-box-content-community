@@ -9,6 +9,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// HealthReadyLogic 承载 HealthReady 接口的业务逻辑；每个请求新建一个实例。
 type HealthReadyLogic struct {
 	logging.Logger
 	ctx    context.Context

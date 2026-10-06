@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetCommentRepliesLogic 承载 GetCommentReplies 接口的业务逻辑；每个请求新建一个实例。
 type GetCommentRepliesLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewGetCommentRepliesLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	}
 }
 
+// GetCommentReplies 分页返回某条评论下的回复。
 func (l *GetCommentRepliesLogic) GetCommentReplies(req *types.GetCommentRepliesReq) (resp *types.GetCommentRepliesResp, err error) {
 	// 与内容 RPC 的 clamp 语义保持一致：回传实际使用的 pageSize。
 	pageSize := pageutil.ClampPageSize(req.PageSize)

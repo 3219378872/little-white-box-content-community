@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SendMessageLogic 承载 SendMessage 接口的业务逻辑；每个请求新建一个实例。
 type SendMessageLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewSendMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SendM
 	}
 }
 
+// SendMessage 校验消息类型、内容与幂等键后发送私信；不允许给自己发消息。
 func (l *SendMessageLogic) SendMessage(req *types.SendMessageReq) (resp *types.SendMessageResp, err error) {
 	if req == nil || req.ReceiverId <= 0 || req.MsgType < 1 || req.MsgType > 4 {
 		return nil, errx.NewWithCode(errx.ParamError)

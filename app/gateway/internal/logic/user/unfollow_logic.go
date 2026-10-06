@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// UnfollowLogic 承载 Unfollow 接口的业务逻辑；每个请求新建一个实例。
 type UnfollowLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewUnfollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfollow
 	}
 }
 
+// Unfollow 取消当前用户对目标用户的关注。
 func (l *UnfollowLogic) Unfollow(req *types.UnfollowReq) (resp *types.UnfollowResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

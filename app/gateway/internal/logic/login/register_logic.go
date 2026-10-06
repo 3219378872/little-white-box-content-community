@@ -11,6 +11,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// RegisterLogic 承载 Register 接口的业务逻辑；每个请求新建一个实例。
 type RegisterLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -26,6 +27,7 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 	}
 }
 
+// Register 在网关先做格式校验，减少无效请求打到用户服务；用户名与手机号至少提供一个。
 func (l *RegisterLogic) Register(req *types.RegisterReq) (resp *types.RegisterResp, err error) {
 	if req.Username != "" {
 		// 用户名注册，校验用户名长度

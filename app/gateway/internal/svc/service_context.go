@@ -31,6 +31,7 @@ type Dependency struct {
 	Optional bool // 可选能力（如发现）故障只降级，不使整个 Gateway 下线
 }
 
+// ServiceContext 聚合网关所需的下游 RPC 服务、就绪探针与鉴权中间件。
 type ServiceContext struct {
 	Config             config.Config
 	Dependencies       []Dependency
@@ -50,6 +51,7 @@ type ServiceContext struct {
 	BehaviorAccepted   app.HandlerFunc
 }
 
+// NewServiceContext 为每个下游建立带内部鉴权的 RPC 客户端，再装配探针与中间件。
 func NewServiceContext(c config.Config) *ServiceContext {
 
 	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
@@ -87,6 +89,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	reviewClient := newClient(c.ReviewRpc)
 	reviewService := reviewservice.NewReviewService(reviewClient)
 
+	// 可选鉴权允许匿名访问并在带 token 时注入用户；必需鉴权拒绝匿名。
 	optionalAuth := middleware.NewOptionalAuthMiddleware(jwtx.JwtConfig{
 		AccessSecret: c.Auth.AccessSecret,
 		AccessExpire: c.Auth.AccessExpire,

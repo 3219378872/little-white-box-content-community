@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetFollowFeedLogic 承载 GetFollowFeed 接口的业务逻辑；每个请求新建一个实例。
 type GetFollowFeedLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewGetFollowFeedLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 	}
 }
 
+// GetFollowFeed 按 (创建时间, 帖子 ID) 复合游标分页返回关注流，并补充作者与点赞状态。
 func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *types.GetFollowFeedResp, err error) {
 	if req == nil || req.PageSize <= 0 || req.PageSize > 100 || req.CursorCreatedAt < 0 || req.CursorPostId < 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

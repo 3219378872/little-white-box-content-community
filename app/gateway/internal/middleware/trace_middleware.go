@@ -14,12 +14,15 @@ import (
 // 同时注入客户端 IP 供下游频控使用。
 type TraceMiddleware struct{}
 
+// NewTraceMiddleware 创建追踪中间件。
 func NewTraceMiddleware() *TraceMiddleware {
 	return &TraceMiddleware{}
 }
 
+// clientIPKey 是客户端 IP 在 ctx 中的私有键。
 type clientIPKey struct{}
 
+// Handle 是 net/http 版本，目前只被单测使用；线上路由走 hertz.go 中的 Hertz 方法。
 func (m *TraceMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		traceID := strings.TrimSpace(r.Header.Get("X-Trace-ID"))
@@ -44,6 +47,7 @@ func ClientIPFromContext(ctx context.Context) string {
 	return ip
 }
 
+// newTraceID 生成随机追踪 ID；随机源失败时退回固定值，不阻断请求。
 func newTraceID() string {
 	var id [16]byte
 	if _, err := rand.Read(id[:]); err != nil {

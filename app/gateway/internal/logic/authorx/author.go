@@ -13,11 +13,13 @@ import (
 	"esx/pkg/logging"
 )
 
+// Author is the display identity attached to posts and feed items.
 type Author struct {
 	Name   string
 	Avatar string
 }
 
+// DisplayName prefers the nickname and falls back to the username.
 func DisplayName(nickname, username string) string {
 	name := strings.TrimSpace(nickname)
 	if name == "" {
@@ -26,6 +28,7 @@ func DisplayName(nickname, username string) string {
 	return name
 }
 
+// UniquePositive de-duplicates IDs in first-seen order and drops non-positive ones.
 func UniquePositive(ids []int64) []int64 {
 	out := make([]int64, 0, len(ids))
 	seen := make(map[int64]struct{}, len(ids))
@@ -42,6 +45,7 @@ func UniquePositive(ids []int64) []int64 {
 	return out
 }
 
+// PostAuthorIDs collects unique author IDs from a post page.
 func PostAuthorIDs(posts []*contentservice.PostInfo) []int64 {
 	ids := make([]int64, 0, len(posts))
 	for _, post := range posts {

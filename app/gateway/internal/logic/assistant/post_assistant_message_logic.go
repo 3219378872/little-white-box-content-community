@@ -15,16 +15,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// PostAssistantMessageLogic 承载 PostAssistantMessage 接口的业务逻辑；每个请求新建一个实例。
 type PostAssistantMessageLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewPostAssistantMessageLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewPostAssistantMessageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *PostAssistantMessageLogic {
 	return &PostAssistantMessageLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// PostAssistantMessage 发送一条用户消息并触发助手运行；正文去空白后限 2000 字符。
 func (l *PostAssistantMessageLogic) PostAssistantMessage(req *types.PostAssistantMessageReq) (*types.PostAssistantMessageResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
@@ -37,6 +40,7 @@ func (l *PostAssistantMessageLogic) PostAssistantMessage(req *types.PostAssistan
 	for _, item := range req.Attachments {
 		attachments = append(attachments, &assistantservice.Attachment{MediaId: item.MediaId, Url: item.Url})
 	}
+	// 追问上下文以 JSON 字符串透传，网关不解释其结构。
 	var questionContext string
 	if req.QuestionContext != nil {
 		raw, err := json.Marshal(req.QuestionContext)

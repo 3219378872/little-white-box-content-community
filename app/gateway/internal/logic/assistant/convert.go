@@ -6,6 +6,7 @@ import (
 	"esx/app/gateway/internal/types"
 )
 
+// mapThread 把助手会话摘要映射为 REST 结构；追问状态以 JSON 透传后在此解码。
 func mapThread(in *assistantservice.AssistantThread) types.AssistantThread {
 	if in == nil {
 		return types.AssistantThread{}
@@ -18,6 +19,7 @@ func mapThread(in *assistantservice.AssistantThread) types.AssistantThread {
 	}
 }
 
+// mapMessage 把助手消息映射为 REST 结构，解码追问与回答展示两个 JSON 字段。
 func mapMessage(in *assistantservice.AssistantMessage) types.AssistantMessage {
 	if in == nil {
 		return types.AssistantMessage{}
@@ -30,6 +32,7 @@ func mapMessage(in *assistantservice.AssistantMessage) types.AssistantMessage {
 	}
 }
 
+// mapMemory 把记忆条目映射为 REST 结构；nil 返回零值。
 func mapMemory(in *assistantservice.MemoryEntry) types.AssistantMemoryEntry {
 	if in == nil {
 		return types.AssistantMemoryEntry{}
@@ -40,6 +43,7 @@ func mapMemory(in *assistantservice.MemoryEntry) types.AssistantMemoryEntry {
 	}
 }
 
+// mapRunEvent 把运行事件映射为 SSE 负载；工具调用与来源卡片仅在存在时输出。
 func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 	if in == nil {
 		return nil
@@ -64,6 +68,7 @@ func mapRunEvent(in *assistantservice.RunEvent) *types.AssistantRunEvent {
 	return out
 }
 
+// decodeResearch 解码 RPC 中以字符串透传的 JSON 字段；空串或格式错误都视为缺失。
 func decodeResearch[T any](raw string) *T {
 	if raw == "" {
 		return nil

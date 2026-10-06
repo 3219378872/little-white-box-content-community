@@ -8,6 +8,7 @@ import (
 	"esx/pkg/rpcx"
 )
 
+// Config 是网关配置：HTTP 监听、JWT 签发参数与各下游 RPC 客户端。
 type Config struct {
 	RestConf HTTPConfig
 	Auth     struct {

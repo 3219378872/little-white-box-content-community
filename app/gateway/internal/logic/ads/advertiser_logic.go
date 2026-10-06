@@ -12,12 +12,14 @@ import (
 	"esx/pkg/logging"
 )
 
+// base 是广告主接口 Logic 的公共部分：带请求上下文的日志器与服务依赖。
 type base struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// newBase 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
 	return base{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
@@ -27,17 +29,21 @@ func (b base) userID() (int64, error) {
 	return jwtx.GetUserIdFromContext(b.ctx)
 }
 
+// rpcError 记录广告 RPC 失败并映射为客户端可见的错误码。
 func (b base) rpcError(err error, action string) error {
 	b.Errorw(action+" RPC failed", logging.Field("err", err.Error()))
 	return errx.FromRPCError(err)
 }
 
+// GetMyAdvertiserLogic 承载 GetMyAdvertiser 接口的业务逻辑；每个请求新建一个实例。
 type GetMyAdvertiserLogic struct{ base }
 
+// NewGetMyAdvertiserLogic 绑定请求上下文与服务依赖。
 func NewGetMyAdvertiserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetMyAdvertiserLogic {
 	return &GetMyAdvertiserLogic{newBase(ctx, svcCtx)}
 }
 
+// GetMyAdvertiser 返回当前用户的广告主资料；未申请时 found=false。
 func (l *GetMyAdvertiserLogic) GetMyAdvertiser(*types.GetMyAdvertiserReq) (*types.AdvertiserResp, error) {
 	userID, err := l.userID()
 	if err != nil {
@@ -50,8 +56,10 @@ func (l *GetMyAdvertiserLogic) GetMyAdvertiser(*types.GetMyAdvertiserReq) (*type
 	return advertiserResp(resp), nil
 }
 
+// ApplyAdvertiserLogic 承载 ApplyAdvertiser 接口的业务逻辑；每个请求新建一个实例。
 type ApplyAdvertiserLogic struct{ base }
 
+// NewApplyAdvertiserLogic 绑定请求上下文与服务依赖。
 func NewApplyAdvertiserLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ApplyAdvertiserLogic {
 	return &ApplyAdvertiserLogic{newBase(ctx, svcCtx)}
 }
@@ -72,8 +80,10 @@ func (l *ApplyAdvertiserLogic) ApplyAdvertiser(req *types.ApplyAdvertiserReq) (*
 	return advertiserResp(resp), nil
 }
 
+// AddAdQualificationLogic 承载 AddAdQualification 接口的业务逻辑；每个请求新建一个实例。
 type AddAdQualificationLogic struct{ base }
 
+// NewAddAdQualificationLogic 绑定请求上下文与服务依赖。
 func NewAddAdQualificationLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AddAdQualificationLogic {
 	return &AddAdQualificationLogic{newBase(ctx, svcCtx)}
 }
@@ -94,6 +104,7 @@ func (l *AddAdQualificationLogic) AddAdQualification(req *types.AddQualification
 	return advertiserResp(resp), nil
 }
 
+// advertiserResp 把广告主资料及其资质映射为 REST 结构；未申请时只返回 found=false。
 func advertiserResp(resp *adservice.AdvertiserResp) *types.AdvertiserResp {
 	out := &types.AdvertiserResp{Found: resp.GetFound()}
 	adv := resp.GetAdvertiser()
@@ -117,6 +128,7 @@ func advertiserResp(resp *adservice.AdvertiserResp) *types.AdvertiserResp {
 	return out
 }
 
+// nonNil 把 nil 切片规范为空切片，使 JSON 输出 [] 而不是 null。
 func nonNil(values []string) []string {
 	if values == nil {
 		return []string{}

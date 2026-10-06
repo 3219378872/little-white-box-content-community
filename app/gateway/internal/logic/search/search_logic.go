@@ -11,6 +11,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SearchLogic 承载 Search 接口的业务逻辑；每个请求新建一个实例。
 type SearchLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -26,6 +27,7 @@ func NewSearchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *SearchLogi
 	}
 }
 
+// Search 执行综合搜索；部分索引不可用时由搜索服务标记 Degraded 与缺失类型，网关原样透出。
 func (l *SearchLogic) Search(req *types.SearchReq) (resp *types.SearchResp, err error) {
 	if req == nil || !validPage(req.Page, req.PageSize) {
 		return nil, errx.NewWithCode(errx.ParamError)

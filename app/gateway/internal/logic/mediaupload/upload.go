@@ -13,6 +13,7 @@ import (
 	"esx/pkg/jwtx"
 )
 
+// Upload streams a multipart file to the media RPC: one meta frame, then 1MiB chunks.
 func Upload(ctx context.Context, svcCtx *svc.ServiceContext, file io.Reader, filename, key string, audio bool) (*types.UploadMediaResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(ctx)
 	if err != nil {
@@ -26,6 +27,7 @@ func Upload(ctx context.Context, svcCtx *svc.ServiceContext, file io.Reader, fil
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	meta := &pb.UploadMeta{UserId: userID, FileName: filename, IdempotencyKey: key}
+	// send and finish hide the audio/video stream types so the copy loop is shared.
 	var send func([]byte) error
 	var finish func() (*pb.MediaInfo, error)
 	if audio {
@@ -61,6 +63,7 @@ func Upload(ctx context.Context, svcCtx *svc.ServiceContext, file io.Reader, fil
 			return resp.GetMedia(), nil
 		}
 	}
+	// Copy chunks until EOF; each send gets its own slice so the reused buffer never aliases an in-flight message.
 	buf := make([]byte, 1<<20)
 	for {
 		if ctx.Err() != nil {
@@ -89,6 +92,7 @@ func Upload(ctx context.Context, svcCtx *svc.ServiceContext, file io.Reader, fil
 	if err != nil {
 		return nil, errx.FromGRPCError(err)
 	}
+	// A response without an ID or URL cannot be referenced by posts or messages.
 	if media == nil || media.Id <= 0 || media.Url == "" {
 		return nil, errx.NewWithCode(errx.UploadFailed)
 	}

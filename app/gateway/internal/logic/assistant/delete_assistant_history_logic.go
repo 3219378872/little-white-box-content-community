@@ -12,16 +12,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// DeleteAssistantHistoryLogic 承载 DeleteAssistantHistory 接口的业务逻辑；每个请求新建一个实例。
 type DeleteAssistantHistoryLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewDeleteAssistantHistoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewDeleteAssistantHistoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteAssistantHistoryLogic {
 	return &DeleteAssistantHistoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// DeleteAssistantHistory 清空当前用户的助手对话历史。
 func (l *DeleteAssistantHistoryLogic) DeleteAssistantHistory() (*types.DeleteAssistantHistoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

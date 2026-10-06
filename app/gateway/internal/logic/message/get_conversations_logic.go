@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetConversationsLogic 承载 GetConversations 接口的业务逻辑；每个请求新建一个实例。
 type GetConversationsLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewGetConversationsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// GetConversations 分页返回当前用户的会话列表。
 func (l *GetConversationsLogic) GetConversations(req *types.GetConversationsReq) (resp *types.GetConversationsResp, err error) {
 	if req == nil || req.Page <= 0 || req.PageSize <= 0 || req.PageSize > maxMessagePageSize {
 		return nil, errx.NewWithCode(errx.ParamError)

@@ -12,6 +12,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
+// UploadAudioHandler 以 multipart 流式接收音频并转交媒体服务；表单临时文件由 Cleanup 删除。
 func UploadAudioHandler(s *svc.ServiceContext) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		defer mediaupload.Cleanup(c)

@@ -12,16 +12,19 @@ import (
 	"esx/pkg/logging"
 )
 
+// ListAssistantMemoryLogic 承载 ListAssistantMemory 接口的业务逻辑；每个请求新建一个实例。
 type ListAssistantMemoryLogic struct {
 	logging.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
+// NewListAssistantMemoryLogic 绑定请求上下文与服务依赖，日志自动携带请求追踪信息。
 func NewListAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListAssistantMemoryLogic {
 	return &ListAssistantMemoryLogic{Logger: logging.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
+// ListAssistantMemory 列出记忆条目及各目标的容量占用；Target 为空时返回全部目标。
 func (l *ListAssistantMemoryLogic) ListAssistantMemory(req *types.ListAssistantMemoryReq) (*types.ListAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

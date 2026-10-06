@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// RefreshTokenLogic 承载 RefreshToken 接口的业务逻辑；每个请求新建一个实例。
 type RefreshTokenLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewRefreshTokenLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Refr
 	}
 }
 
+// RefreshToken 用刷新令牌换取新的令牌对；令牌校验与轮换由用户服务负责。
 func (l *RefreshTokenLogic) RefreshToken(req *types.RefreshTokenReq) (resp *types.RefreshTokenResp, err error) {
 	if req.RefreshToken == "" {
 		return nil, errx.NewWithCode(errx.ParamError)

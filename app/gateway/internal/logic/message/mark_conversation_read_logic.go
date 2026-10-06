@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// MarkConversationReadLogic 承载 MarkConversationRead 接口的业务逻辑；每个请求新建一个实例。
 type MarkConversationReadLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewMarkConversationReadLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
+// MarkConversationRead 把当前用户在该会话中的消息标记为已读。
 func (l *MarkConversationReadLogic) MarkConversationRead(req *types.MarkConversationReadReq) (resp *types.MarkConversationReadResp, err error) {
 	if req == nil || req.ConversationId <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

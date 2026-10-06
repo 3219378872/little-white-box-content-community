@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// UpdatePostV2Logic 承载 UpdatePostV2 接口的业务逻辑；每个请求新建一个实例。
 type UpdatePostV2Logic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewUpdatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *Upda
 	}
 }
 
+// UpdatePostV2 更新当前用户自己的帖子。
 func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *types.UpdatePostResp, err error) {
 	// CORE-013：v2 写接口强制乐观锁，缺失或为 0 一律按参数错误拒绝，
 	// 不允许通过 0 绕过版本冲突检测。
@@ -40,6 +42,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		return nil, err
 	}
 
+	// Provided 标志用 nil 与空切片区分“未提交该字段”和“清空该字段”。
 	result, err := l.svcCtx.ContentService.UpdatePost(l.ctx, &contentservice.UpdatePostReq{
 		PostId:           req.PostId,
 		AuthorId:         userId,

@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// CreateCommentLogic 承载 CreateComment 接口的业务逻辑；每个请求新建一个实例。
 type CreateCommentLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewCreateCommentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 	}
 }
 
+// CreateComment 以当前用户身份发表评论或回复；幂等键透传给内容服务去重。
 func (l *CreateCommentLogic) CreateComment(req *types.CreateCommentReq) (resp *types.CreateCommentResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

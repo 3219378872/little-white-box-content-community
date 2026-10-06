@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/types"
 )
 
+// Item maps a content post plus viewer state and author into the REST list item.
 func Item(post *contentservice.PostInfo, liked, favorited map[int64]bool, author authorx.Author) types.PostItem {
 	if post == nil {
 		return types.PostItem{}
@@ -33,10 +34,12 @@ func Item(post *contentservice.PostInfo, liked, favorited map[int64]bool, author
 	}
 }
 
+// Detail reuses the list mapping because the detail response has the same shape.
 func Detail(post *contentservice.PostInfo, liked, favorited map[int64]bool, author authorx.Author) types.GetPostResp {
 	return types.GetPostResp(Item(post, liked, favorited, author))
 }
 
+// Items maps posts in order, skipping nil entries; missing authors render as empty.
 func Items(posts []*contentservice.PostInfo, liked, favorited map[int64]bool, authors map[int64]authorx.Author) []types.PostItem {
 	if authors == nil {
 		authors = map[int64]authorx.Author{}

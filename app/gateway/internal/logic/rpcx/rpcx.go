@@ -7,6 +7,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// Error logs a failed downstream call with its operation name and maps it to the errx code clients see.
 func Error(logger logging.Logger, op string, err error, fields ...logging.LogField) error {
 	if err == nil {
 		return nil

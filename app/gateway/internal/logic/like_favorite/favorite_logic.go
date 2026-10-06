@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// FavoriteLogic 承载 Favorite 接口的业务逻辑；每个请求新建一个实例。
 type FavoriteLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewFavoriteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Favorite
 	}
 }
 
+// Favorite 收藏帖子。
 func (l *FavoriteLogic) Favorite(req *types.FavoriteReq) (resp *types.FavoriteResp, err error) {
 	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

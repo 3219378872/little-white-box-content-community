@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SetPersonalizationPreferenceLogic 承载 SetPersonalizationPreference 接口的业务逻辑；每个请求新建一个实例。
 type SetPersonalizationPreferenceLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewSetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.Servi
 	}
 }
 
+// SetPersonalizationPreference 开启或关闭当前用户的个性化推荐。
 func (l *SetPersonalizationPreferenceLogic) SetPersonalizationPreference(req *types.SetPersonalizationPreferenceReq) (resp *types.SetPersonalizationPreferenceResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

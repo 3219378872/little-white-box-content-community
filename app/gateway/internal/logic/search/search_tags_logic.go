@@ -11,6 +11,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SearchTagsLogic 承载 SearchTags 接口的业务逻辑；每个请求新建一个实例。
 type SearchTagsLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -26,6 +27,7 @@ func NewSearchTagsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Search
 	}
 }
 
+// SearchTags 按关键词联想标签，返回条数受 Limit 约束。
 func (l *SearchTagsLogic) SearchTags(req *types.SearchTagsReq) (resp *types.SearchTagsResp, err error) {
 	if req == nil || req.Limit <= 0 || req.Limit > maxPageSize {
 		return nil, errx.NewWithCode(errx.ParamError)

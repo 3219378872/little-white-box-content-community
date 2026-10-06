@@ -20,6 +20,8 @@ import (
 
 const assistantSSEHeartbeatInterval = 25 * time.Second
 
+// AssistantRunEventsHandler streams run events as SSE; the response stays a plain
+// JSON error until the first event, so pre-stream failures keep normal HTTP status codes.
 func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		var req types.AssistantRunEventsReq
@@ -27,6 +29,7 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 			httpx.ErrorCtx(ctx, c, err)
 			return
 		}
+		// Resume from whichever is later: the query cursor or the browser's Last-Event-ID.
 		req.AfterSeq = resumeAfterSeq(req.AfterSeq, string(c.GetHeader("Last-Event-ID")))
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -47,6 +50,7 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 			result = logic.AssistantRunEvents(&req, events)
 		}()
 		var writer *sse.Writer
+		// start switches the response to SSE lazily, on the first event or heartbeat.
 		start := func() {
 			if writer == nil {
 				writer = sse.NewWriter(c)
@@ -63,6 +67,8 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 		for {
 			select {
 			case event, ok := <-events:
+				// Logic finished: report its error as JSON or as a transport_error frame,
+				// depending on whether the stream has already started.
 				if !ok {
 					err := <-completed
 					if err != nil && ctx.Err() == nil {
@@ -96,6 +102,8 @@ func AssistantRunEventsHandler(svcCtx *svc.ServiceContext) app.HandlerFunc {
 		}
 	}
 }
+
+// resumeAfterSeq picks the larger of the query cursor and a valid Last-Event-ID header.
 func resumeAfterSeq(query int64, lastEventID string) int64 {
 	header := int64(0)
 	if raw := strings.TrimSpace(lastEventID); raw != "" {
@@ -109,6 +117,8 @@ func resumeAfterSeq(query int64, lastEventID string) int64 {
 	return query
 }
 
+// writeAssistantSSETransportError ends a started stream with a typed error frame;
+// 5xx and 429 are marked retryable so the client reconnects instead of failing the run.
 func writeAssistantSSETransportError(writer *sse.Writer, err error) error {
 	code, body := httpxconfig.MapError(err)
 	data, e := json.Marshal(struct {
@@ -122,6 +132,7 @@ func writeAssistantSSETransportError(writer *sse.Writer, err error) error {
 	return writer.WriteEvent("", "transport_error", data)
 }
 
+// writeAssistantSSEHeartbeat writes an SSE comment so proxies keep idle streams open.
 func writeAssistantSSEHeartbeat(c *app.RequestContext) error {
 	w := c.Response.GetHijackWriter()
 	if _, err := w.Write([]byte(": heartbeat\n\n")); err != nil {

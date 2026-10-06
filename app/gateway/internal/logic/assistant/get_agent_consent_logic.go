@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetAgentConsentLogic 承载 GetAgentConsent 接口的业务逻辑；每个请求新建一个实例。
 type GetAgentConsentLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewGetAgentConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *G
 	}
 }
 
+// GetAgentConsent 返回用户对助手能力的授权状态及当前协议版本，供前端判断是否需要重新授权。
 func (l *GetAgentConsentLogic) GetAgentConsent() (resp *types.GetAgentConsentResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

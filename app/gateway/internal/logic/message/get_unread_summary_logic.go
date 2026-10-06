@@ -12,6 +12,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// GetUnreadSummaryLogic 承载 GetUnreadSummary 接口的业务逻辑；每个请求新建一个实例。
 type GetUnreadSummaryLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -27,6 +28,7 @@ func NewGetUnreadSummaryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
+// GetUnreadSummary 返回当前用户的私信与通知未读数。
 func (l *GetUnreadSummaryLogic) GetUnreadSummary() (resp *types.GetUnreadSummaryResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {

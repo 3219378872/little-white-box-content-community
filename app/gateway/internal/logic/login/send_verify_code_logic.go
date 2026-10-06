@@ -13,6 +13,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// SendVerifyCodeLogic 承载 SendVerifyCode 接口的业务逻辑；每个请求新建一个实例。
 type SendVerifyCodeLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -28,6 +29,7 @@ func NewSendVerifyCodeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Se
 	}
 }
 
+// SendVerifyCode 透传客户端 IP，供用户服务按 IP 频控验证码发送。
 func (l *SendVerifyCodeLogic) SendVerifyCode(req *types.SendVerifyCodeReq) (resp *types.SendVerifyCodeResp, err error) {
 	// 校验手机号是否合法
 	err = validator.ValidatePhone(req.Phone)

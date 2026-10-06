@@ -13,11 +13,13 @@ import (
 
 const postTargetType int32 = 1
 
+// feedEnrichment holds per-page author and like lookups for feed items.
 type feedEnrichment struct {
 	authors map[int64]authorx.Author
 	liked   map[int64]bool
 }
 
+// loadFeedEnrichment loads authors softly and liked state strictly for one feed page.
 func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items []*feedpb.FeedItem, userID int64) (*feedEnrichment, error) {
 	authorIDs, postIDs := uniqueFeedIDs(items)
 	// Author names are display fields: a User failure leaves them empty and
@@ -28,6 +30,7 @@ func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items [
 		liked:   make(map[int64]bool),
 	}
 
+	// Anonymous viewers have no liked state, so the interaction call is skipped.
 	if userID > 0 && len(postIDs) > 0 {
 		if svcCtx == nil || svcCtx.InteractionService == nil {
 			return nil, errx.NewWithCode(errx.SystemError)
@@ -49,6 +52,7 @@ func loadFeedEnrichment(ctx context.Context, svcCtx *svc.ServiceContext, items [
 	return enrichment, nil
 }
 
+// uniqueFeedIDs collects de-duplicated positive author and post IDs in feed order.
 func uniqueFeedIDs(items []*feedpb.FeedItem) ([]int64, []int64) {
 	authorIDs := make([]int64, 0, len(items))
 	postIDs := make([]int64, 0, len(items))
@@ -62,6 +66,7 @@ func uniqueFeedIDs(items []*feedpb.FeedItem) ([]int64, []int64) {
 	return authorx.UniquePositive(authorIDs), authorx.UniquePositive(postIDs)
 }
 
+// author returns the loaded author, or an empty one when lookup failed.
 func (e *feedEnrichment) author(authorID int64) authorx.Author {
 	if e == nil {
 		return authorx.Author{}
@@ -69,6 +74,7 @@ func (e *feedEnrichment) author(authorID int64) authorx.Author {
 	return e.authors[authorID]
 }
 
+// isLiked reports the viewer's like state; false for anonymous viewers.
 func (e *feedEnrichment) isLiked(postID int64) bool {
 	return e != nil && e.liked[postID]
 }

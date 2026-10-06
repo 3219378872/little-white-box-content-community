@@ -32,6 +32,7 @@ type sponsoredRequest struct {
 	pageSize  int32
 }
 
+// sponsoredResult 是广告查询的结果；失败时 slots 为空。
 type sponsoredResult struct {
 	slots []*adservice.SponsoredSlot
 }

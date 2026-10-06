@@ -14,6 +14,7 @@ import (
 	"esx/pkg/logging"
 )
 
+// RecordBehaviorEventsLogic 承载 RecordBehaviorEvents 接口的业务逻辑；每个请求新建一个实例。
 type RecordBehaviorEventsLogic struct {
 	logging.Logger
 	ctx    context.Context
@@ -29,6 +30,7 @@ func NewRecordBehaviorEventsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
+// RecordBehaviorEvents 批量上报行为事件；登录用户按用户 ID 记录，匿名访客必须提供 anonymousId。
 func (l *RecordBehaviorEventsLogic) RecordBehaviorEvents(req *types.RecordBehaviorEventsReq) (resp *types.RecordBehaviorEventsResp, err error) {
 	if req == nil || len(req.Events) == 0 || len(req.Events) > 100 {
 		return nil, errx.New(errx.ParamError, "行为事件数量必须在 1 到 100 之间")
@@ -60,6 +62,7 @@ func (l *RecordBehaviorEventsLogic) RecordBehaviorEvents(req *types.RecordBehavi
 		})
 	}
 
+	// 请求侧元数据由 BehaviorAccepted 中间件采集，客户端无法在请求体中伪造。
 	metadata := middleware.BehaviorRequestMetadataFromContext(l.ctx)
 	result, err := l.svcCtx.BehaviorService.RecordEvents(l.ctx, &behaviorservice.RecordEventsReq{
 		UserId:        userID,
