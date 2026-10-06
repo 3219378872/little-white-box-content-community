@@ -3,6 +3,8 @@ package jwtx
 import (
 	"errors"
 	"testing"
+
+	"esx/pkg/errx"
 )
 
 func dualTokenConfig() JwtConfig {
@@ -72,7 +74,13 @@ func TestRefreshTokenRejectedUnderAccessSecret(t *testing.T) {
 }
 
 func TestGenerateRefreshTokenRequiresSecret(t *testing.T) {
-	if _, err := GenerateRefreshToken(1, "bob", JwtConfig{AccessSecret: "x"}); err == nil {
-		t.Fatal("empty refresh secret must fail")
+	_, err := GenerateRefreshToken(1, "bob", JwtConfig{AccessSecret: "x"})
+	if !errors.Is(err, ErrRefreshSecretMissing) {
+		t.Fatalf("err = %v, want ErrRefreshSecretMissing", err)
+	}
+	// 配置细节只供日志使用；任何调用方透传到网关时，用户只能看到通用的系统错误。
+	var biz *errx.BizError
+	if !errors.As(errx.FromRPCError(err), &biz) || biz.Code != errx.SystemError || biz.Message != errx.GetMsg(errx.SystemError) {
+		t.Fatalf("user-facing error = %+v, want generic SystemError", biz)
 	}
 }

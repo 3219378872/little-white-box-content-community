@@ -40,6 +40,10 @@ var (
 	ErrTokenInvalid     = errors.New("token无效")
 	ErrTokenMalformed   = errors.New("token格式错误")
 	ErrTokenNotValidYet = errors.New("token尚未生效")
+
+	// ErrRefreshSecretMissing 是服务端配置错误，只用于日志排查；它不是 errx 业务错误，
+	// 经 RPC 或网关边界时一律折算为通用的系统错误，不把配置细节暴露给用户。
+	ErrRefreshSecretMissing = errors.New("refresh secret is empty")
 )
 
 // GenerateToken 生成访问令牌
@@ -61,7 +65,7 @@ func GenerateToken(userId int64, username string, config JwtConfig) (string, err
 // jti（RegisteredClaims.ID）供服务端白名单轮换。
 func GenerateRefreshToken(userId int64, username string, config JwtConfig) (string, error) {
 	if strings.TrimSpace(config.RefreshSecret) == "" {
-		return "", errx.New(errx.SystemError, "refresh secret is empty")
+		return "", ErrRefreshSecretMissing
 	}
 	jti, err := newJTI()
 	if err != nil {

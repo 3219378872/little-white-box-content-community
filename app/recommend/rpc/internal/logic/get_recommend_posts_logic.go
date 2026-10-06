@@ -16,6 +16,12 @@ import (
 	"esx/pkg/logging"
 )
 
+// 续页失败时经网关原样返回给用户的文案（错误码均为 ParamError），客户端应丢弃游标重新拉取首屏。
+const (
+	recommendCursorExpiredMessage          = "推荐列表已失效，请刷新后重试"
+	recommendPersonalizationChangedMessage = "个性化推荐设置已变更，请刷新推荐列表"
+)
+
 // GetRecommendPostsLogic 承载 GetRecommendPosts 接口的业务逻辑；每个请求新建一个实例。
 type GetRecommendPostsLogic struct {
 	ctx    context.Context
@@ -244,11 +250,11 @@ func (l *GetRecommendPostsLogic) pageFromCursor(token string, pageSize int, bind
 	if strings.HasPrefix(identity, featurekey.UserIdentityPrefix) && !snapshot.RuleOnly {
 		userID, err := strconv.ParseInt(strings.TrimPrefix(identity, featurekey.UserIdentityPrefix), 10, 64)
 		if err != nil || userID <= 0 || l.personalizationOptedOut(userID) {
-			return nil, errx.New(errx.ParamError, "recommendation cursor expired after personalization changed")
+			return nil, errx.New(errx.ParamError, recommendPersonalizationChangedMessage)
 		}
 	}
 	if payload.Offset >= len(snapshot.Posts) {
-		return nil, errx.New(errx.ParamError, "invalid or expired recommendation cursor")
+		return nil, errx.New(errx.ParamError, recommendCursorExpiredMessage)
 	}
 	visible, err := filterPublishedRankedPosts(l.ctx, l.svcCtx.ContentService, snapshot.Posts[payload.Offset:])
 	if err != nil {
@@ -282,12 +288,12 @@ func (l *GetRecommendPostsLogic) loadBoundSnapshot(token string, binding cursor.
 	}
 	payload, err := l.svcCtx.CursorCodec.Decode(token, binding)
 	if err != nil {
-		return cursor.Payload{}, model.PostSnapshot{}, errx.New(errx.ParamError, "invalid or expired recommendation cursor")
+		return cursor.Payload{}, model.PostSnapshot{}, errx.New(errx.ParamError, recommendCursorExpiredMessage)
 	}
 	snapshot, err := l.svcCtx.SnapshotStore.Load(l.ctx, payload.SnapshotID)
 	if err != nil {
 		if errors.Is(err, model.ErrSnapshotMissing) {
-			return cursor.Payload{}, model.PostSnapshot{}, errx.New(errx.ParamError, "invalid or expired recommendation cursor")
+			return cursor.Payload{}, model.PostSnapshot{}, errx.New(errx.ParamError, recommendCursorExpiredMessage)
 		}
 		return cursor.Payload{}, model.PostSnapshot{}, recommendationRPCError(err)
 	}
