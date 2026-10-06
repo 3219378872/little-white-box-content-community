@@ -11,6 +11,7 @@ import (
 	"esx/app/assistant/rpc/internal/svc"
 
 	conf "esx/pkg/configx"
+	"esx/pkg/logging"
 
 	"esx/pkg/rpcx"
 )
@@ -25,7 +26,8 @@ func main() {
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
-	ctx := svc.NewServiceContext(c)
+	ctx, err := svc.NewServiceContext(c)
+	logging.Must(err)
 
 	s := native.NewServer(server.NewAssistantServiceServer(ctx), rpcx.ServerOptions(c.RpcServerConf, c.InternalSecret)...)
 	defer func() { _ = s.Stop() }()

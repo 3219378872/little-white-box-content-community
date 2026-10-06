@@ -27,7 +27,12 @@ type ServiceContext struct {
 }
 
 // NewServiceContext 装配 RPC 依赖；未配置 DataSource 时存储为空，相关接口返回 ServiceUnavailable。
-func NewServiceContext(c config.Config) *ServiceContext {
+// 屏蔽词过滤器配置无效时返回错误让启动失败，与 worker 一致，而不是静默关闭过滤。
+func NewServiceContext(c config.Config) (*ServiceContext, error) {
+	safetyFilter, err := newSafetyFilter(c.Safety)
+	if err != nil {
+		return nil, err
+	}
 
 	internalAuthOption := rpcx.WithInternalAuth(c.InternalSecret)
 	newClient := func(conf rpcx.RpcClientConf) rpcx.Client {
@@ -45,21 +50,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		// pkg/sqlstore never logs statements or arguments, so prompts and tool payloads stay out of logs (REL-022).
 		conn := sqlx.NewMysql(c.DataSource)
 		st = store.NewSQLStore(conn)
-		var filter safety.Filter
-		if c.Safety.Enabled {
-			f, err := safety.NewKeywordFilter(c.Safety.BlockedTerms, c.Safety.MaxScanRunes)
-			if err == nil {
-				filter = f
-			}
-		}
-		mem = memory.NewSQLStore(conn, filter)
-	}
-	var safetyFilter safety.Filter
-	if c.Safety.Enabled {
-		f, err := safety.NewKeywordFilter(c.Safety.BlockedTerms, c.Safety.MaxScanRunes)
-		if err == nil {
-			safetyFilter = f
-		}
+		mem = memory.NewSQLStore(conn, safetyFilter)
 	}
 	return &ServiceContext{
 		Config:         c,
@@ -69,5 +60,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Acceptor:       &runtime.Acceptor{Store: st, Memory: mem, MaxRunes: c.MaxMessageRunes},
 		ContentService: contentService,
 		UserService:    userService,
+	}, nil
+}
+
+// newSafetyFilter 按配置构造屏蔽词过滤器；关闭时返回 nil，启用但配置无效时返回错误。
+func newSafetyFilter(c config.SafetyConfig) (safety.Filter, error) {
+	if !c.Enabled {
+		return nil, nil
 	}
+	filter, err := safety.NewKeywordFilter(c.BlockedTerms, c.MaxScanRunes)
+	if err != nil {
+		return nil, err
+	}
+	return filter, nil
 }
