@@ -45,9 +45,13 @@ require_port() {
   fi
 }
 
+# Critical covers the SQL write paths most likely to regress: interaction counters, user
+# registration/model, and Assistant store/memory (lease fencing, journal takeover, terminal
+# rollback, retention, input locking, memory CAS/undo).
 if [[ "$mode" == "--critical" ]]; then
   go test -p "$parallelism" -tags=integration -count=1 -timeout=10m \
-    ./app/interaction/rpc/internal/logic
+    ./app/interaction/rpc/internal/logic \
+    ./app/assistant/internal/store ./app/assistant/internal/memory
   (cd app/user/rpc && go test -p "$parallelism" -tags=integration -count=1 \
     -timeout=10m ./internal/logic ./internal/model)
   exit 0
