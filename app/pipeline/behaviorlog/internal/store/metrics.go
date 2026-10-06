@@ -15,6 +15,7 @@ var clickHouseWriteSeconds = metric.NewHistogramVec(&metric.HistogramVecOpts{
 	},
 })
 
+// observeClickHouseWrite 按操作与结果记录 ClickHouse 写入耗时。
 func observeClickHouseWrite(startedAt time.Time, operation string, err error) {
 	outcome := "success"
 	if err != nil {

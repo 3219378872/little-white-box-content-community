@@ -18,10 +18,12 @@ var (
 	})
 )
 
+// observeBehaviorEventLag 记录行为发生到落库的延迟。
 func observeBehaviorEventLag(eventTime int64, now time.Time) {
 	behaviorConsumerEventLag.ObserveFloat(eventLagSeconds(eventTime, now))
 }
 
+// eventLagSeconds 计算事件延迟秒数；缺少事件时间或时钟回拨时记为 0，避免污染直方图。
 func eventLagSeconds(eventTime int64, now time.Time) float64 {
 	if eventTime <= 0 {
 		return 0

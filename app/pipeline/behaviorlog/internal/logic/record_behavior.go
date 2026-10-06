@@ -11,15 +11,18 @@ import (
 	"esx/pkg/logging"
 )
 
+// Deduper 判断并记录已处理的事件。
 type Deduper interface {
 	IsDuplicate(ctx context.Context, eventID string) (bool, error)
 	MarkProcessed(ctx context.Context, eventID string) error
 }
 
+// BehaviorProcessor 处理一条行为事件；返回 mqx 永久错误时消息进入死信，其他错误触发重试。
 type BehaviorProcessor interface {
 	Process(ctx context.Context, e event.BehaviorEvent, meta MessageMeta) error
 }
 
+// MessageMeta 是来自 MQ 的消息元数据，用于补全缺失的接收时间。
 type MessageMeta struct {
 	MsgID          string
 	OffsetMsgID    string
@@ -27,6 +30,7 @@ type MessageMeta struct {
 	BornTimestamp  int64
 }
 
+// Recorder 把行为事件去重后写入存储。
 type Recorder struct {
 	store interface {
 		Insert(ctx context.Context, e event.BehaviorEvent) error
@@ -34,12 +38,15 @@ type Recorder struct {
 	dedup Deduper
 }
 
+// NewRecorder 创建行为事件记录器。
 func NewRecorder(s interface {
 	Insert(ctx context.Context, e event.BehaviorEvent) error
 }, d Deduper) *Recorder {
 	return &Recorder{store: s, dedup: d}
 }
 
+// Process 补全并校验事件，跳过已处理的事件后落库，再写去重标记。落库成功但标记失败时消息会重试，
+// 重复写入由 behavior_events 按 event_id 去重收敛。
 func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta MessageMeta) error {
 	var err error
 	e, err = normalizeBehaviorEvent(e, meta)
@@ -77,6 +84,7 @@ func (r *Recorder) Process(ctx context.Context, e event.BehaviorEvent, meta Mess
 	return nil
 }
 
+// normalizeBehaviorEvent 兼容旧生产者：缺 EventID 时由 client_event_id 派生，缺接收时间时取消息时间。
 func normalizeBehaviorEvent(e event.BehaviorEvent, meta MessageMeta) (event.BehaviorEvent, error) {
 	if e.EventID == 0 && e.ClientEventID != "" {
 		e.EventID = event.DeterministicBehaviorEventID(e.ClientEventID)
@@ -87,6 +95,7 @@ func normalizeBehaviorEvent(e event.BehaviorEvent, meta MessageMeta) (event.Beha
 	return e, nil
 }
 
+// eventTimeFromMeta 按 Broker 存储时间、生产时间、当前时间的顺序取接收时间。
 func eventTimeFromMeta(meta MessageMeta) int64 {
 	if meta.StoreTimestamp > 0 {
 		return meta.StoreTimestamp

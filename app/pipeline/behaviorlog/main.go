@@ -25,6 +25,7 @@ import (
 
 var configFile = flag.String("f", "etc/behavior-log.yaml", "config file")
 
+// main 启动行为日志消费者：把行为事件写入 ClickHouse，并在后台定时执行 REL-020 日聚合。
 func main() {
 	defer rpcx.CloseAllClients()
 	defer lifecycle.CloseResources()
@@ -60,6 +61,7 @@ func main() {
 
 	fmt.Printf("Behavior-log consumer started, subscribing: %s\n", c.MQ.Topic)
 	<-shutdownCtx.Done()
+	// 先停止消费并等待聚合退出，最后才关闭 ClickHouse 连接，避免在途写入失败。
 	cleanupx.Shutdown(logger, "behavior-log consumer", mq.Shutdown)
 	background.Wait()
 	cleanupx.Shutdown(logger, "behavior-log clickhouse", svcCtx.Close)

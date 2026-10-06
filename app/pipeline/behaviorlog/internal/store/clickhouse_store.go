@@ -12,14 +12,17 @@ import (
 	"esx/pkg/event"
 )
 
+// ClickHouseStore 把行为事件与死信写入 xbh_analytics 库。
 type ClickHouseStore struct {
 	db *sql.DB
 }
 
+// NewClickHouseStore 用已建立的连接创建存储。
 func NewClickHouseStore(db *sql.DB) *ClickHouseStore {
 	return &ClickHouseStore{db: db}
 }
 
+// Insert 写入一条行为事件；写入前再校验一次，并把客户端 IP 替换为哈希。
 func (s *ClickHouseStore) Insert(ctx context.Context, behavior event.BehaviorEvent) (err error) {
 	startedAt := time.Now()
 	defer func() { observeClickHouseWrite(startedAt, "behavior", err) }()
@@ -63,6 +66,7 @@ func anonymizeIP(ip string) string {
 	return hex.EncodeToString(digest[:])
 }
 
+// DeadLetter 是一条无法处理的消息及其失败原因。
 type DeadLetter struct {
 	MessageID  string
 	EventID    int64
@@ -71,6 +75,7 @@ type DeadLetter struct {
 	ReceivedAt int64
 }
 
+// InsertDeadLetter 写入死信；接收时间优先用 Broker 存储时间。
 func (s *ClickHouseStore) InsertDeadLetter(ctx context.Context, letter DeadLetter) (err error) {
 	startedAt := time.Now()
 	defer func() { observeClickHouseWrite(startedAt, "dead_letter", err) }()
@@ -87,6 +92,7 @@ func (s *ClickHouseStore) InsertDeadLetter(ctx context.Context, letter DeadLette
 	return nil
 }
 
+// nullableInt32 把可选字段转为 SQL NULL。
 func nullableInt32(value *int32) any {
 	if value == nil {
 		return nil
@@ -94,6 +100,7 @@ func nullableInt32(value *int32) any {
 	return *value
 }
 
+// nullableInt64 把可选字段转为 SQL NULL。
 func nullableInt64(value *int64) any {
 	if value == nil {
 		return nil

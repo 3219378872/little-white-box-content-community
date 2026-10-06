@@ -7,6 +7,7 @@ import (
 	redis "esx/pkg/redisstore"
 )
 
+// Config 是行为日志消费者配置；DedupTTL 是事件去重标记的保留秒数（默认 90 天）。
 type Config struct {
 	service.ServiceConf
 	MQ            mqx.ConsumerConfig
