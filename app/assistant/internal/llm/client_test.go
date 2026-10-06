@@ -82,19 +82,19 @@ func TestResponsesToolCall(t *testing.T) {
 }
 
 func TestDecodeResponsesArgumentsObjectOrString(t *testing.T) {
-	client := &HTTPClient{cfg: Config{Model: "m"}}
+	codec := responsesCodec{cfg: &Config{Model: "m"}}
 	rawObject, _ := json.Marshal(map[string]any{
 		"status": "completed",
 		"output": []map[string]any{
 			{"type": "function_call", "call_id": "c1", "name": "search_posts", "arguments": map[string]any{"keyword": "go"}},
 		},
 	})
-	got, err := client.decodeResponses(rawObject)
+	got, err := codec.decode(rawObject)
 	if err != nil || len(got.ToolCalls) != 1 || got.ToolCalls[0].Arguments != `{"keyword":"go"}` {
 		t.Fatalf("object args=%+v err=%v", got, err)
 	}
 	rawString := []byte(`{"status":"completed","output":[{"type":"function_call","call_id":"c1","name":"search_posts","arguments":"{\"keyword\":\"go\"}"}]}`)
-	got, err = client.decodeResponses(rawString)
+	got, err = codec.decode(rawString)
 	if err != nil || len(got.ToolCalls) != 1 || got.ToolCalls[0].Arguments != `{"keyword":"go"}` {
 		t.Fatalf("string args=%+v err=%v", got, err)
 	}
@@ -232,7 +232,7 @@ func TestDecodeResponsesIncompleteWithText(t *testing.T) {
 			{"type": "message", "role": "assistant", "content": []map[string]string{{"type": "output_text", "text": "pong"}}},
 		},
 	})
-	got, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
+	got, err := (responsesCodec{cfg: &Config{Model: "m"}}).decode(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestDecodeResponsesIncompleteEmptyFails(t *testing.T) {
 		"status": "incomplete",
 		"output": []map[string]any{{"type": "reasoning"}},
 	})
-	got, err := (&HTTPClient{cfg: Config{Model: "m"}}).decodeResponses(raw)
+	got, err := (responsesCodec{cfg: &Config{Model: "m"}}).decode(raw)
 	if err != nil || got.IncompleteReason != "unknown" {
 		t.Fatalf("result=%+v err=%v", got, err)
 	}

@@ -4,10 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,6 +14,7 @@ import (
 	"esx/app/assistant/internal/prompt"
 )
 
+// streamedToolCall 是流式拼接中的一个工具调用。
 type streamedToolCall struct {
 	index     int
 	id        string
@@ -23,6 +22,7 @@ type streamedToolCall struct {
 	arguments strings.Builder
 }
 
+// streamState 是一次流式响应的累积状态；text 只包含经清洗器去掉上下文封装后的可见文本。
 type streamState struct {
 	text       strings.Builder
 	scrubber   prompt.StreamingScrubber
@@ -36,32 +36,18 @@ type streamState struct {
 	terminal   bool
 }
 
+// SupportsStreaming 表示 HTTPClient 支持流式调用。
 func (c *HTTPClient) SupportsStreaming() bool { return c != nil }
 
+// CompleteStream 发送流式请求并逐段推送可见文本。上游未返回 SSE 时按完整响应解码并一次性推送；
+// 流在终态事件前结束视为可重试错误。
 func (c *HTTPClient) CompleteStream(ctx context.Context, req Request, emit func(Delta) error) (Result, error) {
 	if c == nil {
 		return Result{}, fmt.Errorf("llm client is nil")
 	}
-	maxTokens := req.MaxTokens
-	if maxTokens <= 0 || maxTokens > c.cfg.MaxOutputTokens {
-		maxTokens = c.cfg.MaxOutputTokens
-	}
-	payload, err := c.marshal(req, maxTokens, true)
+	httpReq, err := c.newHTTPRequest(ctx, req, true)
 	if err != nil {
 		return Result{}, err
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return Result{}, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "text/event-stream")
-	httpReq.Header.Set("User-Agent", responsesUserAgent)
-	if c.cfg.WireAPI == WireAPIResponses {
-		httpReq.Header.Set("OpenAI-Beta", responsesBeta)
-	}
-	if c.cfg.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	}
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
@@ -89,10 +75,7 @@ func (c *HTTPClient) CompleteStream(ctx context.Context, req Request, emit func(
 			return fmt.Errorf("assistant LLM stream event exceeds the byte limit")
 		}
 		state.raw = append(state.raw[:0], data...)
-		if c.cfg.WireAPI == WireAPIResponses {
-			return c.consumeResponsesEvent(event, data, state, emit)
-		}
-		return c.consumeChatEvent(data, state, emit)
+		return c.codec.consumeEvent(event, data, state, emit)
 	})
 	if err != nil {
 		return Result{}, err
@@ -103,6 +86,7 @@ func (c *HTTPClient) CompleteStream(ctx context.Context, req Request, emit func(
 			Message: "assistant LLM stream ended before a terminal event",
 		}
 	}
+	// 清洗器可能还缓存着跨分片的尾部文本，结束前一并推送。
 	if tail := state.scrubber.Flush(); tail != "" {
 		if err := emitVisible(state, tail, emit); err != nil {
 			return Result{}, err
@@ -118,6 +102,7 @@ func (c *HTTPClient) CompleteStream(ctx context.Context, req Request, emit func(
 	return result, nil
 }
 
+// scanSSE 按 SSE 规则解析事件：空行分隔事件，多行 data 以换行拼接，注释行忽略。
 func scanSSE(reader io.Reader, consume func(event string, data []byte) error) error {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 64<<10), maxResponseBytes)
@@ -160,189 +145,7 @@ func scanSSE(reader io.Reader, consume func(event string, data []byte) error) er
 	return flush()
 }
 
-func (c *HTTPClient) consumeChatEvent(data []byte, state *streamState, emit func(Delta) error) error {
-	var chunk struct {
-		Model   string `json:"model"`
-		Choices []struct {
-			Delta struct {
-				Content   string `json:"content"`
-				ToolCalls []struct {
-					Index    int    `json:"index"`
-					ID       string `json:"id"`
-					Function struct {
-						Name      string `json:"name"`
-						Arguments string `json:"arguments"`
-					} `json:"function"`
-				} `json:"tool_calls"`
-			} `json:"delta"`
-			FinishReason string `json:"finish_reason"`
-		} `json:"choices"`
-		Usage chatUsage `json:"usage"`
-	}
-	if err := json.Unmarshal(data, &chunk); err != nil {
-		return fmt.Errorf("decode chat completions stream: %w", err)
-	}
-	if chunk.Model != "" {
-		state.model = chunk.Model
-	}
-	for _, choice := range chunk.Choices {
-		if visible := state.scrubber.Feed(choice.Delta.Content); visible != "" {
-			if err := emitVisible(state, visible, emit); err != nil {
-				return err
-			}
-		}
-		for _, call := range choice.Delta.ToolCalls {
-			item := state.ensureCall(call.Index, call.ID)
-			if call.ID != "" {
-				item.id = call.ID
-			}
-			item.name += call.Function.Name
-			item.arguments.WriteString(call.Function.Arguments)
-		}
-		if choice.FinishReason != "" {
-			state.terminal = true
-		}
-		switch choice.FinishReason {
-		case "length":
-			state.incomplete = "max_output_tokens"
-		case "content_filter":
-			state.incomplete = "content_filter"
-		}
-	}
-	if chunk.Usage.PromptTokens > 0 || chunk.Usage.CompletionTokens > 0 {
-		state.usage = c.chatUsage(chunk.Usage)
-	}
-	return nil
-}
-
-func (c *HTTPClient) consumeResponsesEvent(event string, data []byte, state *streamState, emit func(Delta) error) error {
-	var envelope struct {
-		Type        string          `json:"type"`
-		Code        string          `json:"code"`
-		Message     string          `json:"message"`
-		Delta       string          `json:"delta"`
-		Text        string          `json:"text"`
-		ItemID      string          `json:"item_id"`
-		OutputIndex int             `json:"output_index"`
-		Name        string          `json:"name"`
-		Arguments   json.RawMessage `json:"arguments"`
-		Item        struct {
-			Type      string          `json:"type"`
-			ID        string          `json:"id"`
-			CallID    string          `json:"call_id"`
-			Name      string          `json:"name"`
-			Arguments json.RawMessage `json:"arguments"`
-		} `json:"item"`
-		Response json.RawMessage `json:"response"`
-	}
-	if err := json.Unmarshal(data, &envelope); err != nil {
-		return fmt.Errorf("decode responses stream: %w", err)
-	}
-	if event == "" {
-		event = envelope.Type
-	}
-	switch event {
-	case "response.output_text.delta":
-		if visible := state.scrubber.Feed(envelope.Delta); visible != "" {
-			return emitVisible(state, visible, emit)
-		}
-	case "response.output_item.added":
-		if envelope.Item.Type == "function_call" || envelope.Item.Type == "tool_call" {
-			key := envelope.Item.ID
-			if key == "" {
-				key = envelope.Item.CallID
-			}
-			item := state.ensureResponseCall(key, envelope.OutputIndex)
-			item.id = firstNonEmpty(envelope.Item.CallID, envelope.Item.ID)
-			item.name = envelope.Item.Name
-			if args := normalizeToolArguments(envelope.Item.Arguments); args != "{}" {
-				item.arguments.WriteString(args)
-			}
-		}
-	case "response.function_call_arguments.delta":
-		item := state.ensureResponseCall(envelope.ItemID, envelope.OutputIndex)
-		item.arguments.WriteString(envelope.Delta)
-	case "response.function_call_arguments.done":
-		item := state.ensureResponseCall(envelope.ItemID, envelope.OutputIndex)
-		if envelope.Name != "" {
-			item.name = envelope.Name
-		}
-		if len(envelope.Arguments) > 0 {
-			item.arguments.Reset()
-			item.arguments.WriteString(normalizeToolArguments(envelope.Arguments))
-		}
-	case "response.completed", "response.incomplete":
-		state.terminal = true
-		if len(envelope.Response) > 0 {
-			final, err := c.decodeResponses(envelope.Response)
-			if err != nil {
-				return err
-			}
-			state.usage = final.Usage
-			state.model = final.Model
-			state.incomplete = final.IncompleteReason
-			if !state.emitted && final.Text != "" {
-				if visible := state.scrubber.Feed(final.Text); visible != "" {
-					if err := emitVisible(state, visible, emit); err != nil {
-						return err
-					}
-				}
-			}
-			if len(state.calls) == 0 {
-				for i, call := range final.ToolCalls {
-					item := state.ensureCall(i, call.ID)
-					item.name = call.Name
-					item.arguments.WriteString(call.Arguments)
-				}
-			}
-		}
-	case "response.failed":
-		var failed struct {
-			Error struct {
-				Code    string `json:"code"`
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		_ = json.Unmarshal(envelope.Response, &failed)
-		return classifyResponsesStreamError(failed.Error.Code, failed.Error.Message)
-	case "error":
-		return classifyResponsesStreamError(envelope.Code, envelope.Message)
-	}
-	return nil
-}
-
-func classifyResponsesStreamError(code, message string) *ProviderError {
-	signal := strings.ToLower(strings.TrimSpace(code + " " + message))
-	kind, retryable := ErrorUnknown, true
-	switch {
-	case strings.Contains(signal, "invalid_api_key"), strings.Contains(signal, "authentication"),
-		strings.Contains(signal, "unauthorized"), strings.Contains(signal, "permission_denied"):
-		kind, retryable = ErrorAuth, false
-	case strings.Contains(signal, "rate_limit"), strings.Contains(signal, "too many requests"):
-		kind, retryable = ErrorRateLimit, true
-	case strings.Contains(signal, "timeout"):
-		kind, retryable = ErrorTimeout, true
-	case strings.Contains(signal, "overload"), strings.Contains(signal, "capacity"):
-		kind, retryable = ErrorOverloaded, true
-	case strings.Contains(signal, "server_error"), strings.Contains(signal, "internal_error"):
-		kind, retryable = ErrorServer, true
-	case strings.Contains(signal, "content_policy"), strings.Contains(signal, "content filter"),
-		strings.Contains(signal, "safety policy"):
-		kind, retryable = ErrorContentPolicy, false
-	case strings.Contains(signal, "context_length"), strings.Contains(signal, "context window"),
-		strings.Contains(signal, "maximum context"), strings.Contains(signal, "too many tokens"):
-		kind, retryable = ErrorContextOverflow, false
-	case strings.Contains(signal, "invalid_prompt"), strings.Contains(signal, "invalid_request"),
-		strings.Contains(signal, "invalid_value"), strings.Contains(signal, "unsupported_value"),
-		strings.Contains(signal, "missing_required"):
-		kind, retryable = ErrorInvalidRequest, false
-	}
-	return &ProviderError{
-		Kind: kind, Retryable: retryable,
-		Message: "assistant LLM stream failed: kind=" + string(kind),
-	}
-}
-
+// emitVisible 记录并推送一段可见文本。
 func emitVisible(state *streamState, text string, emit func(Delta) error) error {
 	if text == "" {
 		return nil
@@ -355,6 +158,7 @@ func emitVisible(state *streamState, text string, emit func(Delta) error) error 
 	return nil
 }
 
+// ensureCall 按 index 取得或创建工具调用。
 func (s *streamState) ensureCall(index int, id string) *streamedToolCall {
 	if item := s.calls[index]; item != nil {
 		return item
@@ -364,6 +168,8 @@ func (s *streamState) ensureCall(index int, id string) *streamedToolCall {
 	return item
 }
 
+// ensureResponseCall 按 Responses 的 item ID 定位工具调用；ID 未知时从 output_index 起找空位，
+// 避免不同调用因 output_index 相同而被合并。
 func (s *streamState) ensureResponseCall(key string, outputIndex int) *streamedToolCall {
 	if key != "" {
 		if index, ok := s.callKeys[key]; ok {
@@ -380,6 +186,7 @@ func (s *streamState) ensureResponseCall(key string, outputIndex int) *streamedT
 	return s.ensureCall(index, key)
 }
 
+// toolCalls 按 index 输出已命名的工具调用；缺 ID 的按序号生成，参数缺省为 {}。
 func (s *streamState) toolCalls() []ToolCall {
 	indexes := make([]int, 0, len(s.calls))
 	for index := range s.calls {
@@ -405,36 +212,18 @@ func (s *streamState) toolCalls() []ToolCall {
 	return out
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
-}
-
 var _ StreamingClient = (*HTTPClient)(nil)
 
+// decodeNonStreamingResponse 处理请求了流式但上游返回完整 JSON 的情况：解码后把全文作为一次增量推送。
 func (c *HTTPClient) decodeNonStreamingResponse(body io.Reader, emit func(Delta) error) (Result, error) {
-	raw, readErr := io.ReadAll(io.LimitReader(body, maxResponseBytes+1))
-	if readErr != nil {
-		return Result{}, readErr
-	}
-	if len(raw) > maxResponseBytes {
-		return Result{}, fmt.Errorf("assistant LLM response exceeds the byte limit")
-	}
-	var result Result
-	var err error
-	if c.cfg.WireAPI == WireAPIResponses {
-		result, err = c.decodeResponses(raw)
-	} else {
-		result, err = c.decodeChat(raw)
-	}
+	raw, err := readLimitedBody(body)
 	if err != nil {
 		return Result{}, err
 	}
-	result.Text = strings.TrimSpace(prompt.SanitizeOutput(result.Text))
+	result, err := c.decodeBody(raw)
+	if err != nil {
+		return Result{}, err
+	}
 	if emit != nil && result.Text != "" {
 		if err := emit(Delta{Text: result.Text}); err != nil {
 			return Result{}, err
