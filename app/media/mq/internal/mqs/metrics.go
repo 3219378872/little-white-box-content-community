@@ -3,6 +3,7 @@ package mqs
 import (
 	"time"
 
+	"esx/pkg/event"
 	metric "esx/pkg/metrics"
 )
 
@@ -18,11 +19,24 @@ var (
 	})
 )
 
-func observeMediaLag(eventTime int64, now time.Time) {
-	mediaConsumerEventLag.ObserveFloat(mediaLagSeconds(eventTime, now))
+// mediaEventMillis 返回事件发生时间（毫秒）。EventTime 已是毫秒；旧消息只有秒级的 DeletedAt，
+// 换算成毫秒后再参与延迟计算，避免把秒当毫秒得到接近 0 的时间戳。
+func mediaEventMillis(e event.MediaDeletedEvent) int64 {
+	if e.EventTime > 0 {
+		return e.EventTime
+	}
+	if e.DeletedAt > 0 {
+		return e.DeletedAt * 1000
+	}
+	return 0
 }
 
-func mediaLagSeconds(eventTime int64, now time.Time) float64 {
+func observeMediaLag(e event.MediaDeletedEvent, now time.Time) {
+	mediaConsumerEventLag.ObserveFloat(mediaLagSeconds(e, now))
+}
+
+func mediaLagSeconds(e event.MediaDeletedEvent, now time.Time) float64 {
+	eventTime := mediaEventMillis(e)
 	if eventTime <= 0 {
 		return 0
 	}

@@ -60,7 +60,7 @@ func consumeMediaDeleteBatch(ctx context.Context, deleter ObjectDeleter, msgs ..
 			return consumer.ConsumeRetryLater
 		}
 		mediaConsumerMessages.Inc("processed")
-		observeMediaLag(m.DeletedAt, time.Now())
+		observeMediaLag(m, time.Now())
 		logging.WithContext(ctx).Infow("media-consumer: s3 object deleted",
 			logging.Field("media_id", m.MediaID), logging.Field("object_key", m.S3ObjectKey))
 	}

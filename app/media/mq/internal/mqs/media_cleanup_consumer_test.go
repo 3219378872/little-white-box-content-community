@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"esx/pkg/event"
 )
 
 type fakeStorage struct {
@@ -81,4 +84,26 @@ func TestMediaCleanupConsumer_BatchSkipsBadAndProcessesGood(t *testing.T) {
 	assert.Equal(t, consumer.ConsumeSuccess, result)
 	assert.Len(t, store.deleted, 1)
 	assert.Equal(t, "obj/key2", store.deleted[0])
+}
+
+func TestMediaLagSeconds_LegacyDeletedAtSecondsYieldsRealLag(t *testing.T) {
+	now := time.UnixMilli(1_710_000_010_000)
+
+	lag := mediaLagSeconds(event.MediaDeletedEvent{DeletedAt: 1_710_000_000}, now)
+
+	assert.InDelta(t, 10, lag, 0.001)
+}
+
+func TestMediaLagSeconds_PrefersMillisecondEventTime(t *testing.T) {
+	now := time.UnixMilli(1_710_000_010_000)
+
+	lag := mediaLagSeconds(event.MediaDeletedEvent{
+		EventTime: 1_710_000_007_500, DeletedAt: 1_710_000_000,
+	}, now)
+
+	assert.InDelta(t, 2.5, lag, 0.001)
+}
+
+func TestMediaLagSeconds_MissingTimeRecordsZeroLag(t *testing.T) {
+	assert.Zero(t, mediaLagSeconds(event.MediaDeletedEvent{}, time.Now()))
 }
