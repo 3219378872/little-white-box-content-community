@@ -53,14 +53,6 @@ func (m *MockPostModel) FindPostById(ctx context.Context, id int64) (*model2.Pos
 	return args.Get(0).(*model2.Post), args.Error(1)
 }
 
-func (m *MockPostModel) InsertPost(ctx context.Context, data *model2.Post) error {
-	return m.Called(ctx, data).Error(0)
-}
-
-func (m *MockPostModel) InsertPostTx(ctx context.Context, tx *sql.Tx, data *model2.Post) error {
-	return m.Called(ctx, tx, data).Error(0)
-}
-
 func (m *MockPostModel) Update(ctx context.Context, data *model2.Post) error {
 	return m.Called(ctx, data).Error(0)
 }
@@ -343,7 +335,7 @@ func (m legacyPostCommandModel) CreatePost(
 	_ outboxx.Event,
 	_ idempotencyx.IdempotencyRecord,
 ) (int64, bool, error) {
-	if err := m.post.InsertPostTx(ctx, nil, post); err != nil {
+	if _, err := m.post.Insert(ctx, post); err != nil {
 		return 0, false, err
 	}
 	if err := m.tags.BatchInsertTagsByPostIdTx(ctx, nil, post.Id, tags, tagIDs); err != nil {

@@ -87,11 +87,14 @@ func TestPostModelRoundtripAndQueries(t *testing.T) {
 
 	postModel := NewPostModel(newTestConn(), testCacheConf())
 	first := &Post{Id: nextID(t), AuthorId: 7, Title: "alpha", Content: "a-body", Status: 1, Revision: 1}
-	require.NoError(t, postModel.InsertPost(ctx, first))
+	_, err := postModel.Insert(ctx, first)
+	require.NoError(t, err)
 	second := &Post{Id: nextID(t), AuthorId: 7, Title: "beta", Content: "b-body", Status: 1, Revision: 3}
-	require.NoError(t, postModel.InsertPost(ctx, second))
+	_, err = postModel.Insert(ctx, second)
+	require.NoError(t, err)
 	draft := &Post{Id: nextID(t), AuthorId: 8, Title: "gamma-draft", Content: "g", Status: 0, Revision: 1}
-	require.NoError(t, postModel.InsertPost(ctx, draft))
+	_, err = postModel.Insert(ctx, draft)
+	require.NoError(t, err)
 
 	// 查询 + 缓存命中二次读取。
 	got, err := postModel.FindPostById(ctx, first.Id)

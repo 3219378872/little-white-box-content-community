@@ -37,7 +37,7 @@ func TestCreatePostLogic(t *testing.T) {
 				Status:   1,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
 				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {
@@ -54,7 +54,7 @@ func TestCreatePostLogic(t *testing.T) {
 				Status:   1,
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
 				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {
@@ -88,7 +88,7 @@ func TestCreatePostLogic(t *testing.T) {
 			name: "数据库Insert失败",
 			req:  &pb.CreatePostReq{AuthorId: 1001, Title: "标题", Content: "内容"},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(fmt.Errorf("connection refused"))
+				pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(fmt.Errorf("connection refused"))
 			},
 			wantErr: true,
 		},
@@ -101,7 +101,7 @@ func TestCreatePostLogic(t *testing.T) {
 				Tags:     []string{"golang"},
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
 				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(fmt.Errorf("db error"))
 			},
 			wantErr: true,
@@ -115,7 +115,7 @@ func TestCreatePostLogic(t *testing.T) {
 				Tags:     []string{"", "golang", ""},
 			},
 			setupMock: func(pm *MockPostModel, ptm *MockPostTagModel) {
-				pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+				pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
 				ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 			},
 			check: func(t *testing.T, resp *pb.CreatePostResp) {

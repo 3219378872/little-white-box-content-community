@@ -229,7 +229,7 @@ func TestCreatePostLogicRejectsOversizedContentAndTag(t *testing.T) {
 	// 边界值 20,000 与 32 应通过。
 	pm := new(MockPostModel)
 	ptm := new(MockPostTagModel)
-	pm.On("InsertPostTx", mock.Anything, mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
+	pm.On("Insert", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil)
 	ptm.On("BatchInsertTagsByPostIdTx", mock.Anything, mock.Anything, mock.AnythingOfType("int64"), mock.Anything, mock.Anything).Return(nil)
 	boundarySvcCtx := newUnitSvcCtx(pm, nil, nil, ptm)
 	resp, err = NewCreatePostLogic(context.Background(), boundarySvcCtx).CreatePost(&pb.CreatePostReq{
