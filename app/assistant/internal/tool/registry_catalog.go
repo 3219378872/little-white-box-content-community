@@ -11,7 +11,7 @@ func allDefinitions(clients Clients) []Definition {
 		{Name: SearchPosts, Description: "搜索站内已发布帖子。结果以 source handle 返回。", Parameters: objectSchema(map[string]any{
 			"keyword": map[string]any{"type": "string"}, "page": map[string]any{"type": "integer"},
 			"page_size": map[string]any{"type": "integer"}, "tags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-			"sort_by": map[string]any{"type": "integer"}, "include_comments": map[string]any{"type": "boolean"}, "seed_post_id": map[string]any{"type": "integer"},
+			"sort_by": map[string]any{"type": "integer"},
 		}, []string{"keyword"}), executor: searchPostsExecutor(clients)},
 		{Name: SearchUsers, Description: "搜索公开用户，结果不是社区来源。", Parameters: objectSchema(map[string]any{
 			"keyword": map[string]any{"type": "string"}, "page": map[string]any{"type": "integer"}, "page_size": map[string]any{"type": "integer"},

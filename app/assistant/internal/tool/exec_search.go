@@ -17,13 +17,11 @@ func searchPostsExecutor(clients Clients) executorFunc {
 			return "", nil, errx.NewWithCode(errx.ServiceUnavailable)
 		}
 		var args struct {
-			Keyword         string   `json:"keyword"`
-			Page            int32    `json:"page"`
-			PageSize        int32    `json:"page_size"`
-			Tags            []string `json:"tags"`
-			SortBy          int32    `json:"sort_by"`
-			IncludeComments *bool    `json:"include_comments"`
-			SeedPostID      int64    `json:"seed_post_id"`
+			Keyword  string   `json:"keyword"`
+			Page     int32    `json:"page"`
+			PageSize int32    `json:"page_size"`
+			Tags     []string `json:"tags"`
+			SortBy   int32    `json:"sort_by"`
 		}
 		if err := strictUnmarshal(argsJSON, &args); err != nil {
 			return "", nil, errx.New(errx.ParamError, "search_posts arguments are invalid")
