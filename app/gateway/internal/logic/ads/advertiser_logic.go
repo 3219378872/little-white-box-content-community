@@ -24,11 +24,7 @@ func newBase(ctx context.Context, svcCtx *svc.ServiceContext) base {
 
 // userID 读取已认证用户；广告主接口都需要认证（ADS-040）。
 func (b base) userID() (int64, error) {
-	userID, err := jwtx.GetUserIdFromContext(b.ctx)
-	if err != nil || userID <= 0 {
-		return 0, errx.NewWithCode(errx.LoginRequired)
-	}
-	return userID, nil
+	return jwtx.GetUserIdFromContext(b.ctx)
 }
 
 func (b base) rpcError(err error, action string) error {

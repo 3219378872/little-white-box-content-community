@@ -25,7 +25,7 @@ func NewDeleteAssistantHistoryLogic(ctx context.Context, svcCtx *svc.ServiceCont
 func (l *DeleteAssistantHistoryLogic) DeleteAssistantHistory() (*types.DeleteAssistantHistoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if _, err := l.svcCtx.AssistantService.DeleteHistory(l.ctx, &assistantservice.DeleteHistoryReq{UserId: userID}); err != nil {
 		return nil, errx.FromRPCError(err)

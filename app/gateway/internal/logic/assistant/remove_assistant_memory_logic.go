@@ -25,7 +25,7 @@ func NewRemoveAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceConte
 func (l *RemoveAssistantMemoryLogic) RemoveAssistantMemory(req *types.RemoveAssistantMemoryReq) (*types.RemoveAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.Id <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

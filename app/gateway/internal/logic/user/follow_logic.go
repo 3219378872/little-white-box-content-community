@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/user/rpc/userservice"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -27,7 +28,7 @@ func NewFollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FollowLogi
 }
 
 func (l *FollowLogic) Follow(req *types.FollowReq) (resp *types.FollowResp, err error) {
-	userID, err := rpcx.RequireUser(l.ctx)
+	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

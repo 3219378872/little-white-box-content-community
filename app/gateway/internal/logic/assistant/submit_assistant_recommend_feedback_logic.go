@@ -26,7 +26,7 @@ func NewSubmitAssistantRecommendFeedbackLogic(ctx context.Context, svcCtx *svc.S
 func (l *SubmitAssistantRecommendFeedbackLogic) SubmitAssistantRecommendFeedback(req *types.AssistantRecommendFeedbackReq) (*types.AssistantRecommendFeedbackResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.PostId <= 0 || strings.TrimSpace(req.Reason) == "" {
 		return nil, errx.NewWithCode(errx.ParamError)

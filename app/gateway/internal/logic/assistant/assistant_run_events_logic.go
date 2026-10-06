@@ -31,8 +31,8 @@ func (l *AssistantRunEventsLogic) AssistantRunEvents(req *types.AssistantRunEven
 		return errx.NewWithCode(errx.ServiceUnavailable)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return err
 	}
 	if req == nil || req.Id <= 0 {
 		return errx.NewWithCode(errx.ParamError)

@@ -32,8 +32,8 @@ func (l *GetMessagesLogic) GetMessages(req *types.GetMessagesReq) (resp *types.G
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := l.svcCtx.MessageService.GetMessages(l.ctx, &messageservice.GetMessagesReq{

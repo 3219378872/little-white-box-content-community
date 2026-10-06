@@ -1,25 +1,11 @@
-// Package rpcx holds gateway helpers for JWT user extraction and RPC error mapping.
+// Package rpcx maps RPC errors to gateway business errors with logging.
 package rpcx
 
 import (
-	"context"
-
 	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
-
-func RequireUser(ctx context.Context) (int64, error) {
-	userID, err := jwtx.GetUserIdFromContext(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if userID <= 0 {
-		return 0, errx.NewWithCode(errx.LoginRequired)
-	}
-	return userID, nil
-}
 
 func Error(logger logx.Logger, op string, err error, fields ...logx.LogField) error {
 	if err == nil {

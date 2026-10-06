@@ -25,7 +25,7 @@ func NewGetAssistantThreadLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 func (l *GetAssistantThreadLogic) GetAssistantThread() (*types.GetAssistantThreadResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	result, err := l.svcCtx.AssistantService.GetThread(l.ctx, &assistantservice.GetThreadReq{UserId: userID})
 	if err != nil {

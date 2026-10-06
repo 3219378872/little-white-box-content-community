@@ -25,7 +25,7 @@ func NewBatchAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContex
 func (l *BatchAssistantMemoryLogic) BatchAssistantMemory(req *types.BatchAssistantMemoryReq) (*types.BatchAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || len(req.Ops) == 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

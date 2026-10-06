@@ -32,8 +32,8 @@ func (l *GetFollowFeedLogic) GetFollowFeed(req *types.GetFollowFeedReq) (resp *t
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := l.svcCtx.FeedService.GetFollowFeed(l.ctx, &feedservice.GetFollowFeedReq{

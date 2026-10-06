@@ -140,10 +140,11 @@ func parseSigned(tokenString, secret string) (*Claims, error) {
 	return nil, ErrTokenInvalid
 }
 
-// GetUserIdFromContext 从上下文中获取userId
+// GetUserIdFromContext 返回已认证用户 ID。缺少身份或 ID 非正数时一律返回
+// LoginRequired 业务错误，调用方可直接透传，无需再做 `<= 0` 校验。
 func GetUserIdFromContext(ctx context.Context) (int64, error) {
 	userId, ok := GetOptionalUserIdFromContext(ctx)
-	if !ok {
+	if !ok || userId <= 0 {
 		return 0, errx.NewWithCode(errx.LoginRequired)
 	}
 	return userId, nil

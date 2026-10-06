@@ -32,8 +32,8 @@ func (l *GetConversationsLogic) GetConversations(req *types.GetConversationsReq)
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := l.svcCtx.MessageService.GetConversations(l.ctx, &messageservice.GetConversationsReq{

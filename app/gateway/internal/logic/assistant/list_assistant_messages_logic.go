@@ -25,7 +25,7 @@ func NewListAssistantMessagesLogic(ctx context.Context, svcCtx *svc.ServiceConte
 func (l *ListAssistantMessagesLogic) ListAssistantMessages(req *types.ListAssistantMessagesReq) (*types.ListAssistantMessagesResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	in := &assistantservice.ListMessagesReq{UserId: userID}
 	if req != nil {

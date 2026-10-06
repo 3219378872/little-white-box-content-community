@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/interaction/rpc/interactionservice"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -27,7 +28,7 @@ func NewUnlikeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UnlikeLogi
 }
 
 func (l *UnlikeLogic) Unlike(req *types.UnlikeReq) (resp *types.UnlikeResp, err error) {
-	userId, err := rpcx.RequireUser(l.ctx)
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

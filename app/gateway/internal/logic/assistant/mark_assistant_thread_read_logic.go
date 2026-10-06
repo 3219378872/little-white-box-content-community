@@ -25,7 +25,7 @@ func NewMarkAssistantThreadReadLogic(ctx context.Context, svcCtx *svc.ServiceCon
 func (l *MarkAssistantThreadReadLogic) MarkAssistantThreadRead() (*types.MarkAssistantThreadReadResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	result, err := l.svcCtx.AssistantService.MarkThreadRead(l.ctx, &assistantservice.MarkThreadReadReq{UserId: userID})
 	if err != nil {

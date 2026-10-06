@@ -26,7 +26,7 @@ func NewReplaceAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceCont
 func (l *ReplaceAssistantMemoryLogic) ReplaceAssistantMemory(req *types.ReplaceAssistantMemoryReq) (*types.ReplaceAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.Id <= 0 || strings.TrimSpace(req.Content) == "" {
 		return nil, errx.NewWithCode(errx.ParamError)

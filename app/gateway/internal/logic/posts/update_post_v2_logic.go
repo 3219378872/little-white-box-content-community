@@ -8,6 +8,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/pkg/errx"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -34,7 +35,7 @@ func (l *UpdatePostV2Logic) UpdatePostV2(req *types.UpdatePostV2Req) (resp *type
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 
-	userId, err := rpcx.RequireUser(l.ctx)
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

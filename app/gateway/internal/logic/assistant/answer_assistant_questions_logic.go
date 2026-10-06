@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"esx/app/assistant/rpc/assistantservice"
 	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 	"strings"
 
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -31,7 +31,7 @@ func NewAnswerAssistantQuestionsLogic(ctx context.Context, svcCtx *svc.ServiceCo
 func (l *AnswerAssistantQuestionsLogic) AnswerAssistantQuestions(req *types.AnswerAssistantQuestionsReq) (resp *types.AnswerAssistantQuestionsResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.Id <= 0 || strings.TrimSpace(req.QuestionRequestId) == "" || strings.TrimSpace(req.RequestId) == "" || len(req.RequestId) > 64 || len(req.Answers) < 1 || len(req.Answers) > 3 {
 		return nil, errx.NewWithCode(errx.ParamError)

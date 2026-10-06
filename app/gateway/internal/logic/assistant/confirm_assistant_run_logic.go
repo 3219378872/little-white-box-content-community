@@ -26,7 +26,7 @@ func NewConfirmAssistantRunLogic(ctx context.Context, svcCtx *svc.ServiceContext
 func (l *ConfirmAssistantRunLogic) ConfirmAssistantRun(req *types.ConfirmAssistantRunReq) (*types.ConfirmAssistantRunResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.Id <= 0 || strings.TrimSpace(req.CallId) == "" {
 		return nil, errx.NewWithCode(errx.ParamError)

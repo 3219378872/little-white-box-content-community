@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	"esx/app/user/rpc/userservice"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -27,7 +28,7 @@ func NewUnfollowLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Unfollow
 }
 
 func (l *UnfollowLogic) Unfollow(req *types.UnfollowReq) (resp *types.UnfollowResp, err error) {
-	userID, err := rpcx.RequireUser(l.ctx)
+	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

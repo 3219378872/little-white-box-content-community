@@ -30,7 +30,7 @@ func NewGetAgentConsentLogic(ctx context.Context, svcCtx *svc.ServiceContext) *G
 func (l *GetAgentConsentLogic) GetAgentConsent() (resp *types.GetAgentConsentResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	result, err := l.svcCtx.UserService.GetAgentCapabilityConsent(l.ctx, &userservice.GetAgentCapabilityConsentReq{
 		UserId: userID,

@@ -74,6 +74,15 @@ func TestGetUserIdFromContext_Missing_ReturnsLoginRequired(t *testing.T) {
 	}
 }
 
+func TestGetUserIdFromContext_NonPositive_ReturnsLoginRequired(t *testing.T) {
+	for _, id := range []int64{0, -3} {
+		ctx := WithUserIdContext(context.Background(), id)
+		if _, err := GetUserIdFromContext(ctx); !errx.Is(err, errx.LoginRequired) {
+			t.Fatalf("user id %d: expected LoginRequired, got %v", id, err)
+		}
+	}
+}
+
 func TestGetUserIdFromContext_UsesOptionalHelper(t *testing.T) {
 	ctx := WithClaimsContext(context.Background(), &Claims{
 		UserId:   7,

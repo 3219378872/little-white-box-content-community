@@ -28,7 +28,7 @@ func NewPostAssistantMessageLogic(ctx context.Context, svcCtx *svc.ServiceContex
 func (l *PostAssistantMessageLogic) PostAssistantMessage(req *types.PostAssistantMessageReq) (*types.PostAssistantMessageResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || strings.TrimSpace(req.Message) == "" || utf8.RuneCountInString(strings.TrimSpace(req.Message)) > 2000 {
 		return nil, errx.NewWithCode(errx.ParamError)

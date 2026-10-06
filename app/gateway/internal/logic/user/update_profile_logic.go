@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
 	pb "esx/kitex_gen/user"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -26,7 +27,7 @@ func NewUpdateProfileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 }
 
 func (l *UpdateProfileLogic) UpdateProfile(req *types.UpdateProfileReq) (resp *types.UpdateProfileResp, err error) {
-	userId, err := rpcx.RequireUser(l.ctx)
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,7 @@ func NewUndoAssistantMemoryChangeLogic(ctx context.Context, svcCtx *svc.ServiceC
 func (l *UndoAssistantMemoryChangeLogic) UndoAssistantMemoryChange(req *types.UndoAssistantMemoryChangeReq) (*types.UndoAssistantMemoryChangeResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || req.Id <= 0 {
 		return nil, errx.NewWithCode(errx.ParamError)

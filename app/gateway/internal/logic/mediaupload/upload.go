@@ -7,15 +7,16 @@ import (
 	"esx/app/gateway/internal/types"
 	pb "esx/kitex_gen/media"
 	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 	"io"
 	"strings"
+
+	"esx/pkg/jwtx"
 )
 
 func Upload(ctx context.Context, svcCtx *svc.ServiceContext, file io.Reader, filename, key string, audio bool) (*types.UploadMediaResp, error) {
-	userID, _ := jwtx.GetUserIdFromContext(ctx)
-	if userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	userID, err := jwtx.GetUserIdFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 	key = strings.TrimSpace(key)
 	if key == "" || len(key) > 128 {

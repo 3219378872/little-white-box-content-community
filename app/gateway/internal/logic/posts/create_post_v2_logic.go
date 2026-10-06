@@ -7,6 +7,7 @@ import (
 	"esx/app/gateway/internal/logic/rpcx"
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -27,7 +28,7 @@ func NewCreatePostV2Logic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 }
 
 func (l *CreatePostV2Logic) CreatePostV2(req *types.CreatePostReq) (resp *types.CreatePostResp, err error) {
-	userId, err := rpcx.RequireUser(l.ctx)
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
 		return nil, err
 	}

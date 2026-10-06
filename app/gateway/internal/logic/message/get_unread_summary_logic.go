@@ -29,8 +29,8 @@ func NewGetUnreadSummaryLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 
 func (l *GetUnreadSummaryLogic) GetUnreadSummary() (resp *types.GetUnreadSummaryResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := l.svcCtx.MessageService.GetUnreadCount(l.ctx, &messageservice.GetUnreadCountReq{UserId: userID})

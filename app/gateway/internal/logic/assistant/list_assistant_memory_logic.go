@@ -25,7 +25,7 @@ func NewListAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext
 func (l *ListAssistantMemoryLogic) ListAssistantMemory(req *types.ListAssistantMemoryReq) (*types.ListAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	target := ""
 	if req != nil {

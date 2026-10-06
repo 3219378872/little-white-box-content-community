@@ -4,12 +4,12 @@ import (
 	"context"
 	mediapb "esx/kitex_gen/media"
 	"esx/pkg/errx"
-	"esx/pkg/jwtx"
 	"io"
 	"mime/multipart"
 
 	"esx/app/gateway/internal/svc"
 	"esx/app/gateway/internal/types"
+	"esx/pkg/jwtx"
 
 	logx "esx/pkg/logging"
 )
@@ -38,9 +38,9 @@ func (l *UploadImageLogic) UploadImage(_ *types.UploadImageReq) (*types.UploadIm
 // UploadImageMultipart 从 handler 接收 multipart 文件，分块 streaming 到 Media RPC。
 // idempotencyKey 为可选的客户端幂等键（CORE-050）。
 func (l *UploadImageLogic) UploadImageMultipart(file multipart.File, header *multipart.FileHeader, idempotencyKey string) (*types.UploadImageResp, error) {
-	userId, _ := jwtx.GetUserIdFromContext(l.ctx)
-	if userId == 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	userId, err := jwtx.GetUserIdFromContext(l.ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	stream, err := l.svcCtx.MediaService.UploadImage(l.ctx)

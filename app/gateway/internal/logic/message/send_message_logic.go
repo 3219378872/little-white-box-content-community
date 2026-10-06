@@ -38,8 +38,8 @@ func (l *SendMessageLogic) SendMessage(req *types.SendMessageReq) (resp *types.S
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 	if userID == req.ReceiverId {
 		return nil, errx.NewWithCode(errx.ParamError)

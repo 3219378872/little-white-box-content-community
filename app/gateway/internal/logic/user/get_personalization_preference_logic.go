@@ -30,7 +30,7 @@ func NewGetPersonalizationPreferenceLogic(ctx context.Context, svcCtx *svc.Servi
 func (l *GetPersonalizationPreferenceLogic) GetPersonalizationPreference() (resp *types.GetPersonalizationPreferenceResp, err error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	result, err := l.svcCtx.UserService.GetPersonalizationPreference(l.ctx, &userservice.GetPersonalizationPreferenceReq{
 		UserId: userID,

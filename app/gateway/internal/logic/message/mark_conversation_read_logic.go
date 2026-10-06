@@ -32,8 +32,8 @@ func (l *MarkConversationReadLogic) MarkConversationRead(req *types.MarkConversa
 		return nil, errx.NewWithCode(errx.ParamError)
 	}
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
-	if err != nil || userID <= 0 {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+	if err != nil {
+		return nil, err
 	}
 
 	result, err := l.svcCtx.MessageService.MarkRead(l.ctx, &messageservice.MarkReadReq{

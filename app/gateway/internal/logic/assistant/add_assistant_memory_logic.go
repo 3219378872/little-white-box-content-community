@@ -26,7 +26,7 @@ func NewAddAssistantMemoryLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 func (l *AddAssistantMemoryLogic) AddAssistantMemory(req *types.AddAssistantMemoryReq) (*types.AddAssistantMemoryResp, error) {
 	userID, err := jwtx.GetUserIdFromContext(l.ctx)
 	if err != nil {
-		return nil, errx.NewWithCode(errx.LoginRequired)
+		return nil, err
 	}
 	if req == nil || strings.TrimSpace(req.Target) == "" || strings.TrimSpace(req.Content) == "" {
 		return nil, errx.NewWithCode(errx.ParamError)
