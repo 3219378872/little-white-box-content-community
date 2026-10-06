@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -136,4 +137,53 @@ func UsedRunes(entries []Entry, target string) int {
 		n += utf8.RuneCountInString(item.Content)
 	}
 	return n
+}
+
+// opRequestID 给批量操作的每一条派生独立的幂等键（`<requestID>#<序号>`）；单条操作直接使用原键。
+func opRequestID(requestID string, index, total int) string {
+	if total > 1 {
+		return requestID + "#" + strconv.FormatInt(int64(index), 10)
+	}
+	return requestID
+}
+
+// replayResult 把同一 requestID 已提交的变更还原为本次调用的返回值（两种存储共用的幂等重放）。
+// 参数与原变更不一致时报幂等冲突，而不是悄悄返回旧结果。
+func replayResult(op Op, change Change) (*Entry, int64, error) {
+	if !memoryReplayMatches(op, change) {
+		return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+	}
+	// 删除操作不返回条目，只返回变更 ID。
+	if strings.EqualFold(strings.TrimSpace(op.Op), OpRemove) {
+		return nil, change.ID, nil
+	}
+	if change.After == nil {
+		return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
+	}
+	entry := *change.After
+	return &entry, change.ID, nil
+}
+
+// memoryReplayMatches 判断本次操作与已记录变更是否是同一请求：操作类型、目标条目、
+// 期望版本与规范化内容都必须一致；已撤销的变更不能被重放。
+func memoryReplayMatches(op Op, change Change) bool {
+	wantOp := strings.ToLower(strings.TrimSpace(op.Op))
+	if wantOp == "" {
+		wantOp = OpAdd
+	}
+	if change.Op != wantOp || change.Undone {
+		return false
+	}
+	switch wantOp {
+	case OpAdd:
+		return change.After != nil && change.After.Target == op.Target && Normalize(change.After.Content) == Normalize(op.Content)
+	case OpReplace:
+		return change.Before != nil && change.After != nil && change.EntryID == op.ID &&
+			change.Before.Version == op.Version && Normalize(change.After.Content) == Normalize(op.Content)
+	case OpRemove:
+		return change.Before != nil && change.After != nil && change.EntryID == op.ID &&
+			change.Before.Version == op.Version && change.After.Deleted
+	default:
+		return false
+	}
 }

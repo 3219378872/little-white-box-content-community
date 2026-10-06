@@ -3,7 +3,6 @@ package memory
 import (
 	"context"
 	"maps"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -88,17 +87,13 @@ func (m *MapStore) Batch(ctx context.Context, userID int64, requestID string, op
 	defer m.mu.Unlock()
 	// Execute on a private copy so any validation failure rolls back the batch.
 	tx := &MapStore{next: m.next, entries: maps.Clone(m.entries), changes: maps.Clone(m.changes), Scanner: m.Scanner}
+	if requestID == "" {
+		requestID = "anon"
+	}
 	entries := make([]Entry, 0)
 	ids := make([]int64, 0)
 	for i, op := range ops {
-		req := requestID
-		if req == "" {
-			req = "anon"
-		}
-		if len(ops) > 1 {
-			req += "#" + strconv.FormatInt(int64(i), 10)
-		}
-		entry, changeID, err := tx.applyLocked(ctx, userID, req, op, nowMs)
+		entry, changeID, err := tx.applyLocked(ctx, userID, opRequestID(requestID, i, len(ops)), op, nowMs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -119,17 +114,7 @@ func (m *MapStore) applyLocked(ctx context.Context, userID int64, requestID stri
 			if change.UserID != userID || change.RequestID != requestID {
 				continue
 			}
-			if !memoryReplayMatches(op, change) {
-				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
-			}
-			if strings.EqualFold(strings.TrimSpace(op.Op), OpRemove) {
-				return nil, change.ID, nil
-			}
-			if change.After == nil {
-				return nil, 0, errx.NewWithCode(errx.IdempotencyConflict)
-			}
-			entry := *change.After
-			return &entry, change.ID, nil
+			return replayResult(op, change)
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(op.Op)) {
