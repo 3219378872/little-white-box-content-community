@@ -11,31 +11,11 @@ Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: assistant.rpc
-SearchRpc:
-  Etcd:
-    Hosts:
-    - 127.0.0.1:2379
-    Key: search.rpc
 ContentRpc:
   Etcd:
     Hosts:
     - 127.0.0.1:2379
     Key: content.rpc
-MediaRpc:
-  Etcd:
-    Hosts:
-    - 127.0.0.1:2379
-    Key: media.rpc
-RecommendRpc:
-  Etcd:
-    Hosts:
-    - 127.0.0.1:2379
-    Key: recommend.rpc
-InteractionRpc:
-  Etcd:
-    Hosts:
-    - 127.0.0.1:2379
-    Key: interaction.rpc
 UserRpc:
   Etcd:
     Hosts:
@@ -43,8 +23,6 @@ UserRpc:
     Key: user.rpc
 DataSource: "${DB_ASSISTANT}"
 MaxMessageRunes: 2000
-QuotaWindowSeconds: 60
-QuotaRequests: 20
 Safety:
   Enabled: true
   MaxScanRunes: 10000
