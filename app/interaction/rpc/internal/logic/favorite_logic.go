@@ -41,12 +41,9 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		l.Errorw("favorite command dependency is not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "favorite")
-	if err != nil {
-		l.Errorw("build favorite behavior event failed", logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	recordID, err := l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId, outboxEvent)
+	// 事件在事务内按提交后的计数快照构造，下游据此按序号覆盖公开计数。
+	recordID, err := l.svcCtx.InteractionCommands.Favorite(l.ctx, in.UserId, in.PostId,
+		interactionEventBuilder(in.UserId, in.PostId, "post", "favorite"))
 	if err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.FavoriteResp{}, nil
@@ -62,11 +59,6 @@ func (l *FavoriteLogic) Favorite(in *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 		if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, recordID, in.UserId, in.PostId); err != nil {
 			l.Errorw("InvalidateFavoriteCache failed", logging.Field("err", err.Error()))
 		}
-	}
-
-	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.PostId, 1); err != nil {
-		// CORE-053：权威写入已提交，缓存失效失败只告警。
-		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.FavoriteResp{}, nil

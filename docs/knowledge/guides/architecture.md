@@ -115,7 +115,9 @@ internal/model/    → 数据访问层
   user/content/interaction 的事务 outbox 生成，丢失即计数漂移，必须可靠投递。
 - **客户端遥测动作**（exposure/click/dwell/view/play/share/hide/dislike）经 behavior-rpc
   直发 RocketMQ，仅服务推荐信号与分析，崩溃丢窗口可容忍；白名单在
-  `pkg/event/behavior.go` 强制，count-sync 只应用权威动作，两条来源不交叉。
+  `pkg/event/behavior.go` 强制，count-sync 只应用权威动作，两条来源不交叉。权威互动事件携带
+  `count_snapshot`（Interaction `action_count` 的绝对计数与 `count_seq`），count-sync 按序号覆盖
+  内容计数，客户端事件不得携带该字段。
 - **RPC → MQ**：权威业务事务与 outbox 同事务提交，relay 投递 RocketMQ。
 - **写入路径**：权威写入走事务 outbox，不依赖 DTM。Content 契约已删除 `QueryPrepared`。
 

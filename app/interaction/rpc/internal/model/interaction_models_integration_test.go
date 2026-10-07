@@ -49,14 +49,18 @@ func nextID(t *testing.T) int64 {
 	return id
 }
 
-func outboxEvent(t *testing.T, topic string) outboxx.Event {
+// snapshotBuilder 返回固定载荷的事件构造器，并记录事务传入的计数快照，供断言计数与序号。
+func snapshotBuilder(t *testing.T, seen *[]CountSnapshot) EventBuilder {
 	t.Helper()
-	return outboxx.Event{
-		ID:      nextID(t),
-		Topic:   topic,
-		Tag:     "test",
-		Key:     "integration-test",
-		Payload: []byte(`{"probe":true}`),
+	return func(snapshot CountSnapshot) (outboxx.Event, error) {
+		*seen = append(*seen, snapshot)
+		return outboxx.Event{
+			ID:      nextID(t),
+			Topic:   "interaction-behavior-v2",
+			Tag:     "test",
+			Key:     "integration-test",
+			Payload: []byte(`{"probe":true}`),
+		}, nil
 	}
 }
 
@@ -97,9 +101,10 @@ func TestInteractionCommandModelLikeUnlikeFlow(t *testing.T) {
 	targetID := nextID(t)
 
 	before := countOutboxRows(t)
+	var snapshots []CountSnapshot
 
 	// 点赞：记录 + 计数 + outbox 同事务落库。
-	recordID, err := commandModel.Like(ctx, 101, targetID, 2, outboxEvent(t, "interaction-behavior-v2"))
+	recordID, err := commandModel.Like(ctx, 101, targetID, 2, snapshotBuilder(t, &snapshots))
 	require.NoError(t, err)
 	require.Greater(t, recordID, int64(0))
 	assert.Equal(t, int64(1), likeCountOf(t, targetID))
@@ -111,20 +116,23 @@ func TestInteractionCommandModelLikeUnlikeFlow(t *testing.T) {
 	assert.Equal(t, int64(StatusActive), recordStatus)
 
 	// 重复点赞：无状态变化，计数不重复累加。
-	_, err = commandModel.Like(ctx, 101, targetID, 2, outboxEvent(t, "interaction-behavior-v2"))
+	_, err = commandModel.Like(ctx, 101, targetID, 2, snapshotBuilder(t, &snapshots))
 	require.ErrorIs(t, err, ErrNoStateChange)
 	assert.Equal(t, int64(1), likeCountOf(t, targetID))
 
 	// 取消点赞：状态与计数同步回落。
-	require.NoError(t, commandModel.Unlike(ctx, recordID, targetID, 2, outboxEvent(t, "interaction-behavior-v2")))
+	require.NoError(t, commandModel.Unlike(ctx, recordID, targetID, 2, snapshotBuilder(t, &snapshots)))
 	assert.Equal(t, int64(0), likeCountOf(t, targetID))
 	require.NoError(t, conn.QueryRowCtx(ctx, &recordStatus,
 		"SELECT status FROM `like_record` WHERE `id` = ?", recordID))
 	assert.Equal(t, int64(StatusInactive), recordStatus)
 
 	// 重复取消：无状态变化。
-	err = commandModel.Unlike(ctx, recordID, targetID, 2, outboxEvent(t, "interaction-behavior-v2"))
+	err = commandModel.Unlike(ctx, recordID, targetID, 2, snapshotBuilder(t, &snapshots))
 	require.ErrorIs(t, err, ErrNoStateChange)
+
+	// 只有状态变化才构造事件；快照是每次变化后的绝对计数，序号随变化单调递增。
+	assert.Equal(t, []CountSnapshot{{LikeCount: 1, Seq: 1}, {LikeCount: 0, Seq: 2}}, snapshots)
 }
 
 func TestInteractionCommandModelFavoriteUnfavoriteFlow(t *testing.T) {
@@ -134,21 +142,24 @@ func TestInteractionCommandModelFavoriteUnfavoriteFlow(t *testing.T) {
 	conn := newTestConn()
 	commandModel := NewInteractionCommandModel(conn, outboxx.NewSQLStore(conn))
 	postID := nextID(t)
+	var snapshots []CountSnapshot
 
-	recordID, err := commandModel.Favorite(ctx, 201, postID, outboxEvent(t, "interaction-behavior-v2"))
+	recordID, err := commandModel.Favorite(ctx, 201, postID, snapshotBuilder(t, &snapshots))
 	require.NoError(t, err)
 	require.Greater(t, recordID, int64(0))
 	assert.Equal(t, int64(1), favoriteCountOf(t, postID))
 
-	_, err = commandModel.Favorite(ctx, 201, postID, outboxEvent(t, "interaction-behavior-v2"))
+	_, err = commandModel.Favorite(ctx, 201, postID, snapshotBuilder(t, &snapshots))
 	require.ErrorIs(t, err, ErrNoStateChange)
 	assert.Equal(t, int64(1), favoriteCountOf(t, postID))
 
-	require.NoError(t, commandModel.Unfavorite(ctx, recordID, postID, outboxEvent(t, "interaction-behavior-v2")))
+	require.NoError(t, commandModel.Unfavorite(ctx, recordID, postID, snapshotBuilder(t, &snapshots)))
 	assert.Equal(t, int64(0), favoriteCountOf(t, postID))
 
-	err = commandModel.Unfavorite(ctx, recordID, postID, outboxEvent(t, "interaction-behavior-v2"))
+	err = commandModel.Unfavorite(ctx, recordID, postID, snapshotBuilder(t, &snapshots))
 	require.ErrorIs(t, err, ErrNoStateChange)
+
+	assert.Equal(t, []CountSnapshot{{FavoriteCount: 1, Seq: 1}, {FavoriteCount: 0, Seq: 2}}, snapshots)
 }
 
 func TestLikeRecordModelUpsertAndConditionalUpdate(t *testing.T) {
@@ -240,40 +251,49 @@ func TestFavoriteModelQueriesAndConditionalUpdate(t *testing.T) {
 	assert.Equal(t, int64(1), freshRows)
 }
 
-func TestActionCountModelIncrDecr(t *testing.T) {
-	testEnv.TruncateAll(t, "action_count")
+// 计数行缺失或已为 0 时取消互动：upsert 补建计数行且不减成负数，序号照常推进，
+// 事务内总能读回快照并发出事件（历史数据不一致时也不会卡住取消操作）。
+func TestInteractionCommandModelUnlikeClampsAndCreatesCountRow(t *testing.T) {
+	testEnv.TruncateAll(t, "like_record", "action_count")
 	ctx := context.Background()
 
 	conn := newTestConn()
-	actionModel := NewActionCountModel(conn)
-
+	commandModel := NewInteractionCommandModel(conn, outboxx.NewSQLStore(conn))
 	targetID := nextID(t)
-	_, err := actionModel.Insert(ctx, &ActionCount{
-		Id: nextID(t), TargetId: targetID, TargetType: 1,
+	recordID := nextID(t)
+	_, err := testEnv.DB.ExecContext(ctx,
+		"INSERT INTO `like_record` (`id`, `user_id`, `target_id`, `target_type`, `status`) VALUES (?, 401, ?, 2, ?)",
+		recordID, targetID, StatusActive)
+	require.NoError(t, err)
+
+	var snapshots []CountSnapshot
+	require.NoError(t, commandModel.Unlike(ctx, recordID, targetID, 2, snapshotBuilder(t, &snapshots)))
+	assert.Equal(t, []CountSnapshot{{LikeCount: 0, Seq: 1}}, snapshots)
+	assert.Equal(t, int64(0), likeCountOf(t, targetID))
+}
+
+// 构造器失败时整个互动事务回滚：关系状态、计数与 outbox 都不落库。
+func TestInteractionCommandModelBuilderFailureRollsBack(t *testing.T) {
+	testEnv.TruncateAll(t, "like_record", "action_count")
+	ctx := context.Background()
+
+	conn := newTestConn()
+	commandModel := NewInteractionCommandModel(conn, outboxx.NewSQLStore(conn))
+	targetID := nextID(t)
+	before := countOutboxRows(t)
+
+	_, err := commandModel.Like(ctx, 501, targetID, 1, func(CountSnapshot) (outboxx.Event, error) {
+		return outboxx.Event{}, assert.AnError
 	})
-	require.NoError(t, err)
+	require.ErrorIs(t, err, assert.AnError)
 
-	found, err := actionModel.FindOneByTarget(ctx, targetID, 1)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), found.LikeCount)
-
-	require.NoError(t, actionModel.IncrLikeCount(ctx, targetID, 1))
-	require.NoError(t, actionModel.IncrFavoriteCount(ctx, targetID, 1))
-	found, err = actionModel.FindOneByTarget(ctx, targetID, 1)
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), found.LikeCount)
-	assert.Equal(t, int64(1), found.FavoriteCount)
-
-	// Tx 版本走独立连接，行为一致。
-	require.NoError(t, actionModel.IncrLikeCountTx(ctx, conn, targetID, 1))
-	found, err = actionModel.FindOneByTarget(ctx, targetID, 1)
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), found.LikeCount)
-
-	// 递减有下限保护，不会出现负数。
-	require.NoError(t, actionModel.DecrFavoriteCount(ctx, targetID, 1))
-	require.NoError(t, actionModel.DecrFavoriteCount(ctx, targetID, 1))
-	found, err = actionModel.FindOneByTarget(ctx, targetID, 1)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), found.FavoriteCount)
+	var records int64
+	require.NoError(t, conn.QueryRowCtx(ctx, &records,
+		"SELECT COUNT(*) FROM `like_record` WHERE `target_id` = ?", targetID))
+	assert.Zero(t, records)
+	var counts int64
+	require.NoError(t, conn.QueryRowCtx(ctx, &counts,
+		"SELECT COUNT(*) FROM `action_count` WHERE `target_id` = ?", targetID))
+	assert.Zero(t, counts)
+	assert.Equal(t, before, countOutboxRows(t))
 }

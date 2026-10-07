@@ -26,9 +26,6 @@ func (s *InteractionServiceServer) CheckLiked(ctx context.Context, req *pb.Check
 func (s *InteractionServiceServer) BatchCheckLiked(ctx context.Context, req *pb.BatchCheckLikedReq) (*pb.BatchCheckLikedResp, error) {
 	return logic.NewBatchCheckLikedLogic(ctx, s.svcCtx).BatchCheckLiked(req)
 }
-func (s *InteractionServiceServer) GetLikeCount(ctx context.Context, req *pb.GetLikeCountReq) (*pb.GetLikeCountResp, error) {
-	return logic.NewGetLikeCountLogic(ctx, s.svcCtx).GetLikeCount(req)
-}
 func (s *InteractionServiceServer) Favorite(ctx context.Context, req *pb.FavoriteReq) (*pb.FavoriteResp, error) {
 	return logic.NewFavoriteLogic(ctx, s.svcCtx).Favorite(req)
 }
@@ -46,7 +43,4 @@ func (s *InteractionServiceServer) GetFavoriteList(ctx context.Context, req *pb.
 }
 func (s *InteractionServiceServer) GetLikeList(ctx context.Context, req *pb.GetLikeListReq) (*pb.GetLikeListResp, error) {
 	return logic.NewGetLikeListLogic(ctx, s.svcCtx).GetLikeList(req)
-}
-func (s *InteractionServiceServer) GetCounts(ctx context.Context, req *pb.GetCountsReq) (*pb.GetCountsResp, error) {
-	return logic.NewGetCountsLogic(ctx, s.svcCtx).GetCounts(req)
 }

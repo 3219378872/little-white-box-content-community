@@ -43,13 +43,6 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
-	"GetLikeCount": kitex.NewMethodInfo(
-		getLikeCountHandler,
-		newGetLikeCountArgs,
-		newGetLikeCountResult,
-		false,
-		kitex.WithStreamingMode(kitex.StreamingUnary),
-	),
 	"Favorite": kitex.NewMethodInfo(
 		favoriteHandler,
 		newFavoriteArgs,
@@ -89,13 +82,6 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		getLikeListHandler,
 		newGetLikeListArgs,
 		newGetLikeListResult,
-		false,
-		kitex.WithStreamingMode(kitex.StreamingUnary),
-	),
-	"GetCounts": kitex.NewMethodInfo(
-		getCountsHandler,
-		newGetCountsArgs,
-		newGetCountsResult,
 		false,
 		kitex.WithStreamingMode(kitex.StreamingUnary),
 	),
@@ -606,117 +592,6 @@ func (p *BatchCheckLikedResult) IsSetSuccess() bool {
 }
 
 func (p *BatchCheckLikedResult) GetResult() interface{} {
-	return p.Success
-}
-
-func getLikeCountHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	switch s := arg.(type) {
-	case *streaming.Args:
-		st := s.Stream
-		req := new(interaction.GetLikeCountReq)
-		if err := st.RecvMsg(req); err != nil {
-			return err
-		}
-		resp, err := handler.(interaction.InteractionService).GetLikeCount(ctx, req)
-		if err != nil {
-			return err
-		}
-		return st.SendMsg(resp)
-	case *GetLikeCountArgs:
-		success, err := handler.(interaction.InteractionService).GetLikeCount(ctx, s.Req)
-		if err != nil {
-			return err
-		}
-		realResult := result.(*GetLikeCountResult)
-		realResult.Success = success
-		return nil
-	default:
-		return errInvalidMessageType
-	}
-}
-func newGetLikeCountArgs() interface{} {
-	return &GetLikeCountArgs{}
-}
-
-func newGetLikeCountResult() interface{} {
-	return &GetLikeCountResult{}
-}
-
-type GetLikeCountArgs struct {
-	Req *interaction.GetLikeCountReq
-}
-
-func (p *GetLikeCountArgs) Marshal(out []byte) ([]byte, error) {
-	if !p.IsSetReq() {
-		return out, nil
-	}
-	return proto.Marshal(p.Req)
-}
-
-func (p *GetLikeCountArgs) Unmarshal(in []byte) error {
-	msg := new(interaction.GetLikeCountReq)
-	if err := proto.Unmarshal(in, msg); err != nil {
-		return err
-	}
-	p.Req = msg
-	return nil
-}
-
-var GetLikeCountArgs_Req_DEFAULT *interaction.GetLikeCountReq
-
-func (p *GetLikeCountArgs) GetReq() *interaction.GetLikeCountReq {
-	if !p.IsSetReq() {
-		return GetLikeCountArgs_Req_DEFAULT
-	}
-	return p.Req
-}
-
-func (p *GetLikeCountArgs) IsSetReq() bool {
-	return p.Req != nil
-}
-
-func (p *GetLikeCountArgs) GetFirstArgument() interface{} {
-	return p.Req
-}
-
-type GetLikeCountResult struct {
-	Success *interaction.GetLikeCountResp
-}
-
-var GetLikeCountResult_Success_DEFAULT *interaction.GetLikeCountResp
-
-func (p *GetLikeCountResult) Marshal(out []byte) ([]byte, error) {
-	if !p.IsSetSuccess() {
-		return out, nil
-	}
-	return proto.Marshal(p.Success)
-}
-
-func (p *GetLikeCountResult) Unmarshal(in []byte) error {
-	msg := new(interaction.GetLikeCountResp)
-	if err := proto.Unmarshal(in, msg); err != nil {
-		return err
-	}
-	p.Success = msg
-	return nil
-}
-
-func (p *GetLikeCountResult) GetSuccess() *interaction.GetLikeCountResp {
-	if !p.IsSetSuccess() {
-		return GetLikeCountResult_Success_DEFAULT
-	}
-	return p.Success
-}
-
-func (p *GetLikeCountResult) SetSuccess(x interface{}) {
-	p.Success = x.(*interaction.GetLikeCountResp)
-}
-
-func (p *GetLikeCountResult) IsSetSuccess() bool {
-	return p.Success != nil
-}
-
-func (p *GetLikeCountResult) GetResult() interface{} {
 	return p.Success
 }
 
@@ -1386,117 +1261,6 @@ func (p *GetLikeListResult) GetResult() interface{} {
 	return p.Success
 }
 
-func getCountsHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	switch s := arg.(type) {
-	case *streaming.Args:
-		st := s.Stream
-		req := new(interaction.GetCountsReq)
-		if err := st.RecvMsg(req); err != nil {
-			return err
-		}
-		resp, err := handler.(interaction.InteractionService).GetCounts(ctx, req)
-		if err != nil {
-			return err
-		}
-		return st.SendMsg(resp)
-	case *GetCountsArgs:
-		success, err := handler.(interaction.InteractionService).GetCounts(ctx, s.Req)
-		if err != nil {
-			return err
-		}
-		realResult := result.(*GetCountsResult)
-		realResult.Success = success
-		return nil
-	default:
-		return errInvalidMessageType
-	}
-}
-func newGetCountsArgs() interface{} {
-	return &GetCountsArgs{}
-}
-
-func newGetCountsResult() interface{} {
-	return &GetCountsResult{}
-}
-
-type GetCountsArgs struct {
-	Req *interaction.GetCountsReq
-}
-
-func (p *GetCountsArgs) Marshal(out []byte) ([]byte, error) {
-	if !p.IsSetReq() {
-		return out, nil
-	}
-	return proto.Marshal(p.Req)
-}
-
-func (p *GetCountsArgs) Unmarshal(in []byte) error {
-	msg := new(interaction.GetCountsReq)
-	if err := proto.Unmarshal(in, msg); err != nil {
-		return err
-	}
-	p.Req = msg
-	return nil
-}
-
-var GetCountsArgs_Req_DEFAULT *interaction.GetCountsReq
-
-func (p *GetCountsArgs) GetReq() *interaction.GetCountsReq {
-	if !p.IsSetReq() {
-		return GetCountsArgs_Req_DEFAULT
-	}
-	return p.Req
-}
-
-func (p *GetCountsArgs) IsSetReq() bool {
-	return p.Req != nil
-}
-
-func (p *GetCountsArgs) GetFirstArgument() interface{} {
-	return p.Req
-}
-
-type GetCountsResult struct {
-	Success *interaction.GetCountsResp
-}
-
-var GetCountsResult_Success_DEFAULT *interaction.GetCountsResp
-
-func (p *GetCountsResult) Marshal(out []byte) ([]byte, error) {
-	if !p.IsSetSuccess() {
-		return out, nil
-	}
-	return proto.Marshal(p.Success)
-}
-
-func (p *GetCountsResult) Unmarshal(in []byte) error {
-	msg := new(interaction.GetCountsResp)
-	if err := proto.Unmarshal(in, msg); err != nil {
-		return err
-	}
-	p.Success = msg
-	return nil
-}
-
-func (p *GetCountsResult) GetSuccess() *interaction.GetCountsResp {
-	if !p.IsSetSuccess() {
-		return GetCountsResult_Success_DEFAULT
-	}
-	return p.Success
-}
-
-func (p *GetCountsResult) SetSuccess(x interface{}) {
-	p.Success = x.(*interaction.GetCountsResp)
-}
-
-func (p *GetCountsResult) IsSetSuccess() bool {
-	return p.Success != nil
-}
-
-func (p *GetCountsResult) GetResult() interface{} {
-	return p.Success
-}
-
 type kClient struct {
 	c client.Client
 }
@@ -1542,16 +1306,6 @@ func (p *kClient) BatchCheckLiked(ctx context.Context, Req *interaction.BatchChe
 	_args.Req = Req
 	var _result BatchCheckLikedResult
 	if err = p.c.Call(ctx, "BatchCheckLiked", &_args, &_result); err != nil {
-		return
-	}
-	return _result.GetSuccess(), nil
-}
-
-func (p *kClient) GetLikeCount(ctx context.Context, Req *interaction.GetLikeCountReq) (r *interaction.GetLikeCountResp, err error) {
-	var _args GetLikeCountArgs
-	_args.Req = Req
-	var _result GetLikeCountResult
-	if err = p.c.Call(ctx, "GetLikeCount", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -1612,16 +1366,6 @@ func (p *kClient) GetLikeList(ctx context.Context, Req *interaction.GetLikeListR
 	_args.Req = Req
 	var _result GetLikeListResult
 	if err = p.c.Call(ctx, "GetLikeList", &_args, &_result); err != nil {
-		return
-	}
-	return _result.GetSuccess(), nil
-}
-
-func (p *kClient) GetCounts(ctx context.Context, Req *interaction.GetCountsReq) (r *interaction.GetCountsResp, err error) {
-	var _args GetCountsArgs
-	_args.Req = Req
-	var _result GetCountsResult
-	if err = p.c.Call(ctx, "GetCounts", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

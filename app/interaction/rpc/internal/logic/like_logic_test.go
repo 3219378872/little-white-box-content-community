@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"esx/pkg/errx"
+	"esx/pkg/event"
 
 	sqlx "esx/pkg/sqlstore"
 
@@ -97,52 +98,6 @@ func (m *mockLikeRecordModel) FindActiveTargetIds(ctx context.Context, userID, t
 	args := m.Called(ctx, userID, targetType, page, pageSize)
 	ids, _ := args.Get(0).([]int64)
 	return ids, args.Get(1).(int64), args.Error(2)
-}
-
-type mockActionCountModel struct {
-	mock.Mock
-}
-
-func (m *mockActionCountModel) Insert(ctx context.Context, data *model2.ActionCount) (sql.Result, error) {
-	args := m.Called(ctx, data)
-	result, _ := args.Get(0).(sql.Result)
-	return result, args.Error(1)
-}
-
-func (m *mockActionCountModel) FindOneByTarget(ctx context.Context, targetID, targetType int64) (*model2.ActionCount, error) {
-	args := m.Called(ctx, targetID, targetType)
-	record, _ := args.Get(0).(*model2.ActionCount)
-	return record, args.Error(1)
-}
-
-func (m *mockActionCountModel) Update(ctx context.Context, data *model2.ActionCount) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-func (m *mockActionCountModel) IncrLikeCount(ctx context.Context, targetID, targetType int64) error {
-	args := m.Called(ctx, targetID, targetType)
-	return args.Error(0)
-}
-
-func (m *mockActionCountModel) IncrLikeCountTx(ctx context.Context, conn sqlx.SqlConn, targetID, targetType int64) error {
-	args := m.Called(ctx, conn, targetID, targetType)
-	return args.Error(0)
-}
-
-func (m *mockActionCountModel) IncrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
-	args := m.Called(ctx, targetID, targetType)
-	return args.Error(0)
-}
-
-func (m *mockActionCountModel) DecrLikeCount(ctx context.Context, targetID, targetType int64) error {
-	args := m.Called(ctx, targetID, targetType)
-	return args.Error(0)
-}
-
-func (m *mockActionCountModel) DecrFavoriteCount(ctx context.Context, targetID, targetType int64) error {
-	args := m.Called(ctx, targetID, targetType)
-	return args.Error(0)
 }
 
 type fakeTxConn struct{}
@@ -259,45 +214,39 @@ func (fakeTxSession) QueryRowsPartialCtx(ctx context.Context, v any, query strin
 
 func TestLikeLogic_Like_FirstTime(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		ContentService:  &fakeContentService{},
+		Conn:            fakeTxConn{},
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
 		Once()
-	countModel.
-		On("IncrLikeCountTx", mock.Anything, mock.Anything, int64(100), int64(1)).
-		Return(nil).
-		Once()
 	likeModel.
 		On("InvalidateLikeRecordCache", mock.Anything, int64(10), int64(1), int64(100), int64(1)).
 		Return(nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 1, FavoriteCount: 0, Seq: 1}, commands.lastSnapshot(t))
 }
 
 func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		ContentService:  &fakeContentService{},
+		Conn:            fakeTxConn{},
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
@@ -305,7 +254,7 @@ func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 		Return(stubResult{lastInsertID: 10, rowsAffected: 0}, int64(10), nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -316,45 +265,39 @@ func TestLikeLogic_Like_AlreadyLiked(t *testing.T) {
 
 func TestLikeLogic_Like_ReviveCanceledRecord(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		ContentService:  &fakeContentService{},
+		Conn:            fakeTxConn{},
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 2}, int64(10), nil).
 		Once()
-	countModel.
-		On("IncrLikeCountTx", mock.Anything, mock.Anything, int64(100), int64(1)).
-		Return(nil).
-		Once()
 	likeModel.
 		On("InvalidateLikeRecordCache", mock.Anything, int64(10), int64(1), int64(100), int64(1)).
 		Return(nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 1, FavoriteCount: 0, Seq: 1}, commands.lastSnapshot(t))
 }
 
 func TestLikeLogic_Like_UpsertError(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		ContentService:  &fakeContentService{},
+		Conn:            fakeTxConn{},
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
@@ -362,7 +305,7 @@ func TestLikeLogic_Like_UpsertError(t *testing.T) {
 		Return(nil, int64(0), assert.AnError).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	_, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -373,24 +316,20 @@ func TestLikeLogic_Like_UpsertError(t *testing.T) {
 
 func TestLikeLogic_Like_IncrCountError(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		ContentService:  &fakeContentService{},
+		Conn:            fakeTxConn{},
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
 		Once()
-	countModel.
-		On("IncrLikeCountTx", mock.Anything, mock.Anything, int64(100), int64(1)).
-		Return(assert.AnError).
-		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
+	commands.countErr = assert.AnError
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -398,10 +337,10 @@ func TestLikeLogic_Like_IncrCountError(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errx.Is(err, errx.SystemError))
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	assert.Empty(t, commands.events, "failed count write must not emit an event")
 }
 
-func TestLikeLogic_Like_NilActionCountModel(t *testing.T) {
+func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	svcCtx := &svc.ServiceContext{
 		ContentService:  &fakeContentService{},
@@ -409,40 +348,17 @@ func TestLikeLogic_Like_NilActionCountModel(t *testing.T) {
 		LikeRecordModel: likeModel,
 	}
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
-
-	logic := NewLikeLogic(context.Background(), svcCtx)
-	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.Nil(t, resp)
-	require.Error(t, err)
-	assert.True(t, errx.Is(err, errx.SystemError))
-	likeModel.AssertExpectations(t)
-}
-
-func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
-	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
-	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		Conn:             fakeTxConn{},
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
-	}
-
 	likeModel.
 		On("UpsertLikeStatusTx", mock.Anything, mock.Anything, int64(1), int64(100), int64(1), int64(model2.StatusActive)).
 		Return(stubResult{lastInsertID: 10, rowsAffected: 1}, int64(10), nil).
-		Once()
-	countModel.
-		On("IncrLikeCountTx", mock.Anything, mock.Anything, int64(100), int64(1)).
-		Return(nil).
 		Once()
 	likeModel.
 		On("InvalidateLikeRecordCache", mock.Anything, int64(10), int64(1), int64(100), int64(1)).
 		Return(assert.AnError).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewLikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Like(&pb.LikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -451,7 +367,8 @@ func TestLikeLogic_Like_CacheInvalidationError(t *testing.T) {
 	require.NotNil(t, resp)
 	require.NoError(t, err)
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 1, FavoriteCount: 0, Seq: 1}, commands.lastSnapshot(t))
 }
 
 func TestLikeLogic_Like_UnpublishedTarget(t *testing.T) {

@@ -44,6 +44,16 @@ func TestBehaviorEventValidate(t *testing.T) {
 		{name: "duration rejected for like", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionLike; e.DurationMs = new(int64(10)) }, wantErr: "not allowed"},
 		{name: "duration required for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell }, wantErr: "duration_ms is required"},
 		{name: "duration accepted for dwell", mutate: func(e *BehaviorEvent) { e.Action = BehaviorActionDwell; e.DurationMs = new(int64(1000)) }},
+		// 计数快照：有序号才可比较，计数不得为负。
+		{name: "count snapshot accepted", mutate: func(e *BehaviorEvent) {
+			e.CountSnapshot = &InteractionCountSnapshot{LikeCount: 3, FavoriteCount: 1, Seq: 9}
+		}},
+		{name: "count snapshot seq required", mutate: func(e *BehaviorEvent) {
+			e.CountSnapshot = &InteractionCountSnapshot{LikeCount: 3}
+		}, wantErr: "count_snapshot.seq"},
+		{name: "count snapshot negative rejected", mutate: func(e *BehaviorEvent) {
+			e.CountSnapshot = &InteractionCountSnapshot{LikeCount: -1, Seq: 2}
+		}, wantErr: "must not be negative"},
 	}
 
 	for _, tt := range tests {
@@ -92,6 +102,28 @@ func TestBehaviorEventValidateClientSubmitted(t *testing.T) {
 			assert.ErrorContains(t, e.ValidateClientSubmitted(), "not allowed from clients")
 		})
 	}
+}
+
+// 客户端事件即便动作在白名单内，也不得携带权威计数快照。
+func TestBehaviorEventClientSubmittedRejectsCountSnapshot(t *testing.T) {
+	e := validBehaviorEvent()
+	e.CountSnapshot = &InteractionCountSnapshot{LikeCount: 1, Seq: 1}
+	assert.ErrorContains(t, e.ValidateClientSubmitted(), "count_snapshot is not allowed")
+}
+
+// 快照随 JSON 往返保持不变，未携带时序列化结果不出现该字段（兼容旧消费者）。
+func TestBehaviorEventCountSnapshotJSON(t *testing.T) {
+	e := validBehaviorEvent()
+	data, err := json.Marshal(e)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "count_snapshot")
+
+	e.CountSnapshot = &InteractionCountSnapshot{LikeCount: 5, FavoriteCount: 2, Seq: 11}
+	data, err = json.Marshal(e)
+	require.NoError(t, err)
+	var got BehaviorEvent
+	require.NoError(t, json.Unmarshal(data, &got))
+	assert.Equal(t, e.CountSnapshot, got.CountSnapshot)
 }
 
 func TestBehaviorEventExposurePositionMustStartFromOne(t *testing.T) {

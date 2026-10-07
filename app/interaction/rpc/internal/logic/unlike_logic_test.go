@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"esx/pkg/errx"
+	"esx/pkg/event"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,10 +17,8 @@ import (
 
 func TestUnlikeLogic_Unlike_Success(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
+		LikeRecordModel: likeModel,
 	}
 
 	likeModel.
@@ -30,22 +29,20 @@ func TestUnlikeLogic_Unlike_Success(t *testing.T) {
 		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
-	countModel.
-		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
-		Return(nil).
-		Once()
 	likeModel.
 		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
 		Return(nil).
 		Once()
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 0, FavoriteCount: 0, Seq: 1}, commands.lastSnapshot(t))
 }
 
 func TestUnlikeLogic_Unlike_NotLiked(t *testing.T) {
@@ -59,7 +56,7 @@ func TestUnlikeLogic_Unlike_NotLiked(t *testing.T) {
 		Return((*model2.LikeRecord)(nil), model2.ErrNotFound).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -79,7 +76,7 @@ func TestUnlikeLogic_Unlike_AlreadyUnliked(t *testing.T) {
 		Return(&model2.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: model2.StatusInactive}, nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -88,7 +85,7 @@ func TestUnlikeLogic_Unlike_AlreadyUnliked(t *testing.T) {
 	likeModel.AssertExpectations(t)
 }
 
-func TestUnlikeLogic_Unlike_NilActionCountModel(t *testing.T) {
+func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
 	likeModel := new(mockLikeRecordModel)
 	svcCtx := &svc.ServiceContext{
 		LikeRecordModel: likeModel,
@@ -102,41 +99,9 @@ func TestUnlikeLogic_Unlike_NilActionCountModel(t *testing.T) {
 		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
-	likeModel.
-		On("InvalidateLikeRecordCache", mock.Anything, int64(1), int64(1), int64(100), int64(1)).
-		Return(nil).
-		Once()
-
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
-
-	logic := NewUnlikeLogic(context.Background(), svcCtx)
-	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	likeModel.AssertExpectations(t)
-}
-
-func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
-	likeModel := new(mockLikeRecordModel)
-	countModel := new(mockActionCountModel)
-	svcCtx := &svc.ServiceContext{
-		LikeRecordModel:  likeModel,
-		ActionCountModel: countModel,
-	}
-
-	likeModel.
-		On("FindOneByUserIdTargetIdTargetType", mock.Anything, int64(1), int64(100), int64(1)).
-		Return(&model2.LikeRecord{Id: 1, UserId: 1, TargetId: 100, TargetType: 1, Status: 1}, nil).
-		Once()
-	likeModel.
-		On("UpdateStatusById", mock.Anything, int64(1), int64(model2.StatusActive), int64(model2.StatusInactive)).
-		Return(stubResult{rowsAffected: 1}, nil).
-		Once()
-	countModel.
-		On("DecrLikeCount", mock.Anything, int64(100), int64(1)).
-		Return(assert.AnError).
-		Once()
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
+	commands.countErr = assert.AnError
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -144,7 +109,7 @@ func TestUnlikeLogic_Unlike_DecrCountError(t *testing.T) {
 	require.Nil(t, resp)
 	assert.True(t, errx.Is(err, errx.SystemError))
 	likeModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	assert.Empty(t, commands.events, "failed count write must not emit an event")
 }
 
 func TestUnlikeLogic_Unlike_CacheInvalidationError(t *testing.T) {
@@ -164,7 +129,7 @@ func TestUnlikeLogic_Unlike_CacheInvalidationError(t *testing.T) {
 		Return(assert.AnError).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	resp, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})
@@ -189,7 +154,7 @@ func TestUnlikeLogic_Unlike_UpdateStatusError(t *testing.T) {
 		Return(nil, assert.AnError).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewUnlikeLogic(context.Background(), svcCtx)
 	_, err := logic.Unlike(&pb.UnlikeReq{UserId: 1, TargetId: 100, TargetType: 1})

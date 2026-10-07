@@ -15,29 +15,22 @@ import (
 	"github.com/cloudwego/kitex/client/callopt"
 
 	cache "esx/pkg/modelcache"
-	redis "esx/pkg/redisstore"
 	"esx/pkg/rpcx"
 	sqlx "esx/pkg/sqlstore"
-
-	"golang.org/x/sync/singleflight"
 )
 
-// ServiceContext holds interaction storage, the outbox relay, the count cache
-// and the content client used to check that targets are interactable.
+// ServiceContext holds interaction storage, the outbox relay and the content
+// client used to check that targets are interactable.
 type ServiceContext struct {
 	Config              config.Config
 	Conn                sqlx.SqlConn
 	DB                  *sql.DB
 	FavoriteModel       model2.FavoriteModel
 	LikeRecordModel     model2.LikeRecordModel
-	ActionCountModel    model2.ActionCountModel
 	InteractionCommands model2.InteractionCommandModel
 	OutboxStore         *outboxx.SQLStore
 	OutboxRelay         *outboxx.Relay
 	MQProducer          *mqx.Producer
-	Redis               *redis.Redis
-	RedisStore          RedisStore
-	SingleFlight        singleflight.Group
 	ContentService      ContentService
 }
 
@@ -68,7 +61,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		},
 	}
 
-	redisClient := redis.MustNewRedis(c.Redis.RedisConf)
 	if err := util.InitSnowflakeFromEnv(3, 1); err != nil {
 		panic(fmt.Sprintf("interaction snowflake initialization failed: %v", err))
 	}
@@ -106,13 +98,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DB:                  rawDB,
 		FavoriteModel:       model2.NewFavoriteModel(conn, conf),
 		LikeRecordModel:     model2.NewLikeRecordModel(conn, conf),
-		ActionCountModel:    model2.NewActionCountModel(conn),
 		InteractionCommands: model2.NewInteractionCommandModel(conn, outboxStore),
 		OutboxStore:         outboxStore,
 		OutboxRelay:         outboxRelay,
 		MQProducer:          producer,
-		Redis:               redisClient,
-		RedisStore:          NewRedisStore(redisClient),
 		ContentService:      contentService,
 	}
 }

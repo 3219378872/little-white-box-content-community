@@ -155,24 +155,31 @@ func (m *commentCommandModel) DeleteComment(ctx context.Context, comment *Commen
 	})
 }
 
-// enqueuePostCounts 读取帖子当前计数，写入 counted 事件，供搜索等下游局部更新计数。
+// enqueuePostCounts 推进帖子的计数快照序号并读取当前计数，写入 counted 事件，供搜索等下游局部更新计数。
+// stats_seq 与 count-sync 共用同一列：取 GREATEST(stats_seq+1, 当前毫秒)，在行锁内单调递增，
+// 不同进程的时钟偏差不会让较新的计数补丁被搜索判为旧版本。
 func enqueuePostCounts(ctx context.Context, session sqlx.Session, outbox OutboxEnqueuer, postID int64) error {
+	now := time.Now().UnixMilli()
+	if _, err := session.ExecCtx(ctx,
+		"UPDATE `post` SET `stats_seq` = GREATEST(`stats_seq` + 1, ?) WHERE `id` = ?", now, postID); err != nil {
+		return err
+	}
 	var counts struct {
 		LikeCount    int64 `db:"like_count"`
 		CommentCount int64 `db:"comment_count"`
+		StatsSeq     int64 `db:"stats_seq"`
 	}
 	if err := session.QueryRowCtx(ctx, &counts,
-		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ? LIMIT 1", postID); err != nil {
+		"SELECT `like_count`, `comment_count`, `stats_seq` FROM `post` WHERE `id` = ? LIMIT 1", postID); err != nil {
 		return err
 	}
 	id, err := util.NextID()
 	if err != nil {
 		return err
 	}
-	now := time.Now().UnixMilli()
 	payload, err := json.Marshal(event.PostEvent{
 		EventID: id, EventTime: now, Type: event.PostEventCounted, PostID: postID,
-		LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: now,
+		LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: counts.StatsSeq,
 	})
 	if err != nil {
 		return err

@@ -50,12 +50,9 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 		l.Errorw("unfavorite command dependency is not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	outboxEvent, err := interactionOutboxEvent(in.UserId, in.PostId, "post", "unfavorite")
-	if err != nil {
-		l.Errorw("build unfavorite behavior event failed", logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
-	if err = l.svcCtx.InteractionCommands.Unfavorite(l.ctx, record.Id, in.PostId, outboxEvent); err != nil {
+	// 事件在事务内按提交后的计数快照构造，下游据此按序号覆盖公开计数。
+	if err = l.svcCtx.InteractionCommands.Unfavorite(l.ctx, record.Id, in.PostId,
+		interactionEventBuilder(in.UserId, in.PostId, "post", "unfavorite")); err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.UnfavoriteResp{}, nil
 		}
@@ -64,10 +61,6 @@ func (l *UnfavoriteLogic) Unfavorite(in *pb.UnfavoriteReq) (*pb.UnfavoriteResp, 
 	}
 	if err := l.svcCtx.FavoriteModel.InvalidateFavoriteCache(l.ctx, record.Id, in.UserId, in.PostId); err != nil {
 		l.Errorw("InvalidateFavoriteCache failed", logging.Field("err", err.Error()))
-	}
-	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.PostId, 1); err != nil {
-		// CORE-053：权威写入已提交，缓存失效失败只告警。
-		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.UnfavoriteResp{}, nil

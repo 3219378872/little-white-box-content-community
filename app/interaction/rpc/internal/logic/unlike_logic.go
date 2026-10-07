@@ -50,15 +50,10 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 		l.Errorw("unlike command dependency is not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	outboxEvent, err := interactionOutboxEvent(
-		in.UserId, in.TargetId, targetTypeName(in.TargetType), "unlike",
-	)
-	if err != nil {
-		l.Errorw("build unlike behavior event failed", logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
+	// 事件在事务内按提交后的计数快照构造，下游据此按序号覆盖公开计数。
 	if err = l.svcCtx.InteractionCommands.Unlike(
-		l.ctx, record.Id, in.TargetId, int64(in.TargetType), outboxEvent,
+		l.ctx, record.Id, in.TargetId, int64(in.TargetType),
+		interactionEventBuilder(in.UserId, in.TargetId, targetTypeName(in.TargetType), "unlike"),
 	); err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
 			return &pb.UnlikeResp{}, nil
@@ -71,9 +66,6 @@ func (l *UnlikeLogic) Unlike(in *pb.UnlikeReq) (*pb.UnlikeResp, error) {
 	); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败只告警。
 		l.Errorw("InvalidateLikeRecordCache failed", logging.Field("err", err.Error()))
-	}
-	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
-		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.UnlikeResp{}, nil

@@ -83,6 +83,28 @@ type BehaviorEvent struct {
 	Producer      string `json:"producer"`
 	ClientIP      string `json:"client_ip"`
 	ClientVersion string `json:"client_version"`
+	// CountSnapshot 只由 Interaction 的权威互动事务填写：携带提交时目标的绝对计数与单调序号，
+	// 下游按序号覆盖投影，重复与乱序投递都会收敛到权威值（REL-008、CORE-032）。
+	CountSnapshot *InteractionCountSnapshot `json:"count_snapshot,omitempty"`
+}
+
+// InteractionCountSnapshot 是互动事务提交后目标在 action_count 中的计数快照。
+// Seq 随该目标任一计数变化在同一行锁内递增，因此同一目标的快照可按 Seq 全序比较。
+type InteractionCountSnapshot struct {
+	LikeCount     int64 `json:"like_count"`
+	FavoriteCount int64 `json:"favorite_count"`
+	Seq           int64 `json:"seq"`
+}
+
+// Validate 拒绝无序号或负计数的快照；无序号的快照无法与已投影的版本比较。
+func (s InteractionCountSnapshot) Validate() error {
+	if s.Seq <= 0 {
+		return fmt.Errorf("count_snapshot.seq must be positive")
+	}
+	if s.LikeCount < 0 || s.FavoriteCount < 0 {
+		return fmt.Errorf("count_snapshot counts must not be negative")
+	}
+	return nil
 }
 
 // Validate 在入队前拒绝缺少身份、标识超长或动作/目标不合法的行为事件，消费者因此可以信任字段。
@@ -148,6 +170,12 @@ func (e BehaviorEvent) Validate() error {
 	if _, ok := durationBehaviorActions[e.Action]; ok && e.DurationMs == nil {
 		return fmt.Errorf("duration_ms is required for action %s", e.Action)
 	}
+	// 计数快照存在时必须可比较，否则下游无法判断它是否比已投影的计数更新。
+	if e.CountSnapshot != nil {
+		if err := e.CountSnapshot.Validate(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -159,6 +187,10 @@ func (e BehaviorEvent) ValidateClientSubmitted() error {
 	}
 	if _, ok := clientAllowedBehaviorActions[e.Action]; !ok {
 		return fmt.Errorf("action %s is not allowed from clients", e.Action)
+	}
+	// 计数快照代表权威计数，只能来自服务端 outbox，客户端携带一律拒绝。
+	if e.CountSnapshot != nil {
+		return fmt.Errorf("count_snapshot is not allowed from clients")
 	}
 	return nil
 }

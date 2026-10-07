@@ -400,6 +400,12 @@ func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "nice", stored.Content)
 
+	// 计数变化推进帖子 stats_seq（不低于当前毫秒），counted 事件携带同一序号。
+	var createdStatsSeq int64
+	require.NoError(t, newTestConn().QueryRowCtx(ctx, &createdStatsSeq,
+		"SELECT stats_seq FROM `post` WHERE `id` = ?", postID))
+	assert.Positive(t, createdStatsSeq)
+
 	// 删除评论：状态置 0 且计数回落。命令写入绕过查询缓存，
 	// 因此用裸 SQL 断言数据库真实状态（logic 层负责失效后回读）。
 	require.NoError(t, commandModel.DeleteComment(ctx, comment))
@@ -411,6 +417,12 @@ func TestCommentCommandModelCreateAndDeleteAdjustCounts(t *testing.T) {
 	require.NoError(t, newTestConn().QueryRowCtx(ctx, &rawCount,
 		"SELECT comment_count FROM `post` WHERE `id` = ?", postID))
 	assert.Equal(t, int64(0), rawCount)
+
+	// 删除后的计数快照序号严格大于创建时，搜索不会把它当作旧补丁丢弃。
+	var deletedStatsSeq int64
+	require.NoError(t, newTestConn().QueryRowCtx(ctx, &deletedStatsSeq,
+		"SELECT stats_seq FROM `post` WHERE `id` = ?", postID))
+	assert.Greater(t, deletedStatsSeq, createdStatsSeq)
 
 	// 重复删除同一评论：状态条件不再满足，报错而非静默成功。
 	err = commandModel.DeleteComment(ctx, comment)

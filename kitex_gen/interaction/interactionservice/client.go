@@ -15,14 +15,12 @@ type Client interface {
 	Unlike(ctx context.Context, Req *interaction.UnlikeReq, callOptions ...callopt.Option) (r *interaction.UnlikeResp, err error)
 	CheckLiked(ctx context.Context, Req *interaction.CheckLikedReq, callOptions ...callopt.Option) (r *interaction.CheckLikedResp, err error)
 	BatchCheckLiked(ctx context.Context, Req *interaction.BatchCheckLikedReq, callOptions ...callopt.Option) (r *interaction.BatchCheckLikedResp, err error)
-	GetLikeCount(ctx context.Context, Req *interaction.GetLikeCountReq, callOptions ...callopt.Option) (r *interaction.GetLikeCountResp, err error)
 	Favorite(ctx context.Context, Req *interaction.FavoriteReq, callOptions ...callopt.Option) (r *interaction.FavoriteResp, err error)
 	Unfavorite(ctx context.Context, Req *interaction.UnfavoriteReq, callOptions ...callopt.Option) (r *interaction.UnfavoriteResp, err error)
 	CheckFavorited(ctx context.Context, Req *interaction.CheckFavoritedReq, callOptions ...callopt.Option) (r *interaction.CheckFavoritedResp, err error)
 	BatchCheckFavorited(ctx context.Context, Req *interaction.BatchCheckFavoritedReq, callOptions ...callopt.Option) (r *interaction.BatchCheckFavoritedResp, err error)
 	GetFavoriteList(ctx context.Context, Req *interaction.GetFavoriteListReq, callOptions ...callopt.Option) (r *interaction.GetFavoriteListResp, err error)
 	GetLikeList(ctx context.Context, Req *interaction.GetLikeListReq, callOptions ...callopt.Option) (r *interaction.GetLikeListResp, err error)
-	GetCounts(ctx context.Context, Req *interaction.GetCountsReq, callOptions ...callopt.Option) (r *interaction.GetCountsResp, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -74,11 +72,6 @@ func (p *kInteractionServiceClient) BatchCheckLiked(ctx context.Context, Req *in
 	return p.kClient.BatchCheckLiked(ctx, Req)
 }
 
-func (p *kInteractionServiceClient) GetLikeCount(ctx context.Context, Req *interaction.GetLikeCountReq, callOptions ...callopt.Option) (r *interaction.GetLikeCountResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.GetLikeCount(ctx, Req)
-}
-
 func (p *kInteractionServiceClient) Favorite(ctx context.Context, Req *interaction.FavoriteReq, callOptions ...callopt.Option) (r *interaction.FavoriteResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.Favorite(ctx, Req)
@@ -107,9 +100,4 @@ func (p *kInteractionServiceClient) GetFavoriteList(ctx context.Context, Req *in
 func (p *kInteractionServiceClient) GetLikeList(ctx context.Context, Req *interaction.GetLikeListReq, callOptions ...callopt.Option) (r *interaction.GetLikeListResp, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.GetLikeList(ctx, Req)
-}
-
-func (p *kInteractionServiceClient) GetCounts(ctx context.Context, Req *interaction.GetCountsReq, callOptions ...callopt.Option) (r *interaction.GetCountsResp, err error) {
-	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.GetCounts(ctx, Req)
 }

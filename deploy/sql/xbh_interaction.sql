@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS `action_count` (
     `favorite_count` BIGINT NOT NULL DEFAULT 0 COMMENT '收藏数',
     `comment_count` BIGINT NOT NULL DEFAULT 0 COMMENT '评论数',
     `share_count` BIGINT NOT NULL DEFAULT 0 COMMENT '分享数',
+    `count_seq` BIGINT NOT NULL DEFAULT 0 COMMENT '计数序号：任一计数变化时在同一行锁内递增，随事件下发供下游按序覆盖',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_target` (`target_id`, `target_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='互动计数表';

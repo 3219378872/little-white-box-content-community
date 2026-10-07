@@ -17,8 +17,6 @@ type UnlikeReq = pb.UnlikeReq
 type UnlikeResp = pb.UnlikeResp
 type CheckLikedReq = pb.CheckLikedReq
 type CheckLikedResp = pb.CheckLikedResp
-type GetLikeCountReq = pb.GetLikeCountReq
-type GetLikeCountResp = pb.GetLikeCountResp
 type FavoriteReq = pb.FavoriteReq
 type FavoriteResp = pb.FavoriteResp
 type UnfavoriteReq = pb.UnfavoriteReq
@@ -29,8 +27,6 @@ type GetFavoriteListReq = pb.GetFavoriteListReq
 type GetFavoriteListResp = pb.GetFavoriteListResp
 type GetLikeListReq = pb.GetLikeListReq
 type GetLikeListResp = pb.GetLikeListResp
-type GetCountsReq = pb.GetCountsReq
-type GetCountsResp = pb.GetCountsResp
 type BatchCheckLikedReq = pb.BatchCheckLikedReq
 type BatchCheckLikedResp = pb.BatchCheckLikedResp
 type BatchCheckFavoritedReq = pb.BatchCheckFavoritedReq
@@ -59,10 +55,6 @@ func (c *client) BatchCheckLiked(ctx context.Context, req *pb.BatchCheckLikedReq
 	v, e := c.Client.BatchCheckLiked(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }
-func (c *client) GetLikeCount(ctx context.Context, req *pb.GetLikeCountReq, opts ...callopt.Option) (*pb.GetLikeCountResp, error) {
-	v, e := c.Client.GetLikeCount(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
 func (c *client) Favorite(ctx context.Context, req *pb.FavoriteReq, opts ...callopt.Option) (*pb.FavoriteResp, error) {
 	v, e := c.Client.Favorite(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
@@ -85,9 +77,5 @@ func (c *client) GetFavoriteList(ctx context.Context, req *pb.GetFavoriteListReq
 }
 func (c *client) GetLikeList(ctx context.Context, req *pb.GetLikeListReq, opts ...callopt.Option) (*pb.GetLikeListResp, error) {
 	v, e := c.Client.GetLikeList(ctx, req, opts...)
-	return v, rpcx.FromTransportError(e)
-}
-func (c *client) GetCounts(ctx context.Context, req *pb.GetCountsReq, opts ...callopt.Option) (*pb.GetCountsResp, error) {
-	v, e := c.Client.GetCounts(ctx, req, opts...)
 	return v, rpcx.FromTransportError(e)
 }

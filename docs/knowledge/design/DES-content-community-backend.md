@@ -4,7 +4,7 @@ layer: design
 title: 小白盒内容社区后端设计
 status: active
 owner: agent
-updated_at: 2026-10-06
+updated_at: 2026-10-07
 tracks:
 - CORE-001
 - CORE-002
@@ -193,8 +193,13 @@ published 行。
 取消点赞/收藏的单关系读取直接查询 MySQL，禁止使用待失效的缓存来判定取消为无操作。关系变更、
 计数和 outbox 仍由已有事务及条件更新原子提交，重复取消不重复扣减或投递。
 
-公开计数：关系以 Interaction 为准；`post.like_count`/`favorite_count` 由 count-sync
-异步收敛，目标 30 秒（CORE-032）。评论计数在 Content 事务内更新。
+公开计数：关系与计数以 Interaction 为准。`action_count` 在关系变更的同一事务内调整计数，并在行锁内
+递增 `count_seq`；同事务写入的行为事件携带 `count_snapshot`（绝对点赞数、收藏数与该序号）。
+Content 的 `post.like_count`/`favorite_count` 与 `comment.like_count` 是投影：count-sync 以
+`interaction_seq < 快照序号` 为条件整体覆盖，重复投递与乱序到达都收敛到最大序号的权威值，
+不依赖事件去重存储（REL-008）；目标 30 秒（CORE-032）。没有快照的事件无法安全覆盖，按永久错误
+确认丢弃，由同一目标的下一次快照修正。评论数在 Content 事务内更新。帖子热门排序、游标分页、
+搜索与召回都读取投影，因此 Interaction 不提供计数读取 RPC。
 
 ### 认证凭据消费
 
@@ -215,7 +220,9 @@ published 行。
 ES 只索引 published，取消发布与删除把文档换成只含 `revision` 的墓碑。`post-update` 按
 `post_id` 投递，载荷带 `revision`；写入与墓碑都是脚本 upsert，比较 `_source.revision`，
 不新于已存值的快照为 noop。不用 external version：计数补丁走 `_update` 会推高 `_version`，
-使其偏离 `revision`。计数只由 `post.counted` 补丁按 `stats_seq` 推进；帖子写入携带的计数快照
+使其偏离 `revision`。计数只由 `post.counted` 补丁按 `stats_seq` 推进；`stats_seq` 存在
+`post` 行上，评论计数事务与 count-sync 推进计数时都取 `GREATEST(stats_seq+1, 当前毫秒)`，
+在行锁内单调且与存量时间戳序号兼容，不受各进程时钟偏差影响。帖子写入携带的计数快照
 不覆盖存活文档已有的不旧于它的计数。查询再回源 Content：丢掉
 不可见 ID，标题与摘要改用权威正文，`Total` 按本页回减。用户/标签失败可降级并列出
 `unavailableTypes`；帖子可见性或索引不可用不能降级成空成功。每页查询预算、标签聚合与缓存、

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"esx/pkg/errx"
+	"esx/pkg/event"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -78,30 +79,26 @@ func (m *mockFavoriteModel) InvalidateFavoriteCache(ctx context.Context, id, use
 
 func TestFavoriteLogic_Favorite_FirstTime(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		FavoriteModel:    favoriteModel,
-		ActionCountModel: countModel,
+		ContentService: &fakeContentService{},
+		FavoriteModel:  favoriteModel,
 	}
 
 	favoriteModel.
 		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
-	countModel.
-		On("IncrFavoriteCount", mock.Anything, int64(100), int64(1)).
-		Return(nil).
-		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	favoriteModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 0, FavoriteCount: 1, Seq: 1}, commands.lastSnapshot(t))
 }
 
 func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
@@ -116,7 +113,7 @@ func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 		Return(stubResult{rowsAffected: 0}, nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = fakeInteractionCommandsFor(svcCtx)
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
@@ -127,33 +124,29 @@ func TestFavoriteLogic_Favorite_AlreadyFavorited(t *testing.T) {
 
 func TestFavoriteLogic_Favorite_ReviveCanceledRecord(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
-	countModel := new(mockActionCountModel)
 	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		FavoriteModel:    favoriteModel,
-		ActionCountModel: countModel,
+		ContentService: &fakeContentService{},
+		FavoriteModel:  favoriteModel,
 	}
 
 	favoriteModel.
 		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
 		Return(stubResult{rowsAffected: 2}, nil).
 		Once()
-	countModel.
-		On("IncrFavoriteCount", mock.Anything, int64(100), int64(1)).
-		Return(nil).
-		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	favoriteModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	// 事件携带本次变化后的绝对计数与序号。
+	assert.Equal(t, event.InteractionCountSnapshot{LikeCount: 0, FavoriteCount: 1, Seq: 1}, commands.lastSnapshot(t))
 }
 
-func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
+func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 	favoriteModel := new(mockFavoriteModel)
 	svcCtx := &svc.ServiceContext{
 		ContentService: &fakeContentService{},
@@ -165,34 +158,9 @@ func TestFavoriteLogic_Favorite_NilActionCountModel(t *testing.T) {
 		Return(stubResult{rowsAffected: 1}, nil).
 		Once()
 
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
-
-	logic := NewFavoriteLogic(context.Background(), svcCtx)
-	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	favoriteModel.AssertExpectations(t)
-}
-
-func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
-	favoriteModel := new(mockFavoriteModel)
-	countModel := new(mockActionCountModel)
-	svcCtx := &svc.ServiceContext{
-		ContentService:   &fakeContentService{},
-		FavoriteModel:    favoriteModel,
-		ActionCountModel: countModel,
-	}
-
-	favoriteModel.
-		On("UpsertFavoriteStatus", mock.Anything, int64(1), int64(100), int64(model2.StatusActive)).
-		Return(stubResult{rowsAffected: 1}, nil).
-		Once()
-	countModel.
-		On("IncrFavoriteCount", mock.Anything, int64(100), int64(1)).
-		Return(assert.AnError).
-		Once()
-
-	svcCtx.InteractionCommands = legacyInteractionCommandsFor(svcCtx)
+	commands := fakeInteractionCommandsFor(svcCtx)
+	svcCtx.InteractionCommands = commands
+	commands.countErr = assert.AnError
 
 	logic := NewFavoriteLogic(context.Background(), svcCtx)
 	resp, err := logic.Favorite(&pb.FavoriteReq{UserId: 1, PostId: 100})
@@ -200,7 +168,7 @@ func TestFavoriteLogic_Favorite_IncrCountError(t *testing.T) {
 	require.Nil(t, resp)
 	assert.True(t, errx.Is(err, errx.SystemError))
 	favoriteModel.AssertExpectations(t)
-	countModel.AssertExpectations(t)
+	assert.Empty(t, commands.events, "failed count write must not emit an event")
 }
 
 func TestFavoriteLogic_Favorite_UnpublishedPost(t *testing.T) {

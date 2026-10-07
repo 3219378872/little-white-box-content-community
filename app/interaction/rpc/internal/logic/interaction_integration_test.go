@@ -4,11 +4,35 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	pb "esx/kitex_gen/interaction"
 	"testing"
 
+	"esx/pkg/event"
+
 	"github.com/stretchr/testify/require"
 )
+
+// actionCountRow 读取 action_count 中目标的点赞数与序号。
+func actionCountRow(t *testing.T, targetID, targetType int64) (likeCount, seq int64) {
+	t.Helper()
+	require.NoError(t, testEnv.DB.QueryRow(
+		"SELECT `like_count`, `count_seq` FROM `action_count` WHERE `target_id`=? AND `target_type`=?",
+		targetID, targetType).Scan(&likeCount, &seq))
+	return likeCount, seq
+}
+
+// latestBehaviorSnapshot 解码最近一条行为 outbox 事件携带的计数快照。
+func latestBehaviorSnapshot(t *testing.T) event.InteractionCountSnapshot {
+	t.Helper()
+	var payload []byte
+	require.NoError(t, testEnv.DB.QueryRow(
+		"SELECT `payload` FROM `event_outbox` WHERE `topic`='user-behavior-v2' ORDER BY `id` DESC LIMIT 1").Scan(&payload))
+	var behavior event.BehaviorEvent
+	require.NoError(t, json.Unmarshal(payload, &behavior))
+	require.NotNil(t, behavior.CountSnapshot, "interaction events must carry the committed count snapshot")
+	return *behavior.CountSnapshot
+}
 
 func TestLikeUnlikeIntegration(t *testing.T) {
 	resetIntegrationState()
@@ -17,7 +41,6 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 	likeLogic := NewLikeLogic(ctx, testSvcCtx)
 	unlikeLogic := NewUnlikeLogic(ctx, testSvcCtx)
 	checkLogic := NewCheckLikedLogic(ctx, testSvcCtx)
-	countsLogic := NewGetCountsLogic(ctx, testSvcCtx)
 
 	_, err := likeLogic.Like(&pb.LikeReq{
 		UserId:     7001,
@@ -34,12 +57,17 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, checkResp.IsLiked)
 
-	countsResp, err := countsLogic.GetCounts(&pb.GetCountsReq{
-		TargetId:   900001,
-		TargetType: 1,
-	})
+	// 计数与序号在同一事务提交，事件携带的快照与表中一致。
+	likeCount, seq := actionCountRow(t, 900001, 1)
+	require.Equal(t, int64(1), likeCount)
+	require.Equal(t, int64(1), seq)
+	require.Equal(t, event.InteractionCountSnapshot{LikeCount: 1, Seq: 1}, latestBehaviorSnapshot(t))
+
+	// 重复点赞无状态变化：计数与序号都不推进。
+	_, err = likeLogic.Like(&pb.LikeReq{UserId: 7001, TargetId: 900001, TargetType: 1})
 	require.NoError(t, err)
-	require.Equal(t, int64(1), countsResp.LikeCount)
+	_, seq = actionCountRow(t, 900001, 1)
+	require.Equal(t, int64(1), seq)
 
 	var status int64
 	err = testEnv.DB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
@@ -62,12 +90,11 @@ func TestLikeUnlikeIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, checkResp.IsLiked)
 
-	countsResp, err = countsLogic.GetCounts(&pb.GetCountsReq{
-		TargetId:   900001,
-		TargetType: 1,
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(0), countsResp.LikeCount)
+	// 取消点赞同样推进序号，下游据此用更新的快照覆盖旧计数。
+	likeCount, seq = actionCountRow(t, 900001, 1)
+	require.Equal(t, int64(0), likeCount)
+	require.Equal(t, int64(2), seq)
+	require.Equal(t, event.InteractionCountSnapshot{LikeCount: 0, Seq: 2}, latestBehaviorSnapshot(t))
 
 	err = testEnv.DB.QueryRow("SELECT `status` FROM `like_record` WHERE `user_id`=? AND `target_id`=? AND `target_type`=?",
 		7001, 900001, 1).Scan(&status)
@@ -125,42 +152,4 @@ func TestFavoriteListIntegration(t *testing.T) {
 		910103: false,
 		910104: false,
 	}, batchResp.Results)
-}
-
-func TestGetCountsCacheBackfillIntegration(t *testing.T) {
-	resetIntegrationState()
-
-	_, err := testEnv.DB.Exec(`
-		INSERT INTO action_count (target_id, target_type, like_count, favorite_count, comment_count, share_count)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, 920001, 1, 7, 3, 2, 0)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	countsLogic := NewGetCountsLogic(ctx, testSvcCtx)
-	likeCountLogic := NewGetLikeCountLogic(ctx, testSvcCtx)
-
-	countsResp, err := countsLogic.GetCounts(&pb.GetCountsReq{
-		TargetId:   920001,
-		TargetType: 1,
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(7), countsResp.LikeCount)
-	require.Equal(t, int64(3), countsResp.FavoriteCount)
-	require.Equal(t, int64(2), countsResp.CommentCount)
-
-	cachedLike, err := testSvcCtx.Redis.HgetCtx(context.Background(), "interaction:action_count:920001:1", "like_count")
-	require.NoError(t, err)
-	require.Equal(t, "7", cachedLike)
-
-	cachedFavorite, err := testSvcCtx.Redis.HgetCtx(context.Background(), "interaction:action_count:920001:1", "favorite_count")
-	require.NoError(t, err)
-	require.Equal(t, "3", cachedFavorite)
-
-	likeResp, err := likeCountLogic.GetLikeCount(&pb.GetLikeCountReq{
-		TargetId:   920001,
-		TargetType: 1,
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(7), likeResp.Count)
 }

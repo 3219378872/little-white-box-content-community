@@ -36,19 +36,14 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if err := requirePublishedLikeTarget(l.ctx, l.svcCtx.ContentService, in.TargetId, in.TargetType); err != nil {
 		return nil, err
 	}
-	if l.svcCtx.InteractionCommands == nil || l.svcCtx.LikeRecordModel == nil || l.svcCtx.ActionCountModel == nil {
+	if l.svcCtx.InteractionCommands == nil || l.svcCtx.LikeRecordModel == nil {
 		l.Errorw("like dependencies are not configured")
 		return nil, errx.NewWithCode(errx.SystemError)
 	}
-	outboxEvent, err := interactionOutboxEvent(
-		in.UserId, in.TargetId, targetTypeName(in.TargetType), "like",
-	)
-	if err != nil {
-		l.Errorw("build like behavior event failed", logging.Field("err", err.Error()))
-		return nil, errx.NewWithCode(errx.SystemError)
-	}
+	// 事件在事务内按提交后的计数快照构造，下游据此按序号覆盖公开计数。
 	likeRecordID, err := l.svcCtx.InteractionCommands.Like(
-		l.ctx, in.UserId, in.TargetId, int64(in.TargetType), outboxEvent,
+		l.ctx, in.UserId, in.TargetId, int64(in.TargetType),
+		interactionEventBuilder(in.UserId, in.TargetId, targetTypeName(in.TargetType), "like"),
 	)
 	if err != nil {
 		if errors.Is(err, model.ErrNoStateChange) {
@@ -65,9 +60,6 @@ func (l *LikeLogic) Like(in *pb.LikeReq) (*pb.LikeResp, error) {
 	if err := l.svcCtx.LikeRecordModel.InvalidateLikeRecordCache(l.ctx, likeRecordID, in.UserId, in.TargetId, int64(in.TargetType)); err != nil {
 		// CORE-053：权威写入已提交，缓存失效失败不得把响应改成可重试失败。
 		l.Errorw("InvalidateLikeRecordCache failed", logging.Field("err", err.Error()))
-	}
-	if err := invalidateActionCountCache(l.ctx, l.svcCtx, in.TargetId, int64(in.TargetType)); err != nil {
-		l.Errorw("invalidate action count cache failed", logging.Field("err", err.Error()))
 	}
 
 	return &pb.LikeResp{}, nil

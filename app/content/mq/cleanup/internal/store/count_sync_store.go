@@ -8,187 +8,177 @@ import (
 	"strconv"
 	"time"
 
-	"esx/pkg/logging"
-
 	"esx/pkg/event"
 	"esx/pkg/mqx"
 	"esx/pkg/outboxx"
-)
 
-// countSyncDedupTTLSeconds 与 REL-008 去重语义一致（90 天）。
-const countSyncDedupTTLSeconds = 7776000
+	sqlx "esx/pkg/sqlstore"
+)
 
 const (
 	postCacheKeyPrefix    = "cache:post:id:"
 	commentCacheKeyPrefix = "cache:comment:id:"
-	countSyncDedupPrefix  = "content:countsync:dedup:"
 )
 
-// CountSyncStore 将互动权威事务产生的行为事件同步到内容计数列（CORE-032）。
+// CountSyncStore 把 Interaction 权威计数快照投影到内容计数列（CORE-032、REL-008）。
+// 投影按 action_count 序号单调覆盖：重复投递与乱序到达都只会被更大的序号推进，无需事件去重。
 type CountSyncStore interface {
-	ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error
+	// ApplyBehaviorCount 返回快照是否推进了投影；旧序号、重复事件或目标不存在时为 false。
+	ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) (bool, error)
 }
 
-// RedisCmdable 是计数同步用到的 Redis 子集：去重占位与缓存失效。
+// RedisCmdable 是计数同步用到的 Redis 子集：投影推进后失效详情缓存。
 type RedisCmdable interface {
-	SetnxExCtx(ctx context.Context, key, value string, seconds int) (bool, error)
 	DelCtx(ctx context.Context, keys ...string) (int, error)
 }
 
-// DBExecutor 是计数同步用到的数据库执行接口。
-type DBExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+// CountSyncConn 是计数同步用到的数据库子集：评论计数单条更新，帖子计数与 counted 事件同事务。
+type CountSyncConn interface {
+	ExecCtx(ctx context.Context, query string, args ...any) (sql.Result, error)
+	TransactCtx(ctx context.Context, fn func(context.Context, sqlx.Session) error) error
 }
 
-// countSyncStore 用 MySQL 保存计数，用 Redis 做事件去重与缓存失效。
+// countSyncStore 用 MySQL 保存计数投影，用 Redis 失效详情缓存。
 type countSyncStore struct {
-	db    DBExecutor
+	conn  CountSyncConn
 	redis RedisCmdable
+	// now 生成 stats_seq 的时间下限，测试可替换。
+	now func() time.Time
 }
 
 // NewCountSyncStore 创建计数同步存储。
-func NewCountSyncStore(db DBExecutor, redisClient RedisCmdable) CountSyncStore {
-	return &countSyncStore{db: db, redis: redisClient}
+func NewCountSyncStore(conn CountSyncConn, redisClient RedisCmdable) CountSyncStore {
+	return &countSyncStore{conn: conn, redis: redisClient, now: time.Now}
 }
 
-// ApplyBehaviorCount 应用一条行为事件对计数的影响；非计数类行为直接忽略。
-func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) error {
+// ApplyBehaviorCount 用事件携带的计数快照覆盖目标计数；非计数类行为直接忽略。
+// 缺少快照、目标类型未知等重试也无法处理的情况返回永久错误，由消费者确认丢弃。
+func (s *countSyncStore) ApplyBehaviorCount(ctx context.Context, behavior event.BehaviorEvent) (bool, error) {
 	if err := behavior.Validate(); err != nil {
-		return fmt.Errorf("count-sync: invalid behavior event: %w", err)
+		return false, mqx.ErrPermanentEvent(fmt.Sprintf("count-sync: invalid behavior event: %v", err))
 	}
-	column, delta, ok := behaviorCountUpdate(behavior.Action)
-	if !ok {
-		return nil
+	if !isCountAction(behavior.Action) {
+		return false, nil
 	}
-	if behavior.TargetID <= 0 {
-		return fmt.Errorf("count-sync: target id is required")
-	}
-
-	// 去重：同事件重投/重放不得重复累计（REL-008）。
-	dedupKey := countSyncDedupPrefix + behavior.EventIDString()
-	first, err := s.redis.SetnxExCtx(ctx, dedupKey, "1", countSyncDedupTTLSeconds)
-	if err != nil {
-		return fmt.Errorf("count-sync: dedup reserve failed: %w", err)
-	}
-	if !first {
-		return nil
+	// 只信任权威事务给出的绝对计数；没有快照的旧格式事件无法安全地按序覆盖。
+	snapshot := behavior.CountSnapshot
+	if snapshot == nil {
+		return false, mqx.ErrPermanentEvent("count-sync: behavior event has no count snapshot")
 	}
 
-	if err := s.applyDelta(ctx, behavior.TargetType, behavior.TargetID, column, delta, behavior.EventID); err != nil {
-		// 占位在增量应用前设置；应用失败时移除占位，MQ 重投后能重新应用。
-		// 占位删除失败则保留占位：宁可漏一次也不对同一事件重复计数。
-		if _, delErr := s.redis.DelCtx(ctx, dedupKey); delErr != nil {
-			logging.WithContext(ctx).Errorw("count-sync: failed to release dedup key after apply failure",
-				logging.Field("dedup_key", dedupKey), logging.Field("err", delErr.Error()))
-		}
-		return fmt.Errorf("count-sync: apply delta: %w", err)
-	}
-	s.invalidateCaches(ctx, behavior.TargetType, behavior.TargetID)
-	return nil
-}
-
-// behaviorCountUpdate 把行为映射为要调整的计数列与增量。
-func behaviorCountUpdate(action string) (column string, delta int64, ok bool) {
-	switch action {
-	case event.BehaviorActionLike:
-		return "like_count", 1, true
-	case event.BehaviorActionUnlike:
-		return "like_count", -1, true
-	case event.BehaviorActionFavorite:
-		return "favorite_count", 1, true
-	case event.BehaviorActionUnfavorite:
-		return "favorite_count", -1, true
-	default:
-		return "", 0, false
-	}
-}
-
-// applyDelta 调整帖子或评论的计数列，减少时不低于 0；帖子点赞数走带事件的事务路径。
-func (s *countSyncStore) applyDelta(ctx context.Context, targetType string, targetID int64, column string, delta, eventID int64) error {
-	if column != "like_count" && column != "favorite_count" {
-		return fmt.Errorf("count-sync: unsupported column %q", column)
-	}
-	if targetType == "post" && column == "like_count" {
-		if db, ok := s.db.(*sql.DB); ok {
-			return applyPostLikeCount(ctx, db, targetID, delta, eventID)
-		}
-	}
-	switch targetType {
+	var applied bool
+	var err error
+	switch behavior.TargetType {
 	case "post":
-		if delta > 0 {
-			_, err := s.db.ExecContext(ctx,
-				"UPDATE `post` SET `"+column+"` = `"+column+"` + ? WHERE `id` = ?",
-				delta, targetID)
-			return err
-		}
-		_, err := s.db.ExecContext(ctx,
-			"UPDATE `post` SET `"+column+"` = GREATEST(`"+column+"` + ?, 0) WHERE `id` = ?",
-			delta, targetID)
-		return err
+		applied, err = s.applyPostSnapshot(ctx, behavior.TargetID, behavior.EventID, *snapshot)
 	case "comment":
-		if delta > 0 {
-			_, err := s.db.ExecContext(ctx,
-				"UPDATE `comment` SET `"+column+"` = `"+column+"` + ? WHERE `id` = ?",
-				delta, targetID)
-			return err
-		}
-		_, err := s.db.ExecContext(ctx,
-			"UPDATE `comment` SET `"+column+"` = GREATEST(`"+column+"` + ?, 0) WHERE `id` = ?",
-			delta, targetID)
-		return err
+		applied, err = s.applyCommentSnapshot(ctx, behavior.TargetID, *snapshot)
 	default:
-		return fmt.Errorf("count-sync: unsupported target type %q", targetType)
+		return false, mqx.ErrPermanentEvent(fmt.Sprintf("count-sync: unsupported target type %q", behavior.TargetType))
+	}
+	if err != nil {
+		return false, err
+	}
+	// 只有投影真正推进时详情缓存才可能过期。
+	if applied {
+		s.invalidateCaches(ctx, behavior.TargetType, behavior.TargetID)
+	}
+	return applied, nil
+}
+
+// isCountAction 判断行为是否影响点赞/收藏计数。
+func isCountAction(action string) bool {
+	switch action {
+	case event.BehaviorActionLike, event.BehaviorActionUnlike,
+		event.BehaviorActionFavorite, event.BehaviorActionUnfavorite:
+		return true
+	default:
+		return false
 	}
 }
 
-// applyPostLikeCount 在一个事务内调整帖子点赞数，并写入带最新计数的 counted 事件到 outbox，
-// 搜索等下游据此局部更新计数；帖子不存在时返回错误。
-func applyPostLikeCount(ctx context.Context, db *sql.DB, postID, delta, eventID int64) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
+// 帖子同时投影点赞数与收藏数：同一 action_count 行的快照总是两者一起有效。
+// 序号条件让旧快照与重复投递影响 0 行；stats_seq 取 GREATEST(stats_seq+1, 当前毫秒)，
+// 在行锁内单调递增，并与搜索中已有的时间戳序号兼容。
+const (
+	applyPostSnapshotSQL = "UPDATE `post` SET `like_count` = ?, `favorite_count` = ?, `interaction_seq` = ?, " +
+		"`stats_seq` = GREATEST(`stats_seq` + 1, ?) WHERE `id` = ? AND `interaction_seq` < ?"
+	postCountsSQL           = "SELECT `like_count`, `comment_count`, `stats_seq` FROM `post` WHERE `id` = ? LIMIT 1"
+	applyCommentSnapshotSQL = "UPDATE `comment` SET `like_count` = ?, `interaction_seq` = ? " +
+		"WHERE `id` = ? AND `interaction_seq` < ?"
+)
 
-	var result sql.Result
-	if delta > 0 {
-		result, err = tx.ExecContext(ctx,
-			"UPDATE `post` SET `like_count` = `like_count` + ? WHERE `id` = ?", delta, postID)
-	} else {
-		result, err = tx.ExecContext(ctx,
-			"UPDATE `post` SET `like_count` = GREATEST(`like_count` + ?, 0) WHERE `id` = ?", delta, postID)
-	}
+// postCounts 是写入 counted 事件所需的帖子计数与快照序号。
+type postCounts struct {
+	LikeCount    int64 `db:"like_count"`
+	CommentCount int64 `db:"comment_count"`
+	StatsSeq     int64 `db:"stats_seq"`
+}
+
+// applyPostSnapshot 在一个事务内覆盖帖子计数，并写入带最新计数的 counted 事件到 outbox，
+// 搜索等下游据此局部更新计数。旧序号或帖子不存在时不写任何内容。
+func (s *countSyncStore) applyPostSnapshot(
+	ctx context.Context,
+	postID, eventID int64,
+	snapshot event.InteractionCountSnapshot,
+) (bool, error) {
+	applied := false
+	err := s.conn.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		result, err := session.ExecCtx(ctx, applyPostSnapshotSQL,
+			snapshot.LikeCount, snapshot.FavoriteCount, snapshot.Seq, s.now().UnixMilli(), postID, snapshot.Seq)
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		// 0 行：已投影了相同或更新的快照（重复/乱序），或帖子不存在；两者都无需再处理。
+		if changed == 0 {
+			return nil
+		}
+		applied = true
+		// 读回本事务刚写的计数与 stats_seq，评论数取帖子当前值一并下发。
+		var counts postCounts
+		if err := session.QueryRowCtx(ctx, &counts, postCountsSQL, postID); err != nil {
+			return err
+		}
+		payload, err := json.Marshal(event.PostEvent{
+			EventID: eventID, EventTime: s.now().UnixMilli(), Type: event.PostEventCounted, PostID: postID,
+			LikeCount: counts.LikeCount, CommentCount: counts.CommentCount, StatsSeq: counts.StatsSeq,
+		})
+		if err != nil {
+			return err
+		}
+		// 收藏变化也要下发：它的快照可能顺带修正了此前被判为旧序号而跳过的点赞数。
+		// outbox ID 复用行为事件 ID：序号守卫已保证同一事件只会推进一次。
+		return (&outboxx.SQLStore{}).Enqueue(ctx, session, outboxx.Event{
+			ID: eventID, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault,
+			Key: strconv.FormatInt(postID, 10), Payload: payload,
+		})
+	})
 	if err != nil {
-		return err
+		return false, err
+	}
+	return applied, nil
+}
+
+// applyCommentSnapshot 覆盖评论点赞数；评论不支持收藏，快照中的收藏数忽略。
+func (s *countSyncStore) applyCommentSnapshot(
+	ctx context.Context,
+	commentID int64,
+	snapshot event.InteractionCountSnapshot,
+) (bool, error) {
+	result, err := s.conn.ExecCtx(ctx, applyCommentSnapshotSQL,
+		snapshot.LikeCount, snapshot.Seq, commentID, snapshot.Seq)
+	if err != nil {
+		return false, err
 	}
 	changed, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return false, err
 	}
-	if changed != 1 {
-		return fmt.Errorf("count-sync: post %d was not updated", postID)
-	}
-	var likeCount, commentCount int64
-	if err = tx.QueryRowContext(ctx,
-		"SELECT `like_count`, `comment_count` FROM `post` WHERE `id` = ?", postID,
-	).Scan(&likeCount, &commentCount); err != nil {
-		return err
-	}
-	now := time.Now().UnixMilli()
-	payload, err := json.Marshal(event.PostEvent{
-		EventID: eventID, EventTime: now, Type: event.PostEventCounted, PostID: postID,
-		LikeCount: likeCount, CommentCount: commentCount, StatsSeq: now,
-	})
-	if err != nil {
-		return err
-	}
-	if err = (&outboxx.SQLStore{}).EnqueueTx(ctx, tx, outboxx.Event{
-		ID: eventID, Topic: mqx.TopicPostUpdate, Tag: mqx.TagDefault,
-		Key: strconv.FormatInt(postID, 10), Payload: payload,
-	}); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return changed > 0, nil
 }
 
 // invalidateCaches 删除被调整对象的详情缓存，下次读取回源数据库。
@@ -197,8 +187,6 @@ func (s *countSyncStore) invalidateCaches(ctx context.Context, targetType string
 	if targetType == "comment" {
 		key = commentCacheKeyPrefix + strconv.FormatInt(targetID, 10)
 	}
-	if _, err := s.redis.DelCtx(ctx, key); err != nil {
-		// 缓存失效失败不改变已提交的计数（CORE-053）；只记录。
-		return
-	}
+	// 缓存失效失败不改变已提交的计数（CORE-053），缓存随 TTL 自然过期。
+	_, _ = s.redis.DelCtx(ctx, key)
 }

@@ -8,6 +8,7 @@ import (
 	"esx/app/content/mq/cleanup/internal/store"
 
 	redis "esx/pkg/redisstore"
+	sqlx "esx/pkg/sqlstore"
 )
 
 // ServiceContext 持有清理与计数同步存储；未配置数据库时不启用计数同步。
@@ -29,7 +30,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		if err != nil {
 			panic(fmt.Sprintf("content cleanup database connection failed: %v", err))
 		}
-		countSync = store.NewCountSyncStore(rawDB, rds)
+		// 计数同步需要事务（帖子计数与 counted 事件同事务），复用同一连接池。
+		countSync = store.NewCountSyncStore(sqlx.NewSqlConnFromDB(rawDB), rds)
 	}
 	return &ServiceContext{
 		Config:         c,
